@@ -1,0 +1,17 @@
+[package]
+name = "eh3d-phoenix-corpus"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Inventory of a private corpus of design files in redacted mode: only counts, kinds, versions and one fingerprint leave the machine"
+
+[dependencies]
+sha2.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

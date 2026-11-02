@@ -1,0 +1,22 @@
+[package]
+name = "eh3d-phoenix-cli"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Command line of EH3D-PHOENIX-PCB"
+
+[lib]
+name = "eh3d_phoenix_cli"
+path = "src/lib.rs"
+
+[[bin]]
+name = "phoenix"
+path = "src/main.rs"
+
+[dependencies]
+eh3d-phoenix-corpus = { path = "../eh3d-phoenix-corpus" }
+
+[dev-dependencies]
+tempfile.workspace = true

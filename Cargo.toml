@@ -1,0 +1,18 @@
+[workspace]
+# the engine crates of the design tool; the model, the readers and the rules join them once their contracts are accepted
+members = ["crates/eh3d-phoenix-corpus", "crates/eh3d-phoenix-cli"]
+resolver = "2"
+
+[workspace.package]
+version = "0.0.1"
+edition = "2021"
+rust-version = "1.88"
+license = "GPL-3.0-or-later"
+repository = "https://github.com/JuanenRac/EH3D-PHOENIX-PCB"
+
+[workspace.dependencies]
+sha2 = "0.10"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+tempfile = "3"
