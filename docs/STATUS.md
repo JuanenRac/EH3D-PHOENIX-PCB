@@ -2,11 +2,11 @@
 
 ## Current state
 
-EH3D-PHOENIX-PCB is planned. Version 0.0.1 holds only the base that every repository of the suite carries (manifest, README files in eight languages, changelog, CI, shared checks) and the written scope, requirements, dependencies, threat model and decisions. There is no code, nothing has been run on a machine, and no requirement is implemented.
+EH3D-PHOENIX-PCB is early code. Beside the base that every repository of the suite carries, it has a Rust workspace with a library and a command, `phoenix inventory`, that counts the design files of a private folder in redacted mode (counts by extension, kind and declared version, and one fingerprint). It has run only on folders made by its own tests, never on real design files. There is no design model, no reader or writer of design files, no editor and no rules.
 
 ## Capabilities
 
-The official state of each capability is in REQUIREMENTS.md: 30 requirements, all `planned`. This page never states a state that REQUIREMENTS.md does not.
+The official state of each capability is in REQUIREMENTS.md: 30 requirements: 1 `prototype` (PPCB-030) and 29 `planned`. This page never states a state that REQUIREMENTS.md does not.
 
 ## Open questions
 
@@ -24,4 +24,7 @@ The official state of each capability is in REQUIREMENTS.md: 30 requirements, al
 
 ## Known technical debt and omitted tests
 
-None yet. The only tests are those of the base (the repository check and the checks of the two README pictures).
+* 20 tests of the Rust code and 3 of the base; the Rust tests build their own folders and never touch a real project.
+* Not tested: a corpus of hundreds of thousands of files, folders synchronised by a cloud service, and links (they are skipped and counted; the test for it runs only on Unix-like systems).
+* The kind of a file is read from its first bytes only: a file that starts like XML but is damaged later is counted by its start.
+* `cargo deny` is not run yet.

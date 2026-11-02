@@ -1,6 +1,6 @@
 # EH3D-PHOENIX-PCB: rules for writing code
 
-Rules for anyone who writes code in this repository, human or tool. There is no code yet; these rules apply from the first line.
+Rules for anyone who writes code in this repository, human or tool. These rules apply to every line of code.
 
 ## Licence
 Software is GPL-3.0-or-later. Every source file starts with an SPDX licence header. Hardware designs, where they exist, use CERN-OHL-S-2.0, and a repository that mixes the two states the licence per file or folder.

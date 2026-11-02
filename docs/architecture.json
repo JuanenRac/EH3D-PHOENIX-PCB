@@ -1,8 +1,8 @@
 {
   "repo": "EH3D-PHOENIX-PCB",
   "ecosystem": "eh3d",
-  "tagline": "Planned: an EDA environment for schematics, PCB layout, verification and simulation.",
-  "description": "EH3D-PHOENIX-PCB is planned as an EDA environment with schematic capture, PCB layout, verification tools, circuit simulation and specialized modules for switch-mode power supplies and RF. Today it has the base of every repository of the suite and a written scope, requirements and dependencies; no code has been written and nothing has been run on a machine.",
+  "tagline": "An EDA environment for schematics, PCB layout, verification and simulation. Only the corpus inventory is written.",
+  "description": "EH3D-PHOENIX-PCB is planned as an EDA environment with schematic capture, PCB layout, verification tools, circuit simulation and specialized modules for switch-mode power supplies and RF. Today it holds a workspace with a redacted inventory of a private corpus of design files and a command line for it; it has only run on folders made by its own tests, and the design model, readers, rules and editors are not written.",
   "columns": [
     "WHO USES IT",
     "THIS REPOSITORY",
@@ -13,10 +13,10 @@
       "id": "reader",
       "column": 0,
       "level": "external",
-      "title": "A developer",
+      "title": "A person",
       "lines": [
-        "someone who is going to give",
-        "this repository its purpose"
+        "who counts a private corpus",
+        "of design files"
       ]
     },
     {
@@ -36,11 +36,15 @@
     {
       "id": "code",
       "column": 1,
-      "level": "config",
+      "level": "tested",
       "title": "The code",
       "lines": [
-        "planned: schematic, PCB,",
-        "verification, simulation"
+        "the redacted inventory of a",
+        "corpus and its command line"
+      ],
+      "code": [
+        "crates/eh3d-phoenix-corpus/src/inventory.rs",
+        "crates/eh3d-phoenix-cli/src/lib.rs"
       ]
     },
     {
@@ -70,13 +74,12 @@
     {
       "from": "reader",
       "to": "code",
-      "label": "writes",
-      "level": "config"
+      "label": "runs",
+      "level": "tested"
     }
   ],
   "legend": {
-    "tested": "covered by the checks of this repository",
-    "config": "planned, not built",
+    "tested": "covered by the checks and tests of this repository",
     "external": "a person or other repositories"
   },
   "footer": "Nothing here has been run on a machine."

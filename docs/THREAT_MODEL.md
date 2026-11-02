@@ -1,6 +1,6 @@
 # EH3D-PHOENIX-PCB: threat model
 
-Basic model for a project that has no code yet. Every row is a plan, not a result: no mitigation exists and no test has been run. The rows are the threats to design against from the first line of code.
+Basic model. A row is a result only where its state says so; the others are plans. The rows are the threats to design against from the first line of code.
 
 | Threat | Planned mitigation | Planned test | State | Residual risk |
 |---|---|---|---|---|
@@ -8,7 +8,7 @@ Basic model for a project that has no code yet. Every row is a plan, not a resul
 | Third-party 3D models and component libraries | bounded parsers, licence and provenance record | fuzzing | planned | not assessed: nothing is implemented |
 | Hostile or malformed files of other tools (EAGLE, KiCad, Gerber, STEP) | bounded readers, size and depth limits, diagnostics instead of panics | fuzzing, hostile samples, limit tests | planned | not assessed: nothing is implemented |
 | Server reachable from an untrusted network (when the optional server is used) | TLS, scoped tokens, rate limits, no direct Internet exposure until tested | negative tests: revoked token, no scope, replay | planned | not assessed: nothing is implemented |
-| Leak of private designs through diagnostics, logs or reports given to others | redacted mode and leak test | automated pattern search | planned | not assessed: nothing is implemented |
+| Leak of private designs through diagnostics, logs or reports given to others | redacted mode and leak test | automated pattern search | prototype: the inventory report holds only counts, kinds, declared versions and a fingerprint, with a leak test over names and contents; no other report exists yet | the fingerprint reveals whether two corpora are identical; a declared version string is shown only when it is made of digits and dots |
 | Tasks that exhaust resources | limits on CPU, memory, disk, time and concurrency | limit tests | planned | not assessed: nothing is implemented |
 | Corrupt or malicious project or input files (oversized entries, path tricks, deep nesting, resource exhaustion) | name rules, size and depth limits, bounded readers | fuzzing and hostile samples | planned | not assessed: nothing is implemented |
 | Temporary files, logs and reports that reveal private designs | no private data in outputs; redaction | automated pattern search | planned | not assessed: nothing is implemented |

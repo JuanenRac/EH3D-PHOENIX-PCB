@@ -6,20 +6,20 @@
 
 <p align="center"><a href="README.md">🇺🇸 English</a> | <a href="README_spa.md">🇪🇸 Español</a> | <a href="README_fra.md">🇫🇷 Français</a> | <a href="README_ita.md">🇮🇹 Italiano</a> | <a href="README_deu.md">🇩🇪 Deutsch</a> | <a href="README_zho.md">🇨🇳 中文</a> | 🇯🇵 <b>日本語</b> | <a href="README_por.md">🇵🇹 Português</a></p>
 
-### EH3D-PHOENIX-PCB：回路図入力、PCB レイアウト、検証ツール、回路シミュレーション、スイッチング電源と RF 向けの専用モジュールを備えた EDA 環境として計画中。コードはまだありません。
+### EH3D-PHOENIX-PCB：回路図入力、PCB レイアウト、検証ツール、回路シミュレーション、スイッチング電源と RF 向けの専用モジュールを備えた EDA 環境として計画中。現時点で書かれているのはコーパスの棚卸しだけです。
 
 <p align="center">
   <img src="https://img.shields.io/badge/License-GPL%203.0--or--later-blue.svg" alt="GPL 3.0 or later">
-  <img src="https://img.shields.io/badge/Stack-Markdown%20%2B%20Python-blue.svg" alt="Markdown and Python">
+  <img src="https://img.shields.io/badge/Stack-Rust%20%2B%20Python-blue.svg" alt="Rust and Python">
   <img src="https://img.shields.io/badge/Languages-8-00E5FF.svg" alt="Languages">
-  <img src="https://img.shields.io/badge/Tests-3-2EA043.svg" alt="Tests">
+  <img src="https://img.shields.io/badge/Tests-23-2EA043.svg" alt="Tests">
   <img src="https://img.shields.io/badge/Version-0.0.1-0f6cbd.svg" alt="Version">
   <img src="https://img.shields.io/badge/Maturity-scaffolding-FFB020.svg" alt="Maturity">
 </p>
 
 ---
 
-**正直さの確認 - 今日実際に動くもの：** 何も動いていません。EH3D-PHOENIX-PCB は計画段階にあるだけで、コードも独自のテストもなく、一度も実行されていません。あるのは、スイートの全リポジトリが持つ基本構成と、`docs/` に書かれた範囲、要件、依存関係、脅威モデル、決定事項だけです。
+**正直さの確認 - 今日実際に動くもの：** コマンドが 1 つだけの Rust ワークスペース `phoenix inventory` で、非公開フォルダー内の設計ファイルを、名前や値を一切表示せずに数えます（拡張子・種類・宣言されたバージョンごとのファイル数と、内容の指紋 1 つ）。独自のテストが 20 件あり、コンピューター上で通っています。実行したのは自身のテストが作ったフォルダーだけで、実際の設計ファイルでは一度もありません。設計モデル、設計ファイルの読み書き、エディター、ルールはなく、EDA の機能はすべて計画段階のままです。
 
 ---
 
@@ -31,8 +31,8 @@
 |---|---|
 | バージョン | `0.0.1` |
 | 成熟度 | 足場 |
-| テスト | 3 |
-| 技術スタック | Markdown, Python 3.10+ |
+| テスト | 23 |
+| 技術スタック | Rust, Python 3.10+ |
 | 実機での動作 | まだハードウェアでは実行していません |
 
 **移動先：** [概要](#-概要) · [アーキテクチャ](#-アーキテクチャ) · [クイックスタート](#-クイックスタート) · [テスト](#-テスト) · [リポジトリの構成](#-リポジトリの構成) · [関連プロジェクト](#-関連プロジェクト)
@@ -46,12 +46,14 @@
 | 領域 | 状態 | ここでの意味 |
 |---|---|---|
 | リポジトリ チェック | 🟡 | リポジトリ チェック、画像のチェック、基盤の 3 件のテストは CI で実行され、通っています。 |
-| テスト | 🟠 | テストがあるのは基盤だけ（3 件）です。リポジトリのコードには、書かれるにつれて専用のテストが加わります。 |
+| テスト | 🟡 | Rust コードの 20 件のテストと基盤の 3 件のテストは、コンピューター上で通っています。テスト自身が作ったフォルダーだけを使っており、実際の設計ファイルで実行したものはありません。 |
 | 実機 | 🟠 | どの機械やボードでも実行していません。ここにあるものは、ハードウェア上で試していません。 |
-| 計画中の機能 | 🔴 | 未着手：計画した機能はまだ何も書かれていません。 |
-| 要件 | 🔴 | すべての要件は計画のみ：実装も検証もされていません。 |
+| 計画中の機能 | 🟠 | 作成済み：コーパスの伏せ字モードによる棚卸し。未着手：設計モデル、読み書き、ルール、ビューアーとエディター、シミュレーション、その他の計画内容すべて。 |
+| 要件 | 🟠 | 30 件の要件のうち 1 件（伏せ字モード）は試作段階、29 件は計画のみで、検証済みのものはありません。 |
 
 ## 🎯 概要
+
+* **現在あるもの：** 設計ファイルの非公開コーパスを伏せ字モードで数えるライブラリ（件数、種類、宣言されたバージョン、指紋 1 つだけで、名前や値は決して出さない）を含むワークスペースと、コマンドライン `phoenix inventory`。ファイルの先頭バイトだけを見て、設計内容は読みません。
 
 * **計画中：** EH3D-PHOENIX-PCB は、回路図入力、PCB レイアウト、検証ツール、回路シミュレーション、スイッチング電源と RF 向けの専用モジュールを備えた EDA 環境となることを目指しています。デスクトップ向けのウィンドウ付き Rust プログラム（エンジン クレートのワークスペース、コマンドライン インターフェース、アプリケーション）として計画されており、単独で動作し、計算タスクにはサーバーを利用できます。これらはまだ何も存在しません。
 
@@ -69,9 +71,12 @@ EH3D-PHOENIX-PCB は EH3D Fabrication Suite の PHOENIX ファミリーの中心
 
 ## 🚀 クイックスタート
 
-Python 3.10 以降が必要で、インストールするものはありません。
+チェックには Python 3.10 以降、コードには Rust ツールチェーンが必要です。
 
 ```bash
+cargo build --release
+cargo test
+cargo run -p eh3d-phoenix-cli -- inventory <folder>
 python -I tools/ci_validate.py
 python -I tools/make_architecture.py --check
 python -I tools/make_structure.py --check --readmes
@@ -80,11 +85,11 @@ python -I -m unittest discover -s tools -p "test_*.py"
 
 ## 🧪 テスト
 
-基盤には 3 件のテストがあり（`python -I -m unittest discover -s tools -p "test_*.py"`）、通っています。CI はリポジトリ チェック、画像のチェック、これらのテストを実行します。
+コードには 20 件のテスト（`cargo test`）、基盤には 3 件のテスト（`python -I -m unittest discover -s tools -p "test_*.py"`）があり、すべてコンピューター上で通っています。CI は、リポジトリ チェック、画像のチェック、基盤のテストに加え、Rust コードについては書式チェック、警告をエラーとする clippy、そしてテストを Linux と Windows で実行します。
 
 ## 🏗️ ビルドとリリース
 
-バージョンは `VERSION` ファイルと `eh3d.project.json` にあり、各バージョンには [CHANGELOG.md](CHANGELOG.md) の項目があります。ビルドするものはなく、リリースは GitHub で公開されます。
+バージョンは `VERSION` ファイルと `eh3d.project.json` にあり、各バージョンには [CHANGELOG.md](CHANGELOG.md) の項目があります。`cargo build --release` でライブラリと `phoenix` プログラムをビルドし、リリースは GitHub で公開されます。
 
 ## 📂 リポジトリの構成
 
@@ -99,11 +104,14 @@ python -I -m unittest discover -s tools -p "test_*.py"
 EH3D-PHOENIX-PCB/
 ├── docs/
 │   ├── architecture.json structure.json         2 つの図のデータ
-│   ├── SCOPE.md REQUIREMENTS.md                 計画内容とその要件
+│   ├── SCOPE.md REQUIREMENTS.md                 範囲と要件
 │   ├── DEPENDENCIES.md THREAT_MODEL.md          他のリポジトリとの関係と脅威モデル
 │   ├── DECISIONS.md STATUS.md                   適用される決定事項と正直な状況
 │   ├── NOT_YET.md RULES.md                      後回しにしたアイデアとコードの記述規則
 │   └── ROADMAP.md                               基盤からオールインワン スイートまでのフェーズ マップ
+├── crates/                                      コーパスの棚卸しとコマンドライン
+├── config/                                      設定ファイル（調整する値はすべてここ）
+├── Cargo.toml Cargo.lock                        Rust ワークスペースと固定された依存関係
 ├── tools/                                       リポジトリ チェック、そのテスト、画像のツール
 ├── images/                                      バナーとアーキテクチャ・リポジトリ構成の図
 ├── .github/                                     CI とダッシュボードのワークフロー、Issue と PR のテンプレート
@@ -120,11 +128,13 @@ EH3D-PHOENIX-PCB/
 
 **現時点で分かっている制限**
 
-* 計画のみ：コードはなく、何も実行されておらず、実装済みの要件もありません。
+* 初期段階のコード：あるのはコーパスの棚卸しだけで、自身のテストが作ったフォルダーでしか動かしておらず、実際の設計ファイルでは一度も使っていません。
+* 設計モデル、設計ファイルの読み書き、エディター、ルールはなく、伏せ字モード以外の要件には着手していません。
+* ユーザーインターフェース、ジオメトリ ライブラリ、座標の範囲は未決定のままです（`docs/STATUS.md` を参照）。
 
 **次のステップ**
 
-* このプロジェクトが依存する契約が承認されるのを待ち（`docs/DEPENDENCIES.md` を参照）、その後テスト付きで最初のバージョンを書き、状態の行を実際の結果に置き換えます。
+* このプロジェクトが依存する契約が承認されるのを待ち（`docs/DEPENDENCIES.md` を参照）、その後モデルと最初の読み取り機能をテスト付きで書き、状態の行を実際の結果に置き換えます。
 
 ## 🌍 言語
 

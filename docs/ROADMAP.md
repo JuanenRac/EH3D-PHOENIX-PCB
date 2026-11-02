@@ -8,6 +8,8 @@ Repository with the shared base, a workspace of engine crates (model, EAGLE, KiC
 
 Gate: CI green; an inventory report of the real projects; the oracle run by hand once.
 
+Progress: the workspace, the CI and the corpus inventory tool exist (the inventory has been tried only on folders made by its own tests). The model crates, the interface and model decision records, the hand-made oracle run and the VALIDATION-LAB skeleton are not part of this repository's code yet.
+
 ## F1. Model and persistence
 
 Stable identities, integer nanometres, the electrical and board model, symbol-footprint-pad links, reversible operations with undo and redo, the project format with a folder per domain, migrations, opaque data and integrity validation, with diagnostics for every reader.

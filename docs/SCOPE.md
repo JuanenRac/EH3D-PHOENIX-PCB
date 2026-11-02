@@ -1,6 +1,6 @@
 # EH3D-PHOENIX-PCB: scope
 
-Status: **planned**. EH3D-PHOENIX-PCB has no code. This page says what it is meant to do, what it will not do, and where it sits. Nothing here has been built or run.
+Status: **early code**. EH3D-PHOENIX-PCB has a workspace with a redacted inventory of a private corpus of design files; everything else below is planned. This page says what it does, what it is meant to do, what it will not do, and where it sits. Nothing here has been used on real design files or on a machine.
 
 ## Purpose
 
@@ -8,7 +8,9 @@ EH3D-PHOENIX-PCB is planned as an EDA environment with schematic capture, PCB la
 
 EDA environment: schematic capture, PCB layout, verification tools, circuit simulation and specialized modules for switch-mode power supplies and RF. It is the main project of the PHOENIX family.
 
-## What it is planned to do
+## What it does today and what it is planned to do
+
+Written, and tried only on folders made by its own tests: the command `phoenix inventory`, which counts the design files of a folder by extension, kind and declared version and gives one fingerprint of the content, without showing any name or value. Everything else in this list is planned.
 
 * Schematic capture and multilayer PCB layout on one design model where every object has a stable identity and the model, not the window, is the source of truth.
 * Every change to a project is an explicit, validated and reversible operation, so undo and redo work across the schematic, the board and the other domains.

@@ -6,20 +6,20 @@
 
 <p align="center"><a href="README.md">🇺🇸 English</a> | <a href="README_spa.md">🇪🇸 Español</a> | <a href="README_fra.md">🇫🇷 Français</a> | 🇮🇹 <b>Italiano</b> | <a href="README_deu.md">🇩🇪 Deutsch</a> | <a href="README_zho.md">🇨🇳 中文</a> | <a href="README_jpn.md">🇯🇵 日本語</a> | <a href="README_por.md">🇵🇹 Português</a></p>
 
-### EH3D-PHOENIX-PCB: pianificato come un ambiente EDA con acquisizione di schemi, layout di PCB, strumenti di verifica, simulazione di circuiti e moduli specializzati per alimentatori a commutazione e RF. Ancora senza codice.
+### EH3D-PHOENIX-PCB: pianificato come un ambiente EDA con acquisizione di schemi, layout di PCB, strumenti di verifica, simulazione di circuiti e moduli specializzati per alimentatori a commutazione e RF. Finora è scritto solo l'inventario del corpus.
 
 <p align="center">
   <img src="https://img.shields.io/badge/License-GPL%203.0--or--later-blue.svg" alt="GPL 3.0 or later">
-  <img src="https://img.shields.io/badge/Stack-Markdown%20%2B%20Python-blue.svg" alt="Markdown and Python">
+  <img src="https://img.shields.io/badge/Stack-Rust%20%2B%20Python-blue.svg" alt="Rust and Python">
   <img src="https://img.shields.io/badge/Languages-8-00E5FF.svg" alt="Languages">
-  <img src="https://img.shields.io/badge/Tests-3-2EA043.svg" alt="Tests">
+  <img src="https://img.shields.io/badge/Tests-23-2EA043.svg" alt="Tests">
   <img src="https://img.shields.io/badge/Version-0.0.1-0f6cbd.svg" alt="Version">
   <img src="https://img.shields.io/badge/Maturity-scaffolding-FFB020.svg" alt="Maturity">
 </p>
 
 ---
 
-**Verifica di onestà - cosa funziona oggi:** niente. EH3D-PHOENIX-PCB è solo pianificato: non ha codice, né test propri, e non è mai stato eseguito. Esistono la base che ogni repository della suite porta con sé, più l'ambito, i requisiti, le dipendenze, il modello delle minacce e le decisioni scritti in `docs/`.
+**Verifica di onestà - cosa funziona oggi:** un workspace Rust con un solo comando, `phoenix inventory`, che conta i file di progetto di una cartella privata senza mostrare alcun nome né valore: file per estensione, tipo e versione dichiarata, e un'impronta del contenuto. Ha 20 test propri e passano su un computer. È stato eseguito solo su cartelle create dai suoi stessi test, mai su veri file di progetto. Non ci sono modello di progetto, lettori o scrittori di file di progetto, editor né regole: tutta la funzione EDA è ancora pianificata.
 
 ---
 
@@ -31,8 +31,8 @@
 |---|---|
 | Versione | `0.0.1` |
 | Maturità | Impalcatura |
-| Test | 3 |
-| Stack tecnologico | Markdown, Python 3.10+ |
+| Test | 23 |
+| Stack tecnologico | Rust, Python 3.10+ |
 | Su hardware reale | Non ancora eseguito su hardware |
 
 **Vai a:** [Panoramica](#-panoramica) · [Architettura](#-architettura) · [Avvio rapido](#-avvio-rapido) · [Test](#-test) · [Struttura del repository](#-struttura-del-repository) · [Progetti correlati](#-progetti-correlati)
@@ -46,12 +46,14 @@ Ogni riga è una parte di questo repository e il semaforo dice a che punto è og
 | Area | Stato | Cosa significa qui |
 |---|---|---|
 | Controlli del repository | 🟡 | Il controllo del repository, quello delle immagini e i 3 test della base girano nella CI e passano. |
-| Test | 🟠 | Solo la base ha test (3); il codice del repository avrà i propri man mano che viene scritto. |
+| Test | 🟡 | I 20 test del codice Rust e i 3 della base passano su un computer. Usano solo cartelle create dai test stessi; nessuno è stato eseguito su veri file di progetto. |
 | Hardware reale | 🟠 | Non eseguito su nessuna macchina né scheda: nulla qui è stato provato su hardware. |
-| Funzione pianificata | 🔴 | Non iniziata: nulla della funzione pianificata è stato scritto. |
-| Requisiti | 🔴 | Tutti i requisiti sono solo pianificati: nessuno è implementato o verificato. |
+| Funzione pianificata | 🟠 | Scritto: l'inventario oscurato di un corpus. Non iniziato: il modello di progetto, i lettori e scrittori, le regole, il visualizzatore e gli editor, la simulazione e tutto il resto del pianificato. |
+| Requisiti | 🟠 | 1 requisito su 30 (la modalità oscurata) è a livello di prototipo, 29 sono solo pianificati e nessuno è convalidato. |
 
 ## 🎯 Panoramica
+
+* **Cosa esiste:** un workspace con una libreria che conta un corpus privato di file di progetto in modalità oscurata (solo conteggi, tipi, versioni dichiarate e un'impronta, mai un nome né un valore) e una riga di comando, `phoenix inventory`. Guarda i primi byte di un file e non legge i progetti.
 
 * **Pianificato:** EH3D-PHOENIX-PCB vuole essere un ambiente EDA con acquisizione di schemi, layout di PCB, strumenti di verifica, simulazione di circuiti e moduli specializzati per alimentatori a commutazione e RF. È pensato come un programma in Rust con finestra per il desktop (un workspace di crate di motore, un'interfaccia a riga di comando e un'applicazione) che funziona da solo e può usare il server per attività di calcolo. Nulla di tutto questo esiste ancora.
 
@@ -69,9 +71,12 @@ Come si incastrano le parti di questo repository: chi lo usa, che cosa contiene 
 
 ## 🚀 Avvio rapido
 
-Serve Python 3.10 o successivo; non c'è nulla da installare.
+Servono Python 3.10 o successivo per i controlli e una toolchain Rust per il codice.
 
 ```bash
+cargo build --release
+cargo test
+cargo run -p eh3d-phoenix-cli -- inventory <folder>
 python -I tools/ci_validate.py
 python -I tools/make_architecture.py --check
 python -I tools/make_structure.py --check --readmes
@@ -80,11 +85,11 @@ python -I -m unittest discover -s tools -p "test_*.py"
 
 ## 🧪 Test
 
-La base ha 3 test (`python -I -m unittest discover -s tools -p "test_*.py"`), e passano. La CI esegue il controllo del repository, quello delle immagini e questi test.
+Il codice ha 20 test (`cargo test`) e la base ne ha 3 (`python -I -m unittest discover -s tools -p "test_*.py"`); tutti passano su un computer. La CI esegue il controllo del repository, quello delle immagini, i test della base e, per il codice Rust, il controllo del formato, clippy con gli avvisi trattati come errori e i test su Linux e Windows.
 
 ## 🏗️ Compilazione e rilascio
 
-La versione sta nel file `VERSION` e in `eh3d.project.json`, e ogni versione ha la sua voce in [CHANGELOG.md](CHANGELOG.md). Non c'è nulla da compilare; le versioni vengono pubblicate su GitHub.
+La versione sta nel file `VERSION` e in `eh3d.project.json`, e ogni versione ha la sua voce in [CHANGELOG.md](CHANGELOG.md). `cargo build --release` compila la libreria e il programma `phoenix`; le versioni vengono pubblicate su GitHub.
 
 ## 📂 Struttura del repository
 
@@ -99,11 +104,14 @@ La versione sta nel file `VERSION` e in `eh3d.project.json`, e ogni versione ha 
 EH3D-PHOENIX-PCB/
 ├── docs/
 │   ├── architecture.json structure.json         i dati delle due immagini
-│   ├── SCOPE.md REQUIREMENTS.md                 ciò che è pianificato e i suoi requisiti
+│   ├── SCOPE.md REQUIREMENTS.md                 l'ambito e i requisiti
 │   ├── DEPENDENCIES.md THREAT_MODEL.md          relazioni con altri repository e modello delle minacce
 │   ├── DECISIONS.md STATUS.md                   decisioni applicabili qui e stato onesto
 │   ├── NOT_YET.md RULES.md                      idee per dopo e regole per scrivere il codice
 │   └── ROADMAP.md                               la mappa delle fasi, dalle fondamenta alla suite tutto in uno
+├── crates/                                      l'inventario del corpus e la riga di comando
+├── config/                                      il file delle impostazioni (ogni valore regolato)
+├── Cargo.toml Cargo.lock                        il workspace Rust e le sue dipendenze bloccate
 ├── tools/                                       il controllo del repository, i suoi test e gli strumenti delle immagini
 ├── images/                                      banner e le immagini di Architettura e Struttura del repository
 ├── .github/                                     workflow di CI e della dashboard, modelli di issue e pull request
@@ -120,11 +128,13 @@ EH3D-PHOENIX-PCB/
 
 **Limiti noti oggi**
 
-* Solo pianificato: non c'è codice, non è stato eseguito nulla e nessun requisito è implementato.
+* Codice iniziale: esiste solo l'inventario del corpus ed è stato eseguito solo su cartelle create dai suoi stessi test, mai su veri file di progetto.
+* Non ci sono modello di progetto, lettori o scrittori di file di progetto, editor né regole; nessun requisito oltre alla modalità oscurata è stato iniziato.
+* L'interfaccia utente, la libreria di geometria e l'intervallo delle coordinate restano decisioni aperte (vedi `docs/STATUS.md`).
 
 **Prossimi passi**
 
-* Attendere che i contratti da cui dipende questo progetto siano accettati (vedi `docs/DEPENDENCIES.md`), poi scrivere la prima versione con test e sostituire le righe di stato con risultati reali.
+* Attendere che i contratti da cui dipende questo progetto siano accettati (vedi `docs/DEPENDENCIES.md`), poi scrivere il modello e i primi lettori con test e sostituire le righe di stato con risultati reali.
 
 ## 🌍 Lingue
 

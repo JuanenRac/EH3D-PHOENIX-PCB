@@ -6,20 +6,20 @@
 
 <p align="center"><a href="README.md">🇺🇸 English</a> | 🇪🇸 <b>Español</b> | <a href="README_fra.md">🇫🇷 Français</a> | <a href="README_ita.md">🇮🇹 Italiano</a> | <a href="README_deu.md">🇩🇪 Deutsch</a> | <a href="README_zho.md">🇨🇳 中文</a> | <a href="README_jpn.md">🇯🇵 日本語</a> | <a href="README_por.md">🇵🇹 Português</a></p>
 
-### EH3D-PHOENIX-PCB: planificado como un entorno EDA con captura de esquemas, diseño de PCB, herramientas de verificación, simulación de circuitos y módulos especializados para fuentes conmutadas y RF. Todavía sin código.
+### EH3D-PHOENIX-PCB: planificado como un entorno EDA con captura de esquemas, diseño de PCB, herramientas de verificación, simulación de circuitos y módulos especializados para fuentes conmutadas y RF. Hasta ahora solo está escrito el inventario del corpus.
 
 <p align="center">
   <img src="https://img.shields.io/badge/License-GPL%203.0--or--later-blue.svg" alt="GPL 3.0 or later">
-  <img src="https://img.shields.io/badge/Stack-Markdown%20%2B%20Python-blue.svg" alt="Markdown and Python">
+  <img src="https://img.shields.io/badge/Stack-Rust%20%2B%20Python-blue.svg" alt="Rust and Python">
   <img src="https://img.shields.io/badge/Languages-8-00E5FF.svg" alt="Languages">
-  <img src="https://img.shields.io/badge/Tests-3-2EA043.svg" alt="Tests">
+  <img src="https://img.shields.io/badge/Tests-23-2EA043.svg" alt="Tests">
   <img src="https://img.shields.io/badge/Version-0.0.1-0f6cbd.svg" alt="Version">
   <img src="https://img.shields.io/badge/Maturity-scaffolding-FFB020.svg" alt="Maturity">
 </p>
 
 ---
 
-**Comprobación de honestidad - lo que se ejecuta hoy:** nada. EH3D-PHOENIX-PCB solo está planificado: no tiene código, ni pruebas propias, y nunca se ha ejecutado. Lo que existe es la base que lleva todo repositorio de la suite, más el alcance, los requisitos, las dependencias, el modelo de amenazas y las decisiones escritos en `docs/`.
+**Comprobación de honestidad - lo que se ejecuta hoy:** un espacio de trabajo de Rust con un solo comando, `phoenix inventory`, que cuenta los archivos de diseño de una carpeta privada sin mostrar ningún nombre ni valor: archivos por extensión, tipo y versión declarada, y una huella del contenido. Tiene 20 pruebas propias y pasan en un ordenador. Solo se ha ejecutado con carpetas creadas por sus propias pruebas, nunca con archivos de diseño reales. No hay modelo de diseño, ni lector ni escritor de archivos de diseño, ni editor, ni reglas: toda la función de EDA sigue planificada.
 
 ---
 
@@ -31,8 +31,8 @@
 |---|---|
 | Versión | `0.0.1` |
 | Madurez | Andamiaje |
-| Pruebas | 3 |
-| Pila tecnológica | Markdown, Python 3.10+ |
+| Pruebas | 23 |
+| Pila tecnológica | Rust, Python 3.10+ |
 | En hardware real | Aún no se ha ejecutado en hardware |
 
 **Ir a:** [Resumen](#-resumen) · [Arquitectura](#-arquitectura) · [Inicio rápido](#-inicio-rápido) · [Pruebas](#-pruebas) · [Estructura del repositorio](#-estructura-del-repositorio) · [Proyectos relacionados](#-proyectos-relacionados)
@@ -46,12 +46,14 @@ Cada línea es una parte de este repositorio y la luz dice hasta dónde llega ho
 | Área | Estado | Qué significa aquí |
 |---|---|---|
 | Comprobaciones del repositorio | 🟡 | La comprobación del repositorio, la de las imágenes y las 3 pruebas de la base se ejecutan en el CI y pasan. |
-| Pruebas | 🟠 | Solo la base tiene pruebas (3); el código del repositorio tendrá las suyas a medida que se escriba. |
+| Pruebas | 🟡 | Las 20 pruebas del código Rust y las 3 de la base pasan en un ordenador. Usan solo carpetas creadas por las propias pruebas; ninguna se ha ejecutado con archivos de diseño reales. |
 | Hardware real | 🟠 | No se ha ejecutado en ninguna máquina ni placa: nada de aquí se ha probado en hardware. |
-| Función planificada | 🔴 | Sin empezar: nada de la función planificada está escrito. |
-| Requisitos | 🔴 | Todos los requisitos están solo planificados: ninguno está implementado ni verificado. |
+| Función planificada | 🟠 | Escrito: el inventario redactado de un corpus. Sin empezar: el modelo de diseño, los lectores y escritores, las reglas, el visor y los editores, la simulación y todo lo demás planificado. |
+| Requisitos | 🟠 | 1 de 30 requisitos (el modo redactado) está en prototipo, 29 solo están planificados y ninguno está validado. |
 
 ## 🎯 Resumen
+
+* **Lo que existe:** un espacio de trabajo con una biblioteca que cuenta un corpus privado de archivos de diseño en modo redactado (solo recuentos, tipos, versiones declaradas y una huella, nunca un nombre ni un valor) y una línea de comandos, `phoenix inventory`. Mira los primeros bytes de un archivo y no lee diseños.
 
 * **Planificado:** EH3D-PHOENIX-PCB pretende ser un entorno EDA con captura de esquemas, diseño de PCB, herramientas de verificación, simulación de circuitos y módulos especializados para fuentes conmutadas y RF. Se planea como un programa en Rust con ventana para el escritorio (un espacio de trabajo de crates de motor, una interfaz de línea de comandos y una aplicación) que funciona solo y puede usar el servidor para tareas de cálculo. Nada de esto existe todavía.
 
@@ -69,9 +71,12 @@ Cómo encajan las partes de este repositorio: quién lo usa, qué contiene y de 
 
 ## 🚀 Inicio rápido
 
-Necesitas Python 3.10 o posterior; no hay nada que instalar.
+Necesitas Python 3.10 o superior para las comprobaciones y una cadena de herramientas de Rust para el código.
 
 ```bash
+cargo build --release
+cargo test
+cargo run -p eh3d-phoenix-cli -- inventory <folder>
 python -I tools/ci_validate.py
 python -I tools/make_architecture.py --check
 python -I tools/make_structure.py --check --readmes
@@ -80,11 +85,11 @@ python -I -m unittest discover -s tools -p "test_*.py"
 
 ## 🧪 Pruebas
 
-La base tiene 3 pruebas (`python -I -m unittest discover -s tools -p "test_*.py"`), y pasan. El CI ejecuta la comprobación del repositorio, la de las imágenes y esas pruebas.
+El código tiene 20 pruebas (`cargo test`) y la base tiene 3 (`python -I -m unittest discover -s tools -p "test_*.py"`); todas pasan en un ordenador. El CI ejecuta la comprobación del repositorio, la de las imágenes, las pruebas de la base y, para el código Rust, la comprobación de formato, clippy con las advertencias como errores y las pruebas en Linux y Windows.
 
 ## 🏗️ Compilación y publicación
 
-La versión vive en el fichero `VERSION` y en `eh3d.project.json`, y cada versión tiene su entrada en [CHANGELOG.md](CHANGELOG.md). No hay nada que compilar; las versiones se publican en GitHub.
+La versión vive en el fichero `VERSION` y en `eh3d.project.json`, y cada versión tiene su entrada en [CHANGELOG.md](CHANGELOG.md). `cargo build --release` compila la biblioteca y el programa `phoenix`; las versiones se publican en GitHub.
 
 ## 📂 Estructura del repositorio
 
@@ -99,11 +104,14 @@ La versión vive en el fichero `VERSION` y en `eh3d.project.json`, y cada versi�
 EH3D-PHOENIX-PCB/
 ├── docs/
 │   ├── architecture.json structure.json         los datos de las dos imágenes
-│   ├── SCOPE.md REQUIREMENTS.md                 lo planificado y sus requisitos
+│   ├── SCOPE.md REQUIREMENTS.md                 su alcance y sus requisitos
 │   ├── DEPENDENCIES.md THREAT_MODEL.md          relaciones con otros repositorios y modelo de amenazas
 │   ├── DECISIONS.md STATUS.md                   decisiones que se aplican aquí y estado honesto
 │   ├── NOT_YET.md RULES.md                      ideas para más adelante y reglas para escribir código
 │   └── ROADMAP.md                               el mapa de fases, de los cimientos a la suite todo en uno
+├── crates/                                      el inventario del corpus y la línea de comandos
+├── config/                                      el fichero de ajustes (todo valor afinado)
+├── Cargo.toml Cargo.lock                        el espacio de trabajo de Rust y sus dependencias fijadas
 ├── tools/                                       la comprobación del repositorio, sus pruebas y las herramientas de las imágenes
 ├── images/                                      banner y las imágenes de Arquitectura y Estructura del repositorio
 ├── .github/                                     flujos de CI y del panel, plantillas de issues y pull requests
@@ -120,11 +128,13 @@ EH3D-PHOENIX-PCB/
 
 **Límites conocidos hoy**
 
-* Solo planificado: no hay código, no se ha ejecutado nada y ningún requisito está implementado.
+* Código inicial: solo existe el inventario del corpus, y solo se ha ejecutado con carpetas creadas por sus propias pruebas, nunca con archivos de diseño reales.
+* No hay modelo de diseño, ni lector ni escritor de archivos de diseño, ni editor, ni reglas; ningún requisito aparte del modo redactado se ha empezado.
+* La interfaz de usuario, la biblioteca de geometría y el rango de coordenadas siguen siendo decisiones abiertas (véase `docs/STATUS.md`).
 
 **Siguiente**
 
-* Esperar a que se acepten los contratos de los que depende este proyecto (véase `docs/DEPENDENCIES.md`), escribir después la primera versión con pruebas y sustituir las filas de estado por resultados reales.
+* Esperar a que se acepten los contratos de los que depende este proyecto (véase `docs/DEPENDENCIES.md`), escribir después el modelo y los primeros lectores con pruebas y sustituir las filas de estado por resultados reales.
 
 ## 🌍 Idiomas
 

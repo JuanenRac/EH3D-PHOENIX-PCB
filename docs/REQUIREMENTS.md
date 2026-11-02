@@ -1,6 +1,6 @@
 # EH3D-PHOENIX-PCB: requirements
 
-This register is the single source of the state of each capability. Status values: planned, prototype, implemented, validated. Every requirement is `planned` today: nothing is implemented or verified. High test coverage is not proof of geometric or electrical correctness, so each requirement says how it will be checked and what result is expected.
+This register is the single source of the state of each capability. Status values: planned, prototype, implemented, validated. One requirement (PPCB-030) is `prototype` and the other 29 are `planned`: none is validated and nothing has been run on real design files. High test coverage is not proof of geometric or electrical correctness, so each requirement says how it will be checked and what result is expected.
 
 | Requirement | Description | Status | How it will be checked | Expected result | Known limits |
 |---|---|---|---|---|---|
@@ -33,6 +33,6 @@ This register is the single source of the state of each capability. Status value
 | PPCB-027 | Computing tasks on the EH3D server. | planned | automatic: equivalence tests between backends | Same task gives the same result in process, as an external process and on the server. | Not started: no limits known yet. |
 | PPCB-028 | User-facing text in eight languages from one source with stable keys. | planned | automatic: key checks in CI | No missing or extra keys. | Not started: no limits known yet. |
 | PPCB-029 | Stable diagnostic codes from a registry kept in this repository. | planned | automatic: a test per code | A code is never reused or renumbered. | Not started: no limits known yet. |
-| PPCB-030 | Redacted mode for runs over a private corpus. | planned | automatic: leak test | Only codes, counts, levels and hashes leave the machine. | Not started: no limits known yet. |
+| PPCB-030 | Redacted mode for runs over a private corpus. | prototype | automatic: leak test | Only codes, counts, levels and hashes leave the machine. | Only the inventory command has it: its report holds counts, kinds, declared versions and one fingerprint, with a leak test over file names, folder names and file contents. The other runs it is meant for do not exist yet; tried only on folders made by the tests. |
 
 Rules: a claim of correctness names the corpus, the tolerance and the tool version it holds for. A phase is complete when the measured rate does not drop, every failure is classified and fixed or documented, and the measured figure is reported.

@@ -6,20 +6,20 @@
 
 <p align="center"><a href="README.md">🇺🇸 English</a> | <a href="README_spa.md">🇪🇸 Español</a> | <a href="README_fra.md">🇫🇷 Français</a> | <a href="README_ita.md">🇮🇹 Italiano</a> | 🇩🇪 <b>Deutsch</b> | <a href="README_zho.md">🇨🇳 中文</a> | <a href="README_jpn.md">🇯🇵 日本語</a> | <a href="README_por.md">🇵🇹 Português</a></p>
 
-### EH3D-PHOENIX-PCB: geplant als eine EDA-Umgebung mit Schaltplaneingabe, Leiterplattenlayout, Verifikationswerkzeugen, Schaltungssimulation und spezialisierten Modulen für Schaltnetzteile und HF. Noch kein Code.
+### EH3D-PHOENIX-PCB: geplant als eine EDA-Umgebung mit Schaltplaneingabe, Leiterplattenlayout, Verifikationswerkzeugen, Schaltungssimulation und spezialisierten Modulen für Schaltnetzteile und HF. Bisher ist nur das Korpus-Inventar geschrieben.
 
 <p align="center">
   <img src="https://img.shields.io/badge/License-GPL%203.0--or--later-blue.svg" alt="GPL 3.0 or later">
-  <img src="https://img.shields.io/badge/Stack-Markdown%20%2B%20Python-blue.svg" alt="Markdown and Python">
+  <img src="https://img.shields.io/badge/Stack-Rust%20%2B%20Python-blue.svg" alt="Rust and Python">
   <img src="https://img.shields.io/badge/Languages-8-00E5FF.svg" alt="Languages">
-  <img src="https://img.shields.io/badge/Tests-3-2EA043.svg" alt="Tests">
+  <img src="https://img.shields.io/badge/Tests-23-2EA043.svg" alt="Tests">
   <img src="https://img.shields.io/badge/Version-0.0.1-0f6cbd.svg" alt="Version">
   <img src="https://img.shields.io/badge/Maturity-scaffolding-FFB020.svg" alt="Maturity">
 </p>
 
 ---
 
-**Ehrlichkeitscheck - was heute tatsächlich läuft:** nichts. EH3D-PHOENIX-PCB ist nur geplant: Es gibt keinen Code, keine eigenen Tests, und es ist nie gelaufen. Vorhanden sind die Basis, die jedes Repository der Suite trägt, sowie Umfang, Anforderungen, Abhängigkeiten, Bedrohungsmodell und Entscheidungen in `docs/`.
+**Ehrlichkeitscheck - was heute tatsächlich läuft:** ein Rust-Workspace mit einem einzigen Befehl, `phoenix inventory`, der die Entwurfsdateien eines privaten Ordners zählt, ohne einen Namen oder Wert zu zeigen: Dateien nach Endung, Art und angegebener Version sowie ein Fingerabdruck des Inhalts. Er hat 20 eigene Tests, die auf einem Rechner bestehen. Er lief nur auf Ordnern, die seine eigenen Tests erzeugen, nie auf echten Entwurfsdateien. Es gibt kein Entwurfsmodell, keinen Leser oder Schreiber von Entwurfsdateien, keinen Editor und keine Regeln: Die gesamte EDA-Funktion ist weiter geplant.
 
 ---
 
@@ -31,8 +31,8 @@
 |---|---|
 | Version | `0.0.1` |
 | Reifegrad | Gerüst |
-| Tests | 3 |
-| Technologie-Stack | Markdown, Python 3.10+ |
+| Tests | 23 |
+| Technologie-Stack | Rust, Python 3.10+ |
 | Auf echter Hardware | Noch nicht auf Hardware ausgeführt |
 
 **Springe zu:** [Überblick](#-überblick) · [Architektur](#-architektur) · [Schnellstart](#-schnellstart) · [Tests](#-tests) · [Struktur des Repositorys](#-struktur-des-repositorys) · [Verwandte Projekte](#-verwandte-projekte)
@@ -46,12 +46,14 @@ Jede Zeile ist ein Teil dieses Repositorys, und die Ampel sagt, wie weit er heut
 | Bereich | Stand | Was das hier bedeutet |
 |---|---|---|
 | Repository-Prüfungen | 🟡 | Die Repository-Prüfung, die Prüfung der Bilder und die 3 Tests der Basis laufen in der CI und bestehen. |
-| Tests | 🟠 | Nur die Basis hat Tests (3); der Code des Repositorys bekommt seine eigenen, sobald er geschrieben wird. |
+| Tests | 🟡 | Die 20 Tests des Rust-Codes und die 3 der Basis bestehen auf einem Rechner. Sie verwenden nur Ordner, die die Tests selbst erzeugen; keiner lief auf echten Entwurfsdateien. |
 | Echte Hardware | 🟠 | Auf keiner Maschine und keiner Platine ausgeführt: nichts hier wurde auf Hardware ausprobiert. |
-| Geplante Funktion | 🔴 | Nicht begonnen: Von der geplanten Funktion ist nichts geschrieben. |
-| Anforderungen | 🔴 | Alle Anforderungen sind nur geplant: Keine ist umgesetzt oder geprüft. |
+| Geplante Funktion | 🟠 | Geschrieben: das geschwärzte Inventar eines Korpus. Nicht begonnen: das Entwurfsmodell, Leser und Schreiber, die Regeln, Betrachter und Editoren, die Simulation und alles übrige Geplante. |
+| Anforderungen | 🟠 | 1 von 30 Anforderungen (der geschwärzte Modus) ist im Prototypstand, 29 sind nur geplant und keine ist validiert. |
 
 ## 🎯 Überblick
+
+* **Was es gibt:** ein Workspace mit einer Bibliothek, die einen privaten Korpus von Entwurfsdateien im geschwärzten Modus zählt (nur Zahlen, Arten, angegebene Versionen und ein Fingerabdruck, nie ein Name oder Wert), und eine Kommandozeile, `phoenix inventory`. Sie sieht sich die ersten Bytes einer Datei an und liest keine Entwürfe.
 
 * **Geplant:** EH3D-PHOENIX-PCB soll eine EDA-Umgebung mit Schaltplaneingabe, Leiterplattenlayout, Verifikationswerkzeugen, Schaltungssimulation und spezialisierten Modulen für Schaltnetzteile und HF werden. Vorgesehen ist ein Rust-Programm mit Fenster für den Desktop (ein Workspace aus Engine-Crates, eine Kommandozeile und eine Anwendung), das allein läuft und den Server für Rechenaufgaben nutzen kann. Nichts davon existiert bisher.
 
@@ -69,9 +71,12 @@ Wie die Teile dieses Repositorys zusammenpassen: wer es nutzt, was es enthält u
 
 ## 🚀 Schnellstart
 
-Du brauchst Python 3.10 oder neuer; es gibt nichts zu installieren.
+Für die Prüfungen brauchst du Python 3.10 oder neuer, für den Code eine Rust-Toolchain.
 
 ```bash
+cargo build --release
+cargo test
+cargo run -p eh3d-phoenix-cli -- inventory <folder>
 python -I tools/ci_validate.py
 python -I tools/make_architecture.py --check
 python -I tools/make_structure.py --check --readmes
@@ -80,11 +85,11 @@ python -I -m unittest discover -s tools -p "test_*.py"
 
 ## 🧪 Tests
 
-Die Basis hat 3 Tests (`python -I -m unittest discover -s tools -p "test_*.py"`), und sie bestehen. Die CI führt die Repository-Prüfung, die Prüfung der Bilder und diese Tests aus.
+Der Code hat 20 Tests (`cargo test`), die Basis hat 3 (`python -I -m unittest discover -s tools -p "test_*.py"`); alle bestehen auf einem Rechner. Die CI führt die Repository-Prüfung, die Prüfung der Bilder, die Tests der Basis und für den Rust-Code die Formatprüfung, clippy mit Warnungen als Fehlern und die Tests unter Linux und Windows aus.
 
 ## 🏗️ Build und Veröffentlichung
 
-Die Version steht in der Datei `VERSION` und in `eh3d.project.json`, und jede Version hat ihren Eintrag in [CHANGELOG.md](CHANGELOG.md). Es gibt nichts zu bauen; Releases werden auf GitHub veröffentlicht.
+Die Version steht in der Datei `VERSION` und in `eh3d.project.json`, und jede Version hat ihren Eintrag in [CHANGELOG.md](CHANGELOG.md). `cargo build --release` baut die Bibliothek und das Programm `phoenix`; Releases werden auf GitHub veröffentlicht.
 
 ## 📂 Struktur des Repositorys
 
@@ -99,11 +104,14 @@ Die Version steht in der Datei `VERSION` und in `eh3d.project.json`, und jede Ve
 EH3D-PHOENIX-PCB/
 ├── docs/
 │   ├── architecture.json structure.json         die Daten der beiden Bilder
-│   ├── SCOPE.md REQUIREMENTS.md                 das Geplante und seine Anforderungen
+│   ├── SCOPE.md REQUIREMENTS.md                 Umfang und Anforderungen
 │   ├── DEPENDENCIES.md THREAT_MODEL.md          Beziehungen zu anderen Repositories und Bedrohungsmodell
 │   ├── DECISIONS.md STATUS.md                   hier geltende Entscheidungen und ehrlicher Status
 │   ├── NOT_YET.md RULES.md                      Ideen für später und Regeln zum Schreiben von Code
 │   └── ROADMAP.md                               die Phasenkarte, von den Grundlagen bis zur All-in-one-Suite
+├── crates/                                      das Korpus-Inventar und die Kommandozeile
+├── config/                                      die Einstellungsdatei (jeder abgestimmte Wert)
+├── Cargo.toml Cargo.lock                        der Rust-Workspace und seine festgelegten Abhängigkeiten
 ├── tools/                                       die Repository-Prüfung, ihre Tests und die Bild-Werkzeuge
 ├── images/                                      Banner und die Bilder von Architektur und Repository-Struktur
 ├── .github/                                     CI- und Dashboard-Workflows, Vorlagen für Issues und Pull Requests
@@ -120,11 +128,13 @@ EH3D-PHOENIX-PCB/
 
 **Bekannte Grenzen heute**
 
-* Nur geplant: Es gibt keinen Code, nichts wurde ausgeführt und keine Anforderung ist umgesetzt.
+* Früher Code: Es gibt nur das Korpus-Inventar, und es lief nur auf Ordnern seiner eigenen Tests, nie auf echten Entwurfsdateien.
+* Es gibt kein Entwurfsmodell, keinen Leser oder Schreiber von Entwurfsdateien, keinen Editor und keine Regeln; außer dem geschwärzten Modus ist keine Anforderung begonnen.
+* Benutzeroberfläche, Geometriebibliothek und Koordinatenbereich sind weiter offene Entscheidungen (siehe `docs/STATUS.md`).
 
 **Als Nächstes**
 
-* Warten, bis die Verträge, von denen dieses Projekt abhängt, akzeptiert sind (siehe `docs/DEPENDENCIES.md`), dann die erste Version mit Tests schreiben und die Statuszeilen durch echte Ergebnisse ersetzen.
+* Warten, bis die Verträge, von denen dieses Projekt abhängt, akzeptiert sind (siehe `docs/DEPENDENCIES.md`), dann das Modell und die ersten Leser mit Tests schreiben und die Statuszeilen durch echte Ergebnisse ersetzen.
 
 ## 🌍 Sprachen
 
