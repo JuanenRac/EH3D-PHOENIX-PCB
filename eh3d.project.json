@@ -1,0 +1,23 @@
+{
+  "schema_version": "1.1",
+  "ecosystem": "EH3D",
+  "name": "EH3D-FENIX-PCB",
+  "version": "0.0.1",
+  "role": "tool",
+  "stack": "rust",
+  "technologies": [
+    "Rust (planned)"
+  ],
+  "deployment_target": "user-pc",
+  "maturity": "scaffolding",
+  "evidence": "none",
+  "hardware_bound": false,
+  "family": "FENIX",
+  "parent": null,
+  "build": "none yet: the repository holds only a README",
+  "notes": "Scaffolding v0.0.1: PLANNED, no code yet. The repository holds only a README with its name. It is planned as the electronic design tool of the FENIX family of the EH3D Fabrication Suite (schematic, board, verification and simulation); nothing of that has been written or run, and the manifest only describes the repository as it is today.",
+  "native_version": {
+    "file": "VERSION",
+    "pattern": "^(\\d+\\.\\d+\\.\\d+)"
+  }
+}
