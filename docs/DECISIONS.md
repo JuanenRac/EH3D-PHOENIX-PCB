@@ -32,6 +32,12 @@ State: **accepted**.
 
 New JSON files use the JSON Canonicalization Scheme (RFC 8785) plus UTF-8 without BOM and a final line feed. Design values are integers with the unit in the name; exchange values in millimetres are quantised to six decimals before writing; physical results with uncertainty are compared numerically, not byte for byte. The existing `.eh3dproj` 1.0.0 behaviour does not change.
 
+## One shared project container
+
+State: **accepted** for the extraction; **proposed** for the rest.
+
+The ZIP container with an integrity record, bounded reading and deterministic, atomic writing is shared with the `.eh3dproj` package and lives in EH3D-COMMON; the `.eh3dproj` 1.0.0 behaviour does not change. The shared crate already holds the integrity record, a content hash that ignores audit entries, the entry-name rule of 1.0.0 and canonical JSON. Still open: the stricter name and ZIP policy for new presets, the numbered container diagnostics, and the export version and package identity of a design (what a package `id` means, and whether an export writes 1.0.0 or 1.1.0 by default). This project writes no container yet.
+
 ## Geometry kernel for mechanical work
 
 State: **proposed**.
