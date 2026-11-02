@@ -133,14 +133,14 @@
         {
           "name": "crates/",
           "desc": {
-            "en": "the corpus inventory and the command line",
-            "es": "el inventario del corpus y la línea de comandos",
-            "de": "das Korpus-Inventar und die Kommandozeile",
-            "fr": "l'inventaire du corpus et la ligne de commande",
-            "it": "l'inventario del corpus e la riga di comando",
-            "ja": "コーパスの棚卸しとコマンドライン",
-            "zh": "语料库清点工具和命令行",
-            "pt": "o inventário do corpus e a linha de comandos"
+            "en": "the corpus inventory, the model foundations and the command line",
+            "es": "el inventario del corpus, los cimientos del modelo y la línea de comandos",
+            "de": "das Korpus-Inventar, die Modellgrundlagen und die Kommandozeile",
+            "fr": "l'inventaire du corpus, les fondations du modèle et la ligne de commande",
+            "it": "l'inventario del corpus, le fondamenta del modello e la riga di comando",
+            "ja": "コーパスの棚卸し、モデルの土台、コマンドライン",
+            "zh": "语料库清点工具、模型基础部分和命令行",
+            "pt": "o inventário do corpus, os alicerces do modelo e a linha de comandos"
           }
         },
         {

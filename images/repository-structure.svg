@@ -49,7 +49,7 @@
 <text x="382" y="510" font-family="'Segoe UI','Noto Sans','Noto Sans CJK SC','Microsoft YaHei','Yu Gothic','Helvetica Neue',Helvetica,Arial,sans-serif" font-size="17" font-weight="700" fill="#F2F6FA" text-anchor="start">Other folders and the files at the root</text>
 <line x1="382" y1="524" x2="1122" y2="524" stroke="#00E5FF" stroke-opacity="0.35" stroke-width="1"/>
 <text x="392" y="556" font-family="'JetBrains Mono','Cascadia Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="14.5" font-weight="600" fill="#E6EDF3" text-anchor="start">crates/</text>
-<text x="631.76" y="556" font-family="'Segoe UI','Noto Sans','Noto Sans CJK SC','Microsoft YaHei','Yu Gothic','Helvetica Neue',Helvetica,Arial,sans-serif" font-size="12.8" font-weight="400" fill="#8A97A6" text-anchor="start">the corpus inventory and the command line</text>
+<text x="631.76" y="556" font-family="'Segoe UI','Noto Sans','Noto Sans CJK SC','Microsoft YaHei','Yu Gothic','Helvetica Neue',Helvetica,Arial,sans-serif" font-size="12.8" font-weight="400" fill="#8A97A6" text-anchor="start">the corpus inventory, the model foundations and the command line</text>
 <line x1="392" y1="564" x2="1118" y2="564" stroke="#1A2430" stroke-width="1"/>
 <text x="392" y="583" font-family="'JetBrains Mono','Cascadia Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="14.5" font-weight="600" fill="#E6EDF3" text-anchor="start">config/</text>
 <text x="631.76" y="583" font-family="'Segoe UI','Noto Sans','Noto Sans CJK SC','Microsoft YaHei','Yu Gothic','Helvetica Neue',Helvetica,Arial,sans-serif" font-size="12.8" font-weight="400" fill="#8A97A6" text-anchor="start">the settings file (every tuned value)</text>

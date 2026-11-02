@@ -16,21 +16,21 @@ The design tool stores everything in its own project format, with one folder per
 
 ## Integer coordinates in the design domain
 
-State: **proposed**.
+State: **accepted**.
 
-Design coordinates are integers in nanometres and angles are integers in micro-degrees; arcs are stored as end points plus a signed sweep and the centre is derived. The exact range (about one metre with 64-bit predicates, or a larger one with 128-bit predicates) is still to be confirmed, so the code keeps every limit as one named constant. Mechanical geometry follows its own rule so that a board limit never caps a chassis.
+Design coordinates are integers in nanometres and angles are integers in micro-degrees; arcs are stored as end points plus a signed sweep and the centre is derived. A coordinate is strictly inside plus or minus 2^30 nm (about 1.07 m), so every difference is below 2^31 and the orientation predicates are exact in 64-bit integers; constructions use 128-bit integers and check overflow. A value outside the range is a typed error, never a wrap. The limits are named constants in `eh3d-phoenix-model`. Mechanical geometry follows its own rule so that a board limit never caps a chassis.
 
 ## Stable object identities
 
-State: **proposed**.
+State: **accepted**.
 
-Every design object has an immutable UUID version 7 in canonical lowercase text. Names are attributes, so renaming never changes identity. Ids are generated when an object is created, never inside a writer.
+Every design object has an immutable UUID version 7 in canonical lowercase text. Names are attributes, so renaming never changes identity. Ids are generated when an object is created, never inside a writer: the generator takes an injected clock and random source, so tests are reproducible, and writers only receive ids.
 
 ## Canonical JSON and numbers in new formats
 
-State: **proposed**.
+State: **accepted**.
 
-New JSON files use the JSON Canonicalization Scheme (RFC 8785) plus UTF-8 without BOM and a final line feed. Design values are integers with the unit in the name; exchange values in millimetres are quantised before writing; physical results with uncertainty are compared numerically, not byte for byte. The existing `.eh3dproj` 1.0.0 behaviour does not change.
+New JSON files use the JSON Canonicalization Scheme (RFC 8785) plus UTF-8 without BOM and a final line feed. Design values are integers with the unit in the name; exchange values in millimetres are quantised to six decimals before writing; physical results with uncertainty are compared numerically, not byte for byte. The existing `.eh3dproj` 1.0.0 behaviour does not change.
 
 ## Geometry kernel for mechanical work
 
@@ -70,9 +70,9 @@ Formats are learned from public specifications, from files of the author's own a
 
 ## Stable diagnostic codes
 
-State: **proposed**.
+State: **proposed** for the numbering and the registry; the two prefixes (`EH3D-` for shared code, `PHOENIX-` for this tool) and the shared diagnostic crate are accepted.
 
-Failures that a reader or a check cannot hide become diagnostics with a stable code of the form `PHOENIX-<AREA>-<NNN>` (the registry is kept in the board tool). A code is never reused or renumbered, its message may be translated but the code and field names are not, and a repository never keeps a private list: it asks for numbers in the registry in the same change that uses them, together with a test.
+Failures that a reader or a check cannot hide become diagnostics with a stable code of the form `PHOENIX-<AREA>-<NNN>` (the registry is kept in the board tool). The model foundations return typed errors and do not carry codes yet. A code is never reused or renumbered, its message may be translated but the code and field names are not, and a repository never keeps a private list: it asks for numbers in the registry in the same change that uses them, together with a test.
 
 ## Nothing here moves a machine
 

@@ -12,14 +12,14 @@
   <img src="https://img.shields.io/badge/License-GPL%203.0--or--later-blue.svg" alt="GPL 3.0 or later">
   <img src="https://img.shields.io/badge/Stack-Rust%20%2B%20Python-blue.svg" alt="Rust and Python">
   <img src="https://img.shields.io/badge/Languages-8-00E5FF.svg" alt="Languages">
-  <img src="https://img.shields.io/badge/Tests-23-2EA043.svg" alt="Tests">
+  <img src="https://img.shields.io/badge/Tests-67-2EA043.svg" alt="Tests">
   <img src="https://img.shields.io/badge/Version-0.0.1-0f6cbd.svg" alt="Version">
   <img src="https://img.shields.io/badge/Maturity-scaffolding-FFB020.svg" alt="Maturity">
 </p>
 
 ---
 
-**Honesty check - what actually runs today:** a Rust workspace with one command, `phoenix inventory`, that counts the design files of a private folder without showing any name or value: files by extension, kind and declared version, and one fingerprint of the content. It has 20 tests of its own and they pass on a computer. It has only been run on folders made by its own tests, never on real design files. There is no design model, no reader or writer of design files, no editor and no rules: all of the EDA function is still planned.
+**Honesty check - what actually runs today:** a Rust workspace with one command, `phoenix inventory`, that counts the design files of a private folder without showing any name or value: files by extension, kind and declared version, and one fingerprint of the content. It has 64 tests of its own and they pass on a computer. It has only been run on folders made by its own tests, never on real design files. It also has the foundations of a design model (integer nanometre and micro-degree values with a checked range, object ids and canonical JSON). There are no design objects, no reader or writer of design files, no editor and no rules: all of the EDA function is still planned.
 
 ---
 
@@ -31,7 +31,7 @@
 |---|---|
 | Version | `0.0.1` |
 | Maturity | Scaffolding |
-| Tests | 23 |
+| Tests | 67 |
 | Stack | Rust, Python 3.10+ |
 | On real hardware | Not run on hardware yet |
 
@@ -46,14 +46,14 @@ Each line is one part of this repository and the light says how far it is today.
 | Area | State | What it means here |
 |---|---|---|
 | Repository checks | 🟡 | The repository check, the check of the pictures and the 3 tests of the base run in CI and pass. |
-| Tests | 🟡 | The 20 tests of the Rust code and the 3 of the base pass on a computer. They use only folders made by the tests themselves; none has run on real design files. |
+| Tests | 🟡 | The 64 tests of the Rust code and the 3 of the base pass on a computer. They use only folders made by the tests themselves; none has run on real design files. |
 | Real hardware | 🟠 | Not run on any machine or board: nothing here has been tried on hardware. |
-| Planned function | 🟠 | Written: the redacted inventory of a corpus. Not started: the design model, the readers and writers, the rules, the viewer and editors, simulation and everything else planned. |
-| Requirements | 🟠 | 1 of 30 requirements (the redacted mode) is at prototype, 29 are only planned and none is validated. |
+| Planned function | 🟠 | Written: the redacted inventory of a corpus and the foundations of the model (units, ids, canonical JSON). Not started: the design objects, the readers and writers, the rules, the viewer and editors, simulation and everything else planned. |
+| Requirements | 🟠 | 2 of 30 requirements (the redacted mode and the model foundations) are at prototype, 28 are only planned and none is validated. |
 
 ## 🎯 Overview
 
-* **What exists:** a workspace with a library that counts a private corpus of design files in redacted mode (only counts, kinds, declared versions and one fingerprint, never a name or a value) and a command line, `phoenix inventory`. It looks at the first bytes of a file and does not read designs.
+* **What exists:** a workspace with a library that counts a private corpus of design files in redacted mode (only counts, kinds, declared versions and one fingerprint, never a name or a value) and a command line, `phoenix inventory`. It looks at the first bytes of a file and does not read designs. A second library holds the foundations of the design model: lengths and angles as integers with a checked range, object ids (UUID v7) and canonical JSON.
 
 * **Planned:** EH3D-PHOENIX-PCB is meant to be an EDA environment with schematic capture, PCB layout, verification tools, circuit simulation and specialized modules for switch-mode power supplies and RF. It is planned as a Rust program with a window for the desktop (a workspace of engine crates, a command-line interface and an application) that works on its own and can use the server for computing tasks. None of this exists yet.
 
@@ -85,7 +85,7 @@ python -I -m unittest discover -s tools -p "test_*.py"
 
 ## 🧪 Testing
 
-The code has 20 tests (`cargo test`) and the base has 3 (`python -I -m unittest discover -s tools -p "test_*.py"`); all pass on a computer. The CI runs the repository check, the check of the pictures, the tests of the base and, for the Rust code, the format check, clippy with warnings as errors and the tests on Linux and Windows.
+The code has 64 tests (`cargo test`) and the base has 3 (`python -I -m unittest discover -s tools -p "test_*.py"`); all pass on a computer. The CI runs the repository check, the check of the pictures, the tests of the base and, for the Rust code, the format check, clippy with warnings as errors and the tests on Linux and Windows.
 
 ## 🏗️ Build & Release
 
@@ -109,7 +109,7 @@ EH3D-PHOENIX-PCB/
 │   ├── DECISIONS.md STATUS.md                   decisions that apply here and the honest status
 │   ├── NOT_YET.md RULES.md                      ideas left for later and rules for writing code
 │   └── ROADMAP.md                               the map of phases, from foundations to the all-in-one suite
-├── crates/                                      the corpus inventory and the command line
+├── crates/                                      the corpus inventory, the model foundations and the command line
 ├── config/                                      the settings file (every tuned value)
 ├── Cargo.toml Cargo.lock                        the Rust workspace and its locked dependencies
 ├── tools/                                       the repository check, its tests and the picture tools
@@ -128,9 +128,9 @@ EH3D-PHOENIX-PCB/
 
 **Known limits today**
 
-* Early code: only the corpus inventory exists, and it has run only on folders made by its own tests, never on real design files.
-* There is no design model, no reader or writer of design files, no editor and no rules; no requirement other than the redacted mode has been started.
-* The user interface, the geometry library and the coordinate range are still open decisions (see `docs/STATUS.md`).
+* Early code: only the corpus inventory and the foundations of the model exist; the inventory has run only on folders made by its own tests, never on real design files.
+* There are no design objects, no project file, no reader or writer of design files, no editor and no rules; apart from the redacted mode and the model foundations, no requirement has been started.
+* The user interface and the geometry library are still open decisions (see `docs/STATUS.md`).
 
 **Next**
 

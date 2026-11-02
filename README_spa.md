@@ -12,14 +12,14 @@
   <img src="https://img.shields.io/badge/License-GPL%203.0--or--later-blue.svg" alt="GPL 3.0 or later">
   <img src="https://img.shields.io/badge/Stack-Rust%20%2B%20Python-blue.svg" alt="Rust and Python">
   <img src="https://img.shields.io/badge/Languages-8-00E5FF.svg" alt="Languages">
-  <img src="https://img.shields.io/badge/Tests-23-2EA043.svg" alt="Tests">
+  <img src="https://img.shields.io/badge/Tests-67-2EA043.svg" alt="Tests">
   <img src="https://img.shields.io/badge/Version-0.0.1-0f6cbd.svg" alt="Version">
   <img src="https://img.shields.io/badge/Maturity-scaffolding-FFB020.svg" alt="Maturity">
 </p>
 
 ---
 
-**Comprobación de honestidad - lo que se ejecuta hoy:** un espacio de trabajo de Rust con un solo comando, `phoenix inventory`, que cuenta los archivos de diseño de una carpeta privada sin mostrar ningún nombre ni valor: archivos por extensión, tipo y versión declarada, y una huella del contenido. Tiene 20 pruebas propias y pasan en un ordenador. Solo se ha ejecutado con carpetas creadas por sus propias pruebas, nunca con archivos de diseño reales. No hay modelo de diseño, ni lector ni escritor de archivos de diseño, ni editor, ni reglas: toda la función de EDA sigue planificada.
+**Comprobación de honestidad - lo que se ejecuta hoy:** un espacio de trabajo de Rust con un solo comando, `phoenix inventory`, que cuenta los archivos de diseño de una carpeta privada sin mostrar ningún nombre ni valor: archivos por extensión, tipo y versión declarada, y una huella del contenido. Tiene 64 pruebas propias y pasan en un ordenador. Solo se ha ejecutado con carpetas creadas por sus propias pruebas, nunca con archivos de diseño reales. También tiene los cimientos de un modelo de diseño (valores enteros en nanómetros y micrograos con rango comprobado, ids de objeto y JSON canónico). No hay objetos de diseño, ni lector ni escritor de archivos de diseño, ni editor, ni reglas: toda la función de EDA sigue planificada.
 
 ---
 
@@ -31,7 +31,7 @@
 |---|---|
 | Versión | `0.0.1` |
 | Madurez | Andamiaje |
-| Pruebas | 23 |
+| Pruebas | 67 |
 | Pila tecnológica | Rust, Python 3.10+ |
 | En hardware real | Aún no se ha ejecutado en hardware |
 
@@ -46,14 +46,14 @@ Cada línea es una parte de este repositorio y la luz dice hasta dónde llega ho
 | Área | Estado | Qué significa aquí |
 |---|---|---|
 | Comprobaciones del repositorio | 🟡 | La comprobación del repositorio, la de las imágenes y las 3 pruebas de la base se ejecutan en el CI y pasan. |
-| Pruebas | 🟡 | Las 20 pruebas del código Rust y las 3 de la base pasan en un ordenador. Usan solo carpetas creadas por las propias pruebas; ninguna se ha ejecutado con archivos de diseño reales. |
+| Pruebas | 🟡 | Las 64 pruebas del código Rust y las 3 de la base pasan en un ordenador. Usan solo carpetas creadas por las propias pruebas; ninguna se ha ejecutado con archivos de diseño reales. |
 | Hardware real | 🟠 | No se ha ejecutado en ninguna máquina ni placa: nada de aquí se ha probado en hardware. |
-| Función planificada | 🟠 | Escrito: el inventario redactado de un corpus. Sin empezar: el modelo de diseño, los lectores y escritores, las reglas, el visor y los editores, la simulación y todo lo demás planificado. |
-| Requisitos | 🟠 | 1 de 30 requisitos (el modo redactado) está en prototipo, 29 solo están planificados y ninguno está validado. |
+| Función planificada | 🟠 | Escrito: el inventario redactado de un corpus y los cimientos del modelo (unidades, ids, JSON canónico). Sin empezar: los objetos de diseño, los lectores y escritores, las reglas, el visor y los editores, la simulación y todo lo demás planificado. |
+| Requisitos | 🟠 | 2 de 30 requisitos (el modo redactado y los cimientos del modelo) están en prototipo, 28 solo están planificados y ninguno está validado. |
 
 ## 🎯 Resumen
 
-* **Lo que existe:** un espacio de trabajo con una biblioteca que cuenta un corpus privado de archivos de diseño en modo redactado (solo recuentos, tipos, versiones declaradas y una huella, nunca un nombre ni un valor) y una línea de comandos, `phoenix inventory`. Mira los primeros bytes de un archivo y no lee diseños.
+* **Lo que existe:** un espacio de trabajo con una biblioteca que cuenta un corpus privado de archivos de diseño en modo redactado (solo recuentos, tipos, versiones declaradas y una huella, nunca un nombre ni un valor) y una línea de comandos, `phoenix inventory`. Mira los primeros bytes de un archivo y no lee diseños. Una segunda biblioteca guarda los cimientos del modelo de diseño: longitudes y ángulos como enteros con rango comprobado, ids de objeto (UUID v7) y JSON canónico.
 
 * **Planificado:** EH3D-PHOENIX-PCB pretende ser un entorno EDA con captura de esquemas, diseño de PCB, herramientas de verificación, simulación de circuitos y módulos especializados para fuentes conmutadas y RF. Se planea como un programa en Rust con ventana para el escritorio (un espacio de trabajo de crates de motor, una interfaz de línea de comandos y una aplicación) que funciona solo y puede usar el servidor para tareas de cálculo. Nada de esto existe todavía.
 
@@ -85,7 +85,7 @@ python -I -m unittest discover -s tools -p "test_*.py"
 
 ## 🧪 Pruebas
 
-El código tiene 20 pruebas (`cargo test`) y la base tiene 3 (`python -I -m unittest discover -s tools -p "test_*.py"`); todas pasan en un ordenador. El CI ejecuta la comprobación del repositorio, la de las imágenes, las pruebas de la base y, para el código Rust, la comprobación de formato, clippy con las advertencias como errores y las pruebas en Linux y Windows.
+El código tiene 64 pruebas (`cargo test`) y la base tiene 3 (`python -I -m unittest discover -s tools -p "test_*.py"`); todas pasan en un ordenador. El CI ejecuta la comprobación del repositorio, la de las imágenes, las pruebas de la base y, para el código Rust, la comprobación de formato, clippy con las advertencias como errores y las pruebas en Linux y Windows.
 
 ## 🏗️ Compilación y publicación
 
@@ -109,7 +109,7 @@ EH3D-PHOENIX-PCB/
 │   ├── DECISIONS.md STATUS.md                   decisiones que se aplican aquí y estado honesto
 │   ├── NOT_YET.md RULES.md                      ideas para más adelante y reglas para escribir código
 │   └── ROADMAP.md                               el mapa de fases, de los cimientos a la suite todo en uno
-├── crates/                                      el inventario del corpus y la línea de comandos
+├── crates/                                      el inventario del corpus, los cimientos del modelo y la línea de comandos
 ├── config/                                      el fichero de ajustes (todo valor afinado)
 ├── Cargo.toml Cargo.lock                        el espacio de trabajo de Rust y sus dependencias fijadas
 ├── tools/                                       la comprobación del repositorio, sus pruebas y las herramientas de las imágenes
@@ -128,9 +128,9 @@ EH3D-PHOENIX-PCB/
 
 **Límites conocidos hoy**
 
-* Código inicial: solo existe el inventario del corpus, y solo se ha ejecutado con carpetas creadas por sus propias pruebas, nunca con archivos de diseño reales.
-* No hay modelo de diseño, ni lector ni escritor de archivos de diseño, ni editor, ni reglas; ningún requisito aparte del modo redactado se ha empezado.
-* La interfaz de usuario, la biblioteca de geometría y el rango de coordenadas siguen siendo decisiones abiertas (véase `docs/STATUS.md`).
+* Código inicial: solo existen el inventario del corpus y los cimientos del modelo; el inventario solo se ha ejecutado con carpetas creadas por sus propias pruebas, nunca con archivos de diseño reales.
+* No hay objetos de diseño, ni archivo de proyecto, ni lector ni escritor de archivos de diseño, ni editor, ni reglas; aparte del modo redactado y los cimientos del modelo, no se ha empezado ningún requisito.
+* La interfaz de usuario y la biblioteca de geometría siguen siendo decisiones abiertas (véase `docs/STATUS.md`).
 
 **Siguiente**
 

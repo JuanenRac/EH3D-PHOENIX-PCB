@@ -12,14 +12,14 @@
   <img src="https://img.shields.io/badge/License-GPL%203.0--or--later-blue.svg" alt="GPL 3.0 or later">
   <img src="https://img.shields.io/badge/Stack-Rust%20%2B%20Python-blue.svg" alt="Rust and Python">
   <img src="https://img.shields.io/badge/Languages-8-00E5FF.svg" alt="Languages">
-  <img src="https://img.shields.io/badge/Tests-23-2EA043.svg" alt="Tests">
+  <img src="https://img.shields.io/badge/Tests-67-2EA043.svg" alt="Tests">
   <img src="https://img.shields.io/badge/Version-0.0.1-0f6cbd.svg" alt="Version">
   <img src="https://img.shields.io/badge/Maturity-scaffolding-FFB020.svg" alt="Maturity">
 </p>
 
 ---
 
-**Verificação de honestidade - o que funciona hoje:** um espaço de trabalho Rust com um único comando, `phoenix inventory`, que conta os ficheiros de projeto de uma pasta privada sem mostrar nenhum nome nem valor: ficheiros por extensão, tipo e versão declarada, e uma impressão digital do conteúdo. Tem 20 testes próprios, que passam num computador. Só foi executado com pastas criadas pelos seus próprios testes, nunca com ficheiros de projeto reais. Não há modelo de projeto, nem leitor ou escritor de ficheiros de projeto, nem editor, nem regras: toda a função de EDA continua planeada.
+**Verificação de honestidade - o que funciona hoje:** um espaço de trabalho Rust com um único comando, `phoenix inventory`, que conta os ficheiros de projeto de uma pasta privada sem mostrar nenhum nome nem valor: ficheiros por extensão, tipo e versão declarada, e uma impressão digital do conteúdo. Tem 64 testes próprios, que passam num computador. Só foi executado com pastas criadas pelos seus próprios testes, nunca com ficheiros de projeto reais. Tem também os alicerces de um modelo de projeto (valores inteiros em nanómetros e micrograus com intervalo verificado, ids de objeto e JSON canónico). Não há objetos de projeto, nem leitor ou escritor de ficheiros de projeto, nem editor, nem regras: toda a função de EDA continua planeada.
 
 ---
 
@@ -31,7 +31,7 @@
 |---|---|
 | Versão | `0.0.1` |
 | Maturidade | Estrutura inicial |
-| Testes | 23 |
+| Testes | 67 |
 | Tecnologias | Rust, Python 3.10+ |
 | Em hardware real | Ainda não executado em hardware |
 
@@ -46,14 +46,14 @@ Cada linha é uma parte deste repositório e a luz diz até onde chega hoje. É 
 | Área | Estado | O que significa aqui |
 |---|---|---|
 | Verificações do repositório | 🟡 | A verificação do repositório, a das imagens e os 3 testes da base correm na CI e passam. |
-| Testes | 🟡 | Os 20 testes do código Rust e os 3 da base passam num computador. Usam apenas pastas criadas pelos próprios testes; nenhum foi executado com ficheiros de projeto reais. |
+| Testes | 🟡 | Os 64 testes do código Rust e os 3 da base passam num computador. Usam apenas pastas criadas pelos próprios testes; nenhum foi executado com ficheiros de projeto reais. |
 | Hardware real | 🟠 | Não foi executado em nenhuma máquina nem placa: nada aqui foi experimentado em hardware. |
-| Função planeada | 🟠 | Escrito: o inventário ocultado de um corpus. Por começar: o modelo de projeto, os leitores e escritores, as regras, o visualizador e os editores, a simulação e tudo o resto do planeado. |
-| Requisitos | 🟠 | 1 de 30 requisitos (o modo ocultado) está em protótipo, 29 estão apenas planeados e nenhum está validado. |
+| Função planeada | 🟠 | Escrito: o inventário ocultado de um corpus e os alicerces do modelo (unidades, ids, JSON canónico). Por começar: os objetos de projeto, os leitores e escritores, as regras, o visualizador e os editores, a simulação e tudo o resto do planeado. |
+| Requisitos | 🟠 | 2 de 30 requisitos (o modo ocultado e os alicerces do modelo) estão em protótipo, 28 estão apenas planeados e nenhum está validado. |
 
 ## 🎯 Visão geral
 
-* **O que existe:** um espaço de trabalho com uma biblioteca que conta um corpus privado de ficheiros de projeto em modo ocultado (apenas contagens, tipos, versões declaradas e uma impressão digital, nunca um nome nem um valor) e uma linha de comandos, `phoenix inventory`. Olha para os primeiros bytes de um ficheiro e não lê projetos.
+* **O que existe:** um espaço de trabalho com uma biblioteca que conta um corpus privado de ficheiros de projeto em modo ocultado (apenas contagens, tipos, versões declaradas e uma impressão digital, nunca um nome nem um valor) e uma linha de comandos, `phoenix inventory`. Olha para os primeiros bytes de um ficheiro e não lê projetos. Uma segunda biblioteca guarda os alicerces do modelo de projeto: comprimentos e ângulos como inteiros com intervalo verificado, ids de objeto (UUID v7) e JSON canónico.
 
 * **Planeado:** EH3D-PHOENIX-PCB pretende ser um ambiente EDA com captura de esquemas, desenho de PCB, ferramentas de verificação, simulação de circuitos e módulos especializados para fontes comutadas e RF. Está planeado como um programa em Rust com janela para o ambiente de trabalho (um espaço de trabalho de crates de motor, uma interface de linha de comandos e uma aplicação) que funciona sozinho e pode usar o servidor para tarefas de cálculo. Nada disto existe ainda.
 
@@ -85,7 +85,7 @@ python -I -m unittest discover -s tools -p "test_*.py"
 
 ## 🧪 Testes
 
-O código tem 20 testes (`cargo test`) e a base tem 3 (`python -I -m unittest discover -s tools -p "test_*.py"`); todos passam num computador. A CI executa a verificação do repositório, a das imagens, os testes da base e, para o código Rust, a verificação do formato, o clippy com os avisos tratados como erros e os testes em Linux e Windows.
+O código tem 64 testes (`cargo test`) e a base tem 3 (`python -I -m unittest discover -s tools -p "test_*.py"`); todos passam num computador. A CI executa a verificação do repositório, a das imagens, os testes da base e, para o código Rust, a verificação do formato, o clippy com os avisos tratados como erros e os testes em Linux e Windows.
 
 ## 🏗️ Compilação e publicação
 
@@ -109,7 +109,7 @@ EH3D-PHOENIX-PCB/
 │   ├── DECISIONS.md STATUS.md                   decisões que se aplicam aqui e estado honesto
 │   ├── NOT_YET.md RULES.md                      ideias para mais tarde e regras para escrever código
 │   └── ROADMAP.md                               o mapa de fases, dos alicerces à suite tudo-em-um
-├── crates/                                      o inventário do corpus e a linha de comandos
+├── crates/                                      o inventário do corpus, os alicerces do modelo e a linha de comandos
 ├── config/                                      o ficheiro de definições (todo o valor ajustado)
 ├── Cargo.toml Cargo.lock                        o espaço de trabalho Rust e as suas dependências fixadas
 ├── tools/                                       a verificação do repositório, os seus testes e as ferramentas das imagens
@@ -128,9 +128,9 @@ EH3D-PHOENIX-PCB/
 
 **Limites conhecidos hoje**
 
-* Código inicial: só existe o inventário do corpus, e só foi executado com pastas criadas pelos seus próprios testes, nunca com ficheiros de projeto reais.
-* Não há modelo de projeto, nem leitor ou escritor de ficheiros de projeto, nem editor, nem regras; nenhum requisito além do modo ocultado foi começado.
-* A interface de utilizador, a biblioteca de geometria e o intervalo de coordenadas continuam a ser decisões em aberto (ver `docs/STATUS.md`).
+* Código inicial: só existem o inventário do corpus e os alicerces do modelo; o inventário só foi executado com pastas criadas pelos seus próprios testes, nunca com ficheiros de projeto reais.
+* Não há objetos de projeto, nem ficheiro de projeto, nem leitor ou escritor de ficheiros de projeto, nem editor, nem regras; além do modo ocultado e dos alicerces do modelo, nenhum requisito foi começado.
+* A interface de utilizador e a biblioteca de geometria continuam a ser decisões em aberto (ver `docs/STATUS.md`).
 
 **A seguir**
 

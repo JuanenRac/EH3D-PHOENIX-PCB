@@ -1,6 +1,6 @@
 # EH3D-PHOENIX-PCB: scope
 
-Status: **early code**. EH3D-PHOENIX-PCB has a workspace with a redacted inventory of a private corpus of design files; everything else below is planned. This page says what it does, what it is meant to do, what it will not do, and where it sits. Nothing here has been used on real design files or on a machine.
+Status: **early code**. EH3D-PHOENIX-PCB has a workspace with a redacted inventory of a private corpus of design files and the foundations of the design model (checked integer units, object ids, canonical JSON); everything else below is planned. This page says what it does, what it is meant to do, what it will not do, and where it sits. Nothing here has been used on real design files or on a machine.
 
 ## Purpose
 
@@ -36,9 +36,7 @@ Written, and tried only on folders made by its own tests: the command `phoenix i
 
 ## Planned shape
 
-A Rust program with a window for the desktop, built from a workspace of engine crates (model, EAGLE, KiCad, rules, engine), a command-line interface and an application. It works on its own and can use the EH3D server for computing tasks. The crate names are the planned ones; no crate exists yet.
-
-Crates, names and file layout will be decided together with the first code; no crate exists yet.
+A Rust program with a window for the desktop, built from a workspace of engine crates (model, EAGLE, KiCad, rules, engine), a command-line interface and an application. It works on its own and can use the EH3D server for computing tasks. Three crates exist: `eh3d-phoenix-corpus` (the redacted inventory), `eh3d-phoenix-model` (the foundations of the model: checked integer units, object ids, canonical JSON) and `eh3d-phoenix-cli` (the command). The others are planned and their names may still change.
 
 ## Where it sits
 

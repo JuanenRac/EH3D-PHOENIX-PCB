@@ -9,6 +9,11 @@ All notable changes to this project are documented here.
 - Keep the inventory in redacted mode: no name, path or value from a file reaches the report, with a leak test.
 - Bound the inventory (number of files, folder depth, file size) with a settings file, and stop with an error instead of giving a partial count.
 - Run format, lints and tests of the Rust code on Linux and Windows in the CI.
+- Add the crate `eh3d-phoenix-model` with lengths in integer nanometres inside a checked range of plus or minus 2^30 nm and angles in integer micro-degrees, with typed errors when a value leaves the range.
+- Add orientation and segment-intersection predicates that use only 64-bit integers, tested at the corners of the range, and arcs stored as end points plus a signed sweep.
+- Add exact decimal reading of millimetres and degrees, with half-to-even rounding that tells the caller when digits were dropped.
+- Add UUID v7 object ids in canonical lowercase text with a generator whose clock and random source are injected, so tests are reproducible and ids grow even when the clock stands still or goes back.
+- Add canonical JSON (RFC 8785) with the vectors of the standard, a final line feed, and quantisation of millimetre and degree values to six decimals before writing.
 
 ## [0.0.1] - The base of the repository
 

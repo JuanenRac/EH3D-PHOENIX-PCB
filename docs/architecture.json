@@ -1,8 +1,8 @@
 {
   "repo": "EH3D-PHOENIX-PCB",
   "ecosystem": "eh3d",
-  "tagline": "An EDA environment for schematics, PCB layout, verification and simulation. Only the corpus inventory is written.",
-  "description": "EH3D-PHOENIX-PCB is planned as an EDA environment with schematic capture, PCB layout, verification tools, circuit simulation and specialized modules for switch-mode power supplies and RF. Today it holds a workspace with a redacted inventory of a private corpus of design files and a command line for it; it has only run on folders made by its own tests, and the design model, readers, rules and editors are not written.",
+  "tagline": "An EDA environment for schematics, PCB layout, verification and simulation. Only the corpus inventory and the model foundations are written.",
+  "description": "EH3D-PHOENIX-PCB is planned as an EDA environment with schematic capture, PCB layout, verification tools, circuit simulation and specialized modules for switch-mode power supplies and RF. Today it holds a workspace with a redacted inventory of a private corpus of design files, the foundations of the design model (checked integer units, object ids, canonical JSON) and a command line; the inventory has only run on folders made by its own tests, and the design objects, readers, rules and editors are not written.",
   "columns": [
     "WHO USES IT",
     "THIS REPOSITORY",
@@ -39,11 +39,12 @@
       "level": "tested",
       "title": "The code",
       "lines": [
-        "the redacted inventory of a",
-        "corpus and its command line"
+        "the redacted inventory, the model",
+        "foundations and the command line"
       ],
       "code": [
         "crates/eh3d-phoenix-corpus/src/inventory.rs",
+        "crates/eh3d-phoenix-model/src/canonical.rs",
         "crates/eh3d-phoenix-cli/src/lib.rs"
       ]
     },
