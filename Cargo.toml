@@ -1,6 +1,6 @@
 [workspace]
 # the engine crates of the design tool; the model, the readers and the rules join them once their contracts are accepted
-members = ["crates/eh3d-phoenix-corpus", "crates/eh3d-phoenix-cli"]
+members = ["crates/eh3d-phoenix-corpus", "crates/eh3d-phoenix-model", "crates/eh3d-phoenix-cli"]
 resolver = "2"
 
 [workspace.package]

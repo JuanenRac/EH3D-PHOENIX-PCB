@@ -72,6 +72,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "eh3d-phoenix-model"
+version = "0.0.1"
+dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
 name = "errno"
 version = "0.3.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"

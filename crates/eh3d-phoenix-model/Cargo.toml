@@ -1,0 +1,13 @@
+[package]
+name = "eh3d-phoenix-model"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Foundations of the design model: integer nanometre coordinates with a checked range, UUID v7 object ids with an injectable generator, and canonical JSON (RFC 8785) with quantised numbers"
+
+[dependencies]
+serde.workspace = true
+serde_json = { workspace = true, features = ["float_roundtrip"] }
+thiserror.workspace = true
