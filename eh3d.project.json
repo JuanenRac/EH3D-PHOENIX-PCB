@@ -6,18 +6,18 @@
   "role": "tool",
   "stack": "rust",
   "technologies": [
-    "Rust (planned)",
+    "Rust",
     "Markdown",
     "Python 3.10+"
   ],
   "deployment_target": "user-pc",
   "maturity": "scaffolding",
-  "evidence": "none",
+  "evidence": "host-test",
   "hardware_bound": false,
   "family": "PHOENIX",
   "parent": null,
-  "build": "python -I tools/ci_validate.py",
-  "notes": "Scaffolding v0.0.1: PLANNED, no code yet. EDA environment: schematic capture, PCB layout, verification tools, circuit simulation and specialized modules for switch-mode power supplies and RF. It is the main project of the PHOENIX family. What exists is the base of every repository of the suite and the written scope, requirements, dependencies, threat model and decisions in docs/. The planned stack is Rust (a library with a command-line interface); nothing has been run on a machine.",
+  "build": "cargo build --release; cargo test",
+  "notes": "Scaffolding v0.0.1: early code. EDA environment planned as schematic capture, PCB layout, verification tools, circuit simulation and specialized modules for switch-mode power supplies and RF; it is the main project of the PHOENIX family. What exists is a Rust workspace with a library and a command, phoenix inventory, that counts the design files of a private folder in redacted mode. It has only run on folders made by its own tests; the design model, readers, rules and editors are planned and nothing has been run on a machine.",
   "native_version": {
     "file": "VERSION",
     "pattern": "^(\\d+\\.\\d+\\.\\d+)"
