@@ -25,7 +25,7 @@ pub struct Written {
     pub diagnostics: Vec<Diagnostic>,
 }
 
-fn el(name: &str, attrs: Vec<(&str, String)>, children: Vec<Element>) -> Element {
+pub(crate) fn el(name: &str, attrs: Vec<(&str, String)>, children: Vec<Element>) -> Element {
     Element {
         name: name.to_owned(),
         attrs: attrs.into_iter().map(|(k, v)| (k.to_owned(), v)).collect(),
@@ -65,7 +65,10 @@ fn segment_wire(segment: &Segment, width: i64, layer: u32) -> Element {
 }
 
 /// Unique package names: the name of the footprint, with a number added when two share one.
-fn package_names(board: &Board, diagnostics: &mut Vec<Diagnostic>) -> BTreeMap<Id, String> {
+pub(crate) fn package_names(
+    board: &Board,
+    diagnostics: &mut Vec<Diagnostic>,
+) -> BTreeMap<Id, String> {
     let mut used: BTreeSet<String> = BTreeSet::new();
     let mut names = BTreeMap::new();
     for (id, fp) in &board.footprints {
@@ -87,7 +90,7 @@ fn package_names(board: &Board, diagnostics: &mut Vec<Diagnostic>) -> BTreeMap<I
     names
 }
 
-fn package(
+pub(crate) fn package(
     board: &Board,
     id: &Id,
     name: &str,

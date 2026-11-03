@@ -12,3 +12,4 @@ eh3d-diagnostic.workspace = true
 eh3d-phoenix-board = { path = "../eh3d-phoenix-board" }
 eh3d-phoenix-eagle = { path = "../eh3d-phoenix-eagle" }
 eh3d-phoenix-model = { path = "../eh3d-phoenix-model" }
+eh3d-phoenix-schematic = { path = "../eh3d-phoenix-schematic" }
