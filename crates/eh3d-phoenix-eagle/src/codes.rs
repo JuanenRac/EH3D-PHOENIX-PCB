@@ -27,7 +27,7 @@ pub const ELEMENT_UNKNOWN: &str = "PHOENIX-EAGLE-009";
 pub const IO_FAILED: &str = "PHOENIX-EAGLE-010";
 /// A copy differs from its original, or an original changed while it was read.
 pub const COPY_MISMATCH: &str = "PHOENIX-EAGLE-011";
-/// The file starts like an EAGLE binary file (versions 3 to 5), which this reader does not read.
+/// The file starts like an EAGLE binary file (the byte 0x10), which this reader does not read.
 pub const BINARY_FORMAT: &str = "PHOENIX-EAGLE-012";
 
 /// Every code of this crate with its title, in order.
