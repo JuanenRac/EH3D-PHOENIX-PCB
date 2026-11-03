@@ -27,8 +27,12 @@ pub const ELEMENT_UNKNOWN: &str = "PHOENIX-EAGLE-009";
 pub const IO_FAILED: &str = "PHOENIX-EAGLE-010";
 /// A copy differs from its original, or an original changed while it was read.
 pub const COPY_MISMATCH: &str = "PHOENIX-EAGLE-011";
-/// The file starts like an EAGLE binary file (the byte 0x10), which this reader does not read.
+/// The file starts like an EAGLE binary file (the bytes 0x10 0x80), which this reader does not read.
 pub const BINARY_FORMAT: &str = "PHOENIX-EAGLE-012";
+/// The file is of another program that uses the same extension.
+pub const OTHER_PROGRAM: &str = "PHOENIX-EAGLE-013";
+/// The file starts with the byte 0x10 like the binary files but without the second byte 0x80.
+pub const BINARY_VARIANT: &str = "PHOENIX-EAGLE-014";
 
 /// Every code of this crate with its title, in order.
 pub const REGISTRY: &[(&str, &str)] = &[
@@ -44,6 +48,8 @@ pub const REGISTRY: &[(&str, &str)] = &[
     (IO_FAILED, "File could not be read"),
     (COPY_MISMATCH, "Copy differs from the original"),
     (BINARY_FORMAT, "EAGLE binary format is not read"),
+    (OTHER_PROGRAM, "File of another program"),
+    (BINARY_VARIANT, "Binary variant is not read"),
 ];
 
 /// Builds the diagnostic of `code` (which must be in [`REGISTRY`]) with a detail.
