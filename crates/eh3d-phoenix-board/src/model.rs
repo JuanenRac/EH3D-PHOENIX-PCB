@@ -40,6 +40,10 @@ pub struct Layer {
     pub name: String,
     /// What it is for.
     pub kind: LayerKind,
+    /// The side of the board the layer is on, when it has one (a silkscreen layer: the side its
+    /// Gerber file is for). Not written when it is not given.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub side: Option<Side>,
 }
 
 /// An electrical net.
@@ -290,6 +294,10 @@ pub struct Board {
     pub vias: BTreeMap<Id, Via>,
     /// The zones, by id.
     pub zones: BTreeMap<Id, Zone>,
+    /// The text and strokes printed on the silkscreen layers, by id. Not written when empty; a
+    /// board made before it existed reads as before.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub silkscreen: BTreeMap<Id, crate::silk::SilkItem>,
 }
 
 /// The place of a copper layer in the stack.

@@ -37,12 +37,14 @@ pub const EDGE_TOO_CLOSE: &str = "PHOENIX-RULE-007";
 pub const MASK_BRIDGE_THIN: &str = "PHOENIX-RULE-008";
 /// A pad whose shape is too coarse to be judged against a limit.
 pub const PAD_SHAPE_UNSURE: &str = "PHOENIX-RULE-009";
-/// A rule that asks for something the model does not hold.
+/// A rule that asks for something that the board does not say well enough to judge.
 pub const NOT_CHECKABLE: &str = "PHOENIX-RULE-010";
 /// A zone whose own clearance is smaller than the minimum.
 pub const ZONE_CLEARANCE_SMALL: &str = "PHOENIX-RULE-011";
 /// Zones of different nets on one layer that overlap.
 pub const ZONES_OVERLAP: &str = "PHOENIX-RULE-012";
+/// Silkscreen printed over a pad that shows on the same side.
+pub const SILK_OVER_PAD: &str = "PHOENIX-RULE-013";
 
 /// The codes of this module with their titles.
 pub const REGISTRY: &[(&str, &str)] = &[
@@ -58,12 +60,13 @@ pub const REGISTRY: &[(&str, &str)] = &[
     (EDGE_TOO_CLOSE, "Copper too close to the edge of the board"),
     (MASK_BRIDGE_THIN, "Solder mask bridge too thin"),
     (PAD_SHAPE_UNSURE, "Pad shape too coarse to judge"),
-    (NOT_CHECKABLE, "Rule asks for what the model does not hold"),
+    (NOT_CHECKABLE, "Rule asks for what the board does not say"),
     (
         ZONE_CLEARANCE_SMALL,
         "Zone clearance smaller than the minimum",
     ),
     (ZONES_OVERLAP, "Zones of different nets overlap"),
+    (SILK_OVER_PAD, "Silkscreen printed over a pad"),
 ];
 
 /// The numbers a board is checked against. A value of zero turns its rule off.
@@ -83,7 +86,7 @@ pub struct RuleSet {
     pub min_edge_clearance: Nm,
     /// Least solder mask between two pad openings.
     pub min_mask_bridge: Nm,
-    /// Ask for the check of silkscreen over pads (the model has no silkscreen objects yet).
+    /// Ask for the check of silkscreen over pads.
     pub silkscreen_over_pads: bool,
 }
 
@@ -404,6 +407,7 @@ mod tests {
             Layer {
                 name: "Top".into(),
                 kind: LayerKind::Copper,
+                side: None,
             },
         );
         b.nets.insert(n1, Net { name: "A".into() });

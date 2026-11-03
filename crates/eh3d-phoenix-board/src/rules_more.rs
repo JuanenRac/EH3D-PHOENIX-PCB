@@ -7,17 +7,21 @@
 //! other pad is reported as *inconclusive* (`PHOENIX-RULE-009`), never as a failure. All the
 //! arithmetic is in integer nanometres.
 //!
-//! The silkscreen cannot be checked: the model holds no silkscreen objects yet, and a rule that
-//! asks for it says so with `PHOENIX-RULE-010`.
+//! Silkscreen over pads is checked on the strokes that are really printed (the lines of a stroke
+//! item and of every character of a text, with the width of the printed line) against the pads that
+//! show on the side of the silkscreen layer; what cannot be judged (a layer without a side, a
+//! board without a copper stack and a pad without a drill, an arc of a stroke) is said once with
+//! `PHOENIX-RULE-010`, never as a failure.
 
 use eh3d_diagnostic::Severity;
 use eh3d_phoenix_model::{segments_intersect, Nm, Point};
 
 use crate::connectivity::{near_segment_exact, pad_position, point_in_polygon};
-use crate::model::{Board, Id, LayerKind, PadRef, PadShape, Segment};
+use crate::model::{Board, Id, LayerKind, PadRef, PadShape, Segment, Side};
 use crate::rules::{
     make, RuleReport, RuleSet, CLEARANCE_INCONCLUSIVE, CLEARANCE_VIOLATED, EDGE_TOO_CLOSE,
-    MASK_BRIDGE_THIN, NOT_CHECKABLE, PAD_SHAPE_UNSURE, ZONES_OVERLAP, ZONE_CLEARANCE_SMALL,
+    MASK_BRIDGE_THIN, NOT_CHECKABLE, PAD_SHAPE_UNSURE, SILK_OVER_PAD, ZONES_OVERLAP,
+    ZONE_CLEARANCE_SMALL,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -35,6 +39,8 @@ struct PadInfo {
     /// Twice the radius of the inscribed circle (a diameter) and of the circumscribed circle.
     ins2: i128,
     circ2: i128,
+    /// A through-hole pad shows on both sides.
+    through: bool,
 }
 
 /// Smallest `r` with `r * r >= n`.
@@ -88,6 +94,7 @@ fn pads(board: &Board) -> Vec<PadInfo> {
                 net: board.net_of(pad_ref),
                 ins2,
                 circ2,
+                through: pad.drill.is_some(),
             });
         }
     }
@@ -216,11 +223,79 @@ impl Board {
             self.zone_rules(rules.min_clearance, report);
         }
         if rules.silkscreen_over_pads {
-            report.inconclusive.push(make(
-                NOT_CHECKABLE,
-                Severity::Info,
-                "silkscreen over pads: the model has no silkscreen objects".to_owned(),
-            ));
+            self.silk_over_pads(&all_pads, report);
+        }
+    }
+
+    /// Silkscreen printed over pads that show on the same side.
+    fn silk_over_pads(&self, all_pads: &[PadInfo], report: &mut RuleReport) {
+        let (mut no_side, mut no_stack, mut arcs) = (false, false, false);
+        for (sid, item) in &self.silkscreen {
+            let Some(layer) = self.layers.get(&item.layer()) else {
+                continue;
+            };
+            if layer.kind != LayerKind::Silkscreen {
+                continue;
+            }
+            let Some(side) = layer.side else {
+                no_side = true;
+                continue;
+            };
+            // an item that cannot be drawn is a problem of the board, reported by `validate`
+            let Ok(drawn) = item.drawn() else {
+                continue;
+            };
+            let outer = match side {
+                Side::Top => self.copper_stack.first(),
+                Side::Bottom => self.copper_stack.last(),
+            };
+            let pieces = lines(&drawn.pieces);
+            if pieces.len() < drawn.pieces.len() {
+                arcs = true;
+            }
+            let w = i128::from(drawn.width.get());
+            for pad in all_pads {
+                let shows = if pad.through {
+                    true
+                } else if let Some(outer) = outer {
+                    pad.layers.contains(outer)
+                } else {
+                    no_stack = true;
+                    false
+                };
+                if !shows {
+                    continue;
+                }
+                let mut verdict = Verdict::Fine;
+                for (s, e) in &pieces {
+                    verdict = worst(
+                        verdict,
+                        gap_segment(pad.at, *s, *e, w + pad.ins2, w + pad.circ2),
+                    );
+                }
+                push(
+                    report,
+                    verdict,
+                    (SILK_OVER_PAD, format!("item {sid} over {}", pad.label)),
+                    format!("silkscreen item {sid} and {}", pad.label),
+                );
+            }
+        }
+        for (flag, why) in [
+            (no_side, "a silkscreen layer does not say which side it is on"),
+            (
+                no_stack,
+                "the board does not give the copper stack, so the side of a pad without a drill is not known",
+            ),
+            (arcs, "the arcs of a silkscreen stroke are not checked"),
+        ] {
+            if flag {
+                report.inconclusive.push(make(
+                    NOT_CHECKABLE,
+                    Severity::Info,
+                    format!("silkscreen over pads: {why}"),
+                ));
+            }
         }
     }
 
@@ -456,6 +531,7 @@ mod tests {
                 Layer {
                     name: name.into(),
                     kind,
+                    side: None,
                 },
             );
         }
@@ -717,18 +793,136 @@ mod tests {
         );
     }
 
+    /// A board with one round pad (1 mm, through hole when `drill`) at the origin of the top
+    /// layer and a top silkscreen layer, with the copper stack given when `stack`.
+    fn silk_board(drill: bool, stack: bool) -> (Board, Id) {
+        let (mut b, top, _mask) = board_with_pads(&[(0, 0, round(1_000_000))]);
+        let silk = id(30);
+        b.layers.insert(
+            silk,
+            Layer {
+                name: "Top silk".into(),
+                kind: LayerKind::Silkscreen,
+                side: Some(Side::Top),
+            },
+        );
+        if drill {
+            for f in b.footprints.values_mut() {
+                for p in f.pads.values_mut() {
+                    p.drill = Some(nm(400_000));
+                }
+            }
+        }
+        if stack {
+            b.copper_stack = vec![top];
+        }
+        (b, silk)
+    }
+
+    fn silk_line(layer: Id, y: i64) -> crate::silk::SilkItem {
+        crate::silk::SilkItem::Stroke {
+            layer,
+            width: nm(150_000),
+            path: vec![Segment::Line {
+                start: pt(-2_000_000, y),
+                end: pt(2_000_000, y),
+            }],
+        }
+    }
+
     #[test]
-    fn the_silkscreen_rule_says_it_cannot_be_checked() {
-        let (b, ..) = board_with_pads(&[(0, 0, round(1_000_000))]);
-        let r = b.check_rules(&rules("silkscreen_over_pads = on\n"));
-        assert_eq!(counts(&r), (0, 1));
-        assert_eq!(r.inconclusive[0].code.as_deref(), Some(NOT_CHECKABLE));
+    fn silkscreen_over_a_pad_is_a_confirmed_finding() {
+        let (mut b, silk) = silk_board(false, true);
+        b.silkscreen.insert(id(40), silk_line(silk, 0));
+        let on = rules("silkscreen_over_pads = on\n");
+        let r = b.check_rules(&on);
+        assert_eq!(counts(&r), (1, 0));
+        assert_eq!(r.confirmed[0].code.as_deref(), Some(SILK_OVER_PAD));
+        // the rule off, or the stroke clear of the pad (pad radius 0.5 mm + half the line)
         assert_eq!(
             counts(&b.check_rules(&rules("silkscreen_over_pads = off\n"))),
             (0, 0)
         );
+        b.silkscreen.insert(id(40), silk_line(silk, 700_000));
+        assert_eq!(counts(&b.check_rules(&on)), (0, 0));
+        // closer than the copper edge plus half the line is a finding, at it is not
+        b.silkscreen.insert(id(40), silk_line(silk, 574_999));
+        assert_eq!(counts(&b.check_rules(&on)), (1, 0));
+        b.silkscreen.insert(id(40), silk_line(silk, 575_000));
+        assert_eq!(counts(&b.check_rules(&on)), (0, 0));
+    }
+
+    #[test]
+    fn a_text_over_a_pad_is_found_through_its_characters() {
+        let (mut b, silk) = silk_board(false, true);
+        let text = |x: i64| crate::silk::SilkItem::Text {
+            layer: silk,
+            at: pt(x, -600_000),
+            text: "I".into(),
+            height: nm(1_200_000),
+            stroke: nm(100_000),
+            rotation: Udeg::ZERO,
+            mirrored: false,
+        };
+        let on = rules("silkscreen_over_pads = on\n");
+        // the stem of the I passes through the pad
+        b.silkscreen.insert(id(41), text(-400_000));
+        assert_eq!(counts(&b.check_rules(&on)), (1, 0));
+        // far to the side
+        b.silkscreen.insert(id(41), text(5_000_000));
+        assert_eq!(counts(&b.check_rules(&on)), (0, 0));
+    }
+
+    #[test]
+    fn what_cannot_be_judged_is_said_and_never_a_failure() {
+        let on = rules("silkscreen_over_pads = on\n");
+        // no copper stack and a pad without a drill: its side is not known
+        let (mut b, silk) = silk_board(false, false);
+        b.silkscreen.insert(id(40), silk_line(silk, 0));
+        let r = b.check_rules(&on);
+        assert_eq!(counts(&r), (0, 1));
+        assert_eq!(r.inconclusive[0].code.as_deref(), Some(NOT_CHECKABLE));
+        // a through-hole pad shows on both sides, so no stack is needed
+        let (mut b, silk) = silk_board(true, false);
+        b.silkscreen.insert(id(40), silk_line(silk, 0));
+        assert_eq!(counts(&b.check_rules(&on)), (1, 0));
+        // a silkscreen layer that does not say its side
+        b.layers.get_mut(&silk).unwrap().side = None;
+        let r = b.check_rules(&on);
+        assert_eq!(counts(&r), (0, 1));
+        assert_eq!(r.inconclusive[0].code.as_deref(), Some(NOT_CHECKABLE));
+    }
+
+    #[test]
+    fn the_other_side_of_the_board_is_not_checked() {
+        let (mut b, silk) = silk_board(false, true);
+        b.layers.get_mut(&silk).unwrap().side = Some(Side::Bottom);
+        b.layers.insert(
+            id(31),
+            Layer {
+                name: "Bottom".into(),
+                kind: LayerKind::Copper,
+                side: None,
+            },
+        );
+        b.copper_stack = vec![id(1), id(31)];
+        b.silkscreen.insert(id(40), silk_line(silk, 0));
+        // the pad is on the top layer only; the silkscreen is for the bottom
+        assert_eq!(
+            counts(&b.check_rules(&rules("silkscreen_over_pads = on\n"))),
+            (0, 0)
+        );
         let (_, d) = RuleSet::parse("silkscreen_over_pads = maybe\n");
         assert_eq!(d.len(), 1);
+    }
+
+    #[test]
+    fn the_rule_with_nothing_printed_has_nothing_to_report() {
+        let (b, ..) = board_with_pads(&[(0, 0, round(1_000_000))]);
+        assert_eq!(
+            counts(&b.check_rules(&rules("silkscreen_over_pads = on\n"))),
+            (0, 0)
+        );
     }
 
     #[test]

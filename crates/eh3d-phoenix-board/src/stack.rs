@@ -96,6 +96,7 @@ mod tests {
                 Layer {
                     name: format!("L{i}"),
                     kind,
+                    side: None,
                 },
             );
         }

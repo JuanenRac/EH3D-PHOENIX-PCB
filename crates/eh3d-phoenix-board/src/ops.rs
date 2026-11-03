@@ -9,7 +9,8 @@
 use eh3d_phoenix_model::{Point, Udeg};
 use serde::{Deserialize, Serialize};
 
-use crate::model::{Board, Component, Id, PadNet, PadRef, Track, Via};
+use crate::model::{Board, Component, Id, LayerKind, PadNet, PadRef, Track, Via};
+use crate::silk::SilkItem;
 
 /// A change to a board.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -91,6 +92,18 @@ pub enum Operation {
         /// The copper layers in order; empty to say that the order is not given.
         stack: Vec<Id>,
     },
+    /// Adds a text or stroke to a silkscreen layer.
+    AddSilk {
+        /// The new id.
+        id: Id,
+        /// The item.
+        item: SilkItem,
+    },
+    /// Removes a silkscreen item.
+    RemoveSilk {
+        /// The item.
+        id: Id,
+    },
     /// Several operations that are applied and undone as one.
     Batch {
         /// The operations, in order.
@@ -116,6 +129,9 @@ pub enum OpError {
     /// A layer of the copper stack is not a copper layer.
     #[error("the layer {0} is not a copper layer")]
     NotCopper(Id),
+    /// The layer of a silkscreen item is not a silkscreen layer.
+    #[error("the layer {0} is not a silkscreen layer")]
+    NotSilkscreen(Id),
 }
 
 fn set_pad_net(board: &mut Board, pad: PadRef, net: Option<Id>) -> Result<Operation, OpError> {
@@ -269,6 +285,24 @@ impl Board {
                 }
                 let before = std::mem::replace(&mut self.copper_stack, stack.clone());
                 Ok(Operation::SetCopperStack { stack: before })
+            }
+            Operation::AddSilk { id, item } => {
+                if self.silkscreen.contains_key(id) {
+                    return Err(OpError::Exists(*id));
+                }
+                match self.layers.get(&item.layer()) {
+                    None => return Err(OpError::Dangling(item.layer())),
+                    Some(l) if l.kind != LayerKind::Silkscreen => {
+                        return Err(OpError::NotSilkscreen(item.layer()));
+                    }
+                    Some(_) => {}
+                }
+                self.silkscreen.insert(*id, item.clone());
+                Ok(Operation::RemoveSilk { id: *id })
+            }
+            Operation::RemoveSilk { id } => {
+                let item = self.silkscreen.remove(id).ok_or(OpError::Missing(*id))?;
+                Ok(Operation::AddSilk { id: *id, item })
             }
             Operation::Batch { ops } => {
                 // All or nothing: on a failure everything applied so far is undone.

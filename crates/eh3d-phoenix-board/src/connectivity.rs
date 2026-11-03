@@ -557,6 +557,7 @@ mod tests {
                 Layer {
                     name: name.into(),
                     kind: LayerKind::Copper,
+                    side: None,
                 },
             );
         }

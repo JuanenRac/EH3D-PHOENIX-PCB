@@ -2,7 +2,7 @@
 
 use eh3d_phoenix_board::{
     Board, Component, Footprint, Id, Layer, LayerKind, Net, Operation, Pad, PadNet, PadRef,
-    PadShape, Segment, Side, Track, Via, Zone,
+    PadShape, Segment, Side, SilkItem, Track, Via, Zone,
 };
 use eh3d_phoenix_model::{DeterministicRandom, IdGenerator, Nm, Point, StepClock, Udeg};
 use std::collections::BTreeMap;
@@ -103,6 +103,7 @@ impl Gen {
             Layer {
                 name: "Top".into(),
                 kind: LayerKind::Copper,
+                side: None,
             },
         );
         b.layers.insert(
@@ -110,6 +111,7 @@ impl Gen {
             Layer {
                 name: "Bottom".into(),
                 kind: LayerKind::Copper,
+                side: None,
             },
         );
         b.layers.insert(
@@ -117,6 +119,7 @@ impl Gen {
             Layer {
                 name: "Silk".into(),
                 kind: LayerKind::Silkscreen,
+                side: Some(Side::Top),
             },
         );
         let nets: Vec<Id> = (0..parts.max(1))
@@ -254,6 +257,28 @@ impl Gen {
                 clearance: self.nm(100_000, 300_000),
             },
         );
+        for i in 0..parts / 2 + 1 {
+            let id = self.id();
+            let item = if i % 2 == 0 {
+                const WORDS: [&str; 4] = ["R1", "C12 10uF", "GND", "J3-5V"];
+                SilkItem::Text {
+                    layer: silk,
+                    at: self.point(),
+                    text: WORDS[self.rng.below(4) as usize].to_owned(),
+                    height: self.nm(600_000, 1_500_000),
+                    stroke: self.nm(100_000, 200_000),
+                    rotation: Udeg::new(self.rng.range(0, 3) * 90_000_000).unwrap(),
+                    mirrored: self.rng.below(2) == 0,
+                }
+            } else {
+                SilkItem::Stroke {
+                    layer: silk,
+                    width: self.nm(100_000, 250_000),
+                    path: self.path(),
+                }
+            };
+            b.silkscreen.insert(id, item);
+        }
         b
     }
 
