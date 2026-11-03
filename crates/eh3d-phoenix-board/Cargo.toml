@@ -1,0 +1,16 @@
+[package]
+name = "eh3d-phoenix-board"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "The electrical and board model of the design: layers, nets, footprints, components, pads, tracks with arcs, vias and zones, linked by stable ids and stored in integer nanometres, with reversible operations and an undo/redo history"
+
+[dependencies]
+eh3d-container.workspace = true
+eh3d-diagnostic.workspace = true
+eh3d-phoenix-model = { path = "../eh3d-phoenix-model" }
+serde.workspace = true
+serde_json = { workspace = true, features = ["float_roundtrip"] }
+thiserror.workspace = true
