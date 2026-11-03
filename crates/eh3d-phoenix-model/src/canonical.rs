@@ -1,5 +1,9 @@
 //! Canonical JSON as in RFC 8785 (JSON Canonicalization Scheme).
 //!
+//! The writer lives in the shared crate `eh3d-container`, which every container format uses; this
+//! module keeps the names the model has always had and the error type of the model, and the tests
+//! below pin the vectors of the standard against the shared writer.
+//!
 //! * object keys sorted by UTF-16 code units, no insignificant whitespace;
 //! * numbers in the ECMAScript shortest round-trip form (`1e+30`, `0.002`, never `2E-3`);
 //! * strings with the minimal escapes (`\"`, `\\`, `\b`, `\t`, `\n`, `\f`, `\r`, other control
@@ -10,153 +14,35 @@
 //! equals refused (a JSON number is a double).
 
 use serde::Serialize;
-use serde_json::{Map, Number, Value};
+use serde_json::Value;
 
 use crate::error::CanonicalError;
 
-/// The canonical text of a value, without the final line feed.
+/// The canonical text of a JSON value, without the final line feed.
 pub fn canonical_string(value: &Value) -> Result<String, CanonicalError> {
-    let mut out = String::new();
-    write_value(value, &mut out)?;
-    Ok(out)
+    Ok(eh3d_container::canonical_string(value)?)
 }
 
-/// The canonical bytes of a file: the canonical text plus one line feed.
+/// The canonical text of a JSON value followed by one line feed, as bytes.
 pub fn canonical_file_bytes(value: &Value) -> Result<Vec<u8>, CanonicalError> {
-    let mut text = canonical_string(value)?;
-    text.push('\n');
-    Ok(text.into_bytes())
+    Ok(eh3d_container::canonical_file_bytes(value)?)
 }
 
-/// Serialises any `Serialize` value to canonical file bytes.
+/// The canonical file bytes of any serialisable value.
 pub fn to_canonical_file_bytes<T: Serialize>(value: &T) -> Result<Vec<u8>, CanonicalError> {
-    let v = serde_json::to_value(value).map_err(|e| CanonicalError::Serialise(e.to_string()))?;
-    canonical_file_bytes(&v)
+    Ok(eh3d_container::to_canonical_file_bytes(value)?)
 }
 
-fn write_value(value: &Value, out: &mut String) -> Result<(), CanonicalError> {
-    match value {
-        Value::Null => out.push_str("null"),
-        Value::Bool(true) => out.push_str("true"),
-        Value::Bool(false) => out.push_str("false"),
-        Value::Number(n) => out.push_str(&number_string(n)?),
-        Value::String(s) => write_string(s, out),
-        Value::Array(items) => {
-            out.push('[');
-            for (i, item) in items.iter().enumerate() {
-                if i > 0 {
-                    out.push(',');
-                }
-                write_value(item, out)?;
-            }
-            out.push(']');
-        }
-        Value::Object(map) => write_object(map, out)?,
-    }
-    Ok(())
-}
-
-fn write_object(map: &Map<String, Value>, out: &mut String) -> Result<(), CanonicalError> {
-    let mut entries: Vec<(&String, &Value)> = map.iter().collect();
-    entries.sort_by(|a, b| a.0.encode_utf16().cmp(b.0.encode_utf16()));
-    out.push('{');
-    for (i, (key, value)) in entries.into_iter().enumerate() {
-        if i > 0 {
-            out.push(',');
-        }
-        write_string(key, out);
-        out.push(':');
-        write_value(value, out)?;
-    }
-    out.push('}');
-    Ok(())
-}
-
-fn write_string(s: &str, out: &mut String) {
-    out.push('"');
-    for ch in s.chars() {
-        match ch {
-            '"' => out.push_str("\\\""),
-            '\\' => out.push_str("\\\\"),
-            '\u{08}' => out.push_str("\\b"),
-            '\t' => out.push_str("\\t"),
-            '\n' => out.push_str("\\n"),
-            '\u{0c}' => out.push_str("\\f"),
-            '\r' => out.push_str("\\r"),
-            c if (c as u32) < 0x20 => out.push_str(&format!("\\u{:04x}", c as u32)),
-            c => out.push(c),
-        }
-    }
-    out.push('"');
-}
-
-fn number_string(n: &Number) -> Result<String, CanonicalError> {
-    if let Some(i) = n.as_i64() {
-        return integer_string(i128::from(i));
-    }
-    if let Some(u) = n.as_u64() {
-        return integer_string(i128::from(u));
-    }
-    match n.as_f64() {
-        Some(f) => es_number_string(f),
-        None => Err(CanonicalError::NotFinite),
-    }
-}
-
-/// An integer is written as the double it equals; one that no double equals is refused.
-fn integer_string(n: i128) -> Result<String, CanonicalError> {
-    let f = n as f64;
-    if f as i128 != n {
-        return Err(CanonicalError::IntegerNotRepresentable(n.to_string()));
-    }
-    es_number_string(f)
-}
-
-/// `Number::toString` of ECMAScript for a finite double: the shortest digits that round-trip,
-/// laid out as plain decimal for exponents from `1e-6` up to below `1e21` and as `d.ddde+x`
-/// otherwise. Negative zero is written `0`.
+/// A double in the ECMAScript number form that RFC 8785 asks for.
 pub fn es_number_string(value: f64) -> Result<String, CanonicalError> {
-    if !value.is_finite() {
-        return Err(CanonicalError::NotFinite);
-    }
-    if value == 0.0 {
-        return Ok("0".to_string());
-    }
-    let sign = if value < 0.0 { "-" } else { "" };
-    // Rust prints the shortest round-trip digits in this form: `d.ddde<exp>`.
-    let sci = format!("{:e}", value.abs());
-    let (mantissa, exp) = sci
-        .split_once('e')
-        .ok_or_else(|| CanonicalError::Serialise(sci.clone()))?;
-    let exp: i32 = exp
-        .parse()
-        .map_err(|_| CanonicalError::Serialise(sci.clone()))?;
-    let digits: String = mantissa.chars().filter(|c| *c != '.').collect();
-    let k = digits.len() as i32;
-    let n = exp + 1;
-    let body = if k <= n && n <= 21 {
-        format!("{digits}{}", "0".repeat((n - k) as usize))
-    } else if 0 < n && n <= 21 {
-        format!("{}.{}", &digits[..n as usize], &digits[n as usize..])
-    } else if -6 < n && n <= 0 {
-        format!("0.{}{digits}", "0".repeat((-n) as usize))
-    } else {
-        let e = n - 1;
-        let e_text = format!("{}{}", if e < 0 { "-" } else { "+" }, e.abs());
-        if k == 1 {
-            format!("{digits}e{e_text}")
-        } else {
-            format!("{}.{}e{e_text}", &digits[..1], &digits[1..])
-        }
-    };
-    Ok(format!("{sign}{body}"))
+    Ok(eh3d_container::canonical::es_number_string(value)?)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::id::{DeterministicRandom, RandomSource};
-    use serde_json::json;
+    use crate::{DeterministicRandom, RandomSource};
+    use serde_json::{json, Map};
 
     fn canon(text: &str) -> String {
         canonical_string(&serde_json::from_str::<Value>(text).unwrap()).unwrap()

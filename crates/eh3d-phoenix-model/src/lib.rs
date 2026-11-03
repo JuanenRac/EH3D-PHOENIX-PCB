@@ -13,13 +13,16 @@
 //! There is no project file here: only the pieces whose rules are fixed.
 
 pub mod canonical;
+pub mod diagnostic;
 pub mod error;
 pub mod geometry;
-pub mod id;
 pub mod quantise;
 pub mod units;
 
-pub use error::{CanonicalError, IdError, ModelError};
+pub use eh3d_container::{
+    Clock, DeterministicRandom, IdError, IdGenerator, ObjectId, RandomSource, StepClock,
+    SystemClock, SystemRandom,
+};
+pub use error::{CanonicalError, ModelError};
 pub use geometry::{orient, segments_intersect, Arc, Orientation, Point, Rect};
-pub use id::{Clock, DeterministicRandom, IdGenerator, ObjectId, RandomSource, StepClock};
 pub use units::{Nm, ScaledDecimal, Udeg, ANGLE_LIMIT_UDEG, COORD_LIMIT_NM};

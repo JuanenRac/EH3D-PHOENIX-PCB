@@ -26,17 +26,6 @@ pub enum ModelError {
     NotFinite,
 }
 
-/// Failures of the object ids.
-#[derive(Debug, Clone, PartialEq, Eq, Error)]
-pub enum IdError {
-    /// The text is not a canonical lowercase UUID version 7.
-    #[error("not a canonical lowercase UUID v7: {reason}")]
-    InvalidText { reason: &'static str },
-    /// The clock gave a time that does not fit the 48-bit field of a UUID v7.
-    #[error("the clock value {0} ms does not fit in 48 bits")]
-    ClockOutOfRange(u64),
-}
-
 /// Failures of the canonical JSON writer.
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum CanonicalError {
@@ -52,4 +41,16 @@ pub enum CanonicalError {
     /// A value to quantise is too large to be exact.
     #[error("the number {0} is too large to quantise exactly")]
     QuantiseRange(String),
+}
+
+impl From<eh3d_container::CanonicalError> for CanonicalError {
+    fn from(error: eh3d_container::CanonicalError) -> Self {
+        match error {
+            eh3d_container::CanonicalError::IntegerNotRepresentable(n) => {
+                CanonicalError::IntegerNotRepresentable(n)
+            }
+            eh3d_container::CanonicalError::Serialise(m) => CanonicalError::Serialise(m),
+            eh3d_container::CanonicalError::NotFinite => CanonicalError::NotFinite,
+        }
+    }
 }

@@ -11,3 +11,6 @@ description = "Foundations of the design model: integer nanometre coordinates wi
 serde.workspace = true
 serde_json = { workspace = true, features = ["float_roundtrip"] }
 thiserror.workspace = true
+# canonical JSON, the container rules and the common diagnostic come from the shared repository
+eh3d-container.workspace = true
+eh3d-diagnostic.workspace = true
