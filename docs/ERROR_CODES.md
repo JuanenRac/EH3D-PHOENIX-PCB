@@ -67,7 +67,9 @@ Each table repeats the `REGISTRY` of a crate (`eh3d-phoenix-model` in `src/diagn
 | PHOENIX-EAGLE-009 | Element counted but not interpreted | an element of a board, schematic or library that the reader counts under its name and does not interpret (information) |
 | PHOENIX-EAGLE-010 | File could not be read | a copy that cannot be read from disk |
 | PHOENIX-EAGLE-011 | Copy differs from the original | a copy whose SHA-256 differs from the original, or an original that changed while it was copied |
-| PHOENIX-EAGLE-012 | EAGLE binary format is not read | a file that starts with the byte 0x10 like the binary files of the old versions, which this reader does not read |
+| PHOENIX-EAGLE-012 | EAGLE binary format is not read | a file that starts with the bytes 0x10 0x80 like the binary files of the old versions, which this reader does not read |
+| PHOENIX-EAGLE-013 | File of another program | a file with an EAGLE extension that starts like a file of KiCad (the old text formats) or of P-CAD; the message names the program |
+| PHOENIX-EAGLE-014 | Binary variant is not read | a file that starts with the byte 0x10 but not with 0x10 0x80, a binary variant that this reader does not read |
 
 ## Rule check (`eh3d-phoenix-board`, `src/rules.rs`)
 

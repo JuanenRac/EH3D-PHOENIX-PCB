@@ -132,14 +132,41 @@ impl Reading {
 /// The supported major versions.
 pub const SUPPORTED_MAJOR: std::ops::RangeInclusive<u32> = 6..=9;
 
+/// The program that wrote a file that uses an EAGLE extension without being one, recognised by
+/// the first bytes.
+pub fn other_program(bytes: &[u8]) -> Option<&'static str> {
+    let head = &bytes[..bytes.len().min(64)];
+    let has = |needle: &[u8]| head.windows(needle.len()).any(|w| w == needle);
+    if head.starts_with(b"EESchema")
+        || head.starts_with(b"PCBNEW-BOARD")
+        || head.starts_with(b"(kicad")
+    {
+        Some("KiCad")
+    } else if has(b"P-CAD") {
+        Some("P-CAD")
+    } else {
+        None
+    }
+}
+
 /// Reads `bytes` as an EAGLE XML file.
 pub fn read_bytes(bytes: &[u8], limits: &Limits) -> Reading {
     // The binary files of the old versions start with the byte 0x10; no XML text does.
     if bytes.first() == Some(&0x10) {
-        return Reading::fail(
-            codes::BINARY_FORMAT,
-            "the file starts like an EAGLE binary file",
-        );
+        return if bytes.get(1) == Some(&0x80) {
+            Reading::fail(
+                codes::BINARY_FORMAT,
+                "the file starts like an EAGLE binary file",
+            )
+        } else {
+            Reading::fail(
+                codes::BINARY_VARIANT,
+                "the file starts with 0x10 but not with 0x10 0x80",
+            )
+        };
+    }
+    if let Some(program) = other_program(bytes) {
+        return Reading::fail(codes::OTHER_PROGRAM, program);
     }
     let mut diagnostics = Vec::new();
     let text: std::borrow::Cow<'_, str> = match std::str::from_utf8(bytes) {
@@ -520,11 +547,37 @@ mod tests {
 
     #[test]
     fn the_binary_format_has_its_own_code() {
-        let mut bytes = vec![0x10, 0x00, 0x47, 0x00];
+        let mut bytes = vec![0x10, 0x80, 0x3c, 0x00];
         bytes.extend_from_slice(b"<eagle version=\"9.0.0\"/>");
         let r = read_bytes(&bytes, &Limits::default());
         assert!(r.summary.is_none());
         assert_eq!(r.diagnostics[0].code.as_deref(), Some(codes::BINARY_FORMAT));
+        // the variant without the flag byte has its own code
+        bytes[1] = 0x00;
+        let r = read_bytes(&bytes, &Limits::default());
+        assert_eq!(
+            r.diagnostics[0].code.as_deref(),
+            Some(codes::BINARY_VARIANT)
+        );
+    }
+
+    #[test]
+    fn files_of_other_programs_are_named() {
+        for (bytes, program) in [
+            (&b"EESchema Schematic File Version 2\n"[..], "KiCad"),
+            (&b"PCBNEW-BOARD Version 1 date 9/11/2012"[..], "KiCad"),
+            (
+                &b"II\x02\x04 \xbc\x00\r\n\r\n;P-CAD 2004 Schematic"[..],
+                "P-CAD",
+            ),
+        ] {
+            assert_eq!(other_program(bytes), Some(program));
+            let r = read_bytes(bytes, &Limits::default());
+            assert!(r.summary.is_none());
+            assert_eq!(r.diagnostics[0].code.as_deref(), Some(codes::OTHER_PROGRAM));
+            assert!(r.diagnostics[0].message.contains(program));
+        }
+        assert_eq!(other_program(b"<eagle version=\"9.0.0\"/>"), None);
     }
 
     #[test]
