@@ -31,6 +31,18 @@ pub const RING_TOO_THIN: &str = "PHOENIX-RULE-004";
 pub const CLEARANCE_VIOLATED: &str = "PHOENIX-RULE-005";
 /// A clearance that could not be judged.
 pub const CLEARANCE_INCONCLUSIVE: &str = "PHOENIX-RULE-006";
+/// Copper closer to the edge of the board than the minimum.
+pub const EDGE_TOO_CLOSE: &str = "PHOENIX-RULE-007";
+/// Less solder mask between two pad openings than the minimum.
+pub const MASK_BRIDGE_THIN: &str = "PHOENIX-RULE-008";
+/// A pad whose shape is too coarse to be judged against a limit.
+pub const PAD_SHAPE_UNSURE: &str = "PHOENIX-RULE-009";
+/// A rule that asks for something the model does not hold.
+pub const NOT_CHECKABLE: &str = "PHOENIX-RULE-010";
+/// A zone whose own clearance is smaller than the minimum.
+pub const ZONE_CLEARANCE_SMALL: &str = "PHOENIX-RULE-011";
+/// Zones of different nets on one layer that overlap.
+pub const ZONES_OVERLAP: &str = "PHOENIX-RULE-012";
 
 /// The codes of this module with their titles.
 pub const REGISTRY: &[(&str, &str)] = &[
@@ -43,6 +55,15 @@ pub const REGISTRY: &[(&str, &str)] = &[
     (RING_TOO_THIN, "Annular ring thinner than the minimum"),
     (CLEARANCE_VIOLATED, "Clearance violated"),
     (CLEARANCE_INCONCLUSIVE, "Clearance could not be judged"),
+    (EDGE_TOO_CLOSE, "Copper too close to the edge of the board"),
+    (MASK_BRIDGE_THIN, "Solder mask bridge too thin"),
+    (PAD_SHAPE_UNSURE, "Pad shape too coarse to judge"),
+    (NOT_CHECKABLE, "Rule asks for what the model does not hold"),
+    (
+        ZONE_CLEARANCE_SMALL,
+        "Zone clearance smaller than the minimum",
+    ),
+    (ZONES_OVERLAP, "Zones of different nets overlap"),
 ];
 
 /// The numbers a board is checked against. A value of zero turns its rule off.
@@ -58,6 +79,12 @@ pub struct RuleSet {
     pub min_via_diameter: Nm,
     /// Thinnest ring of copper around a drill.
     pub min_annular_ring: Nm,
+    /// Closest approach of copper to the edge of the board.
+    pub min_edge_clearance: Nm,
+    /// Least solder mask between two pad openings.
+    pub min_mask_bridge: Nm,
+    /// Ask for the check of silkscreen over pads (the model has no silkscreen objects yet).
+    pub silkscreen_over_pads: bool,
 }
 
 impl Default for RuleSet {
@@ -69,6 +96,9 @@ impl Default for RuleSet {
             min_drill: Nm::ZERO,
             min_via_diameter: Nm::ZERO,
             min_annular_ring: Nm::ZERO,
+            min_edge_clearance: Nm::ZERO,
+            min_mask_bridge: Nm::ZERO,
+            silkscreen_over_pads: false,
         }
     }
 }
@@ -94,6 +124,14 @@ impl RuleSet {
                 diagnostics.push(bad("expected name = value"));
                 continue;
             };
+            if key.trim() == "silkscreen_over_pads" {
+                match value.trim() {
+                    "on" => rules.silkscreen_over_pads = true,
+                    "off" => rules.silkscreen_over_pads = false,
+                    _ => diagnostics.push(bad("the value is not on or off")),
+                }
+                continue;
+            }
             let value = match Nm::parse_mm(value.trim()) {
                 Ok((nm, _exact)) if nm.get() >= 0 => nm,
                 Ok(_) => {
@@ -115,6 +153,8 @@ impl RuleSet {
                 "min_drill" => rules.min_drill = value,
                 "min_via_diameter" => rules.min_via_diameter = value,
                 "min_annular_ring" => rules.min_annular_ring = value,
+                "min_edge_clearance" => rules.min_edge_clearance = value,
+                "min_mask_bridge" => rules.min_mask_bridge = value,
                 _ => diagnostics.push(bad("unknown rule name")),
             }
         }
@@ -145,7 +185,7 @@ fn title(code: &str) -> &'static str {
         .map_or("", |(_, t)| *t)
 }
 
-fn make(code: &'static str, severity: Severity, detail: String) -> Diagnostic {
+pub(crate) fn make(code: &'static str, severity: Severity, detail: String) -> Diagnostic {
     Diagnostic::new(0, severity, format!("{}: {detail}", title(code)))
         .with_code(code)
         .with_category(Category::Geometric)
@@ -244,6 +284,7 @@ impl Board {
         if !is_off(rules.min_clearance) {
             self.check_clearances(rules, &mut report);
         }
+        self.check_more_rules(rules, &mut report);
         report
     }
 

@@ -1,0 +1,751 @@
+//! More rule checks: pads, the edge of the board, the solder mask, and zones.
+//!
+//! The pads are not points: a pad has a shape. The shapes are bounded by two circles about the
+//! centre of the pad, the largest circle inside it (its inscribed circle) and the smallest circle
+//! around it. Two pads are certainly too close when even their inscribed circles are, and certainly
+//! far enough when even their circumscribed circles are; in between a round pad is exact and any
+//! other pad is reported as *inconclusive* (`PHOENIX-RULE-009`), never as a failure. All the
+//! arithmetic is in integer nanometres.
+//!
+//! The silkscreen cannot be checked: the model holds no silkscreen objects yet, and a rule that
+//! asks for it says so with `PHOENIX-RULE-010`.
+
+use eh3d_diagnostic::Severity;
+use eh3d_phoenix_model::{segments_intersect, Nm, Point};
+
+use crate::connectivity::{near_segment_exact, pad_position, point_in_polygon};
+use crate::model::{Board, Id, LayerKind, PadRef, PadShape, Segment};
+use crate::rules::{
+    make, RuleReport, RuleSet, CLEARANCE_INCONCLUSIVE, CLEARANCE_VIOLATED, EDGE_TOO_CLOSE,
+    MASK_BRIDGE_THIN, NOT_CHECKABLE, PAD_SHAPE_UNSURE, ZONES_OVERLAP, ZONE_CLEARANCE_SMALL,
+};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Verdict {
+    Violation,
+    Fine,
+    Unsure,
+}
+
+struct PadInfo {
+    label: String,
+    at: Point,
+    layers: Vec<Id>,
+    net: Option<Id>,
+    /// Twice the radius of the inscribed circle (a diameter) and of the circumscribed circle.
+    ins2: i128,
+    circ2: i128,
+}
+
+/// Smallest `r` with `r * r >= n`.
+fn isqrt_ceil(n: i128) -> i128 {
+    if n <= 0 {
+        return 0;
+    }
+    let mut r = (n as f64).sqrt() as i128;
+    while r * r < n {
+        r += 1;
+    }
+    while r > 0 && (r - 1) * (r - 1) >= n {
+        r -= 1;
+    }
+    r
+}
+
+fn diameters(shape: PadShape) -> (i128, i128) {
+    match shape {
+        PadShape::Circle { diameter } => (i128::from(diameter.get()), i128::from(diameter.get())),
+        PadShape::Rect { width, height } => {
+            let (w, h) = (i128::from(width.get()), i128::from(height.get()));
+            (w.min(h), isqrt_ceil(w * w + h * h))
+        }
+        PadShape::Oblong { width, height } => {
+            let (w, h) = (i128::from(width.get()), i128::from(height.get()));
+            (w.min(h), w.max(h))
+        }
+    }
+}
+
+fn pads(board: &Board) -> Vec<PadInfo> {
+    let mut out = Vec::new();
+    for (cid, component) in &board.components {
+        let Some(footprint) = board.footprints.get(&component.footprint) else {
+            continue;
+        };
+        for (pid, pad) in &footprint.pads {
+            let pad_ref = PadRef {
+                component: *cid,
+                pad: *pid,
+            };
+            let Some(at) = pad_position(board, pad_ref) else {
+                continue;
+            };
+            let (ins2, circ2) = diameters(pad.shape);
+            out.push(PadInfo {
+                label: format!("{} pad {}", component.refdes, pad.number),
+                at,
+                layers: pad.layers.clone(),
+                net: board.net_of(pad_ref),
+                ins2,
+                circ2,
+            });
+        }
+    }
+    out
+}
+
+fn share_layer(a: &[Id], b: &[Id], filter: impl Fn(&Id) -> bool) -> bool {
+    a.iter().any(|l| filter(l) && b.contains(l))
+}
+
+fn is_copper(board: &Board, layer: &Id) -> bool {
+    board
+        .layers
+        .get(layer)
+        .is_some_and(|l| l.kind == LayerKind::Copper)
+}
+
+fn is_mask(board: &Board, layer: &Id) -> bool {
+    board
+        .layers
+        .get(layer)
+        .is_some_and(|l| l.kind == LayerKind::SolderMask)
+}
+
+/// Compares the squared distance (times four) of two centres with the two reach values.
+fn gap_points(dist2x4: i128, t_ins: i128, t_circ: i128) -> Verdict {
+    if t_ins > 0 && dist2x4 < t_ins * t_ins {
+        Verdict::Violation
+    } else if dist2x4 >= t_circ * t_circ {
+        Verdict::Fine
+    } else {
+        Verdict::Unsure
+    }
+}
+
+fn centre_distance2x4(a: Point, b: Point) -> i128 {
+    let dx = i128::from(a.x_nm.get()) - i128::from(b.x_nm.get());
+    let dy = i128::from(a.y_nm.get()) - i128::from(b.y_nm.get());
+    4 * (dx * dx + dy * dy)
+}
+
+/// The pad centre against a straight piece, for the two reach values.
+fn gap_segment(at: Point, s: Point, e: Point, t_ins: i128, t_circ: i128) -> Verdict {
+    if t_ins > 0 && near_segment_exact(at, s, e, t_ins * t_ins, true) == Some(true) {
+        return Verdict::Violation;
+    }
+    if near_segment_exact(at, s, e, t_circ * t_circ, true) == Some(false) {
+        Verdict::Fine
+    } else {
+        Verdict::Unsure
+    }
+}
+
+/// Two straight pieces closer than `reach` (twice the allowed centre distance)? `None` when the
+/// numbers do not fit.
+fn pieces_too_close(a: (Point, Point), b: (Point, Point), reach: i128) -> Option<bool> {
+    if segments_intersect(a.0, a.1, b.0, b.1) {
+        return Some(true);
+    }
+    let mut known = true;
+    for (p, s, e) in [
+        (a.0, b.0, b.1),
+        (a.1, b.0, b.1),
+        (b.0, a.0, a.1),
+        (b.1, a.0, a.1),
+    ] {
+        match near_segment_exact(p, s, e, reach * reach, true) {
+            Some(true) => return Some(true),
+            Some(false) => {}
+            None => known = false,
+        }
+    }
+    known.then_some(false)
+}
+
+fn lines(path: &[Segment]) -> Vec<(Point, Point)> {
+    path.iter()
+        .filter_map(|s| match s {
+            Segment::Line { start, end } => Some((*start, *end)),
+            Segment::Arc { .. } => None,
+        })
+        .collect()
+}
+
+fn push(
+    report: &mut RuleReport,
+    verdict: Verdict,
+    violation: (&'static str, String),
+    unsure: String,
+) {
+    match verdict {
+        Verdict::Violation => {
+            report
+                .confirmed
+                .push(make(violation.0, Severity::Error, violation.1))
+        }
+        Verdict::Unsure => report
+            .inconclusive
+            .push(make(PAD_SHAPE_UNSURE, Severity::Info, unsure)),
+        Verdict::Fine => {}
+    }
+}
+
+fn worst(a: Verdict, b: Verdict) -> Verdict {
+    match (a, b) {
+        (Verdict::Violation, _) | (_, Verdict::Violation) => Verdict::Violation,
+        (Verdict::Unsure, _) | (_, Verdict::Unsure) => Verdict::Unsure,
+        _ => Verdict::Fine,
+    }
+}
+
+impl Board {
+    /// The checks of pads, the edge of the board, the mask and zones. Called by `check_rules`.
+    pub(crate) fn check_more_rules(&self, rules: &RuleSet, report: &mut RuleReport) {
+        let all_pads = pads(self);
+        if rules.min_clearance.get() > 0 {
+            self.pad_clearances(rules.min_clearance, &all_pads, report);
+        }
+        if rules.min_edge_clearance.get() > 0 {
+            self.edge_clearances(rules.min_edge_clearance, &all_pads, report);
+        }
+        if rules.min_mask_bridge.get() > 0 {
+            self.mask_bridges(rules.min_mask_bridge, &all_pads, report);
+        }
+        if rules.min_clearance.get() > 0 {
+            self.zone_rules(rules.min_clearance, report);
+        }
+        if rules.silkscreen_over_pads {
+            report.inconclusive.push(make(
+                NOT_CHECKABLE,
+                Severity::Info,
+                "silkscreen over pads: the model has no silkscreen objects".to_owned(),
+            ));
+        }
+    }
+
+    fn pad_clearances(&self, clearance: Nm, all_pads: &[PadInfo], report: &mut RuleReport) {
+        let c2 = 2 * i128::from(clearance.get());
+        for (i, a) in all_pads.iter().enumerate() {
+            for b in &all_pads[i + 1..] {
+                if (a.net.is_some() && a.net == b.net)
+                    || !share_layer(&a.layers, &b.layers, |l| is_copper(self, l))
+                {
+                    continue;
+                }
+                let verdict = gap_points(
+                    centre_distance2x4(a.at, b.at),
+                    c2 + a.ins2 + b.ins2,
+                    c2 + a.circ2 + b.circ2,
+                );
+                push(
+                    report,
+                    verdict,
+                    (CLEARANCE_VIOLATED, format!("{} and {}", a.label, b.label)),
+                    format!("{} and {}", a.label, b.label),
+                );
+            }
+            for (tid, t) in &self.tracks {
+                if (a.net.is_some() && a.net == Some(t.net)) || !a.layers.contains(&t.layer) {
+                    continue;
+                }
+                let w = i128::from(t.width.get());
+                let mut verdict = Verdict::Fine;
+                for (s, e) in lines(&t.path) {
+                    verdict = worst(
+                        verdict,
+                        gap_segment(a.at, s, e, c2 + w + a.ins2, c2 + w + a.circ2),
+                    );
+                }
+                push(
+                    report,
+                    verdict,
+                    (CLEARANCE_VIOLATED, format!("{} and track {tid}", a.label)),
+                    format!("{} and track {tid}", a.label),
+                );
+            }
+            for (vid, v) in &self.vias {
+                if (a.net.is_some() && a.net == Some(v.net))
+                    || !(a.layers.contains(&v.from_layer) || a.layers.contains(&v.to_layer))
+                {
+                    continue;
+                }
+                let d = i128::from(v.diameter.get());
+                let verdict = gap_points(
+                    centre_distance2x4(a.at, v.at),
+                    c2 + d + a.ins2,
+                    c2 + d + a.circ2,
+                );
+                push(
+                    report,
+                    verdict,
+                    (CLEARANCE_VIOLATED, format!("{} and via {vid}", a.label)),
+                    format!("{} and via {vid}", a.label),
+                );
+            }
+        }
+    }
+
+    fn edge_clearances(&self, clearance: Nm, all_pads: &[PadInfo], report: &mut RuleReport) {
+        let n = self.outline.len();
+        if n < 3 {
+            return;
+        }
+        let c2 = 2 * i128::from(clearance.get());
+        let edges: Vec<(Point, Point)> = (0..n)
+            .map(|i| (self.outline[i], self.outline[(i + 1) % n]))
+            .collect();
+        for (tid, t) in &self.tracks {
+            let reach = c2 + i128::from(t.width.get());
+            let mut broken = false;
+            let mut unknown = false;
+            for piece in lines(&t.path) {
+                for edge in &edges {
+                    match pieces_too_close(piece, *edge, reach) {
+                        Some(true) => broken = true,
+                        Some(false) => {}
+                        None => unknown = true,
+                    }
+                }
+            }
+            if broken {
+                report.confirmed.push(make(
+                    EDGE_TOO_CLOSE,
+                    Severity::Error,
+                    format!("track {tid}"),
+                ));
+            } else if unknown {
+                report.inconclusive.push(make(
+                    CLEARANCE_INCONCLUSIVE,
+                    Severity::Info,
+                    format!("track {tid} and the edge: numbers too large for the exact test"),
+                ));
+            }
+        }
+        for (vid, v) in &self.vias {
+            let reach = c2 + i128::from(v.diameter.get());
+            let broken = edges
+                .iter()
+                .any(|(p, q)| near_segment_exact(v.at, *p, *q, reach * reach, true) == Some(true));
+            if broken {
+                report
+                    .confirmed
+                    .push(make(EDGE_TOO_CLOSE, Severity::Error, format!("via {vid}")));
+            }
+        }
+        for a in all_pads {
+            let mut verdict = Verdict::Fine;
+            for (p, q) in &edges {
+                verdict = worst(
+                    verdict,
+                    gap_segment(a.at, *p, *q, c2 + a.ins2, c2 + a.circ2),
+                );
+            }
+            push(
+                report,
+                verdict,
+                (EDGE_TOO_CLOSE, a.label.clone()),
+                format!("{} and the edge", a.label),
+            );
+        }
+    }
+
+    fn mask_bridges(&self, bridge: Nm, all_pads: &[PadInfo], report: &mut RuleReport) {
+        let b2 = 2 * i128::from(bridge.get());
+        for (i, a) in all_pads.iter().enumerate() {
+            for b in &all_pads[i + 1..] {
+                if !share_layer(&a.layers, &b.layers, |l| is_mask(self, l)) {
+                    continue;
+                }
+                let verdict = gap_points(
+                    centre_distance2x4(a.at, b.at),
+                    b2 + a.ins2 + b.ins2,
+                    b2 + a.circ2 + b.circ2,
+                );
+                push(
+                    report,
+                    verdict,
+                    (MASK_BRIDGE_THIN, format!("{} and {}", a.label, b.label)),
+                    format!("mask between {} and {}", a.label, b.label),
+                );
+            }
+        }
+    }
+
+    fn zone_rules(&self, min_clearance: Nm, report: &mut RuleReport) {
+        for (zid, z) in &self.zones {
+            if z.clearance < min_clearance {
+                report.confirmed.push(make(
+                    ZONE_CLEARANCE_SMALL,
+                    Severity::Error,
+                    format!(
+                        "zone {zid}: {} nm, minimum {} nm",
+                        z.clearance.get(),
+                        min_clearance.get()
+                    ),
+                ));
+            }
+        }
+        let zones: Vec<_> = self.zones.iter().collect();
+        for (i, (ida, a)) in zones.iter().enumerate() {
+            for (idb, b) in &zones[i + 1..] {
+                if a.net == b.net
+                    || a.layer != b.layer
+                    || a.outline.len() < 3
+                    || b.outline.len() < 3
+                {
+                    continue;
+                }
+                if polygons_overlap(&a.outline, &b.outline) {
+                    report.confirmed.push(make(
+                        ZONES_OVERLAP,
+                        Severity::Error,
+                        format!("zones {ida} and {idb}"),
+                    ));
+                }
+            }
+        }
+    }
+}
+
+fn polygons_overlap(a: &[Point], b: &[Point]) -> bool {
+    let edges = |p: &[Point]| -> Vec<(Point, Point)> {
+        (0..p.len()).map(|i| (p[i], p[(i + 1) % p.len()])).collect()
+    };
+    let (ea, eb) = (edges(a), edges(b));
+    ea.iter()
+        .any(|x| eb.iter().any(|y| segments_intersect(x.0, x.1, y.0, y.1)))
+        || a.iter().any(|p| point_in_polygon(*p, b))
+        || b.iter().any(|p| point_in_polygon(*p, a))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::model::{Component, Footprint, Layer, Net, Pad, PadNet, Side, Track, Zone};
+    use eh3d_phoenix_model::{ObjectId, Udeg};
+    use std::collections::BTreeMap;
+
+    fn id(n: u16) -> Id {
+        ObjectId::from_parts(1_700_000_000_000, n, u64::from(n)).unwrap()
+    }
+    fn pt(x: i64, y: i64) -> Point {
+        Point::from_nm(x, y).unwrap()
+    }
+    fn nm(v: i64) -> Nm {
+        Nm::new(v).unwrap()
+    }
+    fn rules(text: &str) -> RuleSet {
+        let (r, d) = RuleSet::parse(text);
+        assert!(d.is_empty(), "{d:?}");
+        r
+    }
+
+    /// A board with a copper layer and a mask layer and one component whose footprint has the
+    /// given pads (position and shape); every pad has its own net. Returns the board and the
+    /// ids of the layers.
+    fn board_with_pads(specs: &[(i64, i64, PadShape)]) -> (Board, Id, Id) {
+        let (top, mask, fp, comp) = (id(1), id(2), id(3), id(4));
+        let mut b = Board::default();
+        for (l, name, kind) in [
+            (top, "Top", LayerKind::Copper),
+            (mask, "Mask", LayerKind::SolderMask),
+        ] {
+            b.layers.insert(
+                l,
+                Layer {
+                    name: name.into(),
+                    kind,
+                },
+            );
+        }
+        let mut pads = BTreeMap::new();
+        let mut pad_nets = Vec::new();
+        for (i, (x, y, shape)) in specs.iter().enumerate() {
+            let pid = id(100 + i as u16);
+            let net = id(200 + i as u16);
+            b.nets.insert(
+                net,
+                Net {
+                    name: format!("N{i}"),
+                },
+            );
+            pads.insert(
+                pid,
+                Pad {
+                    number: (i + 1).to_string(),
+                    shape: *shape,
+                    at: pt(*x, *y),
+                    rotation: Udeg::ZERO,
+                    drill: None,
+                    layers: vec![top, mask],
+                },
+            );
+            pad_nets.push(PadNet {
+                component: comp,
+                pad: pid,
+                net,
+            });
+        }
+        b.footprints.insert(
+            fp,
+            Footprint {
+                name: "F".into(),
+                pads,
+            },
+        );
+        b.components.insert(
+            comp,
+            Component {
+                refdes: "U1".into(),
+                value: "x".into(),
+                symbol: None,
+                footprint: fp,
+                at: pt(0, 0),
+                rotation: Udeg::ZERO,
+                side: Side::Top,
+            },
+        );
+        pad_nets.sort_by_key(|p| p.pad_ref());
+        b.pad_nets = pad_nets;
+        (b, top, mask)
+    }
+
+    fn round(d: i64) -> PadShape {
+        PadShape::Circle { diameter: nm(d) }
+    }
+
+    fn counts(r: &RuleReport) -> (usize, usize) {
+        (r.confirmed.len(), r.inconclusive.len())
+    }
+
+    #[test]
+    fn round_pads_of_different_nets_keep_their_clearance_exactly() {
+        // two 1 mm pads, centres 1.2 mm apart: 0.2 mm between the edges
+        let (b, ..) =
+            board_with_pads(&[(0, 0, round(1_000_000)), (1_200_000, 0, round(1_000_000))]);
+        assert_eq!(
+            counts(&b.check_rules(&rules("min_clearance = 0.2\n"))),
+            (0, 0)
+        );
+        let r = b.check_rules(&rules("min_clearance = 0.21\n"));
+        assert_eq!(counts(&r), (1, 0));
+        assert_eq!(r.confirmed[0].code.as_deref(), Some(CLEARANCE_VIOLATED));
+    }
+
+    #[test]
+    fn a_rectangular_pad_in_the_grey_zone_is_inconclusive_not_a_failure() {
+        // a 1 x 3 mm pad: its inscribed circle is 1 mm, the circle around it about 3.16 mm
+        let (b, ..) = board_with_pads(&[
+            (
+                0,
+                0,
+                PadShape::Rect {
+                    width: nm(1_000_000),
+                    height: nm(3_000_000),
+                },
+            ),
+            (2_000_000, 0, round(1_000_000)),
+        ]);
+        // centres 2 mm apart: certainly too close only if the inscribed circles are
+        let r = b.check_rules(&rules("min_clearance = 0.4\n"));
+        assert_eq!(counts(&r), (0, 1));
+        assert_eq!(r.inconclusive[0].code.as_deref(), Some(PAD_SHAPE_UNSURE));
+        // very far apart is fine; touching inscribed circles are certain
+        let (b2, ..) = board_with_pads(&[
+            (
+                0,
+                0,
+                PadShape::Rect {
+                    width: nm(1_000_000),
+                    height: nm(3_000_000),
+                },
+            ),
+            (10_000_000, 0, round(1_000_000)),
+        ]);
+        assert_eq!(
+            counts(&b2.check_rules(&rules("min_clearance = 0.4\n"))),
+            (0, 0)
+        );
+        let (b3, ..) = board_with_pads(&[
+            (
+                0,
+                0,
+                PadShape::Rect {
+                    width: nm(1_000_000),
+                    height: nm(3_000_000),
+                },
+            ),
+            (1_000_000, 0, round(1_000_000)),
+        ]);
+        assert_eq!(
+            counts(&b3.check_rules(&rules("min_clearance = 0.4\n"))).0,
+            1
+        );
+    }
+
+    #[test]
+    fn a_pad_and_a_track_of_another_net_keep_their_clearance() {
+        let (mut b, top, _) = board_with_pads(&[(0, 0, round(1_000_000))]);
+        let other = id(300);
+        b.nets.insert(other, Net { name: "T".into() });
+        // a track 0.2 mm wide running at y = 0.7 mm: edge of the pad at 0.5, edge of the track at 0.6
+        b.tracks.insert(
+            id(301),
+            Track {
+                net: other,
+                layer: top,
+                width: nm(200_000),
+                path: vec![Segment::Line {
+                    start: pt(-5_000_000, 700_000),
+                    end: pt(5_000_000, 700_000),
+                }],
+            },
+        );
+        assert_eq!(
+            counts(&b.check_rules(&rules("min_clearance = 0.1\n"))),
+            (0, 0)
+        );
+        assert_eq!(
+            counts(&b.check_rules(&rules("min_clearance = 0.11\n"))),
+            (1, 0)
+        );
+    }
+
+    #[test]
+    fn copper_too_near_the_edge_of_the_board_is_found() {
+        let (mut b, top, _) = board_with_pads(&[(5_000_000, 5_000_000, round(1_000_000))]);
+        b.outline = vec![
+            pt(0, 0),
+            pt(10_000_000, 0),
+            pt(10_000_000, 10_000_000),
+            pt(0, 10_000_000),
+        ];
+        let net = id(300);
+        b.nets.insert(net, Net { name: "T".into() });
+        b.tracks.insert(
+            id(301),
+            Track {
+                net,
+                layer: top,
+                width: nm(200_000),
+                path: vec![Segment::Line {
+                    start: pt(1_000_000, 300_000),
+                    end: pt(9_000_000, 300_000),
+                }],
+            },
+        );
+        // the track edge is at 0.2 mm from the board edge
+        assert_eq!(
+            counts(&b.check_rules(&rules("min_edge_clearance = 0.2\n"))),
+            (0, 0)
+        );
+        let r = b.check_rules(&rules("min_edge_clearance = 0.25\n"));
+        assert_eq!(counts(&r), (1, 0));
+        assert_eq!(r.confirmed[0].code.as_deref(), Some(EDGE_TOO_CLOSE));
+        // a pad 0.4 mm from the edge (centre 0.9 mm, radius 0.5 mm)
+        let (mut c, ..) = board_with_pads(&[(900_000, 5_000_000, round(1_000_000))]);
+        c.outline = b.outline.clone();
+        assert_eq!(
+            counts(&c.check_rules(&rules("min_edge_clearance = 0.4\n"))),
+            (0, 0)
+        );
+        assert_eq!(
+            counts(&c.check_rules(&rules("min_edge_clearance = 0.5\n"))),
+            (1, 0)
+        );
+    }
+
+    #[test]
+    fn the_solder_mask_keeps_a_bridge_between_pads() {
+        // two 1 mm pads, centres 1.15 mm apart: 0.15 mm of mask between the openings
+        let (b, ..) =
+            board_with_pads(&[(0, 0, round(1_000_000)), (1_150_000, 0, round(1_000_000))]);
+        assert_eq!(
+            counts(&b.check_rules(&rules("min_mask_bridge = 0.1\n"))),
+            (0, 0)
+        );
+        let r = b.check_rules(&rules("min_mask_bridge = 0.2\n"));
+        assert_eq!(counts(&r), (1, 0));
+        assert_eq!(r.confirmed[0].code.as_deref(), Some(MASK_BRIDGE_THIN));
+    }
+
+    #[test]
+    fn zones_keep_the_clearance_and_do_not_overlap_other_nets() {
+        let (mut b, top, _) = board_with_pads(&[]);
+        let (n1, n2) = (id(300), id(301));
+        b.nets.insert(n1, Net { name: "A".into() });
+        b.nets.insert(n2, Net { name: "B".into() });
+        let square =
+            |x: i64, y: i64, s: i64| vec![pt(x, y), pt(x + s, y), pt(x + s, y + s), pt(x, y + s)];
+        b.zones.insert(
+            id(310),
+            Zone {
+                net: n1,
+                layer: top,
+                outline: square(0, 0, 10_000_000),
+                clearance: nm(150_000),
+            },
+        );
+        b.zones.insert(
+            id(311),
+            Zone {
+                net: n2,
+                layer: top,
+                outline: square(20_000_000, 0, 5_000_000),
+                clearance: nm(300_000),
+            },
+        );
+        let r = b.check_rules(&rules("min_clearance = 0.2\n"));
+        assert_eq!(counts(&r), (1, 0));
+        assert_eq!(r.confirmed[0].code.as_deref(), Some(ZONE_CLEARANCE_SMALL));
+        // move the second zone over the first
+        b.zones.get_mut(&id(311)).unwrap().outline = square(5_000_000, 5_000_000, 10_000_000);
+        let r = b.check_rules(&rules("min_clearance = 0.1\n"));
+        assert_eq!(counts(&r), (1, 0));
+        assert_eq!(r.confirmed[0].code.as_deref(), Some(ZONES_OVERLAP));
+        // one zone entirely inside the other counts too, and the same net may overlap itself
+        b.zones.get_mut(&id(311)).unwrap().outline = square(2_000_000, 2_000_000, 2_000_000);
+        assert_eq!(
+            counts(&b.check_rules(&rules("min_clearance = 0.1\n"))),
+            (1, 0)
+        );
+        b.zones.get_mut(&id(311)).unwrap().net = n1;
+        assert_eq!(
+            counts(&b.check_rules(&rules("min_clearance = 0.1\n"))),
+            (0, 0)
+        );
+    }
+
+    #[test]
+    fn the_silkscreen_rule_says_it_cannot_be_checked() {
+        let (b, ..) = board_with_pads(&[(0, 0, round(1_000_000))]);
+        let r = b.check_rules(&rules("silkscreen_over_pads = on\n"));
+        assert_eq!(counts(&r), (0, 1));
+        assert_eq!(r.inconclusive[0].code.as_deref(), Some(NOT_CHECKABLE));
+        assert_eq!(
+            counts(&b.check_rules(&rules("silkscreen_over_pads = off\n"))),
+            (0, 0)
+        );
+        let (_, d) = RuleSet::parse("silkscreen_over_pads = maybe\n");
+        assert_eq!(d.len(), 1);
+    }
+
+    #[test]
+    fn no_rule_means_nothing_is_checked() {
+        let (b, ..) = board_with_pads(&[(0, 0, round(1_000_000)), (100, 0, round(1_000_000))]);
+        assert_eq!(counts(&b.check_rules(&RuleSet::default())), (0, 0));
+    }
+
+    #[test]
+    fn the_integer_square_root_rounds_up() {
+        assert_eq!(isqrt_ceil(0), 0);
+        assert_eq!(isqrt_ceil(1), 1);
+        assert_eq!(isqrt_ceil(2), 2);
+        assert_eq!(isqrt_ceil(16), 4);
+        assert_eq!(isqrt_ceil(17), 5);
+        let n: i128 = 10_000_000_000_000_000_000;
+        let r = isqrt_ceil(n);
+        assert!(r * r >= n && (r - 1) * (r - 1) < n);
+    }
+}

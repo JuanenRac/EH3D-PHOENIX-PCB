@@ -197,7 +197,7 @@ pub(crate) fn near_segment_exact(
     Some(cmp(lhs, rhs))
 }
 
-fn point_in_polygon(p: Point, polygon: &[Point]) -> bool {
+pub(crate) fn point_in_polygon(p: Point, polygon: &[Point]) -> bool {
     if polygon.len() < 3 {
         return false;
     }
