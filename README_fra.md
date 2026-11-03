@@ -12,14 +12,14 @@
   <img src="https://img.shields.io/badge/License-GPL%203.0--or--later-blue.svg" alt="GPL 3.0 or later">
   <img src="https://img.shields.io/badge/Stack-Rust%20%2B%20Python-blue.svg" alt="Rust and Python">
   <img src="https://img.shields.io/badge/Languages-8-00E5FF.svg" alt="Languages">
-  <img src="https://img.shields.io/badge/Tests-170-2EA043.svg" alt="Tests">
+  <img src="https://img.shields.io/badge/Tests-180-2EA043.svg" alt="Tests">
   <img src="https://img.shields.io/badge/Version-0.0.1-0f6cbd.svg" alt="Version">
   <img src="https://img.shields.io/badge/Maturity-scaffolding-FFB020.svg" alt="Maturity">
 </p>
 
 ---
 
-**Vérification d'honnêteté - ce qui tourne aujourd'hui :** un espace de travail Rust dont la commande `phoenix inventory` compte les fichiers de conception d'un dossier privé sans montrer aucun nom ni valeur : fichiers par extension, type et version déclarée, et une empreinte du contenu. Il a 167 tests propres, qui réussissent sur un ordinateur. Il n'a tourné que sur des dossiers fabriqués par ses propres tests, jamais sur de vrais fichiers de conception. Il a aussi les fondations d'un modèle de conception (valeurs entières en nanomètres et micro-degrés avec une plage vérifiée, identifiants d'objet et JSON canonique), le fichier de projet `.phoenixproj` (manifeste, domaines, migrations) et un modèle de carte avec des opérations réversibles (couches, réseaux, composants, pistes, vias, zones), le tout essayé seulement sur des données générées. La bibliothèque de carte trouve aussi quel cuivre touche lequel et vérifie tailles et dégagements avec un fichier de règles ; une cinquième bibliothèque lit des bibliothèques, cartes et schémas EAGLE XML dans un résumé et réécrit l'arbre XML à l'identique. Tout n'a été essayé que sur des fichiers générés ou faits à la main. Il existe aussi un modèle de schéma et son contrôle de cohérence avec la carte. Il n'y a pas d'import de conceptions étrangères dans le modèle, pas d'éditeur, et les règles ne couvrent qu'une partie des contrôles prévus : l'essentiel de la fonction EDA reste prévu.
+**Vérification d'honnêteté - ce qui tourne aujourd'hui :** un espace de travail Rust dont la commande `phoenix inventory` compte les fichiers de conception d'un dossier privé sans montrer aucun nom ni valeur : fichiers par extension, type et version déclarée, et une empreinte du contenu. Il a 177 tests propres, qui réussissent sur un ordinateur. Il n'a tourné que sur des dossiers fabriqués par ses propres tests, jamais sur de vrais fichiers de conception. Il a aussi les fondations d'un modèle de conception (valeurs entières en nanomètres et micro-degrés avec une plage vérifiée, identifiants d'objet et JSON canonique), le fichier de projet `.phoenixproj` (manifeste, domaines, migrations) et un modèle de carte avec des opérations réversibles (couches, réseaux, composants, pistes, vias, zones), le tout essayé seulement sur des données générées. La bibliothèque de carte trouve aussi quel cuivre touche lequel et vérifie tailles et dégagements avec un fichier de règles ; une cinquième bibliothèque lit des bibliothèques, cartes et schémas EAGLE XML dans un résumé et réécrit l'arbre XML à l'identique. Tout n'a été essayé que sur des fichiers générés ou faits à la main. Il existe aussi un modèle de schéma et son contrôle de cohérence avec la carte. Il n'y a pas d'import de conceptions étrangères dans le modèle, pas d'éditeur, et les règles ne couvrent qu'une partie des contrôles prévus : l'essentiel de la fonction EDA reste prévu.
 
 ---
 
@@ -31,7 +31,7 @@
 |---|---|
 | Version | `0.0.1` |
 | Maturité | Échafaudage |
-| Tests | 170 |
+| Tests | 180 |
 | Pile technique | Rust, Python 3.10+ |
 | Sur du matériel réel | Pas encore exécuté sur du matériel |
 
@@ -46,7 +46,7 @@ Chaque ligne est une partie de ce dépôt et le feu dit où elle en est aujourd'
 | Domaine | État | Ce que cela veut dire ici |
 |---|---|---|
 | Contrôles du dépôt | 🟡 | Le contrôle du dépôt, celui des images et les 3 tests de la base tournent dans la CI et réussissent. |
-| Tests | 🟡 | Les 167 tests du code Rust et les 3 de la base réussissent sur un ordinateur. Ils n'utilisent que des dossiers fabriqués par les tests eux-mêmes ; aucun n'a tourné sur de vrais fichiers de conception. |
+| Tests | 🟡 | Les 177 tests du code Rust et les 3 de la base réussissent sur un ordinateur. Ils n'utilisent que des dossiers fabriqués par les tests eux-mêmes ; aucun n'a tourné sur de vrais fichiers de conception. |
 | Matériel réel | 🟠 | Non exécuté sur une machine ni une carte : rien ici n'a été essayé sur du matériel. |
 | Fonction prévue | 🟠 | Écrit : l'inventaire expurgé d'un corpus, les fondations du modèle (unités, identifiants, JSON canonique), le fichier de projet `.phoenixproj`, le modèle de carte avec annuler et rétablir, sa connectivité et un premier contrôle de règles, et un lecteur de résumé d'EAGLE XML. Pas commencé : l'éditeur de schémas, l'import d'autres formats dans le modèle, les écrivains d'autres formats, l'essentiel des règles, le visualiseur et les éditeurs, la simulation et tout le reste du prévu. |
 | Exigences | 🟠 | 5 exigences sur 30 (le mode expurgé, les fondations du modèle, les opérations réversibles, le fichier de projet et les codes de diagnostic) sont au stade de prototype, 25 sont seulement prévues et aucune n'est validée. |
@@ -85,7 +85,7 @@ python -I -m unittest discover -s tools -p "test_*.py"
 
 ## 🧪 Tests
 
-Le code a 167 tests (`cargo test`) et la base en a 3 (`python -I -m unittest discover -s tools -p "test_*.py"`) ; tous réussissent sur un ordinateur. La CI exécute le contrôle du dépôt, celui des images, les tests de la base et, pour le code Rust, la vérification du format, clippy avec les avertissements traités comme des erreurs et les tests sous Linux et Windows.
+Le code a 177 tests (`cargo test`) et la base en a 3 (`python -I -m unittest discover -s tools -p "test_*.py"`) ; tous réussissent sur un ordinateur. La CI exécute le contrôle du dépôt, celui des images, les tests de la base et, pour le code Rust, la vérification du format, clippy avec les avertissements traités comme des erreurs et les tests sous Linux et Windows.
 
 ## 🏗️ Compilation et publication
 

@@ -12,14 +12,14 @@
   <img src="https://img.shields.io/badge/License-GPL%203.0--or--later-blue.svg" alt="GPL 3.0 or later">
   <img src="https://img.shields.io/badge/Stack-Rust%20%2B%20Python-blue.svg" alt="Rust and Python">
   <img src="https://img.shields.io/badge/Languages-8-00E5FF.svg" alt="Languages">
-  <img src="https://img.shields.io/badge/Tests-170-2EA043.svg" alt="Tests">
+  <img src="https://img.shields.io/badge/Tests-180-2EA043.svg" alt="Tests">
   <img src="https://img.shields.io/badge/Version-0.0.1-0f6cbd.svg" alt="Version">
   <img src="https://img.shields.io/badge/Maturity-scaffolding-FFB020.svg" alt="Maturity">
 </p>
 
 ---
 
-**Ehrlichkeitscheck - was heute tatsächlich läuft:** ein Rust-Workspace dessen Befehl `phoenix inventory` die Entwurfsdateien eines privaten Ordners zählt, ohne einen Namen oder Wert zu zeigen: Dateien nach Endung, Art und angegebener Version sowie ein Fingerabdruck des Inhalts. Er hat 167 eigene Tests, die auf einem Rechner bestehen. Er lief nur auf Ordnern, die seine eigenen Tests erzeugen, nie auf echten Entwurfsdateien. Dazu kommen die Grundlagen eines Entwurfsmodells (ganzzahlige Nanometer- und Mikrograd-Werte mit geprüftem Bereich, Objekt-IDs und kanonisches JSON), die Projektdatei `.phoenixproj` (Manifest, Domänen, Migrationen) und ein Platinenmodell mit umkehrbaren Operationen (Lagen, Netze, Bauteile, Leiterbahnen, Durchkontaktierungen, Zonen), alles nur mit erzeugten Daten erprobt. Die Platinenbibliothek findet außerdem, welches Kupfer welches berührt, und prüft Größen und Abstände gegen eine Regeldatei; eine fünfte Bibliothek liest EAGLE-XML-Bibliotheken, -Platinen und -Schaltpläne in eine Zusammenfassung und schreibt den XML-Baum identisch zurück. Alles wurde nur mit erzeugten oder von Hand gemachten Dateien erprobt. Außerdem gibt es ein Schaltplanmodell und seine Konsistenzprüfung gegen die Platine. Es gibt keinen Import fremder Entwürfe in das Modell, keinen Editor, und die Regeln decken nur einen Teil der geplanten Prüfungen ab: Der größte Teil der EDA-Funktion ist weiter geplant.
+**Ehrlichkeitscheck - was heute tatsächlich läuft:** ein Rust-Workspace dessen Befehl `phoenix inventory` die Entwurfsdateien eines privaten Ordners zählt, ohne einen Namen oder Wert zu zeigen: Dateien nach Endung, Art und angegebener Version sowie ein Fingerabdruck des Inhalts. Er hat 177 eigene Tests, die auf einem Rechner bestehen. Er lief nur auf Ordnern, die seine eigenen Tests erzeugen, nie auf echten Entwurfsdateien. Dazu kommen die Grundlagen eines Entwurfsmodells (ganzzahlige Nanometer- und Mikrograd-Werte mit geprüftem Bereich, Objekt-IDs und kanonisches JSON), die Projektdatei `.phoenixproj` (Manifest, Domänen, Migrationen) und ein Platinenmodell mit umkehrbaren Operationen (Lagen, Netze, Bauteile, Leiterbahnen, Durchkontaktierungen, Zonen), alles nur mit erzeugten Daten erprobt. Die Platinenbibliothek findet außerdem, welches Kupfer welches berührt, und prüft Größen und Abstände gegen eine Regeldatei; eine fünfte Bibliothek liest EAGLE-XML-Bibliotheken, -Platinen und -Schaltpläne in eine Zusammenfassung und schreibt den XML-Baum identisch zurück. Alles wurde nur mit erzeugten oder von Hand gemachten Dateien erprobt. Außerdem gibt es ein Schaltplanmodell und seine Konsistenzprüfung gegen die Platine. Es gibt keinen Import fremder Entwürfe in das Modell, keinen Editor, und die Regeln decken nur einen Teil der geplanten Prüfungen ab: Der größte Teil der EDA-Funktion ist weiter geplant.
 
 ---
 
@@ -31,7 +31,7 @@
 |---|---|
 | Version | `0.0.1` |
 | Reifegrad | Gerüst |
-| Tests | 170 |
+| Tests | 180 |
 | Technologie-Stack | Rust, Python 3.10+ |
 | Auf echter Hardware | Noch nicht auf Hardware ausgeführt |
 
@@ -46,7 +46,7 @@ Jede Zeile ist ein Teil dieses Repositorys, und die Ampel sagt, wie weit er heut
 | Bereich | Stand | Was das hier bedeutet |
 |---|---|---|
 | Repository-Prüfungen | 🟡 | Die Repository-Prüfung, die Prüfung der Bilder und die 3 Tests der Basis laufen in der CI und bestehen. |
-| Tests | 🟡 | Die 167 Tests des Rust-Codes und die 3 der Basis bestehen auf einem Rechner. Sie verwenden nur Ordner, die die Tests selbst erzeugen; keiner lief auf echten Entwurfsdateien. |
+| Tests | 🟡 | Die 177 Tests des Rust-Codes und die 3 der Basis bestehen auf einem Rechner. Sie verwenden nur Ordner, die die Tests selbst erzeugen; keiner lief auf echten Entwurfsdateien. |
 | Echte Hardware | 🟠 | Auf keiner Maschine und keiner Platine ausgeführt: nichts hier wurde auf Hardware ausprobiert. |
 | Geplante Funktion | 🟠 | Geschrieben: das geschwärzte Inventar eines Korpus, die Grundlagen des Modells (Einheiten, IDs, kanonisches JSON), die Projektdatei `.phoenixproj`, das Platinenmodell mit Rückgängig und Wiederholen, seine Konnektivität und eine erste Regelprüfung sowie ein Zusammenfassungs-Leser für EAGLE-XML. Nicht begonnen: der Schaltplaneditor, der Import anderer Formate in das Modell, Schreiber anderer Formate, der größte Teil der Regeln, Betrachter und Editoren, die Simulation und alles übrige Geplante. |
 | Anforderungen | 🟠 | 5 von 30 Anforderungen (der geschwärzte Modus, die Modellgrundlagen, die umkehrbaren Operationen, die Projektdatei und die Diagnosecodes) sind im Prototypstand, 25 sind nur geplant und keine ist validiert. |
@@ -85,7 +85,7 @@ python -I -m unittest discover -s tools -p "test_*.py"
 
 ## 🧪 Tests
 
-Der Code hat 167 Tests (`cargo test`), die Basis hat 3 (`python -I -m unittest discover -s tools -p "test_*.py"`); alle bestehen auf einem Rechner. Die CI führt die Repository-Prüfung, die Prüfung der Bilder, die Tests der Basis und für den Rust-Code die Formatprüfung, clippy mit Warnungen als Fehlern und die Tests unter Linux und Windows aus.
+Der Code hat 177 Tests (`cargo test`), die Basis hat 3 (`python -I -m unittest discover -s tools -p "test_*.py"`); alle bestehen auf einem Rechner. Die CI führt die Repository-Prüfung, die Prüfung der Bilder, die Tests der Basis und für den Rust-Code die Formatprüfung, clippy mit Warnungen als Fehlern und die Tests unter Linux und Windows aus.
 
 ## 🏗️ Build und Veröffentlichung
 

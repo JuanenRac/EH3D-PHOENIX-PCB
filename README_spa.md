@@ -12,14 +12,14 @@
   <img src="https://img.shields.io/badge/License-GPL%203.0--or--later-blue.svg" alt="GPL 3.0 or later">
   <img src="https://img.shields.io/badge/Stack-Rust%20%2B%20Python-blue.svg" alt="Rust and Python">
   <img src="https://img.shields.io/badge/Languages-8-00E5FF.svg" alt="Languages">
-  <img src="https://img.shields.io/badge/Tests-170-2EA043.svg" alt="Tests">
+  <img src="https://img.shields.io/badge/Tests-180-2EA043.svg" alt="Tests">
   <img src="https://img.shields.io/badge/Version-0.0.1-0f6cbd.svg" alt="Version">
   <img src="https://img.shields.io/badge/Maturity-scaffolding-FFB020.svg" alt="Maturity">
 </p>
 
 ---
 
-**Comprobación de honestidad - lo que se ejecuta hoy:** un espacio de trabajo de Rust cuyo comando `phoenix inventory` cuenta los archivos de diseño de una carpeta privada sin mostrar ningún nombre ni valor: archivos por extensión, tipo y versión declarada, y una huella del contenido. Tiene 167 pruebas propias y pasan en un ordenador. Solo se ha ejecutado con carpetas creadas por sus propias pruebas, nunca con archivos de diseño reales. También tiene los cimientos de un modelo de diseño (valores enteros en nanómetros y micrograos con rango comprobado, ids de objeto y JSON canónico), el archivo de proyecto `.phoenixproj` (manifiesto, dominios, migraciones) y un modelo de placa con operaciones reversibles (capas, redes, componentes, pistas, vías, zonas), todo probado solo con datos generados. La biblioteca de placa también halla qué cobre toca a cuál y comprueba tamaños y holguras con un archivo de reglas; una quinta biblioteca lee librerías, placas y esquemáticos EAGLE XML en un resumen y reescribe el árbol XML de forma idéntica. Todo se ha probado solo con archivos generados o hechos a mano. También existen un modelo de esquemático y su comprobación de coherencia con la placa. No hay importación de diseños ajenos al modelo, ni editor, y las reglas cubren solo parte de las comprobaciones previstas: la mayor parte de la función de EDA sigue planificada.
+**Comprobación de honestidad - lo que se ejecuta hoy:** un espacio de trabajo de Rust cuyo comando `phoenix inventory` cuenta los archivos de diseño de una carpeta privada sin mostrar ningún nombre ni valor: archivos por extensión, tipo y versión declarada, y una huella del contenido. Tiene 177 pruebas propias y pasan en un ordenador. Solo se ha ejecutado con carpetas creadas por sus propias pruebas, nunca con archivos de diseño reales. También tiene los cimientos de un modelo de diseño (valores enteros en nanómetros y micrograos con rango comprobado, ids de objeto y JSON canónico), el archivo de proyecto `.phoenixproj` (manifiesto, dominios, migraciones) y un modelo de placa con operaciones reversibles (capas, redes, componentes, pistas, vías, zonas), todo probado solo con datos generados. La biblioteca de placa también halla qué cobre toca a cuál y comprueba tamaños y holguras con un archivo de reglas; una quinta biblioteca lee librerías, placas y esquemáticos EAGLE XML en un resumen y reescribe el árbol XML de forma idéntica. Todo se ha probado solo con archivos generados o hechos a mano. También existen un modelo de esquemático y su comprobación de coherencia con la placa. No hay importación de diseños ajenos al modelo, ni editor, y las reglas cubren solo parte de las comprobaciones previstas: la mayor parte de la función de EDA sigue planificada.
 
 ---
 
@@ -31,7 +31,7 @@
 |---|---|
 | Versión | `0.0.1` |
 | Madurez | Andamiaje |
-| Pruebas | 170 |
+| Pruebas | 180 |
 | Pila tecnológica | Rust, Python 3.10+ |
 | En hardware real | Aún no se ha ejecutado en hardware |
 
@@ -46,7 +46,7 @@ Cada línea es una parte de este repositorio y la luz dice hasta dónde llega ho
 | Área | Estado | Qué significa aquí |
 |---|---|---|
 | Comprobaciones del repositorio | 🟡 | La comprobación del repositorio, la de las imágenes y las 3 pruebas de la base se ejecutan en el CI y pasan. |
-| Pruebas | 🟡 | Las 167 pruebas del código Rust y las 3 de la base pasan en un ordenador. Usan solo carpetas creadas por las propias pruebas; ninguna se ha ejecutado con archivos de diseño reales. |
+| Pruebas | 🟡 | Las 177 pruebas del código Rust y las 3 de la base pasan en un ordenador. Usan solo carpetas creadas por las propias pruebas; ninguna se ha ejecutado con archivos de diseño reales. |
 | Hardware real | 🟠 | No se ha ejecutado en ninguna máquina ni placa: nada de aquí se ha probado en hardware. |
 | Función planificada | 🟠 | Escrito: el inventario redactado de un corpus, los cimientos del modelo (unidades, ids, JSON canónico), el archivo de proyecto `.phoenixproj`, el modelo de placa con deshacer y rehacer, su conectividad y una primera comprobación de reglas, y un lector de resumen de EAGLE XML. Sin empezar: el editor de esquemáticos, la importación de otros formatos al modelo, los escritores de otros formatos, la mayor parte de las reglas, el visor y los editores, la simulación y todo lo demás planificado. |
 | Requisitos | 🟠 | 5 de 30 requisitos (el modo redactado, los cimientos del modelo, las operaciones reversibles, el archivo de proyecto y los códigos de diagnóstico) están en prototipo, 25 solo están planificados y ninguno está validado. |
@@ -85,7 +85,7 @@ python -I -m unittest discover -s tools -p "test_*.py"
 
 ## 🧪 Pruebas
 
-El código tiene 167 pruebas (`cargo test`) y la base tiene 3 (`python -I -m unittest discover -s tools -p "test_*.py"`); todas pasan en un ordenador. El CI ejecuta la comprobación del repositorio, la de las imágenes, las pruebas de la base y, para el código Rust, la comprobación de formato, clippy con las advertencias como errores y las pruebas en Linux y Windows.
+El código tiene 177 pruebas (`cargo test`) y la base tiene 3 (`python -I -m unittest discover -s tools -p "test_*.py"`); todas pasan en un ordenador. El CI ejecuta la comprobación del repositorio, la de las imágenes, las pruebas de la base y, para el código Rust, la comprobación de formato, clippy con las advertencias como errores y las pruebas en Linux y Windows.
 
 ## 🏗️ Compilación y publicación
 
