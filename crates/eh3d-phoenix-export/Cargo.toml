@@ -1,0 +1,21 @@
+[package]
+name = "eh3d-phoenix-export"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Manufacturing export of a board: deterministic Gerber X2 and Excellon files through the writers of EH3D-CORE-LIBS, and an .eh3dproj 1.0.0 package through EH3D-COMMON, with a diagnostic for everything the files cannot say"
+
+[dependencies]
+eh3d-diagnostic.workspace = true
+eh3d-phoenix-board = { path = "../eh3d-phoenix-board" }
+eh3d-phoenix-model = { path = "../eh3d-phoenix-model" }
+eh3d-common = { version = ">=0.1.5", path = "../../../EH3D-COMMON" }
+eh3d-parser-gerber = { version = ">=0.0.4", path = "../../../EH3D-CORE-LIBS/crates/eh3d-parser-gerber" }
+eh3d-writer-gerber = { version = ">=0.0.4", path = "../../../EH3D-CORE-LIBS/crates/eh3d-writer-gerber" }
+eh3d-parser-excellon = { version = ">=0.0.4", path = "../../../EH3D-CORE-LIBS/crates/eh3d-parser-excellon" }
+eh3d-writer-excellon = { version = ">=0.0.4", path = "../../../EH3D-CORE-LIBS/crates/eh3d-writer-excellon" }
+chrono = { version = "0.4", default-features = false, features = ["std"] }
+uuid = "1"
+thiserror.workspace = true

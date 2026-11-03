@@ -17,6 +17,7 @@ path = "src/main.rs"
 
 [dependencies]
 eh3d-phoenix-corpus = { path = "../eh3d-phoenix-corpus" }
+eh3d-phoenix-eagle = { path = "../eh3d-phoenix-eagle" }
 
 [dev-dependencies]
 tempfile.workspace = true

@@ -1,0 +1,83 @@
+//! Stable diagnostic codes of the manufacturing export, `PHOENIX-EXPORT-<NNN>`.
+//!
+//! The table [`REGISTRY`] is the list that `docs/ERROR_CODES.md` repeats; a test keeps them in
+//! agreement.
+
+use eh3d_diagnostic::{Category, Diagnostic, Recoverability, Severity};
+
+/// A pad rotated by an angle that is not a right angle was written unrotated.
+pub const PAD_ROTATION: &str = "PHOENIX-EXPORT-001";
+/// A zone was written as its outline, not poured.
+pub const ZONE_NOT_POURED: &str = "PHOENIX-EXPORT-002";
+/// The board does not give the stack order of its copper layers, so no copper file function was written.
+pub const STACK_ORDER_MISSING: &str = "PHOENIX-EXPORT-003";
+/// An arc has no centre that can be computed and was left out.
+pub const ARC_SKIPPED: &str = "PHOENIX-EXPORT-004";
+/// A file could not be written by the writer of its format.
+pub const WRITE_FAILED: &str = "PHOENIX-EXPORT-005";
+/// A drill is written as a round hole although its pad is not round.
+pub const SLOT_AS_HOLE: &str = "PHOENIX-EXPORT-006";
+/// The package could not be assembled.
+pub const PACKAGE_FAILED: &str = "PHOENIX-EXPORT-007";
+
+/// The codes of this crate with their titles.
+pub const REGISTRY: &[(&str, &str)] = &[
+    (PAD_ROTATION, "Pad rotation is not a right angle"),
+    (ZONE_NOT_POURED, "Zone written as its outline"),
+    (STACK_ORDER_MISSING, "Copper stack order not given"),
+    (ARC_SKIPPED, "Arc left out"),
+    (WRITE_FAILED, "File could not be written"),
+    (SLOT_AS_HOLE, "Non-round pad drilled as a round hole"),
+    (PACKAGE_FAILED, "Package could not be assembled"),
+];
+
+/// Builds the diagnostic of `code` (which must be in [`REGISTRY`]) with a detail.
+pub fn diagnostic(code: &'static str, severity: Severity, detail: &str) -> Diagnostic {
+    let title = REGISTRY
+        .iter()
+        .find(|(c, _)| *c == code)
+        .map_or("Unregistered code", |(_, t)| t);
+    let message = if detail.is_empty() {
+        title.to_owned()
+    } else {
+        format!("{title}: {detail}")
+    };
+    Diagnostic::new(0, severity, message)
+        .with_code(code)
+        .with_category(Category::Format)
+        .with_recoverability(if severity == Severity::Error {
+            Recoverability::Unrecoverable
+        } else {
+            Recoverability::Recoverable
+        })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_codes_are_unique_and_well_formed() {
+        let mut seen = std::collections::BTreeSet::new();
+        for (code, title) in REGISTRY {
+            let parts: Vec<&str> = code.split('-').collect();
+            assert_eq!(parts.len(), 3, "{code}");
+            assert_eq!((parts[0], parts[1]), ("PHOENIX", "EXPORT"));
+            assert!(parts[2].len() == 3 && parts[2].bytes().all(|b| b.is_ascii_digit()));
+            assert!(!title.is_empty());
+            assert!(seen.insert(*code));
+        }
+    }
+
+    #[test]
+    fn the_documented_table_has_every_code_of_this_crate() {
+        let doc = include_str!("../../../docs/ERROR_CODES.md");
+        for (code, title) in REGISTRY {
+            let row = doc
+                .lines()
+                .find(|l| l.starts_with(&format!("| {code} |")))
+                .unwrap_or_else(|| panic!("{code} is not documented"));
+            assert!(row.contains(title), "{code}: {row}");
+        }
+    }
+}
