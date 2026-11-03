@@ -1,0 +1,14 @@
+[package]
+name = "eh3d-phoenix-eagle-board"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Writes a board of the design model as an EAGLE XML file and reads such a file back into a board, with a quality report of what was kept, simplified or left out and an id-free signature to prove the round trip"
+
+[dependencies]
+eh3d-diagnostic.workspace = true
+eh3d-phoenix-board = { path = "../eh3d-phoenix-board" }
+eh3d-phoenix-eagle = { path = "../eh3d-phoenix-eagle" }
+eh3d-phoenix-model = { path = "../eh3d-phoenix-model" }

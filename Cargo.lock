@@ -179,18 +179,18 @@ dependencies = [
 
 [[package]]
 name = "eh3d-parser-common"
-version = "0.0.4"
+version = "0.0.6"
 
 [[package]]
 name = "eh3d-parser-excellon"
-version = "0.0.4"
+version = "0.0.6"
 dependencies = [
  "eh3d-parser-common",
 ]
 
 [[package]]
 name = "eh3d-parser-gerber"
-version = "0.0.4"
+version = "0.0.6"
 dependencies = [
  "eh3d-parser-common",
 ]
@@ -235,6 +235,16 @@ dependencies = [
  "eh3d-phoenix-hub",
  "sha2",
  "tempfile",
+]
+
+[[package]]
+name = "eh3d-phoenix-eagle-board"
+version = "0.0.1"
+dependencies = [
+ "eh3d-diagnostic",
+ "eh3d-phoenix-board",
+ "eh3d-phoenix-eagle",
+ "eh3d-phoenix-model",
 ]
 
 [[package]]
@@ -299,14 +309,14 @@ dependencies = [
 
 [[package]]
 name = "eh3d-writer-excellon"
-version = "0.0.4"
+version = "0.0.6"
 dependencies = [
  "eh3d-parser-excellon",
 ]
 
 [[package]]
 name = "eh3d-writer-gerber"
-version = "0.0.4"
+version = "0.0.6"
 dependencies = [
  "eh3d-parser-gerber",
 ]
