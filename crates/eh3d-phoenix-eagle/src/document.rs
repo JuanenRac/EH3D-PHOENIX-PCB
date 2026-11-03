@@ -134,6 +134,13 @@ pub const SUPPORTED_MAJOR: std::ops::RangeInclusive<u32> = 6..=9;
 
 /// Reads `bytes` as an EAGLE XML file.
 pub fn read_bytes(bytes: &[u8], limits: &Limits) -> Reading {
+    // The binary files of the old versions start with the bytes 0x10 0x80.
+    if bytes.starts_with(&[0x10, 0x80]) {
+        return Reading::fail(
+            codes::BINARY_FORMAT,
+            "the file starts like an EAGLE binary file",
+        );
+    }
     let mut diagnostics = Vec::new();
     let text: std::borrow::Cow<'_, str> = match std::str::from_utf8(bytes) {
         Ok(t) => t.into(),
@@ -509,6 +516,15 @@ mod tests {
             code("<eagle version=\"5.0\"><drawing><library/></drawing></eagle>"),
             codes::VERSION_UNSUPPORTED
         );
+    }
+
+    #[test]
+    fn the_binary_format_has_its_own_code() {
+        let mut bytes = vec![0x10, 0x80, 0x00, 0x00];
+        bytes.extend_from_slice(b"<eagle version=\"9.0.0\"/>");
+        let r = read_bytes(&bytes, &Limits::default());
+        assert!(r.summary.is_none());
+        assert_eq!(r.diagnostics[0].code.as_deref(), Some(codes::BINARY_FORMAT));
     }
 
     #[test]
