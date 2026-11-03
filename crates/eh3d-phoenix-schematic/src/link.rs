@@ -14,7 +14,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use eh3d_diagnostic::{Category, Diagnostic, Recoverability, Severity};
 use eh3d_phoenix_board::{Board, PadRef};
 
-use crate::model::{Id, Schematic};
+use crate::model::{Id, NetPin, Schematic};
 
 /// A part of the schematic that no component of the board was made from.
 pub const PART_WITHOUT_COMPONENT: &str = "PHOENIX-LINK-001";
@@ -33,6 +33,11 @@ pub const PART_DRAWN_TWICE: &str = "PHOENIX-LINK-007";
 /// A pin has no pad of its number in the footprint.
 pub const PIN_WITHOUT_PAD: &str = "PHOENIX-LINK-008";
 
+/// Wires of the drawing join pins whose pads are on different nets of the board.
+pub const DRAWN_JOINS_OTHER_NETS: &str = "PHOENIX-LINK-009";
+/// The pads of one net of the board are in several pieces of the drawing (information).
+pub const BOARD_NET_NOT_DRAWN: &str = "PHOENIX-LINK-010";
+
 /// The codes of this module with their titles.
 pub const REGISTRY: &[(&str, &str)] = &[
     (PART_WITHOUT_COMPONENT, "Part has no component on the board"),
@@ -46,6 +51,14 @@ pub const REGISTRY: &[(&str, &str)] = &[
     (NET_DIFFERS, "Nets differ between schematic and board"),
     (PART_DRAWN_TWICE, "Part used by two components"),
     (PIN_WITHOUT_PAD, "Pin has no pad"),
+    (
+        DRAWN_JOINS_OTHER_NETS,
+        "Wires join pads that are on different nets of the board",
+    ),
+    (
+        BOARD_NET_NOT_DRAWN,
+        "Net of the board is not joined by wires",
+    ),
 ];
 
 fn make(code: &'static str, severity: Severity, detail: String) -> Diagnostic {
@@ -215,6 +228,88 @@ pub fn check_consistency(schematic: &Schematic, board: &Board) -> LinkReport {
                     "net {name} of the board joins {} nets of the schematic",
                     nets.len()
                 ),
+            ));
+        }
+    }
+    report
+}
+
+/// The pad of the component made from a part that a pin goes to, by the number of the pin.
+fn pad_of_pin(
+    schematic: &Schematic,
+    board: &Board,
+    component_of: &BTreeMap<Id, Id>,
+    pin: NetPin,
+) -> Option<PadRef> {
+    let cid = component_of.get(&pin.part)?;
+    let number = schematic.pin_number(pin)?;
+    let component = board.components.get(cid)?;
+    let footprint = board.footprints.get(&component.footprint)?;
+    let (pad, _) = footprint.pads.iter().find(|(_, p)| p.number == number)?;
+    Some(PadRef {
+        component: *cid,
+        pad: *pad,
+    })
+}
+
+/// Compares what the wires of the drawing join with the nets of the board.
+///
+/// Two pins that wires join must go to pads of one net of the board (`PHOENIX-LINK-009`, an error);
+/// pads of one net of the board that are drawn in several pieces get a warning
+/// (`PHOENIX-LINK-010`), because a connection may be drawn later. Only the pins of placed parts take
+/// part, and a part is matched to its component the same way as in [`check_consistency`], which
+/// reports the parts and pins that do not match.
+pub fn check_drawn_against_board(schematic: &Schematic, board: &Board) -> LinkReport {
+    let mut report = LinkReport::default();
+    let component_of: BTreeMap<Id, Id> = board
+        .components
+        .iter()
+        .filter_map(|(cid, c)| c.symbol.map(|part| (part, *cid)))
+        .filter(|(part, _)| schematic.parts.contains_key(part))
+        .collect();
+    let drawn = schematic.drawn();
+    let mut group_of_pad: BTreeMap<PadRef, usize> = BTreeMap::new();
+    for (index, group) in drawn.groups.iter().enumerate() {
+        let pads: Vec<(NetPin, PadRef)> = group
+            .iter()
+            .filter_map(|p| Some((*p, pad_of_pin(schematic, board, &component_of, *p)?)))
+            .collect();
+        for (_, pad) in &pads {
+            group_of_pad.insert(*pad, index);
+        }
+        let nets: BTreeSet<Option<Id>> = pads.iter().map(|(_, pad)| board.net_of(*pad)).collect();
+        if pads.len() >= 2 && (nets.len() > 1 || nets.contains(&None)) {
+            let names: Vec<String> = pads
+                .iter()
+                .filter_map(|(pin, _)| {
+                    let part = schematic.parts.get(&pin.part)?;
+                    Some(format!(
+                        "{} pin {}",
+                        part.refdes,
+                        schematic.pin_number(*pin)?
+                    ))
+                })
+                .collect();
+            report.errors.push(make(
+                DRAWN_JOINS_OTHER_NETS,
+                Severity::Error,
+                names.join(", "),
+            ));
+        }
+    }
+    let mut groups_of_net: BTreeMap<Id, BTreeSet<usize>> = BTreeMap::new();
+    for (pad, group) in &group_of_pad {
+        if let Some(net) = board.net_of(*pad) {
+            groups_of_net.entry(net).or_default().insert(*group);
+        }
+    }
+    for (net, groups) in &groups_of_net {
+        if groups.len() > 1 {
+            let name = board.nets.get(net).map_or("?", |n| n.name.as_str());
+            report.warnings.push(make(
+                BOARD_NET_NOT_DRAWN,
+                Severity::Warning,
+                format!("net {name} is drawn in {} pieces", groups.len()),
             ));
         }
     }
@@ -442,5 +537,58 @@ mod tests {
                 .unwrap_or_else(|| panic!("{code} is not documented"));
             assert!(row.contains(title), "{code}: {row}");
         }
+    }
+
+    #[test]
+    fn a_drawing_that_agrees_with_the_board_has_nothing_to_report() {
+        let (s, ids, ..) = crate::sample::drawn_schematic();
+        let (board, ..) = board_for(&s, &ids);
+        let r = check_drawn_against_board(&s, &board);
+        assert!(r.agrees() && r.warnings.is_empty(), "{:?}", codes(&r));
+    }
+
+    #[test]
+    fn wires_that_join_pads_of_different_nets_of_the_board_are_an_error() {
+        let (s, ids, ..) = crate::sample::drawn_schematic();
+        let (mut board, _, comps, pads) = board_for(&s, &ids);
+        // pad 1 of the second component goes to another net of the board
+        let other = id(90);
+        board.nets.insert(
+            other,
+            eh3d_phoenix_board::Net {
+                name: "Other".into(),
+            },
+        );
+        for p in board.pad_nets.iter_mut() {
+            if p.component == comps[1] && p.pad == pads[0] {
+                p.net = other;
+            }
+        }
+        let r = check_drawn_against_board(&s, &board);
+        assert_eq!(codes(&r), vec![DRAWN_JOINS_OTHER_NETS]);
+        assert!(!r.agrees());
+        // a pad without a net counts as a different net too
+        board
+            .pad_nets
+            .retain(|p| !(p.component == comps[1] && p.pad == pads[0]));
+        assert_eq!(
+            codes(&check_drawn_against_board(&s, &board)),
+            vec![DRAWN_JOINS_OTHER_NETS]
+        );
+    }
+
+    #[test]
+    fn a_net_of_the_board_drawn_in_pieces_is_a_warning() {
+        let (mut s, ids, _, wire) = crate::sample::drawn_schematic();
+        let (board, ..) = board_for(&s, &ids);
+        s.wires.remove(&wire);
+        let r = check_drawn_against_board(&s, &board);
+        assert_eq!(codes(&r), vec![BOARD_NET_NOT_DRAWN]);
+        assert!(r.agrees());
+        // a schematic that is not drawn has nothing to compare
+        let (plain, plain_ids) = schematic();
+        let (board, ..) = board_for(&plain, &plain_ids);
+        let r = check_drawn_against_board(&plain, &board);
+        assert!(r.agrees() && r.warnings.is_empty());
     }
 }

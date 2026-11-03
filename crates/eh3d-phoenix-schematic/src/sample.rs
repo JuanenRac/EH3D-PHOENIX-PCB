@@ -19,8 +19,20 @@ pub(crate) fn schematic() -> (Schematic, [Id; 6]) {
         ..Schematic::default()
     };
     let mut pins = BTreeMap::new();
-    pins.insert(pin1, Pin { number: "1".into() });
-    pins.insert(pin2, Pin { number: "2".into() });
+    pins.insert(
+        pin1,
+        Pin {
+            number: "1".into(),
+            at: None,
+        },
+    );
+    pins.insert(
+        pin2,
+        Pin {
+            number: "2".into(),
+            at: None,
+        },
+    );
     s.symbols.insert(
         sym,
         Symbol {
@@ -36,6 +48,7 @@ pub(crate) fn schematic() -> (Schematic, [Id; 6]) {
                 value: "10k".into(),
                 symbol: sym,
                 footprint: None,
+                placement: None,
             },
         );
     }
@@ -58,4 +71,47 @@ pub(crate) fn schematic() -> (Schematic, [Id; 6]) {
         },
     );
     (s, [sym, p1, p2, pin1, pin2, net])
+}
+
+/// The sample schematic drawn on one sheet: two resistors 20 mm apart, the pins at 2.54 mm on
+/// each side of the origin of the symbol, and one wire joining pin 2 of the first with pin 1 of the
+/// second through a point in the middle. Returns the schematic, the ids of [`schematic`], the
+/// sheet and the wire.
+pub(crate) fn drawn_schematic() -> (Schematic, [Id; 6], Id, Id) {
+    use crate::draw::{Placement, Sheet, Wire};
+    use eh3d_phoenix_model::{Nm, Point, Udeg};
+
+    let (mut s, ids) = schematic();
+    let (sheet, wire) = (id(70), id(71));
+    let pt = |x: i64, y: i64| Point::from_nm(x, y).unwrap();
+    s.sheets.insert(
+        sheet,
+        Sheet {
+            name: "Sheet 1".into(),
+            width: Nm::new(297_000_000).unwrap(),
+            height: Nm::new(210_000_000).unwrap(),
+        },
+    );
+    let symbol = s.symbols.get_mut(&ids[0]).unwrap();
+    symbol.pins.get_mut(&ids[3]).unwrap().at = Some(pt(-2_540_000, 0));
+    symbol.pins.get_mut(&ids[4]).unwrap().at = Some(pt(2_540_000, 0));
+    for (part, x) in [(ids[1], 20_000_000), (ids[2], 40_000_000)] {
+        s.parts.get_mut(&part).unwrap().placement = Some(Placement {
+            sheet,
+            at: pt(x, 20_000_000),
+            rotation: Udeg::ZERO,
+        });
+    }
+    s.wires.insert(
+        wire,
+        Wire {
+            sheet,
+            path: vec![
+                pt(22_540_000, 20_000_000),
+                pt(30_000_000, 20_000_000),
+                pt(37_460_000, 20_000_000),
+            ],
+        },
+    );
+    (s, ids, sheet, wire)
 }

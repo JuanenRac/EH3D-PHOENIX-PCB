@@ -3,7 +3,10 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use eh3d_diagnostic::{Category, Diagnostic, Recoverability, Severity};
+use eh3d_phoenix_model::Point;
 use serde::{Deserialize, Serialize};
+
+use crate::draw::{Placement, Sheet, Wire};
 
 /// The identity of any part of the schematic: the shared object identity of the suite.
 pub type Id = eh3d_container::ObjectId;
@@ -15,6 +18,10 @@ pub struct Pin {
     /// The number or name printed on the symbol (`1`, `A3`); it is the number of the pad that the
     /// pin goes to.
     pub number: String,
+    /// Where the pin is, relative to the origin of the symbol. Not written when it is not given;
+    /// a pin without a position cannot be judged against the wires.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub at: Option<Point>,
 }
 
 /// A symbol: a named set of pins.
@@ -41,6 +48,9 @@ pub struct Part {
     /// board.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub footprint: Option<Id>,
+    /// Where it is drawn, when it is.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub placement: Option<Placement>,
 }
 
 /// A pin of a part.
@@ -74,6 +84,12 @@ pub struct Schematic {
     pub parts: BTreeMap<Id, Part>,
     /// The nets, by id.
     pub nets: BTreeMap<Id, SchematicNet>,
+    /// The sheets of the drawing, by id. Not written when empty.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub sheets: BTreeMap<Id, Sheet>,
+    /// The wires of the drawing, by id. Not written when empty.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub wires: BTreeMap<Id, Wire>,
 }
 
 /// A reference to a part, symbol or pin that does not exist.
@@ -154,12 +170,15 @@ impl Schematic {
                 }
             }
         }
+        out.extend(self.drawn().problems);
         out
     }
 
-    /// True when [`Schematic::validate`] finds nothing.
+    /// True when [`Schematic::validate`] finds no error (warnings and information do not count).
     pub fn is_consistent(&self) -> bool {
-        self.validate().is_empty()
+        self.validate()
+            .iter()
+            .all(|d| d.severity != Severity::Error)
     }
 }
 
