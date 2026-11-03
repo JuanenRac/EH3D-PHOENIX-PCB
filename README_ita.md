@@ -114,7 +114,7 @@ EH3D-PHOENIX-PCB/
 │   └── adr/                                     i registri delle decisioni accettate
 ├── AGENTS.md                                    regole per chi modifica il repository
 ├── deny.toml                                    politica di licenze e avvisi delle dipendenze
-├── crates/                                      inventario, modello, progetto, scheda, schema, lettore EAGLE, hub di formati, esportazione, CLI
+├── crates/                                      inventario, modello, progetto, scheda, schema, EAGLE, hub, esportazione, CLI
 ├── config/                                      il file delle impostazioni (ogni valore regolato)
 ├── Cargo.toml Cargo.lock                        il workspace Rust e le sue dipendenze bloccate
 ├── tools/                                       il controllo del repository, i suoi test e gli strumenti delle immagini

@@ -114,7 +114,7 @@ EH3D-PHOENIX-PCB/
 │   └── adr/                                     已接受的决策记录
 ├── AGENTS.md                                    修改仓库的人需遵守的规则
 ├── deny.toml                                    依赖项的许可证与公告策略
-├── crates/                                      清点、模型、项目、电路板、原理图、EAGLE 读取器、格式枢纽、导出、命令行
+├── crates/                                      清点、模型、项目、电路板、原理图、EAGLE、枢纽、导出、命令行
 ├── config/                                      设置文件（所有调整值）
 ├── Cargo.toml Cargo.lock                        Rust 工作区及其锁定的依赖
 ├── tools/                                       仓库检查、其测试以及图片工具
