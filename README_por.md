@@ -12,14 +12,14 @@
   <img src="https://img.shields.io/badge/License-GPL%203.0--or--later-blue.svg" alt="GPL 3.0 or later">
   <img src="https://img.shields.io/badge/Stack-Rust%20%2B%20Python-blue.svg" alt="Rust and Python">
   <img src="https://img.shields.io/badge/Languages-8-00E5FF.svg" alt="Languages">
-  <img src="https://img.shields.io/badge/Tests-160-2EA043.svg" alt="Tests">
+  <img src="https://img.shields.io/badge/Tests-170-2EA043.svg" alt="Tests">
   <img src="https://img.shields.io/badge/Version-0.0.1-0f6cbd.svg" alt="Version">
   <img src="https://img.shields.io/badge/Maturity-scaffolding-FFB020.svg" alt="Maturity">
 </p>
 
 ---
 
-**Verificação de honestidade - o que funciona hoje:** um espaço de trabalho Rust cujo comando `phoenix inventory` conta os ficheiros de projeto de uma pasta privada sem mostrar nenhum nome nem valor: ficheiros por extensão, tipo e versão declarada, e uma impressão digital do conteúdo. Tem 157 testes próprios, que passam num computador. Só foi executado com pastas criadas pelos seus próprios testes, nunca com ficheiros de projeto reais. Tem também os alicerces de um modelo de projeto (valores inteiros em nanómetros e micrograus com intervalo verificado, ids de objeto e JSON canónico), o ficheiro de projeto `.phoenixproj` (manifesto, domínios, migrações) e um modelo de placa com operações reversíveis (camadas, redes, componentes, pistas, vias, zonas), tudo experimentado apenas com dados gerados. A biblioteca de placa também descobre que cobre toca em que cobre e verifica tamanhos e distâncias com um ficheiro de regras; uma quinta biblioteca lê bibliotecas, placas e esquemas EAGLE XML para um resumo e volta a escrever a árvore XML de forma idêntica. Tudo foi experimentado apenas com ficheiros gerados ou feitos à mão. Não há modelo de esquema, nem importação de projetos alheios para o modelo, nem editor, e as regras cobrem só parte das verificações previstas: a maior parte da função de EDA continua planeada.
+**Verificação de honestidade - o que funciona hoje:** um espaço de trabalho Rust cujo comando `phoenix inventory` conta os ficheiros de projeto de uma pasta privada sem mostrar nenhum nome nem valor: ficheiros por extensão, tipo e versão declarada, e uma impressão digital do conteúdo. Tem 167 testes próprios, que passam num computador. Só foi executado com pastas criadas pelos seus próprios testes, nunca com ficheiros de projeto reais. Tem também os alicerces de um modelo de projeto (valores inteiros em nanómetros e micrograus com intervalo verificado, ids de objeto e JSON canónico), o ficheiro de projeto `.phoenixproj` (manifesto, domínios, migrações) e um modelo de placa com operações reversíveis (camadas, redes, componentes, pistas, vias, zonas), tudo experimentado apenas com dados gerados. A biblioteca de placa também descobre que cobre toca em que cobre e verifica tamanhos e distâncias com um ficheiro de regras; uma quinta biblioteca lê bibliotecas, placas e esquemas EAGLE XML para um resumo e volta a escrever a árvore XML de forma idêntica. Tudo foi experimentado apenas com ficheiros gerados ou feitos à mão. Existem também um modelo de esquema e a sua verificação de coerência com a placa. Não há importação de projetos alheios para o modelo, nem editor, e as regras cobrem só parte das verificações previstas: a maior parte da função de EDA continua planeada.
 
 ---
 
@@ -31,7 +31,7 @@
 |---|---|
 | Versão | `0.0.1` |
 | Maturidade | Estrutura inicial |
-| Testes | 160 |
+| Testes | 170 |
 | Tecnologias | Rust, Python 3.10+ |
 | Em hardware real | Ainda não executado em hardware |
 
@@ -46,14 +46,14 @@ Cada linha é uma parte deste repositório e a luz diz até onde chega hoje. É 
 | Área | Estado | O que significa aqui |
 |---|---|---|
 | Verificações do repositório | 🟡 | A verificação do repositório, a das imagens e os 3 testes da base correm na CI e passam. |
-| Testes | 🟡 | Os 157 testes do código Rust e os 3 da base passam num computador. Usam apenas pastas criadas pelos próprios testes; nenhum foi executado com ficheiros de projeto reais. |
+| Testes | 🟡 | Os 167 testes do código Rust e os 3 da base passam num computador. Usam apenas pastas criadas pelos próprios testes; nenhum foi executado com ficheiros de projeto reais. |
 | Hardware real | 🟠 | Não foi executado em nenhuma máquina nem placa: nada aqui foi experimentado em hardware. |
-| Função planeada | 🟠 | Escrito: o inventário ocultado de um corpus, os alicerces do modelo (unidades, ids, JSON canónico), o ficheiro de projeto `.phoenixproj`, o modelo de placa com anular e refazer, a sua conectividade e uma primeira verificação de regras, e um leitor de resumo de EAGLE XML. Por começar: o esquema, a importação de outros formatos para o modelo, os escritores de outros formatos, a maior parte das regras, o visualizador e os editores, a simulação e tudo o resto do planeado. |
+| Função planeada | 🟠 | Escrito: o inventário ocultado de um corpus, os alicerces do modelo (unidades, ids, JSON canónico), o ficheiro de projeto `.phoenixproj`, o modelo de placa com anular e refazer, a sua conectividade e uma primeira verificação de regras, e um leitor de resumo de EAGLE XML. Por começar: o editor de esquemas, a importação de outros formatos para o modelo, os escritores de outros formatos, a maior parte das regras, o visualizador e os editores, a simulação e tudo o resto do planeado. |
 | Requisitos | 🟠 | 5 de 30 requisitos (o modo ocultado, os alicerces do modelo, as operações reversíveis, o ficheiro de projeto e os códigos de diagnóstico) estão em protótipo, 25 estão apenas planeados e nenhum está validado. |
 
 ## 🎯 Visão geral
 
-* **O que existe:** um espaço de trabalho com uma biblioteca que conta um corpus privado de ficheiros de projeto em modo ocultado (apenas contagens, tipos, versões declaradas e uma impressão digital, nunca um nome nem um valor) e uma linha de comandos, `phoenix inventory`. Olha para os primeiros bytes de um ficheiro e não lê projetos. Uma segunda biblioteca guarda os alicerces do modelo de projeto: comprimentos e ângulos como inteiros com intervalo verificado, ids de objeto (UUID v7) e JSON canónico. Uma terceira biblioteca lê e escreve o projeto `.phoenixproj` sobre o contentor partilhado do EH3D-COMMON: o manifesto com os seus domínios, ligações e migrações, os domínios que não entende mantidos intactos e a regra `must_understand`. Uma quarta biblioteca guarda o modelo de placa: camadas, redes, pegadas, componentes, pistas com linhas e arcos, vias e zonas ligadas por ids estáveis, com operações reversíveis e um histórico de anular e refazer. Cada falha tem um código estável `PHOENIX-<ÁREA>-<NNN>`. A biblioteca de placa também calcula as ilhas de cada rede e verifica larguras, furos, anéis e distâncias com um ficheiro de regras em milímetros, separando o confirmado do inconclusivo. Uma quinta biblioteca lê bibliotecas, placas e esquemas EAGLE XML para um resumo, volta a escrever a árvore XML de forma idêntica e mede a taxa de leitura sobre cópias de um corpus verificadas com SHA-256, sem alterar os originais; o comando `phoenix eagle-rate` executa-o. Uma sexta biblioteca escreve os ficheiros Gerber X2, Excellon e `.eh3dproj` 1.0.0 de uma placa com EH3D-CORE-LIBS e EH3D-COMMON, com os mesmos bytes para a mesma placa; os ficheiros só são relidos pelos analisadores da mesma biblioteca.
+* **O que existe:** um espaço de trabalho com uma biblioteca que conta um corpus privado de ficheiros de projeto em modo ocultado (apenas contagens, tipos, versões declaradas e uma impressão digital, nunca um nome nem um valor) e uma linha de comandos, `phoenix inventory`. Olha para os primeiros bytes de um ficheiro e não lê projetos. Uma segunda biblioteca guarda os alicerces do modelo de projeto: comprimentos e ângulos como inteiros com intervalo verificado, ids de objeto (UUID v7) e JSON canónico. Uma terceira biblioteca lê e escreve o projeto `.phoenixproj` sobre o contentor partilhado do EH3D-COMMON: o manifesto com os seus domínios, ligações e migrações, os domínios que não entende mantidos intactos e a regra `must_understand`. Uma quarta biblioteca guarda o modelo de placa: camadas, redes, pegadas, componentes, pistas com linhas e arcos, vias e zonas ligadas por ids estáveis, com operações reversíveis e um histórico de anular e refazer. Cada falha tem um código estável `PHOENIX-<ÁREA>-<NNN>`. A biblioteca de placa também calcula as ilhas de cada rede e verifica larguras, furos, anéis e distâncias com um ficheiro de regras em milímetros, separando o confirmado do inconclusivo. Uma quinta biblioteca lê bibliotecas, placas e esquemas EAGLE XML para um resumo, volta a escrever a árvore XML de forma idêntica e mede a taxa de leitura sobre cópias de um corpus verificadas com SHA-256, sem alterar os originais; o comando `phoenix eagle-rate` executa-o. Uma sexta biblioteca escreve os ficheiros Gerber X2, Excellon e `.eh3dproj` 1.0.0 de uma placa com EH3D-CORE-LIBS e EH3D-COMMON, com os mesmos bytes para a mesma placa; os ficheiros só são relidos pelos analisadores da mesma biblioteca. Uma sétima biblioteca guarda o esquema (símbolos, peças e redes ligados por ids estáveis) e confronta-o com uma placa: peças sem componente e diferenças de designadores, valores, pegadas e redes, com os códigos `PHOENIX-LINK-<NNN>`.
 
 * **Planeado:** EH3D-PHOENIX-PCB pretende ser um ambiente EDA com captura de esquemas, desenho de PCB, ferramentas de verificação, simulação de circuitos e módulos especializados para fontes comutadas e RF. Está planeado como um programa em Rust com janela para o ambiente de trabalho (um espaço de trabalho de crates de motor, uma interface de linha de comandos e uma aplicação) que funciona sozinho e pode usar o servidor para tarefas de cálculo. Nada disto existe ainda.
 
@@ -85,7 +85,7 @@ python -I -m unittest discover -s tools -p "test_*.py"
 
 ## 🧪 Testes
 
-O código tem 157 testes (`cargo test`) e a base tem 3 (`python -I -m unittest discover -s tools -p "test_*.py"`); todos passam num computador. A CI executa a verificação do repositório, a das imagens, os testes da base e, para o código Rust, a verificação do formato, o clippy com os avisos tratados como erros e os testes em Linux e Windows.
+O código tem 167 testes (`cargo test`) e a base tem 3 (`python -I -m unittest discover -s tools -p "test_*.py"`); todos passam num computador. A CI executa a verificação do repositório, a das imagens, os testes da base e, para o código Rust, a verificação do formato, o clippy com os avisos tratados como erros e os testes em Linux e Windows.
 
 ## 🏗️ Compilação e publicação
 
@@ -114,7 +114,7 @@ EH3D-PHOENIX-PCB/
 │   └── adr/                                     os registos das decisões aceites
 ├── AGENTS.md                                    regras para quem altera o repositório
 ├── deny.toml                                    política de licenças e avisos das dependências
-├── crates/                                      inventário, modelo, projeto, placa, leitor EAGLE, centro de formatos, exportação, CLI
+├── crates/                                      inventário, modelo, projeto, placa, esquema, leitor EAGLE, centro de formatos, exportação, CLI
 ├── config/                                      o ficheiro de definições (todo o valor ajustado)
 ├── Cargo.toml Cargo.lock                        o espaço de trabalho Rust e as suas dependências fixadas
 ├── tools/                                       a verificação do repositório, os seus testes e as ferramentas das imagens

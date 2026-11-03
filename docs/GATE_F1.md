@@ -13,7 +13,7 @@ The gate of phase F1 (see ROADMAP.md) has three parts. This page says, for each,
 What the gate does not claim:
 
 * nothing was run on a real design: the generators make the boards;
-* the model has no schematic, no zones with holes, no polygons with arcs and no text;
+* the schematic model is a list of symbols, parts and nets with no drawing, and the model has no zones with holes, no polygons with arcs and no text;
 * the project format has no registered migration yet, so the migration machinery is tested with test migrations only;
 * the performance of large boards is not measured.
 

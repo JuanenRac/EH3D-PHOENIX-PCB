@@ -12,14 +12,14 @@
   <img src="https://img.shields.io/badge/License-GPL%203.0--or--later-blue.svg" alt="GPL 3.0 or later">
   <img src="https://img.shields.io/badge/Stack-Rust%20%2B%20Python-blue.svg" alt="Rust and Python">
   <img src="https://img.shields.io/badge/Languages-8-00E5FF.svg" alt="Languages">
-  <img src="https://img.shields.io/badge/Tests-160-2EA043.svg" alt="Tests">
+  <img src="https://img.shields.io/badge/Tests-170-2EA043.svg" alt="Tests">
   <img src="https://img.shields.io/badge/Version-0.0.1-0f6cbd.svg" alt="Version">
   <img src="https://img.shields.io/badge/Maturity-scaffolding-FFB020.svg" alt="Maturity">
 </p>
 
 ---
 
-**Verifica di onestà - cosa funziona oggi:** un workspace Rust il cui comando `phoenix inventory` conta i file di progetto di una cartella privata senza mostrare alcun nome né valore: file per estensione, tipo e versione dichiarata, e un'impronta del contenuto. Ha 157 test propri e passano su un computer. È stato eseguito solo su cartelle create dai suoi stessi test, mai su veri file di progetto. Ha anche le fondamenta di un modello di progetto (valori interi in nanometri e microgradi con intervallo verificato, id di oggetto e JSON canonico), il file di progetto `.phoenixproj` (manifesto, domini, migrazioni) e un modello di scheda con operazioni reversibili (livelli, reti, componenti, piste, vie, zone), il tutto provato solo su dati generati. La libreria della scheda trova anche quale rame tocca quale e verifica dimensioni e distanze con un file di regole; una quinta libreria legge librerie, schede e schemi EAGLE XML in un riepilogo e riscrive l'albero XML in modo identico. Tutto è stato provato solo su file generati o fatti a mano. Non ci sono modello di schema, importazione di progetti altrui nel modello, editor, e le regole coprono solo una parte dei controlli previsti: gran parte della funzione EDA è ancora pianificata.
+**Verifica di onestà - cosa funziona oggi:** un workspace Rust il cui comando `phoenix inventory` conta i file di progetto di una cartella privata senza mostrare alcun nome né valore: file per estensione, tipo e versione dichiarata, e un'impronta del contenuto. Ha 167 test propri e passano su un computer. È stato eseguito solo su cartelle create dai suoi stessi test, mai su veri file di progetto. Ha anche le fondamenta di un modello di progetto (valori interi in nanometri e microgradi con intervallo verificato, id di oggetto e JSON canonico), il file di progetto `.phoenixproj` (manifesto, domini, migrazioni) e un modello di scheda con operazioni reversibili (livelli, reti, componenti, piste, vie, zone), il tutto provato solo su dati generati. La libreria della scheda trova anche quale rame tocca quale e verifica dimensioni e distanze con un file di regole; una quinta libreria legge librerie, schede e schemi EAGLE XML in un riepilogo e riscrive l'albero XML in modo identico. Tutto è stato provato solo su file generati o fatti a mano. Esistono anche un modello di schema e il suo controllo di coerenza con la scheda. Non ci sono importazione di progetti altrui nel modello, editor, e le regole coprono solo una parte dei controlli previsti: gran parte della funzione EDA è ancora pianificata.
 
 ---
 
@@ -31,7 +31,7 @@
 |---|---|
 | Versione | `0.0.1` |
 | Maturità | Impalcatura |
-| Test | 160 |
+| Test | 170 |
 | Stack tecnologico | Rust, Python 3.10+ |
 | Su hardware reale | Non ancora eseguito su hardware |
 
@@ -46,14 +46,14 @@ Ogni riga è una parte di questo repository e il semaforo dice a che punto è og
 | Area | Stato | Cosa significa qui |
 |---|---|---|
 | Controlli del repository | 🟡 | Il controllo del repository, quello delle immagini e i 3 test della base girano nella CI e passano. |
-| Test | 🟡 | I 157 test del codice Rust e i 3 della base passano su un computer. Usano solo cartelle create dai test stessi; nessuno è stato eseguito su veri file di progetto. |
+| Test | 🟡 | I 167 test del codice Rust e i 3 della base passano su un computer. Usano solo cartelle create dai test stessi; nessuno è stato eseguito su veri file di progetto. |
 | Hardware reale | 🟠 | Non eseguito su nessuna macchina né scheda: nulla qui è stato provato su hardware. |
-| Funzione pianificata | 🟠 | Scritto: l'inventario oscurato di un corpus, le fondamenta del modello (unità, id, JSON canonico), il file di progetto `.phoenixproj`, il modello di scheda con annulla e ripeti, la sua connettività e un primo controllo delle regole, e un lettore di riepilogo di EAGLE XML. Non iniziato: lo schema elettrico, l'importazione di altri formati nel modello, gli scrittori di altri formati, gran parte delle regole, il visualizzatore e gli editor, la simulazione e tutto il resto del pianificato. |
+| Funzione pianificata | 🟠 | Scritto: l'inventario oscurato di un corpus, le fondamenta del modello (unità, id, JSON canonico), il file di progetto `.phoenixproj`, il modello di scheda con annulla e ripeti, la sua connettività e un primo controllo delle regole, e un lettore di riepilogo di EAGLE XML. Non iniziato: l'editor di schemi, l'importazione di altri formati nel modello, gli scrittori di altri formati, gran parte delle regole, il visualizzatore e gli editor, la simulazione e tutto il resto del pianificato. |
 | Requisiti | 🟠 | 5 requisiti su 30 (la modalità oscurata, le fondamenta del modello, le operazioni reversibili, il file di progetto e i codici di diagnostica) sono a livello di prototipo, 25 sono solo pianificati e nessuno è convalidato. |
 
 ## 🎯 Panoramica
 
-* **Cosa esiste:** un workspace con una libreria che conta un corpus privato di file di progetto in modalità oscurata (solo conteggi, tipi, versioni dichiarate e un'impronta, mai un nome né un valore) e una riga di comando, `phoenix inventory`. Guarda i primi byte di un file e non legge i progetti. Una seconda libreria contiene le fondamenta del modello di progetto: lunghezze e angoli come interi con intervallo verificato, id di oggetto (UUID v7) e JSON canonico. Una terza libreria legge e scrive il progetto `.phoenixproj` sul contenitore condiviso di EH3D-COMMON: il manifesto con domini, collegamenti e migrazioni, i domini che non capisce conservati intatti e la regola `must_understand`. Una quarta libreria contiene il modello di scheda: livelli, reti, impronte, componenti, piste con linee e archi, vie e zone collegate da id stabili, con operazioni reversibili e una cronologia di annulla e ripeti. Ogni errore ha un codice stabile `PHOENIX-<AREA>-<NNN>`. La libreria della scheda calcola anche le isole di ogni rete e verifica larghezze, fori, anelli e distanze con un file di regole in millimetri, tenendo separati il confermato e l'inconcludente. Una quinta libreria legge librerie, schede e schemi EAGLE XML in un riepilogo, riscrive l'albero XML in modo identico e misura il tasso di lettura su copie di un corpus verificate con SHA-256, senza modificare gli originali; il comando `phoenix eagle-rate` lo esegue. Una sesta libreria scrive i file Gerber X2, Excellon e `.eh3dproj` 1.0.0 di una scheda con EH3D-CORE-LIBS ed EH3D-COMMON, con gli stessi byte per la stessa scheda; i file vengono riletti solo dai parser della stessa libreria.
+* **Cosa esiste:** un workspace con una libreria che conta un corpus privato di file di progetto in modalità oscurata (solo conteggi, tipi, versioni dichiarate e un'impronta, mai un nome né un valore) e una riga di comando, `phoenix inventory`. Guarda i primi byte di un file e non legge i progetti. Una seconda libreria contiene le fondamenta del modello di progetto: lunghezze e angoli come interi con intervallo verificato, id di oggetto (UUID v7) e JSON canonico. Una terza libreria legge e scrive il progetto `.phoenixproj` sul contenitore condiviso di EH3D-COMMON: il manifesto con domini, collegamenti e migrazioni, i domini che non capisce conservati intatti e la regola `must_understand`. Una quarta libreria contiene il modello di scheda: livelli, reti, impronte, componenti, piste con linee e archi, vie e zone collegate da id stabili, con operazioni reversibili e una cronologia di annulla e ripeti. Ogni errore ha un codice stabile `PHOENIX-<AREA>-<NNN>`. La libreria della scheda calcola anche le isole di ogni rete e verifica larghezze, fori, anelli e distanze con un file di regole in millimetri, tenendo separati il confermato e l'inconcludente. Una quinta libreria legge librerie, schede e schemi EAGLE XML in un riepilogo, riscrive l'albero XML in modo identico e misura il tasso di lettura su copie di un corpus verificate con SHA-256, senza modificare gli originali; il comando `phoenix eagle-rate` lo esegue. Una sesta libreria scrive i file Gerber X2, Excellon e `.eh3dproj` 1.0.0 di una scheda con EH3D-CORE-LIBS ed EH3D-COMMON, con gli stessi byte per la stessa scheda; i file vengono riletti solo dai parser della stessa libreria. Una settima libreria contiene lo schema (simboli, parti e reti collegati da id stabili) e lo confronta con una scheda: parti senza componente e differenze di designatori, valori, impronte e reti, con i codici `PHOENIX-LINK-<NNN>`.
 
 * **Pianificato:** EH3D-PHOENIX-PCB vuole essere un ambiente EDA con acquisizione di schemi, layout di PCB, strumenti di verifica, simulazione di circuiti e moduli specializzati per alimentatori a commutazione e RF. È pensato come un programma in Rust con finestra per il desktop (un workspace di crate di motore, un'interfaccia a riga di comando e un'applicazione) che funziona da solo e può usare il server per attività di calcolo. Nulla di tutto questo esiste ancora.
 
@@ -85,7 +85,7 @@ python -I -m unittest discover -s tools -p "test_*.py"
 
 ## 🧪 Test
 
-Il codice ha 157 test (`cargo test`) e la base ne ha 3 (`python -I -m unittest discover -s tools -p "test_*.py"`); tutti passano su un computer. La CI esegue il controllo del repository, quello delle immagini, i test della base e, per il codice Rust, il controllo del formato, clippy con gli avvisi trattati come errori e i test su Linux e Windows.
+Il codice ha 167 test (`cargo test`) e la base ne ha 3 (`python -I -m unittest discover -s tools -p "test_*.py"`); tutti passano su un computer. La CI esegue il controllo del repository, quello delle immagini, i test della base e, per il codice Rust, il controllo del formato, clippy con gli avvisi trattati come errori e i test su Linux e Windows.
 
 ## 🏗️ Compilazione e rilascio
 
@@ -114,7 +114,7 @@ EH3D-PHOENIX-PCB/
 │   └── adr/                                     i registri delle decisioni accettate
 ├── AGENTS.md                                    regole per chi modifica il repository
 ├── deny.toml                                    politica di licenze e avvisi delle dipendenze
-├── crates/                                      inventario, modello, progetto, scheda, lettore EAGLE, hub di formati, esportazione, CLI
+├── crates/                                      inventario, modello, progetto, scheda, schema, lettore EAGLE, hub di formati, esportazione, CLI
 ├── config/                                      il file delle impostazioni (ogni valore regolato)
 ├── Cargo.toml Cargo.lock                        il workspace Rust e le sue dipendenze bloccate
 ├── tools/                                       il controllo del repository, i suoi test e gli strumenti delle immagini

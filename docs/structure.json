@@ -198,14 +198,14 @@
         {
           "name": "crates/",
           "desc": {
-            "en": "inventory, model, project file, board, EAGLE reader, format hub, export, CLI",
-            "es": "inventario, modelo, proyecto, placa, lector EAGLE, centro de formatos, exportación, comandos",
-            "de": "Inventar, Modell, Projekt, Platine, EAGLE-Leser, Formatzentrale, Export, CLI",
-            "fr": "inventaire, modèle, projet, carte, lecteur EAGLE, hub de formats, export, CLI",
-            "it": "inventario, modello, progetto, scheda, lettore EAGLE, hub di formati, esportazione, CLI",
-            "ja": "棚卸し、モデル、プロジェクト、基板、EAGLE リーダー、形式ハブ、書き出し、コマンドライン",
-            "zh": "清点、模型、项目、电路板、EAGLE 读取器、格式枢纽、导出、命令行",
-            "pt": "inventário, modelo, projeto, placa, leitor EAGLE, centro de formatos, exportação, CLI"
+            "en": "inventory, model, project file, board, schematic, EAGLE reader, format hub, export, CLI",
+            "es": "inventario, modelo, proyecto, placa, esquemático, lector EAGLE, centro de formatos, exportación, comandos",
+            "de": "Inventar, Modell, Projekt, Platine, Schaltplan, EAGLE-Leser, Formatzentrale, Export, CLI",
+            "fr": "inventaire, modèle, projet, carte, schéma, lecteur EAGLE, hub de formats, export, CLI",
+            "it": "inventario, modello, progetto, scheda, schema, lettore EAGLE, hub di formati, esportazione, CLI",
+            "ja": "棚卸し、モデル、プロジェクト、基板、回路図、EAGLE リーダー、形式ハブ、書き出し、コマンドライン",
+            "zh": "清点、模型、项目、电路板、原理图、EAGLE 读取器、格式枢纽、导出、命令行",
+            "pt": "inventário, modelo, projeto, placa, esquema, leitor EAGLE, centro de formatos, exportação, CLI"
           }
         },
         {
