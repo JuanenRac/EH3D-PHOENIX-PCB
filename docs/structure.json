@@ -105,6 +105,32 @@
         },
         {
           "desc": {
+            "en": "the diagnostic codes PHOENIX-<AREA>-<NNN>",
+            "es": "los códigos de diagnóstico PHOENIX-<ÁREA>-<NNN>",
+            "de": "die Diagnosecodes PHOENIX-<BEREICH>-<NNN>",
+            "fr": "les codes de diagnostic PHOENIX-<ZONE>-<NNN>",
+            "it": "i codici di diagnostica PHOENIX-<AREA>-<NNN>",
+            "ja": "診断コード PHOENIX-<領域>-<NNN>",
+            "zh": "诊断代码 PHOENIX-<领域>-<NNN>",
+            "pt": "os códigos de diagnóstico PHOENIX-<ÁREA>-<NNN>"
+          },
+          "name": "ERROR_CODES.md"
+        },
+        {
+          "name": "GATE_F1.md",
+          "desc": {
+            "en": "what the gate of the first phase checks and what it does not",
+            "es": "qué comprueba la puerta de la primera fase y qué no",
+            "de": "was das Tor der ersten Phase prüft und was nicht",
+            "fr": "ce que la porte de la première phase vérifie et ce qu'elle ne vérifie pas",
+            "it": "cosa verifica il varco della prima fase e cosa no",
+            "ja": "第 1 段階のゲートが確認すること、しないこと",
+            "zh": "第一阶段关口检查什么、不检查什么",
+            "pt": "o que a porta da primeira fase verifica e o que não verifica"
+          }
+        },
+        {
+          "desc": {
             "en": "the accepted decision records",
             "es": "los registros de decisiones aceptadas",
             "de": "die angenommenen Entscheidungsprotokolle",
@@ -172,14 +198,14 @@
         {
           "name": "crates/",
           "desc": {
-            "en": "the corpus inventory, the model foundations and the command line",
-            "es": "el inventario del corpus, los cimientos del modelo y la línea de comandos",
-            "de": "das Korpus-Inventar, die Modellgrundlagen und die Kommandozeile",
-            "fr": "l'inventaire du corpus, les fondations du modèle et la ligne de commande",
-            "it": "l'inventario del corpus, le fondamenta del modello e la riga di comando",
-            "ja": "コーパスの棚卸し、モデルの土台、コマンドライン",
-            "zh": "语料库清点工具、模型基础部分和命令行",
-            "pt": "o inventário do corpus, os alicerces do modelo e a linha de comandos"
+            "en": "inventory, model, project file, board, EAGLE reader, format hub, export, CLI",
+            "es": "inventario, modelo, proyecto, placa, lector EAGLE, centro de formatos, exportación, comandos",
+            "de": "Inventar, Modell, Projekt, Platine, EAGLE-Leser, Formatzentrale, Export, CLI",
+            "fr": "inventaire, modèle, projet, carte, lecteur EAGLE, hub de formats, export, CLI",
+            "it": "inventario, modello, progetto, scheda, lettore EAGLE, hub di formati, esportazione, CLI",
+            "ja": "棚卸し、モデル、プロジェクト、基板、EAGLE リーダー、形式ハブ、書き出し、コマンドライン",
+            "zh": "清点、模型、项目、电路板、EAGLE 读取器、格式枢纽、导出、命令行",
+            "pt": "inventário, modelo, projeto, placa, leitor EAGLE, centro de formatos, exportação, CLI"
           }
         },
         {

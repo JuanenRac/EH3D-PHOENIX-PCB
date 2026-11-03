@@ -12,14 +12,14 @@
   <img src="https://img.shields.io/badge/License-GPL%203.0--or--later-blue.svg" alt="GPL 3.0 or later">
   <img src="https://img.shields.io/badge/Stack-Rust%20%2B%20Python-blue.svg" alt="Rust and Python">
   <img src="https://img.shields.io/badge/Languages-8-00E5FF.svg" alt="Languages">
-  <img src="https://img.shields.io/badge/Tests-67-2EA043.svg" alt="Tests">
+  <img src="https://img.shields.io/badge/Tests-159-2EA043.svg" alt="Tests">
   <img src="https://img.shields.io/badge/Version-0.0.1-0f6cbd.svg" alt="Version">
   <img src="https://img.shields.io/badge/Maturity-scaffolding-FFB020.svg" alt="Maturity">
 </p>
 
 ---
 
-**Honesty check - what actually runs today:** a Rust workspace with one command, `phoenix inventory`, that counts the design files of a private folder without showing any name or value: files by extension, kind and declared version, and one fingerprint of the content. It has 64 tests of its own and they pass on a computer. It has only been run on folders made by its own tests, never on real design files. It also has the foundations of a design model (integer nanometre and micro-degree values with a checked range, object ids and canonical JSON). There are no design objects, no reader or writer of design files, no editor and no rules: all of the EDA function is still planned.
+**Honesty check - what actually runs today:** a Rust workspace whose command `phoenix inventory` counts the design files of a private folder without showing any name or value: files by extension, kind and declared version, and one fingerprint of the content. It has 156 tests of its own and they pass on a computer. It has only been run on folders made by its own tests, never on real design files. It also has the foundations of a design model (integer nanometre and micro-degree values with a checked range, object ids and canonical JSON), the `.phoenixproj` project file (manifest, domains, migrations) and a board model with reversible operations (layers, nets, components, tracks, vias, zones), all tried on generated data only. The board library also finds which copper touches which and checks sizes and clearances against a rule file; a fifth library reads EAGLE XML libraries, boards and schematics into a summary and writes the XML tree back identically. All of it was tried on generated or hand-made files only. There is no schematic model, no import of foreign designs into the model, no editor, and the rules cover only part of the checks planned: most of the EDA function is still planned.
 
 ---
 
@@ -31,7 +31,7 @@
 |---|---|
 | Version | `0.0.1` |
 | Maturity | Scaffolding |
-| Tests | 67 |
+| Tests | 159 |
 | Stack | Rust, Python 3.10+ |
 | On real hardware | Not run on hardware yet |
 
@@ -46,14 +46,14 @@ Each line is one part of this repository and the light says how far it is today.
 | Area | State | What it means here |
 |---|---|---|
 | Repository checks | 🟡 | The repository check, the check of the pictures and the 3 tests of the base run in CI and pass. |
-| Tests | 🟡 | The 64 tests of the Rust code and the 3 of the base pass on a computer. They use only folders made by the tests themselves; none has run on real design files. |
+| Tests | 🟡 | The 156 tests of the Rust code and the 3 of the base pass on a computer. They use only folders made by the tests themselves; none has run on real design files. |
 | Real hardware | 🟠 | Not run on any machine or board: nothing here has been tried on hardware. |
-| Planned function | 🟠 | Written: the redacted inventory of a corpus and the foundations of the model (units, ids, canonical JSON). Not started: the design objects, the readers and writers, the rules, the viewer and editors, simulation and everything else planned. |
-| Requirements | 🟠 | 2 of 30 requirements (the redacted mode and the model foundations) are at prototype, 28 are only planned and none is validated. |
+| Planned function | 🟠 | Written: the redacted inventory of a corpus, the foundations of the model (units, ids, canonical JSON), the `.phoenixproj` project file, the board model with undo and redo, its connectivity and a first rule check, and a summary reader of EAGLE XML. Not started: the schematic, the import of other formats into the model, the writers of other formats, most of the rules, the viewer and editors, simulation and everything else planned. |
+| Requirements | 🟠 | 5 of 30 requirements (the redacted mode, the model foundations, the reversible operations, the project file and the diagnostic codes) are at prototype, 25 are only planned and none is validated. |
 
 ## 🎯 Overview
 
-* **What exists:** a workspace with a library that counts a private corpus of design files in redacted mode (only counts, kinds, declared versions and one fingerprint, never a name or a value) and a command line, `phoenix inventory`. It looks at the first bytes of a file and does not read designs. A second library holds the foundations of the design model: lengths and angles as integers with a checked range, object ids (UUID v7) and canonical JSON.
+* **What exists:** a workspace with a library that counts a private corpus of design files in redacted mode (only counts, kinds, declared versions and one fingerprint, never a name or a value) and a command line, `phoenix inventory`. It looks at the first bytes of a file and does not read designs. A second library holds the foundations of the design model: lengths and angles as integers with a checked range, object ids (UUID v7) and canonical JSON. A third library reads and writes the `.phoenixproj` project on the shared container of EH3D-COMMON: the manifest with its domains, links and migrations, domains it does not understand kept untouched, and the `must_understand` rule. A fourth library holds the board model: layers, nets, footprints, components, tracks with lines and arcs, vias and zones linked by stable ids, with reversible operations and an undo/redo history. Every failure has a stable `PHOENIX-<AREA>-<NNN>` code. The board library also computes the islands of each net and checks widths, drills, annular rings and clearances against a rule file in millimetres, keeping confirmed and inconclusive findings apart. A fifth library reads EAGLE XML libraries, boards and schematics into a summary, writes the XML tree back identically and measures the read rate over copies of a corpus checked by SHA-256, without changing the originals; the command `phoenix eagle-rate` runs it. A sixth library writes the Gerber X2, Excellon and `.eh3dproj` 1.0.0 files of a board through EH3D-CORE-LIBS and EH3D-COMMON, the same bytes for the same board; the files are only read back by the parsers of the same library.
 
 * **Planned:** EH3D-PHOENIX-PCB is meant to be an EDA environment with schematic capture, PCB layout, verification tools, circuit simulation and specialized modules for switch-mode power supplies and RF. It is planned as a Rust program with a window for the desktop (a workspace of engine crates, a command-line interface and an application) that works on its own and can use the server for computing tasks. None of this exists yet.
 
@@ -85,7 +85,7 @@ python -I -m unittest discover -s tools -p "test_*.py"
 
 ## 🧪 Testing
 
-The code has 64 tests (`cargo test`) and the base has 3 (`python -I -m unittest discover -s tools -p "test_*.py"`); all pass on a computer. The CI runs the repository check, the check of the pictures, the tests of the base and, for the Rust code, the format check, clippy with warnings as errors and the tests on Linux and Windows.
+The code has 156 tests (`cargo test`) and the base has 3 (`python -I -m unittest discover -s tools -p "test_*.py"`); all pass on a computer. The CI runs the repository check, the check of the pictures, the tests of the base and, for the Rust code, the format check, clippy with warnings as errors and the tests on Linux and Windows.
 
 ## 🏗️ Build & Release
 
@@ -109,10 +109,12 @@ EH3D-PHOENIX-PCB/
 │   ├── DECISIONS.md STATUS.md                   decisions that apply here and the honest status
 │   ├── NOT_YET.md RULES.md                      ideas left for later and rules for writing code
 │   ├── ROADMAP.md                               the map of phases, from foundations to the all-in-one suite
+│   ├── ERROR_CODES.md                           the diagnostic codes PHOENIX-<AREA>-<NNN>
+│   ├── GATE_F1.md                               what the gate of the first phase checks and what it does not
 │   └── adr/                                     the accepted decision records
 ├── AGENTS.md                                    rules for anyone who changes the repository
 ├── deny.toml                                    licence and advisory policy of the dependencies
-├── crates/                                      the corpus inventory, the model foundations and the command line
+├── crates/                                      inventory, model, project file, board, EAGLE reader, format hub, export, CLI
 ├── config/                                      the settings file (every tuned value)
 ├── Cargo.toml Cargo.lock                        the Rust workspace and its locked dependencies
 ├── tools/                                       the repository check, its tests and the picture tools
@@ -132,7 +134,7 @@ EH3D-PHOENIX-PCB/
 **Known limits today**
 
 * Early code: only the corpus inventory and the foundations of the model exist; the inventory has run only on folders made by its own tests, never on real design files.
-* There are no design objects, no project file, no reader or writer of design files, no editor and no rules; apart from the redacted mode and the model foundations, no requirement has been started.
+* There is no schematic, no reader or writer of foreign design files, no editor and no rules; the project file and the board model have only been tried on generated data, never on a real design.
 * The user interface and the geometry library are still open decisions (see `docs/STATUS.md`).
 
 **Next**
@@ -146,7 +148,9 @@ README and texts exist in English, Spanish, French, Italian, German, Chinese, Ja
 ## 🔗 Related Projects
 
 * [EH3D-DOCS](https://github.com/JuanenRac/EH3D-DOCS): the map of the suite, its architecture, the conventions and the shared checks
-* Planned relations, not built yet (EH3D-COMMON, EH3D-CORE-LIBS, EH3D-SERVER, EH3D-PHOENIX-CAD, EH3D-VALIDATION-LAB, EH3D-DESIGN-VERIFIER, EH3D-DESIGN-HISTORY, EH3D-PROJECT-PASSPORT, EH3D-COMPONENT-INTELLIGENCE, EH3D-MANUFACTURING-PROFILE, EH3D-THERMAL-LAB, EH3D-LAB-BRIDGE, EH3D-DESIGN-EXPLORER, EH3D-ISOCAM, EH3D-DRILLPRO, EH3D-ROUTEPRO, EH3D-SUITE-LAUNCHER, EH3D-HYDRA-BRIDGE): see [docs/DEPENDENCIES.md](docs/DEPENDENCIES.md)
+* [EH3D-COMMON](https://github.com/JuanenRac/EH3D-COMMON): built next to this repository; the shared project container (`eh3d-container`) and the common diagnostic (`eh3d-diagnostic`) that this project uses
+* Sibling PHOENIX repositories: [EH3D-VALIDATION-LAB](https://github.com/JuanenRac/EH3D-VALIDATION-LAB) (corpus and golden-file oracle) and [EH3D-PHOENIX-CAD](https://github.com/JuanenRac/EH3D-PHOENIX-CAD) (mechanical side), both early code
+* Planned relations, not built yet (EH3D-CORE-LIBS, EH3D-SERVER, EH3D-DESIGN-VERIFIER, EH3D-DESIGN-HISTORY, EH3D-PROJECT-PASSPORT, EH3D-COMPONENT-INTELLIGENCE, EH3D-MANUFACTURING-PROFILE, EH3D-THERMAL-LAB, EH3D-LAB-BRIDGE, EH3D-DESIGN-EXPLORER, EH3D-ISOCAM, EH3D-DRILLPRO, EH3D-ROUTEPRO, EH3D-SUITE-LAUNCHER, EH3D-HYDRA-BRIDGE): see [docs/DEPENDENCIES.md](docs/DEPENDENCIES.md)
 
 ## 📚 Documentation
 

@@ -1,8 +1,8 @@
 {
   "repo": "EH3D-PHOENIX-PCB",
   "ecosystem": "eh3d",
-  "tagline": "An EDA environment for schematics, PCB layout, verification and simulation. Only the corpus inventory and the model foundations are written.",
-  "description": "EH3D-PHOENIX-PCB is planned as an EDA environment with schematic capture, PCB layout, verification tools, circuit simulation and specialized modules for switch-mode power supplies and RF. Today it holds a workspace with a redacted inventory of a private corpus of design files, the foundations of the design model (checked integer units, object ids, canonical JSON) and a command line; the inventory has only run on folders made by its own tests, and the design objects, readers, rules and editors are not written.",
+  "tagline": "An EDA environment for schematics, PCB layout, verification and simulation. Written so far: inventory, project file and board model.",
+  "description": "EH3D-PHOENIX-PCB is planned as an EDA environment with schematic capture, PCB layout, verification tools, circuit simulation and specialized modules for switch-mode power supplies and RF. Today it holds a workspace with a redacted inventory of a private corpus of design files, the foundations of the design model (checked integer units, object ids, canonical JSON), the project file on the shared container of EH3D-COMMON, the board model with reversible operations and a command line; all of it has only been tried on generated data, and the schematic, the foreign readers, the rules and the editors are not written.",
   "columns": [
     "WHO USES IT",
     "THIS REPOSITORY",
@@ -39,12 +39,14 @@
       "level": "tested",
       "title": "The code",
       "lines": [
-        "the redacted inventory, the model",
-        "foundations and the command line"
+        "inventory, model, project file, board,",
+        "EAGLE reader, export, command line"
       ],
       "code": [
         "crates/eh3d-phoenix-corpus/src/inventory.rs",
         "crates/eh3d-phoenix-model/src/canonical.rs",
+        "crates/eh3d-phoenix-eagle/src/document.rs",
+        "crates/eh3d-phoenix-export/src/package.rs",
         "crates/eh3d-phoenix-cli/src/lib.rs"
       ]
     },
@@ -56,6 +58,26 @@
       "lines": [
         "the map of the suite, the",
         "conventions and the shared checks"
+      ]
+    },
+    {
+      "id": "common",
+      "column": 2,
+      "level": "external",
+      "title": "EH3D-COMMON",
+      "lines": [
+        "the shared container and",
+        "the common diagnostic"
+      ]
+    },
+    {
+      "id": "corelibs",
+      "column": 2,
+      "level": "external",
+      "title": "EH3D-CORE-LIBS",
+      "lines": [
+        "the Gerber and Excellon",
+        "parsers and writers"
       ]
     }
   ],
@@ -76,6 +98,18 @@
       "from": "reader",
       "to": "code",
       "label": "runs",
+      "level": "tested"
+    },
+    {
+      "from": "code",
+      "to": "common",
+      "label": "builds on",
+      "level": "tested"
+    },
+    {
+      "from": "code",
+      "to": "corelibs",
+      "label": "writes with",
       "level": "tested"
     }
   ],
