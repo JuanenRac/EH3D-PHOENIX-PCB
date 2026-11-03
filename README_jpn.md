@@ -2,8 +2,7 @@
   <img src="images/EH3D_PHOENIX_PCB_BANNER.svg" alt="EH3D-PHOENIX-PCB banner" width="100%">
 </p>
 
-# 🛠️ EH3D-PHOENIX-PCB
-
+# <img src="images/brand/icon-64.png" alt="" width="40" height="40" align="absmiddle"> EH3D-PHOENIX-PCB
 <p align="center"><a href="README.md">🇺🇸 English</a> | <a href="README_spa.md">🇪🇸 Español</a> | <a href="README_fra.md">🇫🇷 Français</a> | <a href="README_ita.md">🇮🇹 Italiano</a> | <a href="README_deu.md">🇩🇪 Deutsch</a> | <a href="README_zho.md">🇨🇳 中文</a> | 🇯🇵 <b>日本語</b> | <a href="README_por.md">🇵🇹 Português</a></p>
 
 ### EH3D-PHOENIX-PCB：回路図入力、PCB レイアウト、検証ツール、回路シミュレーション、スイッチング電源と RF 向けの専用モジュールを備えた EDA 環境として計画中。現時点で書かれているのはコーパスの棚卸しだけです。
