@@ -108,7 +108,10 @@ EH3D-PHOENIX-PCB/
 │   ├── DEPENDENCIES.md THREAT_MODEL.md          他のリポジトリとの関係と脅威モデル
 │   ├── DECISIONS.md STATUS.md                   適用される決定事項と正直な状況
 │   ├── NOT_YET.md RULES.md                      後回しにしたアイデアとコードの記述規則
-│   └── ROADMAP.md                               基盤からオールインワン スイートまでのフェーズ マップ
+│   ├── ROADMAP.md                               基盤からオールインワン スイートまでのフェーズ マップ
+│   └── adr/                                     承認された決定の記録
+├── AGENTS.md                                    リポジトリを変更する人のための規則
+├── deny.toml                                    依存関係のライセンスと勧告の方針
 ├── crates/                                      コーパスの棚卸し、モデルの土台、コマンドライン
 ├── config/                                      設定ファイル（調整する値はすべてここ）
 ├── Cargo.toml Cargo.lock                        Rust ワークスペースと固定された依存関係

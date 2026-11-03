@@ -108,7 +108,10 @@ EH3D-PHOENIX-PCB/
 │   ├── DEPENDENCIES.md THREAT_MODEL.md          relações com outros repositórios e modelo de ameaças
 │   ├── DECISIONS.md STATUS.md                   decisões que se aplicam aqui e estado honesto
 │   ├── NOT_YET.md RULES.md                      ideias para mais tarde e regras para escrever código
-│   └── ROADMAP.md                               o mapa de fases, dos alicerces à suite tudo-em-um
+│   ├── ROADMAP.md                               o mapa de fases, dos alicerces à suite tudo-em-um
+│   └── adr/                                     os registos das decisões aceites
+├── AGENTS.md                                    regras para quem altera o repositório
+├── deny.toml                                    política de licenças e avisos das dependências
 ├── crates/                                      o inventário do corpus, os alicerces do modelo e a linha de comandos
 ├── config/                                      o ficheiro de definições (todo o valor ajustado)
 ├── Cargo.toml Cargo.lock                        o espaço de trabalho Rust e as suas dependências fixadas

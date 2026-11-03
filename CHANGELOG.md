@@ -4,6 +4,7 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- Add `AGENTS.md` with the rules for anyone who changes the repository, `docs/adr/` with the four accepted decision records written as ordinary documents, and `deny.toml` with the licence and advisory policy of the dependencies (the CI step that runs it comes once it has been tried locally).
 - Add the Rust workspace with a library and the `phoenix` command line.
 - Add `phoenix inventory`: counts the design files of a private folder by extension, kind and declared version, with one fingerprint of the content.
 - Keep the inventory in redacted mode: no name, path or value from a file reaches the report, with a leak test.

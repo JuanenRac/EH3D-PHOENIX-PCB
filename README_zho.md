@@ -108,7 +108,10 @@ EH3D-PHOENIX-PCB/
 │   ├── DEPENDENCIES.md THREAT_MODEL.md          与其他仓库的关系和威胁模型
 │   ├── DECISIONS.md STATUS.md                   适用的决策和如实的状态
 │   ├── NOT_YET.md RULES.md                      留待以后的想法和编写代码的规则
-│   └── ROADMAP.md                               从基础到一体化套件的阶段图
+│   ├── ROADMAP.md                               从基础到一体化套件的阶段图
+│   └── adr/                                     已接受的决策记录
+├── AGENTS.md                                    修改仓库的人需遵守的规则
+├── deny.toml                                    依赖项的许可证与公告策略
 ├── crates/                                      语料库清点工具、模型基础部分和命令行
 ├── config/                                      设置文件（所有调整值）
 ├── Cargo.toml Cargo.lock                        Rust 工作区及其锁定的依赖
