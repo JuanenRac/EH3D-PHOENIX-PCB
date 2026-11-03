@@ -7,6 +7,8 @@
 //!   reading that text gives the tree back, which the corpus measure checks on every file;
 //! * [`document`]: reads a file into a [`DocumentSummary`] (a library, a board or a schematic) and
 //!   the diagnostics that tell what could not be confirmed;
+//! * [`pairs`]: the contract for pairs of an EAGLE binary file and the XML saved from it, against which
+//!   a reader of the binary files will be built (how the pairs are provided and where they are compared);
 //! * [`corpus`]: copies files with a SHA-256 check, proves the originals were not changed, and
 //!   measures the read rate over the copies in a form that holds only codes and counts.
 //!
@@ -20,6 +22,7 @@ pub mod codes;
 pub mod corpus;
 pub mod document;
 pub mod import;
+pub mod pairs;
 pub mod xml;
 
 pub use document::{read_bytes, DocumentKind, DocumentSummary, Reading};

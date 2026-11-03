@@ -34,6 +34,17 @@ pub const OTHER_PROGRAM: &str = "PHOENIX-EAGLE-013";
 /// The file starts with the byte 0x10 like the binary files but without the second byte 0x80.
 pub const BINARY_VARIANT: &str = "PHOENIX-EAGLE-014";
 
+/// A binary file without its XML file, or an XML file without its binary file.
+pub const PAIR_INCOMPLETE: &str = "PHOENIX-EAGLE-015";
+/// A side of a pair is not what it says (a binary file that is not binary, an XML that is not EAGLE).
+pub const PAIR_SIDE: &str = "PHOENIX-EAGLE-016";
+/// A file of a pair is not in the manifest, differs from it, or the manifest is wrong.
+pub const PAIR_HASH: &str = "PHOENIX-EAGLE-017";
+/// The summaries of the two sides of a pair differ.
+pub const PAIR_DIFFERS: &str = "PHOENIX-EAGLE-018";
+/// The pairs were verified and not compared, for lack of a reader of the binary side.
+pub const PAIR_NOT_COMPARED: &str = "PHOENIX-EAGLE-019";
+
 /// Every code of this crate with its title, in order.
 pub const REGISTRY: &[(&str, &str)] = &[
     (NOT_XML, "Not well-formed XML"),
@@ -50,6 +61,11 @@ pub const REGISTRY: &[(&str, &str)] = &[
     (BINARY_FORMAT, "EAGLE binary format is not read"),
     (OTHER_PROGRAM, "File of another program"),
     (BINARY_VARIANT, "Binary variant is not read"),
+    (PAIR_INCOMPLETE, "Pair is incomplete"),
+    (PAIR_SIDE, "Side of a pair is not what it says"),
+    (PAIR_HASH, "Hash of a pair does not match"),
+    (PAIR_DIFFERS, "The two sides of a pair differ"),
+    (PAIR_NOT_COMPARED, "Pairs verified but not compared"),
 ];
 
 /// Builds the diagnostic of `code` (which must be in [`REGISTRY`]) with a detail.
