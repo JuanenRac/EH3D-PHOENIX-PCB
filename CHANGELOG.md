@@ -3,6 +3,9 @@
 All notable changes to this project are documented here.
 
 ## [Unreleased]
+
+## [0.0.2] - Board model with copper stack, silkscreen and rules, EAGLE reader and writers, Gerber and Excellon export and a drawn schematic
+
 - Add silkscreen to the board model: text drawn with a built-in stroke font (right-angle rotation, optionally mirrored) and strokes of lines and arcs on silkscreen layers, a `side` for layers, the operations `AddSilk` and `RemoveSilk` with exact inverses and the checks `PHOENIX-BOARD-014` to `PHOENIX-BOARD-016`; it is additive, so a board without silkscreen is written and read as before.
 - Check the silkscreen over pads: the rule `silkscreen_over_pads` judges the printed strokes of text and lines against the pads that show on the side of the layer (`PHOENIX-RULE-013`) and says once what it cannot judge (`PHOENIX-RULE-010`), where it used to say that it could not be checked at all.
 - Write the silkscreen layers as Gerber X2 legend files (`.FileFunction` `Legend,Top` or `Legend,Bot`) with the strokes of the text and lines, and report a layer without a side, characters without a glyph and items that cannot be drawn (`PHOENIX-EXPORT-008` to `PHOENIX-EXPORT-010`).

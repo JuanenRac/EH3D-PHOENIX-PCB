@@ -197,7 +197,7 @@ dependencies = [
 
 [[package]]
 name = "eh3d-phoenix-board"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "eh3d-container",
  "eh3d-diagnostic",
@@ -209,7 +209,7 @@ dependencies = [
 
 [[package]]
 name = "eh3d-phoenix-cli"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "eh3d-phoenix-corpus",
  "eh3d-phoenix-eagle",
@@ -218,7 +218,7 @@ dependencies = [
 
 [[package]]
 name = "eh3d-phoenix-corpus"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "serde",
  "serde_json",
@@ -229,7 +229,7 @@ dependencies = [
 
 [[package]]
 name = "eh3d-phoenix-eagle"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "eh3d-diagnostic",
  "eh3d-phoenix-hub",
@@ -239,7 +239,7 @@ dependencies = [
 
 [[package]]
 name = "eh3d-phoenix-eagle-board"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "eh3d-diagnostic",
  "eh3d-phoenix-board",
@@ -250,7 +250,7 @@ dependencies = [
 
 [[package]]
 name = "eh3d-phoenix-export"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "chrono",
  "eh3d-common",
@@ -267,14 +267,14 @@ dependencies = [
 
 [[package]]
 name = "eh3d-phoenix-hub"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "eh3d-diagnostic",
 ]
 
 [[package]]
 name = "eh3d-phoenix-model"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "eh3d-container",
  "eh3d-diagnostic",
@@ -285,7 +285,7 @@ dependencies = [
 
 [[package]]
 name = "eh3d-phoenix-project"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "eh3d-container",
  "eh3d-diagnostic",
@@ -298,7 +298,7 @@ dependencies = [
 
 [[package]]
 name = "eh3d-phoenix-schematic"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "eh3d-container",
  "eh3d-diagnostic",
