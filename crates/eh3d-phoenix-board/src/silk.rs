@@ -108,8 +108,22 @@ const CELL_H: i64 = 6;
 
 /// The strokes of one glyph: runs of points in a cell 4 units wide and 6 high, origin at the lower
 /// left. Only the characters that board silkscreen needs are in the font.
+/// The base letter of a letter with a basic accent (so an e with an acute accent is drawn as E).
+fn fold(c: char) -> char {
+    match c.to_lowercase().next().unwrap_or(c) {
+        '\u{e1}' | '\u{e0}' | '\u{e4}' | '\u{e2}' | '\u{e3}' | '\u{e5}' => 'a',
+        '\u{e9}' | '\u{e8}' | '\u{eb}' | '\u{ea}' => 'e',
+        '\u{ed}' | '\u{ec}' | '\u{ef}' | '\u{ee}' => 'i',
+        '\u{f3}' | '\u{f2}' | '\u{f6}' | '\u{f4}' | '\u{f5}' => 'o',
+        '\u{fa}' | '\u{f9}' | '\u{fc}' | '\u{fb}' => 'u',
+        '\u{f1}' => 'n',
+        '\u{e7}' => 'c',
+        other => other,
+    }
+}
+
 fn glyph(c: char) -> Option<&'static str> {
-    Some(match c.to_ascii_uppercase() {
+    Some(match fold(c).to_ascii_uppercase() {
         ' ' => "",
         '0' => "0,0 4,0 4,6 0,6 0,0;0,0 4,6",
         '1' => "1,5 2,6 2,0;0,0 4,0",
@@ -439,6 +453,8 @@ mod tests {
             assert!(glyph(c).is_some(), "{c}");
         }
         assert!(glyph('a') == glyph('A'));
+        assert!(glyph('\u{e9}') == glyph('E') && glyph('\u{d1}') == glyph('N'));
+        assert!(glyph('\u{e7}') == glyph('C') && glyph('\u{fc}') == glyph('U'));
         assert!(glyph('€').is_none());
     }
 
