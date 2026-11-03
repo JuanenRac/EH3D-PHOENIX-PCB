@@ -1,0 +1,16 @@
+[package]
+name = "eh3d-phoenix-eagle"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Read-only reader of EAGLE XML files (versions 6 to 9): a bounded XML parser, libraries, boards and schematics summarised with stable diagnostic codes, and a measured read rate over copies checked by SHA-256"
+
+[dependencies]
+eh3d-diagnostic.workspace = true
+eh3d-phoenix-hub = { path = "../eh3d-phoenix-hub" }
+sha2.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

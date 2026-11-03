@@ -1,0 +1,11 @@
+[package]
+name = "eh3d-phoenix-hub"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "The common interface of the format importers: detection by name and content, one outcome with a quality report that says what was kept, transformed and dropped, and stable diagnostic codes"
+
+[dependencies]
+eh3d-diagnostic.workspace = true
