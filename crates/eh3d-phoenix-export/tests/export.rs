@@ -9,7 +9,7 @@ use eh3d_common::Package;
 use eh3d_parser_gerber::Operation;
 use eh3d_phoenix_board::{
     Board, Component, Footprint, Id, Layer, LayerKind, Net, Pad, PadNet, PadShape, Segment, Side,
-    Track, Via, Zone,
+    SilkItem, Track, Via, Zone,
 };
 use eh3d_phoenix_export::{codes, export_package, ExportOptions, Exported};
 use eh3d_phoenix_model::{Nm, ObjectId, Point, Udeg};
@@ -59,6 +59,7 @@ fn fixture(second_rotation: i64) -> Fixture {
             Layer {
                 name: name.into(),
                 kind,
+                side: (kind == LayerKind::Silkscreen).then_some(Side::Top),
             },
         );
     }
@@ -342,4 +343,114 @@ fn a_right_angle_swaps_the_sides_of_a_rectangular_pad() {
         .count();
     assert_eq!(rects, 2);
     assert!(!codes_of(&out.diagnostics).contains(&codes::PAD_ROTATION.to_string()));
+}
+
+/// The fixture with a text and a stroke on its silkscreen layer.
+fn with_silkscreen(f: &mut Fixture, text: &str) {
+    let silk = id(4);
+    f.board.silkscreen.insert(
+        id(60),
+        SilkItem::Text {
+            layer: silk,
+            at: pt(2_000_000, 8_000_000),
+            text: text.into(),
+            height: nm(1_000_000),
+            stroke: nm(120_000),
+            rotation: Udeg::ZERO,
+            mirrored: false,
+        },
+    );
+    f.board.silkscreen.insert(
+        id(61),
+        SilkItem::Stroke {
+            layer: silk,
+            width: nm(150_000),
+            path: vec![
+                Segment::Line {
+                    start: pt(1_000_000, 1_000_000),
+                    end: pt(9_000_000, 1_000_000),
+                },
+                Segment::Arc {
+                    start: pt(9_000_000, 1_000_000),
+                    end: pt(10_000_000, 2_000_000),
+                    sweep: Udeg::new(90_000_000).unwrap(),
+                },
+            ],
+        },
+    );
+}
+
+#[test]
+fn the_silkscreen_layer_is_a_legend_file_with_its_strokes() {
+    let mut f = fixture(0);
+    with_silkscreen(&mut f, "R1 10K");
+    let out = export(&mut f, true);
+    let text = std::str::from_utf8(out.package.entry("layers/04_top_silk.gbr").unwrap())
+        .unwrap()
+        .to_owned();
+    assert!(text.contains("%TF.FileFunction,Legend,Top*%"), "{text}");
+    let file = eh3d_parser_gerber::parse(&text);
+    assert!(file.is_clean(), "{:?}", file.diagnostics);
+    let lines = file
+        .commands
+        .iter()
+        .filter(|c| matches!(c.op, Operation::Line { .. }))
+        .count();
+    let arcs = file
+        .commands
+        .iter()
+        .filter(|c| matches!(c.op, Operation::Arc { .. }))
+        .count();
+    let drawn = f.board.silkscreen[&id(60)].drawn().unwrap();
+    // every stroke of the characters, and the line of the stroke item
+    assert_eq!(lines, drawn.pieces.len() + 1);
+    assert_eq!(arcs, 1);
+    // nothing is flashed on the legend layer
+    assert_eq!(
+        file.commands
+            .iter()
+            .filter(|c| matches!(c.op, Operation::Flash { .. }))
+            .count(),
+        0
+    );
+    // two line widths, so two apertures
+    assert_eq!(file.apertures.len(), 2);
+    assert!(!codes_of(&out.diagnostics).contains(&codes::SILK_SIDE_MISSING.to_string()));
+    // the same board gives the same bytes
+    let mut g = fixture(0);
+    with_silkscreen(&mut g, "R1 10K");
+    assert_eq!(
+        out.package.to_bytes().unwrap(),
+        export(&mut g, true).package.to_bytes().unwrap()
+    );
+}
+
+#[test]
+fn what_the_legend_cannot_say_is_reported() {
+    let mut f = fixture(0);
+    with_silkscreen(&mut f, "A\u{3a9}");
+    f.board.layers.get_mut(&id(4)).unwrap().side = None;
+    let out = export(&mut f, true);
+    let found = codes_of(&out.diagnostics);
+    assert!(found.contains(&codes::SILK_SIDE_MISSING.to_string()));
+    assert!(found.contains(&codes::SILK_NO_GLYPH.to_string()));
+    let text = std::str::from_utf8(out.package.entry("layers/04_top_silk.gbr").unwrap()).unwrap();
+    assert!(!text.contains("FileFunction"));
+    // an item that cannot be drawn is left out and says so
+    let mut g = fixture(0);
+    with_silkscreen(&mut g, "X");
+    if let Some(SilkItem::Text { rotation, .. }) = g.board.silkscreen.get_mut(&id(60)) {
+        *rotation = Udeg::new(45_000_000).unwrap();
+    }
+    let out = export(&mut g, true);
+    assert!(codes_of(&out.diagnostics).contains(&codes::SILK_UNDRAWN.to_string()));
+}
+
+#[test]
+fn a_board_without_silkscreen_items_gives_an_empty_legend() {
+    let mut f = fixture(0);
+    let out = export(&mut f, true);
+    let text = std::str::from_utf8(out.package.entry("layers/04_top_silk.gbr").unwrap()).unwrap();
+    assert!(text.contains("Legend,Top"));
+    assert!(eh3d_parser_gerber::parse(text).is_clean());
 }

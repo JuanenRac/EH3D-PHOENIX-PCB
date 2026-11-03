@@ -95,6 +95,29 @@ fn pad_key(shape: PadShape, swapped: bool) -> ApKey {
     }
 }
 
+fn push_pieces(
+    draws: &mut Vec<Draw>,
+    key: ApKey,
+    path: &[Segment],
+    diagnostics: &mut Vec<Diagnostic>,
+) {
+    for s in path {
+        match s {
+            Segment::Line { start, end } => draws.push(Draw::Line(key, *start, *end)),
+            Segment::Arc { start, end, sweep } => match arc_centre(*start, *end, sweep.get()) {
+                Some((offset, clockwise)) => {
+                    draws.push(Draw::Arc(key, *start, *end, offset, clockwise))
+                }
+                None => diagnostics.push(codes::diagnostic(
+                    codes::ARC_SKIPPED,
+                    Severity::Warning,
+                    "an arc of a track or of the silkscreen",
+                )),
+            },
+        }
+    }
+}
+
 fn collect(
     board: &Board,
     layer: Id,
@@ -120,24 +143,12 @@ fn collect(
             ));
         }
         for t in board.tracks.values().filter(|t| t.layer == layer) {
-            let key = ApKey::Circle(t.width.get());
-            for s in &t.path {
-                match s {
-                    Segment::Line { start, end } => draws.push(Draw::Line(key, *start, *end)),
-                    Segment::Arc { start, end, sweep } => {
-                        match arc_centre(*start, *end, sweep.get()) {
-                            Some((offset, clockwise)) => {
-                                draws.push(Draw::Arc(key, *start, *end, offset, clockwise))
-                            }
-                            None => diagnostics.push(codes::diagnostic(
-                                codes::ARC_SKIPPED,
-                                Severity::Warning,
-                                "an arc of a track",
-                            )),
-                        }
-                    }
-                }
-            }
+            push_pieces(
+                &mut draws,
+                ApKey::Circle(t.width.get()),
+                &t.path,
+                diagnostics,
+            );
         }
         for v in board
             .vias
@@ -145,6 +156,37 @@ fn collect(
             .filter(|v| v.from_layer == layer || v.to_layer == layer)
         {
             draws.push(Draw::Flash(ApKey::Circle(v.diameter.get()), v.at));
+        }
+    }
+    if kind == LayerKind::Silkscreen {
+        let (mut no_glyph, mut undrawn) = (0usize, 0usize);
+        for item in board.silkscreen.values().filter(|i| i.layer() == layer) {
+            match item.drawn() {
+                Ok(d) => {
+                    no_glyph += d.missing_glyphs;
+                    push_pieces(
+                        &mut draws,
+                        ApKey::Circle(d.width.get()),
+                        &d.pieces,
+                        diagnostics,
+                    );
+                }
+                Err(_) => undrawn += 1,
+            }
+        }
+        if no_glyph > 0 {
+            diagnostics.push(codes::diagnostic(
+                codes::SILK_NO_GLYPH,
+                Severity::Warning,
+                &format!("{no_glyph} character(s) on one layer"),
+            ));
+        }
+        if undrawn > 0 {
+            diagnostics.push(codes::diagnostic(
+                codes::SILK_UNDRAWN,
+                Severity::Warning,
+                &format!("{undrawn} item(s) on one layer"),
+            ));
         }
     }
     if kind == LayerKind::Outline && board.outline.len() >= 3 {

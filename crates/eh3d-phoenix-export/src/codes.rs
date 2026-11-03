@@ -20,6 +20,13 @@ pub const SLOT_AS_HOLE: &str = "PHOENIX-EXPORT-006";
 /// The package could not be assembled.
 pub const PACKAGE_FAILED: &str = "PHOENIX-EXPORT-007";
 
+/// A silkscreen layer does not say which side of the board it is on, so its file has no function.
+pub const SILK_SIDE_MISSING: &str = "PHOENIX-EXPORT-008";
+/// Characters of a silkscreen text that the font does not have were written as boxes.
+pub const SILK_NO_GLYPH: &str = "PHOENIX-EXPORT-009";
+/// A silkscreen item that cannot be drawn was left out.
+pub const SILK_UNDRAWN: &str = "PHOENIX-EXPORT-010";
+
 /// The codes of this crate with their titles.
 pub const REGISTRY: &[(&str, &str)] = &[
     (PAD_ROTATION, "Pad rotation is not a right angle"),
@@ -29,6 +36,9 @@ pub const REGISTRY: &[(&str, &str)] = &[
     (WRITE_FAILED, "File could not be written"),
     (SLOT_AS_HOLE, "Non-round pad drilled as a round hole"),
     (PACKAGE_FAILED, "Package could not be assembled"),
+    (SILK_SIDE_MISSING, "Silkscreen side not given"),
+    (SILK_NO_GLYPH, "Silkscreen characters without a glyph"),
+    (SILK_UNDRAWN, "Silkscreen item left out"),
 ];
 
 /// Builds the diagnostic of `code` (which must be in [`REGISTRY`]) with a detail.

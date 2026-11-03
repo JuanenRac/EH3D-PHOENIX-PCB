@@ -9,7 +9,7 @@ use chrono::{DateTime, Utc};
 use eh3d_common::project::{LayerKind as PackageLayerKind, LayerRef};
 use eh3d_common::{Package, ProjectMetadata};
 use eh3d_diagnostic::{Diagnostic, Severity};
-use eh3d_phoenix_board::{Board, Id, LayerKind, StackFunction};
+use eh3d_phoenix_board::{Board, Id, LayerKind, Side, StackFunction};
 use eh3d_phoenix_model::Nm;
 use uuid::Uuid;
 
@@ -126,6 +126,13 @@ fn file_function(board: &Board, kind: LayerKind, layer: Id) -> Option<Vec<String
             ])
         }
         LayerKind::Outline => Some(vec!["Profile".to_owned(), "NP".to_owned()]),
+        LayerKind::Silkscreen => {
+            let side = match board.layers.get(&layer)?.side? {
+                Side::Top => "Top",
+                Side::Bottom => "Bot",
+            };
+            Some(vec!["Legend".to_owned(), side.to_owned()])
+        }
         _ => None,
     }
 }
@@ -153,6 +160,13 @@ pub fn export_package(board: &Board, options: &ExportOptions) -> Result<Exported
         let function = file_function(board, layer.kind, **id);
         if layer.kind == LayerKind::Copper && function.is_none() {
             copper_without_function = true;
+        }
+        if layer.kind == LayerKind::Silkscreen && function.is_none() {
+            diagnostics.push(codes::diagnostic(
+                codes::SILK_SIDE_MISSING,
+                Severity::Info,
+                &layer.name,
+            ));
         }
         let spec = LayerFileSpec {
             layer: **id,
