@@ -20,8 +20,8 @@ use crate::connectivity::{near_segment_exact, pad_position, point_in_polygon};
 use crate::model::{Board, Id, LayerKind, PadRef, PadShape, Segment, Side};
 use crate::rules::{
     make, RuleReport, RuleSet, CLEARANCE_INCONCLUSIVE, CLEARANCE_VIOLATED, EDGE_TOO_CLOSE,
-    MASK_BRIDGE_THIN, NOT_CHECKABLE, PAD_SHAPE_UNSURE, SILK_OVER_PAD, ZONES_OVERLAP,
-    ZONE_CLEARANCE_SMALL,
+    MASK_BRIDGE_THIN, NOT_CHECKABLE, PAD_SHAPE_UNSURE, SILK_OVER_MASK, SILK_OVER_PAD,
+    ZONES_OVERLAP, ZONE_CLEARANCE_SMALL,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -243,14 +243,18 @@ impl Board {
             self.zone_rules(rules.min_clearance, report);
         }
         if rules.silkscreen_over_pads {
-            self.silk_over_pads(&all_pads, report);
+            self.silk_over_pads(&all_pads, report, false);
+        }
+        if rules.silkscreen_over_mask_openings {
+            self.silk_over_pads(&all_pads, report, true);
         }
     }
 
     /// Silkscreen printed over pads that show on the same side. An arc is only judged to be clear
     /// of a pad (see [`arc_clear_of_pad`]); when it is not provably clear the result is
     /// inconclusive, never a failure.
-    fn silk_over_pads(&self, all_pads: &[PadInfo], report: &mut RuleReport) {
+    fn silk_over_pads(&self, all_pads: &[PadInfo], report: &mut RuleReport, mask: bool) {
+        let code = if mask { SILK_OVER_MASK } else { SILK_OVER_PAD };
         let (mut no_side, mut no_stack) = (false, false);
         for (sid, item) in &self.silkscreen {
             let Some(layer) = self.layers.get(&item.layer()) else {
@@ -282,7 +286,14 @@ impl Board {
                 .collect();
             let w = i128::from(drawn.width.get());
             for pad in all_pads {
-                let shows = if pad.through {
+                let shows = if mask {
+                    // the opening is where the pad has a mask layer of the side of the silkscreen
+                    pad.layers.iter().any(|l| {
+                        self.layers.get(l).is_some_and(|x| {
+                            x.kind == LayerKind::SolderMask && x.side == Some(side)
+                        })
+                    })
+                } else if pad.through {
                     true
                 } else if let Some(outer) = outer {
                     pad.layers.contains(outer)
@@ -306,7 +317,7 @@ impl Board {
                 push(
                     report,
                     verdict,
-                    (SILK_OVER_PAD, format!("item {sid} over {}", pad.label)),
+                    (code, format!("item {sid} over {}", pad.label)),
                     format!("silkscreen item {sid} and {}", pad.label),
                 );
                 if arc_unsure && verdict == Verdict::Fine {
@@ -949,6 +960,29 @@ mod tests {
             (0, 0)
         );
         let (_, d) = RuleSet::parse("silkscreen_over_pads = maybe\n");
+        assert_eq!(d.len(), 1);
+    }
+
+    #[test]
+    fn silkscreen_over_a_mask_opening_is_its_own_rule() {
+        let on = rules("silkscreen_over_mask_openings = on\n");
+        let (mut b, silk) = silk_board(false, true);
+        b.silkscreen.insert(id(40), silk_line(silk, 0));
+        // the pad has no mask layer of the side of the silkscreen yet: nothing is open
+        assert_eq!(counts(&b.check_rules(&on)), (0, 0));
+        // the mask layer of the top side, which the pad lists, makes the opening
+        b.layers.get_mut(&id(2)).unwrap().side = Some(Side::Top);
+        let r = b.check_rules(&on);
+        assert_eq!(counts(&r), (1, 0));
+        assert_eq!(r.confirmed[0].code.as_deref(), Some(SILK_OVER_MASK));
+        // the other rule stays off, and a stroke clear of the pad is silent
+        assert_eq!(
+            counts(&b.check_rules(&rules("silkscreen_over_pads = off\n"))),
+            (0, 0)
+        );
+        b.silkscreen.insert(id(40), silk_line(silk, 700_000));
+        assert_eq!(counts(&b.check_rules(&on)), (0, 0));
+        let (_, d) = RuleSet::parse("silkscreen_over_mask_openings = maybe\n");
         assert_eq!(d.len(), 1);
     }
 

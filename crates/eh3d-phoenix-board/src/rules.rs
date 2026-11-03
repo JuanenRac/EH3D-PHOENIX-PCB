@@ -45,6 +45,8 @@ pub const ZONE_CLEARANCE_SMALL: &str = "PHOENIX-RULE-011";
 pub const ZONES_OVERLAP: &str = "PHOENIX-RULE-012";
 /// Silkscreen printed over a pad that shows on the same side.
 pub const SILK_OVER_PAD: &str = "PHOENIX-RULE-013";
+/// Silkscreen printed over the solder mask opening of a pad on the same side.
+pub const SILK_OVER_MASK: &str = "PHOENIX-RULE-014";
 
 /// The codes of this module with their titles.
 pub const REGISTRY: &[(&str, &str)] = &[
@@ -67,6 +69,10 @@ pub const REGISTRY: &[(&str, &str)] = &[
     ),
     (ZONES_OVERLAP, "Zones of different nets overlap"),
     (SILK_OVER_PAD, "Silkscreen printed over a pad"),
+    (
+        SILK_OVER_MASK,
+        "Silkscreen printed over a solder mask opening",
+    ),
 ];
 
 /// The numbers a board is checked against. A value of zero turns its rule off.
@@ -88,6 +94,8 @@ pub struct RuleSet {
     pub min_mask_bridge: Nm,
     /// Ask for the check of silkscreen over pads.
     pub silkscreen_over_pads: bool,
+    /// Ask for the check of silkscreen over the solder mask opening of a pad.
+    pub silkscreen_over_mask_openings: bool,
 }
 
 impl Default for RuleSet {
@@ -102,6 +110,7 @@ impl Default for RuleSet {
             min_edge_clearance: Nm::ZERO,
             min_mask_bridge: Nm::ZERO,
             silkscreen_over_pads: false,
+            silkscreen_over_mask_openings: false,
         }
     }
 }
@@ -127,10 +136,18 @@ impl RuleSet {
                 diagnostics.push(bad("expected name = value"));
                 continue;
             };
-            if key.trim() == "silkscreen_over_pads" {
+            if matches!(
+                key.trim(),
+                "silkscreen_over_pads" | "silkscreen_over_mask_openings"
+            ) {
+                let flag = if key.trim() == "silkscreen_over_pads" {
+                    &mut rules.silkscreen_over_pads
+                } else {
+                    &mut rules.silkscreen_over_mask_openings
+                };
                 match value.trim() {
-                    "on" => rules.silkscreen_over_pads = true,
-                    "off" => rules.silkscreen_over_pads = false,
+                    "on" => *flag = true,
+                    "off" => *flag = false,
                     _ => diagnostics.push(bad("the value is not on or off")),
                 }
                 continue;
