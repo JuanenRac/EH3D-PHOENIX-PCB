@@ -170,6 +170,26 @@ fn pieces_too_close(a: (Point, Point), b: (Point, Point), reach: i128) -> Option
     known.then_some(false)
 }
 
+/// True when the arc from `a` to `b` (sweep in micro-degrees) printed with line width `w` is
+/// provably clear of the pad. An arc of at most half a turn lies inside the disc that has its
+/// chord as a diameter, so it is clear when the centre of that disc is farther from the pad than
+/// the sum of the disc radius, the half line width and the radius of the circle around the pad.
+/// Everything is in integers, with an upper bound for the chord length (the sum of the
+/// differences of the coordinates); an arc of more than half a turn is never judged clear.
+fn arc_clear_of_pad(pad: &PadInfo, a: Point, b: Point, sweep: i64, w: i128) -> bool {
+    if sweep.abs() > 180_000_000 {
+        return false;
+    }
+    let (ax, ay) = (i128::from(a.x_nm.get()), i128::from(a.y_nm.get()));
+    let (bx, by) = (i128::from(b.x_nm.get()), i128::from(b.y_nm.get()));
+    let upper_chord = (ax - bx).abs() + (ay - by).abs();
+    // twice the centre of the disc, against twice the pad centre
+    let dx = 2 * i128::from(pad.at.x_nm.get()) - (ax + bx);
+    let dy = 2 * i128::from(pad.at.y_nm.get()) - (ay + by);
+    let reach = upper_chord + w + pad.circ2;
+    dx * dx + dy * dy >= reach * reach
+}
+
 fn lines(path: &[Segment]) -> Vec<(Point, Point)> {
     path.iter()
         .filter_map(|s| match s {
@@ -227,9 +247,11 @@ impl Board {
         }
     }
 
-    /// Silkscreen printed over pads that show on the same side.
+    /// Silkscreen printed over pads that show on the same side. An arc is only judged to be clear
+    /// of a pad (see [`arc_clear_of_pad`]); when it is not provably clear the result is
+    /// inconclusive, never a failure.
     fn silk_over_pads(&self, all_pads: &[PadInfo], report: &mut RuleReport) {
-        let (mut no_side, mut no_stack, mut arcs) = (false, false, false);
+        let (mut no_side, mut no_stack) = (false, false);
         for (sid, item) in &self.silkscreen {
             let Some(layer) = self.layers.get(&item.layer()) else {
                 continue;
@@ -250,9 +272,14 @@ impl Board {
                 Side::Bottom => self.copper_stack.last(),
             };
             let pieces = lines(&drawn.pieces);
-            if pieces.len() < drawn.pieces.len() {
-                arcs = true;
-            }
+            let arcs: Vec<(Point, Point, i64)> = drawn
+                .pieces
+                .iter()
+                .filter_map(|p| match p {
+                    Segment::Arc { start, end, sweep } => Some((*start, *end, sweep.get())),
+                    Segment::Line { .. } => None,
+                })
+                .collect();
             let w = i128::from(drawn.width.get());
             for pad in all_pads {
                 let shows = if pad.through {
@@ -273,12 +300,22 @@ impl Board {
                         gap_segment(pad.at, *s, *e, w + pad.ins2, w + pad.circ2),
                     );
                 }
+                let arc_unsure = arcs
+                    .iter()
+                    .any(|(a, b, sweep)| !arc_clear_of_pad(pad, *a, *b, *sweep, w));
                 push(
                     report,
                     verdict,
                     (SILK_OVER_PAD, format!("item {sid} over {}", pad.label)),
                     format!("silkscreen item {sid} and {}", pad.label),
                 );
+                if arc_unsure && verdict == Verdict::Fine {
+                    report.inconclusive.push(make(
+                        CLEARANCE_INCONCLUSIVE,
+                        Severity::Info,
+                        format!("silkscreen item {sid} has an arc near {}", pad.label),
+                    ));
+                }
             }
         }
         for (flag, why) in [
@@ -287,7 +324,6 @@ impl Board {
                 no_stack,
                 "the board does not give the copper stack, so the side of a pad without a drill is not known",
             ),
-            (arcs, "the arcs of a silkscreen stroke are not checked"),
         ] {
             if flag {
                 report.inconclusive.push(make(
@@ -914,6 +950,38 @@ mod tests {
         );
         let (_, d) = RuleSet::parse("silkscreen_over_pads = maybe\n");
         assert_eq!(d.len(), 1);
+    }
+
+    #[test]
+    fn an_arc_is_clear_when_provably_so_and_inconclusive_when_near() {
+        let on = rules("silkscreen_over_pads = on\n");
+        let arc = |x: i64, y: i64, sweep: i64| crate::silk::SilkItem::Stroke {
+            layer: id(30),
+            width: nm(150_000),
+            path: vec![Segment::Arc {
+                start: pt(x, y),
+                end: pt(x + 1_000_000, y),
+                sweep: Udeg::new(sweep).unwrap(),
+            }],
+        };
+        let (mut b, _) = silk_board(false, true);
+        // far from the pad: provably clear
+        b.silkscreen
+            .insert(id(40), arc(10_000_000, 10_000_000, 90_000_000));
+        assert_eq!(counts(&b.check_rules(&on)), (0, 0));
+        // near the pad: not provably clear, so inconclusive and never a failure
+        b.silkscreen
+            .insert(id(40), arc(-500_000, 600_000, 90_000_000));
+        let r = b.check_rules(&on);
+        assert_eq!(counts(&r), (0, 1));
+        assert_eq!(
+            r.inconclusive[0].code.as_deref(),
+            Some(CLEARANCE_INCONCLUSIVE)
+        );
+        // more than half a turn is never judged clear
+        b.silkscreen
+            .insert(id(40), arc(10_000_000, 10_000_000, 270_000_000));
+        assert_eq!(counts(&b.check_rules(&on)), (0, 1));
     }
 
     #[test]
