@@ -1,6 +1,6 @@
 [workspace]
 # the engine crates of the design tool; the model, the readers and the rules join them once their contracts are accepted
-members = ["crates/eh3d-phoenix-corpus", "crates/eh3d-phoenix-model", "crates/eh3d-phoenix-cli"]
+members = ["crates/eh3d-phoenix-corpus", "crates/eh3d-phoenix-model", "crates/eh3d-phoenix-project", "crates/eh3d-phoenix-board", "crates/eh3d-phoenix-eagle", "crates/eh3d-phoenix-hub", "crates/eh3d-phoenix-export", "crates/eh3d-phoenix-cli"]
 resolver = "2"
 
 [workspace.package]
@@ -15,4 +15,7 @@ sha2 = "0.10"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 thiserror = "2"
+# the shared repository, next to this one; CI checks out the tag named in SIBLING_REFS
+eh3d-container = { version = ">=0.0.1", path = "../EH3D-COMMON/crates/container" }
+eh3d-diagnostic = { version = ">=0.0.1", path = "../EH3D-COMMON/crates/diagnostic" }
 tempfile = "3"
