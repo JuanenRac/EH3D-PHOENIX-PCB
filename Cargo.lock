@@ -286,6 +286,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "eh3d-phoenix-schematic"
+version = "0.0.1"
+dependencies = [
+ "eh3d-container",
+ "eh3d-diagnostic",
+ "eh3d-phoenix-board",
+ "eh3d-phoenix-model",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "eh3d-writer-excellon"
 version = "0.0.4"
 dependencies = [

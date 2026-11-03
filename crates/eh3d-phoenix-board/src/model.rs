@@ -122,7 +122,7 @@ pub struct Component {
     pub refdes: String,
     /// The value (`10k`).
     pub value: String,
-    /// The schematic symbol it was drawn from, when there is one.
+    /// The part of the schematic it was made from (the id of the part), when there is one.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub symbol: Option<Id>,
     /// Its footprint.
