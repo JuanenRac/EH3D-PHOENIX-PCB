@@ -11,14 +11,14 @@
   <img src="https://img.shields.io/badge/License-GPL%203.0--or--later-blue.svg" alt="GPL 3.0 or later">
   <img src="https://img.shields.io/badge/Stack-Rust%20%2B%20Python-blue.svg" alt="Rust and Python">
   <img src="https://img.shields.io/badge/Languages-8-00E5FF.svg" alt="Languages">
-  <img src="https://img.shields.io/badge/Tests-180-2EA043.svg" alt="Tests">
+  <img src="https://img.shields.io/badge/Tests-223-2EA043.svg" alt="Tests">
   <img src="https://img.shields.io/badge/Version-0.0.1-0f6cbd.svg" alt="Version">
   <img src="https://img.shields.io/badge/Maturity-scaffolding-FFB020.svg" alt="Maturity">
 </p>
 
 ---
 
-**Verifica di onestà - cosa funziona oggi:** un workspace Rust il cui comando `phoenix inventory` conta i file di progetto di una cartella privata senza mostrare alcun nome né valore: file per estensione, tipo e versione dichiarata, e un'impronta del contenuto. Ha 177 test propri e passano su un computer. È stato eseguito solo su cartelle create dai suoi stessi test, mai su veri file di progetto. Ha anche le fondamenta di un modello di progetto (valori interi in nanometri e microgradi con intervallo verificato, id di oggetto e JSON canonico), il file di progetto `.phoenixproj` (manifesto, domini, migrazioni) e un modello di scheda con operazioni reversibili (livelli, reti, componenti, piste, vie, zone), il tutto provato solo su dati generati. La libreria della scheda trova anche quale rame tocca quale e verifica dimensioni e distanze con un file di regole; una quinta libreria legge librerie, schede e schemi EAGLE XML in un riepilogo e riscrive l'albero XML in modo identico. Tutto è stato provato solo su file generati o fatti a mano. Esistono anche un modello di schema e il suo controllo di coerenza con la scheda. Non ci sono importazione di progetti altrui nel modello, editor, e le regole coprono solo una parte dei controlli previsti: gran parte della funzione EDA è ancora pianificata.
+**Verifica di onestà - cosa funziona oggi:** un workspace Rust il cui comando `phoenix inventory` conta i file di progetto di una cartella privata senza mostrare alcun nome né valore: file per estensione, tipo e versione dichiarata, e un'impronta del contenuto. Ha 220 test propri e passano su un computer. È stato eseguito solo su cartelle create dai suoi stessi test, mai su veri file di progetto. Ha anche le fondamenta di un modello di progetto (valori interi in nanometri e microgradi con intervallo verificato, id di oggetto e JSON canonico), il file di progetto `.phoenixproj` (manifesto, domini, migrazioni) e un modello di scheda con operazioni reversibili (livelli, reti, componenti, piste, vie, zone), il tutto provato solo su dati generati. La libreria della scheda trova anche quale rame tocca quale e verifica dimensioni e distanze con un file di regole; una quinta libreria legge librerie, schede e schemi EAGLE XML in un riepilogo e riscrive l'albero XML in modo identico. Tutto è stato provato solo su file generati o fatti a mano. Esistono anche un modello di schema e il suo controllo di coerenza con la scheda. Non ci sono importazione di progetti altrui nel modello, editor, e le regole coprono solo una parte dei controlli previsti: gran parte della funzione EDA è ancora pianificata. Il modello della scheda contiene anche testo e tratti di serigrafia (con un carattere a tratti incorporato) che il controllo delle regole e l'esportazione Gerber usano, e lo schema può essere disegnato su fogli con parti posizionate e fili che vengono confrontati con l'elenco delle reti e con la scheda; una scheda può essere scritta come file XML di EAGLE e riletta, cosa verificata solo con file scritti da questo codice e mai aperta in EAGLE; il contratto per le coppie di file binari EAGLE e del loro XML è scritto, ma non esiste alcun lettore dei file binari.
 
 ---
 
@@ -30,7 +30,7 @@
 |---|---|
 | Versione | `0.0.1` |
 | Maturità | Impalcatura |
-| Test | 180 |
+| Test | 223 |
 | Stack tecnologico | Rust, Python 3.10+ |
 | Su hardware reale | Non ancora eseguito su hardware |
 
@@ -45,9 +45,9 @@ Ogni riga è una parte di questo repository e il semaforo dice a che punto è og
 | Area | Stato | Cosa significa qui |
 |---|---|---|
 | Controlli del repository | 🟡 | Il controllo del repository, quello delle immagini e i 3 test della base girano nella CI e passano. |
-| Test | 🟡 | I 177 test del codice Rust e i 3 della base passano su un computer. Usano solo cartelle create dai test stessi; nessuno è stato eseguito su veri file di progetto. |
+| Test | 🟡 | I 220 test del codice Rust e i 3 della base passano su un computer. Usano solo cartelle create dai test stessi; nessuno è stato eseguito su veri file di progetto. |
 | Hardware reale | 🟠 | Non eseguito su nessuna macchina né scheda: nulla qui è stato provato su hardware. |
-| Funzione pianificata | 🟠 | Scritto: l'inventario oscurato di un corpus, le fondamenta del modello (unità, id, JSON canonico), il file di progetto `.phoenixproj`, il modello di scheda con annulla e ripeti, la sua connettività e un primo controllo delle regole, e un lettore di riepilogo di EAGLE XML. Non iniziato: l'editor di schemi, l'importazione di altri formati nel modello, gli scrittori di altri formati, gran parte delle regole, il visualizzatore e gli editor, la simulazione e tutto il resto del pianificato. |
+| Funzione pianificata | 🟠 | Scritto: l'inventario oscurato di un corpus, le fondamenta del modello (unità, id, JSON canonico), il file di progetto `.phoenixproj`, il modello di scheda con annulla e ripeti, la sua connettività e un primo controllo delle regole, e un lettore di riepilogo di EAGLE XML. Non iniziato: l'editor di schemi, l'importazione di altri formati nel modello, gli scrittori di altri formati, gran parte delle regole, il visualizzatore e gli editor, la simulazione e tutto il resto del pianificato. Il modello della scheda contiene anche testo e tratti di serigrafia (con un carattere a tratti incorporato) che il controllo delle regole e l'esportazione Gerber usano, e lo schema può essere disegnato su fogli con parti posizionate e fili che vengono confrontati con l'elenco delle reti e con la scheda; una scheda può essere scritta come file XML di EAGLE e riletta, cosa verificata solo con file scritti da questo codice e mai aperta in EAGLE; il contratto per le coppie di file binari EAGLE e del loro XML è scritto, ma non esiste alcun lettore dei file binari. |
 | Requisiti | 🟠 | 5 requisiti su 30 (la modalità oscurata, le fondamenta del modello, le operazioni reversibili, il file di progetto e i codici di diagnostica) sono a livello di prototipo, 25 sono solo pianificati e nessuno è convalidato. |
 
 ## 🎯 Panoramica
@@ -84,7 +84,7 @@ python -I -m unittest discover -s tools -p "test_*.py"
 
 ## 🧪 Test
 
-Il codice ha 177 test (`cargo test`) e la base ne ha 3 (`python -I -m unittest discover -s tools -p "test_*.py"`); tutti passano su un computer. La CI esegue il controllo del repository, quello delle immagini, i test della base e, per il codice Rust, il controllo del formato, clippy con gli avvisi trattati come errori e i test su Linux e Windows.
+Il codice ha 220 test (`cargo test`) e la base ne ha 3 (`python -I -m unittest discover -s tools -p "test_*.py"`); tutti passano su un computer. La CI esegue il controllo del repository, quello delle immagini, i test della base e, per il codice Rust, il controllo del formato, clippy con gli avvisi trattati come errori e i test su Linux e Windows.
 
 ## 🏗️ Compilazione e rilascio
 
