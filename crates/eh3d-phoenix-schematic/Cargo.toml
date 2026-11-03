@@ -1,0 +1,16 @@
+[package]
+name = "eh3d-phoenix-schematic"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "The schematic model of the design (symbols, parts, nets and the pins on them, linked by stable ids) and the consistency check between a schematic and a board"
+
+[dependencies]
+eh3d-container.workspace = true
+eh3d-diagnostic.workspace = true
+eh3d-phoenix-board = { path = "../eh3d-phoenix-board" }
+eh3d-phoenix-model = { path = "../eh3d-phoenix-model" }
+serde.workspace = true
+serde_json = { workspace = true, features = ["float_roundtrip"] }
