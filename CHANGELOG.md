@@ -3,6 +3,7 @@
 All notable changes to this project are documented here.
 
 ## [Unreleased]
+- Bring the test counters up to date: 234 tests of the Rust code (counted from the sources) and 3 of the base.
 - Read an EAGLE schematic file into a schematic (`read_schematic`): symbols with pins and positions, parts linked to the footprints of the board by package name, sheets, placements, nets with pin references and wires; the round trip of the writer is proved by a signature without ids (the names and sizes of sheets and the grouping of wire pieces are not kept); it has only been tried on files written by `write_schematic`.
 - Allow any rotation of a silkscreen text: a multiple of 90 degrees is exact and any other angle is rounded once to the nearest nanometre for each point, like the rotation of a pad; `PHOENIX-BOARD-014` is no longer raised and stays registered.
 - Run `cargo deny` in the CI with the policy of `deny.toml` (licences and advisories of the dependencies) as a job that reports and does not yet hold a merge back; the action is pinned by commit and has read-only permissions.

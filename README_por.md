@@ -11,14 +11,14 @@
   <img src="https://img.shields.io/badge/License-GPL%203.0--or--later-blue.svg" alt="GPL 3.0 or later">
   <img src="https://img.shields.io/badge/Stack-Rust%20%2B%20Python-blue.svg" alt="Rust and Python">
   <img src="https://img.shields.io/badge/Languages-8-00E5FF.svg" alt="Languages">
-  <img src="https://img.shields.io/badge/Tests-223-2EA043.svg" alt="Tests">
+  <img src="https://img.shields.io/badge/Tests-237-2EA043.svg" alt="Tests">
   <img src="https://img.shields.io/badge/Version-0.0.2-0f6cbd.svg" alt="Version">
   <img src="https://img.shields.io/badge/Maturity-scaffolding-FFB020.svg" alt="Maturity">
 </p>
 
 ---
 
-**Verificação de honestidade - o que funciona hoje:** um espaço de trabalho Rust cujo comando `phoenix inventory` conta os ficheiros de projeto de uma pasta privada sem mostrar nenhum nome nem valor: ficheiros por extensão, tipo e versão declarada, e uma impressão digital do conteúdo. Tem 220 testes próprios, que passam num computador. Só foi executado com pastas criadas pelos seus próprios testes, nunca com ficheiros de projeto reais. Tem também os alicerces de um modelo de projeto (valores inteiros em nanómetros e micrograus com intervalo verificado, ids de objeto e JSON canónico), o ficheiro de projeto `.phoenixproj` (manifesto, domínios, migrações) e um modelo de placa com operações reversíveis (camadas, redes, componentes, pistas, vias, zonas), tudo experimentado apenas com dados gerados. A biblioteca de placa também descobre que cobre toca em que cobre e verifica tamanhos e distâncias com um ficheiro de regras; uma quinta biblioteca lê bibliotecas, placas e esquemas EAGLE XML para um resumo e volta a escrever a árvore XML de forma idêntica. Tudo foi experimentado apenas com ficheiros gerados ou feitos à mão. Existem também um modelo de esquema e a sua verificação de coerência com a placa. Não há importação de projetos alheios para o modelo, nem editor, e as regras cobrem só parte das verificações previstas: a maior parte da função de EDA continua planeada. O modelo da placa também guarda texto e traços de serigrafia (com um tipo de letra de traços incorporado) que a verificação de regras e a exportação Gerber usam, e o esquema pode ser desenhado em folhas com peças colocadas e fios que são comparados com a lista de redes e com a placa; uma placa pode ser escrita como ficheiro XML do EAGLE e lida de novo, o que só foi verificado com ficheiros escritos por este código e nunca foi aberto no EAGLE; o contrato para pares de ficheiros binários do EAGLE e do seu XML está escrito, mas não existe nenhum leitor dos ficheiros binários.
+**Verificação de honestidade - o que funciona hoje:** um espaço de trabalho Rust cujo comando `phoenix inventory` conta os ficheiros de projeto de uma pasta privada sem mostrar nenhum nome nem valor: ficheiros por extensão, tipo e versão declarada, e uma impressão digital do conteúdo. Tem 234 testes próprios, que passam num computador. Só foi executado com pastas criadas pelos seus próprios testes, nunca com ficheiros de projeto reais. Tem também os alicerces de um modelo de projeto (valores inteiros em nanómetros e micrograus com intervalo verificado, ids de objeto e JSON canónico), o ficheiro de projeto `.phoenixproj` (manifesto, domínios, migrações) e um modelo de placa com operações reversíveis (camadas, redes, componentes, pistas, vias, zonas), tudo experimentado apenas com dados gerados. A biblioteca de placa também descobre que cobre toca em que cobre e verifica tamanhos e distâncias com um ficheiro de regras; uma quinta biblioteca lê bibliotecas, placas e esquemas EAGLE XML para um resumo e volta a escrever a árvore XML de forma idêntica. Tudo foi experimentado apenas com ficheiros gerados ou feitos à mão. Existem também um modelo de esquema e a sua verificação de coerência com a placa. Não há importação de projetos alheios para o modelo, nem editor, e as regras cobrem só parte das verificações previstas: a maior parte da função de EDA continua planeada. O modelo da placa também guarda texto e traços de serigrafia (com um tipo de letra de traços incorporado) que a verificação de regras e a exportação Gerber usam, e o esquema pode ser desenhado em folhas com peças colocadas e fios que são comparados com a lista de redes e com a placa; uma placa pode ser escrita como ficheiro XML do EAGLE e lida de novo, o que só foi verificado com ficheiros escritos por este código e nunca foi aberto no EAGLE; o contrato para pares de ficheiros binários do EAGLE e do seu XML está escrito, mas não existe nenhum leitor dos ficheiros binários.
 
 ---
 
@@ -30,7 +30,7 @@
 |---|---|
 | Versão | `0.0.2` |
 | Maturidade | Estrutura inicial |
-| Testes | 223 |
+| Testes | 237 |
 | Tecnologias | Rust, Python 3.10+ |
 | Em hardware real | Ainda não executado em hardware |
 
@@ -45,7 +45,7 @@ Cada linha é uma parte deste repositório e a luz diz até onde chega hoje. É 
 | Área | Estado | O que significa aqui |
 |---|---|---|
 | Verificações do repositório | 🟡 | A verificação do repositório, a das imagens e os 3 testes da base correm na CI e passam. |
-| Testes | 🟡 | Os 220 testes do código Rust e os 3 da base passam num computador. Usam apenas pastas criadas pelos próprios testes; nenhum foi executado com ficheiros de projeto reais. |
+| Testes | 🟡 | Os 234 testes do código Rust e os 3 da base passam num computador. Usam apenas pastas criadas pelos próprios testes; nenhum foi executado com ficheiros de projeto reais. |
 | Hardware real | 🟠 | Não foi executado em nenhuma máquina nem placa: nada aqui foi experimentado em hardware. |
 | Função planeada | 🟠 | Escrito: o inventário ocultado de um corpus, os alicerces do modelo (unidades, ids, JSON canónico), o ficheiro de projeto `.phoenixproj`, o modelo de placa com anular e refazer, a sua conectividade e uma primeira verificação de regras, e um leitor de resumo de EAGLE XML. Por começar: o editor de esquemas, a importação de outros formatos para o modelo, os escritores de outros formatos, a maior parte das regras, o visualizador e os editores, a simulação e tudo o resto do planeado. O modelo da placa também guarda texto e traços de serigrafia (com um tipo de letra de traços incorporado) que a verificação de regras e a exportação Gerber usam, e o esquema pode ser desenhado em folhas com peças colocadas e fios que são comparados com a lista de redes e com a placa; uma placa pode ser escrita como ficheiro XML do EAGLE e lida de novo, o que só foi verificado com ficheiros escritos por este código e nunca foi aberto no EAGLE; o contrato para pares de ficheiros binários do EAGLE e do seu XML está escrito, mas não existe nenhum leitor dos ficheiros binários. |
 | Requisitos | 🟠 | 5 de 30 requisitos (o modo ocultado, os alicerces do modelo, as operações reversíveis, o ficheiro de projeto e os códigos de diagnóstico) estão em protótipo, 25 estão apenas planeados e nenhum está validado. |
@@ -84,7 +84,7 @@ python -I -m unittest discover -s tools -p "test_*.py"
 
 ## 🧪 Testes
 
-O código tem 220 testes (`cargo test`) e a base tem 3 (`python -I -m unittest discover -s tools -p "test_*.py"`); todos passam num computador. A CI executa a verificação do repositório, a das imagens, os testes da base e, para o código Rust, a verificação do formato, o clippy com os avisos tratados como erros e os testes em Linux e Windows.
+O código tem 234 testes (`cargo test`) e a base tem 3 (`python -I -m unittest discover -s tools -p "test_*.py"`); todos passam num computador. A CI executa a verificação do repositório, a das imagens, os testes da base e, para o código Rust, a verificação do formato, o clippy com os avisos tratados como erros e os testes em Linux e Windows.
 
 ## 🏗️ Compilação e publicação
 
