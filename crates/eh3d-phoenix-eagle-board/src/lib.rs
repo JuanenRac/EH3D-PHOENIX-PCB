@@ -5,6 +5,7 @@
 //!   vias and polygons, and the silkscreen as wires on the silkscreen layers;
 //! * [`read_board`] reads such a file into a board, giving the new objects ids from the caller;
 //! * [`write_library`] writes the footprints of a board and the symbols of a schematic as a library;
+//! * [`write_schematic`] writes a schematic, with its library, as a schematic file;
 //! * [`signature`] describes a board without its ids, so that a board and the board read back from
 //!   its file can be compared ([`round_trip`]).
 //!
@@ -24,12 +25,14 @@ mod codes;
 mod layers;
 mod library;
 mod reader;
+mod sch;
 mod signature;
 mod writer;
 
 pub use codes::{diagnostic, ITEM_LEFT_OUT, ITEM_SIMPLIFIED, NOT_READ, REGISTRY, UNREADABLE};
 pub use library::write_library;
 pub use reader::{read_board, ReadBoard};
+pub use sch::write_schematic;
 pub use signature::{round_trip, signature, RoundTrip};
 pub use writer::{write_board, Written};
 

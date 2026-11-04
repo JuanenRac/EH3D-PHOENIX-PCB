@@ -231,6 +231,16 @@ impl Schematic {
         pins
     }
 
+    /// The position of every pin of every placed part whose symbol gives it: the pin, the sheet
+    /// and the point.
+    pub fn pin_positions(&self) -> Vec<(NetPin, Id, Point)> {
+        let mut ignored = Vec::new();
+        self.placed_pins(&mut ignored)
+            .into_iter()
+            .map(|p| (p.pin, p.sheet, p.at))
+            .collect()
+    }
+
     /// Reads the drawing: the pins that wires join, and every problem of the sheets, parts and
     /// wires. Nothing when nothing is drawn.
     pub fn drawn(&self) -> Drawn {

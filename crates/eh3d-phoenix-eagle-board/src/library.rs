@@ -38,7 +38,10 @@ fn prefix_of(refdes: &str) -> String {
 }
 
 /// Unique names for the symbols: the name of the symbol, with a number added when two share one.
-fn symbol_names(schematic: &Schematic, diagnostics: &mut Vec<Diagnostic>) -> BTreeMap<Id, String> {
+pub(crate) fn symbol_names(
+    schematic: &Schematic,
+    diagnostics: &mut Vec<Diagnostic>,
+) -> BTreeMap<Id, String> {
     let mut used: BTreeSet<String> = BTreeSet::new();
     let mut names = BTreeMap::new();
     for (id, symbol) in &schematic.symbols {
