@@ -27,4 +27,4 @@ The official state of each capability is in REQUIREMENTS.md: 30 requirements: 5 
 * The model foundations are checked with generated and edge cases only: there is no design object on top of them yet, so the identities across save, migration and reopening are untested. Duplicate keys in an input JSON text are not detected before canonical writing. The system random source for ids is not cryptographic (ids need uniqueness, not secrecy).
 * Not tested: a corpus of hundreds of thousands of files, folders synchronised by a cloud service, and links (they are skipped and counted; the test for it runs only on Unix-like systems).
 * The kind of a file is read from its first bytes only: a file that starts like XML but is damaged later is counted by its start.
-* `cargo deny` runs in the CI (job `deny`, reporting only for now); it has not been run on a computer.
+* `cargo deny` is not run in the CI yet: it needs a third-party action that the repository settings do not allow; `deny.toml` exists and has not been run on a computer.
