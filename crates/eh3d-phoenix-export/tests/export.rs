@@ -439,8 +439,8 @@ fn what_the_legend_cannot_say_is_reported() {
     // an item that cannot be drawn is left out and says so
     let mut g = fixture(0);
     with_silkscreen(&mut g, "X");
-    if let Some(SilkItem::Text { rotation, .. }) = g.board.silkscreen.get_mut(&id(60)) {
-        *rotation = Udeg::new(45_000_000).unwrap();
+    if let Some(SilkItem::Text { at, .. }) = g.board.silkscreen.get_mut(&id(60)) {
+        *at = pt(Nm::MAX.get(), 0);
     }
     let out = export(&mut g, true);
     assert!(codes_of(&out.diagnostics).contains(&codes::SILK_UNDRAWN.to_string()));

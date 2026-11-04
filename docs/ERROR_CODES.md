@@ -51,7 +51,7 @@ Each table repeats the `REGISTRY` of a crate (`eh3d-phoenix-model` in `src/diagn
 | PHOENIX-BOARD-011 | Arc judged by its end points only | a track with an arc piece, whose connections are judged by its end points (information, in `src/connectivity.rs`) |
 | PHOENIX-BOARD-012 | Copper stack entry is invalid | an entry of the copper stack that names a layer that does not exist, is not copper or is listed twice (in `src/stack.rs`) |
 | PHOENIX-BOARD-013 | Copper stack leaves out a copper layer | a stack that is given but does not list every copper layer of the board (in `src/stack.rs`) |
-| PHOENIX-BOARD-014 | Silkscreen text rotation is not a right angle | a silkscreen text whose rotation is not a multiple of 90 degrees (in `src/silk.rs`) |
+| PHOENIX-BOARD-014 | Silkscreen text rotation is not a right angle | no longer raised: a silkscreen text may have any rotation; the code stays so that its number is not reused (in `src/silk.rs`) |
 | PHOENIX-BOARD-015 | Silkscreen text does not fit the coordinate range | a silkscreen text whose characters reach outside the checked coordinate range (in `src/silk.rs`) |
 | PHOENIX-BOARD-016 | Silkscreen text has characters without a glyph | a silkscreen text with characters that the built-in font does not have, drawn as boxes (a warning, in `src/silk.rs`) |
 
@@ -123,7 +123,7 @@ Each table repeats the `REGISTRY` of a crate (`eh3d-phoenix-model` in `src/diagn
 | PHOENIX-EXPORT-007 | Package could not be assembled | a package whose metadata or entries are refused |
 | PHOENIX-EXPORT-008 | Silkscreen side not given | a silkscreen layer written without a file function because the layer does not say which side it is on (information) |
 | PHOENIX-EXPORT-009 | Silkscreen characters without a glyph | characters of a silkscreen text that the font does not have, written as boxes (a warning) |
-| PHOENIX-EXPORT-010 | Silkscreen item left out | a silkscreen item that cannot be drawn (a text rotated by an angle that is not a right angle, or out of range), not written (a warning) |
+| PHOENIX-EXPORT-010 | Silkscreen item left out | a silkscreen item that cannot be drawn (a text whose strokes fall outside the coordinate range), not written (a warning) |
 
 ## Schematic and its link to the board (`eh3d-phoenix-schematic`)
 

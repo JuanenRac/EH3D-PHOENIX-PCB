@@ -5,7 +5,8 @@
 //! of item exist:
 //!
 //! * a stroke: a connected run of lines and arcs of one width, like a track without a net;
-//! * a text: characters drawn by the built-in stroke font below, at a right-angle rotation, so that
+//! * a text: characters drawn by the built-in stroke font below, at any rotation (a multiple of 90
+//!   degrees is exact, another angle is rounded once per point), so that
 //!   every drawn stroke has integer nanometre end points and the text can be checked and exported
 //!   exactly. Lower case letters are drawn as capitals; a character the font does not have is drawn
 //!   as an empty box and reported (`PHOENIX-BOARD-016`).
@@ -62,7 +63,8 @@ pub enum SilkItem {
         height: Nm,
         /// Width of the printed stroke.
         stroke: Nm,
-        /// Rotation about `at`; a multiple of 90 degrees.
+        /// Rotation about `at`. A multiple of 90 degrees is exact; any other angle is rounded once
+        /// to the nearest nanometre for each point, like the rotation of a pad.
         rotation: Udeg,
         /// Written back to front (for the bottom side), mirrored about the vertical axis of `at`.
         #[serde(default, skip_serializing_if = "is_false")]
@@ -217,11 +219,11 @@ impl SilkItem {
                 mirrored,
                 ..
             } => {
-                let turn = rotation.get();
-                if turn % 90_000_000 != 0 {
-                    return Err(DrawError::Rotation);
-                }
-                let quarter = (turn.rem_euclid(360_000_000) / 90_000_000) as u8;
+                let turn = rotation.get().rem_euclid(360_000_000);
+                let exact = turn % 90_000_000 == 0;
+                let quarter = (turn / 90_000_000) as u8;
+                let angle = (turn as f64) / 1_000_000.0 * std::f64::consts::PI / 180.0;
+                let (sin, cos) = angle.sin_cos();
                 if height.get() <= 0 || stroke.get() <= 0 {
                     return Err(DrawError::Range);
                 }
@@ -248,11 +250,19 @@ impl SilkItem {
                             if *mirrored {
                                 x = -x;
                             }
-                            let (rx, ry) = match quarter {
-                                0 => (x, y),
-                                1 => (-y, x),
-                                2 => (-x, -y),
-                                _ => (y, -x),
+                            let (rx, ry) = if exact {
+                                match quarter {
+                                    0 => (x, y),
+                                    1 => (-y, x),
+                                    2 => (-x, -y),
+                                    _ => (y, -x),
+                                }
+                            } else {
+                                let (fx, fy) = (x as f64, y as f64);
+                                (
+                                    (fx * cos - fy * sin).round() as i128,
+                                    (fx * sin + fy * cos).round() as i128,
+                                )
                             };
                             let p = point(
                                 i128::from(at.x_nm.get()) + rx,
@@ -491,9 +501,18 @@ mod tests {
             assert_eq!(b.start().x_nm.get() - at_x, -(a.start().x_nm.get() - at_x));
             assert_eq!(b.start().y_nm, a.start().y_nm);
         }
-        assert_eq!(
-            text("L", 45_000_000, false).drawn(),
-            Err(DrawError::Rotation)
+        // any other angle is allowed: the origin stays, the points turn about it
+        let turned = text("L", 45_000_000, false).drawn().unwrap();
+        assert_eq!(turned.pieces.len(), flat.pieces.len());
+        assert_eq!(turned.pieces[0].end(), flat.pieces[0].end());
+        assert_ne!(turned.pieces[0].start(), flat.pieces[0].start());
+        // the stem of the L is 6 units long, 1.2 mm; turned by 45 degrees its end is 0.8485 mm away
+        // on both axes
+        let (sx, sy) = (turned.pieces[0].start(), turned.pieces[0].end());
+        let (dx, dy) = (sy.x_nm.get() - sx.x_nm.get(), sy.y_nm.get() - sx.y_nm.get());
+        assert!(
+            (dx.abs() - 848_528).abs() <= 1 && (dy.abs() - 848_528).abs() <= 1,
+            "{dx} {dy}"
         );
     }
 
@@ -522,9 +541,6 @@ mod tests {
                 .collect()
         };
         assert!(codes(&b).is_empty());
-        b.silkscreen.insert(id(50), text("X", 45_000_000, false));
-        assert_eq!(codes(&b), vec![TEXT_ROTATION]);
-        b.silkscreen.clear();
         // a layer that does not exist, and one that is not silkscreen
         b.silkscreen.insert(
             id(51),
