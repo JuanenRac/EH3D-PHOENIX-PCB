@@ -18,7 +18,7 @@ use eh3d_phoenix_schematic::{
 };
 
 use crate::codes::{self, NOT_READ, UNREADABLE};
-use crate::reader::{nm, note, point, rotation};
+use crate::reader::{note, point, rotation};
 
 /// A schematic read from a file and what was not read.
 #[derive(Debug, Clone)]
