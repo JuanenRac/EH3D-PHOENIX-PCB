@@ -3,6 +3,7 @@
 All notable changes to this project are documented here.
 
 ## [Unreleased]
+- Write a schematic as an EAGLE schematic file (`write_schematic`): the embedded library, one part per part, one sheet per sheet with the instances of its placed parts, and the nets with their pin references and the wires that reach them; the names and sizes of the sheets are not kept, a wire that reaches no pin of a net is left out with a warning, and no EAGLE has opened the file.
 
 ## [0.0.2] - Board model with copper stack, silkscreen and rules, EAGLE reader and writers, Gerber and Excellon export and a drawn schematic
 
@@ -15,7 +16,6 @@ All notable changes to this project are documented here.
 - Draw silkscreen letters with a basic accent (`á`, `é`, `ñ`, `ç`, `ü` and the like) as their base letter instead of as an empty box.
 - Add the rule `silkscreen_over_mask_openings`: a silkscreen stroke that falls on a pad whose solder mask layer of the same side leaves it without mask is a confirmed finding (`PHOENIX-RULE-014`), with the same exact arithmetic and inconclusive cases as the check of silkscreen over pads.
 - Write the footprints of a board and the symbols of a schematic as an EAGLE library (`write_library`): a package per footprint, a symbol per symbol with its pins, and a device set per symbol with a device for each footprint its parts use, connecting pins to the pads of the same number; it is read back by the existing reader of EAGLE files and what could not be said is reported (`PHOENIX-EAGLE-020`); no EAGLE has opened it.
-- Write a schematic as an EAGLE schematic file (`write_schematic`): the embedded library, one part per part, one sheet per sheet with the instances of its placed parts, and the nets with their pin references and the wires that reach them; the names and sizes of the sheets are not kept, a wire that reaches no pin of a net is left out with a warning, and no EAGLE has opened the file.
 - Judge the arcs of silkscreen strokes against pads: an arc of at most half a turn that is provably clear of a pad is silent, any other arc near a pad is listed as inconclusive (`PHOENIX-RULE-006`), never as a failure.
 - Bring the documentation and the counters up to date (220 tests of the Rust code and 3 of the base).
 - **The application icon and the logos of the program:** `images/brand/` holds the icon (SVG, PNG sizes, `.ico` and `.icns`), the horizontal and vertical logos in a light and a dark version and the social preview image.
