@@ -11,7 +11,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use eh3d_diagnostic::{Diagnostic, Severity};
+use eh3d_diagnostic::Severity;
 use eh3d_phoenix_board::{Board, Id};
 use eh3d_phoenix_eagle::write_document;
 use eh3d_phoenix_eagle::xml::{parse, Element, Limits};
