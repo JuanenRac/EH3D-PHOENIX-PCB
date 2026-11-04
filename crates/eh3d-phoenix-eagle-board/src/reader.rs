@@ -28,11 +28,11 @@ pub struct ReadBoard {
     pub diagnostics: Vec<Diagnostic>,
 }
 
-fn nm(e: &Element, key: &str) -> Option<Nm> {
+pub(crate) fn nm(e: &Element, key: &str) -> Option<Nm> {
     parse_nm(e.attr(key)?)
 }
 
-fn point(e: &Element, kx: &str, ky: &str) -> Option<Point> {
+pub(crate) fn point(e: &Element, kx: &str, ky: &str) -> Option<Point> {
     Some(Point {
         x_nm: nm(e, kx)?,
         y_nm: nm(e, ky)?,
@@ -40,7 +40,7 @@ fn point(e: &Element, kx: &str, ky: &str) -> Option<Point> {
 }
 
 /// The rotation of an element or pad (`R90`, `MR45.5`) and whether it is mirrored.
-fn rotation(e: &Element) -> (Udeg, bool) {
+pub(crate) fn rotation(e: &Element) -> (Udeg, bool) {
     let Some(text) = e.attr("rot") else {
         return (Udeg::ZERO, false);
     };
@@ -58,7 +58,7 @@ fn rotation(e: &Element) -> (Udeg, bool) {
 }
 
 /// Counts an element that is not read.
-fn note(name: &str, notes: &mut BTreeMap<String, usize>) {
+pub(crate) fn note(name: &str, notes: &mut BTreeMap<String, usize>) {
     *notes.entry(name.to_owned()).or_insert(0) += 1;
 }
 

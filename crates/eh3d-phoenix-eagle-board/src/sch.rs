@@ -456,6 +456,58 @@ mod tests {
     }
 
     #[test]
+    fn the_schematic_comes_back_identical_through_the_file() {
+        let (board, s) = fixture();
+        let text = write_schematic(&board, &s).text;
+        let footprints: BTreeMap<String, Id> = board
+            .footprints
+            .iter()
+            .map(|(fid, f)| (f.name.clone(), *fid))
+            .collect();
+        let mut n = 1000u16;
+        let mut ids = move || {
+            n += 1;
+            id(n)
+        };
+        let read = crate::read_schematic(&text, &footprints, &mut ids).unwrap();
+        assert_eq!(
+            crate::schematic_signature(&read.schematic),
+            crate::schematic_signature(&s)
+        );
+        assert!(read.diagnostics.is_empty(), "{:?}", read.diagnostics);
+        // the read schematic is consistent and has the drawn wire as one wire of two pieces
+        assert!(
+            read.schematic.is_consistent(),
+            "{:?}",
+            read.schematic.validate()
+        );
+        assert_eq!(read.schematic.wires.len(), 1);
+        // and writing it again gives the same file
+        assert_eq!(write_schematic(&board, &read.schematic).text, text);
+    }
+
+    #[test]
+    fn a_file_that_is_not_a_schematic_is_an_error_and_damaged_text_never_panics() {
+        let mut n = 2000u16;
+        let mut ids = move || {
+            n += 1;
+            id(n)
+        };
+        let none = BTreeMap::new();
+        for bad in ["not xml", "<eagle><drawing/></eagle>", "<other/>"] {
+            let e = crate::read_schematic(bad, &none, &mut ids).unwrap_err();
+            assert_eq!(e.code.as_deref(), Some(crate::UNREADABLE));
+        }
+        let (board, s) = fixture();
+        let text = write_schematic(&board, &s).text;
+        for cut in (0..text.len()).step_by(89) {
+            if text.is_char_boundary(cut) {
+                let _ = crate::read_schematic(&text[..cut], &none, &mut ids);
+            }
+        }
+    }
+
+    #[test]
     fn the_same_schematic_gives_the_same_text() {
         let (board, s) = fixture();
         assert_eq!(
