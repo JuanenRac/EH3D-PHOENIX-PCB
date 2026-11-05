@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! The editing and routing logic of the board, without an interface.
 //!
-//! * [`ratsnest`]: the connections still to be routed, a minimum spanning tree per net over the
+//! * `ratsnest`: the connections still to be routed, a minimum spanning tree per net over the
 //!   islands that the connectivity of the board finds, always in the same order;
 //! * [`router`]: an interactive router for tracks at 0, 45 and 90 degrees. It stops in front of the
 //!   first obstacle or goes around it on a coarse mesh with the fewest corners, takes the width of
