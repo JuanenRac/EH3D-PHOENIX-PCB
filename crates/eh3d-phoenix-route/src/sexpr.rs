@@ -47,7 +47,7 @@ impl Node {
     }
 
     /// The first sub-list whose keyword is `name`.
-    pub(crate) fn list(&self, name: &str) -> Option<&Node> {
+    pub(crate) fn list<'a>(&'a self, name: &'a str) -> Option<&'a Node> {
         self.lists(name).next()
     }
 }
