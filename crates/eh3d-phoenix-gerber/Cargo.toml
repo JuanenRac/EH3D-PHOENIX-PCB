@@ -1,0 +1,17 @@
+[package]
+name = "eh3d-phoenix-gerber"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Read-only import of Gerber RS-274X and Excellon files for review (apertures and simple macros, polarity, regions, arcs, drill tools and slots, layer roles from file names and X2 attributes), with stable codes and size limits, and the round-trip comparison of the files the export writes against the board they came from"
+
+[dependencies]
+eh3d-phoenix-board = { path = "../eh3d-phoenix-board" }
+eh3d-phoenix-export = { path = "../eh3d-phoenix-export" }
+eh3d-phoenix-rules = { path = "../eh3d-phoenix-rules" }
+serde_json.workspace = true
+
+[dev-dependencies]
+eh3d-phoenix-model = { path = "../eh3d-phoenix-model" }

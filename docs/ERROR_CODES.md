@@ -2,7 +2,7 @@
 
 Codes have the form `PHOENIX-<AREA>-<NNN>`. A code is stable: it never changes its meaning and is never reused. Programs show the text through the key `diag.<code>`; the codes themselves are never translated. The object identity (UUID v7) is the one of the shared container, with its own codes `EH3D-ID-001` and `EH3D-ID-002`. The container codes `EH3D-PKG-001` to `EH3D-PKG-014` belong to the shared container and are listed in the registry of the documentation repository.
 
-Each table repeats the `REGISTRY` of a crate (`eh3d-phoenix-model` in `src/diagnostic.rs`, `eh3d-phoenix-project` and `eh3d-phoenix-eagle` in `src/codes.rs`, `eh3d-phoenix-hub` in `src/lib.rs`, `eh3d-phoenix-export` in `src/codes.rs`, `eh3d-phoenix-schematic` in `src/model.rs`, `src/draw.rs`, `src/edit.rs` and `src/link.rs`, `eh3d-phoenix-board` in `src/validate.rs`, `src/connectivity.rs` and `src/rules.rs`, `eh3d-phoenix-rules` in `src/codes.rs`, `eh3d-phoenix-stackup` and `eh3d-phoenix-rf` in `src/error.rs`, `eh3d-phoenix-viewer`, `eh3d-phoenix-sanitizer`, `eh3d-phoenix-erc`, `eh3d-phoenix-sync`, `eh3d-phoenix-schedit`, `eh3d-phoenix-libedit`, `eh3d-phoenix-zones` and `eh3d-phoenix-lengths` in `src/codes.rs`); a test of each crate checks that every code of its registry is in the table with the same title.
+Each table repeats the `REGISTRY` of a crate (`eh3d-phoenix-model` in `src/diagnostic.rs`, `eh3d-phoenix-project` and `eh3d-phoenix-eagle` in `src/codes.rs`, `eh3d-phoenix-hub` in `src/lib.rs`, `eh3d-phoenix-export` in `src/codes.rs`, `eh3d-phoenix-schematic` in `src/model.rs`, `src/draw.rs`, `src/edit.rs` and `src/link.rs`, `eh3d-phoenix-board` in `src/validate.rs`, `src/connectivity.rs` and `src/rules.rs`, `eh3d-phoenix-rules` in `src/codes.rs`, `eh3d-phoenix-stackup` and `eh3d-phoenix-rf` in `src/error.rs`, `eh3d-phoenix-viewer`, `eh3d-phoenix-sanitizer`, `eh3d-phoenix-erc`, `eh3d-phoenix-sync`, `eh3d-phoenix-schedit`, `eh3d-phoenix-libedit`, `eh3d-phoenix-zones`, `eh3d-phoenix-lengths`, `eh3d-phoenix-gerber` and `eh3d-phoenix-panel` in `src/codes.rs`); a test of each crate checks that every code of its registry is in the table with the same title.
 
 ## Model foundations
 
@@ -567,3 +567,48 @@ The titles of these codes also exist in the eight languages of the suite (`TITLE
 | PHOENIX-LEN-017 | A limit of the length report was exceeded | more tracks and vias, or more groups and pairs, than `max_items` |
 | PHOENIX-LEN-018 | Net is not the target length | error: a net of a group with a target whose length is farther from the target than the tolerance |
 | PHOENIX-LEN-019 | Pair has no coupled stretch | warning: no straight piece of the positive net runs within the coupling range of the negative net, so the separation is not judged |
+
+## Gerber and Excellon import (`eh3d-phoenix-gerber`, `src/codes.rs`)
+
+The titles of these codes also exist in the eight languages of the suite (`TITLES` in `src/codes.rs`); the detail of a message is in English and names the line of the file when there is one.
+
+| Code | Title | Raised by |
+|---|---|---|
+| PHOENIX-GBR-001 | Gerber import settings are not valid | a line of `config/gerber_import.cfg` that is not `key = value`, an unknown key, a number that cannot be read or a value out of range |
+| PHOENIX-GBR-002 | Input file is larger than the limit | a Gerber, Excellon, settings or profile file with more bytes than `max_file_bytes` (or than the limit of a settings file); the file is not read |
+| PHOENIX-GBR-003 | A limit on commands or objects was exceeded | more commands, apertures or tools, drawn objects, region points or macro statements than the limits of the settings, a command longer than the limit, or more files than `max_files` |
+| PHOENIX-GBR-004 | Gerber syntax error | a block that does not end with `*`, an extended command not closed by `%`, a command or word that is not known, coordinates without an operation, an operation code that does not exist, a file with no command, or text that is neither Gerber nor Excellon |
+| PHOENIX-GBR-005 | Coordinate format or units missing or not valid | `FS` or `MO` that cannot be read, a size or coordinate before the units or the format, incremental coordinates (`G91`, `FS...I`), or, as a warning in a drill file, units or digits that were assumed |
+| PHOENIX-GBR-006 | Aperture not defined or not valid | an aperture used before it is defined, a definition with the wrong number of parameters or a size that is not a number, a number below D10, a polygon with other than 3 to 12 corners, or, as a warning, a line drawn with an aperture that is not round |
+| PHOENIX-GBR-007 | Aperture macro not valid | an aperture that names a macro that was not defined, a macro without a name, or a primitive or an expression that cannot be evaluated (a variable without a value, a division by zero, a wrong number of parameters, a primitive code that is not known) |
+| PHOENIX-GBR-008 | Arc not valid | a full circle in single quadrant mode, no centre of single quadrant mode that fits the arc, and, as a warning, an arc whose two radii differ by more than `arc_radius_tolerance_nm` |
+| PHOENIX-GBR-009 | Region not valid | `G36` inside a region, `G37` without `G36`, and, as warnings, a contour that is not closed, a contour with fewer than three corners, a flash inside a region or a file that ends inside a region |
+| PHOENIX-GBR-010 | Feature not supported and skipped | warning: step and repeat, aperture blocks, aperture transforms, negative image polarity, an obsolete image command, a thermal or moire primitive of a macro, arcs or repeats in a drill file; the layer is marked incomplete |
+| PHOENIX-GBR-011 | Coordinate out of range | a coordinate or size with an absolute value above `coordinate_limit_nm` |
+| PHOENIX-GBR-012 | Excellon syntax error | a drill line or word that is not known, a `METRIC` or `INCH` line with a part that is not `LZ`, `TZ` or a format, a coordinate that is not a number, a file with no line |
+| PHOENIX-GBR-013 | Drill tool not defined or not valid | a tool used before it is defined, a tool without a number, a diameter that is not positive, a hole, slot or route cut with no tool |
+| PHOENIX-GBR-014 | Layer role not recognised | information: neither the attributes nor the name of a file tell its layer; warning: the name says a drill file and the content is Gerber, or the reverse |
+| PHOENIX-GBR-015 | File could not be read | a file, folder, settings file or profile file that cannot be opened or listed |
+| PHOENIX-GBR-016 | Imported files differ from the board | the round trip: the files that the export wrote differ from the board in the number or the positions of flashes, regions, lines or arcs, in the outline, in the number, diameters or positions of holes, in the units, or in a file that cannot be read back or is missing |
+| PHOENIX-GBR-017 | File ends without an end command | warning: no `M02` in a Gerber file or no `M30` in a drill file; what was read is kept |
+| PHOENIX-GBR-018 | Command option not valid | an option of `phoenix gerber-import` that the command does not know or needs a value for, an unknown language code, files together with `--roundtrip`, `--profile` without `--roundtrip`, a profile that is not in the profile file, an output file that exists or is an input |
+| PHOENIX-GBR-019 | Export for the round trip failed | the export of the board with the profile refused it, so there is nothing to read back |
+
+## Panelization (`eh3d-phoenix-panel`, `src/codes.rs`)
+
+The titles of these codes also exist in the eight languages of the suite (`TITLES` in `src/codes.rs`); the detail of a message is in English.
+
+| Code | Title | Raised by |
+|---|---|---|
+| PHOENIX-PANEL-001 | Panel settings are not valid | a line of `config/panel.cfg` that is not `key = value`, an unknown key, a number that cannot be read, a value out of range, tabs or mouse bite holes that the settings themselves contradict, or `--columns` and `--rows` out of range |
+| PHOENIX-PANEL-002 | Board outline cannot be used for a panel | an outline with fewer than three points, or whose box has no width or no height |
+| PHOENIX-PANEL-003 | Panel too large or too many boards | more boards than `max_boards`, a side of the panel above `max_panel_nm`, a size that does not fit, or more than 99 drill diameters |
+| PHOENIX-PANEL-004 | Tabs do not fit on the edge | `tabs_per_edge` tabs of `tab_width_nm` that are longer together than the edge of the board |
+| PHOENIX-PANEL-005 | Mark does not fit in the frame | a fiducial or a tooling hole that is not entirely inside a rail of the frame |
+| PHOENIX-PANEL-006 | Marks overlap | two fiducials or tooling holes whose circles overlap |
+| PHOENIX-PANEL-007 | Command option not valid | an option of `phoenix panel` that the command does not know or needs a value for, an unknown language code, a number of board files other than one |
+| PHOENIX-PANEL-008 | Output file is not allowed | a file of the output folder that exists (nothing is written then), or a folder or file that cannot be created |
+| PHOENIX-PANEL-009 | Outline is not a rectangle | information: the box around the outline is used for the spacing of the boards |
+| PHOENIX-PANEL-010 | Gap ignored for V-score | information: with `joint = v_score` the boards touch and `gap_nm` is not used |
+| PHOENIX-PANEL-011 | Marks skipped: the panel has no frame | warning: fiducials or tooling holes were asked for and `frame = none`, so none was put on the panel |
+| PHOENIX-PANEL-012 | Mouse bite holes do not fit the tab | `mouse_bite_holes` holes at `mouse_bite_pitch_nm` that take more than `tab_width_nm` |
