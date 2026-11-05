@@ -4,7 +4,8 @@
 //! `sim`, `route`, `ratsnest`, `script`, `cam-import`, `schedit` and `view`.
 //!
 //! The editor of libraries adds the commands `libedit` and `footprint`, and the routing through an
-//! external autorouter adds `autoroute`.
+//! external autorouter adds `autoroute`, the filling of copper zones adds `zones` and the lengths
+//! of nets and pairs add `lengths`.
 //!
 //! Exit codes: 0 done, 1 `stackup` could not compute one or more of the lines it was asked for,
 //! `check`, `connectivity` and `erc` proved an error, or `sync` found changes to make, 2 the
@@ -17,6 +18,7 @@ mod check;
 mod design;
 mod export;
 mod kicad;
+mod lengths;
 mod libedit;
 mod materials;
 mod rf;
@@ -27,6 +29,7 @@ mod schedit;
 mod script;
 mod sim;
 mod view;
+mod zones;
 
 use eh3d_phoenix_corpus::{inventory, InventoryConfig};
 use eh3d_phoenix_stackup::{report_json, report_text, Language, StackupJob, StackupSettings};
@@ -178,6 +181,21 @@ phoenix footprint <family> [--param NAME=VALUE ...] [--config FILE] [--into LIBR
                 method of IPC-7351B with the values of config/footprints.cfg, a prototype that is
                 not checked against a datasheet (run either command alone for its options)
 
+phoenix zones fill [--config FILE] [--rules FILE] [--zones FILE] [--out FILE] [--json]
+                   [--lang xx] <board>
+phoenix zones check [--config FILE] [--rules FILE] [--zones FILE] [--fill FILE] [--json]
+                    [--lang xx] <board>
+phoenix lengths [--config FILE] [--stackup FILE] [--groups FILE] [--out FILE] [--json]
+                [--lang xx] <board>
+
+  zones         fill the copper zones of a board (clearance from the rules, thermal reliefs on
+                the pads of the net, islands judged by area, width and connection) or measure a
+                fill against the board; a dry run unless --out names a new file, a prototype,
+                run `phoenix zones` alone for its options
+  lengths       the copper length and the delay of the nets of a board, groups of nets that
+                must match in length and differential pairs; a prototype, run `phoenix lengths`
+                alone for its options
+
 phoenix view [--settings FILE] [--lang xx] [<board or schematic>]
 phoenix view --summary <file>  |  phoenix view --bench
 
@@ -267,6 +285,12 @@ pub fn run(args: &[String], out: &mut dyn Write, err: &mut dyn Write) -> i32 {
     }
     if let Some((&"footprint", tail)) = rest.split_first() {
         return libedit::footprint_command(tail, out, err);
+    }
+    if let Some((&"zones", tail)) = rest.split_first() {
+        return zones::zones_command(tail, out, err);
+    }
+    if let Some((&"lengths", tail)) = rest.split_first() {
+        return lengths::lengths_command(tail, out, err);
     }
     if let Some((&"view", tail)) = rest.split_first() {
         return view::view(tail, out, err);
