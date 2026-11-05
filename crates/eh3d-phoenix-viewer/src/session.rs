@@ -358,6 +358,21 @@ impl BoardSession {
         self.redo_count > 0
     }
 
+    /// Puts an edited board in the place of the one that is open (the board editor keeps its own
+    /// steps for undo and redo): the rules are checked again and what changed is kept for the
+    /// panel, the ratsnest is made again, the steps of this session are dropped and the document
+    /// counts as changed.
+    pub fn replace_board(&mut self, board: Board) {
+        self.board = board;
+        self.history = History::new();
+        self.redo_count = 0;
+        self.serial += 1;
+        let before = std::mem::take(&mut self.findings);
+        self.findings = rule_findings(&self.board, &self.ctx);
+        self.last_diff = diff(&before, &self.findings);
+        self.refresh_ratsnest();
+    }
+
     /// How many edits are done.
     pub fn edits(&self) -> usize {
         self.history.done().len()

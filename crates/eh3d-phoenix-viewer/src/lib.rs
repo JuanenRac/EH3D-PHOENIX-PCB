@@ -24,6 +24,9 @@
 //! * [`schematic_sync`] and [`schematic_text`]: how the schematic editor of `eh3d-phoenix-schedit`
 //!   hands its schematic to the workspace, and its texts in the eight languages (the window of
 //!   the editor is in `schematic_gui`, behind the `gui` feature);
+//! * [`board_sync`] and [`board_text`]: how the board editor of `eh3d-phoenix-boardedit` hands its
+//!   board to the workspace, and its texts in the eight languages (the window of the editor is in
+//!   `board_gui`, behind the `gui` feature);
 //! * [`library_session`] and [`library_text`]: the library mode: an EAGLE library edited with the
 //!   operations of `eh3d-phoenix-libedit` (footprints, symbols and devices, the tools, the grid and
 //!   the snap, the selection and the drag, the measure, the checks, the plan to replace by a master
@@ -47,6 +50,10 @@
 #![warn(missing_docs)]
 
 pub mod bench;
+#[cfg(feature = "gui")]
+pub mod board_gui;
+pub mod board_sync;
+pub mod board_text;
 pub mod codes;
 pub mod editmsg;
 pub mod grid;

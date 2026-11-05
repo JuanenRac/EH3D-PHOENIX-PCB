@@ -10,6 +10,8 @@ use eframe::egui::{self, Color32, FontData, FontDefinitions, FontFamily, Pos2, R
 use eh3d_phoenix_route::{Mode, RouteSettings};
 use eh3d_phoenix_rules::Lang;
 
+use crate::board_gui::{self, BoardEditUi};
+use crate::board_text::BoardMsg;
 use crate::codes::{ViewError, FILE_UNUSABLE, WINDOW_FAILED};
 use crate::editmsg::EditMsg;
 use crate::launcher_gui;
@@ -118,6 +120,8 @@ struct App {
     focus_save: bool,
     /// The schematic editor, while the person is editing the schematic that is open.
     sch: Option<SchematicEditUi>,
+    /// The board editor, while the person is editing the board that is open.
+    brd: Option<BoardEditUi>,
     /// The library mode, while a library of footprints, symbols and devices is open.
     lib: LibraryUi,
     /// The start screen, shown while nothing is open: the typed path and the recent files.
@@ -143,6 +147,7 @@ impl App {
             tool_drag: false,
             focus_save: false,
             sch: None,
+            brd: None,
             lib: LibraryUi::new(eh3d_phoenix_libedit::LibSettings::default()),
             launcher: Launcher::from_env(&settings, &|name: &str| std::env::var(name).ok()),
             launch_note: None,
@@ -164,6 +169,7 @@ impl App {
             if self.lib.is_open() {
                 self.workspace = None;
                 self.sch = None;
+                self.brd = None;
                 self.error = None;
                 self.launcher.opened(path);
             } else if let Some(e) = self.lib.take_error() {
@@ -180,6 +186,7 @@ impl App {
                 self.fit_pending = true;
                 self.tool_drag = false;
                 self.sch = None;
+                self.brd = None;
                 self.launcher.opened(path);
             }
             Err(error) => self.error = Some(error),
@@ -197,6 +204,7 @@ impl App {
                 self.lib.new_library();
                 self.workspace = None;
                 self.sch = None;
+                self.brd = None;
             }
         }
     }
@@ -224,6 +232,7 @@ impl App {
                     self.lib.new_library();
                     self.workspace = None;
                     self.sch = None;
+                    self.brd = None;
                 }
                 let has_scene = self.workspace.is_some();
                 if ui
@@ -232,7 +241,7 @@ impl App {
                 {
                     self.fit_pending = true;
                 }
-                let editing = self.sch.is_some();
+                let editing = self.sch.is_some() || self.brd.is_some();
                 if let Some(w) = self.workspace.as_mut() {
                     ui.separator();
                     if ui
@@ -307,6 +316,20 @@ impl App {
                     if self.sch.is_some() {
                         return;
                     }
+                    let mut leave_board = false;
+                    if let Some(brd) = self.brd.as_mut() {
+                        leave_board = board_gui::tools_panel(ui, brd, lang);
+                        if leave_board {
+                            board_gui::finish(brd, workspace);
+                        }
+                    }
+                    if leave_board {
+                        self.brd = None;
+                        self.fit_pending = true;
+                    }
+                    if self.brd.is_some() {
+                        return;
+                    }
                     let board = workspace.is_board();
                     let viewer = &mut workspace.viewer;
                     let kind = match viewer.scene.kind {
@@ -354,6 +377,10 @@ impl App {
                     }
                     if !board && ui.button(SchMsg::EditSchematic.tr(lang)).clicked() {
                         self.sch = schematic_gui::start(workspace);
+                        self.fit_pending = true;
+                    }
+                    if board && ui.button(BoardMsg::EditBoard.tr(lang)).clicked() {
+                        self.brd = board_gui::start(workspace);
                         self.fit_pending = true;
                     }
                     if board {
@@ -474,6 +501,10 @@ impl App {
         egui::CentralPanel::no_frame().show(ui, |ui| {
             if let (Some(sch), Some(workspace)) = (self.sch.as_mut(), self.workspace.as_mut()) {
                 schematic_gui::canvas(ui, sch, workspace, lang, background, &mut self.fit_pending);
+                return;
+            }
+            if let (Some(brd), Some(workspace)) = (self.brd.as_mut(), self.workspace.as_mut()) {
+                board_gui::canvas(ui, brd, workspace, lang, background, &mut self.fit_pending);
                 return;
             }
             if self.workspace.is_none() {
