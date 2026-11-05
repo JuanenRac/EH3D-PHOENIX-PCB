@@ -375,7 +375,8 @@ mod tests {
         assert!(pt.contains("lang=\"pt-PT\"") && pt.contains("Ficheiros lidos"));
         for lang in Lang::ALL {
             let page = html_report(&report, lang);
-            assert!(page.contains(text(Msg::Title, lang)), "{lang:?}");
+            // the page carries the title escaped (the apostrophe of French becomes an entity)
+            assert!(page.contains(&escape(text(Msg::Title, lang))), "{lang:?}");
         }
     }
 
