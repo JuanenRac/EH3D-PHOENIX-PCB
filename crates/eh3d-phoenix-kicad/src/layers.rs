@@ -96,14 +96,13 @@ impl LayerMap {
     }
 
     /// The layers a name stands for: a plain name is one layer, `*.Cu` is every copper layer
-    /// (the two outer ones when none is named yet), `F&B.Cu` the two outer ones and `*.Mask`
+    /// (the two outer ones always, even when they are not named), `F&B.Cu` the two outer ones and `*.Mask`
     /// the same layer on both sides.
     pub fn expand(&mut self, name: &str, ctx: &mut Ctx) -> Vec<Id> {
         if name == "*.Cu" {
-            if self.copper_stack().is_empty() {
-                self.intern("F.Cu", ctx);
-                self.intern("B.Cu", ctx);
-            }
+            // a pad through the board always reaches the two outer layers, named or not
+            self.intern("F.Cu", ctx);
+            self.intern("B.Cu", ctx);
             return self.copper_stack();
         }
         if name == "F&B.Cu" {
