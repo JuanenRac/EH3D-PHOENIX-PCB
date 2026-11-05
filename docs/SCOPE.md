@@ -17,7 +17,7 @@ Written, and tried only on folders made by its own tests: the command `phoenix i
 * A project format of its own (one folder per domain) and the `.eh3dproj` package as the way to hand a design to the CAM programs of the suite.
 * A format hub with honest support levels: EAGLE (versions 4 to 9, read and write where documented), KiCad (read first, write later), Gerber X2 and Excellon, and the assembly formats confirmed with real samples. Every import produces a quality report of what was kept, transformed or dropped.
 * Verification: connectivity of schematic and board, schematic-to-board consistency, design-rule checks in a fixed order, and later power-oriented checks (track width against current, clearance and creepage).
-* Circuit simulation through an existing, validated engine, with reference cases that have analytic solutions.
+* Circuit simulation with reference cases that have analytic solutions: a solver of our own first (provisional, `docs/adr/0010-own-circuit-simulator.md`), validated against an existing engine.
 * Specialised modules: an assistant for power-supply design (from simple regulators up, each model declaring its range of validity) and RF tools by levels.
 * Heritage of the previous EAGLE-based workflow: commands, scripts, a script interpreter run inside a sandbox, output jobs and library maintenance (a library sanitizer with replace-and-relink and backups).
 * Computing tasks that can also run on the EH3D server; the program works without it.
