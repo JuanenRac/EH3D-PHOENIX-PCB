@@ -2,7 +2,7 @@
 
 Codes have the form `PHOENIX-<AREA>-<NNN>`. A code is stable: it never changes its meaning and is never reused. Programs show the text through the key `diag.<code>`; the codes themselves are never translated. The object identity (UUID v7) is the one of the shared container, with its own codes `EH3D-ID-001` and `EH3D-ID-002`. The container codes `EH3D-PKG-001` to `EH3D-PKG-014` belong to the shared container and are listed in the registry of the documentation repository.
 
-Each table repeats the `REGISTRY` of a crate (`eh3d-phoenix-model` in `src/diagnostic.rs`, `eh3d-phoenix-project` and `eh3d-phoenix-eagle` in `src/codes.rs`, `eh3d-phoenix-hub` in `src/lib.rs`, `eh3d-phoenix-export` in `src/codes.rs`, `eh3d-phoenix-schematic` in `src/model.rs` and `src/link.rs`, `eh3d-phoenix-board` in `src/validate.rs`, `src/connectivity.rs` and `src/rules.rs`, `eh3d-phoenix-rules` in `src/codes.rs`, `eh3d-phoenix-stackup` and `eh3d-phoenix-rf` in `src/error.rs`); a test of each crate checks that every code of its registry is in the table with the same title.
+Each table repeats the `REGISTRY` of a crate (`eh3d-phoenix-model` in `src/diagnostic.rs`, `eh3d-phoenix-project` and `eh3d-phoenix-eagle` in `src/codes.rs`, `eh3d-phoenix-hub` in `src/lib.rs`, `eh3d-phoenix-export` in `src/codes.rs`, `eh3d-phoenix-schematic` in `src/model.rs` and `src/link.rs`, `eh3d-phoenix-board` in `src/validate.rs`, `src/connectivity.rs` and `src/rules.rs`, `eh3d-phoenix-rules` in `src/codes.rs`, `eh3d-phoenix-stackup` and `eh3d-phoenix-rf` in `src/error.rs`, `eh3d-phoenix-viewer` in `src/codes.rs`); a test of each crate checks that every code of its registry is in the table with the same title.
 
 ## Model foundations
 
@@ -227,3 +227,19 @@ The titles of these codes also exist in the eight languages of the suite (`title
 | PHOENIX-RF-008 | The settings are not valid | a line of the settings text that is not `key = value`, an unknown key or a value out of range |
 | PHOENIX-RF-009 | A value is outside the configured limit | more ports, points, bytes, filter order, ripple, impedance, frequency or sweep points than the settings allow |
 | PHOENIX-RF-010 | Frequency outside the data of the file | a frequency below the first or above the last point of a Touchstone file (nothing is extrapolated) |
+
+## Viewer (`eh3d-phoenix-viewer`, `src/codes.rs`)
+
+The titles of these codes also exist in the eight languages of the suite (`TITLES` in `src/codes.rs`); the detail of a message is in English. Every code is an error.
+
+| Code | Title | Raised by |
+|---|---|---|
+| PHOENIX-VIEW-001 | File cannot be read | a file that does not exist, cannot be read or is larger than the limit of the settings |
+| PHOENIX-VIEW-002 | File is not a board or a schematic that the viewer reads | a file that is not UTF-8 text, or whose content is neither an EAGLE board or schematic nor the JSON of a board or of a schematic of the model |
+| PHOENIX-VIEW-003 | EAGLE file cannot be read | an EAGLE file named `.brd` or `.sch` that the reader refuses (not XML, no board or no schematic in the drawing) |
+| PHOENIX-VIEW-004 | Nothing to draw | a board or a schematic that gives no primitive |
+| PHOENIX-VIEW-005 | Viewer settings are not valid | a line of the settings text that is not `key = value`, an unknown key or colour, or a value out of range |
+| PHOENIX-VIEW-006 | Too many drawing primitives | a document that would give more primitives than the settings allow |
+| PHOENIX-VIEW-007 | Benchmark option is not valid | a benchmark board below the smallest size, or more scans than picks |
+| PHOENIX-VIEW-008 | The window is not built in | `phoenix view` asked to open the window by a program built without the `gui` feature |
+| PHOENIX-VIEW-009 | The window could not be opened | the graphics or windowing system refused to open the window |

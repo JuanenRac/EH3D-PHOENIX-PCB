@@ -1,0 +1,32 @@
+[package]
+name = "eh3d-phoenix-viewer"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Prototype viewer of boards and schematics: the drawing primitives, the view, the layers, the picking of nets and the measure as pure state, a benchmark with synthetic boards, and a window of egui behind the gui feature"
+
+[features]
+default = []
+# the window (egui on eframe, with the icon of the program): `cargo run --features gui -- view <file>`
+gui = ["dep:eframe", "dep:png"]
+
+[dependencies]
+eh3d-phoenix-board = { path = "../eh3d-phoenix-board" }
+eh3d-phoenix-eagle-board = { path = "../eh3d-phoenix-eagle-board" }
+eh3d-phoenix-model = { path = "../eh3d-phoenix-model" }
+eh3d-phoenix-rules = { path = "../eh3d-phoenix-rules" }
+eh3d-phoenix-schematic = { path = "../eh3d-phoenix-schematic" }
+thiserror.workspace = true
+
+# the window
+eframe = { version = "0.37.0", default-features = false, features = ["glow", "default_fonts"], optional = true }
+png = { version = "0.17", optional = true }
+
+# the window of Linux needs a windowing system chosen at build time (X11 and Wayland); Windows and macOS have their own
+[target.'cfg(target_os = "linux")'.dependencies]
+eframe = { version = "0.37.0", default-features = false, features = ["glow", "default_fonts", "x11", "wayland"], optional = true }
+
+[dev-dependencies]
+tempfile.workspace = true
