@@ -3,7 +3,8 @@
 //! one number is taken from the result.
 
 use eh3d_phoenix_sim::{
-    ac_at, operating_point, parse, transient, Circuit, Method, SimSettings, TranRequest,
+    ac_at, dc_sweep, operating_point, parse, transient, Circuit, DcRequest, Method, SimSettings,
+    TranRequest,
 };
 
 use crate::codes::{OracleError, CALC_FAILED};
@@ -26,6 +27,35 @@ fn operating(i: &Inputs) -> Result<f64, OracleError> {
     let label = i.text("probe")?;
     let result = operating_point(&circuit, &settings).map_err(calc)?;
     result.get(label).ok_or_else(|| missing(label))
+}
+
+/// The operating point at one value of a swept source.
+fn sweep_point(i: &Inputs) -> Result<f64, OracleError> {
+    let settings = SimSettings::default();
+    let circuit = circuit(i, &settings)?;
+    let label = i.text("probe")?;
+    let request = DcRequest {
+        source: i.text("source")?.to_string(),
+        start: i.num("start")?,
+        stop: i.num("stop")?,
+        step: i.num("step")?,
+    };
+    let result = dc_sweep(&circuit, &settings, &request).map_err(calc)?;
+    let series = result.series(label).ok_or_else(|| missing(label))?;
+    let at = i.num("at")?;
+    let slack = request.step.abs() * 1e-6;
+    result
+        .sweep
+        .iter()
+        .zip(series.iter())
+        .find(|(value, _)| (**value - at).abs() <= slack)
+        .map(|(_, y)| *y)
+        .ok_or_else(|| {
+            OracleError::new(
+                CALC_FAILED,
+                format!("the sweep has no point at {at} (the points are start + k step)"),
+            )
+        })
 }
 
 fn small_signal(i: &Inputs) -> Result<f64, OracleError> {
@@ -78,6 +108,7 @@ pub(crate) fn run(check: &str, i: &Inputs) -> Result<Option<f64>, OracleError> {
     let value = match check {
         "sim_op" => operating(i)?,
         "sim_ac" => small_signal(i)?,
+        "sim_dc" => sweep_point(i)?,
         "sim_tran" => step_response(i)?,
         _ => return Ok(None),
     };

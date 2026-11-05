@@ -144,6 +144,261 @@
       "tolerance_note": "chosen here: wider than the error of the trapezoidal rule at 1000 steps over three quarters of a ring period, the first backward Euler step and the 1 ns rise of the source",
       "source": "J. W. Nilsson and S. A. Riedel, Electric Circuits, the step response of a series RLC circuit, underdamped: v(t) = V (1 - exp(-a t) (cos(wd t) + (a/wd) sin(wd t))) with a = R/(2L) = 5000 1/s and wd = sqrt(1/(L C) - a^2) = 31224.99 rad/s",
       "status": "cited"
+    },
+    {
+      "id": "ORACLE-SIM-009",
+      "title": "Diode with a 1 kohm series resistor on 5 V (IS 1e-14 A, n 1): voltage across the diode",
+      "area": "sim",
+      "check": "sim_op",
+      "inputs": {
+        "netlist": ["diode and resistor", ".model dm D(IS=1e-14 N=1)", "V1 in 0 DC 5", "R1 in d 1k", "D1 d 0 dm"],
+        "probe": "v(d)"
+      },
+      "expected": 0.6928878323821923,
+      "unit": "V",
+      "tolerance": {"abs": 0.0001},
+      "tolerance_note": "chosen here: Newton-Raphson stops when the change is below reltol*|v| + vntol twice in a row, which leaves an error of about 1e-5 V on the junction voltage, so 1e-4 V is wider than needed and still far below the 26 mV scale of the junction",
+      "source": "Shockley ideal diode equation I = Is (exp(Vd/(n Vt)) - 1) with Vt = k T / q (k = 1.380649e-23 J/K, q = 1.602176634e-19 C, T = 300.15 K, the temperature of config/sim.cfg), A. S. Sedra and K. C. Smith, Microelectronic Circuits, the diode forward characteristic; the series circuit Vs = I R + Vd has the closed form I = (n Vt / R) W((Is R / (n Vt)) exp((Vs + Is R) / (n Vt))) - Is with W the principal branch of the Lambert W function (R. M. Corless, G. H. Gonnet, D. E. G. Hare, D. J. Jeffrey and D. E. Knuth, On the Lambert W function, Advances in Computational Mathematics 5, 1996); W was evaluated by Newton iteration on ln w + w = ln x and checked against a bisection of the same equation",
+      "status": "cited"
+    },
+    {
+      "id": "ORACLE-SIM-010",
+      "title": "Diode with a 1 kohm series resistor on 5 V (IS 2.52e-9 A, n 1.752): voltage across the diode",
+      "area": "sim",
+      "check": "sim_op",
+      "inputs": {
+        "netlist": ["diode and resistor", ".model dm D(IS=2.52e-9 N=1.752)", "V1 in 0 DC 5", "R1 in d 1k", "D1 d 0 dm"],
+        "probe": "v(d)"
+      },
+      "expected": 0.6507849617305013,
+      "unit": "V",
+      "tolerance": {"abs": 0.0001},
+      "tolerance_note": "chosen here: Newton-Raphson stops when the change is below reltol*|v| + vntol twice in a row, which leaves an error of about 1e-5 V on the junction voltage, so 1e-4 V is wider than needed and still far below the 26 mV scale of the junction",
+      "source": "Shockley ideal diode equation I = Is (exp(Vd/(n Vt)) - 1) with Vt = k T / q (k = 1.380649e-23 J/K, q = 1.602176634e-19 C, T = 300.15 K, the temperature of config/sim.cfg), A. S. Sedra and K. C. Smith, Microelectronic Circuits, the diode forward characteristic; the series circuit Vs = I R + Vd has the closed form I = (n Vt / R) W((Is R / (n Vt)) exp((Vs + Is R) / (n Vt))) - Is with W the principal branch of the Lambert W function (R. M. Corless, G. H. Gonnet, D. E. G. Hare, D. J. Jeffrey and D. E. Knuth, On the Lambert W function, Advances in Computational Mathematics 5, 1996); W was evaluated by Newton iteration on ln w + w = ln x and checked against a bisection of the same equation",
+      "status": "cited"
+    },
+    {
+      "id": "ORACLE-SIM-011",
+      "title": "Diode with a 330 ohm series resistor on 3.3 V (IS 1e-14 A, n 1): voltage across the diode",
+      "area": "sim",
+      "check": "sim_op",
+      "inputs": {
+        "netlist": ["diode and resistor", ".model dm D(IS=1e-14 N=1)", "V1 in 0 DC 3.3", "R1 in d 330", "D1 d 0 dm"],
+        "probe": "v(d)"
+      },
+      "expected": 0.7084238898222512,
+      "unit": "V",
+      "tolerance": {"abs": 0.0001},
+      "tolerance_note": "chosen here: Newton-Raphson stops when the change is below reltol*|v| + vntol twice in a row, which leaves an error of about 1e-5 V on the junction voltage, so 1e-4 V is wider than needed and still far below the 26 mV scale of the junction",
+      "source": "Shockley ideal diode equation I = Is (exp(Vd/(n Vt)) - 1) with Vt = k T / q (k = 1.380649e-23 J/K, q = 1.602176634e-19 C, T = 300.15 K, the temperature of config/sim.cfg), A. S. Sedra and K. C. Smith, Microelectronic Circuits, the diode forward characteristic; the series circuit Vs = I R + Vd has the closed form I = (n Vt / R) W((Is R / (n Vt)) exp((Vs + Is R) / (n Vt))) - Is with W the principal branch of the Lambert W function (R. M. Corless, G. H. Gonnet, D. E. G. Hare, D. J. Jeffrey and D. E. Knuth, On the Lambert W function, Advances in Computational Mathematics 5, 1996); W was evaluated by Newton iteration on ln w + w = ln x and checked against a bisection of the same equation",
+      "status": "cited"
+    },
+    {
+      "id": "ORACLE-SIM-012",
+      "title": "LED model of the settings (IS 1e-17 A, n 2) with a 330 ohm resistor on 5 V: voltage across the LED",
+      "area": "sim",
+      "check": "sim_op",
+      "inputs": {
+        "netlist": ["led and resistor", ".model led1 LED", "V1 in 0 DC 5", "R1 in d 330", "D1 d 0 led1"],
+        "probe": "v(d)"
+      },
+      "expected": 1.7853305611484638,
+      "unit": "V",
+      "tolerance": {"abs": 0.0001},
+      "tolerance_note": "chosen here: Newton-Raphson stops when the change is below reltol*|v| + vntol twice in a row, which leaves an error of about 1e-5 V on the junction voltage, so 1e-4 V is wider than needed and still far below the 26 mV scale of the junction; the LED model is a diode whose IS and n are led_is = 1e-17 and led_n = 2 in config/sim.cfg (values chosen there, not measured on a part)",
+      "source": "Shockley ideal diode equation I = Is (exp(Vd/(n Vt)) - 1) with Vt = k T / q (k = 1.380649e-23 J/K, q = 1.602176634e-19 C, T = 300.15 K, the temperature of config/sim.cfg), A. S. Sedra and K. C. Smith, Microelectronic Circuits, the diode forward characteristic; the series circuit Vs = I R + Vd has the closed form I = (n Vt / R) W((Is R / (n Vt)) exp((Vs + Is R) / (n Vt))) - Is with W the principal branch of the Lambert W function (R. M. Corless, G. H. Gonnet, D. E. G. Hare, D. J. Jeffrey and D. E. Knuth, On the Lambert W function, Advances in Computational Mathematics 5, 1996); W was evaluated by Newton iteration on ln w + w = ln x and checked against a bisection of the same equation",
+      "status": "cited"
+    },
+    {
+      "id": "ORACLE-SIM-013",
+      "title": "Half-wave rectifier at the peak of a 5 V, 1 kHz sine (diode IS 1e-14 A, n 1, load 2.2 kohm): load voltage",
+      "area": "sim",
+      "check": "sim_tran",
+      "inputs": {
+        "netlist": ["half-wave rectifier", ".model dm D(IS=1e-14 N=1)", "V1 in 0 SIN(0 5 1k)", "D1 in out dm", "RL out 0 2.2k"],
+        "probe": "v(out)",
+        "tstep": 1e-05,
+        "tstop": 0.00025,
+        "at": 0.00025
+      },
+      "expected": 4.327384107939614,
+      "unit": "V",
+      "tolerance": {"abs": 0.0001},
+      "tolerance_note": "chosen here: Newton-Raphson stops when the change is below reltol*|v| + vntol twice in a row, which leaves an error of about 1e-5 V on the junction voltage, so 1e-4 V is wider than needed and still far below the 26 mV scale of the junction; the circuit has no reactive element, so every time step is the static circuit at the source voltage of that instant",
+      "source": "Shockley ideal diode equation I = Is (exp(Vd/(n Vt)) - 1) with Vt = k T / q (k = 1.380649e-23 J/K, q = 1.602176634e-19 C, T = 300.15 K, the temperature of config/sim.cfg), A. S. Sedra and K. C. Smith, Microelectronic Circuits, the diode forward characteristic; the series circuit Vs = I R + Vd has the closed form I = (n Vt / R) W((Is R / (n Vt)) exp((Vs + Is R) / (n Vt))) - Is with W the principal branch of the Lambert W function (R. M. Corless, G. H. Gonnet, D. E. G. Hare, D. J. Jeffrey and D. E. Knuth, On the Lambert W function, Advances in Computational Mathematics 5, 1996); W was evaluated by Newton iteration on ln w + w = ln x and checked against a bisection of the same equation; at t = 0.25 ms the source is at its 5 V peak and the load voltage is I R",
+      "status": "cited"
+    },
+    {
+      "id": "ORACLE-SIM-014",
+      "title": "Half-wave rectifier in the negative half cycle (t = 0.75 ms): the diode blocks and the load voltage is zero",
+      "area": "sim",
+      "check": "sim_tran",
+      "inputs": {
+        "netlist": ["half-wave rectifier", ".model dm D(IS=1e-14 N=1)", "V1 in 0 SIN(0 5 1k)", "D1 in out dm", "RL out 0 2.2k"],
+        "probe": "v(out)",
+        "tstep": 1e-05,
+        "tstop": 0.00075,
+        "at": 0.00075
+      },
+      "expected": 0.0,
+      "unit": "V",
+      "tolerance": {"abs": 1e-06},
+      "tolerance_note": "chosen here: the reverse current is IS plus the conductance gmin (1e-12 S) times 5 V, about 5e-12 A, which is 1.1e-8 V across 2.2 kohm",
+      "source": "A. S. Sedra and K. C. Smith, Microelectronic Circuits, the half-wave rectifier: the diode does not conduct while the source is negative, so the load carries no current",
+      "status": "cited"
+    },
+    {
+      "id": "ORACLE-SIM-015",
+      "title": "NMOS inverter with a 1 kohm load, input 0.5 V (below the threshold of 1 V): the transistor is cut off",
+      "area": "sim",
+      "check": "sim_dc",
+      "inputs": {
+        "netlist": ["nmos inverter with a resistive load", ".model nm NMOS(VTO=1 KP=2e-5 W=1e-3 L=1e-5)", "VDD vdd 0 DC 5", "VIN in 0 DC 0", "RD vdd out 1k", "M1 out in 0 0 nm"],
+        "source": "VIN",
+        "start": 0.0,
+        "stop": 5.0,
+        "step": 0.5,
+        "probe": "v(out)",
+        "at": 0.5
+      },
+      "expected": 5.0,
+      "unit": "V",
+      "tolerance": {"abs": 0.0001},
+      "tolerance_note": "chosen here: the square-law equations are solved by Newton-Raphson, which stops with an error of about 1e-5 V on a 4 V node, so 1e-4 V is wider than needed",
+      "source": "H. Shichman and D. A. Hodges, Modeling and simulation of insulated-gate field-effect transistor switching circuits, IEEE Journal of Solid-State Circuits 3(3), 1968, and A. S. Sedra and K. C. Smith, Microelectronic Circuits, the NMOS inverter with a resistive load; with beta = KP W/L = 2e-3 A/V^2, Vov = Vin - VTO and no channel-length modulation, cut-off for Vov <= 0: no drain current, so the output is the supply, 5 V",
+      "status": "cited"
+    },
+    {
+      "id": "ORACLE-SIM-016",
+      "title": "NMOS inverter with a 1 kohm load, input 2 V: saturation",
+      "area": "sim",
+      "check": "sim_dc",
+      "inputs": {
+        "netlist": ["nmos inverter with a resistive load", ".model nm NMOS(VTO=1 KP=2e-5 W=1e-3 L=1e-5)", "VDD vdd 0 DC 5", "VIN in 0 DC 0", "RD vdd out 1k", "M1 out in 0 0 nm"],
+        "source": "VIN",
+        "start": 0.0,
+        "stop": 5.0,
+        "step": 0.5,
+        "probe": "v(out)",
+        "at": 2.0
+      },
+      "expected": 4.0,
+      "unit": "V",
+      "tolerance": {"abs": 0.0001},
+      "tolerance_note": "chosen here: the square-law equations are solved by Newton-Raphson, which stops with an error of about 1e-5 V on a 4 V node, so 1e-4 V is wider than needed",
+      "source": "H. Shichman and D. A. Hodges, Modeling and simulation of insulated-gate field-effect transistor switching circuits, IEEE Journal of Solid-State Circuits 3(3), 1968, and A. S. Sedra and K. C. Smith, Microelectronic Circuits, the NMOS inverter with a resistive load; with beta = KP W/L = 2e-3 A/V^2, Vov = Vin - VTO and no channel-length modulation, saturation (Vds >= Vov): Id = beta Vov^2 / 2 = 1 mA, Vout = 5 - 1 kohm x 1 mA = 4 V, which is above Vov = 1 V",
+      "status": "cited"
+    },
+    {
+      "id": "ORACLE-SIM-017",
+      "title": "NMOS inverter with a 1 kohm load, input 2.5 V: saturation",
+      "area": "sim",
+      "check": "sim_dc",
+      "inputs": {
+        "netlist": ["nmos inverter with a resistive load", ".model nm NMOS(VTO=1 KP=2e-5 W=1e-3 L=1e-5)", "VDD vdd 0 DC 5", "VIN in 0 DC 0", "RD vdd out 1k", "M1 out in 0 0 nm"],
+        "source": "VIN",
+        "start": 0.0,
+        "stop": 5.0,
+        "step": 0.5,
+        "probe": "v(out)",
+        "at": 2.5
+      },
+      "expected": 2.75,
+      "unit": "V",
+      "tolerance": {"abs": 0.0001},
+      "tolerance_note": "chosen here: the square-law equations are solved by Newton-Raphson, which stops with an error of about 1e-5 V on a 4 V node, so 1e-4 V is wider than needed",
+      "source": "H. Shichman and D. A. Hodges, Modeling and simulation of insulated-gate field-effect transistor switching circuits, IEEE Journal of Solid-State Circuits 3(3), 1968, and A. S. Sedra and K. C. Smith, Microelectronic Circuits, the NMOS inverter with a resistive load; with beta = KP W/L = 2e-3 A/V^2, Vov = Vin - VTO and no channel-length modulation, saturation: Id = beta Vov^2 / 2 = 2.25 mA, Vout = 5 - 2.25 = 2.75 V, which is above Vov = 1.5 V",
+      "status": "cited"
+    },
+    {
+      "id": "ORACLE-SIM-018",
+      "title": "NMOS inverter with a 1 kohm load, input 3 V: triode",
+      "area": "sim",
+      "check": "sim_dc",
+      "inputs": {
+        "netlist": ["nmos inverter with a resistive load", ".model nm NMOS(VTO=1 KP=2e-5 W=1e-3 L=1e-5)", "VDD vdd 0 DC 5", "VIN in 0 DC 0", "RD vdd out 1k", "M1 out in 0 0 nm"],
+        "source": "VIN",
+        "start": 0.0,
+        "stop": 5.0,
+        "step": 0.5,
+        "probe": "v(out)",
+        "at": 3.0
+      },
+      "expected": 1.381966011250105,
+      "unit": "V",
+      "tolerance": {"abs": 0.0001},
+      "tolerance_note": "chosen here: the square-law equations are solved by Newton-Raphson, which stops with an error of about 1e-5 V on a 4 V node, so 1e-4 V is wider than needed",
+      "source": "H. Shichman and D. A. Hodges, Modeling and simulation of insulated-gate field-effect transistor switching circuits, IEEE Journal of Solid-State Circuits 3(3), 1968, and A. S. Sedra and K. C. Smith, Microelectronic Circuits, the NMOS inverter with a resistive load; with beta = KP W/L = 2e-3 A/V^2, Vov = Vin - VTO and no channel-length modulation, triode (Vds < Vov): Id = beta (Vov Vds - Vds^2 / 2) with Vds = 5 - 1 kohm Id gives Vds^2 - 5 Vds + 5 = 0, so Vds = (5 - sqrt(5)) / 2, below Vov = 2 V",
+      "status": "cited"
+    },
+    {
+      "id": "ORACLE-SIM-019",
+      "title": "NMOS inverter with a 1 kohm load, input 5 V: triode",
+      "area": "sim",
+      "check": "sim_dc",
+      "inputs": {
+        "netlist": ["nmos inverter with a resistive load", ".model nm NMOS(VTO=1 KP=2e-5 W=1e-3 L=1e-5)", "VDD vdd 0 DC 5", "VIN in 0 DC 0", "RD vdd out 1k", "M1 out in 0 0 nm"],
+        "source": "VIN",
+        "start": 0.0,
+        "stop": 5.0,
+        "step": 0.5,
+        "probe": "v(out)",
+        "at": 5.0
+      },
+      "expected": 0.594875162046673,
+      "unit": "V",
+      "tolerance": {"abs": 0.0001},
+      "tolerance_note": "chosen here: the square-law equations are solved by Newton-Raphson, which stops with an error of about 1e-5 V on a 4 V node, so 1e-4 V is wider than needed",
+      "source": "H. Shichman and D. A. Hodges, Modeling and simulation of insulated-gate field-effect transistor switching circuits, IEEE Journal of Solid-State Circuits 3(3), 1968, and A. S. Sedra and K. C. Smith, Microelectronic Circuits, the NMOS inverter with a resistive load; with beta = KP W/L = 2e-3 A/V^2, Vov = Vin - VTO and no channel-length modulation, triode: Vds^2 - 9 Vds + 5 = 0, so Vds = (9 - sqrt(61)) / 2, below Vov = 4 V",
+      "status": "cited"
+    },
+    {
+      "id": "ORACLE-SIM-020",
+      "title": "Inverting amplifier with 1 kohm and 2 kohm and an op-amp of gain 1e6, input 1 V: output",
+      "area": "sim",
+      "check": "sim_op",
+      "inputs": {
+        "netlist": ["inverting amplifier", ".model oa OPAMP(GAIN=1e6 GBW=0 ROUT=1)", "VIN in 0 DC 1", "R1 in inn 1k", "R2 inn out 2k", "U1 0 inn out oa"],
+        "probe": "v(out)"
+      },
+      "expected": -2.0,
+      "unit": "V",
+      "tolerance": {"abs": 2e-05},
+      "tolerance_note": "chosen here: the ideal gain is -R2/R1; the finite open-loop gain 1e6 of the model lowers it by the factor 1 + (1 + R2/R1)/A = 1 + 3e-6, which is 6e-6 V at 2 V, so 2e-5 V is wider than that error",
+      "source": "A. S. Sedra and K. C. Smith, Microelectronic Circuits, the inverting configuration of an ideal op-amp: Vout/Vin = -R2/R1",
+      "status": "cited"
+    },
+    {
+      "id": "ORACLE-SIM-021",
+      "title": "Voltage-controlled switch (on 100 ohm) closed by a 5 V control into a 900 ohm load on 5 V: load voltage",
+      "area": "sim",
+      "check": "sim_op",
+      "inputs": {
+        "netlist": ["switch and load", ".model sm SW(VT=2.5 VH=0.1 RON=100 ROFF=1e9)", "V1 in 0 DC 5", "VC c 0 DC 5", "S1 in out c 0 sm", "RL out 0 900"],
+        "probe": "v(out)"
+      },
+      "expected": 4.5,
+      "unit": "V",
+      "tolerance": {"abs": 1e-06},
+      "tolerance_note": "chosen here: the control is 2.5 V above the threshold with a transition half width of 0.1 V, so the conductance is within 1e-21 of its on value and the divider is exact up to rounding",
+      "source": "voltage divider of the on resistance and the load (J. W. Nilsson and S. A. Riedel, Electric Circuits): Vout = 5 x 900/(900 + 100)",
+      "status": "cited"
+    },
+    {
+      "id": "ORACLE-SIM-022",
+      "title": "Voltage-controlled switch (off 1e9 ohm) opened by a 0 V control into a 900 ohm load on 5 V: load voltage",
+      "area": "sim",
+      "check": "sim_op",
+      "inputs": {
+        "netlist": ["switch and load", ".model sm SW(VT=2.5 VH=0.1 RON=100 ROFF=1e9)", "V1 in 0 DC 5", "VC c 0 DC 0", "S1 in out c 0 sm", "RL out 0 900"],
+        "probe": "v(out)"
+      },
+      "expected": 4.499995950003645e-06,
+      "unit": "V",
+      "tolerance": {"abs": 1e-09},
+      "tolerance_note": "chosen here: the control is 2.5 V below the threshold, so the conductance is within 1e-21 of its off value and the divider is exact up to rounding",
+      "source": "voltage divider of the off resistance and the load (J. W. Nilsson and S. A. Riedel, Electric Circuits): Vout = 5 x 900/(900 + 1e9)",
+      "status": "cited"
     }
   ]
 }

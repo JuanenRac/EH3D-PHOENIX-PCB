@@ -125,6 +125,7 @@ pub const CHECKS: &[&str] = &[
     "rf_wavelength_m",
     "rules_clearance",
     "sim_ac",
+    "sim_dc",
     "sim_op",
     "sim_tran",
     "stripline_z0",
