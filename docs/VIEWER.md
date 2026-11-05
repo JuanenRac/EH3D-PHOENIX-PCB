@@ -55,6 +55,10 @@ The select tool, the highlight of a net and the measure work on a schematic as b
 
 The button *Edit schematic* of the left panel starts the schematic editor (`docs/SCHEMATIC_EDIT.md`): the tools to draw wires, put net labels, power ports and bus labels, place symbols from a palette, select by rectangle, drag with the wires that follow the pins, copy and paste, turn and mirror, set values and references, with undo and redo and the electrical check after every change. After every change the schematic is handed to the workspace, so the findings, the transfer to the board and saving work on what was edited.
 
+### Editing a library
+
+A `.lbr` file given to the window, or the button *Library editor*, starts the library mode (`docs/LIBRARY_EDIT.md`): lists of footprints, symbols and device sets, a drawing board with a fine grid and snapping, tools to place pads, holes, lines, arcs, circles, texts and pins, a measure, the properties of the item selected, the openings of the mask and the paste, the gates, variants and connections of a device set, the findings of the check of the library, the footprint generator and the plan to replace an item by its master. Every edit is a reversible operation of `eh3d-phoenix-libedit`, and the library is saved only as a new file that is read back and compared. The state is tested without a screen (`library_session`); the window (`library_gui`) has never been seen on a screen.
+
 ## Saving
 
 A document is never saved over the file it was read from. The name to save to is proposed beside the input (`<name>_edited.json`); a name that is the input, even spelt another way, is refused (`PHOENIX-VIEW-011`), and so is a file that exists and that this window did not write. When the window replaces a file it saved before, a copy of the previous one is kept next to it with the ending of `backup_suffix`. A board is written as the JSON of the model, or as EAGLE XML when the name ends in `.brd` (written by the existing writer, read back by the tests of this repository, never opened in EAGLE); a schematic is written as the JSON of the model. The board that a schematic is compared with is saved with its own name box.
@@ -92,6 +96,8 @@ The crate `eh3d-phoenix-viewer` holds all of the logic, with no dependency on eg
 | `settings`, `codes`, `msg`, `editmsg` | The settings file, the codes `PHOENIX-VIEW-<NNN>` and the texts in eight languages (`editmsg` those of the editing) |
 | `schematic_text`, `schematic_sync` | The texts of the schematic editor in eight languages and the hand-over of the edited schematic to the workspace (`Workspace::replace_schematic`) |
 | `schematic_gui` (feature `gui`) | The editing mode of the window for a schematic: the panel of tools, the palette, and the canvas that draws the schematic and passes on the pointer and the keys to `eh3d-phoenix-schedit` |
+| `library_session`, `library_text` | The state of the library mode (the library with its history, the footprint or symbol on the board, the tool, the grid and the snap, the selection and the drag, the measure, the checks, the plan to replace by a master, the saving as a new file) and its texts in eight languages |
+| `library_gui` (feature `gui`) | The library mode of the window: the lists, the drawing board, the properties, the device sets, the findings, the generator and the plan |
 | `gui` (feature `gui`) | The window: egui on eframe with the theme Forge, the icon of the program and a canvas painted by `Painter` |
 
 The window only passes on what the person does (a pixel under the pointer, a press, a drag, a release, a click, a turn of the wheel, a key) and draws what the state says: the primitives, the ratsnest, the lines of what is in progress, the ring of a finding and the panels. Every rule of editing is in `workspace` and `session`, so replacing egui means replacing `gui.rs`.
@@ -138,6 +144,7 @@ The messages are written in the eight languages of the suite; the registry is in
 
 * The window is untested on any screen, any graphics card and any operating system; only its code is checked to build and pass the lints in CI. The tools, the drags and the panels have been tried through the state that drives them, never with a mouse.
 * Editing a board has no copy, no placing of new components, no properties and no selection of several items; moving a component does not move its tracks; a vertex is moved one at a time; there is no push and shove, no arcs in the tracks the router makes and no routing around zones (`docs/ROUTE.md`).
+* The library mode is a mode of the window too (`docs/LIBRARY_EDIT.md`) with the same limits: it has never been used with a mouse, and it opens libraries only as a whole, with no copy of an item, no selection of several items and no drawing of the polygons that the model keeps as XML.
 * The schematic editor is a mode of the window (`docs/SCHEMATIC_EDIT.md`) and has the same limits: it has never been used with a mouse, a part is drawn as the box around its pins and the window keeps the steps of the editor apart from the annotation steps of the top bar.
 * A drawn grid and a view of the board from the bottom are not done; the grid only snaps the positions of edits. There is no drawing of the symbols of a schematic beyond the box around the pins, and no text from the stroke font of the board (the window uses the font of egui).
 * The drawing on a screen and the time of an edit on a large board were not measured.

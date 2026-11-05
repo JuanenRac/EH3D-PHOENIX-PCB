@@ -51,7 +51,7 @@ The weights are `weight_pads`, `weight_outline` and `weight_silk` for footprints
 
 ## The plan and what applying it will need
 
-The plan is not applied by this program. Applying it (replacing the items and relinking the device sets and the placed parts, with a backup) is a later step listed in `docs/NOT_YET.md`. The plan carries, under `preconditions`, the checks that step has to pass before a file is written:
+The plan is not applied by this program. The library editor (`docs/LIBRARY_EDIT.md`) reads the plan for one library and, only when the owner confirms a step, replaces one footprint or symbol of that library by its master; relinking the device sets and the placed parts of boards and schematics, with a backup, is a later step listed in `docs/NOT_YET.md`. The plan carries, under `preconditions`, the checks that step has to pass before a file is written:
 
 * `confirmed`: the owner confirmed each group by its id;
 * `backup`: every file to change was copied first and the SHA-256 of the copy equals the original;

@@ -4,6 +4,10 @@ Good ideas that are not in the first version. Writing them here avoids implement
 
 | Idea | Why not yet | Revisit when |
 |---|---|---|
+| Copying a footprint, symbol or device set, moving several items at once and editing a property of many items in the library editor | The editor works on one item at a time; a copy is made by creating and adding | after the window has been used on real libraries |
+| Editing polygons, dimensions and frames of a library, and the binary EAGLE libraries | The editor keeps the items it cannot read exactly as the XML they came in and does not read the binary files | when the reader of the binary files exists |
+| Footprint generators by density level, more families, and values checked against the standard and the datasheets | The values in `config/footprints.cfg` were entered by hand and are marked as a prototype | when the standard and datasheets of the parts are compared with the generated footprints |
+| Replacing device sets by their master and relinking boards and schematics to the replaced items | The editor replaces one footprint or symbol of one library after confirmation; keeping every placed part where it is needs the boards | after the boards are read together with the libraries |
 | Differential pairs, length tuning and advanced routing | Basic routing comes first | after the PCB editor works |
 | Arcs in the tracks the router makes, and avoiding copper zones | The router makes pieces at 0, 45 and 90 degrees and the rules refuse a track through a zone of another net, but the search does not route around it | when the editor draws zones |
 | Push and shove, and routing several tracks at once | The router never moves other copper | after the single track is measured on real boards |

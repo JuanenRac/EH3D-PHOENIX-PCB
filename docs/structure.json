@@ -234,6 +234,19 @@
           }
         },
         {
+          "name": "LIBRARY_EDIT.md",
+          "desc": {
+            "en": "the library editor: edits, checks, generators",
+            "es": "el editor de bibliotecas: ediciones, pruebas, generadores",
+            "de": "der Bibliothekseditor: Änderungen, Prüfungen, Generatoren",
+            "fr": "l'éditeur de bibliothèques : édition, contrôles, générateurs",
+            "it": "l'editor di librerie: modifiche, controlli, generatori",
+            "ja": "ライブラリエディタ：編集、チェック、ジェネレーター",
+            "zh": "库编辑器：编辑、检查、生成器",
+            "pt": "o editor de bibliotecas: edições, verificações, geradores"
+          }
+        },
+        {
           "name": "SIM.md",
           "desc": {
             "en": "circuit simulation: netlist, analyses, schematic export",
