@@ -18,6 +18,12 @@ path = "src/main.rs"
 [dependencies]
 eh3d-phoenix-corpus = { path = "../eh3d-phoenix-corpus" }
 eh3d-phoenix-eagle = { path = "../eh3d-phoenix-eagle" }
+eh3d-phoenix-eagle-board = { path = "../eh3d-phoenix-eagle-board" }
+eh3d-phoenix-model = { path = "../eh3d-phoenix-model" }
+eh3d-phoenix-rules = { path = "../eh3d-phoenix-rules" }
 
 [dev-dependencies]
+eh3d-phoenix-board = { path = "../eh3d-phoenix-board" }
+eh3d-phoenix-schematic = { path = "../eh3d-phoenix-schematic" }
+serde_json.workspace = true
 tempfile.workspace = true

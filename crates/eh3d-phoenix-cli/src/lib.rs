@@ -1,9 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! The command line of EH3D-PHOENIX-PCB. It has two commands, `inventory` and `eagle-rate`.
+//! The command line of EH3D-PHOENIX-PCB. It has four commands: `inventory`, `eagle-rate`, `check` and
+//! `connectivity`.
 //!
-//! Exit codes: 0 done, 2 the arguments or the input are unusable.
+//! Exit codes: 0 done, 2 the arguments or the input are unusable; `check` and `connectivity` also
+//! exit 1 when an error is proven.
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
+
+mod check;
 
 use eh3d_phoenix_corpus::{inventory, InventoryConfig};
 use std::io::Write;
@@ -20,6 +24,13 @@ phoenix eagle-rate <folder of originals> <new folder for the copies>
   eagle-rate  copy the .lbr, .brd and .sch files of a folder (the originals are only read, each copy
               is checked by SHA-256) and measure how many the EAGLE reader reads: counts, versions
               and diagnostic codes only, never a name or a value
+
+phoenix check [--rules FILE] [--json] [--lang xx] <board.brd>
+phoenix connectivity [--rules FILE] [--json] [--lang xx] <schematic.sch> <board.brd>
+
+  check         run the design rules of FILE (JSON, phoenix-rules/1) or of the board on an EAGLE board
+  connectivity  shorts and unrouted nets of the board, and the board against the schematic
+                (exit 1 when an error is proven; the report keeps confirmed and inconclusive apart)
 ";
 
 /// Run the command line with the arguments that follow the program name. Returns the exit code.
@@ -44,6 +55,12 @@ pub fn run(args: &[String], out: &mut dyn Write, err: &mut dyn Write) -> i32 {
         args.drain(..2);
     }
     let rest: Vec<&str> = args.iter().map(String::as_str).collect();
+    if let Some((&"check", tail)) = rest.split_first() {
+        return check::check(tail, out, err);
+    }
+    if let Some((&"connectivity", tail)) = rest.split_first() {
+        return check::connectivity(tail, out, err);
+    }
     if let ["eagle-rate", source, copies] = rest.as_slice() {
         return eagle_rate(Path::new(source), Path::new(copies), out, err);
     }

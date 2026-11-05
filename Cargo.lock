@@ -211,8 +211,14 @@ dependencies = [
 name = "eh3d-phoenix-cli"
 version = "0.0.2"
 dependencies = [
+ "eh3d-phoenix-board",
  "eh3d-phoenix-corpus",
  "eh3d-phoenix-eagle",
+ "eh3d-phoenix-eagle-board",
+ "eh3d-phoenix-model",
+ "eh3d-phoenix-rules",
+ "eh3d-phoenix-schematic",
+ "serde_json",
  "tempfile",
 ]
 
