@@ -456,6 +456,49 @@ mod tests {
     }
 
     #[test]
+    fn the_types_of_the_pins_come_back_through_the_file_and_untyped_pins_stay_untyped() {
+        let (board, mut s) = fixture();
+        let pins: Vec<Id> = s
+            .symbols
+            .values()
+            .flat_map(|sy| sy.pins.keys().copied())
+            .collect();
+        assert!(pins.len() >= 2);
+        // the first pin gets a type, the others do not
+        s.pin_kinds
+            .insert(pins[0], eh3d_phoenix_schematic::PinKind::PowerOut);
+        let text = write_schematic(&board, &s).text;
+        let footprints: BTreeMap<String, Id> = board
+            .footprints
+            .iter()
+            .map(|(fid, f)| (f.name.clone(), *fid))
+            .collect();
+        let mut n = 2000u16;
+        let mut ids = move || {
+            n += 1;
+            id(n)
+        };
+        let read = crate::read_schematic(&text, &footprints, &mut ids).unwrap();
+        assert_eq!(read.schematic.pin_kinds.len(), 1);
+        let kind = read.schematic.pin_kinds.values().next().copied();
+        assert_eq!(kind, Some(eh3d_phoenix_schematic::PinKind::PowerOut));
+        let typed: Vec<&str> = read
+            .schematic
+            .symbols
+            .values()
+            .flat_map(|sy| sy.pins.iter())
+            .filter(|(pid, _)| read.schematic.pin_kinds.contains_key(*pid))
+            .map(|(_, p)| p.number.as_str())
+            .collect();
+        let original = s
+            .symbols
+            .values()
+            .flat_map(|sy| sy.pins.get(&pins[0]))
+            .next();
+        assert_eq!(typed, [original.map(|p| p.number.as_str()).unwrap_or("")]);
+    }
+
+    #[test]
     fn the_schematic_comes_back_identical_through_the_file() {
         let (board, s) = fixture();
         let text = write_schematic(&board, &s).text;

@@ -15,7 +15,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use eh3d_diagnostic::{Diagnostic, Severity};
 use eh3d_phoenix_board::{Board, Id};
 use eh3d_phoenix_eagle::{write_document, Element};
-use eh3d_phoenix_schematic::Schematic;
+use eh3d_phoenix_schematic::{PinKind, Schematic};
 
 use crate::codes::{self, ITEM_SIMPLIFIED};
 use crate::decimal;
@@ -63,6 +63,21 @@ pub(crate) fn symbol_names(
     names
 }
 
+/// The `direction` of an EAGLE pin for an electrical type.
+fn direction_of(kind: PinKind) -> &'static str {
+    match kind {
+        PinKind::Input => "in",
+        PinKind::Output => "out",
+        PinKind::Bidirectional => "io",
+        PinKind::TriState => "hiz",
+        PinKind::Passive => "pas",
+        PinKind::PowerIn => "pwr",
+        PinKind::PowerOut => "sup",
+        PinKind::OpenCollector => "oc",
+        PinKind::NotConnected => "nc",
+    }
+}
+
 /// Writes the footprints of `board` and the symbols of `schematic` as an EAGLE library.
 pub fn write_library(board: &Board, schematic: &Schematic) -> Written {
     let (numbers, mut diagnostics) = assign(board);
@@ -77,7 +92,7 @@ pub fn write_library(board: &Board, schematic: &Schematic) -> Written {
     let mut symbols = Vec::new();
     for (id, symbol) in &schematic.symbols {
         let mut pins = Vec::new();
-        for pin in symbol.pins.values() {
+        for (pin_id, pin) in &symbol.pins {
             let at = pin.at.map(|p| (p.x_nm.get(), p.y_nm.get()));
             if at.is_none() {
                 diagnostics.push(codes::diagnostic(
@@ -90,17 +105,18 @@ pub fn write_library(board: &Board, schematic: &Schematic) -> Written {
                 ));
             }
             let (x, y) = at.unwrap_or((0, 0));
-            pins.push(el(
-                "pin",
-                vec![
-                    ("name", pin.number.clone()),
-                    ("x", decimal(x)),
-                    ("y", decimal(y)),
-                    ("length", "short".to_owned()),
-                    ("direction", "pas".to_owned()),
-                ],
-                Vec::new(),
-            ));
+            let mut attrs = vec![
+                ("name", pin.number.clone()),
+                ("x", decimal(x)),
+                ("y", decimal(y)),
+                ("length", "short".to_owned()),
+            ];
+            // a pin whose type is not known is written without a direction, so that reading the
+            // file back does not invent one
+            if let Some(kind) = schematic.pin_kinds.get(pin_id) {
+                attrs.push(("direction", direction_of(*kind).to_owned()));
+            }
+            pins.push(el("pin", attrs, Vec::new()));
         }
         symbols.push(el("symbol", vec![("name", symbol_of[id].clone())], pins));
     }

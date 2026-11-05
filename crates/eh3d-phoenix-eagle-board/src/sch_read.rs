@@ -14,7 +14,7 @@ use eh3d_phoenix_board::Id;
 use eh3d_phoenix_eagle::xml::{parse, Element, Limits};
 use eh3d_phoenix_model::{Nm, Point};
 use eh3d_phoenix_schematic::{
-    NetPin, Part, Pin, Placement, Schematic, SchematicNet, Sheet, Symbol, Wire,
+    NetPin, Part, Pin, PinKind, Placement, Schematic, SchematicNet, Sheet, Symbol, Wire,
 };
 
 use crate::codes::{self, NOT_READ, UNREADABLE};
@@ -63,6 +63,9 @@ pub fn read_schematic(
                 for pin in symbol.children_named("pin") {
                     let number = pin.attr("name").unwrap_or("").to_owned();
                     let id = new_id();
+                    if let Some(kind) = pin.attr("direction").and_then(pin_kind) {
+                        s.pin_kinds.insert(id, kind);
+                    }
                     pins.insert(
                         id,
                         Pin {
@@ -229,6 +232,23 @@ pub fn read_schematic(
     })
 }
 
+/// The electrical type of a pin from the `direction` of an EAGLE pin (`in`, `out`, `io`, `pas`,
+/// `pwr`, `sup`, `oc`, `hiz`, `nc`); `None` for a direction this reader does not know.
+fn pin_kind(direction: &str) -> Option<PinKind> {
+    match direction {
+        "in" => Some(PinKind::Input),
+        "out" => Some(PinKind::Output),
+        "io" => Some(PinKind::Bidirectional),
+        "pas" => Some(PinKind::Passive),
+        "pwr" => Some(PinKind::PowerIn),
+        "sup" => Some(PinKind::PowerOut),
+        "oc" => Some(PinKind::OpenCollector),
+        "hiz" => Some(PinKind::TriState),
+        "nc" => Some(PinKind::NotConnected),
+        _ => None,
+    }
+}
+
 /// Ends the run of wire pieces: two or more points make a wire.
 fn flush_run(run: &mut Vec<Point>, sheet: Id, s: &mut Schematic, new_id: &mut dyn FnMut() -> Id) {
     if run.len() >= 2 {
@@ -360,4 +380,59 @@ pub fn schematic_signature(s: &Schematic) -> Vec<String> {
     }
     lines.sort();
     lines
+}
+
+#[cfg(test)]
+mod direction_tests {
+    use super::*;
+    use eh3d_phoenix_model::ObjectId;
+
+    #[test]
+    fn the_direction_of_an_eagle_pin_becomes_its_electrical_type() {
+        let text = r#"<eagle version="9.6.2"><drawing><schematic><libraries><library name="l"><symbols>
+            <symbol name="S">
+              <pin name="1" x="0" y="0" direction="in"/>
+              <pin name="2" x="0" y="0" direction="pwr"/>
+              <pin name="3" direction="nc"/>
+              <pin name="4" direction="sup"/>
+              <pin name="5" direction="weird"/>
+              <pin name="6"/>
+              <pin name="7" direction="oc"/>
+              <pin name="8" direction="hiz"/>
+              <pin name="9" direction="io"/>
+              <pin name="10" direction="out"/>
+              <pin name="11" direction="pas"/>
+            </symbol></symbols></library></libraries></schematic></drawing></eagle>"#;
+        let mut n: u16 = 0;
+        let mut new_id = || {
+            n += 1;
+            ObjectId::from_parts(1_700_000_000_000, n, u64::from(n)).unwrap()
+        };
+        let read = read_schematic(text, &BTreeMap::new(), &mut new_id).unwrap();
+        let s = read.schematic;
+        let symbol = s.symbols.values().next().unwrap();
+        let mut kinds: Vec<(String, PinKind)> = symbol
+            .pins
+            .iter()
+            .filter_map(|(id, pin)| Some((pin.number.clone(), *s.pin_kinds.get(id)?)))
+            .collect();
+        kinds.sort();
+        assert_eq!(
+            kinds,
+            [
+                ("1".to_owned(), PinKind::Input),
+                ("10".to_owned(), PinKind::Output),
+                ("11".to_owned(), PinKind::Passive),
+                ("2".to_owned(), PinKind::PowerIn),
+                ("3".to_owned(), PinKind::NotConnected),
+                ("4".to_owned(), PinKind::PowerOut),
+                ("7".to_owned(), PinKind::OpenCollector),
+                ("8".to_owned(), PinKind::TriState),
+                ("9".to_owned(), PinKind::Bidirectional),
+            ]
+        );
+        // a pin with an unknown direction or none has no type, and nothing else is invented
+        assert_eq!(symbol.pins.len(), 11);
+        assert_eq!(s.pin_kinds.len(), 9);
+    }
 }
