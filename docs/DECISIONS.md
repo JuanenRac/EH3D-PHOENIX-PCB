@@ -54,7 +54,7 @@ No geometry kernel or constraint solver has been chosen. Candidates are compared
 
 State: **proposed**.
 
-The stack is decided after a one-week prototype measured on small, medium and large reference boards on the author's machine; targets are set after measuring, and a frame rate is only an orientation. The criteria are dense tool interfaces, performance on an integrated GPU, Linux on ARM support, accessibility (keyboard navigation, no colour-only signalling) and eight-language text. The rule is already fixed: the interface talks to the engine only through model operations, and no engineering logic lives in the interface.
+The stack is decided after a one-week prototype measured on small, medium and large reference boards on the author's machine; targets are set after measuring, and a frame rate is only an orientation. The criteria are dense tool interfaces, performance on an integrated GPU, Linux on ARM support, accessibility (keyboard navigation, no colour-only signalling) and eight-language text. The rule is already fixed: the interface talks to the engine only through model operations, and no engineering logic lives in the interface. A first, provisional choice is written in `docs/adr/0009-first-interface-stack.md`: egui on eframe with a canvas of our own and all of the logic kept outside egui; it is accepted or replaced after the measurements on a real screen that the record lists.
 
 ## Imported scripts are disabled by default
 

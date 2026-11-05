@@ -42,7 +42,7 @@ Gate: The rate of identical connectivity does not drop; each failure is classifi
 
 ## F6. PCB viewer and editor
 
-A short interface prototype and a final stack decision, then viewer, editing, routing (45 degree tracks and arcs, vias, widths per class, live checks, ratsnest, zones) and a remote auto-routing task using an external router. The application registers as a module of the suite launcher and opens project files from the command line.
+A short interface prototype and a final stack decision (a read-only viewer prototype exists, `docs/VIEWER.md`, and its stack is only provisional, `docs/adr/0009-first-interface-stack.md`), then viewer, editing, routing (45 degree tracks and arcs, vias, widths per class, live checks, ratsnest, zones) and a remote auto-routing task using an external router. The application registers as a module of the suite launcher and opens project files from the command line.
 
 Gate: A corpus board is modified and saved, opens in the reference tool without warnings and its rule check agrees; fluidity is measured with small, medium and large boards; a re-routed board is milled.
 
