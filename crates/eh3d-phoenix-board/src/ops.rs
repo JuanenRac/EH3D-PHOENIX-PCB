@@ -56,6 +56,19 @@ pub enum Operation {
         /// The new rotation.
         rotation: Udeg,
     },
+    /// Changes the reference designator, the value and the footprint of a component; its place,
+    /// rotation, side and link to a part of the schematic stay. A component whose pads have nets
+    /// keeps its footprint (the nets are removed first, then the footprint changes).
+    SetComponentFields {
+        /// The component.
+        id: Id,
+        /// The new reference designator.
+        refdes: String,
+        /// The new value.
+        value: String,
+        /// The new footprint, which the board must have.
+        footprint: Id,
+    },
     /// Gives a pad a net, or none.
     SetPadNet {
         /// The pad.
@@ -232,6 +245,30 @@ impl Board {
                 c.at = *at;
                 c.rotation = *rotation;
                 Ok(before)
+            }
+            Operation::SetComponentFields {
+                id,
+                refdes,
+                value,
+                footprint,
+            } => {
+                if !self.components.contains_key(id) {
+                    return Err(OpError::Missing(*id));
+                }
+                if !self.footprints.contains_key(footprint) {
+                    return Err(OpError::Dangling(*footprint));
+                }
+                let has_nets = self.pad_nets.iter().any(|p| p.component == *id);
+                let c = self.components.get_mut(id).ok_or(OpError::Missing(*id))?;
+                if c.footprint != *footprint && has_nets {
+                    return Err(OpError::InUse(*id));
+                }
+                Ok(Operation::SetComponentFields {
+                    id: *id,
+                    refdes: std::mem::replace(&mut c.refdes, refdes.clone()),
+                    value: std::mem::replace(&mut c.value, value.clone()),
+                    footprint: std::mem::replace(&mut c.footprint, *footprint),
+                })
             }
             Operation::SetPadNet { pad, net } => set_pad_net(self, *pad, *net),
             Operation::AddTrack { id, track } => {

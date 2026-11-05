@@ -277,3 +277,37 @@ fn removing_a_net_in_use_is_refused_and_a_track_needs_its_net_and_layer() {
         .apply(&Operation::AddTrack { id: g.id(), track })
         .is_err());
 }
+
+#[test]
+fn changing_the_fields_of_a_component_is_reversible_and_keeps_its_place() {
+    let mut g = Gen::new(11);
+    let mut board = g.board(4);
+    let before = board.clone();
+    let (cid, c) = board
+        .components
+        .iter()
+        .next()
+        .map(|(k, v)| (*k, v.clone()))
+        .unwrap();
+    let op = Operation::SetComponentFields {
+        id: cid,
+        refdes: "Z9".into(),
+        value: "99k".into(),
+        footprint: c.footprint,
+    };
+    let inverse = board.apply(&op).unwrap();
+    assert_eq!(board.components[&cid].refdes, "Z9");
+    assert_eq!(board.components[&cid].value, "99k");
+    assert_eq!(board.components[&cid].at, c.at);
+    board.apply(&inverse).unwrap();
+    assert_eq!(board, before);
+    // a footprint that the board does not have is refused and nothing changes
+    let bad = Operation::SetComponentFields {
+        id: cid,
+        refdes: "Q1".into(),
+        value: String::new(),
+        footprint: g.id(),
+    };
+    assert!(board.apply(&bad).is_err());
+    assert_eq!(board, before);
+}
