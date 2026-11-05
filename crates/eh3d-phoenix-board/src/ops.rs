@@ -9,7 +9,7 @@
 use eh3d_phoenix_model::{Point, Udeg};
 use serde::{Deserialize, Serialize};
 
-use crate::model::{Board, Component, Id, LayerKind, PadNet, PadRef, Track, Via};
+use crate::model::{Board, Component, Footprint, Id, LayerKind, PadNet, PadRef, Track, Via, Zone};
 use crate::silk::SilkItem;
 
 /// A change to a board.
@@ -98,6 +98,30 @@ pub enum Operation {
     /// Removes a via.
     RemoveVia {
         /// The via.
+        id: Id,
+    },
+    /// Adds a copper zone, a closed polygon of copper of one net on one layer.
+    AddZone {
+        /// The new id.
+        id: Id,
+        /// The zone.
+        zone: Zone,
+    },
+    /// Removes a zone.
+    RemoveZone {
+        /// The zone.
+        id: Id,
+    },
+    /// Adds a footprint to the library of the board; its pads name layers the board has.
+    AddFootprint {
+        /// The new id.
+        id: Id,
+        /// The footprint.
+        footprint: Footprint,
+    },
+    /// Removes a footprint that no component uses.
+    RemoveFootprint {
+        /// The footprint.
         id: Id,
     },
     /// Gives the ordered stack of copper layers, from the top of the board to the bottom.
@@ -306,6 +330,45 @@ impl Board {
             Operation::RemoveVia { id } => {
                 let via = self.vias.remove(id).ok_or(OpError::Missing(*id))?;
                 Ok(Operation::AddVia { id: *id, via })
+            }
+            Operation::AddZone { id, zone } => {
+                if self.zones.contains_key(id) {
+                    return Err(OpError::Exists(*id));
+                }
+                if !self.nets.contains_key(&zone.net) {
+                    return Err(OpError::Dangling(zone.net));
+                }
+                if !self.layers.contains_key(&zone.layer) {
+                    return Err(OpError::Dangling(zone.layer));
+                }
+                self.zones.insert(*id, zone.clone());
+                Ok(Operation::RemoveZone { id: *id })
+            }
+            Operation::RemoveZone { id } => {
+                let zone = self.zones.remove(id).ok_or(OpError::Missing(*id))?;
+                Ok(Operation::AddZone { id: *id, zone })
+            }
+            Operation::AddFootprint { id, footprint } => {
+                if self.footprints.contains_key(id) {
+                    return Err(OpError::Exists(*id));
+                }
+                for pad in footprint.pads.values() {
+                    if let Some(layer) = pad.layers.iter().find(|l| !self.layers.contains_key(*l)) {
+                        return Err(OpError::Dangling(*layer));
+                    }
+                }
+                self.footprints.insert(*id, footprint.clone());
+                Ok(Operation::RemoveFootprint { id: *id })
+            }
+            Operation::RemoveFootprint { id } => {
+                if !self.footprints.contains_key(id) {
+                    return Err(OpError::Missing(*id));
+                }
+                if self.components.values().any(|c| c.footprint == *id) {
+                    return Err(OpError::InUse(*id));
+                }
+                let footprint = self.footprints.remove(id).ok_or(OpError::Missing(*id))?;
+                Ok(Operation::AddFootprint { id: *id, footprint })
             }
             Operation::SetCopperStack { stack } => {
                 for (i, layer) in stack.iter().enumerate() {
