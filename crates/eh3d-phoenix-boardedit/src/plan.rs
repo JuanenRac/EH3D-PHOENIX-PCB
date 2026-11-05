@@ -992,7 +992,7 @@ mod tests {
         };
         let mut ids = IdSupply::new().unwrap();
         let mut op = EditOp::Route {
-            net: f.net,
+            net: f.sig,
             layer: f.top,
             points: vec![f.pt(0, 0), f.pt(4, 3)],
             shape: Some(Shape::Orthogonal),
