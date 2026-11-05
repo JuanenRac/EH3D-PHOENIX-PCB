@@ -1,0 +1,16 @@
+[package]
+name = "eh3d-phoenix-panel"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Panelization of a board (prototype): a matrix of boards with a gap, a frame, tabs with mouse bite holes or V-score lines, fiducials and tooling holes, all taken from a settings file, with the outline and the drill files of the panel written as Gerber and Excellon text"
+
+[dependencies]
+eh3d-phoenix-board = { path = "../eh3d-phoenix-board" }
+eh3d-phoenix-rules = { path = "../eh3d-phoenix-rules" }
+serde_json.workspace = true
+
+[dev-dependencies]
+eh3d-phoenix-model = { path = "../eh3d-phoenix-model" }
