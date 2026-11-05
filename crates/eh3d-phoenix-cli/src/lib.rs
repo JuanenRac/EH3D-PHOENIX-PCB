@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! The command line of EH3D-PHOENIX-PCB. It has eighteen commands, `inventory`, `eagle-rate`,
-//! `stackup`, `check`, `connectivity`, `erc`, `sync`, `export`, `rf`, `rfgen`, `kicad-read`, `sanitize`,
+//! The command line of EH3D-PHOENIX-PCB. It has nineteen commands, `inventory`, `eagle-rate`,
+//! `stackup`, `materials`, `check`, `connectivity`, `erc`, `sync`, `export`, `rf`, `rfgen`, `kicad-read`, `sanitize`,
 //! `sim`, `route`, `ratsnest`, `script`, `cam-import` and `view`.
 //!
 //! Exit codes: 0 done, 1 `stackup` could not compute one or more of the lines it was asked for,
@@ -13,6 +13,7 @@ mod check;
 mod design;
 mod export;
 mod kicad;
+mod materials;
 mod rf;
 mod rfgen;
 mod route;
@@ -38,13 +39,24 @@ phoenix eagle-rate <folder of originals> <new folder for the copies>
               is checked by SHA-256) and measure how many the EAGLE reader reads: counts, versions
               and diagnostic codes only, never a name or a value
 
-phoenix stackup <job.json> --freq-ghz <GHz> [--settings FILE] [--lang xx] [--json]
+phoenix stackup <job.json> --freq-ghz <GHz> [--material ID ...] [--settings FILE] [--lang xx] [--json]
 
   stackup     compute the transmission lines of a stack-up (microstrip, stripline, coplanar
               waveguide, coupled pairs): impedance, effective permittivity, losses, delay and
               guided wavelength at a frequency, or the track width for a target impedance; the
-              job file holds the layers, the materials and the lines; a prototype estimate, not
-              a simulation; --lang is one of en, es, de, fr, it, ja, zh, pt
+              job file holds the layers, the materials and the lines; --material adds a material
+              of the database (for example isola/370hr or rogers/ro4350b) that the layers name
+              by its identifier, its Dk and Df taken from the published points; a prototype
+              estimate, not a simulation; --lang is one of en, es, de, fr, it, ja, zh, pt
+
+phoenix materials list [--manufacturer NAME] [--kind KIND] [--min-tg C] [--min-dk X] [--max-dk X]
+                       [--min-df X] [--max-df X] [--at-ghz F] [--phoenix] [--json]
+phoenix materials show <id> [--at-ghz F] [--json]
+
+  materials   the board materials database of the suite, every value as its datasheet publishes
+              it: list filters by manufacturer, kind, glass transition, Dk and Df (at a
+              frequency) and, with --phoenix, keeps the materials that serve the design tool;
+              show prints one record (run `phoenix materials` alone for the kinds)
 
 phoenix check [--rules FILE] [--json] [--lang xx] <board.brd>
 phoenix connectivity [--rules FILE] [--json] [--lang xx] <schematic.sch> <board.brd>
@@ -162,6 +174,9 @@ pub fn run(args: &[String], out: &mut dyn Write, err: &mut dyn Write) -> i32 {
     if let Some((&"stackup", tail)) = rest.split_first() {
         return stackup_command(tail, out, err);
     }
+    if let Some((&"materials", tail)) = rest.split_first() {
+        return materials::materials_command(tail, out, err);
+    }
     if let Some((&"check", tail)) = rest.split_first() {
         return check::check(tail, out, err);
     }
@@ -255,10 +270,18 @@ fn stackup_command(args: &[&str], out: &mut dyn Write, err: &mut dyn Write) -> i
     let mut settings_path: Option<&str> = None;
     let mut language = Language::En;
     let mut json = false;
+    let mut material_ids: Vec<&str> = Vec::new();
     let mut iter = args.iter().copied();
     while let Some(arg) = iter.next() {
         match arg {
             "--json" => json = true,
+            "--material" => match iter.next() {
+                Some(id) => material_ids.push(id),
+                None => {
+                    let _ = err.write_all(USAGE.as_bytes());
+                    return 2;
+                }
+            },
             "--freq-ghz" => freq = iter.next().and_then(|v| v.parse::<f64>().ok()),
             "--settings" => settings_path = iter.next(),
             "--lang" => match iter.next().and_then(Language::from_tag) {
@@ -291,8 +314,15 @@ fn stackup_command(args: &[&str], out: &mut dyn Write, err: &mut dyn Write) -> i
             }
         },
     };
+    let extra = match materials::samples(&material_ids) {
+        Ok(extra) => extra,
+        Err(error) => {
+            let _ = writeln!(err, "error {}: {}", error.code(), error.message(language));
+            return 2;
+        }
+    };
     let job = match read_bounded(file) {
-        Ok(text) => match StackupJob::parse(&text) {
+        Ok(text) => match StackupJob::parse_with(&text, extra) {
             Ok(job) => job,
             Err(error) => {
                 let _ = writeln!(err, "error {}: {}", error.code(), error.message(language));

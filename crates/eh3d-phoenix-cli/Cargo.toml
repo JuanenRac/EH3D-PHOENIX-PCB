@@ -17,7 +17,10 @@ name = "phoenix"
 path = "src/main.rs"
 
 [features]
-default = []
+default = ["materials"]
+# the materials database of EH3D-COMMON: `phoenix materials` and `phoenix stackup --material`;
+# `--no-default-features` builds without it
+materials = ["eh3d-phoenix-stackup/materials", "dep:eh3d-materials"]
 # the window of the viewer: `cargo run --release -p eh3d-phoenix-cli --features gui -- view <file>`
 gui = ["eh3d-phoenix-viewer/gui"]
 
@@ -42,6 +45,7 @@ eh3d-phoenix-stackup = { path = "../eh3d-phoenix-stackup" }
 eh3d-phoenix-sync = { path = "../eh3d-phoenix-sync" }
 eh3d-phoenix-viewer = { path = "../eh3d-phoenix-viewer" }
 serde_json.workspace = true
+eh3d-materials = { workspace = true, optional = true }
 
 [dev-dependencies]
 serde_json.workspace = true
