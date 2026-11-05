@@ -41,7 +41,8 @@
       "lines": [
         "inventory, model, project file, board, schematic, ERC, sync,",
         "EAGLE, KiCad, rules, export, stack-up, RF, RF structures,",
-        "simulator, router, sanitizer, scripts, editors, viewer, CLI"
+        "simulator, router, zones, lengths, sanitizer, scripts,",
+        "editors, viewer, CLI"
       ],
       "code": [
         "crates/eh3d-phoenix-corpus/src/inventory.rs",
@@ -65,7 +66,9 @@
         "crates/eh3d-phoenix-schematic/src/edit.rs",
         "crates/eh3d-phoenix-schedit/src/state.rs",
         "crates/eh3d-phoenix-libedit/src/ops.rs",
-        "crates/eh3d-phoenix-route/src/dsn.rs"
+        "crates/eh3d-phoenix-route/src/dsn.rs",
+        "crates/eh3d-phoenix-zones/src/fill.rs",
+        "crates/eh3d-phoenix-lengths/src/analyse.rs"
       ]
     },
     {

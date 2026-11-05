@@ -286,6 +286,32 @@
           }
         },
         {
+          "name": "ZONES.md",
+          "desc": {
+            "en": "filling copper zones: clipping, reliefs, islands, check",
+            "es": "relleno de zonas de cobre: recorte, alivios, islas, comprobación",
+            "de": "Füllen von Kupferzonen: Beschneiden, Entlastungen, Inseln, Prüfung",
+            "fr": "remplissage des zones de cuivre : découpe, reliefs, îlots, vérification",
+            "it": "riempimento delle zone di rame: ritaglio, rilievi, isole, verifica",
+            "ja": "銅ゾーンの塗りつぶし：クリッピング、リリーフ、島、検証",
+            "zh": "铜区填充：裁剪、热焊盘、孤岛、检查",
+            "pt": "preenchimento de zonas de cobre: recorte, alívios, ilhas, verificação"
+          }
+        },
+        {
+          "name": "LENGTHS.md",
+          "desc": {
+            "en": "lengths, matching groups and differential pairs",
+            "es": "longitudes, grupos de igualación y pares diferenciales",
+            "de": "Längen, Abgleichgruppen und Differenzpaare",
+            "fr": "longueurs, groupes d'égalisation et paires différentielles",
+            "it": "lunghezze, gruppi da pareggiare e coppie differenziali",
+            "ja": "長さ、等長グループ、差動ペア",
+            "zh": "长度、等长分组与差分对",
+            "pt": "comprimentos, grupos de igualação e pares diferenciais"
+          }
+        },
+        {
           "name": "GATE_F1.md",
           "desc": {
             "en": "what the gate of the first phase checks and what it does not",
@@ -377,14 +403,14 @@
             "pt": "modelo, placa, esquema, EAGLE, KiCad, regras, exportação, RF, saneador, visualizador, CLI"
           },
           "tree_desc": {
-            "en": "inventory, model, project, board, schematic, EAGLE, KiCad, rules, ERC, sync, hub, export, stack-up, RF, simulator, router, sanitizer, scripts, viewer, CLI",
-            "es": "inventario, modelo, proyecto, placa, esquemático, EAGLE, KiCad, reglas, ERC, sincronización, hub, exportación, apilado, RF, simulador, enrutador, saneador, scripts, visor, comandos",
-            "de": "Inventar, Modell, Projekt, Platine, Schaltplan, EAGLE, KiCad, Regeln, ERC, Abgleich, Hub, Export, Lagenaufbau, HF, Simulator, Router, Bereiniger, Skripte, Betrachter, CLI",
-            "fr": "inventaire, modèle, projet, carte, schéma, EAGLE, KiCad, règles, ERC, synchronisation, hub, export, empilage, RF, simulateur, routeur, assainisseur, scripts, visionneuse, CLI",
-            "it": "inventario, modello, progetto, scheda, schema, EAGLE, KiCad, regole, ERC, sincronizzazione, hub, esportazione, stratificazione, RF, simulatore, router, sanificatore, script, visualizzatore, CLI",
-            "ja": "棚卸し、モデル、プロジェクト、基板、回路図、EAGLE、KiCad、ルール、ERC、同期、ハブ、書き出し、スタックアップ、RF、シミュレータ、ルーター、整理、スクリプト、ビューア、CLI",
-            "zh": "清点、模型、项目、电路板、原理图、EAGLE、KiCad、规则、ERC、同步、枢纽、导出、叠层、射频、仿真器、布线器、清理器、脚本、查看器、命令行",
-            "pt": "inventário, modelo, projeto, placa, esquema, EAGLE, KiCad, regras, ERC, sincronização, hub, exportação, empilhamento, RF, simulador, encaminhador, saneador, scripts, visualizador, CLI"
+            "en": "inventory, model, project, board, schematic, EAGLE, KiCad, rules, ERC, sync, hub, export, stack-up, RF, simulator, router, zones, lengths, sanitizer, scripts, viewer, CLI",
+            "es": "inventario, modelo, proyecto, placa, esquemático, EAGLE, KiCad, reglas, ERC, sincronización, hub, exportación, apilado, RF, simulador, enrutador, zonas, longitudes, saneador, scripts, visor, comandos",
+            "de": "Inventar, Modell, Projekt, Platine, Schaltplan, EAGLE, KiCad, Regeln, ERC, Abgleich, Hub, Export, Lagenaufbau, HF, Simulator, Router, Zonen, Längen, Bereiniger, Skripte, Betrachter, CLI",
+            "fr": "inventaire, modèle, projet, carte, schéma, EAGLE, KiCad, règles, ERC, synchronisation, hub, export, empilage, RF, simulateur, routeur, zones, longueurs, assainisseur, scripts, visionneuse, CLI",
+            "it": "inventario, modello, progetto, scheda, schema, EAGLE, KiCad, regole, ERC, sincronizzazione, hub, esportazione, stratificazione, RF, simulatore, router, zone, lunghezze, sanificatore, script, visualizzatore, CLI",
+            "ja": "棚卸し、モデル、プロジェクト、基板、回路図、EAGLE、KiCad、ルール、ERC、同期、ハブ、書き出し、スタックアップ、RF、シミュレータ、ルーター、ゾーン、長さ、整理、スクリプト、ビューア、CLI",
+            "zh": "清点、模型、项目、电路板、原理图、EAGLE、KiCad、规则、ERC、同步、枢纽、导出、叠层、射频、仿真器、布线器、铜区、长度、清理器、脚本、查看器、命令行",
+            "pt": "inventário, modelo, projeto, placa, esquema, EAGLE, KiCad, regras, ERC, sincronização, hub, exportação, empilhamento, RF, simulador, encaminhador, zonas, comprimentos, saneador, scripts, visualizador, CLI"
           }
         },
         {
