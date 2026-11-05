@@ -18,7 +18,8 @@ Run before every commit: `cargo fmt --check`, `cargo clippy --all-targets -- -D 
 * Library errors use `thiserror`; logging uses `tracing`; no `println!` in libraries.
 * Every public item is documented. Wire formats carry the unit in the field name (`x_mm`, `feed_mm_min`, `x_nm`).
 * Writers are deterministic (same content, same bytes), do not read the clock, and write atomically (temporary file, then rename; on Windows retry briefly on sharing violations and never delete the old file first). Output files carry no date, host name or user name unless the caller supplies them.
-* Every value that is tuned lives in a configuration file, not in the code. Every security option has a switch with a conservative default.
+* Every value that is tuned lives in a configuration file, not in the code. Every security option has a switch with a conservative default. The limits of the design rules (widths, clearances, drills, rings, distances to the edge, the joining tolerance) are read from a rule file and are never written in a check; a rule whose value is zero is off.
+* A check never turns what it cannot judge into a failure or into a pass: it goes to the inconclusive list of the report, which is kept apart from the confirmed list, and the report is in a fixed order so that the same board and rules always give the same bytes.
 
 ## Architecture
 Layers: EH3D-COMMON (contracts and the diagnostic crate), EH3D-CORE-LIBS, engines (libraries without a window), programs, then the server and its clients. Programs never depend on each other. Contracts change only through an accepted decision, a new version, updated conformance vectors and passing consumers.

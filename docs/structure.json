@@ -198,14 +198,24 @@
         {
           "name": "crates/",
           "desc": {
-            "en": "inventory, model, project, board, schematic, EAGLE, hub, export, CLI",
-            "es": "inventario, modelo, proyecto, placa, esquemático, EAGLE, hub, exportación, comandos",
-            "de": "Inventar, Modell, Projekt, Platine, Schaltplan, EAGLE, Hub, Export, CLI",
-            "fr": "inventaire, modèle, projet, carte, schéma, EAGLE, hub, export, CLI",
-            "it": "inventario, modello, progetto, scheda, schema, EAGLE, hub, esportazione, CLI",
-            "ja": "棚卸し、モデル、プロジェクト、基板、回路図、EAGLE、ハブ、書き出し、CLI",
-            "zh": "清点、模型、项目、电路板、原理图、EAGLE、枢纽、导出、命令行",
-            "pt": "inventário, modelo, projeto, placa, esquema, EAGLE, hub, exportação, CLI"
+            "en": "model, project, board, schematic, EAGLE, rules, hub, export, CLI",
+            "es": "modelo, proyecto, placa, esquemático, EAGLE, reglas, hub, exportación, comandos",
+            "de": "Modell, Projekt, Platine, Schaltplan, EAGLE, Regeln, Hub, Export, CLI",
+            "fr": "modèle, projet, carte, schéma, EAGLE, règles, hub, export, CLI",
+            "it": "modello, progetto, scheda, schema, EAGLE, regole, hub, esportazione, CLI",
+            "ja": "モデル、プロジェクト、基板、回路図、EAGLE、ルール、ハブ、書き出し、CLI",
+            "zh": "模型、项目、电路板、原理图、EAGLE、规则、枢纽、导出、命令行",
+            "pt": "modelo, projeto, placa, esquema, EAGLE, regras, hub, exportação, CLI"
+          },
+          "tree_desc": {
+            "en": "inventory, model, project, board, schematic, EAGLE, rules, hub, export, CLI",
+            "es": "inventario, modelo, proyecto, placa, esquemático, EAGLE, reglas, hub, exportación, comandos",
+            "de": "Inventar, Modell, Projekt, Platine, Schaltplan, EAGLE, Regeln, Hub, Export, CLI",
+            "fr": "inventaire, modèle, projet, carte, schéma, EAGLE, règles, hub, export, CLI",
+            "it": "inventario, modello, progetto, scheda, schema, EAGLE, regole, hub, esportazione, CLI",
+            "ja": "棚卸し、モデル、プロジェクト、基板、回路図、EAGLE、ルール、ハブ、書き出し、CLI",
+            "zh": "清点、模型、项目、电路板、原理图、EAGLE、规则、枢纽、导出、命令行",
+            "pt": "inventário, modelo, projeto, placa, esquema, EAGLE, regras, hub, exportação, CLI"
           }
         },
         {

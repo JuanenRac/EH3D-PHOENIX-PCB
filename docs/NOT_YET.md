@@ -10,3 +10,6 @@ Good ideas that are not in the first version. Writing them here avoids implement
 | Electromagnetic co-simulation and dynamic heat maps | Needs the RF tools and the thermal laboratory | after both exist |
 | Plugins loaded at run time | No real third-party need yet; an internal versioned interface comes first | when a third party asks for it |
 | Native TLS on the server link | A documented HTTPS proxy is used first | after the secure configuration is tested |
+| Rules per net class, per layer pair and per area | The first rule file has one value per rule | after the schematic editor has net classes
+| Exact clearance of arcs, round-cornered pads and filled zones | Arcs are judged by their end points and pad shapes by two circles; exact curves need the geometry library that is still to be chosen | after the geometry library is chosen
+| Hole-to-copper and hole-to-edge distances and thermal-relief checks | The first set of rules covers sizes, clearances, the edge, drill spacing, mask and silkscreen | when the manufacturing profiles exist
