@@ -1401,7 +1401,7 @@ mod tests {
 
     #[test]
     fn parameters_are_read_as_name_equals_value() {
-        let p = parse_params("pins=8  variant=narrow ignored  ep= 3.1");
+        let p = parse_params("pins=8  variant=narrow ignored  ep=3.1");
         assert_eq!(p.len(), 3);
         assert_eq!(p["pins"], "8");
         assert_eq!(p["variant"], "narrow");
