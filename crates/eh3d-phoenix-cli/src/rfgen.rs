@@ -196,7 +196,7 @@ fn load_stackup_settings(path: Option<&str>) -> Result<StackupSettings, RfgenErr
 fn ids() -> Result<impl FnMut() -> Id, RfgenError> {
     let mut generator = IdGenerator::new(
         StepClock::new(1_700_000_000_000, 1),
-        DeterministicRandom::new(0x7266_6765_6e),
+        DeterministicRandom::new(0x72_66_67_65_6e),
     );
     let mut last = generator
         .generate()

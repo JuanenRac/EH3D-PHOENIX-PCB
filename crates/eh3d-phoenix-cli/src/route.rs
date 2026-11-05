@@ -243,7 +243,7 @@ fn write_new(path: &str, bytes: &[u8]) -> Result<(), RouteError> {
 fn ids() -> Result<impl FnMut() -> Id, RouteError> {
     let mut generator = IdGenerator::new(
         StepClock::new(1_700_000_000_000, 1),
-        DeterministicRandom::new(0x726f_7574_65),
+        DeterministicRandom::new(0x72_6f_75_74_65),
     );
     let mut last = generator
         .generate()
