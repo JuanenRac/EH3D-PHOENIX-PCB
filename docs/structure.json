@@ -117,6 +117,19 @@
           "name": "ERROR_CODES.md"
         },
         {
+          "name": "STACKUP.md",
+          "desc": {
+            "en": "stack-up and line calculations, formulas",
+            "es": "cálculos de apilado y líneas, fórmulas",
+            "de": "Lagenaufbau- und Leitungsrechnung, Formeln",
+            "fr": "calculs d'empilage et de lignes, formules",
+            "it": "calcoli di stratificazione e linee, formule",
+            "ja": "スタックアップと線路の計算、式",
+            "zh": "叠层与传输线计算、公式",
+            "pt": "cálculos de empilhamento e linhas, fórmulas"
+          }
+        },
+        {
           "name": "GATE_F1.md",
           "desc": {
             "en": "what the gate of the first phase checks and what it does not",
@@ -198,24 +211,24 @@
         {
           "name": "crates/",
           "desc": {
-            "en": "model, project, board, schematic, EAGLE, rules, hub, export, CLI",
-            "es": "modelo, proyecto, placa, esquemático, EAGLE, reglas, hub, exportación, comandos",
-            "de": "Modell, Projekt, Platine, Schaltplan, EAGLE, Regeln, Hub, Export, CLI",
-            "fr": "modèle, projet, carte, schéma, EAGLE, règles, hub, export, CLI",
-            "it": "modello, progetto, scheda, schema, EAGLE, regole, hub, esportazione, CLI",
-            "ja": "モデル、プロジェクト、基板、回路図、EAGLE、ルール、ハブ、書き出し、CLI",
-            "zh": "模型、项目、电路板、原理图、EAGLE、规则、枢纽、导出、命令行",
-            "pt": "modelo, projeto, placa, esquema, EAGLE, regras, hub, exportação, CLI"
+            "en": "model, project, board, schematic, EAGLE, rules, hub, export, stack-up, CLI",
+            "es": "modelo, proyecto, placa, esquemático, EAGLE, reglas, hub, exportación, apilado, comandos",
+            "de": "Modell, Projekt, Platine, Schaltplan, EAGLE, Regeln, Hub, Export, Lagenaufbau, CLI",
+            "fr": "modèle, projet, carte, schéma, EAGLE, règles, hub, export, empilage, CLI",
+            "it": "modello, progetto, scheda, schema, EAGLE, regole, hub, esportazione, stratificazione, CLI",
+            "ja": "モデル、プロジェクト、基板、回路図、EAGLE、ルール、ハブ、書き出し、スタックアップ、CLI",
+            "zh": "模型、项目、电路板、原理图、EAGLE、规则、枢纽、导出、叠层、命令行",
+            "pt": "modelo, projeto, placa, esquema, EAGLE, regras, hub, exportação, empilhamento, CLI"
           },
           "tree_desc": {
-            "en": "inventory, model, project, board, schematic, EAGLE, rules, hub, export, CLI",
-            "es": "inventario, modelo, proyecto, placa, esquemático, EAGLE, reglas, hub, exportación, comandos",
-            "de": "Inventar, Modell, Projekt, Platine, Schaltplan, EAGLE, Regeln, Hub, Export, CLI",
-            "fr": "inventaire, modèle, projet, carte, schéma, EAGLE, règles, hub, export, CLI",
-            "it": "inventario, modello, progetto, scheda, schema, EAGLE, regole, hub, esportazione, CLI",
-            "ja": "棚卸し、モデル、プロジェクト、基板、回路図、EAGLE、ルール、ハブ、書き出し、CLI",
-            "zh": "清点、模型、项目、电路板、原理图、EAGLE、规则、枢纽、导出、命令行",
-            "pt": "inventário, modelo, projeto, placa, esquema, EAGLE, regras, hub, exportação, CLI"
+            "en": "inventory, model, project, board, schematic, EAGLE, rules, hub, export, stack-up, CLI",
+            "es": "inventario, modelo, proyecto, placa, esquemático, EAGLE, reglas, hub, exportación, apilado, comandos",
+            "de": "Inventar, Modell, Projekt, Platine, Schaltplan, EAGLE, Regeln, Hub, Export, Lagenaufbau, CLI",
+            "fr": "inventaire, modèle, projet, carte, schéma, EAGLE, règles, hub, export, empilage, CLI",
+            "it": "inventario, modello, progetto, scheda, schema, EAGLE, regole, hub, esportazione, stratificazione, CLI",
+            "ja": "棚卸し、モデル、プロジェクト、基板、回路図、EAGLE、ルール、ハブ、書き出し、スタックアップ、CLI",
+            "zh": "清点、模型、项目、电路板、原理图、EAGLE、规则、枢纽、导出、叠层、命令行",
+            "pt": "inventário, modelo, projeto, placa, esquema, EAGLE, regras, hub, exportação, empilhamento, CLI"
           }
         },
         {
