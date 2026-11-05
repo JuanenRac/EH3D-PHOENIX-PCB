@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! The command line of EH3D-PHOENIX-PCB. It has seven commands, `inventory`, `eagle-rate`,
-//! `stackup`, `check`, `connectivity`, `export` and `rf`.
+//! The command line of EH3D-PHOENIX-PCB. It has eight commands, `inventory`, `eagle-rate`,
+//! `stackup`, `check`, `connectivity`, `export`, `rf` and `view`.
 //!
 //! Exit codes: 0 done, 1 `stackup` could not compute one or more of the lines it was asked for, or
 //! `check` and `connectivity` proved an error, 2 the arguments or the input are unusable.
@@ -10,6 +10,7 @@
 mod check;
 mod export;
 mod rf;
+mod view;
 
 use eh3d_phoenix_corpus::{inventory, InventoryConfig};
 use eh3d_phoenix_stackup::{report_json, report_text, Language, StackupJob, StackupSettings};
@@ -54,6 +55,13 @@ phoenix rf touchstone|match|filter ...
 
   rf            everyday RF tools: Touchstone files, impedance matching and ladder filters
                 (run `phoenix rf` alone for its usage)
+
+phoenix view [--settings FILE] [--lang xx] [<board or schematic>]
+phoenix view --summary <file>  |  phoenix view --bench
+
+  view          a read-only viewer window of a board or a schematic (a build with the gui
+                feature; a prototype), a text summary of a file, or a timing of the preparation
+                and the selection on three synthetic boards
 ";
 
 /// Run the command line with the arguments that follow the program name. Returns the exit code.
@@ -92,6 +100,9 @@ pub fn run(args: &[String], out: &mut dyn Write, err: &mut dyn Write) -> i32 {
     }
     if let Some((&"rf", tail)) = rest.split_first() {
         return rf::rf(tail, out, err);
+    }
+    if let Some((&"view", tail)) = rest.split_first() {
+        return view::view(tail, out, err);
     }
     if let ["eagle-rate", source, copies] = rest.as_slice() {
         return eagle_rate(Path::new(source), Path::new(copies), out, err);
@@ -235,6 +246,17 @@ mod tests {
             String::from_utf8(out).unwrap(),
             String::from_utf8(err).unwrap(),
         )
+    }
+
+    #[test]
+    fn the_view_command_is_reached_and_its_usage_errors_exit_2() {
+        let (code, out, err) = call(&["view", "--summary"]);
+        assert_eq!(code, 2);
+        assert!(out.is_empty());
+        assert!(err.contains("--summary needs a file"), "{err}");
+        let (code, out, _) = call(&["view", "--bench", "--settings", "/nonexistent/viewer.cfg"]);
+        assert_eq!(code, 2);
+        assert!(out.is_empty());
     }
 
     #[test]

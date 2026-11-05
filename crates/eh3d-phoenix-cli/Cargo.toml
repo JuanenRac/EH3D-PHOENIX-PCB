@@ -6,6 +6,7 @@ rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 description = "Command line of EH3D-PHOENIX-PCB"
+build = "build.rs"
 
 [lib]
 name = "eh3d_phoenix_cli"
@@ -14,6 +15,11 @@ path = "src/lib.rs"
 [[bin]]
 name = "phoenix"
 path = "src/main.rs"
+
+[features]
+default = []
+# the window of the viewer: `cargo run --release -p eh3d-phoenix-cli --features gui -- view <file>`
+gui = ["eh3d-phoenix-viewer/gui"]
 
 [dependencies]
 eh3d-phoenix-board = { path = "../eh3d-phoenix-board" }
@@ -25,8 +31,13 @@ eh3d-phoenix-model = { path = "../eh3d-phoenix-model" }
 eh3d-phoenix-rf = { path = "../eh3d-phoenix-rf" }
 eh3d-phoenix-rules = { path = "../eh3d-phoenix-rules" }
 eh3d-phoenix-stackup = { path = "../eh3d-phoenix-stackup" }
+eh3d-phoenix-viewer = { path = "../eh3d-phoenix-viewer" }
 
 [dev-dependencies]
 eh3d-phoenix-schematic = { path = "../eh3d-phoenix-schematic" }
 serde_json.workspace = true
 tempfile.workspace = true
+
+# the icon and the version information of the Windows executable (build.rs; nothing on other systems)
+[target.'cfg(windows)'.build-dependencies]
+winresource = "0.1.34"
