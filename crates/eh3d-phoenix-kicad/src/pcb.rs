@@ -1172,7 +1172,7 @@ pub(crate) mod tests {
     fn damaged_boards_are_refused_and_no_cut_panics() {
         let mut ids = crate::sequential_ids().unwrap();
         let s = KicadSettings::default();
-        let e = read_pcb(PCB_V6[..PCB_V6.len() / 2].as_bytes(), &s, &mut ids).unwrap_err();
+        let e = read_pcb(&PCB_V6.as_bytes()[..PCB_V6.len() / 2], &s, &mut ids).unwrap_err();
         assert_eq!(e.code.as_deref(), Some("PHOENIX-KICAD-004"));
         let e = read_pcb(b"(kicad_sch (version 20211123))", &s, &mut ids).unwrap_err();
         assert_eq!(e.code.as_deref(), Some("PHOENIX-KICAD-003"));
@@ -1182,7 +1182,7 @@ pub(crate) mod tests {
         assert!(e.code.is_some());
         for cut in (0..PCB_V6.len()).step_by(101) {
             if PCB_V6.is_char_boundary(cut) {
-                let _ = read_pcb(PCB_V6[..cut].as_bytes(), &s, &mut ids);
+                let _ = read_pcb(&PCB_V6.as_bytes()[..cut], &s, &mut ids);
             }
         }
         let tight = KicadSettings {

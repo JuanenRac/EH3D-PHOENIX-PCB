@@ -1453,7 +1453,7 @@ pub(crate) mod tests {
         let mut ids = crate::sequential_ids().unwrap();
         let s = KicadSettings::default();
         let text = root_v6();
-        let e = read_schematic(text[..text.len() / 2].as_bytes(), &s, &mut ids).unwrap_err();
+        let e = read_schematic(&text.as_bytes()[..text.len() / 2], &s, &mut ids).unwrap_err();
         assert_eq!(e.code.as_deref(), Some("PHOENIX-KICAD-004"));
         let e = read_schematic(b"(kicad_pcb (version 20211014))", &s, &mut ids).unwrap_err();
         assert_eq!(e.code.as_deref(), Some("PHOENIX-KICAD-003"));
@@ -1474,7 +1474,7 @@ pub(crate) mod tests {
         // every cut of a valid file is an error or a schematic, never a panic
         for cut in (0..text.len()).step_by(97) {
             if text.is_char_boundary(cut) {
-                let _ = read_schematic(text[..cut].as_bytes(), &s, &mut ids);
+                let _ = read_schematic(&text.as_bytes()[..cut], &s, &mut ids);
             }
         }
     }
