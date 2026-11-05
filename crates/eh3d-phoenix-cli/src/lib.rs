@@ -1,13 +1,16 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! The command line of EH3D-PHOENIX-PCB. It has ten commands, `inventory`, `eagle-rate`,
-//! `stackup`, `check`, `connectivity`, `export`, `rf`, `kicad-read`, `sanitize` and `view`.
+//! The command line of EH3D-PHOENIX-PCB. It has twelve commands, `inventory`, `eagle-rate`,
+//! `stackup`, `check`, `connectivity`, `erc`, `sync`, `export`, `rf`, `kicad-read`, `sanitize` and
+//! `view`.
 //!
-//! Exit codes: 0 done, 1 `stackup` could not compute one or more of the lines it was asked for, or
-//! `check` and `connectivity` proved an error, 2 the arguments or the input are unusable.
+//! Exit codes: 0 done, 1 `stackup` could not compute one or more of the lines it was asked for,
+//! `check`, `connectivity` and `erc` proved an error, or `sync` found changes to make, 2 the
+//! arguments or the input are unusable.
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
 mod check;
+mod design;
 mod export;
 mod kicad;
 mod rf;
@@ -45,6 +48,43 @@ phoenix connectivity [--rules FILE] [--json] [--lang xx] <schematic.sch> <board.
   check         run the design rules of FILE (JSON, phoenix-rules/1) or of the board on an EAGLE board
   connectivity  shorts and unrouted nets of the board, and the board against the schematic
                 (exit 1 when an error is proven; the report keeps confirmed and inconclusive apart)
+
+phoenix erc [--config FILE] [--json] [--lang xx] <schematic> [<board>]
+phoenix sync [--config FILE] [--json | --package] [--lang xx] [--backward] [--apply --out FILE] <schematic> <board>
+
+  erc           the electrical rule check of a schematic (pins on no net, pin types by a matrix in a
+                settings file, inputs without a driver, supplies without a source, net names that
+                look alike, references used twice, empty values, parts without a footprint, loose
+                wires); the report keeps confirmed and inconclusive findings apart
+  sync          what the transfer of the schematic to the board (or, with --backward, the annotation
+                back into the schematic) would change, by the identity of the parts; a dry run
+                unless --apply writes the result to --out, and an input file is never overwritten
+
+phoenix export [--profile NAME] [--profiles FILE] [--lang xx] [--eh3dproj FILE] --out <folder> <board>
+
+  export        the manufacturing files of a board (Gerber X2, plated and not plated drills,
+                placement, bill of materials) and manifest.json with their SHA-256, made with a
+                profile of a JSON file and checked against the board before they are written
+                (exit 1 when they differ)
+
+phoenix rf touchstone|match|filter ...
+
+  rf            everyday RF tools: Touchstone files, impedance matching and ladder filters
+                (run `phoenix rf` alone for its usage)
+
+phoenix kicad-read [--settings FILE] [--lang xx] [--redacted] <file>
+
+  kicad-read    read a KiCad 6 to 9 file (schematic with its sheets, board, symbol library,
+                footprint or project) into the design model and summarise it: what was kept,
+                changed and left out, the findings with their codes and the fidelity level
+
+phoenix sanitize [--out BASE] [--threshold N] [--config FILE] [--lang xx] [--json] <folder>
+
+  sanitize      find the footprints, symbols and device sets that are duplicated or nearly
+                duplicated in a folder of EAGLE libraries: an inventory, a canonical geometric
+                hash, a score against a threshold, groups to confirm by hand, an HTML and a JSON
+                report and a plan of the master library that is never applied; the libraries
+                are only read
 
 phoenix export [--profile NAME] [--profiles FILE] [--lang xx] [--eh3dproj FILE] --out <folder> <board>
 
@@ -110,6 +150,12 @@ pub fn run(args: &[String], out: &mut dyn Write, err: &mut dyn Write) -> i32 {
     }
     if let Some((&"connectivity", tail)) = rest.split_first() {
         return check::connectivity(tail, out, err);
+    }
+    if let Some((&"erc", tail)) = rest.split_first() {
+        return design::erc(tail, out, err);
+    }
+    if let Some((&"sync", tail)) = rest.split_first() {
+        return design::sync(tail, out, err);
     }
     if let Some((&"export", tail)) = rest.split_first() {
         return export::export(tail, out, err);

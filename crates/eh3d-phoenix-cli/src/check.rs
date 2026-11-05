@@ -10,7 +10,9 @@ use std::io::Write;
 
 use eh3d_phoenix_eagle_board::{read_board, read_schematic};
 use eh3d_phoenix_model::{DeterministicRandom, IdGenerator, Nm, ObjectId, StepClock};
-use eh3d_phoenix_rules::{check_board, check_connectivity, Lang, Report, RuleValues};
+use eh3d_phoenix_rules::{
+    check_board, check_classes, check_connectivity, Lang, NetClasses, Report, RuleFile, RuleValues,
+};
 
 /// The largest input file that is read, in bytes.
 const MAX_INPUT_BYTES: u64 = 256 * 1024 * 1024;
@@ -19,8 +21,10 @@ pub(crate) const USAGE: &str = "\
 phoenix check [--rules FILE] [--json] [--lang CODE] <board.brd>
 
   check         run the design rules on an EAGLE board. The limits come from FILE (a JSON rule
-                file, format phoenix-rules/1) or, without --rules, from the <designrules> of the
-                board. The report keeps confirmed and inconclusive findings in two lists
+                file, format phoenix-rules/1 or phoenix-rules/2, which adds net classes with
+                limits of their own for tracks and vias) or, without --rules, from the
+                <designrules> of the board. The report keeps confirmed and inconclusive findings
+                in two lists
 
 phoenix connectivity [--rules FILE] [--json] [--lang CODE] <schematic.sch> <board.brd>
 
@@ -131,19 +135,19 @@ pub(crate) fn check(args: &[&str], out: &mut dyn Write, err: &mut dyn Write) -> 
         Ok(text) => text,
         Err(message) => return fail(err, &message),
     };
-    let rules = match &options.rules {
-        Some(path) => match read_text(path)
-            .and_then(|t| RuleValues::from_json(&t).map_err(|e| e.to_string()))
-        {
-            Ok((_, values)) => values,
-            Err(message) => return fail(err, &message),
-        },
+    let (rules, classes) = match &options.rules {
+        Some(path) => {
+            match read_text(path).and_then(|t| RuleFile::from_json(&t).map_err(|e| e.to_string())) {
+                Ok(file) => (file.values, file.classes),
+                Err(message) => return fail(err, &message),
+            }
+        }
         None => match RuleValues::from_eagle_board(&text) {
             Ok((values, notes)) => {
                 for note in notes {
                     let _ = writeln!(err, "note: {}", note.message);
                 }
-                values
+                (values, NetClasses::default())
             }
             Err(error) => {
                 return fail(
@@ -168,7 +172,10 @@ pub(crate) fn check(args: &[&str], out: &mut dyn Write, err: &mut dyn Write) -> 
             read.diagnostics.len()
         );
     }
-    let report = check_board(&read.board, &rules);
+    let mut report = check_board(&read.board, &rules);
+    if !classes.is_empty() {
+        report.merge(check_classes(&read.board, &classes));
+    }
     finish(&report, &options, out)
 }
 
