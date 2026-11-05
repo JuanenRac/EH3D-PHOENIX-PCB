@@ -1,0 +1,17 @@
+[package]
+name = "eh3d-phoenix-sim"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Circuit simulator of our own (prototype): a SPICE-style netlist reader and writer, modified nodal analysis, DC operating point with Newton-Raphson for diodes, AC sweeps with group delay, transient analysis, the netlist of a schematic and a coherence check against the RF filters"
+
+[dependencies]
+eh3d-phoenix-rf = { path = "../eh3d-phoenix-rf" }
+eh3d-phoenix-rules = { path = "../eh3d-phoenix-rules" }
+eh3d-phoenix-schematic = { path = "../eh3d-phoenix-schematic" }
+serde_json.workspace = true
+
+[dev-dependencies]
+eh3d-container.workspace = true

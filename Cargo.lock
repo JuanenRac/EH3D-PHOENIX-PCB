@@ -222,6 +222,7 @@ dependencies = [
  "eh3d-phoenix-rules",
  "eh3d-phoenix-sanitizer",
  "eh3d-phoenix-schematic",
+ "eh3d-phoenix-sim",
  "eh3d-phoenix-stackup",
  "serde_json",
  "tempfile",
@@ -372,6 +373,17 @@ dependencies = [
  "eh3d-phoenix-board",
  "eh3d-phoenix-model",
  "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "eh3d-phoenix-sim"
+version = "0.0.2"
+dependencies = [
+ "eh3d-container",
+ "eh3d-phoenix-rf",
+ "eh3d-phoenix-rules",
+ "eh3d-phoenix-schematic",
  "serde_json",
 ]
 
