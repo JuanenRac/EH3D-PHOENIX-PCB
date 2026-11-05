@@ -19,12 +19,29 @@ use eh3d_writer_gerber::{GerberOptions, GerberOutput, WriteError};
 
 use crate::codes;
 
-/// The coordinate format of the files: 4 digits before and 6 after the point, in millimetres.
+/// The coordinate format of the files unless a profile says otherwise: 4 digits before and 6 after
+/// the point, in millimetres.
 pub const FORMAT: CoordinateFormat = CoordinateFormat {
     zero_omission: ZeroOmission::Leading,
     integer_digits: 4,
     decimal_digits: 6,
 };
+
+/// The smallest size, in nanometres, an aperture takes when a mask expansion or a paste shrink would
+/// make it vanish, so that no pad is lost from a file.
+pub const MIN_APERTURE_NM: i64 = 1_000;
+
+/// The value of the `.GenerationSoftware` attribute: vendor, product and the version of this crate.
+pub const GENERATION_SOFTWARE: [&str; 3] = ["EH3D", "PHOENIX-PCB", env!("CARGO_PKG_VERSION")];
+
+/// The format of the files with `decimals` digits after the point (1 to 6).
+pub fn format_with_decimals(decimals: u32) -> CoordinateFormat {
+    CoordinateFormat {
+        zero_omission: ZeroOmission::Leading,
+        integer_digits: 4,
+        decimal_digits: decimals,
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 enum ApKey {
@@ -53,7 +70,7 @@ fn gp(p: Point) -> GPoint {
 
 /// The offsets `(I, J)` from the start of an arc to its centre, in millimetres, and whether it runs
 /// clockwise. `None` when the arc has no computable centre.
-fn arc_centre(start: Point, end: Point, sweep_udeg: i64) -> Option<((f64, f64), bool)> {
+pub(crate) fn arc_centre(start: Point, end: Point, sweep_udeg: i64) -> Option<((f64, f64), bool)> {
     let (sx, sy) = (mm(start.x_nm.get()), mm(start.y_nm.get()));
     let (ex, ey) = (mm(end.x_nm.get()), mm(end.y_nm.get()));
     let (cx, cy) = (ex - sx, ey - sy);
@@ -118,13 +135,28 @@ fn push_pieces(
     }
 }
 
+/// Grows (or, when negative, shrinks) every dimension of an aperture by `delta` nanometres.
+fn adjust(key: ApKey, delta: i64) -> ApKey {
+    let f = |v: i64| v.saturating_add(delta).max(MIN_APERTURE_NM);
+    match key {
+        ApKey::Circle(d) => ApKey::Circle(f(d)),
+        ApKey::Rect(w, h) => ApKey::Rect(f(w), f(h)),
+        ApKey::Obround(w, h) => ApKey::Obround(f(w), f(h)),
+    }
+}
+
 fn collect(
     board: &Board,
-    layer: Id,
-    kind: LayerKind,
+    spec: &LayerFileSpec,
     outline_width: i64,
     diagnostics: &mut Vec<Diagnostic>,
 ) -> Vec<Draw> {
+    let (layer, kind) = (spec.layer, spec.kind);
+    let delta = match kind {
+        LayerKind::SolderMask => spec.mask_expansion.saturating_mul(2),
+        LayerKind::Paste => spec.paste_shrink.saturating_mul(-2),
+        _ => 0,
+    };
     let mut draws = Vec::new();
     let is_copper = kind == LayerKind::Copper;
     if is_copper {
@@ -223,7 +255,7 @@ fn collect(
                 rotated += 1;
             }
             let swapped = (total / 90_000_000) % 2 == 1 && total % 90_000_000 == 0;
-            draws.push(Draw::Flash(pad_key(pad.shape, swapped), at));
+            draws.push(Draw::Flash(adjust(pad_key(pad.shape, swapped), delta), at));
         }
     }
     if rotated > 0 {
@@ -264,6 +296,14 @@ pub struct LayerFileSpec {
     pub kind: LayerKind,
     /// The `.FileFunction` value, when it is known.
     pub file_function: Option<Vec<String>>,
+    /// The `.FilePolarity` value (`Positive` or `Negative`), when the kind of layer has one.
+    pub polarity: Option<&'static str>,
+    /// The coordinate format of the file.
+    pub format: CoordinateFormat,
+    /// How far, per side, a solder mask opening is larger than its pad, in nanometres.
+    pub mask_expansion: i64,
+    /// How far, per side, a paste opening is smaller than its pad, in nanometres.
+    pub paste_shrink: i64,
 }
 
 /// Writes one layer. Returns the file and the diagnostics.
@@ -273,13 +313,7 @@ pub fn write_layer(
     outline_width: i64,
 ) -> Result<(GerberOutput, Vec<Diagnostic>), WriteError> {
     let mut diagnostics = Vec::new();
-    let draws = collect(
-        board,
-        spec.layer,
-        spec.kind,
-        outline_width,
-        &mut diagnostics,
-    );
+    let draws = collect(board, spec, outline_width, &mut diagnostics);
     let mut keys: Vec<ApKey> = draws
         .iter()
         .filter_map(|d| match d {
@@ -296,7 +330,7 @@ pub fn write_layer(
         .collect();
     let mut file = GerberFile {
         units: Some(Units::Millimetres),
-        format: Some(FORMAT),
+        format: Some(spec.format),
         apertures: numbers.iter().map(|(k, n)| (*n, aperture_of(*k))).collect(),
         macros: BTreeMap::new(),
         attributes: Vec::new(),
@@ -304,11 +338,26 @@ pub fn write_layer(
         ended: true,
         diagnostics: Vec::new(),
     };
+    file.attributes.push(Attribute {
+        kind: "TF".to_owned(),
+        name: ".GenerationSoftware".to_owned(),
+        values: GENERATION_SOFTWARE
+            .iter()
+            .map(|s| (*s).to_owned())
+            .collect(),
+    });
     if let Some(values) = &spec.file_function {
         file.attributes.push(Attribute {
             kind: "TF".to_owned(),
             name: ".FileFunction".to_owned(),
             values: values.clone(),
+        });
+    }
+    if let Some(polarity) = spec.polarity {
+        file.attributes.push(Attribute {
+            kind: "TF".to_owned(),
+            name: ".FilePolarity".to_owned(),
+            values: vec![polarity.to_owned()],
         });
     }
     let mut current: Option<u32> = None;

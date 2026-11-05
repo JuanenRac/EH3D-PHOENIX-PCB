@@ -27,6 +27,23 @@ pub const SILK_NO_GLYPH: &str = "PHOENIX-EXPORT-009";
 /// A silkscreen item that cannot be drawn was left out.
 pub const SILK_UNDRAWN: &str = "PHOENIX-EXPORT-010";
 
+/// An export profile is not valid.
+pub const PROFILE_INVALID: &str = "PHOENIX-EXPORT-011";
+/// The profile asked for is not in the profile file.
+pub const PROFILE_NOT_FOUND: &str = "PHOENIX-EXPORT-012";
+/// The output could not be written to its folder.
+pub const OUTPUT_FAILED: &str = "PHOENIX-EXPORT-013";
+/// A written file does not agree with the model.
+pub const VERIFY_MISMATCH: &str = "PHOENIX-EXPORT-014";
+/// The board has no placed component, so the assembly files are empty.
+pub const NO_COMPONENTS: &str = "PHOENIX-EXPORT-015";
+/// A drilled oblong pad turned by an angle that is not a right angle was written as a round hole.
+pub const SLOT_ROTATION: &str = "PHOENIX-EXPORT-016";
+/// A solder mask or paste layer does not say which side of the board it is on, so its file has no function.
+pub const SIDE_MISSING: &str = "PHOENIX-EXPORT-017";
+/// A written file could not be read back by the check.
+pub const VERIFY_UNREADABLE: &str = "PHOENIX-EXPORT-018";
+
 /// The codes of this crate with their titles.
 pub const REGISTRY: &[(&str, &str)] = &[
     (PAD_ROTATION, "Pad rotation is not a right angle"),
@@ -39,6 +56,14 @@ pub const REGISTRY: &[(&str, &str)] = &[
     (SILK_SIDE_MISSING, "Silkscreen side not given"),
     (SILK_NO_GLYPH, "Silkscreen characters without a glyph"),
     (SILK_UNDRAWN, "Silkscreen item left out"),
+    (PROFILE_INVALID, "Export profile is not valid"),
+    (PROFILE_NOT_FOUND, "Export profile not found"),
+    (OUTPUT_FAILED, "Output could not be written"),
+    (VERIFY_MISMATCH, "Written file differs from the model"),
+    (NO_COMPONENTS, "Board has no components"),
+    (SLOT_ROTATION, "Slot pad not on a right angle"),
+    (SIDE_MISSING, "Layer side not given"),
+    (VERIFY_UNREADABLE, "Written file could not be read back"),
 ];
 
 /// Builds the diagnostic of `code` (which must be in [`REGISTRY`]) with a detail.

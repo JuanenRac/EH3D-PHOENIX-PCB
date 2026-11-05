@@ -1,0 +1,57 @@
+{
+  "format": "phoenix-export/1",
+  "profiles": [
+    {
+      "name": "generic",
+      "description": "Gerber X2 with six decimals, Excellon with a decimal point, slots as round holes, the rotation of a bottom part unchanged, CSV files with the columns of the board"
+    },
+    {
+      "name": "jlc-like",
+      "description": "Shaped after the files that low-cost assemblers ask for: coordinates from the lower left corner of the board, Top and Bottom for the sides, a half turn added to the rotation of a bottom part, the headers Designator, Val, Package, Mid X, Mid Y, Rotation, Layer. Not compared with any manufacturer",
+      "gerber": {
+        "extension": "gbr",
+        "decimal_digits": 6,
+        "mask_expansion_nm": 50000,
+        "paste_shrink_nm": 0,
+        "outline_width_nm": 100000
+      },
+      "drill": {
+        "style": "decimal",
+        "decimals": 3,
+        "plated_file": "drill_pth.drl",
+        "non_plated_file": "drill_npth.drl",
+        "oblong_as_slot": true
+      },
+      "placement": {
+        "file": "positions.csv",
+        "delimiter": ",",
+        "coordinate_decimals": 4,
+        "rotation_decimals": 0,
+        "bottom_rotation": "half_turn",
+        "origin": "outline_min",
+        "side_top": "Top",
+        "side_bottom": "Bottom",
+        "columns": [
+          { "key": "ref", "header": "Designator" },
+          { "key": "value", "header": "Val" },
+          { "key": "package", "header": "Package" },
+          { "key": "x", "header": "Mid X" },
+          { "key": "y", "header": "Mid Y" },
+          { "key": "rotation", "header": "Rotation" },
+          { "key": "side", "header": "Layer" }
+        ]
+      },
+      "bom": {
+        "file": "bom_assembly.csv",
+        "delimiter": ",",
+        "designator_separator": ",",
+        "columns": [
+          { "key": "value", "header": "Comment" },
+          { "key": "designators", "header": "Designator" },
+          { "key": "package", "header": "Footprint" },
+          { "key": "quantity", "header": "Quantity" }
+        ]
+      }
+    }
+  ]
+}

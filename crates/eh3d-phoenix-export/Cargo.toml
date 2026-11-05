@@ -16,6 +16,12 @@ eh3d-parser-gerber = { version = ">=0.0.4", path = "../../../EH3D-CORE-LIBS/crat
 eh3d-writer-gerber = { version = ">=0.0.4", path = "../../../EH3D-CORE-LIBS/crates/eh3d-writer-gerber" }
 eh3d-parser-excellon = { version = ">=0.0.4", path = "../../../EH3D-CORE-LIBS/crates/eh3d-parser-excellon" }
 eh3d-writer-excellon = { version = ">=0.0.4", path = "../../../EH3D-CORE-LIBS/crates/eh3d-writer-excellon" }
+eh3d-container.workspace = true
 chrono = { version = "0.4", default-features = false, features = ["std"] }
 uuid = "1"
+serde.workspace = true
+serde_json.workspace = true
 thiserror.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

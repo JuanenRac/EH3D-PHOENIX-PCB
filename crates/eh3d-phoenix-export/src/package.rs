@@ -1,21 +1,22 @@
-//! The manufacturing package: an `.eh3dproj` 1.0.0 project with one Gerber X2 file per layer and
-//! one Excellon drill file.
+//! The manufacturing package: an `.eh3dproj` 1.0.0 project with one Gerber X2 file per layer, the
+//! Excellon drill files, the placement file and the bill of materials.
 //!
-//! The export is deterministic: the caller gives the project identity and the time stamp, nothing
-//! reads the clock or makes a random number, and every ordering is fixed, so the same board and
-//! options give the same package bytes.
+//! The export is deterministic: the caller gives the project identity and the time stamp (or asks
+//! for [`export_package_reproducible`], which derives both from the content), nothing reads the
+//! clock or makes a random number, and every ordering is fixed, so the same board and options give
+//! the same package bytes.
 
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, TimeZone, Utc};
 use eh3d_common::project::{LayerKind as PackageLayerKind, LayerRef};
 use eh3d_common::{Package, ProjectMetadata};
 use eh3d_diagnostic::{Diagnostic, Severity};
-use eh3d_phoenix_board::{Board, Id, LayerKind, Side, StackFunction};
+use eh3d_phoenix_board::{Board, LayerKind};
 use eh3d_phoenix_model::Nm;
 use uuid::Uuid;
 
 use crate::codes;
-use crate::excellon::write_drills;
-use crate::gerber::{write_layer, LayerFileSpec};
+use crate::fab::{build, FabSet, FileRole};
+use crate::profile::Profile;
 
 /// What the caller chooses.
 #[derive(Debug, Clone)]
@@ -24,7 +25,8 @@ pub struct ExportOptions {
     pub project_id: Uuid,
     /// The time stamp written as created and modified.
     pub created: DateTime<Utc>,
-    /// The width of the line that draws the board outline.
+    /// The width of the line that draws the board outline (used by [`export_package`]; a profile
+    /// carries its own).
     pub outline_width: Nm,
 }
 
@@ -45,6 +47,15 @@ pub enum ExportError {
     /// The package could not be assembled.
     #[error("package: {0}")]
     Package(String),
+    /// A profile is not valid.
+    #[error("profile: {0}")]
+    Profile(String),
+    /// The profile asked for is not in the profile file.
+    #[error("profile '{0}' is not in the profile file")]
+    ProfileNotFound(String),
+    /// The output could not be written to its folder.
+    #[error("output: {0}")]
+    Output(String),
 }
 
 impl ExportError {
@@ -53,6 +64,9 @@ impl ExportError {
         match self {
             ExportError::Layer { .. } | ExportError::Drill(_) => codes::WRITE_FAILED,
             ExportError::Package(_) => codes::PACKAGE_FAILED,
+            ExportError::Profile(_) => codes::PROFILE_INVALID,
+            ExportError::ProfileNotFound(_) => codes::PROFILE_NOT_FOUND,
+            ExportError::Output(_) => codes::OUTPUT_FAILED,
         }
     }
 
@@ -71,17 +85,6 @@ pub struct Exported {
     pub diagnostics: Vec<Diagnostic>,
 }
 
-fn rank(kind: LayerKind) -> u8 {
-    match kind {
-        LayerKind::Copper => 0,
-        LayerKind::SolderMask => 1,
-        LayerKind::Paste => 2,
-        LayerKind::Silkscreen => 3,
-        LayerKind::Outline => 4,
-        LayerKind::Documentation => 5,
-    }
-}
-
 fn package_kind(kind: LayerKind) -> PackageLayerKind {
     match kind {
         LayerKind::Copper => PackageLayerKind::Copper,
@@ -93,146 +96,90 @@ fn package_kind(kind: LayerKind) -> PackageLayerKind {
     }
 }
 
-fn slug(name: &str) -> String {
-    let mut out = String::new();
-    for c in name.chars() {
-        if c.is_ascii_alphanumeric() {
-            out.push(c.to_ascii_lowercase());
-        } else if !out.ends_with('_') && !out.is_empty() {
-            out.push('_');
-        }
-    }
-    let trimmed = out.trim_end_matches('_');
-    if trimmed.is_empty() {
-        "layer".to_owned()
-    } else {
-        trimmed.to_owned()
-    }
-}
-
-fn file_function(board: &Board, kind: LayerKind, layer: Id) -> Option<Vec<String>> {
-    match kind {
-        LayerKind::Copper => {
-            let (number, function) = board.stack_position(layer)?;
-            let position = match function {
-                StackFunction::Top => "Top",
-                StackFunction::Inner => "Inr",
-                StackFunction::Bottom => "Bot",
-            };
-            Some(vec![
-                "Copper".to_owned(),
-                format!("L{number}"),
-                position.to_owned(),
-            ])
-        }
-        LayerKind::Outline => Some(vec!["Profile".to_owned(), "NP".to_owned()]),
-        LayerKind::Silkscreen => {
-            let side = match board.layers.get(&layer)?.side? {
-                Side::Top => "Top",
-                Side::Bottom => "Bot",
-            };
-            Some(vec!["Legend".to_owned(), side.to_owned()])
-        }
-        _ => None,
-    }
-}
-
-/// Exports the board as a package.
-pub fn export_package(board: &Board, options: &ExportOptions) -> Result<Exported, ExportError> {
-    let mut diagnostics = Vec::new();
-    let name = if board.name.trim().is_empty() {
-        "board".to_owned()
-    } else {
-        board.name.clone()
-    };
-    let mut metadata = ProjectMetadata::new(name);
+/// Puts the files of a set in a package. The layers and the drill files are named in the metadata;
+/// the placement file and the bill of materials are entries of the package without a layer.
+pub fn package_of(set: &FabSet, options: &ExportOptions) -> Result<Package, ExportError> {
+    let mut metadata = ProjectMetadata::new(set.name.clone());
     metadata.id = options.project_id;
     metadata.created = options.created;
     metadata.modified = options.created;
-
-    let mut layers: Vec<(&Id, &eh3d_phoenix_board::Layer)> = board.layers.iter().collect();
-    layers.sort_by(|a, b| {
-        (rank(a.1.kind), a.1.name.as_str(), a.0).cmp(&(rank(b.1.kind), b.1.name.as_str(), b.0))
-    });
-    let mut package_entries: Vec<(String, Vec<u8>)> = Vec::new();
-    let mut copper_without_function = false;
-    for (index, (id, layer)) in layers.iter().enumerate() {
-        let function = file_function(board, layer.kind, **id);
-        if layer.kind == LayerKind::Copper && function.is_none() {
-            copper_without_function = true;
+    for file in &set.files {
+        match &file.role {
+            FileRole::Layer { kind, name, .. } => metadata.layers.push(LayerRef {
+                path: file.path.clone(),
+                kind: package_kind(*kind),
+                name: name.clone(),
+            }),
+            FileRole::Drill { plated } => metadata.layers.push(LayerRef {
+                path: file.path.clone(),
+                kind: PackageLayerKind::Drill,
+                name: if *plated {
+                    "Drill (plated)".to_owned()
+                } else {
+                    "Drill (not plated)".to_owned()
+                },
+            }),
+            FileRole::Placement | FileRole::Bom => {}
         }
-        if layer.kind == LayerKind::Silkscreen && function.is_none() {
-            diagnostics.push(codes::diagnostic(
-                codes::SILK_SIDE_MISSING,
-                Severity::Info,
-                &layer.name,
-            ));
-        }
-        let spec = LayerFileSpec {
-            layer: **id,
-            kind: layer.kind,
-            file_function: function,
-        };
-        let (output, mut found) =
-            write_layer(board, &spec, options.outline_width.get()).map_err(|e| {
-                ExportError::Layer {
-                    layer: layer.name.clone(),
-                    message: e.to_string(),
-                }
-            })?;
-        diagnostics.append(&mut found);
-        let path = format!("layers/{:02}_{}.gbr", index + 1, slug(&layer.name));
-        metadata.layers.push(LayerRef {
-            path: path.clone(),
-            kind: package_kind(layer.kind),
-            name: layer.name.clone(),
-        });
-        package_entries.push((path, output.text.into_bytes()));
-    }
-    if copper_without_function {
-        diagnostics.push(codes::diagnostic(
-            codes::STACK_ORDER_MISSING,
-            Severity::Info,
-            "",
-        ));
-    }
-    if let Some((text, mut found)) =
-        write_drills(board).map_err(|e| ExportError::Drill(e.to_string()))?
-    {
-        diagnostics.append(&mut found);
-        let path = "layers/drill.drl".to_owned();
-        metadata.layers.push(LayerRef {
-            path: path.clone(),
-            kind: PackageLayerKind::Drill,
-            name: "Drill".to_owned(),
-        });
-        package_entries.push((path, text.into_bytes()));
     }
     let mut package = Package::new(metadata);
-    for (path, bytes) in package_entries {
+    for file in &set.files {
         package
-            .add_entry(&path, bytes)
+            .add_entry(&file.path, file.bytes.clone())
             .map_err(|e| ExportError::Package(e.to_string()))?;
     }
     package
         .metadata
         .validate()
         .map_err(|e| ExportError::Package(e.to_string()))?;
+    Ok(package)
+}
+
+/// Exports the board as a package with a profile.
+pub fn export_package_with(
+    board: &Board,
+    options: &ExportOptions,
+    profile: &Profile,
+) -> Result<Exported, ExportError> {
+    let set = build(board, profile)?;
+    let package = package_of(&set, options)?;
     Ok(Exported {
         package,
-        diagnostics,
+        diagnostics: set.diagnostics,
     })
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+/// Exports the board as a package with the default profile and the outline width of the options.
+pub fn export_package(board: &Board, options: &ExportOptions) -> Result<Exported, ExportError> {
+    let mut profile = Profile::default();
+    profile.gerber.outline_width_nm = options.outline_width.get();
+    export_package_with(board, options, &profile)
+}
 
-    #[test]
-    fn names_become_safe_file_names() {
-        assert_eq!(slug("Top Copper"), "top_copper");
-        assert_eq!(slug("  Bottom/Silk!! "), "bottom_silk");
-        assert_eq!(slug("日本語"), "layer");
-        assert_eq!(slug(""), "layer");
-    }
+/// Exports the board as a package whose identity and time stamp come from its content: the
+/// identity is the first 128 bits of the SHA-256 of the manifest and the time stamp is the start of
+/// the Unix epoch. The same board and profile give the same bytes anywhere, any time.
+pub fn export_package_reproducible(
+    board: &Board,
+    profile: &Profile,
+) -> Result<Exported, ExportError> {
+    let set = build(board, profile)?;
+    let digest = eh3d_container::sha256_hex(&set.manifest()?);
+    let id =
+        u128::from_str_radix(&digest[..32], 16).map_err(|e| ExportError::Package(e.to_string()))?;
+    let created = Utc
+        .timestamp_opt(0, 0)
+        .single()
+        .ok_or_else(|| ExportError::Package("the epoch is not a date".to_owned()))?;
+    let options = ExportOptions {
+        project_id: Uuid::from_u128(id),
+        created,
+        outline_width: Nm::new(profile.gerber.outline_width_nm)
+            .map_err(|e| ExportError::Profile(e.to_string()))?,
+    };
+    let package = package_of(&set, &options)?;
+    Ok(Exported {
+        package,
+        diagnostics: set.diagnostics,
+    })
 }

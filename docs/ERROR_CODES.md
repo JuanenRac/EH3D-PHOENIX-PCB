@@ -124,6 +124,14 @@ Each table repeats the `REGISTRY` of a crate (`eh3d-phoenix-model` in `src/diagn
 | PHOENIX-EXPORT-008 | Silkscreen side not given | a silkscreen layer written without a file function because the layer does not say which side it is on (information) |
 | PHOENIX-EXPORT-009 | Silkscreen characters without a glyph | characters of a silkscreen text that the font does not have, written as boxes (a warning) |
 | PHOENIX-EXPORT-010 | Silkscreen item left out | a silkscreen item that cannot be drawn (a text whose strokes fall outside the coordinate range), not written (a warning) |
+| PHOENIX-EXPORT-011 | Export profile is not valid | a profile file that is not JSON, has an unknown field, a value out of its range, a file name that is not a plain name or a column that does not exist |
+| PHOENIX-EXPORT-012 | Export profile not found | a profile name that the profile file does not hold |
+| PHOENIX-EXPORT-013 | Output could not be written | the output folder or one of its files could not be created or written |
+| PHOENIX-EXPORT-014 | Written file differs from the model | the check that reads the files back found a count (pads, vias, holes, lines, regions) or the bounding box of the outline different from the board |
+| PHOENIX-EXPORT-015 | Board has no components | a board without a placed component, whose placement and bill of materials files hold only their header (information) |
+| PHOENIX-EXPORT-016 | Slot pad not on a right angle | a drilled oblong pad turned by an angle that is not a multiple of 90 degrees, written as a round hole when slots are asked for (a warning) |
+| PHOENIX-EXPORT-017 | Layer side not given | a solder mask or paste layer written without a file function because the layer does not say which side it is on (information) |
+| PHOENIX-EXPORT-018 | Written file could not be read back | the check could not read a Gerber or Excellon file it has just made (an error) |
 
 ## Schematic and its link to the board (`eh3d-phoenix-schematic`)
 

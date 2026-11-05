@@ -226,7 +226,7 @@ fn the_package_reads_back_with_its_layers_and_integrity() {
             "layers/03_top_mask.gbr",
             "layers/04_top_silk.gbr",
             "layers/05_outline.gbr",
-            "layers/drill.drl"
+            "layers/drill_pth.drl"
         ]
     );
     for p in &paths {
@@ -295,7 +295,7 @@ fn the_zone_is_a_region_and_the_outline_is_four_lines() {
 fn the_drill_file_holds_every_hole_in_order() {
     let mut f = fixture(0);
     let exported = export(&mut f, true);
-    let text = std::str::from_utf8(exported.package.entry("layers/drill.drl").unwrap())
+    let text = std::str::from_utf8(exported.package.entry("layers/drill_pth.drl").unwrap())
         .unwrap()
         .to_owned();
     let file = eh3d_parser_excellon::parse(&text);

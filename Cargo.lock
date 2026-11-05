@@ -261,6 +261,7 @@ version = "0.0.2"
 dependencies = [
  "chrono",
  "eh3d-common",
+ "eh3d-container",
  "eh3d-diagnostic",
  "eh3d-parser-excellon",
  "eh3d-parser-gerber",
@@ -268,6 +269,9 @@ dependencies = [
  "eh3d-phoenix-model",
  "eh3d-writer-excellon",
  "eh3d-writer-gerber",
+ "serde",
+ "serde_json",
+ "tempfile",
  "thiserror",
  "uuid",
 ]
