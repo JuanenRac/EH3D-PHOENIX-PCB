@@ -27,7 +27,8 @@
 //! * [`library_session`] and [`library_text`]: the library mode: an EAGLE library edited with the
 //!   operations of `eh3d-phoenix-libedit` (footprints, symbols and devices, the tools, the grid and
 //!   the snap, the selection and the drag, the measure, the checks, the plan to replace by a master
-//!   and the saving as a new file) and its texts in the eight languages;
+//!   and the saving as a new file) and its texts in the eight languages (the window is in
+//!   `library_gui`, behind the `gui` feature);
 //! * [`settings`], [`codes`], [`msg`] and [`editmsg`]: the settings file, the codes
 //!   `PHOENIX-VIEW-<NNN>` and the texts in the eight languages.
 //!
@@ -44,6 +45,8 @@ pub mod editmsg;
 pub mod grid;
 #[cfg(feature = "gui")]
 pub mod gui;
+#[cfg(feature = "gui")]
+pub mod library_gui;
 pub mod library_session;
 pub mod library_text;
 pub mod load;

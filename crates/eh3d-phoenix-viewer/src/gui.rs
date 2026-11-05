@@ -10,8 +10,10 @@ use eframe::egui::{self, Color32, FontData, FontDefinitions, FontFamily, Pos2, R
 use eh3d_phoenix_route::{Mode, RouteSettings};
 use eh3d_phoenix_rules::Lang;
 
-use crate::codes::{ViewError, WINDOW_FAILED};
+use crate::codes::{ViewError, FILE_UNUSABLE, WINDOW_FAILED};
 use crate::editmsg::EditMsg;
+use crate::library_gui::LibraryUi;
+use crate::library_text::LibText;
 use crate::msg::Msg;
 use crate::prim::{arc_points, triangulate, Shape, P};
 use crate::scene::SceneKind;
@@ -113,6 +115,8 @@ struct App {
     focus_save: bool,
     /// The schematic editor, while the person is editing the schematic that is open.
     sch: Option<SchematicEditUi>,
+    /// The library mode, while a library of footprints, symbols and devices is open.
+    lib: LibraryUi,
 }
 
 impl App {
@@ -132,6 +136,7 @@ impl App {
             tool_drag: false,
             focus_save: false,
             sch: None,
+            lib: LibraryUi::new(eh3d_phoenix_libedit::LibSettings::default()),
         };
         if let Some(path) = initial {
             app.path_text = path.to_string_lossy().into_owned();
@@ -142,8 +147,23 @@ impl App {
 
     /// Reads and draws a file; a file that cannot be used leaves the drawing as it was.
     fn open(&mut self, path: &Path) {
+        if path
+            .extension()
+            .is_some_and(|e| e.eq_ignore_ascii_case("lbr"))
+        {
+            self.lib.open(path);
+            if self.lib.is_open() {
+                self.workspace = None;
+                self.sch = None;
+                self.error = None;
+            } else if let Some(e) = self.lib.take_error() {
+                self.error = Some(ViewError::new(FILE_UNUSABLE, e.message(Lang::En)));
+            }
+            return;
+        }
         match Workspace::open(path, &self.settings, &self.route_settings) {
             Ok(workspace) => {
+                self.lib.close();
                 self.save_text = suggested_save_path(path).to_string_lossy().into_owned();
                 self.workspace = Some(workspace);
                 self.error = None;
@@ -173,6 +193,11 @@ impl App {
                 if ui.button(Msg::Open.tr(lang)).clicked() || enter {
                     let path = PathBuf::from(self.path_text.trim());
                     self.open(&path);
+                }
+                if ui.button(LibText::Title.tr(lang)).clicked() {
+                    self.lib.new_library();
+                    self.workspace = None;
+                    self.sch = None;
                 }
                 let has_scene = self.workspace.is_some();
                 if ui
@@ -904,6 +929,11 @@ impl eframe::App for App {
         if let Some(path) = dropped.first() {
             self.path_text = path.to_string_lossy().into_owned();
             self.open(path);
+        }
+        if self.lib.is_open() {
+            self.top_bar(ui);
+            self.lib.show(ui, self.lang);
+            return;
         }
         self.top_bar(ui);
         self.status_bar(ui);
