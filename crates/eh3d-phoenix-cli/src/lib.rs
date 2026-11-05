@@ -25,6 +25,7 @@ mod design;
 mod export;
 mod gerber_import;
 mod kicad;
+mod kicad_import;
 mod lengths;
 mod libedit;
 mod materials;
@@ -122,6 +123,14 @@ phoenix kicad-read [--settings FILE] [--lang xx] [--redacted] <file>
   kicad-read    read a KiCad 6 to 9 file (schematic with its sheets, board, symbol library,
                 footprint or project) into the design model and summarise it: what was kept,
                 changed and left out, the findings with their codes and the fidelity level
+
+phoenix kicad-import [--settings FILE] [--lang xx] [--json] [--out FILE.json] <project>
+
+  kicad-import  read a whole KiCad 6 to 9 project (the .kicad_pro with the .kicad_sch and the
+                .kicad_pcb of the same name, a folder with one project, or one schematic or
+                board) into the design model with one report; a dry run unless --out names a new
+                .json file, never over an input; a prototype. The commands that take a board or
+                a schematic also take a .kicad_pcb or a .kicad_sch file
 
 phoenix sanitize [--out BASE] [--threshold N] [--config FILE] [--lang xx] [--json] <folder>
 
@@ -320,6 +329,9 @@ pub fn run(args: &[String], out: &mut dyn Write, err: &mut dyn Write) -> i32 {
     }
     if let Some((&"kicad-read", tail)) = rest.split_first() {
         return kicad::kicad_read(tail, out, err);
+    }
+    if let Some((&"kicad-import", tail)) = rest.split_first() {
+        return kicad_import::kicad_import(tail, out, err);
     }
     if let Some((&"sanitize", tail)) = rest.split_first() {
         return sanitize::sanitize_command(tail, out, err);

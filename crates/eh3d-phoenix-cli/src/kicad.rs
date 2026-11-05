@@ -31,20 +31,38 @@ phoenix kicad-read [--settings FILE] [--lang xx] [--redacted] <file>
 /// The largest settings file that is read, in bytes.
 const MAX_SETTINGS_BYTES: u64 = 1024 * 1024;
 
+/// The settings of the readers: the defaults, or the settings file when one is named.
+pub(crate) fn load_settings(
+    path: Option<&str>,
+    language: Language,
+) -> Result<KicadSettings, String> {
+    let Some(path) = path else {
+        return Ok(KicadSettings::default());
+    };
+    let size = std::fs::metadata(path)
+        .map_err(|e| format!("cannot read {path}: {e}"))?
+        .len();
+    if size > MAX_SETTINGS_BYTES {
+        return Err(format!("{path} is larger than {MAX_SETTINGS_BYTES} bytes"));
+    }
+    let text = std::fs::read_to_string(path).map_err(|e| format!("cannot read {path}: {e}"))?;
+    KicadSettings::parse(&text).map_err(|e| e.message(language))
+}
+
 fn usage(err: &mut dyn Write, message: &str) -> i32 {
     let _ = writeln!(err, "error: {message}");
     let _ = err.write_all(KICAD_USAGE.as_bytes());
     2
 }
 
-fn to_list(items: &[QualityItem]) -> Vec<(String, usize)> {
+pub(crate) fn to_list(items: &[QualityItem]) -> Vec<(String, usize)> {
     items
         .iter()
         .map(|i| (i.category.clone(), i.count))
         .collect()
 }
 
-fn section(text: &mut String, heading: &str, items: &[(String, usize)]) {
+pub(crate) fn section(text: &mut String, heading: &str, items: &[(String, usize)]) {
     if items.is_empty() {
         return;
     }
@@ -87,25 +105,9 @@ pub(crate) fn kicad_read(args: &[&str], out: &mut dyn Write, err: &mut dyn Write
     let Some(file) = file else {
         return usage(err, "a file is needed");
     };
-    let settings = match settings_path {
-        None => KicadSettings::default(),
-        Some(path) => {
-            let read = std::fs::metadata(path)
-                .map_err(|e| format!("cannot read {path}: {e}"))
-                .and_then(|m| {
-                    if m.len() > MAX_SETTINGS_BYTES {
-                        Err(format!("{path} is larger than {MAX_SETTINGS_BYTES} bytes"))
-                    } else {
-                        std::fs::read_to_string(path)
-                            .map_err(|e| format!("cannot read {path}: {e}"))
-                    }
-                });
-            match read.and_then(|text| KicadSettings::parse(&text).map_err(|e| e.message(language)))
-            {
-                Ok(settings) => settings,
-                Err(message) => return usage(err, &message),
-            }
-        }
+    let settings = match load_settings(settings_path, language) {
+        Ok(settings) => settings,
+        Err(message) => return usage(err, &message),
     };
     let path = Path::new(file);
     let max = settings.max_file_bytes;

@@ -131,9 +131,16 @@ pub(crate) fn check(args: &[&str], out: &mut dyn Write, err: &mut dyn Write) -> 
     let [board_path] = options.files.as_slice() else {
         return usage(err);
     };
-    let text = match read_text(board_path) {
-        Ok(text) => text,
-        Err(message) => return fail(err, &message),
+    // a KiCad board is read by the KiCad reader; it carries no design rules the tool reads, so the
+    // limits must come from --rules
+    let kicad = board_path.to_ascii_lowercase().ends_with(".kicad_pcb");
+    let text = if kicad {
+        String::new()
+    } else {
+        match read_text(board_path) {
+            Ok(text) => text,
+            Err(message) => return fail(err, &message),
+        }
     };
     let (rules, classes) = match &options.rules {
         Some(path) => {
@@ -141,6 +148,12 @@ pub(crate) fn check(args: &[&str], out: &mut dyn Write, err: &mut dyn Write) -> 
                 Ok(file) => (file.values, file.classes),
                 Err(message) => return fail(err, &message),
             }
+        }
+        None if kicad => {
+            return fail(
+                err,
+                "a KiCad board gives no design rules to this command; give the limits with --rules FILE (a JSON rule file)",
+            )
         }
         None => match RuleValues::from_eagle_board(&text) {
             Ok((values, notes)) => {
@@ -161,20 +174,28 @@ pub(crate) fn check(args: &[&str], out: &mut dyn Write, err: &mut dyn Write) -> 
         Ok(source) => source,
         Err(message) => return fail(err, &message),
     };
-    let read = match read_board(&text, &mut new_id) {
-        Ok(read) => read,
-        Err(diagnostic) => return fail(err, &diagnostic.message),
+    let board = if kicad {
+        match crate::kicad_import::read_kicad_board(board_path, &mut new_id) {
+            Ok(board) => board,
+            Err(message) => return fail(err, &message),
+        }
+    } else {
+        let read = match read_board(&text, &mut new_id) {
+            Ok(read) => read,
+            Err(diagnostic) => return fail(err, &diagnostic.message),
+        };
+        if !read.diagnostics.is_empty() {
+            let _ = writeln!(
+                err,
+                "note: {} parts of the board file were not read or were read in a simpler form",
+                read.diagnostics.len()
+            );
+        }
+        read.board
     };
-    if !read.diagnostics.is_empty() {
-        let _ = writeln!(
-            err,
-            "note: {} parts of the board file were not read or were read in a simpler form",
-            read.diagnostics.len()
-        );
-    }
-    let mut report = check_board(&read.board, &rules);
+    let mut report = check_board(&board, &rules);
     if !classes.is_empty() {
-        report.merge(check_classes(&read.board, &classes));
+        report.merge(check_classes(&board, &classes));
     }
     finish(&report, &options, out)
 }

@@ -92,6 +92,10 @@ pub(crate) fn read_board_file(path: &str) -> Result<Board, String> {
         let bytes = std::fs::read(path).map_err(|e| format!("cannot read {path}: {e}"))?;
         return Board::from_bytes(&bytes).map_err(|e| format!("{path}: {e}"));
     }
+    if path.to_ascii_lowercase().ends_with(".kicad_pcb") {
+        let mut new_id = id_source()?;
+        return crate::kicad_import::read_kicad_board(path, &mut new_id);
+    }
     let text = read_text(path)?;
     let mut new_id = id_source()?;
     read_board(&text, &mut new_id)

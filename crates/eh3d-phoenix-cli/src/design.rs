@@ -118,6 +118,9 @@ pub(crate) fn has_extension(path: &str, wanted: &str) -> bool {
 }
 
 fn load_board(path: &str, new_id: &mut dyn FnMut() -> ObjectId) -> Result<Board, String> {
+    if has_extension(path, "kicad_pcb") {
+        return crate::kicad_import::read_kicad_board(path, new_id);
+    }
     let text = read_text(path)?;
     if has_extension(path, "json") {
         Board::from_bytes(text.as_bytes()).map_err(|e| format!("cannot read {path}: {e}"))
@@ -133,6 +136,9 @@ pub(crate) fn load_schematic(
     footprints: &BTreeMap<String, ObjectId>,
     new_id: &mut dyn FnMut() -> ObjectId,
 ) -> Result<Schematic, String> {
+    if has_extension(path, "kicad_sch") {
+        return crate::kicad_import::read_kicad_schematic(path, new_id);
+    }
     let text = read_text(path)?;
     if has_extension(path, "json") {
         Schematic::from_bytes(text.as_bytes()).map_err(|e| format!("cannot read {path}: {e}"))
