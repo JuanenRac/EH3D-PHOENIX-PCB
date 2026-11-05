@@ -90,7 +90,7 @@ Netlist from the schematic, binding to an existing engine, basic analyses, a wav
 
 Gate: The reference set passes with justified tolerances.
 
-Progress: the first solver exists as a prototype (`eh3d-phoenix-sim`, `docs/SIM.md`, provisional decision in `docs/adr/0010-own-circuit-simulator.md`): the netlist of a schematic with a report of what could not be translated, a reader and writer of SPICE-style netlists, the operating point, AC with group delay and transient analysis of linear circuits and circuits with diodes, and reference cases from the textbooks that pass with the tolerances written in the tests. It is not compared with an existing engine, there is no waveform viewer and no transistor model.
+Progress: the first solver exists as a prototype (`eh3d-phoenix-sim`, `docs/SIM.md`, provisional decision in `docs/adr/0010-own-circuit-simulator.md`): the netlist of a schematic with a report of what could not be translated, a reader and writer of SPICE-style netlists, the operating point (with gmin and source stepping), AC with group delay, noise and transient analysis (with an adaptive step that stops at the corners of the sources) of linear circuits and circuits with diodes, bipolar and MOS transistors and op-amp macromodels, and reference cases from the textbooks that pass with the tolerances written in the tests. It is not compared with an existing engine, the device models are simple and there is no waveform viewer.
 
 ## F13. Power-supply assistant
 
