@@ -329,6 +329,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "eh3d-phoenix-stackup"
+version = "0.0.2"
+dependencies = [
+ "eh3d-diagnostic",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
 name = "eh3d-writer-excellon"
 version = "0.0.6"
 dependencies = [
