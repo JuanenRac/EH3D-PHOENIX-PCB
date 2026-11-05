@@ -1,0 +1,18 @@
+[package]
+name = "eh3d-phoenix-bom"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Bill of materials with costs (prototype): the parts of a board and a schematic grouped by value, footprint and maker, prices by quantity break read from a local file, the cost of a part per board and per batch with waste, a PCB cost estimated from the size and the layers with the tariffs of a settings file, and CSV, JSON and HTML written the same every time"
+
+[dependencies]
+eh3d-phoenix-board = { path = "../eh3d-phoenix-board" }
+eh3d-phoenix-rules = { path = "../eh3d-phoenix-rules" }
+eh3d-phoenix-schematic = { path = "../eh3d-phoenix-schematic" }
+eh3d-phoenix-stackup = { path = "../eh3d-phoenix-stackup" }
+serde_json.workspace = true
+
+[dev-dependencies]
+eh3d-phoenix-model = { path = "../eh3d-phoenix-model" }

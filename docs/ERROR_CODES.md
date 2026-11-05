@@ -2,7 +2,7 @@
 
 Codes have the form `PHOENIX-<AREA>-<NNN>`. A code is stable: it never changes its meaning and is never reused. Programs show the text through the key `diag.<code>`; the codes themselves are never translated. The object identity (UUID v7) is the one of the shared container, with its own codes `EH3D-ID-001` and `EH3D-ID-002`. The container codes `EH3D-PKG-001` to `EH3D-PKG-014` belong to the shared container and are listed in the registry of the documentation repository.
 
-Each table repeats the `REGISTRY` of a crate (`eh3d-phoenix-model` in `src/diagnostic.rs`, `eh3d-phoenix-project` and `eh3d-phoenix-eagle` in `src/codes.rs`, `eh3d-phoenix-hub` in `src/lib.rs`, `eh3d-phoenix-export` in `src/codes.rs`, `eh3d-phoenix-schematic` in `src/model.rs`, `src/draw.rs`, `src/edit.rs` and `src/link.rs`, `eh3d-phoenix-board` in `src/validate.rs`, `src/connectivity.rs` and `src/rules.rs`, `eh3d-phoenix-rules` in `src/codes.rs`, `eh3d-phoenix-stackup` and `eh3d-phoenix-rf` in `src/error.rs`, `eh3d-phoenix-viewer`, `eh3d-phoenix-sanitizer`, `eh3d-phoenix-erc`, `eh3d-phoenix-sync`, `eh3d-phoenix-schedit`, `eh3d-phoenix-libedit`, `eh3d-phoenix-zones`, `eh3d-phoenix-lengths`, `eh3d-phoenix-gerber` and `eh3d-phoenix-panel` in `src/codes.rs`); a test of each crate checks that every code of its registry is in the table with the same title.
+Each table repeats the `REGISTRY` of a crate (`eh3d-phoenix-model` in `src/diagnostic.rs`, `eh3d-phoenix-project` and `eh3d-phoenix-eagle` in `src/codes.rs`, `eh3d-phoenix-hub` in `src/lib.rs`, `eh3d-phoenix-export` in `src/codes.rs`, `eh3d-phoenix-schematic` in `src/model.rs`, `src/draw.rs`, `src/edit.rs` and `src/link.rs`, `eh3d-phoenix-board` in `src/validate.rs`, `src/connectivity.rs` and `src/rules.rs`, `eh3d-phoenix-rules` in `src/codes.rs`, `eh3d-phoenix-stackup` and `eh3d-phoenix-rf` in `src/error.rs`, `eh3d-phoenix-viewer`, `eh3d-phoenix-sanitizer`, `eh3d-phoenix-erc`, `eh3d-phoenix-sync`, `eh3d-phoenix-schedit`, `eh3d-phoenix-libedit`, `eh3d-phoenix-zones`, `eh3d-phoenix-lengths`, `eh3d-phoenix-gerber`, `eh3d-phoenix-panel` and `eh3d-phoenix-bom` in `src/codes.rs`); a test of each crate checks that every code of its registry is in the table with the same title.
 
 ## Model foundations
 
@@ -612,3 +612,28 @@ The titles of these codes also exist in the eight languages of the suite (`TITLE
 | PHOENIX-PANEL-010 | Gap ignored for V-score | information: with `joint = v_score` the boards touch and `gap_nm` is not used |
 | PHOENIX-PANEL-011 | Marks skipped: the panel has no frame | warning: fiducials or tooling holes were asked for and `frame = none`, so none was put on the panel |
 | PHOENIX-PANEL-012 | Mouse bite holes do not fit the tab | `mouse_bite_holes` holes at `mouse_bite_pitch_nm` that take more than `tab_width_nm` |
+
+## Bill of materials with costs (`eh3d-phoenix-bom`, `src/codes.rs`)
+
+The titles of these codes also exist in the eight languages of the suite (`TITLES` in `src/codes.rs`); the detail of a message is in English.
+
+| Code | Title | Raised by |
+|---|---|---|
+| PHOENIX-BOM-001 | Cost settings are not valid | a line of `config/costs.cfg` that is not `key = value`, an unknown key, a number that cannot be read or a value out of range |
+| PHOENIX-BOM-002 | Input file is larger than the limit | a price, part data, schematic, stack-up or settings file with more bytes than `max_file_bytes` (or than the limit of a settings file); the file is not read |
+| PHOENIX-BOM-003 | Price file is not valid | a CSV or JSON price file with a missing column, a row without a supplier, without a part number and a value, with a quantity break that is not a whole number from 1 or a price that is not a decimal, JSON that cannot be read, or more rows than `max_items` |
+| PHOENIX-BOM-004 | File of part data is not valid | a CSV with no `match` column, an empty match, a `fitted` that is not yes or no, a match given twice, or more lines than `max_items` |
+| PHOENIX-BOM-005 | Part has no price | warning: no row of the price file is for the part (by part number, or by value and footprint) in the currency of the run; the part costs nothing in the totals and the totals say they are not complete |
+| PHOENIX-BOM-006 | Part has no footprint | warning: a part whose footprint has no name, or that the schematic gives no footprint |
+| PHOENIX-BOM-007 | Price in another currency was ignored | warning: rows of the price file in a currency other than the one of the settings |
+| PHOENIX-BOM-008 | Quantity to buy was raised to the minimum of the supplier | information: the quantity of the batch is below the first quantity break of the supplier chosen, so that quantity is bought |
+| PHOENIX-BOM-009 | Part that is not fitted is left out | information: a reference marked `no` in the file of part data |
+| PHOENIX-BOM-010 | Component refers to a footprint that is not on the board | error: the footprint of a component is not one of the footprints of the board |
+| PHOENIX-BOM-011 | Part of the schematic is not placed on the board | warning: a part of the schematic given with `--schematic` whose reference is not on the board; it is added to the bill |
+| PHOENIX-BOM-012 | Board cannot give a PCB cost | warning: an outline of fewer than three points or with no area, no copper layer, or a number of copper layers that has no tariff in the settings |
+| PHOENIX-BOM-013 | Two prices for one quantity of one part disagree | warning: two rows of one supplier for the same part and the same quantity break with different prices; the lower is used |
+| PHOENIX-BOM-014 | A command option is not valid | an option of `phoenix bom` that the command does not know or needs a value for, an unknown language code, `--boards` out of range, `--schematic` that is not a JSON file, a number of board files other than one |
+| PHOENIX-BOM-015 | The output file exists or cannot be written | a file named by `--csv`, `--json-file` or `--html` that exists, is named twice or cannot be created (nothing is written then) |
+| PHOENIX-BOM-016 | An input file cannot be read | the board, a price file, a file of part data, a schematic, a stack-up or a settings file that cannot be opened or read |
+| PHOENIX-BOM-017 | A limit of the bill of materials was exceeded | more components than `max_items` |
+| PHOENIX-BOM-018 | The PCB cost is an estimate from the tariffs of the settings | information, always given with a PCB cost: the tariffs are an example and not the prices of any maker |
