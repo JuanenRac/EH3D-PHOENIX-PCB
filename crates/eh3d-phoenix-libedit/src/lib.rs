@@ -26,17 +26,21 @@
 
 pub mod check;
 pub mod codes;
+pub mod footprints;
 pub mod geom;
 pub mod model;
 pub mod ops;
+pub mod plan;
 pub mod read;
 pub mod settings;
 pub mod write;
 
 pub use check::{check_library, CheckReport, Finding, Severity};
 pub use codes::{LibError, REGISTRY};
+pub use footprints::{generate, FootprintConfig, Generated, FAMILIES};
 pub use model::{Item, Kind, Library};
 pub use ops::{apply_all, parse_operations, History, Operation};
+pub use plan::{apply_step, replace_plan, replace_plan_from_json, ReplacePlan, ReplaceStep};
 pub use read::read_library;
 pub use settings::LibSettings;
 pub use write::{save_new, to_text, verify_round_trip, Saved};
