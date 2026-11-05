@@ -31,10 +31,12 @@ eh3d-phoenix-eagle = { path = "../eh3d-phoenix-eagle" }
 eh3d-phoenix-eagle-board = { path = "../eh3d-phoenix-eagle-board" }
 eh3d-phoenix-erc = { path = "../eh3d-phoenix-erc" }
 eh3d-phoenix-export = { path = "../eh3d-phoenix-export" }
+eh3d-phoenix-gerber = { path = "../eh3d-phoenix-gerber" }
 eh3d-phoenix-kicad = { path = "../eh3d-phoenix-kicad" }
 eh3d-phoenix-lengths = { path = "../eh3d-phoenix-lengths" }
 eh3d-phoenix-libedit = { path = "../eh3d-phoenix-libedit" }
 eh3d-phoenix-model = { path = "../eh3d-phoenix-model" }
+eh3d-phoenix-panel = { path = "../eh3d-phoenix-panel" }
 eh3d-phoenix-rf = { path = "../eh3d-phoenix-rf" }
 eh3d-phoenix-rfgen = { path = "../eh3d-phoenix-rfgen" }
 eh3d-phoenix-route = { path = "../eh3d-phoenix-route" }

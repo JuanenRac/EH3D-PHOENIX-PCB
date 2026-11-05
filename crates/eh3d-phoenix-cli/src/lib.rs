@@ -5,7 +5,8 @@
 //!
 //! The editor of libraries adds the commands `libedit` and `footprint`, and the routing through an
 //! external autorouter adds `autoroute`, the filling of copper zones adds `zones` and the lengths
-//! of nets and pairs add `lengths`.
+//! of nets and pairs add `lengths`; the import of Gerber and Excellon files adds `gerber-import`
+//! and the layout of a matrix of boards adds `panel`.
 //!
 //! Exit codes: 0 done, 1 `stackup` could not compute one or more of the lines it was asked for,
 //! `check`, `connectivity` and `erc` proved an error, or `sync` found changes to make, 2 the
@@ -17,10 +18,12 @@ mod autoroute;
 mod check;
 mod design;
 mod export;
+mod gerber_import;
 mod kicad;
 mod lengths;
 mod libedit;
 mod materials;
+mod panel;
 mod rf;
 mod rfgen;
 mod route;
@@ -146,6 +149,21 @@ phoenix autoroute export-dsn|import-ses|run [--rules FILE] [--out FILE] [--lang 
                 nothing) and, only when config/autorouter.cfg switches it on and --execute is
                 given, start the program; a dry run by default, a prototype, run
                 `phoenix autoroute` alone for its options
+
+phoenix gerber-import [--config FILE] [--json] [--lang xx] [--out FILE] <file or folder> ...
+phoenix gerber-import [--config FILE] [--json] [--lang xx] [--profile NAME] [--profiles FILE]
+                      --roundtrip <board>
+phoenix panel [--config FILE] [--columns N] [--rows N] [--json] [--lang xx] [--out FOLDER] <board>
+
+  gerber-import read Gerber RS-274X and Excellon files as read-only geometry for review (the layer
+                of each file from its attributes or its name, apertures and macros, polarity,
+                regions, arcs, drill tools, holes and slots), with a code for what cannot be read;
+                the files are only read, and --roundtrip exports a board and compares the files
+                read back with it; a prototype, run `phoenix gerber-import` alone for its options
+  panel         lay a board out in a matrix with a gap, a frame, tabs with mouse bite holes or
+                V-score lines, fiducials and tooling holes from config/panel.cfg, and write the
+                outline and the drills of the panel; a dry run unless --out names a folder, a
+                prototype, run `phoenix panel` alone for its options
 
 phoenix script run [--config FILE] [--rules FILE] [--dry-run] [--out FILE] [--json] [--lang xx]
                    <script> <board or schematic>
@@ -273,6 +291,12 @@ pub fn run(args: &[String], out: &mut dyn Write, err: &mut dyn Write) -> i32 {
     }
     if let Some((&"autoroute", tail)) = rest.split_first() {
         return autoroute::autoroute_command(tail, out, err);
+    }
+    if let Some((&"gerber-import", tail)) = rest.split_first() {
+        return gerber_import::gerber_import_command(tail, out, err);
+    }
+    if let Some((&"panel", tail)) = rest.split_first() {
+        return panel::panel_command(tail, out, err);
     }
     if let Some((&"sim", tail)) = rest.split_first() {
         return sim::sim_command(tail, out, err);
