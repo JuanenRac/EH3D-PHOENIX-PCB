@@ -46,6 +46,22 @@ pub const OUTPUT_FAILED: &str = "PHOENIX-ROUTE-018";
 pub const OUT_OF_RANGE: &str = "PHOENIX-ROUTE-019";
 /// The board or the rule file cannot be read.
 pub const INPUT_UNREADABLE: &str = "PHOENIX-ROUTE-020";
+/// The board cannot be written as a Specctra DSN file.
+pub const DSN_EXPORT_FAILED: &str = "PHOENIX-ROUTE-021";
+/// The session text is not a valid Specctra session.
+pub const SES_UNREADABLE: &str = "PHOENIX-ROUTE-022";
+/// The session names a net, layer or via that the board does not have.
+pub const SES_MISMATCH: &str = "PHOENIX-ROUTE-023";
+/// The settings of the external autorouter are not valid.
+pub const AUTOROUTER_CONFIG_INVALID: &str = "PHOENIX-ROUTE-024";
+/// The external autorouter is switched off.
+pub const AUTOROUTER_DISABLED: &str = "PHOENIX-ROUTE-025";
+/// The external autorouter could not be run.
+pub const AUTOROUTER_LAUNCH_FAILED: &str = "PHOENIX-ROUTE-026";
+/// The external autorouter ran out of time.
+pub const AUTOROUTER_TIMEOUT: &str = "PHOENIX-ROUTE-027";
+/// The external autorouter left no session.
+pub const AUTOROUTER_NO_OUTPUT: &str = "PHOENIX-ROUTE-028";
 
 /// Code, then the title in English, Spanish, German, French, Italian, Japanese, Chinese and
 /// European Portuguese.
@@ -308,6 +324,110 @@ pub const TITLES: &[(&str, [&str; 8])] = &[
             "基板またはルールファイルを読み込めません",
             "无法读取电路板或规则文件",
             "A placa ou o ficheiro de regras não pode ser lido",
+        ],
+    ),
+    (
+        DSN_EXPORT_FAILED,
+        [
+            "The board cannot be exported to Specctra DSN",
+            "La placa no se puede exportar a Specctra DSN",
+            "Die Platine kann nicht nach Specctra DSN exportiert werden",
+            "La carte ne peut pas être exportée en Specctra DSN",
+            "La scheda non può essere esportata in Specctra DSN",
+            "基板をSpecctra DSNに書き出せません",
+            "无法将电路板导出为Specctra DSN",
+            "A placa não pode ser exportada para Specctra DSN",
+        ],
+    ),
+    (
+        SES_UNREADABLE,
+        [
+            "The Specctra session cannot be read",
+            "No se puede leer la sesión de Specctra",
+            "Die Specctra-Sitzung kann nicht gelesen werden",
+            "La session Specctra est illisible",
+            "La sessione Specctra non può essere letta",
+            "Specctraセッションを読み込めません",
+            "无法读取Specctra会话",
+            "A sessão Specctra não pode ser lida",
+        ],
+    ),
+    (
+        SES_MISMATCH,
+        [
+            "The session does not match the board",
+            "La sesión no corresponde a la placa",
+            "Die Sitzung passt nicht zur Platine",
+            "La session ne correspond pas à la carte",
+            "La sessione non corrisponde alla scheda",
+            "セッションが基板と一致しません",
+            "会话与电路板不匹配",
+            "A sessão não corresponde à placa",
+        ],
+    ),
+    (
+        AUTOROUTER_CONFIG_INVALID,
+        [
+            "The autorouter settings are not valid",
+            "La configuración del autorruteador no es válida",
+            "Die Einstellungen des Autorouters sind ungültig",
+            "Les réglages de l'autorouteur ne sont pas valides",
+            "Le impostazioni dell'autorouter non sono valide",
+            "オートルーターの設定が無効です",
+            "自动布线器设置无效",
+            "As definições do encaminhador automático não são válidas",
+        ],
+    ),
+    (
+        AUTOROUTER_DISABLED,
+        [
+            "The external autorouter is switched off",
+            "El autorruteador externo está apagado",
+            "Der externe Autorouter ist ausgeschaltet",
+            "L'autorouteur externe est désactivé",
+            "L'autorouter esterno è disattivato",
+            "外部オートルーターはオフです",
+            "外部自动布线器已关闭",
+            "O encaminhador automático externo está desligado",
+        ],
+    ),
+    (
+        AUTOROUTER_LAUNCH_FAILED,
+        [
+            "The external autorouter could not be run",
+            "No se pudo ejecutar el autorruteador externo",
+            "Der externe Autorouter konnte nicht ausgeführt werden",
+            "L'autorouteur externe n'a pas pu être exécuté",
+            "Non è stato possibile eseguire l'autorouter esterno",
+            "外部オートルーターを実行できませんでした",
+            "无法运行外部自动布线器",
+            "Não foi possível executar o encaminhador automático externo",
+        ],
+    ),
+    (
+        AUTOROUTER_TIMEOUT,
+        [
+            "The external autorouter ran out of time",
+            "El autorruteador externo agotó el tiempo",
+            "Die Zeit des externen Autorouters ist abgelaufen",
+            "L'autorouteur externe a dépassé le temps imparti",
+            "L'autorouter esterno ha superato il tempo limite",
+            "外部オートルーターが制限時間を超えました",
+            "外部自动布线器已超时",
+            "O encaminhador automático externo excedeu o tempo limite",
+        ],
+    ),
+    (
+        AUTOROUTER_NO_OUTPUT,
+        [
+            "The external autorouter left no session",
+            "El autorruteador externo no dejó ninguna sesión",
+            "Der externe Autorouter hat keine Sitzung hinterlassen",
+            "L'autorouteur externe n'a laissé aucune session",
+            "L'autorouter esterno non ha lasciato alcuna sessione",
+            "外部オートルーターがセッションを出力しませんでした",
+            "外部自动布线器未生成会话",
+            "O encaminhador automático externo não deixou nenhuma sessão",
         ],
     ),
 ];

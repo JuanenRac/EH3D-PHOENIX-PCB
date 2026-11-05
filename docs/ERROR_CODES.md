@@ -436,6 +436,14 @@ The titles of these codes also exist in the eight languages of the suite (`TITLE
 | PHOENIX-ROUTE-018 | Output file exists or cannot be written | an output file that already exists (an input file is never replaced) or cannot be created |
 | PHOENIX-ROUTE-019 | A coordinate is out of range | a point or a length that does not fit the checked range of the model |
 | PHOENIX-ROUTE-020 | Board or rule file cannot be read | a board or a rule file that cannot be opened, is too large or is not valid |
+| PHOENIX-ROUTE-021 | The board cannot be exported to Specctra DSN | a name with a quote or a control character, two nets or two copper layers with one name, two pads of a component with one number, a reference designator with a hyphen, a board with no outline or no copper layer, a pad on no copper layer, a track with an arc piece or a via that does not join the first and the last copper layer |
+| PHOENIX-ROUTE-022 | The Specctra session cannot be read | text that is not a session, brackets that do not close or are nested too deep, a number that cannot be read, a coordinate that is missing, or a session larger than the limit |
+| PHOENIX-ROUTE-023 | The session does not match the board | a net, a copper layer or a via padstack that the board or the export does not have, a wire that is not a path of straight pieces, or a wire with no width or no length |
+| PHOENIX-ROUTE-024 | The autorouter settings are not valid | a line of `config/autorouter.cfg` that is not `key = value`, an unknown key, a value out of range, an address in a path or an argument, a variable whose name suggests a secret, or an enabled adapter without an absolute program, an absolute folder or the design and the session in its arguments |
+| PHOENIX-ROUTE-025 | The external autorouter is switched off | `phoenix autoroute run --execute` while `enabled = false`; nothing is started |
+| PHOENIX-ROUTE-026 | The external autorouter could not be run | a program that is not a file, a temporary folder that is not there, a program that cannot be started or that ends with an error |
+| PHOENIX-ROUTE-027 | The external autorouter ran out of time | a program that is still running after `timeout_s` seconds; it is ended |
+| PHOENIX-ROUTE-028 | The external autorouter left no session | a program that ended well and wrote no session file at the place given |
 
 ## Script interpreter (`eh3d-phoenix-script`, `src/codes.rs`)
 
