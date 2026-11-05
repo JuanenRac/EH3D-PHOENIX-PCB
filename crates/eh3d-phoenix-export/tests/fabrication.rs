@@ -574,7 +574,7 @@ fn the_check_finds_nothing_in_a_good_set_and_finds_what_is_lost() {
 
     // a pad lost from the top copper
     let mut lost = set.clone();
-    edit(&mut lost, "layers/02_top_copper.gbr", &|t| {
+    edit(&mut lost, "layers/02_top_copper.gbr", &|t: &str| {
         let at = t.find("D03*\n").unwrap();
         let start = t[..at].rfind('\n').unwrap() + 1;
         format!("{}{}", &t[..start], &t[at + 5..])
@@ -583,27 +583,16 @@ fn the_check_finds_nothing_in_a_good_set_and_finds_what_is_lost() {
 
     // a zone lost from the bottom copper
     let mut no_zone = set.clone();
-    edit(&mut no_zone, "layers/01_bottom_copper.gbr", &|t| {
-        let start = t
-            .find(
-                "G36*
-",
-            )
-            .unwrap();
-        let end = t
-            .find(
-                "G37*
-",
-            )
-            .unwrap()
-            + 5;
+    edit(&mut no_zone, "layers/01_bottom_copper.gbr", &|t: &str| {
+        let start = t.find("G36*\n").unwrap();
+        let end = t.find("G37*\n").unwrap() + 5;
         format!("{}{}", &t[..start], &t[end..])
     });
     assert!(found(&no_zone).iter().any(|c| c == codes::VERIFY_MISMATCH));
 
     // an outline that is larger than the board
     let mut wide = set.clone();
-    edit(&mut wide, "layers/06_outline.gbr", &|t| {
+    edit(&mut wide, "layers/06_outline.gbr", &|t: &str| {
         t.replace("X30000000", "X31000000")
     });
     assert!(found(&wide).iter().any(|c| c == codes::VERIFY_MISMATCH));
@@ -615,20 +604,26 @@ fn the_check_finds_nothing_in_a_good_set_and_finds_what_is_lost() {
         .retain(|f| f.role != FileRole::Drill { plated: true });
     assert_eq!(found(&no_drill), vec![codes::VERIFY_MISMATCH]);
     let mut empty_drill = set.clone();
-    edit(&mut empty_drill, "layers/drill_pth.drl", &|_| {
+    edit(&mut empty_drill, "layers/drill_pth.drl", &|_: &str| {
         "garbage".to_owned()
     });
     assert!(!found(&empty_drill).is_empty());
 
     // a part lost from the placement file and from the bill of materials
     let mut short = set.clone();
-    edit(&mut short, "layers/placement.csv", &|t| {
-        t.lines().take(3).map(|l| format!("{l}\n")).collect()
+    edit(&mut short, "layers/placement.csv", &|t: &str| {
+        t.lines()
+            .take(3)
+            .map(|l| format!("{l}\n"))
+            .collect::<String>()
     });
     assert!(found(&short).iter().any(|c| c == codes::VERIFY_MISMATCH));
     let mut thin = set.clone();
-    edit(&mut thin, "layers/bom.csv", &|t| {
-        t.lines().take(2).map(|l| format!("{l}\n")).collect()
+    edit(&mut thin, "layers/bom.csv", &|t: &str| {
+        t.lines()
+            .take(2)
+            .map(|l| format!("{l}\n"))
+            .collect::<String>()
     });
     assert!(found(&thin).iter().any(|c| c == codes::VERIFY_MISMATCH));
 }

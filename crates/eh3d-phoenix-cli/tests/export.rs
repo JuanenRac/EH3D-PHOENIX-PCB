@@ -267,18 +267,18 @@ fn export_arguments_and_boards_that_cannot_be_used_exit_2() {
     let broken = f.write("broken.json", b"not json");
     let missing = f.path("absent.json").to_str().unwrap().to_owned();
     for list in [
-        vec!["export"],
-        vec!["export", json.as_str()],
-        vec!["export", "--out", out_str.as_str()],
-        vec!["export", "--out"],
-        vec![
+        &["export"][..],
+        &["export", json.as_str()],
+        &["export", "--out", out_str.as_str()],
+        &["export", "--out"],
+        &[
             "export",
             "--out",
             out_str.as_str(),
             json.as_str(),
             json.as_str(),
         ],
-        vec![
+        &[
             "export",
             "--out",
             out_str.as_str(),
@@ -286,17 +286,17 @@ fn export_arguments_and_boards_that_cannot_be_used_exit_2() {
             "xx",
             json.as_str(),
         ],
-        vec![
+        &[
             "export",
             "--out",
             out_str.as_str(),
             "--nonsense",
             json.as_str(),
         ],
-        vec!["export", "--out", out_str.as_str(), broken.as_str()],
-        vec!["export", "--out", out_str.as_str(), missing.as_str()],
+        &["export", "--out", out_str.as_str(), broken.as_str()],
+        &["export", "--out", out_str.as_str(), missing.as_str()],
     ] {
-        let (code, out, err) = call(&list);
+        let (code, out, err) = call(list);
         assert_eq!((code, out.is_empty()), (2, true), "{list:?}");
         assert!(!err.is_empty(), "{list:?}");
     }
