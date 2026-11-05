@@ -2,7 +2,7 @@
   "repo": "EH3D-PHOENIX-PCB",
   "ecosystem": "eh3d",
   "tagline": "An EDA environment for schematics, PCB layout, verification and simulation. Written so far: model, project file, board, schematic and EAGLE files.",
-  "description": "EH3D-PHOENIX-PCB is planned as an EDA environment with schematic capture, PCB layout, verification tools, circuit simulation and specialized modules for switch-mode power supplies and RF. Today it holds a workspace with a redacted inventory of a private corpus of design files, the foundations of the design model (checked integer units, object ids, canonical JSON), the project file on the shared container of EH3D-COMMON, the board model with silkscreen and reversible operations, rule checks, the connectivity and rule engine, the schematic with a drawing, a reader of EAGLE XML files, a writer and reader of boards as EAGLE XML, the contract for pairs of EAGLE binary files, the manufacturing export (Gerber X2, Excellon, placement, bill of materials and a manifest of checksums), a calculator of board stack-ups and transmission lines (microstrip, stripline, coplanar waveguide, coupled pairs) and a command line; all of it has only been tried on generated or hand-made data, and the editors, the readers of foreign designs and the reader of the EAGLE binary files are not written.",
+  "description": "EH3D-PHOENIX-PCB is planned as an EDA environment with schematic capture, PCB layout, verification tools, circuit simulation and specialized modules for switch-mode power supplies and RF. Today it holds a workspace with a redacted inventory of a private corpus of design files, the foundations of the design model (checked integer units, object ids, canonical JSON), the project file on the shared container of EH3D-COMMON, the board model with silkscreen and reversible operations, rule checks, the connectivity and rule engine, the schematic with a drawing, a reader of EAGLE XML files, a writer and reader of boards as EAGLE XML, the contract for pairs of EAGLE binary files, the manufacturing export (Gerber X2, Excellon, placement, bill of materials and a manifest of checksums), a calculator of board stack-ups and transmission lines (microstrip, stripline, coplanar waveguide, coupled pairs), RF tools (Touchstone files, two-port parameters, matching and ideal ladder filters) and a command line; all of it has only been tried on generated or hand-made data, and the editors, the readers of foreign designs and the reader of the EAGLE binary files are not written.",
   "columns": [
     "WHO USES IT",
     "THIS REPOSITORY",
@@ -40,7 +40,7 @@
       "title": "The code",
       "lines": [
         "inventory, model, project file, board,",
-        "schematic, EAGLE, rules, export, stack-up, CLI"
+        "schematic, EAGLE, rules, export, stack-up, RF, CLI"
       ],
       "code": [
         "crates/eh3d-phoenix-corpus/src/inventory.rs",
@@ -50,7 +50,8 @@
         "crates/eh3d-phoenix-cli/src/lib.rs",
         "crates/eh3d-phoenix-eagle-board/src/writer.rs",
         "crates/eh3d-phoenix-rules/src/engine.rs",
-        "crates/eh3d-phoenix-stackup/src/models.rs"
+        "crates/eh3d-phoenix-stackup/src/models.rs",
+        "crates/eh3d-phoenix-rf/src/touchstone.rs"
       ]
     },
     {

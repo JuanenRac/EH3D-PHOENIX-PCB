@@ -130,6 +130,19 @@
           }
         },
         {
+          "name": "RF.md",
+          "desc": {
+            "en": "RF tools: Touchstone, two-ports, matching, filters",
+            "es": "herramientas de RF: Touchstone, bipuertos, adaptación, filtros",
+            "de": "HF-Werkzeuge: Touchstone, Zweitore, Anpassung, Filter",
+            "fr": "outils RF : Touchstone, quadripôles, adaptation, filtres",
+            "it": "strumenti RF: Touchstone, doppi bipoli, adattamento, filtri",
+            "ja": "RF ツール：Touchstone、2 ポート、整合、フィルタ",
+            "zh": "射频工具：Touchstone、二端口、匹配、滤波器",
+            "pt": "ferramentas de RF: Touchstone, dois portos, adaptação, filtros"
+          }
+        },
+        {
           "name": "GATE_F1.md",
           "desc": {
             "en": "what the gate of the first phase checks and what it does not",
@@ -211,24 +224,24 @@
         {
           "name": "crates/",
           "desc": {
-            "en": "model, project, board, schematic, EAGLE, rules, hub, export, stack-up, CLI",
-            "es": "modelo, proyecto, placa, esquemático, EAGLE, reglas, hub, exportación, apilado, comandos",
-            "de": "Modell, Projekt, Platine, Schaltplan, EAGLE, Regeln, Hub, Export, Lagenaufbau, CLI",
-            "fr": "modèle, projet, carte, schéma, EAGLE, règles, hub, export, empilage, CLI",
-            "it": "modello, progetto, scheda, schema, EAGLE, regole, hub, esportazione, stratificazione, CLI",
-            "ja": "モデル、プロジェクト、基板、回路図、EAGLE、ルール、ハブ、書き出し、スタックアップ、CLI",
-            "zh": "模型、项目、电路板、原理图、EAGLE、规则、枢纽、导出、叠层、命令行",
-            "pt": "modelo, projeto, placa, esquema, EAGLE, regras, hub, exportação, empilhamento, CLI"
+            "en": "model, project, board, schematic, EAGLE, rules, hub, export, stack-up, RF, CLI",
+            "es": "modelo, proyecto, placa, esquemático, EAGLE, reglas, hub, exportación, apilado, RF, comandos",
+            "de": "Modell, Projekt, Platine, Schaltplan, EAGLE, Regeln, Hub, Export, Lagenaufbau, HF, CLI",
+            "fr": "modèle, projet, carte, schéma, EAGLE, règles, hub, export, empilage, RF, CLI",
+            "it": "modello, progetto, scheda, schema, EAGLE, regole, hub, esportazione, stratificazione, RF, CLI",
+            "ja": "モデル、プロジェクト、基板、回路図、EAGLE、ルール、ハブ、書き出し、スタックアップ、RF、CLI",
+            "zh": "模型、项目、电路板、原理图、EAGLE、规则、枢纽、导出、叠层、射频、命令行",
+            "pt": "modelo, projeto, placa, esquema, EAGLE, regras, hub, exportação, empilhamento, RF, CLI"
           },
           "tree_desc": {
-            "en": "inventory, model, project, board, schematic, EAGLE, rules, hub, export, stack-up, CLI",
-            "es": "inventario, modelo, proyecto, placa, esquemático, EAGLE, reglas, hub, exportación, apilado, comandos",
-            "de": "Inventar, Modell, Projekt, Platine, Schaltplan, EAGLE, Regeln, Hub, Export, Lagenaufbau, CLI",
-            "fr": "inventaire, modèle, projet, carte, schéma, EAGLE, règles, hub, export, empilage, CLI",
-            "it": "inventario, modello, progetto, scheda, schema, EAGLE, regole, hub, esportazione, stratificazione, CLI",
-            "ja": "棚卸し、モデル、プロジェクト、基板、回路図、EAGLE、ルール、ハブ、書き出し、スタックアップ、CLI",
-            "zh": "清点、模型、项目、电路板、原理图、EAGLE、规则、枢纽、导出、叠层、命令行",
-            "pt": "inventário, modelo, projeto, placa, esquema, EAGLE, regras, hub, exportação, empilhamento, CLI"
+            "en": "inventory, model, project, board, schematic, EAGLE, rules, hub, export, stack-up, RF, CLI",
+            "es": "inventario, modelo, proyecto, placa, esquemático, EAGLE, reglas, hub, exportación, apilado, RF, comandos",
+            "de": "Inventar, Modell, Projekt, Platine, Schaltplan, EAGLE, Regeln, Hub, Export, Lagenaufbau, HF, CLI",
+            "fr": "inventaire, modèle, projet, carte, schéma, EAGLE, règles, hub, export, empilage, RF, CLI",
+            "it": "inventario, modello, progetto, scheda, schema, EAGLE, regole, hub, esportazione, stratificazione, RF, CLI",
+            "ja": "棚卸し、モデル、プロジェクト、基板、回路図、EAGLE、ルール、ハブ、書き出し、スタックアップ、RF、CLI",
+            "zh": "清点、模型、项目、电路板、原理图、EAGLE、规则、枢纽、导出、叠层、射频、命令行",
+            "pt": "inventário, modelo, projeto, placa, esquema, EAGLE, regras, hub, exportação, empilhamento, RF, CLI"
           }
         },
         {
