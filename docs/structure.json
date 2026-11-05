@@ -273,6 +273,19 @@
           }
         },
         {
+          "name": "SIM_NONLINEAR.md",
+          "desc": {
+            "en": "simulator: non-linear devices, DC sweep, convergence",
+            "es": "simulador: dispositivos no lineales, barrido en continua, convergencia",
+            "de": "Simulator: nichtlineare Bauteile, Gleichstrom-Durchlauf, Konvergenz",
+            "fr": "simulateur : composants non linéaires, balayage continu, convergence",
+            "it": "simulatore: dispositivi non lineari, scansione in continua, convergenza",
+            "ja": "シミュレータ：非線形素子、DC 掃引、収束",
+            "zh": "仿真器：非线性器件、直流扫描、收敛",
+            "pt": "simulador: dispositivos não lineares, varrimento em contínua, convergência"
+          }
+        },
+        {
           "name": "ROUTE.md",
           "desc": {
             "en": "editing and routing: ratsnest, router, reversible edits",

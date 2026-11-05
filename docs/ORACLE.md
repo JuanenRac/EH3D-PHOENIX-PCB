@@ -20,7 +20,7 @@ A number is never entered from memory. When a value cannot be cited with certain
 |---|---|---|
 | `stackup.json` | `stackup` | constants (c, mu0, eta0), the complete elliptic integral, the zero-thickness stripline at the width where Z0 = eta0/4, an air microstrip, the 50 ohm microstrip of a textbook example, closed-form cross-checks of microstrip and stripline against IPC-2141, the differential fits, the skin depth of copper and the delay of a stripline |
 | `rf.json` | `rf` | VSWR, return loss and mismatch loss of a mismatched load, the quarter-wave transformer, the input impedance of lossless lines of a quarter, an eighth and a half wave, the guided wavelength |
-| `sim.json` | `sim` | dividers, the corner frequency and phase of an RC filter, series RLC circuits at resonance (gain across the resistor and Q across the capacitor), the step response of an RC and of an underdamped RLC circuit |
+| `sim.json` | `sim` | dividers, the corner frequency and phase of an RC filter, series RLC circuits at resonance (gain across the resistor and Q across the capacitor), the step response of an RC and of an underdamped RLC circuit, a diode and an LED with a series resistor against the Lambert W solution, a half-wave rectifier, the transfer table of an NMOS inverter from a DC sweep, an inverting op-amp amplifier and a voltage-controlled switch |
 | `board.json` | `board` | boards whose answer follows from plane geometry: the clearance of two parallel tracks against a rule, the length and the delay of a straight track, the copper area of a zone with and without a track across it |
 | `pending.json` | `pending` | the cases that cannot be run yet, each with its reason |
 
