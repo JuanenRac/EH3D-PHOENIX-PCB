@@ -67,7 +67,7 @@ jobs:
         run: |
           set -euo pipefail
           version="$(python3 -c "import json; print(json.load(open('eh3d.project.json', encoding='utf-8'))['version'])")"
-          cargo_version="$(python3 -c "import tomllib; print(tomllib.load(open('Cargo.toml', 'rb'))['package']['version'])")"
+          cargo_version="$(python3 -c "import tomllib; print(tomllib.load(open('Cargo.toml', 'rb'))['workspace']['package']['version'])")"
           [ "$cargo_version" = "$version" ] || { echo "::error::the version of eh3d.project.json ($version) is not the one of Cargo.toml ($cargo_version)"; exit 1; }
           [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)?$ ]] || { echo "::error::the version $version is not a version x.y.z or x.y.z.w"; exit 1; }
           grep -q "^## \[$version\]" CHANGELOG.md || { echo "::error::CHANGELOG.md has no section for $version (raise the version BEFORE the build)"; exit 1; }
