@@ -246,6 +246,10 @@ The titles of these codes also exist in the eight languages of the suite (`TITLE
 | PHOENIX-VIEW-007 | Benchmark option is not valid | a benchmark board below the smallest size, or more scans than picks |
 | PHOENIX-VIEW-008 | The window is not built in | `phoenix view` asked to open the window by a program built without the `gui` feature |
 | PHOENIX-VIEW-009 | The window could not be opened | the graphics or windowing system refused to open the window |
+| PHOENIX-VIEW-010 | The edit could not be made | an edit that the board refuses, that the rules refuse in strict mode, or that needs something the board does not have (a net, two copper layers, a companion board) |
+| PHOENIX-VIEW-011 | The file may not be written there | a save as onto the input file, or onto a file that exists and was not written by this window |
+| PHOENIX-VIEW-012 | The file could not be written | a folder that does not exist, a disk that refuses, or a document that cannot be written in the format asked |
+| PHOENIX-VIEW-013 | The rule file cannot be used | a rule file or a settings file of a check that cannot be read or that the check refuses |
 
 ## KiCad readers (`eh3d-phoenix-kicad`, `src/error.rs`)
 

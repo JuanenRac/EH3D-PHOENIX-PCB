@@ -22,6 +22,14 @@ pub const BENCH_INVALID: &str = "PHOENIX-VIEW-007";
 pub const WINDOW_NOT_BUILT: &str = "PHOENIX-VIEW-008";
 /// The window could not be opened.
 pub const WINDOW_FAILED: &str = "PHOENIX-VIEW-009";
+/// An edit that could not be made.
+pub const EDIT_FAILED: &str = "PHOENIX-VIEW-010";
+/// A file that may not be written where it was asked.
+pub const SAVE_REFUSED: &str = "PHOENIX-VIEW-011";
+/// A file that could not be written.
+pub const SAVE_FAILED: &str = "PHOENIX-VIEW-012";
+/// A rule file or a settings file of a check that cannot be used.
+pub const CHECK_FILE_UNUSABLE: &str = "PHOENIX-VIEW-013";
 
 /// Every code with its English title, in order.
 pub const REGISTRY: &[(&str, &str)] = &[
@@ -37,11 +45,15 @@ pub const REGISTRY: &[(&str, &str)] = &[
     (BENCH_INVALID, "Benchmark option is not valid"),
     (WINDOW_NOT_BUILT, "The window is not built in"),
     (WINDOW_FAILED, "The window could not be opened"),
+    (EDIT_FAILED, "The edit could not be made"),
+    (SAVE_REFUSED, "The file may not be written there"),
+    (SAVE_FAILED, "The file could not be written"),
+    (CHECK_FILE_UNUSABLE, "The rule file cannot be used"),
 ];
 
 /// Code, then the title in English, Spanish, German, French, Italian, Japanese, Chinese and
 /// European Portuguese.
-pub const TITLES: [(&str, [&str; 8]); 9] = [
+pub const TITLES: [(&str, [&str; 8]); 13] = [
     (
         FILE_UNUSABLE,
         [
@@ -157,6 +169,58 @@ pub const TITLES: [(&str, [&str; 8]); 9] = [
             "ウィンドウを開けませんでした",
             "无法打开窗口",
             "Não foi possível abrir a janela",
+        ],
+    ),
+    (
+        EDIT_FAILED,
+        [
+            "The edit could not be made",
+            "No se pudo hacer la edición",
+            "Die Bearbeitung konnte nicht ausgeführt werden",
+            "La modification n'a pas pu être faite",
+            "Non è stato possibile eseguire la modifica",
+            "編集を実行できませんでした",
+            "无法进行编辑",
+            "Não foi possível fazer a edição",
+        ],
+    ),
+    (
+        SAVE_REFUSED,
+        [
+            "The file may not be written there",
+            "No se puede escribir el archivo ahí",
+            "Die Datei darf dort nicht geschrieben werden",
+            "Le fichier ne peut pas être écrit à cet endroit",
+            "Il file non può essere scritto lì",
+            "その場所にはファイルを書き込めません",
+            "不能在该位置写入文件",
+            "O ficheiro não pode ser escrito aí",
+        ],
+    ),
+    (
+        SAVE_FAILED,
+        [
+            "The file could not be written",
+            "No se pudo escribir el archivo",
+            "Die Datei konnte nicht geschrieben werden",
+            "Le fichier n'a pas pu être écrit",
+            "Non è stato possibile scrivere il file",
+            "ファイルを書き込めませんでした",
+            "无法写入文件",
+            "Não foi possível escrever o ficheiro",
+        ],
+    ),
+    (
+        CHECK_FILE_UNUSABLE,
+        [
+            "The rule file cannot be used",
+            "No se puede usar el archivo de reglas",
+            "Die Regeldatei kann nicht verwendet werden",
+            "Le fichier de règles ne peut pas être utilisé",
+            "Il file delle regole non può essere usato",
+            "ルールファイルを使用できません",
+            "无法使用规则文件",
+            "Não é possível usar o ficheiro de regras",
         ],
     ),
 ];

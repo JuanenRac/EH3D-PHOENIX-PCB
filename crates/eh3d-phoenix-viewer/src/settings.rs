@@ -7,7 +7,7 @@ use std::collections::BTreeMap;
 use crate::codes::{ViewError, SETTINGS_INVALID};
 
 /// The colours that a settings text may name, with their defaults (red, green, blue, alpha).
-pub const DEFAULT_COLOURS: [(&str, [u8; 4]); 22] = [
+pub const DEFAULT_COLOURS: [(&str, [u8; 4]); 23] = [
     ("background", [0x0f, 0x0d, 0x0b, 0xff]),
     ("top_copper", [0xc8, 0xa3, 0x3c, 0xff]),
     ("bottom_copper", [0x3c, 0x78, 0xc8, 0xff]),
@@ -30,6 +30,7 @@ pub const DEFAULT_COLOURS: [(&str, [u8; 4]); 22] = [
     ("label", [0xf4, 0xec, 0xe0, 0xff]),
     ("highlight", [0xff, 0x54, 0x70, 0xff]),
     ("measure", [0xff, 0xb0, 0x00, 0xff]),
+    ("ratsnest", [0xe8, 0xe8, 0xf0, 0xb4]),
 ];
 
 /// The limits, tolerances, sizes and colours of the viewer.
@@ -99,6 +100,22 @@ pub struct ViewerSettings {
     pub bench_pick_tolerance_mm: f64,
     /// The seed of the generator of the benchmark boards.
     pub bench_seed: u64,
+    /// The grid that the positions of an edit snap to, in millimetres.
+    pub snap_mm: f64,
+    /// How far one turn of a component goes, in degrees.
+    pub rotate_step_deg: f64,
+    /// How far from a vertex of a track a press still takes it, in pixels.
+    pub vertex_pick_px: f64,
+    /// How much the keys plus and minus change the width of a track, in millimetres.
+    pub width_step_mm: f64,
+    /// The width of the lines of the ratsnest, in pixels.
+    pub ratsnest_width_px: f64,
+    /// The radius of the ring that marks the place of a finding, in pixels.
+    pub marker_radius_px: f64,
+    /// The most findings that a panel lists.
+    pub findings_shown: usize,
+    /// The ending of the name of the copy that is made before a saved file is replaced.
+    pub backup_suffix: String,
     /// The colours by name, each red, green, blue and alpha.
     pub colours: BTreeMap<String, [u8; 4]>,
 }
@@ -138,6 +155,14 @@ impl Default for ViewerSettings {
             bench_pitch_mm: 0.4,
             bench_pick_tolerance_mm: 0.25,
             bench_seed: 1,
+            snap_mm: 0.05,
+            rotate_step_deg: 90.0,
+            vertex_pick_px: 8.0,
+            width_step_mm: 0.05,
+            ratsnest_width_px: 1.0,
+            marker_radius_px: 14.0,
+            findings_shown: 500,
+            backup_suffix: ".bak".to_string(),
             colours: DEFAULT_COLOURS
                 .iter()
                 .map(|(name, rgba)| ((*name).to_string(), *rgba))
@@ -259,6 +284,22 @@ impl ViewerSettings {
                     s.bench_pick_tolerance_mm = number(value, line, key)?;
                 }
                 "bench_seed" => s.bench_seed = whole(value, line, key)?,
+                "snap_mm" => s.snap_mm = number(value, line, key)?,
+                "rotate_step_deg" => s.rotate_step_deg = number(value, line, key)?,
+                "vertex_pick_px" => s.vertex_pick_px = number(value, line, key)?,
+                "width_step_mm" => s.width_step_mm = number(value, line, key)?,
+                "ratsnest_width_px" => s.ratsnest_width_px = number(value, line, key)?,
+                "marker_radius_px" => s.marker_radius_px = number(value, line, key)?,
+                "findings_shown" => s.findings_shown = count(value, line, key)?,
+                "backup_suffix" => {
+                    if value.is_empty() || value.contains(['/', '\\']) {
+                        return Err(invalid(
+                            line,
+                            format!("{key}: must be a non-empty ending without a slash"),
+                        ));
+                    }
+                    s.backup_suffix = value.to_string();
+                }
                 _ => return Err(invalid(line, format!("unknown key {key}"))),
             }
         }
@@ -272,6 +313,12 @@ impl ViewerSettings {
             return Err(ViewError::new(
                 SETTINGS_INVALID,
                 "fit_margin_fraction must be below 0.5",
+            ));
+        }
+        if s.rotate_step_deg > 360.0 {
+            return Err(ViewError::new(
+                SETTINGS_INVALID,
+                "rotate_step_deg must not exceed 360",
             ));
         }
         if s.arc_min_segments > s.arc_max_segments {
@@ -328,12 +375,29 @@ mod tests {
             "zoom_min_px_per_mm = 10\nzoom_max_px_per_mm = 5",
             "fit_margin_fraction = 0.5",
             "arc_min_segments = 10\narc_max_segments = 5",
+            "snap_mm = 0",
+            "rotate_step_deg = 400",
+            "backup_suffix = ",
+            "backup_suffix = a/b",
         ] {
             let error = ViewerSettings::parse(text).unwrap_err();
             assert_eq!(error.code, SETTINGS_INVALID, "{text}");
         }
         let error = ViewerSettings::parse("\n\nbad").unwrap_err();
         assert!(error.detail.starts_with("line 3"), "{}", error.detail);
+    }
+
+    #[test]
+    fn the_settings_of_the_editing_are_read_and_checked() {
+        let s = ViewerSettings::parse(
+            "snap_mm = 0.1\nrotate_step_deg = 45\nfindings_shown = 7\nbackup_suffix = .old\ncolour.ratsnest = #112233\n",
+        )
+        .unwrap();
+        assert_eq!(s.snap_mm, 0.1_f64);
+        assert_eq!(s.rotate_step_deg, 45.0_f64);
+        assert_eq!(s.findings_shown, 7);
+        assert_eq!(s.backup_suffix, ".old");
+        assert_eq!(s.colour("ratsnest"), [0x11, 0x22, 0x33, 0xff]);
     }
 
     #[test]
