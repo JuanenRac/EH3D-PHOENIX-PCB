@@ -1,0 +1,20 @@
+[package]
+name = "eh3d-phoenix-schedit"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "The state of the schematic editor without a screen: the tool, the grid and the snapping, the selection, the drag with wires that follow the pins, the palette of symbols, the electrical rule check after each change, the transfer to the board with a preview and the export of the net list to the simulator; and the file of operations that the command line applies"
+
+[dependencies]
+eh3d-phoenix-board = { path = "../eh3d-phoenix-board" }
+eh3d-phoenix-erc = { path = "../eh3d-phoenix-erc" }
+eh3d-phoenix-model = { path = "../eh3d-phoenix-model" }
+eh3d-phoenix-rules = { path = "../eh3d-phoenix-rules" }
+eh3d-phoenix-schematic = { path = "../eh3d-phoenix-schematic" }
+eh3d-phoenix-sim = { path = "../eh3d-phoenix-sim" }
+eh3d-phoenix-sync = { path = "../eh3d-phoenix-sync" }
+serde.workspace = true
+serde_json = { workspace = true, features = ["float_roundtrip"] }
+thiserror.workspace = true

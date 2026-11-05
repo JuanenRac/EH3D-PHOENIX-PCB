@@ -2,7 +2,7 @@
 
 Codes have the form `PHOENIX-<AREA>-<NNN>`. A code is stable: it never changes its meaning and is never reused. Programs show the text through the key `diag.<code>`; the codes themselves are never translated. The object identity (UUID v7) is the one of the shared container, with its own codes `EH3D-ID-001` and `EH3D-ID-002`. The container codes `EH3D-PKG-001` to `EH3D-PKG-014` belong to the shared container and are listed in the registry of the documentation repository.
 
-Each table repeats the `REGISTRY` of a crate (`eh3d-phoenix-model` in `src/diagnostic.rs`, `eh3d-phoenix-project` and `eh3d-phoenix-eagle` in `src/codes.rs`, `eh3d-phoenix-hub` in `src/lib.rs`, `eh3d-phoenix-export` in `src/codes.rs`, `eh3d-phoenix-schematic` in `src/model.rs`, `src/draw.rs`, `src/edit.rs` and `src/link.rs`, `eh3d-phoenix-board` in `src/validate.rs`, `src/connectivity.rs` and `src/rules.rs`, `eh3d-phoenix-rules` in `src/codes.rs`, `eh3d-phoenix-stackup` and `eh3d-phoenix-rf` in `src/error.rs`, `eh3d-phoenix-viewer`, `eh3d-phoenix-sanitizer`, `eh3d-phoenix-erc` and `eh3d-phoenix-sync` in `src/codes.rs`); a test of each crate checks that every code of its registry is in the table with the same title.
+Each table repeats the `REGISTRY` of a crate (`eh3d-phoenix-model` in `src/diagnostic.rs`, `eh3d-phoenix-project` and `eh3d-phoenix-eagle` in `src/codes.rs`, `eh3d-phoenix-hub` in `src/lib.rs`, `eh3d-phoenix-export` in `src/codes.rs`, `eh3d-phoenix-schematic` in `src/model.rs`, `src/draw.rs`, `src/edit.rs` and `src/link.rs`, `eh3d-phoenix-board` in `src/validate.rs`, `src/connectivity.rs` and `src/rules.rs`, `eh3d-phoenix-rules` in `src/codes.rs`, `eh3d-phoenix-stackup` and `eh3d-phoenix-rf` in `src/error.rs`, `eh3d-phoenix-viewer`, `eh3d-phoenix-sanitizer`, `eh3d-phoenix-erc`, `eh3d-phoenix-sync` and `eh3d-phoenix-schedit` in `src/codes.rs`); a test of each crate checks that every code of its registry is in the table with the same title.
 
 ## Model foundations
 
@@ -337,6 +337,14 @@ The titles of these codes also exist in the eight languages of the suite (`TITLE
 | PHOENIX-SYNC-013 | Two nets of the schematic share a name | a second net with the name of another; it is left alone (inconclusive) |
 | PHOENIX-SYNC-014 | Settings are not valid | a line of the settings text that is not `key = value`, an unknown key or a value out of range |
 | PHOENIX-SYNC-015 | Change could not be applied | an operation that does not apply to the document it is applied to (a package made for another board or schematic) |
+
+## Schematic editor (`eh3d-phoenix-schedit`, `src/codes.rs`)
+
+| Code | Title | Raised by |
+|---|---|---|
+| PHOENIX-SCHEDIT-001 | Settings file is not valid | a line of `config/schedit.cfg` that is not `key = value`, an unknown key, or a value out of range |
+| PHOENIX-SCHEDIT-002 | File of operations is not valid | a file of operations or a library of symbols that cannot be read, or an operation of the file that the editor refused (the message gives its number) |
+| PHOENIX-SCHEDIT-003 | Output file is not allowed | `phoenix schedit` asked to write onto its input file or onto a file that exists, or in a format the editor does not write |
 
 ## Circuit simulator (`eh3d-phoenix-sim`, `src/codes.rs`)
 

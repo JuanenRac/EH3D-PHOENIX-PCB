@@ -62,6 +62,8 @@ pub enum EditError {
     BadSymbol(&'static str),
     /// A coordinate or an angle left its range.
     OutOfRange,
+    /// Something that was needed is not there (nothing selected, nothing copied).
+    BadSelection(&'static str),
     /// More operations or nesting than allowed.
     TooMany,
     /// The supply of ids failed.
@@ -91,6 +93,7 @@ impl fmt::Display for EditError {
             EditError::BadBus(text) => write!(f, "{text} is not a bus such as D[0..7]"),
             EditError::BadSymbol(why) => write!(f, "symbol refused: {why}"),
             EditError::OutOfRange => write!(f, "a coordinate or an angle is out of range"),
+            EditError::BadSelection(why) => write!(f, "nothing to do: {why}"),
             EditError::TooMany => write!(f, "too many operations"),
             EditError::Ids(why) => write!(f, "no id could be made: {why}"),
         }
