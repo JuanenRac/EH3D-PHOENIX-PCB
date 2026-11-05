@@ -6,7 +6,8 @@
 //! The editor of libraries adds the commands `libedit` and `footprint`, and the routing through an
 //! external autorouter adds `autoroute`, the filling of copper zones adds `zones` and the lengths
 //! of nets and pairs add `lengths`; the import of Gerber and Excellon files adds `gerber-import`
-//! and the layout of a matrix of boards adds `panel`.
+//! and the layout of a matrix of boards adds `panel`; the bill of materials with costs adds `bom`
+//! and the 3D assembly of the board with the models of its components adds `assembly3d`.
 //!
 //! Exit codes: 0 done, 1 `stackup` could not compute one or more of the lines it was asked for,
 //! `check`, `connectivity` and `erc` proved an error, or `sync` found changes to make, 2 the
@@ -14,7 +15,9 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
+mod assembly3d;
 mod autoroute;
+mod bom;
 mod check;
 mod design;
 mod export;
@@ -215,6 +218,22 @@ phoenix lengths [--config FILE] [--stackup FILE] [--groups FILE] [--out FILE] [-
                 must match in length and differential pairs; a prototype, run `phoenix lengths`
                 alone for its options
 
+phoenix bom [--config FILE] [--prices FILE] [--parts FILE] [--schematic FILE] [--stackup FILE]
+            [--boards N] [--csv FILE] [--json-file FILE] [--html FILE] [--json] [--lang xx]
+            <board>
+phoenix assembly3d [--config FILE] --models FILE [--stackup FILE] [--obj FILE] [--step FILE]
+                   [--json-file FILE] [--json] [--lang xx] <board>
+
+  bom           the bill of materials of a board grouped by value, footprint and maker, with the
+                cheapest supplier from a local price file, the cost per board and per batch with
+                the waste, and an estimate of the cost of the boards from example tariffs; CSV,
+                JSON and HTML are written only to new files, a prototype, run `phoenix bom`
+                alone for its options
+  assembly3d    the board and its components as a 3D scene from the models of a table (STEP files
+                or boxes), with collisions and a height limit checked on the boxes and a
+                simplified OBJ and STEP export written only to new files, a prototype, run
+                `phoenix assembly3d` alone for its options
+
 phoenix view [--settings FILE] [--lang xx] [<board or schematic>]
 phoenix view --summary <file>  |  phoenix view --bench
 
@@ -316,6 +335,12 @@ pub fn run(args: &[String], out: &mut dyn Write, err: &mut dyn Write) -> i32 {
     }
     if let Some((&"lengths", tail)) = rest.split_first() {
         return lengths::lengths_command(tail, out, err);
+    }
+    if let Some((&"bom", tail)) = rest.split_first() {
+        return bom::bom_command(tail, out, err);
+    }
+    if let Some((&"assembly3d", tail)) = rest.split_first() {
+        return assembly3d::assembly3d_command(tail, out, err);
     }
     if let Some((&"view", tail)) = rest.split_first() {
         return view::view(tail, out, err);

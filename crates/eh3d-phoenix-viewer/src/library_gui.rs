@@ -620,9 +620,9 @@ fn edit_item(ui: &mut egui::Ui, item: &mut Item, lang: Lang) -> bool {
             changed |= nm_row(ui, LibText::Drill.tr(lang), &mut h.drill);
         }
         Item::Pin(p) => {
-            changed |= text_row(ui, LibText::Name.tr(lang), &mut p.name);
-            changed |= nm_row(ui, "X", &mut p.x);
-            changed |= nm_row(ui, "Y", &mut p.y);
+            text_row(ui, LibText::Name.tr(lang), &mut p.name);
+            nm_row(ui, "X", &mut p.x);
+            nm_row(ui, "Y", &mut p.y);
             keyword_row(
                 ui,
                 LibText::ElectricalType.tr(lang),
