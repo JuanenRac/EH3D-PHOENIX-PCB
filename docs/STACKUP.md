@@ -152,19 +152,39 @@ Every error and warning has a code `PHOENIX-STACK-<NNN>` (see `ERROR_CODES.md`) 
 ## The command
 
 ```text
-phoenix stackup <job.json> --freq-ghz <GHz> [--settings FILE] [--lang xx] [--json]
+phoenix stackup <job.json> --freq-ghz <GHz> [--material ID ...] [--settings FILE] [--lang xx] [--json]
 ```
+
+`--material ID` adds a material of the database of the suite (see below); it may be repeated and the job file may then leave out its `materials` list.
 
 Exit code 0 when every line was computed, 1 when at least one line could not be (the others are still printed) and 2 when the arguments, the settings or the job file cannot be used. The report holds no date, host name or user name, and the same job gives the same bytes.
 
 ## The materials database of the suite
 
-The crate does not depend on `eh3d-materials` of EH3D-COMMON yet: the CI of this repository checks out a tag of EH3D-COMMON that does not contain it. The type `MaterialSample` is the input. `src/materials_adapter.rs` turns a record of that crate into a `MaterialSample` (the Dk and Df points that have a frequency, sorted, the first listed winning for a repeated frequency); it is compiled only with the feature `materials`, which is off and cannot be turned on until EH3D-COMMON publishes the crate and the dependency line named in the `Cargo.toml` of this crate is added. That file has not been compiled.
+The type `MaterialSample` is the input of the calculation. With the feature `materials` (on in the command line, off by default in the crate) the crate depends on `eh3d-materials` of EH3D-COMMON, the database of board materials (laminates, prepregs, flex, metal core, PTFE and ceramic filled boards; every value as its datasheet publishes it). `src/materials_adapter.rs` turns a record into a `MaterialSample`:
+
+* Dk and Df are the points of the record that have a frequency, sorted, the first listed winning for a repeated frequency. A value the sheet gives with no frequency (the design value of a band, for example) is not a point and is left out, so the Dk of `rogers/ro4350b` is 3.48 at 10 GHz, the one frequency its sheet gives, and 3.66, which the sheet gives for a band, is not used. A frequency outside the published points is `PHOENIX-STACK-004`; nothing is extrapolated.
+* A record with no Dk (or no Df) point with a frequency is refused (`PHOENIX-STACK-005`), because no value could be interpolated.
+* The name of the sample is the identifier of the record (`isola/370hr`), which is what the layers of the job name. The nominal thickness is set only when the record lists exactly one; `thicknesses_nm` gives all the thicknesses the record lists, in nanometres, and `copper_thicknesses` the copper foils (micrometres when the sheet gives them, else ounces).
+* An identifier the database does not have is the error `UnknownMaterial` (`PHOENIX-STACK-003`).
+
+In the command line, `phoenix stackup job.json --freq-ghz 10 --material rogers/ro4350b` adds the material to the job; a material the job file lists with the same name wins. `phoenix materials list` and `phoenix materials show ID` read the database:
+
+```text
+phoenix materials list [--manufacturer NAME] [--kind KIND] [--min-tg C] [--min-dk X] [--max-dk X]
+                       [--min-df X] [--max-df X] [--at-ghz F] [--phoenix] [--json]
+phoenix materials show <id> [--at-ghz F] [--json]
+```
+
+The kinds are `laminate`, `prepreg`, `bonding_film`, `flex_laminate`, `coverlay`, `metal_core`, `ptfe`, `ceramic_filled`, `copper_foil` and `other`. Dk and Df are taken at `--at-ghz` between the published points (a material with no point that reaches it does not match a bound on them), and without it the value nearest 1 GHz is shown and the first one listed is filtered. `--phoenix` keeps the materials that a document marked as serving the design tool defines or is the source of. A bad argument or an unknown identifier exits 2.
+
+The feature is on by default in `eh3d-phoenix-cli`. `cargo build --no-default-features -p eh3d-phoenix-cli` builds without it; the command and the option then answer that the build has no materials database. In the stack-up crate alone, `cargo test -p eh3d-phoenix-stackup --features materials` runs the tests of the adapter.
 
 ## How it is checked
 
 * Reference cases: a 50 ohm microstrip on 1.6 mm of a laminate of permittivity 4.5 comes out about 3 mm wide, and on 0.508 mm of a laminate of permittivity 3.66 about 1.1 mm wide; the closed-form values are compared with the exact zero-thickness stripline, with IPC-2141 and with known limits of the coplanar waveguide.
 * Properties: the impedance falls as the track widens for every kind of line; the synthesis inverts the direct calculation; a higher permittivity lowers the impedance and raises the delay; the losses grow with the frequency.
 * Edges and errors: tracks from 1 nm to 1 m, slots of 1 nm, frequencies outside the points of a material, missing materials and layers, and every typed error.
+* The materials database: the adapter and the command are tested with real records (RO4350B at 10 GHz and no value at 2.5 GHz, the FR-4 of Bungard interpolated between its points and refused beyond them, a record with no Dk, an identifier that does not exist, filters by manufacturer, kind, glass transition and Dk).
 
 What is not checked: any comparison with a field solver or with a measurement. Until there is one, the numbers are estimates.
