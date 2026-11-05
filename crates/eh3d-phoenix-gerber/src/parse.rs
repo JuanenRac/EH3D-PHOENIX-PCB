@@ -529,8 +529,8 @@ impl<'a> Reader<'a> {
         } else {
             list.split('X').collect()
         };
-        let hole_at = |index: usize, this: &Reader| -> Result<Option<i64>, GbrError> {
-            params.get(index).map(|p| this.size(p, line)).transpose()
+        let hole_at = |index: usize| -> Result<Option<i64>, GbrError> {
+            params.get(index).map(|p| self.size(p, line)).transpose()
         };
         let need = |low: usize, high: usize| -> Result<(), GbrError> {
             if (low..=high).contains(&params.len()) {
@@ -549,7 +549,7 @@ impl<'a> Reader<'a> {
                     shape: ApertureShape::Circle {
                         diameter: self.size(params[0], line)?,
                     },
-                    hole: hole_at(1, &*self)?,
+                    hole: hole_at(1)?,
                 }
             }
             "R" | "O" => {
@@ -561,7 +561,7 @@ impl<'a> Reader<'a> {
                     } else {
                         ApertureShape::Obround { width, height }
                     },
-                    hole: hole_at(2, &*self)?,
+                    hole: hole_at(2)?,
                 }
             }
             "P" => {
@@ -588,7 +588,7 @@ impl<'a> Reader<'a> {
                         vertices,
                         rotation,
                     },
-                    hole: hole_at(3, &*self)?,
+                    hole: hole_at(3)?,
                 }
             }
             other => {
