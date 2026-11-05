@@ -40,6 +40,8 @@ Readers for KiCad schematics, boards, symbols and footprints; a public oracle in
 
 Gate: The rate of identical connectivity does not drop; each failure is classified.
 
+Progress: the readers exist as a prototype (`eh3d-phoenix-kicad`, `docs/KICAD.md`): symbols, footprints, schematics with sheets, boards and the project file, with the import report and a fidelity level; they are tried on files written by hand only. The public oracle in CI and the public corpus are not started.
+
 ## F6. PCB viewer and editor
 
 A short interface prototype and a final stack decision (a read-only viewer prototype exists, `docs/VIEWER.md`, and its stack is only provisional, `docs/adr/0009-first-interface-stack.md`), then viewer, editing, routing (45 degree tracks and arcs, vias, widths per class, live checks, ratsnest, zones) and a remote auto-routing task using an external router. The application registers as a module of the suite launcher and opens project files from the command line.
