@@ -44,11 +44,11 @@ Progress: the readers exist as a prototype (`eh3d-phoenix-kicad`, `docs/KICAD.md
 
 ## F6. PCB viewer and editor
 
-A short interface prototype and a final stack decision (a read-only viewer prototype exists, `docs/VIEWER.md`, and its stack is only provisional, `docs/adr/0009-first-interface-stack.md`), then viewer, editing, routing (45 degree tracks and arcs, vias, widths per class, live checks, ratsnest, zones) and a remote auto-routing task using an external router. The application registers as a module of the suite launcher and opens project files from the command line.
+A short interface prototype and a final stack decision (a viewer and editor prototype exists, `docs/VIEWER.md`, and its stack is only provisional, `docs/adr/0009-first-interface-stack.md`), then viewer, editing, routing (45 degree tracks and arcs, vias, widths per class, live checks, ratsnest, zones) and a remote auto-routing task using an external router. The application registers as a module of the suite launcher and opens project files from the command line.
 
 Gate: A corpus board is modified and saved, opens in the reference tool without warnings and its rule check agrees; fluidity is measured with small, medium and large boards; a re-routed board is milled.
 
-Progress: the logic that needs no window exists as a prototype (`eh3d-phoenix-route`, `docs/ROUTE.md`): the ratsnest, a router for pieces at 0, 45 and 90 degrees with the width of the net class, vias sized by the rules and the two modes (stop in front of an obstacle, go around it), reversible editing operations with undo and redo, and the live check of the rules after every edit. It is tried on boards made by hand and by the tests only. Arcs, copper zones, the editing window and the remote auto-routing task are not written.
+Progress: the logic that needs no window exists as a prototype (`eh3d-phoenix-route`, `docs/ROUTE.md`): the ratsnest, a router for pieces at 0, 45 and 90 degrees with the width of the net class, vias sized by the rules and the two modes (stop in front of an obstacle, go around it), reversible editing operations with undo and redo, and the live check of the rules after every edit. It is tried on boards made by hand and by the tests only. The editing window of the viewer puts them behind tools (move and turn a component, delete a track, move a vertex, change a width, add a via and route by clicking the origin and the destination, with undo and redo, the ratsnest as thin lines, the net list and a panel of the rule findings with the difference of each step); it has never been seen on a screen. Arcs, copper zones, push and shove, copying and placing components, the properties of an item and the remote auto-routing task are not written.
 
 ## F7. Schematic editor and synchronisation
 
@@ -56,7 +56,7 @@ Viewer and editor for schematics, electrical rule checks, a unified device edito
 
 Gate: A simple project goes from start to finish inside the tool.
 
-Progress: the logic that needs no window exists as a prototype (`docs/ERC.md`): the electrical rule check (`eh3d-phoenix-erc`), forward and backward annotation by stable identity as a package that can be undone (`eh3d-phoenix-sync`) and net classes for the track width and the vias in the rule file. They are tried on schematics and boards made by hand and by the tests only. The schematic editor, the unified device editor, net ties and the clearance of a net class are not written.
+Progress: the logic that needs no window exists as a prototype (`docs/ERC.md`): the electrical rule check (`eh3d-phoenix-erc`), forward and backward annotation by stable identity as a package that can be undone (`eh3d-phoenix-sync`) and net classes for the track width and the vias in the rule file. They are tried on schematics and boards made by hand and by the tests only. The window of the viewer shows the electrical check with a jump to each pin, net or part, and the dry run of the transfer to the board and of the annotation back with a preview of the package before it is applied (undo and redo included); it has never been seen on a screen. The drawing and editing of a schematic, the unified device editor, net ties and the clearance of a net class are not written.
 
 ## F8. Heritage of the EAGLE workflow
 

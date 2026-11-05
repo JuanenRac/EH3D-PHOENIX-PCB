@@ -2,7 +2,7 @@
 
 The crate `eh3d-phoenix-route` and the commands `phoenix route` and `phoenix ratsnest` are the part of phase F6 that needs no window (requirement PPCB-016): the connections still to be routed, a router for tracks at 0, 45 and 90 degrees, the editing operations with undo and redo, and the live check that says what an edit adds or removes.
 
-**State: prototype.** It has been tried on boards made by hand and by the tests only, never on a real board and never compared with the router of the reference tool. There is no window for it yet: nothing here has been seen on a screen.
+**State: prototype.** It has been tried on boards made by hand and by the tests only, never on a real board and never compared with the router of the reference tool. The window of the viewer (`docs/VIEWER.md`) puts these functions behind tools, with undo and redo and a panel of the findings that each step adds and resolves, but that window has never been seen on a screen.
 
 ## The ratsnest
 
