@@ -220,6 +220,7 @@ dependencies = [
  "eh3d-phoenix-model",
  "eh3d-phoenix-rf",
  "eh3d-phoenix-rules",
+ "eh3d-phoenix-sanitizer",
  "eh3d-phoenix-schematic",
  "eh3d-phoenix-stackup",
  "serde_json",
@@ -344,6 +345,21 @@ dependencies = [
  "eh3d-phoenix-schematic",
  "serde",
  "serde_json",
+ "thiserror",
+]
+
+[[package]]
+name = "eh3d-phoenix-sanitizer"
+version = "0.0.2"
+dependencies = [
+ "eh3d-phoenix-corpus",
+ "eh3d-phoenix-eagle",
+ "eh3d-phoenix-model",
+ "eh3d-phoenix-rules",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
  "thiserror",
 ]
 

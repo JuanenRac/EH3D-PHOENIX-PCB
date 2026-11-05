@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! The command line of EH3D-PHOENIX-PCB. It has nine commands, `inventory`, `eagle-rate`,
-//! `stackup`, `check`, `connectivity`, `export`, `rf`, `kicad-read` and `view`.
+//! The command line of EH3D-PHOENIX-PCB. It has ten commands, `inventory`, `eagle-rate`,
+//! `stackup`, `check`, `connectivity`, `export`, `rf`, `kicad-read`, `sanitize` and `view`.
 //!
 //! Exit codes: 0 done, 1 `stackup` could not compute one or more of the lines it was asked for, or
 //! `check` and `connectivity` proved an error, 2 the arguments or the input are unusable.
@@ -11,6 +11,7 @@ mod check;
 mod export;
 mod kicad;
 mod rf;
+mod sanitize;
 mod view;
 
 use eh3d_phoenix_corpus::{inventory, InventoryConfig};
@@ -63,6 +64,14 @@ phoenix kicad-read [--settings FILE] [--lang xx] [--redacted] <file>
                 footprint or project) into the design model and summarise it: what was kept,
                 changed and left out, the findings with their codes and the fidelity level
 
+phoenix sanitize [--out BASE] [--threshold N] [--config FILE] [--lang xx] [--json] <folder>
+
+  sanitize      find the footprints, symbols and device sets that are duplicated or nearly
+                duplicated in a folder of EAGLE libraries: an inventory, a canonical geometric
+                hash, a score against a threshold, groups to confirm by hand, an HTML and a JSON
+                report and a plan of the master library that is never applied; the libraries
+                are only read
+
 phoenix view [--settings FILE] [--lang xx] [<board or schematic>]
 phoenix view --summary <file>  |  phoenix view --bench
 
@@ -110,6 +119,9 @@ pub fn run(args: &[String], out: &mut dyn Write, err: &mut dyn Write) -> i32 {
     }
     if let Some((&"kicad-read", tail)) = rest.split_first() {
         return kicad::kicad_read(tail, out, err);
+    }
+    if let Some((&"sanitize", tail)) = rest.split_first() {
+        return sanitize::sanitize_command(tail, out, err);
     }
     if let Some((&"view", tail)) = rest.split_first() {
         return view::view(tail, out, err);

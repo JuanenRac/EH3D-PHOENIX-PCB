@@ -2,7 +2,7 @@
 
 Codes have the form `PHOENIX-<AREA>-<NNN>`. A code is stable: it never changes its meaning and is never reused. Programs show the text through the key `diag.<code>`; the codes themselves are never translated. The object identity (UUID v7) is the one of the shared container, with its own codes `EH3D-ID-001` and `EH3D-ID-002`. The container codes `EH3D-PKG-001` to `EH3D-PKG-014` belong to the shared container and are listed in the registry of the documentation repository.
 
-Each table repeats the `REGISTRY` of a crate (`eh3d-phoenix-model` in `src/diagnostic.rs`, `eh3d-phoenix-project` and `eh3d-phoenix-eagle` in `src/codes.rs`, `eh3d-phoenix-hub` in `src/lib.rs`, `eh3d-phoenix-export` in `src/codes.rs`, `eh3d-phoenix-schematic` in `src/model.rs` and `src/link.rs`, `eh3d-phoenix-board` in `src/validate.rs`, `src/connectivity.rs` and `src/rules.rs`, `eh3d-phoenix-rules` in `src/codes.rs`, `eh3d-phoenix-stackup` and `eh3d-phoenix-rf` in `src/error.rs`, `eh3d-phoenix-viewer` in `src/codes.rs`); a test of each crate checks that every code of its registry is in the table with the same title.
+Each table repeats the `REGISTRY` of a crate (`eh3d-phoenix-model` in `src/diagnostic.rs`, `eh3d-phoenix-project` and `eh3d-phoenix-eagle` in `src/codes.rs`, `eh3d-phoenix-hub` in `src/lib.rs`, `eh3d-phoenix-export` in `src/codes.rs`, `eh3d-phoenix-schematic` in `src/model.rs` and `src/link.rs`, `eh3d-phoenix-board` in `src/validate.rs`, `src/connectivity.rs` and `src/rules.rs`, `eh3d-phoenix-rules` in `src/codes.rs`, `eh3d-phoenix-stackup` and `eh3d-phoenix-rf` in `src/error.rs`, `eh3d-phoenix-viewer` and `eh3d-phoenix-sanitizer` in `src/codes.rs`); a test of each crate checks that every code of its registry is in the table with the same title.
 
 ## Model foundations
 
@@ -264,3 +264,23 @@ The titles of these codes also exist in the eight languages of the suite (`title
 | PHOENIX-KICAD-012 | The file is not valid UTF-8 text | bytes that are not UTF-8; they are replaced and the file is read (a warning) |
 | PHOENIX-KICAD-013 | Nets derived from the drawing | a schematic: the nets are computed from wires, junctions, labels and power symbols because the file stores no net list (information) |
 | PHOENIX-KICAD-014 | Fidelity level of the import | the last finding of every import by the hub: `complete`, `partial` or `unusable` (information) |
+
+## Library sanitizer (`eh3d-phoenix-sanitizer`, `src/codes.rs`)
+
+The titles of these codes also exist in the eight languages of the suite (`TITLES` in `src/codes.rs`); the detail of a message is in English. A note about a library file carries the path of the file relative to the folder that was analysed.
+
+| Code | Title | Raised by |
+|---|---|---|
+| PHOENIX-SAN-001 | Library folder cannot be read | a folder that does not exist or cannot be opened, more files than `max_files` or folders deeper than `max_depth`; a sub-folder that cannot be opened is noted and the walk goes on |
+| PHOENIX-SAN-002 | Library file cannot be read | a `.lbr` file that cannot be opened or read; the file is left out and the run goes on |
+| PHOENIX-SAN-003 | Library file is larger than the limit | a `.lbr` file larger than `max_file_bytes`; it is left out |
+| PHOENIX-SAN-004 | File is not an EAGLE library that the reader accepts | a `.lbr` file that is not XML, is an EAGLE binary file, belongs to another program, is a board or a schematic, or has no library in its drawing; the detail holds the code of the EAGLE reader or the kind found |
+| PHOENIX-SAN-005 | Items of a library were skipped | footprints, symbols or drawing items with a missing or unusable coordinate, or without a name; the detail says how many |
+| PHOENIX-SAN-006 | Sanitizer settings are not valid | a line of the settings text that is not `key = value`, an unknown key or a value out of range |
+| PHOENIX-SAN-007 | Comparison limit reached | more pairs than `max_pairs` (the later pairs are not compared) or items with more than `max_anchors` pads or pins (they are compared by hash only) |
+| PHOENIX-SAN-008 | Output file cannot be written | a report or plan file that could not be written after the bounded tries |
+| PHOENIX-SAN-009 | Duplicates name their pads or pins differently | a group whose members have the same shape and number their pads or pins in another way: replacing one by the other would rewire the board |
+| PHOENIX-SAN-010 | Group joined by a weak match | a group with a member whose score against the item to keep is below the threshold and which is in the group through other members |
+| PHOENIX-SAN-011 | Name used twice in a library | two footprints, symbols or device sets with one name in one library; the later one is left out |
+| PHOENIX-SAN-012 | Command option is not valid | no folder or two folders, an option that does not exist or lacks its value, a threshold that is not a whole number from 0 to 100, a language that is not one of the eight |
+| PHOENIX-SAN-013 | The reader reported problems in a library | the EAGLE reader found a dangling reference or another problem in a library that is read all the same; the detail lists the codes of the reader |
