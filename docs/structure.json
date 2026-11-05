@@ -247,6 +247,19 @@
           }
         },
         {
+          "name": "BOARD_EDIT.md",
+          "desc": {
+            "en": "the board editor: operations, rule check, window",
+            "es": "el editor de placas: operaciones, reglas, ventana",
+            "de": "der Platinen-Editor: Operationen, Regelprüfung, Fenster",
+            "fr": "l'éditeur de cartes : opérations, règles, fenêtre",
+            "it": "l'editor di schede: operazioni, regole, finestra",
+            "ja": "基板エディタ：操作、ルール検査、ウィンドウ",
+            "zh": "电路板编辑器：操作、规则检查、窗口",
+            "pt": "o editor de placas: operações, regras, janela"
+          }
+        },
+        {
           "name": "SIM.md",
           "desc": {
             "en": "circuit simulation: netlist, analyses, schematic export",
