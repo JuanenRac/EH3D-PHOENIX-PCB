@@ -42,7 +42,7 @@
         "inventory, model, project file, board, schematic, ERC, sync,",
         "EAGLE, KiCad, rules, export, Gerber import, panels, RF,",
         "stack-up, RF structures, simulator, router, zones, lengths,",
-        "sanitizer, scripts, editors, viewer, CLI"
+        "sanitizer, scripts, editors, viewer, window, CLI"
       ],
       "code": [
         "crates/eh3d-phoenix-corpus/src/inventory.rs",
@@ -63,6 +63,8 @@
         "crates/eh3d-phoenix-sync/src/forward.rs",
         "crates/eh3d-phoenix-viewer/src/viewer.rs",
         "crates/eh3d-phoenix-viewer/src/workspace.rs",
+        "crates/eh3d-phoenix-viewer/src/launcher_session.rs",
+        "crates/eh3d-phoenix-cli/src/gui_main.rs",
         "crates/eh3d-phoenix-schematic/src/edit.rs",
         "crates/eh3d-phoenix-schedit/src/state.rs",
         "crates/eh3d-phoenix-libedit/src/ops.rs",
