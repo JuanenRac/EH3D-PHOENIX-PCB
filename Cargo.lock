@@ -218,6 +218,7 @@ dependencies = [
  "eh3d-phoenix-model",
  "eh3d-phoenix-rules",
  "eh3d-phoenix-schematic",
+ "eh3d-phoenix-stackup",
  "serde_json",
  "tempfile",
 ]
