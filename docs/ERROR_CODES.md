@@ -360,3 +360,30 @@ The titles of these codes also exist in the eight languages of the suite (`TITLE
 | PHOENIX-SIM-019 | Time step reached the minimum | an adaptive step at its smallest size whose estimated error is still above the tolerances; the step is kept (a warning) |
 | PHOENIX-SIM-020 | Schematic pin is on no net | a pin of a part that no net lists; it gets a node of its own and the message names the part and the pin (information) |
 | PHOENIX-SIM-021 | Input file cannot be read | a netlist or schematic file that cannot be opened, is larger than the limit, is not UTF-8 text or is not a schematic of the project format |
+
+## Editing and routing (`eh3d-phoenix-route`, `src/codes.rs`)
+
+The titles of these codes also exist in the eight languages of the suite (`TITLES` in `src/codes.rs`); the detail of a message is in English.
+
+| Code | Title | Raised by |
+|---|---|---|
+| PHOENIX-ROUTE-001 | Route settings are not valid | a line of the settings text that is not `key = value`, an unknown key or a value out of range |
+| PHOENIX-ROUTE-002 | A limit of the route settings was exceeded | a ratsnest that compares more pairs of points than `ratsnest_max_pairs`, a search that takes more steps than `max_expansions` or an area that does not fit the mesh even with the coarsest pitch |
+| PHOENIX-ROUTE-003 | Element to connect was not found | a pad, via or track that the board does not have, a pad name (`R1.2`) that matches no pad or several |
+| PHOENIX-ROUTE-004 | Element name is not valid | text that is not `pad:...`, `via:<id>` or `track:<id>[:start]`, or an id that cannot be read |
+| PHOENIX-ROUTE-005 | Elements are not on the same net | two elements of different nets, or a pad that has no net |
+| PHOENIX-ROUTE-006 | Layer cannot be used | a layer that is not a copper layer, a first element with no copper on the layer asked for, or an element on no layer of the stack |
+| PHOENIX-ROUTE-007 | No path was found | no way at 0, 45 and 90 degrees keeps the clearances between the two ends, or the straight way is blocked before the shortest track that is made |
+| PHOENIX-ROUTE-008 | Route stopped before an obstacle | a note on a plan made by the mode `stop` whose track ends in front of an obstacle (the exit code of the command is 1) |
+| PHOENIX-ROUTE-009 | The rules refuse the track | the rule check on the board with the plan applied finds a new error; the message names the code and the place |
+| PHOENIX-ROUTE-010 | The route does not join the two elements | a complete plan whose copper does not touch both elements in the connectivity of the board |
+| PHOENIX-ROUTE-011 | Both elements are at the same place | two elements with the same centre |
+| PHOENIX-ROUTE-012 | No free id could be made | `id_attempts` ids were tried and all were in use |
+| PHOENIX-ROUTE-013 | The board refused the operation | an operation of an edit or of a plan that the board does not apply (a part that is not there, an id in use) |
+| PHOENIX-ROUTE-014 | The edit would add a rule error | an edit that adds a proven error of the rules while `strict_edits` is on; the board is not changed |
+| PHOENIX-ROUTE-015 | The edit refers to something that is not there | a component, track or net that does not exist, a vertex beyond the end of a track, a piece that would shrink to a point |
+| PHOENIX-ROUTE-016 | The edit would break the 45 degree angles | moving a vertex so that a piece that ran at 0, 45 or 90 degrees runs at another angle while `keep_angles` is on |
+| PHOENIX-ROUTE-017 | Command option is not valid | an option the command does not know or needs a value for, a mode that is not `around` or `stop`, a layer that is not on the board |
+| PHOENIX-ROUTE-018 | Output file exists or cannot be written | an output file that already exists (an input file is never replaced) or cannot be created |
+| PHOENIX-ROUTE-019 | A coordinate is out of range | a point or a length that does not fit the checked range of the model |
+| PHOENIX-ROUTE-020 | Board or rule file cannot be read | a board or a rule file that cannot be opened, is too large or is not valid |

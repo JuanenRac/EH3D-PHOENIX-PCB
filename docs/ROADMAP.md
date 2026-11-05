@@ -48,6 +48,8 @@ A short interface prototype and a final stack decision (a read-only viewer proto
 
 Gate: A corpus board is modified and saved, opens in the reference tool without warnings and its rule check agrees; fluidity is measured with small, medium and large boards; a re-routed board is milled.
 
+Progress: the logic that needs no window exists as a prototype (`eh3d-phoenix-route`, `docs/ROUTE.md`): the ratsnest, a router for pieces at 0, 45 and 90 degrees with the width of the net class, vias sized by the rules and the two modes (stop in front of an obstacle, go around it), reversible editing operations with undo and redo, and the live check of the rules after every edit. It is tried on boards made by hand and by the tests only. Arcs, copper zones, the editing window and the remote auto-routing task are not written.
+
 ## F7. Schematic editor and synchronisation
 
 Viewer and editor for schematics, electrical rule checks, a unified device editor, transfer to the board, forward and backward annotation by stable identity, net ties and net classes.

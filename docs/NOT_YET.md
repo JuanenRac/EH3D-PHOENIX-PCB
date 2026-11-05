@@ -5,6 +5,11 @@ Good ideas that are not in the first version. Writing them here avoids implement
 | Idea | Why not yet | Revisit when |
 |---|---|---|
 | Differential pairs, length tuning and advanced routing | Basic routing comes first | after the PCB editor works |
+| Arcs in the tracks the router makes, and avoiding copper zones | The router makes pieces at 0, 45 and 90 degrees and the rules refuse a track through a zone of another net, but the search does not route around it | when the editor draws zones |
+| Push and shove, and routing several tracks at once | The router never moves other copper | after the single track is measured on real boards |
+| Through vias and vias between inner layers on boards of more than two layers | A via joins exactly the two layers it is placed between, as the model says | when the stack of vias is part of the model |
+| A faster search (a finer mesh only where it is needed, or a search from both ends) | The coarse mesh is simple to reason about and its speed on a large board has not been measured | when a large board is routed and the time is measured |
+| Dragging a component with its tracks following | Moving a component leaves its tracks where they are and the ratsnest shows what is left | when the editor has a window |
 | Co-simulation of firmware with the circuit | Needs one emulator per processor family, starting with a single one | after circuit simulation |
 | Full parametric mechanical CAD | Belongs to EH3D-PHOENIX-CAD and comes after its first steps | after the first mechanical steps |
 | Electromagnetic co-simulation and dynamic heat maps | Needs the RF tools and the thermal laboratory | after both exist |
