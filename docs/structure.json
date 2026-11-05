@@ -169,6 +169,19 @@
           }
         },
         {
+          "name": "SANITIZER.md",
+          "desc": {
+            "en": "the library sanitizer: duplicates, hash, report and plan",
+            "es": "el saneador de bibliotecas: duplicados, hash, informe y plan",
+            "de": "der Bibliotheksbereiniger: Duplikate, Hash, Bericht und Plan",
+            "fr": "l'assainisseur de bibliothèques : doublons, hash, rapport et plan",
+            "it": "il sanificatore di librerie: duplicati, hash, rapporto e piano",
+            "ja": "ライブラリ整理：重複、ハッシュ、レポート、計画",
+            "zh": "库清理器：重复项、哈希、报告与计划",
+            "pt": "o saneador de bibliotecas: duplicados, hash, relatório e plano"
+          }
+        },
+        {
           "name": "GATE_F1.md",
           "desc": {
             "en": "what the gate of the first phase checks and what it does not",
@@ -250,24 +263,24 @@
         {
           "name": "crates/",
           "desc": {
-            "en": "model, board, schematic, EAGLE, KiCad, rules, export, RF, viewer, CLI",
-            "es": "modelo, placa, esquemático, EAGLE, KiCad, reglas, exportación, RF, visor, comandos",
-            "de": "Modell, Platine, Schaltplan, EAGLE, KiCad, Regeln, Hub, Export, HF, Betrachter, CLI",
-            "fr": "modèle, carte, schéma, EAGLE, KiCad, règles, export, RF, visionneuse, CLI",
-            "it": "modello, scheda, schema, EAGLE, KiCad, regole, esportazione, RF, visualizzatore, CLI",
-            "ja": "モデル、基板、回路図、EAGLE、KiCad、ルール、書き出し、RF、ビューア、CLI",
-            "zh": "模型、电路板、原理图、EAGLE、KiCad、规则、导出、射频、查看器、命令行",
-            "pt": "modelo, placa, esquema, EAGLE, KiCad, regras, exportação, RF, visualizador, CLI"
+            "en": "model, board, schematic, EAGLE, KiCad, rules, export, RF, libs, viewer, CLI",
+            "es": "modelo, placa, esquemático, EAGLE, KiCad, reglas, exportación, RF, saneador, visor, comandos",
+            "de": "Modell, Platine, Schaltplan, EAGLE, KiCad, Regeln, Hub, Export, HF, Bereiniger, Betrachter, CLI",
+            "fr": "modèle, carte, schéma, EAGLE, KiCad, règles, export, RF, assainisseur, visionneuse, CLI",
+            "it": "modello, scheda, schema, EAGLE, KiCad, regole, esportazione, RF, sanificatore, visualizzatore, CLI",
+            "ja": "モデル、基板、回路図、EAGLE、KiCad、ルール、書き出し、RF、整理、ビューア、CLI",
+            "zh": "模型、电路板、原理图、EAGLE、KiCad、规则、导出、射频、清理器、查看器、命令行",
+            "pt": "modelo, placa, esquema, EAGLE, KiCad, regras, exportação, RF, saneador, visualizador, CLI"
           },
           "tree_desc": {
-            "en": "inventory, model, project, board, schematic, EAGLE, KiCad, rules, hub, export, stack-up, RF, viewer, CLI",
-            "es": "inventario, modelo, proyecto, placa, esquemático, EAGLE, KiCad, reglas, hub, exportación, apilado, RF, visor, comandos",
-            "de": "Inventar, Modell, Projekt, Platine, Schaltplan, EAGLE, KiCad, Regeln, Hub, Export, Lagenaufbau, HF, Betrachter, CLI",
-            "fr": "inventaire, modèle, projet, carte, schéma, EAGLE, KiCad, règles, hub, export, empilage, RF, visionneuse, CLI",
-            "it": "inventario, modello, progetto, scheda, schema, EAGLE, KiCad, regole, hub, esportazione, stratificazione, RF, visualizzatore, CLI",
-            "ja": "棚卸し、モデル、プロジェクト、基板、回路図、EAGLE、KiCad、ルール、ハブ、書き出し、スタックアップ、RF、ビューア、CLI",
-            "zh": "清点、模型、项目、电路板、原理图、EAGLE、KiCad、规则、枢纽、导出、叠层、射频、查看器、命令行",
-            "pt": "inventário, modelo, projeto, placa, esquema, EAGLE, KiCad, regras, hub, exportação, empilhamento, RF, visualizador, CLI"
+            "en": "inventory, model, project, board, schematic, EAGLE, KiCad, rules, hub, export, stack-up, RF, sanitizer, viewer, CLI",
+            "es": "inventario, modelo, proyecto, placa, esquemático, EAGLE, KiCad, reglas, hub, exportación, apilado, RF, saneador, visor, comandos",
+            "de": "Inventar, Modell, Projekt, Platine, Schaltplan, EAGLE, KiCad, Regeln, Hub, Export, Lagenaufbau, HF, Bereiniger, Betrachter, CLI",
+            "fr": "inventaire, modèle, projet, carte, schéma, EAGLE, KiCad, règles, hub, export, empilage, RF, assainisseur, visionneuse, CLI",
+            "it": "inventario, modello, progetto, scheda, schema, EAGLE, KiCad, regole, hub, esportazione, stratificazione, RF, sanificatore, visualizzatore, CLI",
+            "ja": "棚卸し、モデル、プロジェクト、基板、回路図、EAGLE、KiCad、ルール、ハブ、書き出し、スタックアップ、RF、整理、ビューア、CLI",
+            "zh": "清点、模型、项目、电路板、原理图、EAGLE、KiCad、规则、枢纽、导出、叠层、射频、清理器、查看器、命令行",
+            "pt": "inventário, modelo, projeto, placa, esquema, EAGLE, KiCad, regras, hub, exportação, empilhamento, RF, saneador, visualizador, CLI"
           }
         },
         {

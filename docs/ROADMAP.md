@@ -66,6 +66,8 @@ Batch inventory of old libraries, canonical geometric hash, fuzzy matching with 
 
 Gate: Replace-and-relink changes neither layout nor rules; every exception is classified and documented.
 
+Progress: the analysis half exists as a prototype (`eh3d-phoenix-sanitizer`, `docs/SANITIZER.md`): the batch inventory, the canonical geometric hash, the fuzzy matching with a threshold, the groups of duplicates, the HTML and JSON report and the plan of the master library, which is written and never applied; it is tried on libraries made by its own tests only. Replace-and-relink with backup is not written.
+
 ## F10. KiCad writing
 
 Writing of KiCad schematics, boards and libraries.
