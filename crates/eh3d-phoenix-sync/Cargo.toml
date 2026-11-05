@@ -1,0 +1,17 @@
+[package]
+name = "eh3d-phoenix-sync"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Forward and backward annotation between a schematic and a board by stable identity: the changes (new parts, missing parts, references, values, footprints, nets) as a deterministic package that is applied to the board or to the schematic, can be undone and redone, and is tried as a dry run first"
+
+[dependencies]
+eh3d-phoenix-board = { path = "../eh3d-phoenix-board" }
+eh3d-phoenix-model = { path = "../eh3d-phoenix-model" }
+eh3d-phoenix-rules = { path = "../eh3d-phoenix-rules" }
+eh3d-phoenix-schematic = { path = "../eh3d-phoenix-schematic" }
+serde.workspace = true
+serde_json = { workspace = true, features = ["float_roundtrip"] }
+thiserror.workspace = true
