@@ -162,6 +162,29 @@ pub enum ItemKind {
     Sheet,
 }
 
+/// The object of the document that an item stands for, by its id, so that an edit can name it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DocRef {
+    /// Nothing that an edit can name (the outline, a sheet, a silkscreen item, a net label).
+    None,
+    /// A component of a board (its reference designator).
+    Component(Id),
+    /// A pad of a component of a board.
+    Pad(PadRef),
+    /// A track of a board.
+    Track(Id),
+    /// A via of a board.
+    Via(Id),
+    /// A zone of a board.
+    Zone(Id),
+    /// A placed part of a schematic.
+    Part(SchId),
+    /// A pin of a part of a schematic.
+    Pin(NetPin),
+    /// A wire of a schematic.
+    Wire(SchId),
+}
+
 /// An item of the document, which may have several primitives.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Item {
@@ -171,6 +194,8 @@ pub struct Item {
     pub label: String,
     /// The index of its net, when it has one.
     pub net: Option<u32>,
+    /// The object of the document it stands for.
+    pub doc: DocRef,
 }
 
 /// Whether a scene is a board or a schematic.
@@ -234,10 +259,21 @@ impl Builder {
     }
 
     fn item(&mut self, kind: ItemKind, label: impl Into<String>, net: Option<u32>) -> u32 {
+        self.item_of(kind, label, net, DocRef::None)
+    }
+
+    fn item_of(
+        &mut self,
+        kind: ItemKind,
+        label: impl Into<String>,
+        net: Option<u32>,
+        doc: DocRef,
+    ) -> u32 {
         self.items.push(Item {
             kind,
             label: label.into(),
             net,
+            doc,
         });
         (self.items.len() - 1) as u32
     }
@@ -487,14 +523,14 @@ impl Scene {
         }
 
         // zones
-        for zone in board.zones.values() {
+        for (zone_id, zone) in &board.zones {
             let (Some(&layer), true) = (layer_index.get(&zone.layer), zone.outline.len() >= 3)
             else {
                 b.skipped += 1;
                 continue;
             };
             let net = net_of(&zone.net);
-            let item = b.item(ItemKind::Zone, "zone", net);
+            let item = b.item_of(ItemKind::Zone, "zone", net, DocRef::Zone(*zone_id));
             b.push(
                 Shape::Polygon {
                     points: zone.outline.iter().map(|p| pt(*p)).collect(),
@@ -510,13 +546,13 @@ impl Scene {
         }
 
         // tracks
-        for track in board.tracks.values() {
+        for (track_id, track) in &board.tracks {
             let Some(&layer) = layer_index.get(&track.layer) else {
                 b.skipped += 1;
                 continue;
             };
             let net = net_of(&track.net);
-            let item = b.item(ItemKind::Track, "track", net);
+            let item = b.item_of(ItemKind::Track, "track", net, DocRef::Track(*track_id));
             let paint = Paint {
                 width: mm(track.width),
                 filled: false,
@@ -530,9 +566,9 @@ impl Scene {
         }
 
         // vias: a disc on every copper layer from the first to the last, and the hole
-        for via in board.vias.values() {
+        for (via_id, via) in &board.vias {
             let net = net_of(&via.net);
-            let item = b.item(ItemKind::Via, "via", net);
+            let item = b.item_of(ItemKind::Via, "via", net, DocRef::Via(*via_id));
             let ends = (
                 board.copper_stack.iter().position(|l| *l == via.from_layer),
                 board.copper_stack.iter().position(|l| *l == via.to_layer),
@@ -595,10 +631,11 @@ impl Scene {
                     continue;
                 };
                 let net = board.net_of(pad_ref).and_then(|id| net_of(&id));
-                let item = b.item(
+                let item = b.item_of(
                     ItemKind::Pad,
                     format!("{} pad {}", component.refdes, pad.number),
                     net,
+                    DocRef::Pad(pad_ref),
                 );
                 let angle = rad(component.rotation) + sign * rad(pad.rotation);
                 let (shape, width, filled) = pad_shape(pad.shape, pt(centre), angle);
@@ -632,10 +669,11 @@ impl Scene {
                     );
                 }
             }
-            let item = b.item(
+            let item = b.item_of(
                 ItemKind::Designator,
                 format!("{} {}", component.refdes, component.value),
                 None,
+                DocRef::Component(*cid),
             );
             b.push(
                 Shape::Text {
@@ -785,10 +823,11 @@ impl Scene {
                 area.include(*p);
             }
             let area = area.expanded(settings.symbol_padding_mm);
-            let item = b.item(
+            let item = b.item_of(
                 ItemKind::Part,
                 format!("{} {}", part.refdes, part.value),
                 None,
+                DocRef::Part(*part_id),
             );
             b.push(
                 Shape::Polygon {
@@ -824,7 +863,12 @@ impl Scene {
             for (pin, p) in pins {
                 let number = schematic.pin_number(*pin).unwrap_or("?");
                 let net = pin_net.get(pin).copied();
-                let pin_item = b.item(ItemKind::Pin, format!("{}.{}", part.refdes, number), net);
+                let pin_item = b.item_of(
+                    ItemKind::Pin,
+                    format!("{}.{}", part.refdes, number),
+                    net,
+                    DocRef::Pin(*pin),
+                );
                 b.push(
                     Shape::Circle {
                         centre: *p,
@@ -890,7 +934,7 @@ impl Scene {
             };
             let root = nodes.find(node);
             let net = net_of_root.get(&root).copied();
-            let item = b.item(ItemKind::Wire, "wire", net);
+            let item = b.item_of(ItemKind::Wire, "wire", net, DocRef::Wire(wid));
             for pair in wire.path.windows(2) {
                 let a = P::new(ox + mm(pair[0].x_nm), mm(pair[0].y_nm));
                 let z = P::new(ox + mm(pair[1].x_nm), mm(pair[1].y_nm));
@@ -1171,6 +1215,43 @@ mod tests {
         let scene = Scene::from_schematic(&schematic, &ViewerSettings::default()).unwrap();
         assert_eq!(scene.skipped, 2);
         assert_eq!(count(&scene, Role::Symbol), 0);
+    }
+
+    #[test]
+    fn the_items_of_a_board_carry_the_objects_that_an_edit_can_name() {
+        let board = sample::board();
+        let scene = Scene::from_board(&board, &ViewerSettings::default()).unwrap();
+        let docs: Vec<DocRef> = scene.items.iter().map(|i| i.doc).collect();
+        let count = |f: fn(&DocRef) -> bool| docs.iter().filter(|d| f(d)).count();
+        assert_eq!(count(|d| matches!(d, DocRef::Track(_))), 2);
+        assert_eq!(count(|d| matches!(d, DocRef::Via(_))), 1);
+        assert_eq!(count(|d| matches!(d, DocRef::Zone(_))), 1);
+        assert_eq!(count(|d| matches!(d, DocRef::Pad(_))), 2);
+        assert_eq!(count(|d| matches!(d, DocRef::Component(_))), 1);
+        // the outline and the silkscreen have none
+        assert_eq!(count(|d| matches!(d, DocRef::None)), 2);
+        assert!(docs.contains(&DocRef::Track(sample::id(40))));
+        assert!(docs.contains(&DocRef::Via(sample::id(42))));
+        assert!(docs.contains(&DocRef::Component(sample::id(30))));
+        assert!(docs.contains(&DocRef::Pad(PadRef {
+            component: sample::id(30),
+            pad: sample::id(21),
+        })));
+    }
+
+    #[test]
+    fn the_items_of_a_schematic_carry_their_parts_pins_and_wires() {
+        let scene = Scene::from_schematic(&sample::schematic(), &ViewerSettings::default())
+            .unwrap();
+        let docs: Vec<DocRef> = scene.items.iter().map(|i| i.doc).collect();
+        let count = |f: fn(&DocRef) -> bool| docs.iter().filter(|d| f(d)).count();
+        assert_eq!(count(|d| matches!(d, DocRef::Part(_))), 2);
+        assert_eq!(count(|d| matches!(d, DocRef::Pin(_))), 4);
+        assert_eq!(count(|d| matches!(d, DocRef::Wire(_))), 3);
+        // the two sheets and the name of the net have none
+        assert_eq!(count(|d| matches!(d, DocRef::None)), 3);
+        assert!(docs.contains(&DocRef::Part(sample::sch_id(10))));
+        assert!(docs.contains(&DocRef::Wire(sample::sch_id(41))));
     }
 
     #[test]

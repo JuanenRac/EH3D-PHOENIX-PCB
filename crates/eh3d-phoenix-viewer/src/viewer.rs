@@ -10,17 +10,39 @@ use crate::grid::Grid;
 use crate::measure::Measure;
 use crate::msg::Msg;
 use crate::prim::{Bounds, Shape, P};
-use crate::scene::{Item, Scene, SceneKind};
+use crate::scene::{DocRef, Item, Scene, SceneKind};
 use crate::settings::ViewerSettings;
 use crate::view::{View, ZoomLimits};
 
-/// What a click does.
+/// What a click does. The tools after `Measure` edit a board and are put to work by the
+/// [`crate::workspace::Workspace`]; the viewer itself only selects and measures.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Tool {
     /// Select the item under the pointer and highlight its net.
     Select,
     /// Measure the distance between two points.
     Measure,
+    /// Drag a component to another place.
+    MoveComponent,
+    /// Turn the component under the click by one step.
+    RotateComponent,
+    /// Delete the track under the click.
+    DeleteTrack,
+    /// Drag a vertex of a track to another place.
+    MoveVertex,
+    /// Give the track under the click the active width.
+    SetWidth,
+    /// Add a via on the copper under the click.
+    AddVia,
+    /// Route a track between two elements: click the origin, then the destination.
+    Route,
+}
+
+impl Tool {
+    /// True for the tools that change a board.
+    pub fn edits(self) -> bool {
+        !matches!(self, Tool::Select | Tool::Measure)
+    }
 }
 
 /// The viewer of one scene.
@@ -236,23 +258,97 @@ impl Viewer {
     }
 
     /// A click at a pixel of the drawing area: the tool selects an item, or sets a point of the
-    /// measure.
+    /// measure. The tools that edit are handled by the workspace.
     pub fn click(&mut self, sx: f64, sy: f64) {
-        let p = self.view.to_world(sx, sy);
         match self.tool {
-            Tool::Select => {
-                let tolerance = self.tolerance_mm();
-                match self.pick(p, tolerance) {
-                    Some(prim) => {
-                        let item = self.scene.prims[prim as usize].item;
-                        self.selected = Some(item);
-                        self.highlight = self.scene.items[item as usize].net;
-                    }
-                    None => self.clear_selection(),
-                }
+            Tool::Select => self.select_at(sx, sy),
+            Tool::Measure => {
+                let p = self.view.to_world(sx, sy);
+                self.measure.click(p);
             }
-            Tool::Measure => self.measure.click(p),
+            _ => {}
         }
+    }
+
+    /// Selects the item under a pixel and highlights its net; nothing under it clears both.
+    pub fn select_at(&mut self, sx: f64, sy: f64) {
+        match self.item_at(sx, sy) {
+            Some(item) => self.select_item(item),
+            None => self.clear_selection(),
+        }
+    }
+
+    /// The item under a pixel of the drawing area, found with the tolerance of the settings.
+    pub fn item_at(&self, sx: f64, sy: f64) -> Option<u32> {
+        let p = self.view.to_world(sx, sy);
+        self.pick(p, self.tolerance_mm())
+            .map(|prim| self.scene.prims[prim as usize].item)
+    }
+
+    /// Selects an item by its index and highlights its net.
+    pub fn select_item(&mut self, item: u32) {
+        if let Some(found) = self.scene.items.get(item as usize) {
+            self.highlight = found.net;
+            self.selected = Some(item);
+        }
+    }
+
+    /// Highlights a net by its index, with no item selected. An index that does not exist clears
+    /// the highlight.
+    pub fn select_net(&mut self, net: u32) {
+        self.selected = None;
+        self.highlight = if (net as usize) < self.scene.nets.len() {
+            Some(net)
+        } else {
+            None
+        };
+    }
+
+    /// The box of all the primitives of an item; empty for an item that has none.
+    pub fn item_bounds(&self, item: u32) -> Bounds {
+        let mut area = Bounds::EMPTY;
+        for (index, prim) in self.scene.prims.iter().enumerate() {
+            if prim.item == item {
+                area = area.union(self.grid.bounds_of(index as u32));
+            }
+        }
+        area
+    }
+
+    /// Puts a point of the drawing in the middle of the window, keeping the zoom.
+    pub fn centre_on(&mut self, p: P) {
+        self.view.centre = p;
+    }
+
+    /// Draws another scene of the same document (after an edit): the view stays, a layer keeps
+    /// its colour and whether it is shown when the new scene has a layer of the same name and
+    /// role, and the selection follows the object of the document it was on, when it still exists.
+    pub fn replace_scene(&mut self, mut scene: Scene) {
+        let selected_doc = self.selected_item().map(|i| i.doc);
+        for layer in &mut scene.layers {
+            if let Some(old) = self
+                .scene
+                .layers
+                .iter()
+                .find(|o| o.name == layer.name && o.role == layer.role)
+            {
+                layer.visible = old.visible;
+                layer.colour = old.colour;
+            }
+        }
+        self.grid = Grid::build(&scene.prims, scene.bounds, &self.settings);
+        self.scene = scene;
+        self.selected = selected_doc
+            .filter(|doc| *doc != DocRef::None)
+            .and_then(|doc| self.scene.items.iter().position(|i| i.doc == doc))
+            .map(|i| i as u32);
+        self.highlight = match self.selected_item() {
+            Some(item) => item.net,
+            None if selected_doc.is_some() => None,
+            None => self
+                .highlight
+                .filter(|n| (*n as usize) < self.scene.nets.len()),
+        };
     }
 
     /// Clears the selection and the highlight.
@@ -584,6 +680,91 @@ mod tests {
         assert!(spanish.starts_with("Placa: 15 primitivas"));
         assert!(spanish.contains("3 sin dibujar"));
         assert!(spanish.contains("  Taladros: 2\n"));
+    }
+
+    #[test]
+    fn the_tools_that_edit_are_told_from_select_and_measure() {
+        assert!(!Tool::Select.edits() && !Tool::Measure.edits());
+        for tool in [
+            Tool::MoveComponent,
+            Tool::RotateComponent,
+            Tool::DeleteTrack,
+            Tool::MoveVertex,
+            Tool::SetWidth,
+            Tool::AddVia,
+            Tool::Route,
+        ] {
+            assert!(tool.edits(), "{tool:?}");
+        }
+        // a click with a tool that edits does nothing in the viewer itself
+        let mut v = board_viewer();
+        v.set_tool(Tool::DeleteTrack);
+        click_at(&mut v, 7.0, 5.0);
+        assert!(v.selected.is_none());
+        assert!(v.measure.distance().is_none());
+    }
+
+    #[test]
+    fn an_item_is_found_under_a_pixel_and_a_net_is_selected_by_its_index() {
+        let mut v = board_viewer();
+        let (sx, sy) = v.view.to_screen(P::new(7.0, 5.0));
+        let item = v.item_at(sx, sy).unwrap();
+        assert_eq!(v.scene.items[item as usize].label, "track");
+        let (sx, sy) = v.view.to_screen(P::new(28.0, 18.0));
+        assert!(v.item_at(sx, sy).is_none());
+        v.select_item(item);
+        assert_eq!(v.highlight_name(), Some("GND"));
+        v.select_net(1);
+        assert!(v.selected.is_none());
+        assert_eq!(v.highlight_name(), Some("VCC"));
+        v.select_net(99);
+        assert!(v.highlight.is_none());
+        // an item that does not exist changes nothing
+        v.select_item(999);
+        assert!(v.selected.is_none());
+    }
+
+    #[test]
+    fn the_box_of_an_item_holds_all_of_its_primitives_and_the_view_can_be_centred() {
+        let mut v = board_viewer();
+        let (sx, sy) = v.view.to_screen(P::new(11.5, 10.0));
+        let pad = v.item_at(sx, sy).unwrap();
+        assert_eq!(v.scene.items[pad as usize].label, "R1 pad 2");
+        let area = v.item_bounds(pad);
+        // the round pad has a radius of 0.8 mm and a hole in the drill layer inside it
+        assert!(area.contains(P::new(11.5, 10.0)));
+        assert!(area.width() >= 1.6 - 1e-9 && area.width() < 3.0);
+        assert!(v.item_bounds(999).is_empty());
+        v.centre_on(P::new(3.0, 4.0));
+        assert_eq!(v.view.centre, P::new(3.0, 4.0));
+    }
+
+    #[test]
+    fn a_new_scene_keeps_the_view_the_layers_and_the_selection() {
+        let mut v = board_viewer();
+        let silk = v.scene.layer_of_role(crate::scene::Role::SilkTop).unwrap() as usize;
+        v.set_layer_visible(silk, false);
+        v.set_layer_colour(silk, [9, 8, 7, 255]);
+        click_at(&mut v, 7.0, 5.0);
+        let before = v.view;
+        let doc = v.selected_item().unwrap().doc;
+        assert!(matches!(doc, DocRef::Track(_)));
+        // a board without the other track gives other item numbers
+        let mut board = sample::board();
+        board.tracks.remove(&sample::id(41));
+        let scene = Scene::from_board(&board, &v.settings).unwrap();
+        v.replace_scene(scene);
+        assert_eq!(v.view, before);
+        assert!(!v.scene.layers[silk].visible);
+        assert_eq!(v.scene.layers[silk].colour, [9, 8, 7, 255]);
+        assert_eq!(v.selected_item().unwrap().doc, doc);
+        assert_eq!(v.highlight_name(), Some("GND"));
+        // when the selected object is gone the selection is gone, and the highlight with it
+        board.tracks.remove(&sample::id(40));
+        let scene = Scene::from_board(&board, &v.settings).unwrap();
+        v.replace_scene(scene);
+        assert!(v.selected.is_none());
+        assert!(v.highlight.is_none());
     }
 
     #[test]
