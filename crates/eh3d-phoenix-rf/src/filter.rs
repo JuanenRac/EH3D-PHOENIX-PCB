@@ -561,9 +561,9 @@ mod tests {
             assert!((got - want).abs() < 2e-4, "{got} {want}");
         }
         assert_eq!(p.g_load, 1.0);
-        // 0.5 dB ripple, order 2: 1.4029, 0.7071 and a load of 1.9841
+        // 0.5 dB ripple, order 2: 1.4029, 0.7071 (one over root two) and a load of 1.9841
         let two = proto(Approximation::Chebyshev, 2, Some(0.5));
-        for (got, want) in two.g.iter().zip([1.4029, 0.7071]) {
+        for (got, want) in two.g.iter().zip([1.4029, std::f64::consts::FRAC_1_SQRT_2]) {
             assert!((got - want).abs() < 1e-4, "{got} {want}");
         }
         assert!((two.g_load - 1.9841).abs() < 1e-3, "{}", two.g_load);

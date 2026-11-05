@@ -69,7 +69,7 @@ fn the_third_order_butterworth_filter_at_100_mhz() {
     // -3.01 dB at the cutoff
     assert!((at(100e6).insertion_loss_db() - 10.0 * 2f64.log10()).abs() < 1e-9);
     // the same answer from the textbook formula 1 / (1 + (f / fc)^6)
-    for freq in [10e6, 50e6, 80e6, 150e6, 300e6] {
+    for freq in [10e6_f64, 50e6, 80e6, 150e6, 300e6] {
         let want = 1.0 / (1.0 + (freq / 100e6).powi(6));
         assert!((at(freq).s21.norm_sqr() - want).abs() < 1e-9, "{freq}");
     }
