@@ -194,12 +194,13 @@ fn export_can_also_write_a_package() {
     let f = Files::new();
     let json = f.board();
     let package = f.path("board.eh3dproj");
+    let fab = f.path("fab");
     let args = [
         "export",
         "--eh3dproj",
         package.to_str().unwrap(),
         "--out",
-        f.path("fab").to_str().unwrap(),
+        fab.to_str().unwrap(),
         json.as_str(),
     ];
     let (code, _, err) = call(&args);

@@ -564,7 +564,7 @@ fn the_check_finds_nothing_in_a_good_set_and_finds_what_is_lost() {
     let found = |set: &FabSet| -> Vec<String> {
         verify(&f, &profile, set)
             .iter()
-            .filter_map(|d| d.code.clone())
+            .filter_map(|d| d.code.as_ref().map(|c| c.to_string()))
             .collect()
     };
     let edit = |set: &mut FabSet, path: &str, change: &dyn Fn(&str) -> String| {
