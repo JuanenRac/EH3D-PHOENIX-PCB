@@ -112,6 +112,8 @@ Gate: Policy tests pass.
 
 3D viewer, STEP/IDF/glTF export, fit against an existing enclosure and simple parametric enclosures in EH3D-PHOENIX-CAD.
 
+Progress: the scene of the board with the models of its components as data (a model per footprint from a table, the box that encloses each STEP solid, collisions and height checked on boxes) and a simplified OBJ and STEP export exist as a prototype (`docs/ASSEMBLY3D.md`); the 3D window, the IDF and glTF export and the fit against an enclosure do not.
+
 Gate: A small real project made entirely inside the tool, from schematic to measured result, with its passport.
 
 ## Later

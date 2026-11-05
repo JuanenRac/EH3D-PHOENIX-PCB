@@ -1,0 +1,95 @@
+# EH3D-PHOENIX-PCB: bill of materials with costs
+
+The crate `eh3d-phoenix-bom` and the command `phoenix bom` list the parts of a board, group them, price them from a local file and estimate the cost of a batch of boards (requirement PPCB-010, the bill of materials, beyond the simple one that the manufacturing export writes).
+
+**State: prototype.** It has been tried on boards made by hand and by the tests only, never on a real design and never against a real quote. The numbers the tests expect were worked out on paper. The tariffs that come with the program are an example of the shape of a quote and are not the prices of any board maker; the prices are the ones of the file you give, and nothing checks that they are current.
+
+Nothing is fetched from a network: every price, tariff and part number comes from a file on the computer.
+
+## The lines
+
+The parts are the components of the board. With `--schematic FILE` (a JSON schematic) the parts of the schematic whose reference is not on the board are added, with the finding `PHOENIX-BOM-011`, and the footprint they name. Parts are grouped by **value, footprint, maker and part number**; each line has its quantity for one board and its references in natural order (`R2` before `R10`). The maker and the part number come from the file of part data (`--parts FILE`); a part that the file does not mention has neither.
+
+A part without a footprint is listed and flagged (`PHOENIX-BOM-006`); a component that names a footprint that is not on the board is an error (`PHOENIX-BOM-010`).
+
+### The file of part data
+
+A CSV with a header line and the columns `match`, `manufacturer`, `mpn` and `fitted`.
+
+```
+match,manufacturer,mpn,fitted
+R1,Acme,AC-R1,
+10k|R0603,Yageo,RC0603FR-0710KL,yes
+C9,,,no
+```
+
+`match` is a reference (`R1`) or a value and a footprint joined by a bar (`10k|R0603`); the line of a reference wins over the line of a value and a footprint. `fitted` is `yes` (also when empty) or `no`; a part that is not fitted is left out of the bill and listed as information (`PHOENIX-BOM-009`).
+
+## The prices
+
+A price file (`--prices FILE`) is CSV or JSON. One row is one quantity break of one part at one supplier.
+
+| Column | Meaning |
+|---|---|
+| `value`, `footprint` | the parts a row without a part number is for; an empty `footprint` matches any |
+| `manufacturer`, `mpn` | the part a row with a part number is for (the number is compared without regard to case) |
+| `supplier`, `supplier_code` | who sells it and the code of the part at that supplier |
+| `min_qty` | the quantity from which the price holds (1 when missing) |
+| `unit_price` | the price of one part, a decimal with at most six decimals |
+| `currency` | the currency of the row (the one of the settings when empty) |
+
+A JSON file is a list of objects with the same names, or an object with the list under `prices`; a price may be a string or a number. Rows in a currency other than the one of the settings are left out and counted in one finding (`PHOENIX-BOM-007`). Two rows of one supplier for the same part and the same quantity break with different prices give `PHOENIX-BOM-013` and the lower price is used.
+
+## What is bought and what it costs
+
+For each line:
+
+1. The quantity needed is the quantity per board times the boards of the batch, plus the waste in per cent (`parts_waste_percent`), rounded up.
+2. At each supplier that has a row for the part, the price is the one of the greatest quantity break that the quantity needed reaches. When the quantity needed is below the first break, that first break is bought (`PHOENIX-BOM-008`) at its price.
+3. The supplier with the least cost for the whole quantity is chosen; on a tie, the first by name.
+4. The cost of the line for the batch is the quantity bought times the unit price; for one board it is that cost divided by the boards of the batch, rounded half up.
+
+A line with no offer costs nothing in the totals, is listed (`PHOENIX-BOM-005`) and the totals say that they are not complete.
+
+Money and percentages are whole millionths in the program (`0.0125` is `12500`): no price passes through a floating-point number.
+
+## The boards
+
+The cost of the bare boards is an estimate from `config/costs.cfg`:
+
+* the area of the outline in square centimetres, divided by the part of the panel that holds boards (`pcb_utilisation_percent`);
+* times the price of a square centimetre for the number of copper layers (`pcb_area_rate.<layers>`; a number of layers with no line cannot be costed, `PHOENIX-BOM-012`);
+* plus a surcharge in per cent when the stack-up (`--stackup FILE`, the job file of `phoenix stackup`) is thicker than `pcb_thickness_reference_nm`;
+* plus `pcb_drill_cost` for each hole, the vias and the through-hole pads;
+* for the batch, `pcb_setup_cost` plus the boards times the cost of one board, and at least `pcb_min_order_cost`.
+
+Every estimate says so (`PHOENIX-BOM-018`). The total of the batch is the parts plus the boards.
+
+## The command
+
+```
+phoenix bom [--config FILE] [--prices FILE] [--parts FILE] [--schematic FILE] [--stackup FILE]
+            [--boards N] [--csv FILE] [--json-file FILE] [--html FILE] [--json] [--lang CODE]
+            <board>
+```
+
+It is a dry run: without `--csv`, `--json-file` and `--html` nothing is written, and the text report goes to the screen (`--json` prints the JSON instead). Each of the three options writes a new file; a file that exists is never replaced, the input included, and when one of them exists none is written. The default settings file is `config/costs.cfg` when it exists. Exit codes: 0 done, 1 the bill has an error (a component whose footprint is not on the board), 2 the arguments or the input are unusable.
+
+## The outputs
+
+The same input always gives the same bytes: the order is fixed, money is written as decimals with six places, and nothing depends on the time or the machine.
+
+* **CSV**: one line for each bill line with the columns `references`, `quantity`, `value`, `footprint`, `manufacturer`, `mpn`, `supplier`, `supplier_code`, `unit_price`, `price_break`, `quantity_to_buy`, `line_cost_batch`, `line_cost_per_board`, `price_breaks` and `status` (`ok`, `no_price`, `no_footprint` or two of them joined by `+`). A text cell is quoted when it holds a comma, a quote or a line break, and a cell that a spreadsheet would run as a formula (it starts with `=`, `+`, `-` or `@`) gets a quote mark in front.
+* **JSON** (`phoenix-bom/1`): the lines with their offers and price breaks, the totals of the parts, the estimate of the boards, the total, whether it is complete and the findings; money is a string with six decimals.
+* **HTML**: one page with a table, the totals and the findings, with no script and no outside file; every text that comes from a file is escaped.
+
+## The codes
+
+`PHOENIX-BOM-001` to `PHOENIX-BOM-018`, with their titles in the eight languages; the table is in `docs/ERROR_CODES.md`.
+
+## What it does not do
+
+* It does not fetch prices, stock or part numbers from a supplier, and it does not order anything.
+* It does not merge lines of equivalent parts, split a quantity between suppliers or choose by stock or lead time.
+* It does not know the real tariff of any maker: the cost of the boards is the shape of a quote, with the numbers you put in the settings.
+* It does not read a bill from an assembler's format.
