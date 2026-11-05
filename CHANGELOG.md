@@ -17,7 +17,11 @@ All notable changes to this project are documented here.
 - Add the command `phoenix schedit <schematic> --apply OPERATIONS.json [--out FILE]`: a file of operations applied to a schematic as a dry run unless a new `.json` or `.sch` file is named; the input and an existing file are never written over, a refused operation names its number and writes nothing, and the rule check is run on the result.
 - Add the editing mode of the window for a schematic (the button *Edit schematic*), with its texts in the eight languages; after each change the workspace receives the edited schematic, so the findings, the transfer and saving work on it.
 - Document the editor in `docs/SCHEMATIC_EDIT.md`, the state of requirement PPCB-017 and the progress of phase F7, and what is left out in `docs/NOT_YET.md`.
-- Bring the test counters up to date: 1533 tests of the Rust code (counted from the sources) and 3 of the base.
+- Add the export of a board as a Specctra DSN file (`export_dsn` and `phoenix autoroute export-dsn`): the layers in the order of the stack, the outline, the width, clearance and via of the rules and of every net class, one image per component with its pads in place, the nets with their pins and the copper that exists as fixed obstacles; the same input always gives the same bytes and the coordinates are integer nanometres.
+- Add the import of a Specctra session as a plan (`import_ses` and `phoenix autoroute import-ses`): the units are converted exactly, every net, layer and via is matched with the board, the new copper is added to a copy and judged by the rules, all or nothing, with a report that is the same every time and an output that is written only to a new file.
+- Add the optional adapter that runs an external autorouter (`phoenix autoroute run`, with the settings in `config/autorouter.cfg`): it is off by default and a dry run unless `--execute` is given, starts the program without a shell, with an empty environment, a time limit and a folder of its own, and accepts no address in its settings.
+- Add the codes `PHOENIX-ROUTE-021` to `028` in the eight languages, and document the exchange in `docs/AUTOROUTE.md`, the state of requirement PPCB-016 and what is left out in `docs/NOT_YET.md`.
+- Bring the test counters up to date: 1571 tests of the Rust code (counted from the sources) and 3 of the base.
 
 ## [0.0.3] - Design rules, stack-up, RF tools, circuit simulation, routing, manufacturing output, KiCad and EAGLE tools, library sanitizer and the editing window
 

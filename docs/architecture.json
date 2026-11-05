@@ -64,7 +64,8 @@
         "crates/eh3d-phoenix-viewer/src/workspace.rs",
         "crates/eh3d-phoenix-schematic/src/edit.rs",
         "crates/eh3d-phoenix-schedit/src/state.rs",
-        "crates/eh3d-phoenix-libedit/src/ops.rs"
+        "crates/eh3d-phoenix-libedit/src/ops.rs",
+        "crates/eh3d-phoenix-route/src/dsn.rs"
       ]
     },
     {

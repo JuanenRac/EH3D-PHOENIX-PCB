@@ -273,6 +273,19 @@
           }
         },
         {
+          "name": "AUTOROUTE.md",
+          "desc": {
+            "en": "routing by an external autorouter: DSN, session, adapter",
+            "es": "enrutado con un autorruteador externo: DSN, sesión, adaptador",
+            "de": "Routing mit externem Autorouter: DSN, Sitzung, Adapter",
+            "fr": "routage avec un autorouteur externe : DSN, session, adaptateur",
+            "it": "instradamento con un autorouter esterno: DSN, sessione, adattatore",
+            "ja": "外部オートルーターによる配線：DSN、セッション、アダプター",
+            "zh": "外部自动布线器布线：DSN、会话、适配器",
+            "pt": "encaminhamento com um encaminhador automático externo: DSN, sessão, adaptador"
+          }
+        },
+        {
           "name": "GATE_F1.md",
           "desc": {
             "en": "what the gate of the first phase checks and what it does not",
