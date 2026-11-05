@@ -313,6 +313,31 @@ pub fn title(code: &str, lang: Lang) -> &'static str {
         .map_or("?", |(_, titles)| titles[lang.column()])
 }
 
+/// A message made by [`crate::codes::diagnostic`] (the English title, then `: ` and the detail) with
+/// its title in `lang`. The detail stays as it is. A message that does not start with the title of
+/// `code` is returned unchanged.
+pub fn localize(code: &str, message: &str, lang: Lang) -> String {
+    let english = title(code, Lang::En);
+    match message.strip_prefix(english) {
+        Some(rest) if english != "?" => format!("{}{rest}", title(code, lang)),
+        _ => message.to_owned(),
+    }
+}
+
+/// The line that says how many files were written.
+pub fn written(count: usize, lang: Lang) -> String {
+    match lang {
+        Lang::En => format!("{count} files written"),
+        Lang::Es => format!("{count} archivos escritos"),
+        Lang::De => format!("{count} Dateien geschrieben"),
+        Lang::Fr => format!("{count} fichiers écrits"),
+        Lang::It => format!("{count} file scritti"),
+        Lang::Ja => format!("{count} 個のファイルを書き出しました"),
+        Lang::Zh => format!("已写入 {count} 个文件"),
+        Lang::Pt => format!("{count} ficheiros escritos"),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -344,6 +369,14 @@ mod tests {
             assert_eq!(Lang::from_tag(tag), Some(lang));
         }
         assert_eq!(Lang::from_tag("xx"), None);
+        let message = "Arc left out: an arc of a track";
+        assert_eq!(
+            localize("PHOENIX-EXPORT-004", message, Lang::De),
+            "Bogen ausgelassen: an arc of a track"
+        );
+        assert_eq!(localize("PHOENIX-EXPORT-004", "other", Lang::De), "other");
+        assert_eq!(localize("nothing", "?", Lang::De), "?");
+        assert!(written(3, Lang::Pt).contains("ficheiros"));
         assert_eq!(title("PHOENIX-EXPORT-999", Lang::En), "?");
     }
 }

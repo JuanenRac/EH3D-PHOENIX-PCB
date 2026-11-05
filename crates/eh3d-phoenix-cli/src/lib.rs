@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! The command line of EH3D-PHOENIX-PCB. It has five commands, `inventory`, `eagle-rate`,
-//! `stackup`, `check` and `connectivity`.
+//! The command line of EH3D-PHOENIX-PCB. It has six commands, `inventory`, `eagle-rate`,
+//! `stackup`, `check`, `connectivity` and `export`.
 //!
 //! Exit codes: 0 done, 1 `stackup` could not compute one or more of the lines it was asked for, or
 //! `check` and `connectivity` proved an error, 2 the arguments or the input are unusable.
@@ -8,6 +8,7 @@
 #![warn(missing_docs)]
 
 mod check;
+mod export;
 
 use eh3d_phoenix_corpus::{inventory, InventoryConfig};
 use eh3d_phoenix_stackup::{report_json, report_text, Language, StackupJob, StackupSettings};
@@ -40,6 +41,13 @@ phoenix connectivity [--rules FILE] [--json] [--lang xx] <schematic.sch> <board.
   check         run the design rules of FILE (JSON, phoenix-rules/1) or of the board on an EAGLE board
   connectivity  shorts and unrouted nets of the board, and the board against the schematic
                 (exit 1 when an error is proven; the report keeps confirmed and inconclusive apart)
+
+phoenix export [--profile NAME] [--profiles FILE] [--lang xx] [--eh3dproj FILE] --out <folder> <board>
+
+  export        the manufacturing files of a board (Gerber X2, plated and not plated drills,
+                placement, bill of materials) and manifest.json with their SHA-256, made with a
+                profile of a JSON file and checked against the board before they are written
+                (exit 1 when they differ)
 ";
 
 /// Run the command line with the arguments that follow the program name. Returns the exit code.
@@ -72,6 +80,9 @@ pub fn run(args: &[String], out: &mut dyn Write, err: &mut dyn Write) -> i32 {
     }
     if let Some((&"connectivity", tail)) = rest.split_first() {
         return check::connectivity(tail, out, err);
+    }
+    if let Some((&"export", tail)) = rest.split_first() {
+        return export::export(tail, out, err);
     }
     if let ["eagle-rate", source, copies] = rest.as_slice() {
         return eagle_rate(Path::new(source), Path::new(copies), out, err);

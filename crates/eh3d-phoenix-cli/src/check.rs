@@ -65,7 +65,7 @@ fn parse_options(args: &[&str]) -> Result<Options, String> {
     Ok(options)
 }
 
-fn read_text(path: &str) -> Result<String, String> {
+pub(crate) fn read_text(path: &str) -> Result<String, String> {
     let size = std::fs::metadata(path)
         .map_err(|e| format!("cannot read {path}: {e}"))?
         .len();
@@ -78,7 +78,7 @@ fn read_text(path: &str) -> Result<String, String> {
 }
 
 /// Ids for the objects read from a file: the same file always gives the same ids.
-fn id_source() -> Result<impl FnMut() -> ObjectId, String> {
+pub(crate) fn id_source() -> Result<impl FnMut() -> ObjectId, String> {
     let mut generator = IdGenerator::new(
         StepClock::new(1_700_000_000_000, 1),
         DeterministicRandom::new(1),
