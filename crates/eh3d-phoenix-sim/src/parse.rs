@@ -841,17 +841,17 @@ fn check_scope(
                     }
                 }
             }
-            Kind::Cccs { control, .. } | Kind::Ccvs { control, .. } => {
-                if !matches!(kinds.get(&control.to_lowercase()), Some(Kind::Voltage(_))) {
-                    return Err(SimError::at(
-                        UNDEFINED,
-                        number,
-                        format!(
-                            "{}: {control} is not a voltage source of this circuit",
-                            element.name
-                        ),
-                    ));
-                }
+            Kind::Cccs { control, .. } | Kind::Ccvs { control, .. }
+                if !matches!(kinds.get(&control.to_lowercase()), Some(Kind::Voltage(_))) =>
+            {
+                return Err(SimError::at(
+                    UNDEFINED,
+                    number,
+                    format!(
+                        "{}: {control} is not a voltage source of this circuit",
+                        element.name
+                    ),
+                ));
             }
             _ => {}
         }

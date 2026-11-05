@@ -7,6 +7,7 @@
 //! board is never changed by planning (a dry run), and what the plan does not name is not touched:
 //! no track, via, zone, silkscreen item or position is ever changed or removed by it.
 
+use std::collections::btree_map::Entry;
 use std::collections::{BTreeMap, BTreeSet};
 
 use eh3d_phoenix_board::{Board, Component, History, Id, OpError, Operation, PadRef};
@@ -531,14 +532,15 @@ pub fn plan_forward(
         if !schematic.parts.contains_key(&part_id) {
             continue;
         }
-        if component_of.contains_key(&part_id) {
-            skipped.push(Skipped::new(
+        match component_of.entry(part_id) {
+            Entry::Occupied(_) => skipped.push(Skipped::new(
                 PART_TWICE,
                 &component.refdes,
                 "a second component of the same part is left alone",
-            ));
-        } else {
-            component_of.insert(part_id, *cid);
+            )),
+            Entry::Vacant(slot) => {
+                slot.insert(*cid);
+            }
         }
     }
     let mut planner = Planner {

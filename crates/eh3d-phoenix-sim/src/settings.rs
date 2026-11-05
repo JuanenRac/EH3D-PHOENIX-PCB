@@ -424,13 +424,13 @@ impl SimSettings {
     /// True when a netlist node name means ground (the name is compared in lower case).
     pub fn is_netlist_ground(&self, name: &str) -> bool {
         let lower = name.to_ascii_lowercase();
-        self.netlist_ground.iter().any(|g| *g == lower)
+        self.netlist_ground.contains(&lower)
     }
 
     /// True when the name of a schematic net means ground (compared in lower case).
     pub fn is_schematic_ground(&self, name: &str) -> bool {
         let lower = name.trim().to_ascii_lowercase();
-        self.schematic_ground.iter().any(|g| *g == lower)
+        self.schematic_ground.contains(&lower)
     }
 }
 

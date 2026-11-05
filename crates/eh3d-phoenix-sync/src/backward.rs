@@ -7,6 +7,7 @@
 //! applying the inverse; the history can be written and replayed. Nothing that is not named by an
 //! edit is touched.
 
+use std::collections::btree_map::Entry;
 use std::collections::BTreeMap;
 
 use eh3d_phoenix_board::Board;
@@ -270,14 +271,15 @@ pub fn plan_backward(
         if !schematic.parts.contains_key(&part_id) {
             continue;
         }
-        if component_of.contains_key(&part_id) {
-            skipped.push(Skipped::new(
+        match component_of.entry(part_id) {
+            Entry::Occupied(_) => skipped.push(Skipped::new(
                 PART_TWICE,
                 &component.refdes,
                 "a second component of the same part is left alone",
-            ));
-        } else {
-            component_of.insert(part_id, *cid);
+            )),
+            Entry::Vacant(slot) => {
+                slot.insert(*cid);
+            }
         }
     }
 

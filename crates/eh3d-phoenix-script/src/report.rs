@@ -53,11 +53,9 @@ pub struct ScriptReport {
 
 /// The part of a total, in tenths of a percent; an empty total is 1000.
 pub fn tenths(part: usize, total: usize) -> u32 {
-    if total == 0 {
-        1000
-    } else {
-        u32::try_from(part.saturating_mul(1000) / total).unwrap_or(1000)
-    }
+    part.saturating_mul(1000)
+        .checked_div(total)
+        .map_or(1000, |tenths| u32::try_from(tenths).unwrap_or(1000))
 }
 
 /// A number of tenths as text: `1000` is `100.0`.
@@ -704,9 +702,8 @@ td.n,th.n{{text-align:right}}.muted{{color:var(--muted)}}\
         if !causes.is_empty() {
             let _ = write!(
                 out,
-                "<h2>{}</h2>\n<table><thead><tr><th>{}</th><th>{}</th><th class=\"n\">{}</th></tr></thead><tbody>\n",
+                "<h2>{}</h2>\n<table><thead><tr><th>Code</th><th>{}</th><th class=\"n\">{}</th></tr></thead><tbody>\n",
                 escape(label(Label::Causes, lang)),
-                "Code",
                 escape(label(Label::Cause, lang)),
                 escape(label(Label::Count, lang)),
             );
