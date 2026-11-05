@@ -1,0 +1,18 @@
+[package]
+name = "eh3d-phoenix-lengths"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Lengths of the nets of a board (prototype): the copper length of tracks and vias with the delay of each layer taken from the stack-up, groups of nets that must match in length within a tolerance, and differential pairs with their separation, width and length difference, in a report that is the same every time"
+
+[dependencies]
+eh3d-phoenix-board = { path = "../eh3d-phoenix-board" }
+eh3d-phoenix-rules = { path = "../eh3d-phoenix-rules" }
+eh3d-phoenix-stackup = { path = "../eh3d-phoenix-stackup" }
+serde.workspace = true
+serde_json = { workspace = true, features = ["float_roundtrip"] }
+
+[dev-dependencies]
+eh3d-phoenix-model = { path = "../eh3d-phoenix-model" }

@@ -543,3 +543,27 @@ The titles of these codes also exist in the eight languages of the suite (`TITLE
 | PHOENIX-ZONE-017 | Board, rule or fill file cannot be read | a board, rule, zone or fill file that cannot be opened, is too large or is not valid |
 | PHOENIX-ZONE-018 | A coordinate is out of range | check: a polygon of a fill file with a coordinate outside the design range |
 | PHOENIX-ZONE-019 | The fill file does not match the board | check: a fill with another format or for a board of another name, a zone that is not on the board or whose net or layer changed, a polygon with fewer than three points |
+
+## Lengths and pairs (`eh3d-phoenix-lengths`, `src/codes.rs`)
+
+| Code | Title | Raised by |
+|---|---|---|
+| PHOENIX-LEN-001 | Length settings are not valid | a line of `config/lengths.cfg` that is not `key = value`, an unknown key, a number that cannot be read or a value out of range |
+| PHOENIX-LEN-002 | Length groups file is not valid | a file of groups and pairs (`phoenix-lengths/1`) that is not JSON, has another format or an unknown field, a name used twice or empty, a group with too few nets, a pair with one net twice, a negative length |
+| PHOENIX-LEN-003 | Net is not on the board | error: a net named in a group or a pair that the board does not have; the group or pair is left out of the results |
+| PHOENIX-LEN-004 | Nets of a group differ in length by more than the tolerance | error: the longest and the shortest net of a group without a target differ by more than its tolerance |
+| PHOENIX-LEN-005 | Pair differs in length by more than allowed | error: the two nets of a pair differ in length by more than `max_skew_nm` |
+| PHOENIX-LEN-006 | Track width of a pair is not the width asked for | error: a piece of track of either net whose width is not `width_nm` within the tolerance |
+| PHOENIX-LEN-007 | Pair is closer together than the separation asked for | error: the gap between the edges of coupled pieces is smaller than `gap_nm` less the tolerance |
+| PHOENIX-LEN-008 | Pair is farther apart than the separation asked for | error: the gap between the edges of coupled pieces is larger than `gap_nm` plus the tolerance |
+| PHOENIX-LEN-009 | Pair runs uncoupled for more than allowed | error: more of the positive net runs farther than the coupling range from the negative net than `max_uncoupled_nm` |
+| PHOENIX-LEN-010 | Delay could not be worked out from the stack-up | warning: a layer the stack-up does not name, a layer the line model cannot take (a stripline without planes on both sides) or a width it refuses; the default delay is used |
+| PHOENIX-LEN-011 | Layer has no delay of its own, the default is used | information: no stack-up was given or `use_stackup` is off and the layer has no `layer_delay_ps_per_mm` line |
+| PHOENIX-LEN-012 | Length of an arc is an estimate | information: arc pieces are measured with floating-point trigonometry and rounded |
+| PHOENIX-LEN-013 | Net has no copper | warning: a net named in a group or a pair that has no track and no via; its length is zero |
+| PHOENIX-LEN-014 | A command option is not valid | an option the command does not know or needs a value for, an unknown language code, a number of board files other than one |
+| PHOENIX-LEN-015 | The output file exists or cannot be written | an output file that already exists (an input file is never replaced) or cannot be created |
+| PHOENIX-LEN-016 | Board, stack-up or lengths file cannot be read | a board, stack-up job, settings or groups file that cannot be opened, is too large or is not valid |
+| PHOENIX-LEN-017 | A limit of the length report was exceeded | more tracks and vias, or more groups and pairs, than `max_items` |
+| PHOENIX-LEN-018 | Net is not the target length | error: a net of a group with a target whose length is farther from the target than the tolerance |
+| PHOENIX-LEN-019 | Pair has no coupled stretch | warning: no straight piece of the positive net runs within the coupling range of the negative net, so the separation is not judged |
