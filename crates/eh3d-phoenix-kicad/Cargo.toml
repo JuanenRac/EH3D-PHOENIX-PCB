@@ -1,0 +1,18 @@
+[package]
+name = "eh3d-phoenix-kicad"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Read-only readers of KiCad 6 to 9 files into the design model: a bounded s-expression parser, symbol and footprint libraries, schematics with sheets and nets, boards in integer nanometres, the project file, and an importer for the format hub with a quality report"
+
+[dependencies]
+eh3d-diagnostic.workspace = true
+eh3d-phoenix-board = { path = "../eh3d-phoenix-board" }
+eh3d-phoenix-hub = { path = "../eh3d-phoenix-hub" }
+eh3d-phoenix-model = { path = "../eh3d-phoenix-model" }
+eh3d-phoenix-schematic = { path = "../eh3d-phoenix-schematic" }
+eh3d-phoenix-stackup = { path = "../eh3d-phoenix-stackup" }
+serde_json.workspace = true
+thiserror.workspace = true

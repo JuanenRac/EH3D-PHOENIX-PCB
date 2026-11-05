@@ -286,6 +286,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "eh3d-phoenix-kicad"
+version = "0.0.2"
+dependencies = [
+ "eh3d-diagnostic",
+ "eh3d-phoenix-board",
+ "eh3d-phoenix-hub",
+ "eh3d-phoenix-model",
+ "eh3d-phoenix-schematic",
+ "eh3d-phoenix-stackup",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
 name = "eh3d-phoenix-model"
 version = "0.0.2"
 dependencies = [

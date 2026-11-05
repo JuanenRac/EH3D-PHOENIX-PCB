@@ -243,3 +243,24 @@ The titles of these codes also exist in the eight languages of the suite (`TITLE
 | PHOENIX-VIEW-007 | Benchmark option is not valid | a benchmark board below the smallest size, or more scans than picks |
 | PHOENIX-VIEW-008 | The window is not built in | `phoenix view` asked to open the window by a program built without the `gui` feature |
 | PHOENIX-VIEW-009 | The window could not be opened | the graphics or windowing system refused to open the window |
+
+## KiCad readers (`eh3d-phoenix-kicad`, `src/error.rs`)
+
+The titles of these codes also exist in the eight languages of the suite (`title` in `src/error.rs`); the detail of a message is in English. A finding that comes from a place in a file says the line, and the column when it has one.
+
+| Code | Title | Raised by |
+|---|---|---|
+| PHOENIX-KICAD-001 | The KiCad file has a syntax error | a parenthesis that closes nothing, text outside the root list, a second root list or a text that holds no list; the message names the line and the column |
+| PHOENIX-KICAD-002 | The KiCad file is larger or deeper than the configured limit | a file, a nesting of lists, a number of nodes, an atom or a quoted text, a number of sheets or a nesting of sheets beyond the settings; a project file larger than `max_project_bytes` |
+| PHOENIX-KICAD-003 | The file is not a KiCad file of the expected kind | a file whose root list is not the one the reader reads (a board given to the schematic reader), or text that starts with something else |
+| PHOENIX-KICAD-004 | The KiCad file ends before it is complete | a list or a quoted text that is still open at the end of the file (a truncated file); the message says how many lists were open |
+| PHOENIX-KICAD-005 | A value in the KiCad file is not valid | a number that is not a length or an angle, a position outside the range of the model, a pad, track, via, zone or wire with a missing or unusable part; the message names the line (a warning) |
+| PHOENIX-KICAD-006 | Part of the KiCad file not read into the model | elements the readers do not interpret, counted by name (information) |
+| PHOENIX-KICAD-007 | Item read in a simpler form | a pad of a shape the model does not have, an oval drill, a rotation that is not a right angle, a part drawn as several units, an arc through three points on a line, a wire that is neither horizontal nor vertical, a zone without a clearance (information) |
+| PHOENIX-KICAD-008 | Reference to something the file does not have | a net number that is not in the net table, a placed symbol that is not in `lib_symbols`, a symbol that extends one that is not there, a sheet file that cannot be read, that leaves the folder or that contains itself (a warning) |
+| PHOENIX-KICAD-009 | File version outside the tested range | a `version` older than `min_tested_version`, newer than `max_tested_version` or missing; the file is read anyway (a warning) |
+| PHOENIX-KICAD-010 | The KiCad reader settings are not valid | a line of the settings text that is not `key = value`, an unknown key or a value out of range |
+| PHOENIX-KICAD-011 | The KiCad project file is not valid | a `.kicad_pro` file that is not JSON, is not an object or nests deeper than the JSON reader allows; the message says where the JSON stops |
+| PHOENIX-KICAD-012 | The file is not valid UTF-8 text | bytes that are not UTF-8; they are replaced and the file is read (a warning) |
+| PHOENIX-KICAD-013 | Nets derived from the drawing | a schematic: the nets are computed from wires, junctions, labels and power symbols because the file stores no net list (information) |
+| PHOENIX-KICAD-014 | Fidelity level of the import | the last finding of every import by the hub: `complete`, `partial` or `unusable` (information) |
