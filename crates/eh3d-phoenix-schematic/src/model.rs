@@ -7,6 +7,7 @@ use eh3d_phoenix_model::Point;
 use serde::{Deserialize, Serialize};
 
 use crate::draw::{Placement, Sheet, Wire};
+use crate::marks::{Junction, NetLabel, PowerPort};
 
 /// The identity of any part of the schematic: the shared object identity of the suite.
 pub type Id = eh3d_container::ObjectId;
@@ -159,6 +160,19 @@ pub struct Schematic {
     /// type given and the checks that need one leave it out and say so. Not written when empty.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub pin_kinds: BTreeMap<Id, PinKind>,
+    /// The net labels of the drawing, by id. Not written when empty.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub labels: BTreeMap<Id, NetLabel>,
+    /// The junction dots of the drawing, by id. Not written when empty.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub junctions: BTreeMap<Id, Junction>,
+    /// The power ports of the drawing, by id. Not written when empty.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub power_ports: BTreeMap<Id, PowerPort>,
+    /// The placed parts drawn mirrored left to right (before the rotation turns them). Not
+    /// written when empty.
+    #[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
+    pub mirrored: BTreeSet<Id>,
 }
 
 /// A reference to a part, symbol or pin that does not exist.

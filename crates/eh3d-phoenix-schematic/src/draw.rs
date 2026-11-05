@@ -17,6 +17,7 @@
 //!   be on one net (`PHOENIX-SCH-005`, an error); a net whose pins are not all joined is only
 //!   information (`PHOENIX-SCH-006`) because a connection may be given by the net list alone.
 
+use std::collections::btree_map::Entry;
 use std::collections::{BTreeMap, BTreeSet};
 
 use eh3d_diagnostic::{Category, Diagnostic, Recoverability, Severity};
@@ -125,12 +126,12 @@ struct PlacedPin {
     at: Point,
 }
 
-fn key(p: Point) -> (i64, i64) {
+pub(crate) fn key(p: Point) -> (i64, i64) {
     (p.x_nm.get(), p.y_nm.get())
 }
 
 /// Whether `p` lies on the segment `a`-`b` strictly between its end points, in exact arithmetic.
-fn inside_piece(p: Point, a: Point, b: Point) -> bool {
+pub(crate) fn inside_piece(p: Point, a: Point, b: Point) -> bool {
     if p == a || p == b || orient(a, b, p) != Orientation::Collinear {
         return false;
     }
@@ -170,6 +171,8 @@ pub struct Drawn {
     /// The pins of each group that wires or a shared point join, in a fixed order; a group has at
     /// least one pin.
     pub groups: Vec<BTreeSet<NetPin>>,
+    /// The names that net labels and power ports give to each group, in the order of `groups`.
+    pub group_names: Vec<BTreeSet<String>>,
     /// The problems of the drawing, in a fixed order.
     pub problems: Vec<Diagnostic>,
 }
@@ -202,15 +205,18 @@ impl Schematic {
                     ));
                     continue;
                 };
-                let at = turn(offset.x_nm.get(), offset.y_nm.get(), place.rotation).and_then(
-                    |(dx, dy)| {
-                        Point::from_nm(
-                            place.at.x_nm.get().checked_add(dx)?,
-                            place.at.y_nm.get().checked_add(dy)?,
-                        )
-                        .ok()
-                    },
-                );
+                let ox = if self.mirrored.contains(part_id) {
+                    -offset.x_nm.get()
+                } else {
+                    offset.x_nm.get()
+                };
+                let at = turn(ox, offset.y_nm.get(), place.rotation).and_then(|(dx, dy)| {
+                    Point::from_nm(
+                        place.at.x_nm.get().checked_add(dx)?,
+                        place.at.y_nm.get().checked_add(dy)?,
+                    )
+                    .ok()
+                });
                 match at {
                     Some(at) => pins.push(PlacedPin {
                         pin: NetPin {
@@ -284,6 +290,18 @@ impl Schematic {
             }
         }
         let pin_nodes: Vec<usize> = pins.iter().map(|p| node(p.sheet, p.at)).collect();
+        // net labels and power ports: the same name joins the nets wherever they are
+        let mut named: Vec<(&str, usize)> = Vec::new();
+        for label in self.labels.values() {
+            if self.sheets.contains_key(&label.sheet) {
+                named.push((label.name.as_str(), node(label.sheet, label.at)));
+            }
+        }
+        for port in self.power_ports.values() {
+            if self.sheets.contains_key(&port.sheet) {
+                named.push((port.name.as_str(), node(port.sheet, port.at)));
+            }
+        }
 
         // a point in the middle of a piece of another wire looks connected and is not
         let mut warned: BTreeSet<(Id, Id, (i64, i64))> = BTreeSet::new();
@@ -323,15 +341,32 @@ impl Schematic {
         for (a, b) in links {
             union.join(a, b);
         }
+        let mut first_of_name: BTreeMap<&str, usize> = BTreeMap::new();
+        for (name, n) in &named {
+            match first_of_name.entry(*name) {
+                Entry::Occupied(first) => union.join(*first.get(), *n),
+                Entry::Vacant(slot) => {
+                    slot.insert(*n);
+                }
+            }
+        }
         let mut groups: BTreeMap<usize, BTreeSet<NetPin>> = BTreeMap::new();
         for (pin, n) in pins.iter().zip(&pin_nodes) {
             groups.entry(union.find(*n)).or_default().insert(pin.pin);
         }
-        let groups: Vec<BTreeSet<NetPin>> = {
-            let mut g: Vec<_> = groups.into_values().collect();
-            g.sort();
-            g
-        };
+        let mut names_of_root: BTreeMap<usize, BTreeSet<String>> = BTreeMap::new();
+        for (name, n) in &named {
+            names_of_root
+                .entry(union.find(*n))
+                .or_default()
+                .insert((*name).to_owned());
+        }
+        let mut pairs: Vec<(BTreeSet<NetPin>, BTreeSet<String>)> = groups
+            .into_iter()
+            .map(|(root, pins)| (pins, names_of_root.remove(&root).unwrap_or_default()))
+            .collect();
+        pairs.sort();
+        let (groups, group_names): (Vec<_>, Vec<_>) = pairs.into_iter().unzip();
 
         // the drawing against the net list
         let net_of: BTreeMap<NetPin, Id> = self
@@ -374,7 +409,11 @@ impl Schematic {
                 ));
             }
         }
-        Drawn { groups, problems }
+        Drawn {
+            groups,
+            group_names,
+            problems,
+        }
     }
 }
 
@@ -565,6 +604,122 @@ mod tests {
         assert!(codes(&s).is_empty());
         s.parts.get_mut(&ids[2]).unwrap().placement = None;
         assert!(codes(&s).is_empty());
+    }
+
+    #[test]
+    fn labels_with_one_name_join_pins_without_a_wire() {
+        let (mut s, ids, sheet, wire) = drawn_schematic();
+        s.wires.remove(&wire);
+        for (n, at) in [
+            (80, pt(22_540_000, 20_000_000)),
+            (81, pt(37_460_000, 20_000_000)),
+        ] {
+            s.labels.insert(
+                id(n),
+                crate::marks::NetLabel {
+                    sheet,
+                    at,
+                    name: "SIG".into(),
+                },
+            );
+        }
+        let drawn = s.drawn();
+        assert!(codes(&s).is_empty(), "{:?}", drawn.problems);
+        let joined = drawn.groups.iter().position(|g| g.len() == 2).unwrap();
+        assert!(drawn.groups[joined].contains(&NetPin {
+            part: ids[1],
+            pin: ids[4],
+        }));
+        assert!(drawn.groups[joined].contains(&NetPin {
+            part: ids[2],
+            pin: ids[3],
+        }));
+        let names: Vec<String> = drawn.group_names[joined].iter().cloned().collect();
+        assert_eq!(names, vec!["SIG".to_string()]);
+    }
+
+    #[test]
+    fn labels_with_different_names_and_power_ports_follow_their_names() {
+        let (mut s, _, sheet, wire) = drawn_schematic();
+        s.wires.remove(&wire);
+        s.labels.insert(
+            id(80),
+            crate::marks::NetLabel {
+                sheet,
+                at: pt(22_540_000, 20_000_000),
+                name: "A".into(),
+            },
+        );
+        s.labels.insert(
+            id(81),
+            crate::marks::NetLabel {
+                sheet,
+                at: pt(37_460_000, 20_000_000),
+                name: "B".into(),
+            },
+        );
+        assert_eq!(s.drawn().groups.len(), 4);
+        assert_eq!(codes(&s), vec![NET_NOT_DRAWN]);
+        // a power port named like a label joins the same two pins
+        s.power_ports.insert(
+            id(82),
+            crate::marks::PowerPort {
+                sheet,
+                at: pt(22_540_000, 20_000_000),
+                name: "B".into(),
+            },
+        );
+        assert_eq!(s.drawn().groups.len(), 3);
+        assert!(codes(&s).is_empty());
+    }
+
+    #[test]
+    fn a_mirrored_part_has_its_pins_on_the_other_side() {
+        let (mut s, ids, _, _) = drawn_schematic();
+        let first_pin = NetPin {
+            part: ids[1],
+            pin: ids[3],
+        };
+        let x_of = |s: &Schematic| {
+            s.pin_positions()
+                .into_iter()
+                .find(|(p, _, _)| *p == first_pin)
+                .map(|(_, _, at)| at.x_nm.get())
+        };
+        assert_eq!(x_of(&s), Some(17_460_000));
+        s.mirrored.insert(ids[1]);
+        assert_eq!(x_of(&s), Some(22_540_000));
+        // the wire now touches pin 1 of the first part and the net list says pin 2
+        assert_eq!(codes(&s), vec![DRAWN_NOT_IN_NETLIST, NET_NOT_DRAWN]);
+    }
+
+    #[test]
+    fn marks_are_written_only_when_there_are_some_and_round_trip() {
+        let (mut s, _, sheet, _) = drawn_schematic();
+        let plain = String::from_utf8(s.to_bytes().unwrap()).unwrap();
+        for word in ["labels", "junctions", "power_ports", "mirrored"] {
+            assert!(!plain.contains(word), "{word}");
+        }
+        s.labels.insert(
+            id(80),
+            crate::marks::NetLabel {
+                sheet,
+                at: pt(0, 0),
+                name: "X".into(),
+            },
+        );
+        s.junctions.insert(
+            id(81),
+            crate::marks::Junction {
+                sheet,
+                at: pt(1_000_000, 0),
+            },
+        );
+        s.mirrored.insert(id(2));
+        let bytes = s.to_bytes().unwrap();
+        let text = String::from_utf8(bytes.clone()).unwrap();
+        assert!(text.contains("labels") && text.contains("junctions") && text.contains("mirrored"));
+        assert_eq!(Schematic::from_bytes(&bytes).unwrap(), s);
     }
 
     #[test]

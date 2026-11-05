@@ -18,10 +18,12 @@
 
 pub mod draw;
 pub mod link;
+pub mod marks;
 pub mod model;
 #[cfg(test)]
 pub(crate) mod sample;
 
 pub use draw::{Drawn, Placement, Sheet, Wire};
 pub use link::{check_consistency, check_drawn_against_board, LinkReport};
+pub use marks::{bus_members, Junction, NetLabel, PowerPort};
 pub use model::{Id, NetPin, Part, Pin, PinKind, Schematic, SchematicNet, Symbol};
