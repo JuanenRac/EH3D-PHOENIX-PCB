@@ -41,7 +41,7 @@
       "lines": [
         "inventory, model, project file, board, schematic, ERC, sync,",
         "EAGLE, KiCad, rules, export, stack-up, RF, simulator,",
-        "sanitizer, viewer, CLI"
+        "router, sanitizer, viewer, CLI"
       ],
       "code": [
         "crates/eh3d-phoenix-corpus/src/inventory.rs",
