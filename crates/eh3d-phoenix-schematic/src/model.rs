@@ -24,6 +24,71 @@ pub struct Pin {
     pub at: Option<Point>,
 }
 
+/// The electrical type of a pin, which the electrical rule check judges the connections by.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PinKind {
+    /// Takes a signal in.
+    Input,
+    /// Drives a signal out.
+    Output,
+    /// Drives and takes a signal.
+    Bidirectional,
+    /// An output that can be switched off (a bus driver).
+    TriState,
+    /// A pin of a passive part (a resistor, a capacitor): it neither drives nor needs a driver.
+    Passive,
+    /// A supply pin that needs a source.
+    PowerIn,
+    /// A pin that supplies a net (a regulator output).
+    PowerOut,
+    /// An open collector or open drain output.
+    OpenCollector,
+    /// A pin that is meant to stay unconnected.
+    NotConnected,
+}
+
+impl PinKind {
+    /// Every kind, in a fixed order; the position of a kind in this list is its index in the
+    /// matrix of the check.
+    pub const ALL: [PinKind; 9] = [
+        PinKind::Input,
+        PinKind::Output,
+        PinKind::Bidirectional,
+        PinKind::TriState,
+        PinKind::Passive,
+        PinKind::PowerIn,
+        PinKind::PowerOut,
+        PinKind::OpenCollector,
+        PinKind::NotConnected,
+    ];
+
+    /// The name used in files (`power_in`).
+    pub fn as_str(self) -> &'static str {
+        match self {
+            PinKind::Input => "input",
+            PinKind::Output => "output",
+            PinKind::Bidirectional => "bidirectional",
+            PinKind::TriState => "tri_state",
+            PinKind::Passive => "passive",
+            PinKind::PowerIn => "power_in",
+            PinKind::PowerOut => "power_out",
+            PinKind::OpenCollector => "open_collector",
+            PinKind::NotConnected => "not_connected",
+        }
+    }
+
+    /// Reads the name used in files.
+    pub fn from_name(name: &str) -> Option<PinKind> {
+        PinKind::ALL.into_iter().find(|k| k.as_str() == name)
+    }
+
+    /// The position of this kind in [`PinKind::ALL`].
+    pub fn index(self) -> usize {
+        PinKind::ALL.iter().position(|k| *k == self).unwrap_or(0)
+    }
+}
+
 /// A symbol: a named set of pins.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -90,6 +155,10 @@ pub struct Schematic {
     /// The wires of the drawing, by id. Not written when empty.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub wires: BTreeMap<Id, Wire>,
+    /// The electrical type of the pins of the symbols, by pin id. A pin that is not listed has no
+    /// type given and the checks that need one leave it out and say so. Not written when empty.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub pin_kinds: BTreeMap<Id, PinKind>,
 }
 
 /// A reference to a part, symbol or pin that does not exist.
@@ -230,6 +299,22 @@ mod tests {
             },
         );
         assert_eq!(codes(&d), vec![PIN_ON_TWO_NETS]);
+    }
+
+    #[test]
+    fn pin_kinds_are_written_only_when_given_and_round_trip() {
+        let (mut s, ids) = sample();
+        let plain = s.to_bytes().unwrap();
+        assert!(!String::from_utf8_lossy(&plain).contains("pin_kinds"));
+        s.pin_kinds.insert(ids[3], PinKind::PowerIn);
+        let bytes = s.to_bytes().unwrap();
+        assert!(String::from_utf8_lossy(&bytes).contains("power_in"));
+        assert_eq!(Schematic::from_bytes(&bytes).unwrap(), s);
+        for kind in PinKind::ALL {
+            assert_eq!(PinKind::from_name(kind.as_str()), Some(kind));
+            assert_eq!(PinKind::ALL[kind.index()], kind);
+        }
+        assert_eq!(PinKind::from_name("nothing"), None);
     }
 
     #[test]
