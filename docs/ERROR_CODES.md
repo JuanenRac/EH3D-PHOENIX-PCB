@@ -388,3 +388,52 @@ The titles of these codes also exist in the eight languages of the suite (`TITLE
 | PHOENIX-ROUTE-018 | Output file exists or cannot be written | an output file that already exists (an input file is never replaced) or cannot be created |
 | PHOENIX-ROUTE-019 | A coordinate is out of range | a point or a length that does not fit the checked range of the model |
 | PHOENIX-ROUTE-020 | Board or rule file cannot be read | a board or a rule file that cannot be opened, is too large or is not valid |
+
+## Script interpreter (`eh3d-phoenix-script`, `src/codes.rs`)
+
+The titles of these codes also exist in the eight languages of the suite (`TITLES` in `src/codes.rs`); the detail of a message is in English and a message that is about a place of a script carries its line and column. Codes 027 to 041 are the causes and the differences that the compatibility report gives to a command that is pending or adapted (see `docs/SCRIPT.md`).
+
+| Code | Title | Raised by |
+|---|---|---|
+| PHOENIX-SCRIPT-001 | Script settings are not valid | a line of `config/script.cfg` that is not `key = value`, an unknown key or a value out of range |
+| PHOENIX-SCRIPT-002 | A limit of the settings was exceeded | a script larger than `max_script_bytes`, with more than `max_lines` lines, `max_commands` commands, `max_args` arguments in a command, a text longer than `max_string_chars`, more than `max_operations` operations in a run, an output job with more than `max_cam_sections` sections |
+| PHOENIX-SCRIPT-003 | Text in quotes is not closed | a single quote with no closing quote on the same line; the command is dropped and the next one is read |
+| PHOENIX-SCRIPT-004 | Coordinate is not valid | a parenthesis that is not closed, nested, empty or that holds other than two numbers |
+| PHOENIX-SCRIPT-005 | A command name was expected | a command that starts with a text in quotes or a coordinate instead of a word |
+| PHOENIX-SCRIPT-006 | Unknown command | a word that is neither a command of the interpreter nor in `known_pending`; the script is not started |
+| PHOENIX-SCRIPT-007 | Command argument is missing or not valid | a command with too few, too many or unexpected arguments |
+| PHOENIX-SCRIPT-008 | Number or unit is not valid | a coordinate that is not two lengths, a length that does not fit the range of the model, a width, a drill or a grid that is not positive, a drill that is not smaller than its via |
+| PHOENIX-SCRIPT-009 | Object not found | a component, a signal or a group name that the board does not have |
+| PHOENIX-SCRIPT-010 | Layer not found | a layer name or number that the board (or the layer table of the settings) does not have, or no layer chosen yet |
+| PHOENIX-SCRIPT-011 | The layer cannot hold this object | a wire on a layer that is neither copper nor silkscreen, a circle, a rectangle or a text off a silkscreen layer, a track moved to a layer that is not copper |
+| PHOENIX-SCRIPT-012 | The board refused the operation | an operation that the board does not apply (a name already used, a part that is not there); the run is dropped |
+| PHOENIX-SCRIPT-013 | File path is not allowed | a path that is absolute, has a drive, `..` or a link, lies outside `allowed_dirs`, a file command that its `allow_*` setting does not permit, or a file without the extension `.json` for a board |
+| PHOENIX-SCRIPT-014 | File cannot be read or written | a file that cannot be opened, is larger than its limit, is not UTF-8 text or not a board, or an output file that exists |
+| PHOENIX-SCRIPT-015 | Scripts are nested too deeply | `SCRIPT` inside `SCRIPT` beyond `max_depth` |
+| PHOENIX-SCRIPT-016 | The command does not apply to this document | a command that edits a board run on a schematic, or `ERC` run on a board |
+| PHOENIX-SCRIPT-017 | No new identity could be made | the generator of ids failed or every id it tried was in use |
+| PHOENIX-SCRIPT-018 | Rotation is not supported here | a text turned by an angle that is not a multiple of 90 degrees |
+| PHOENIX-SCRIPT-019 | This form of the command is not implemented yet | a form of a command that is understood but not carried out, as a cause in the report (`GRID ALT`, `CHANGE FONT`) |
+| PHOENIX-SCRIPT-020 | Command option is not valid | an option that does not exist or lacks its value, a language that is not one of the eight, the wrong number of files, `--out` with a schematic |
+| PHOENIX-SCRIPT-021 | The input cannot be read | a script, a board, a schematic, a rule file or a settings file that cannot be opened, is too large or is not valid |
+| PHOENIX-SCRIPT-022 | Output file cannot be written | an output file that cannot be created |
+| PHOENIX-SCRIPT-023 | The output job cannot be read | an output job larger than `max_cam_bytes`, with a zero byte, a section header that is not closed or no section with a `Device` key |
+| PHOENIX-SCRIPT-024 | The output device has no equivalent | a section of an output job whose device is neither a Gerber RS-274X nor an Excellon device |
+| PHOENIX-SCRIPT-025 | An option of the output job was not translated | a key of a section that the profile cannot hold, a second Gerber extension, a third drill file, a file name that is not plain |
+| PHOENIX-SCRIPT-026 | Several layers in one file are written as one file per layer | a Gerber section that lists more than one layer |
+| PHOENIX-SCRIPT-027 | Known command without an equivalent yet | a word of `known_pending`: the command exists in the original language and has no equivalent in this tool |
+| PHOENIX-SCRIPT-028 | Selecting by pointing at a coordinate is not implemented | `MOVE`, `ROTATE`, `DELETE`, `CHANGE` or `GROUP` with a coordinate in place of a name |
+| PHOENIX-SCRIPT-029 | Curved wires are not implemented | a number or an `@` between two points of `WIRE` |
+| PHOENIX-SCRIPT-030 | The board has no operation to create a layer | `LAYER` with a number and a name |
+| PHOENIX-SCRIPT-031 | Mirrored placement is not implemented | `ROTATE` with a mirrored rotation (`MR90`) |
+| PHOENIX-SCRIPT-032 | This option of SET is not implemented | an option of `SET` that is not in `set_ignored` |
+| PHOENIX-SCRIPT-033 | Only recorded: the display is not part of the board | `DISPLAY`, and `GRID LINES` or `GRID DOTS` (adapted) |
+| PHOENIX-SCRIPT-034 | Delegated to the engine of this tool, not compared with the original tool | `RATSNEST`, `DRC` and `ERC` (adapted) |
+| PHOENIX-SCRIPT-035 | Drawn as an outline stroke on a silkscreen layer | `CIRCLE` and `RECT` (adapted) |
+| PHOENIX-SCRIPT-036 | Text uses the built-in stroke font | `TEXT` (adapted) |
+| PHOENIX-SCRIPT-037 | Accepted and ignored: it only changes how the original tool looks or behaves | an option of `SET` listed in `set_ignored`, a line style of `WIRE` (adapted) |
+| PHOENIX-SCRIPT-038 | Only relative paths allowed by the settings; boards are JSON files | `WRITE` and `OPEN` (adapted) |
+| PHOENIX-SCRIPT-039 | The included script is read at run time and the report does not follow it | `SCRIPT` (adapted) |
+| PHOENIX-SCRIPT-040 | Selects objects by name, not by a rectangle | `GROUP` (adapted) |
+| PHOENIX-SCRIPT-041 | The shape is ignored: vias are round and join the outer copper layers | `VIA` with a shape word (adapted) |
+| PHOENIX-SCRIPT-042 | A limit of the folder walk was reached | more scripts than `max_files` or folders deeper than `max_walk_depth` in a report |

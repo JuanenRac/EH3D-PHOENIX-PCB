@@ -35,10 +35,12 @@ eh3d-phoenix-route = { path = "../eh3d-phoenix-route" }
 eh3d-phoenix-rules = { path = "../eh3d-phoenix-rules" }
 eh3d-phoenix-sanitizer = { path = "../eh3d-phoenix-sanitizer" }
 eh3d-phoenix-schematic = { path = "../eh3d-phoenix-schematic" }
+eh3d-phoenix-script = { path = "../eh3d-phoenix-script" }
 eh3d-phoenix-sim = { path = "../eh3d-phoenix-sim" }
 eh3d-phoenix-stackup = { path = "../eh3d-phoenix-stackup" }
 eh3d-phoenix-sync = { path = "../eh3d-phoenix-sync" }
 eh3d-phoenix-viewer = { path = "../eh3d-phoenix-viewer" }
+serde_json.workspace = true
 
 [dev-dependencies]
 serde_json.workspace = true

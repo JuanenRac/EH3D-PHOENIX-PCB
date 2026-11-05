@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! The command line of EH3D-PHOENIX-PCB. It has fifteen commands, `inventory`, `eagle-rate`,
+//! The command line of EH3D-PHOENIX-PCB. It has seventeen commands, `inventory`, `eagle-rate`,
 //! `stackup`, `check`, `connectivity`, `erc`, `sync`, `export`, `rf`, `kicad-read`, `sanitize`, `sim`,
-//! `route`, `ratsnest` and `view`.
+//! `route`, `ratsnest`, `script`, `cam-import` and `view`.
 //!
 //! Exit codes: 0 done, 1 `stackup` could not compute one or more of the lines it was asked for,
 //! `check`, `connectivity` and `erc` proved an error, or `sync` found changes to make, 2 the
@@ -16,6 +16,7 @@ mod kicad;
 mod rf;
 mod route;
 mod sanitize;
+mod script;
 mod sim;
 mod view;
 
@@ -106,6 +107,17 @@ phoenix route [--settings FILE] [--rules FILE] [--layer NAME] [--mode around|sto
                 a new file given with --out (an existing file is never replaced); a prototype,
                 run `phoenix route` alone for its options
 
+phoenix script run [--config FILE] [--rules FILE] [--dry-run] [--out FILE] [--json] [--lang xx]
+                   <script> <board or schematic>
+phoenix script report [--config FILE] [--json] [--html FILE] [--lang xx] <folder or script>
+phoenix cam-import [--config FILE] [--json] [--out FILE] [--lang xx] <job.cam>
+
+  script        run a script of the old command language on a board (a dry run unless --out is
+                given; all or nothing, never replaces a file), or report for each command of
+                each script whether it is equivalent, adapted or pending, without running it;
+                a prototype, run `phoenix script` alone for its options
+  cam-import    read an output job into an export profile and report what could be translated
+
 phoenix view [--settings FILE] [--lang xx] [<board or schematic>]
 phoenix view --summary <file>  |  phoenix view --bench
 
@@ -162,6 +174,12 @@ pub fn run(args: &[String], out: &mut dyn Write, err: &mut dyn Write) -> i32 {
     }
     if let Some((&"sanitize", tail)) = rest.split_first() {
         return sanitize::sanitize_command(tail, out, err);
+    }
+    if let Some((&"script", tail)) = rest.split_first() {
+        return script::script_command(tail, out, err);
+    }
+    if let Some((&"cam-import", tail)) = rest.split_first() {
+        return script::cam_import_command(tail, out, err);
     }
     if let Some((&"route", tail)) = rest.split_first() {
         return route::route_command(tail, out, err);

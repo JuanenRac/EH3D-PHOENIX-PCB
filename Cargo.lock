@@ -223,6 +223,7 @@ dependencies = [
  "eh3d-phoenix-rules",
  "eh3d-phoenix-sanitizer",
  "eh3d-phoenix-schematic",
+ "eh3d-phoenix-script",
  "eh3d-phoenix-sim",
  "eh3d-phoenix-stackup",
  "serde_json",
@@ -384,6 +385,21 @@ dependencies = [
  "eh3d-phoenix-model",
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "eh3d-phoenix-script"
+version = "0.0.2"
+dependencies = [
+ "eh3d-phoenix-board",
+ "eh3d-phoenix-erc",
+ "eh3d-phoenix-export",
+ "eh3d-phoenix-model",
+ "eh3d-phoenix-route",
+ "eh3d-phoenix-rules",
+ "eh3d-phoenix-schematic",
+ "serde_json",
+ "tempfile",
 ]
 
 [[package]]
