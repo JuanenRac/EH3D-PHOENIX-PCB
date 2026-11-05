@@ -364,6 +364,19 @@
           }
         },
         {
+          "name": "ORACLE.md",
+          "desc": {
+            "en": "reference cases and the plan to compare with EAGLE and KiCad",
+            "es": "casos de referencia y el plan para comparar con EAGLE y KiCad",
+            "de": "Referenzfälle und der Plan zum Vergleich mit EAGLE und KiCad",
+            "fr": "cas de référence et plan de comparaison avec EAGLE et KiCad",
+            "it": "casi di riferimento e piano di confronto con EAGLE e KiCad",
+            "ja": "基準ケースと EAGLE・KiCad との比較計画",
+            "zh": "基准用例以及与 EAGLE、KiCad 对比的计划",
+            "pt": "casos de referência e o plano de comparação com o EAGLE e o KiCad"
+          }
+        },
+        {
           "name": "GATE_F1.md",
           "desc": {
             "en": "what the gate of the first phase checks and what it does not",
@@ -504,6 +517,19 @@
             "pt": "a verificação do repositório, os seus testes e as ferramentas das imagens"
           },
           "name": "tools/"
+        },
+        {
+          "name": "tests/",
+          "desc": {
+            "en": "the reference cases: published values with source and tolerance",
+            "es": "los casos de referencia: valores publicados con su fuente y tolerancia",
+            "de": "die Referenzfälle: veröffentlichte Werte mit Quelle und Toleranz",
+            "fr": "les cas de référence : valeurs publiées avec leur source et leur tolérance",
+            "it": "i casi di riferimento: valori pubblicati con fonte e tolleranza",
+            "ja": "基準ケース：公開値、出典、許容差",
+            "zh": "基准用例：已发布的数值、出处与容差",
+            "pt": "os casos de referência: valores publicados com fonte e tolerância"
+          }
         },
         {
           "name": "images/",
