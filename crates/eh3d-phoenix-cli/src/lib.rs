@@ -3,7 +3,8 @@
 //! `stackup`, `materials`, `check`, `connectivity`, `erc`, `sync`, `export`, `rf`, `rfgen`, `kicad-read`, `sanitize`,
 //! `sim`, `route`, `ratsnest`, `script`, `cam-import`, `schedit` and `view`.
 //!
-//! The editor of libraries adds the commands `libedit` and `footprint`.
+//! The editor of libraries adds the commands `libedit` and `footprint`, and the routing through an
+//! external autorouter adds `autoroute`.
 //!
 //! Exit codes: 0 done, 1 `stackup` could not compute one or more of the lines it was asked for,
 //! `check`, `connectivity` and `erc` proved an error, or `sync` found changes to make, 2 the
@@ -11,6 +12,7 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
+mod autoroute;
 mod check;
 mod design;
 mod export;
@@ -134,6 +136,14 @@ phoenix route [--settings FILE] [--rules FILE] [--layer NAME] [--mode around|sto
                 a new file given with --out (an existing file is never replaced); a prototype,
                 run `phoenix route` alone for its options
 
+phoenix autoroute export-dsn|import-ses|run [--rules FILE] [--out FILE] [--lang xx] <board> [<session>]
+
+  autoroute     routing by an external autorouter through files: write the board as a Specctra
+                DSN file, read a Specctra session as a plan checked against the rules (all or
+                nothing) and, only when config/autorouter.cfg switches it on and --execute is
+                given, start the program; a dry run by default, a prototype, run
+                `phoenix autoroute` alone for its options
+
 phoenix script run [--config FILE] [--rules FILE] [--dry-run] [--out FILE] [--json] [--lang xx]
                    <script> <board or schematic>
 phoenix script report [--config FILE] [--json] [--html FILE] [--lang xx] <folder or script>
@@ -242,6 +252,9 @@ pub fn run(args: &[String], out: &mut dyn Write, err: &mut dyn Write) -> i32 {
     }
     if let Some((&"ratsnest", tail)) = rest.split_first() {
         return route::ratsnest_command(tail, out, err);
+    }
+    if let Some((&"autoroute", tail)) = rest.split_first() {
+        return autoroute::autoroute_command(tail, out, err);
     }
     if let Some((&"sim", tail)) = rest.split_first() {
         return sim::sim_command(tail, out, err);

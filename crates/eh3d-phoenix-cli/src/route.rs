@@ -127,7 +127,7 @@ fn parse_options(args: &[&str]) -> Result<Options, RouteError> {
     Ok(options)
 }
 
-fn load_settings(path: Option<&str>) -> Result<RouteSettings, RouteError> {
+pub(crate) fn load_settings(path: Option<&str>) -> Result<RouteSettings, RouteError> {
     let path = path.or_else(|| {
         Path::new(DEFAULT_SETTINGS)
             .is_file()
@@ -142,12 +142,12 @@ fn load_settings(path: Option<&str>) -> Result<RouteSettings, RouteError> {
     }
 }
 
-fn load_context(
-    options: &Options,
+pub(crate) fn load_context(
+    rules: Option<&str>,
     board_path: &str,
     err: &mut dyn Write,
 ) -> Result<RuleContext, RouteError> {
-    if let Some(path) = &options.rules {
+    if let Some(path) = rules {
         let text = read_text(path).map_err(|m| RouteError::new(INPUT_UNREADABLE, m))?;
         let file = RuleFile::from_json(&text)
             .map_err(|e| RouteError::new(INPUT_UNREADABLE, e.to_string()))?;
@@ -173,7 +173,7 @@ fn load_context(
     Ok(RuleContext::default())
 }
 
-fn load_board(path: &str) -> Result<Board, RouteError> {
+pub(crate) fn load_board(path: &str) -> Result<Board, RouteError> {
     read_board_file(path).map_err(|m| RouteError::new(INPUT_UNREADABLE, m))
 }
 
@@ -230,7 +230,7 @@ fn find_layer(board: &Board, text: &str) -> Result<Id, RouteError> {
     }
 }
 
-fn write_new(path: &str, bytes: &[u8]) -> Result<(), RouteError> {
+pub(crate) fn write_new(path: &str, bytes: &[u8]) -> Result<(), RouteError> {
     let mut file = OpenOptions::new()
         .write(true)
         .create_new(true)
@@ -240,7 +240,7 @@ fn write_new(path: &str, bytes: &[u8]) -> Result<(), RouteError> {
         .map_err(|e| RouteError::new(OUTPUT_FAILED, format!("{path}: {e}")))
 }
 
-fn ids() -> Result<impl FnMut() -> Id, RouteError> {
+pub(crate) fn ids() -> Result<impl FnMut() -> Id, RouteError> {
     let mut generator = IdGenerator::new(
         StepClock::new(1_700_000_000_000, 1),
         DeterministicRandom::new(0x72_6f_75_74_65),
@@ -277,7 +277,7 @@ pub(crate) fn route_command(args: &[&str], out: &mut dyn Write, err: &mut dyn Wr
     let mut run = || -> Result<(Board, eh3d_phoenix_route::RoutePlan), RouteError> {
         let settings = load_settings(options.settings.as_deref())?;
         let board = load_board(board_path)?;
-        let ctx = load_context(&options, board_path, &mut *err)?;
+        let ctx = load_context(options.rules.as_deref(), board_path, &mut *err)?;
         let layer = match &options.layer {
             Some(text) => Some(find_layer(&board, text)?),
             None => None,
