@@ -330,7 +330,7 @@ mod tests {
             .iter()
             .map(|id| board.layers[id].name.as_str())
             .collect();
-        assert_eq!(names, vec!["top", "bottom"]);
+        assert_eq!(names, ["top", "bottom"]);
         assert!(board.is_consistent(), "{:?}", board.validate());
     }
 

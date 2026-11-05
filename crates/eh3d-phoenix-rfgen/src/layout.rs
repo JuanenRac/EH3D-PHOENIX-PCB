@@ -665,10 +665,7 @@ mod tests {
     fn widths_are_made_even_and_rectangles_have_a_fixed_order() {
         assert_eq!(even(3_000_000), 3_000_000);
         assert_eq!(even(3_000_001), 3_000_002);
-        assert_eq!(
-            rect_points(5, 7, 1, 3),
-            vec![(1, 3), (5, 3), (5, 7), (1, 7)]
-        );
+        assert_eq!(rect_points(5, 7, 1, 3), [(1, 3), (5, 3), (5, 7), (1, 7)]);
     }
 
     #[test]

@@ -175,7 +175,7 @@ mod tests {
         let per_side = report.value("vias per side").unwrap() as usize;
         assert!(per_side >= 2, "{per_side}");
         assert_eq!(layout.vias.len(), 2 * per_side);
-        assert_eq!(layout.nets, vec!["RF".to_string(), "GND".to_string()]);
+        assert_eq!(layout.nets, ["RF", "GND"]);
         assert!(layout.vias.iter().all(|v| v.net == 1));
         assert_eq!(layout.ports.len(), 2);
     }

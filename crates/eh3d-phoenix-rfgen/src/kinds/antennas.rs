@@ -242,7 +242,7 @@ mod tests {
     #[test]
     fn a_dipole_has_two_arms_on_two_nets_and_a_balanced_feed() {
         let (layout, report) = run(Kind::Dipole, &Params::new(), 2.4).unwrap();
-        assert_eq!(layout.nets, vec!["RF".to_string(), "RF_B".to_string()]);
+        assert_eq!(layout.nets, ["RF", "RF_B"]);
         assert_eq!(layout.polys.len(), 4);
         assert_eq!(layout.ports.len(), 2);
         // 0.95 * 124.9 mm / (4 * sqrt(2.7)) = 18.05 mm

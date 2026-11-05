@@ -231,6 +231,6 @@ mod tests {
             .with("turn", "up")
             .choice("turn", &["left", "right"], "left")
             .is_err());
-        assert_eq!(p.names(), vec!["turn"]);
+        assert_eq!(p.names(), ["turn"]);
     }
 }
