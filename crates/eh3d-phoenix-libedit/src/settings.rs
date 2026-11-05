@@ -39,6 +39,25 @@ pub struct LibSettings {
     pub mask_expansion_nm: i64,
     /// The expansion of the solder paste openings the window makes, in nanometres.
     pub paste_expansion_nm: i64,
+    /// The width of a new surface-mount pad, in nanometres.
+    pub new_smd_dx_nm: i64,
+    /// The height of a new surface-mount pad, in nanometres.
+    pub new_smd_dy_nm: i64,
+    /// The drill of a new through-hole pad, in nanometres.
+    pub new_pad_drill_nm: i64,
+    /// The diameter of a new through-hole pad, in nanometres.
+    pub new_pad_diameter_nm: i64,
+    /// The width of a new line of a footprint, in nanometres.
+    pub new_line_width_nm: i64,
+    /// The width of a new line of a symbol, in nanometres.
+    pub new_symbol_line_width_nm: i64,
+    /// The height of a new text, in nanometres.
+    pub new_text_size_nm: i64,
+    /// The length of a new pin: `point`, `short`, `middle` or `long`.
+    pub new_pin_length: String,
+    /// The most items (footprints, symbols and device sets) for which the window checks the
+    /// library again after every edit; above it the check is made when it is asked for.
+    pub auto_check_max_items: usize,
 }
 
 impl Default for LibSettings {
@@ -59,6 +78,15 @@ impl Default for LibSettings {
             pick_px: 8,
             mask_expansion_nm: 50_000,
             paste_expansion_nm: 0,
+            new_smd_dx_nm: 800_000,
+            new_smd_dy_nm: 800_000,
+            new_pad_drill_nm: 800_000,
+            new_pad_diameter_nm: 1_600_000,
+            new_line_width_nm: 150_000,
+            new_symbol_line_width_nm: 254_000,
+            new_text_size_nm: 1_000_000,
+            new_pin_length: "short".to_owned(),
+            auto_check_max_items: 500,
         }
     }
 }
@@ -121,6 +149,21 @@ impl LibSettings {
                 "pick_px" => s.pick_px = value.parse().map_err(|_| bad())?,
                 "mask_expansion_nm" => s.mask_expansion_nm = value.parse().map_err(|_| bad())?,
                 "paste_expansion_nm" => s.paste_expansion_nm = value.parse().map_err(|_| bad())?,
+                "new_smd_dx_nm" => s.new_smd_dx_nm = value.parse().map_err(|_| bad())?,
+                "new_smd_dy_nm" => s.new_smd_dy_nm = value.parse().map_err(|_| bad())?,
+                "new_pad_drill_nm" => s.new_pad_drill_nm = value.parse().map_err(|_| bad())?,
+                "new_pad_diameter_nm" => {
+                    s.new_pad_diameter_nm = value.parse().map_err(|_| bad())?
+                }
+                "new_line_width_nm" => s.new_line_width_nm = value.parse().map_err(|_| bad())?,
+                "new_symbol_line_width_nm" => {
+                    s.new_symbol_line_width_nm = value.parse().map_err(|_| bad())?
+                }
+                "new_text_size_nm" => s.new_text_size_nm = value.parse().map_err(|_| bad())?,
+                "new_pin_length" => s.new_pin_length = value.to_owned(),
+                "auto_check_max_items" => {
+                    s.auto_check_max_items = value.parse().map_err(|_| bad())?
+                }
                 _ => {
                     return Err(LibError::new(
                         SETTINGS_INVALID,
@@ -155,6 +198,26 @@ impl LibSettings {
         }
         if self.mask_expansion_nm.abs() > 5_000_000 || self.paste_expansion_nm.abs() > 5_000_000 {
             return bad("the expansions must be within 5 mm");
+        }
+        for size in [
+            self.new_smd_dx_nm,
+            self.new_smd_dy_nm,
+            self.new_pad_drill_nm,
+            self.new_pad_diameter_nm,
+            self.new_text_size_nm,
+        ] {
+            if !(1..=100_000_000).contains(&size) {
+                return bad("the sizes of new items must be between 1 nm and 100 mm");
+            }
+        }
+        if self.new_pad_diameter_nm <= self.new_pad_drill_nm {
+            return bad("the diameter of a new pad must be larger than its drill");
+        }
+        if self.new_line_width_nm < 0 || self.new_symbol_line_width_nm < 0 {
+            return bad("the widths of new lines must not be negative");
+        }
+        if !["point", "short", "middle", "long"].contains(&self.new_pin_length.as_str()) {
+            return bad("new_pin_length is point, short, middle or long");
         }
         Ok(())
     }
