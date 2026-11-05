@@ -54,6 +54,8 @@ Viewer and editor for schematics, electrical rule checks, a unified device edito
 
 Gate: A simple project goes from start to finish inside the tool.
 
+Progress: the logic that needs no window exists as a prototype (`docs/ERC.md`): the electrical rule check (`eh3d-phoenix-erc`), forward and backward annotation by stable identity as a package that can be undone (`eh3d-phoenix-sync`) and net classes for the track width and the vias in the rule file. They are tried on schematics and boards made by hand and by the tests only. The schematic editor, the unified device editor, net ties and the clearance of a net class are not written.
+
 ## F8. Heritage of the EAGLE workflow
 
 Commands and script files, a script interpreter and its object model built from public language documentation and the author's own scripts, output jobs, design blocks, project and rule files, with a compatibility report per script.

@@ -182,6 +182,19 @@
           }
         },
         {
+          "name": "ERC.md",
+          "desc": {
+            "en": "electrical rule check and synchronisation",
+            "es": "comprobación eléctrica y sincronización",
+            "de": "elektrische Regelprüfung und Abgleich",
+            "fr": "vérification électrique et synchronisation",
+            "it": "controllo elettrico e sincronizzazione",
+            "ja": "電気的ルールチェックと同期",
+            "zh": "电气规则检查与同步",
+            "pt": "verificação elétrica e sincronização"
+          }
+        },
+        {
           "name": "GATE_F1.md",
           "desc": {
             "en": "what the gate of the first phase checks and what it does not",
@@ -273,14 +286,14 @@
             "pt": "modelo, placa, esquema, EAGLE, KiCad, regras, exportação, RF, saneador, visualizador, CLI"
           },
           "tree_desc": {
-            "en": "inventory, model, project, board, schematic, EAGLE, KiCad, rules, hub, export, stack-up, RF, sanitizer, viewer, CLI",
-            "es": "inventario, modelo, proyecto, placa, esquemático, EAGLE, KiCad, reglas, hub, exportación, apilado, RF, saneador, visor, comandos",
-            "de": "Inventar, Modell, Projekt, Platine, Schaltplan, EAGLE, KiCad, Regeln, Hub, Export, Lagenaufbau, HF, Bereiniger, Betrachter, CLI",
-            "fr": "inventaire, modèle, projet, carte, schéma, EAGLE, KiCad, règles, hub, export, empilage, RF, assainisseur, visionneuse, CLI",
-            "it": "inventario, modello, progetto, scheda, schema, EAGLE, KiCad, regole, hub, esportazione, stratificazione, RF, sanificatore, visualizzatore, CLI",
-            "ja": "棚卸し、モデル、プロジェクト、基板、回路図、EAGLE、KiCad、ルール、ハブ、書き出し、スタックアップ、RF、整理、ビューア、CLI",
-            "zh": "清点、模型、项目、电路板、原理图、EAGLE、KiCad、规则、枢纽、导出、叠层、射频、清理器、查看器、命令行",
-            "pt": "inventário, modelo, projeto, placa, esquema, EAGLE, KiCad, regras, hub, exportação, empilhamento, RF, saneador, visualizador, CLI"
+            "en": "inventory, model, project, board, schematic, EAGLE, KiCad, rules, ERC, sync, hub, export, stack-up, RF, sanitizer, viewer, CLI",
+            "es": "inventario, modelo, proyecto, placa, esquemático, EAGLE, KiCad, reglas, ERC, sincronización, hub, exportación, apilado, RF, saneador, visor, comandos",
+            "de": "Inventar, Modell, Projekt, Platine, Schaltplan, EAGLE, KiCad, Regeln, ERC, Abgleich, Hub, Export, Lagenaufbau, HF, Bereiniger, Betrachter, CLI",
+            "fr": "inventaire, modèle, projet, carte, schéma, EAGLE, KiCad, règles, ERC, synchronisation, hub, export, empilage, RF, assainisseur, visionneuse, CLI",
+            "it": "inventario, modello, progetto, scheda, schema, EAGLE, KiCad, regole, ERC, sincronizzazione, hub, esportazione, stratificazione, RF, sanificatore, visualizzatore, CLI",
+            "ja": "棚卸し、モデル、プロジェクト、基板、回路図、EAGLE、KiCad、ルール、ERC、同期、ハブ、書き出し、スタックアップ、RF、整理、ビューア、CLI",
+            "zh": "清点、模型、项目、电路板、原理图、EAGLE、KiCad、规则、ERC、同步、枢纽、导出、叠层、射频、清理器、查看器、命令行",
+            "pt": "inventário, modelo, projeto, placa, esquema, EAGLE, KiCad, regras, ERC, sincronização, hub, exportação, empilhamento, RF, saneador, visualizador, CLI"
           }
         },
         {
