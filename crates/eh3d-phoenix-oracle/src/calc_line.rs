@@ -51,23 +51,23 @@ fn line_quantity(i: &Inputs) -> Result<f64, OracleError> {
         thickness: CopperThickness::Um(35.0),
         roughness_rms_nm: 0,
     };
-    let core = |name: &str, thickness_nm: i64| Layer::Core {
+    let slab = |name: &str, thickness_nm: i64| Layer::Core {
         name: name.to_string(),
         thickness_nm,
         material: dielectric.to_string(),
     };
     let (layers, kind, layer) = match i.text("kind")? {
         "microstrip" => (
-            vec![copper("top"), core("core", 1_600_000), copper("bottom")],
+            vec![copper("top"), slab("core", 1_600_000), copper("bottom")],
             LineKind::Microstrip,
             "top",
         ),
         "stripline" => (
             vec![
                 copper("plane-1"),
-                core("core-1", 400_000),
+                slab("core-1", 400_000),
                 copper("signal"),
-                core("core-2", 400_000),
+                slab("core-2", 400_000),
                 copper("plane-2"),
             ],
             LineKind::Stripline,

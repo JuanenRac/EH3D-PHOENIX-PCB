@@ -69,7 +69,7 @@ impl<'a> Inputs<'a> {
         Ok(out)
     }
 
-    /// A different value of a text option is refused with its name.
+    /// The error for a text option that has a value this check does not know.
     pub(crate) fn unknown(&self, key: &str, got: &str) -> OracleError {
         self.bad(key, &format!("has the value {got}, which is not known"))
     }
