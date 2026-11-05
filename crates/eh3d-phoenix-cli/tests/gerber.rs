@@ -258,7 +258,7 @@ fn a_board_makes_the_round_trip_and_nothing_is_written() {
         "{text}"
     );
     assert!(text.contains("copper top (from the attributes)"), "{text}");
-    let (code, json, _) = command(&["gerber-import", "--roundtrip", "--json", board_path]);
+    let (code, json, _) = command(&["gerber-import", "--json", "--roundtrip", board_path]);
     assert_eq!(code, 0);
     let value: serde_json::Value = serde_json::from_str(&json).unwrap();
     assert_eq!(value["roundtrip"]["files"], 3);
