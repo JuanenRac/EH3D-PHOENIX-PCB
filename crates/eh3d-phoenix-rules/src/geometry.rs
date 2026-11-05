@@ -43,14 +43,34 @@ impl Dist2 {
         Some(lhs <= rhs)
     }
 
+    /// Is `self < other`? The cross products are compared in 256 bits, so no pair of fractions
+    /// of this board can overflow.
     fn less(self, other: Dist2) -> Option<bool> {
-        Some(self.num.checked_mul(other.den)? < other.num.checked_mul(self.den)?)
+        let (a, b, c, d) = (
+            u128::try_from(self.num).ok()?,
+            u128::try_from(other.den).ok()?,
+            u128::try_from(other.num).ok()?,
+            u128::try_from(self.den).ok()?,
+        );
+        Some(wide_mul(a, b) < wide_mul(c, d))
     }
 
     /// The distance in nanometres, for showing only.
     pub(crate) fn nm_f64(self) -> f64 {
         (self.num as f64 / self.den as f64).sqrt()
     }
+}
+
+/// The 256-bit product of two unsigned numbers as (high, low).
+fn wide_mul(a: u128, b: u128) -> (u128, u128) {
+    const M: u128 = (1 << 64) - 1;
+    let (a1, a0) = (a >> 64, a & M);
+    let (b1, b0) = (b >> 64, b & M);
+    let (p00, p01, p10, p11) = (a0 * b0, a0 * b1, a1 * b0, a1 * b1);
+    let mid = (p00 >> 64) + (p01 & M) + (p10 & M);
+    let low = (p00 & M) | ((mid & M) << 64);
+    let high = p11 + (p01 >> 64) + (p10 >> 64) + (mid >> 64);
+    (high, low)
 }
 
 fn xy(p: Point) -> (i128, i128) {
@@ -322,6 +342,32 @@ mod tests {
         let z = point_segment(pt(3, 4), pt(0, 0), pt(0, 0)).unwrap();
         assert_eq!(z.doubled_at_most(10), Some(true));
         assert_eq!(z.doubled_below(10), Some(false));
+    }
+
+    #[test]
+    fn long_edges_do_not_overflow_the_comparison_of_distances() {
+        // two fractions whose cross products need more than 128 bits
+        let a = Dist2 {
+            num: 16_000_000_000_000_000_000_000_000,
+            den: 400_000_000_000_000,
+        };
+        assert_eq!(a.less(a), Some(false));
+        let b = Dist2 {
+            num: 16_000_000_000_000_000_000_000_001,
+            den: 400_000_000_000_000,
+        };
+        assert_eq!(a.less(b), Some(true));
+        assert_eq!(b.less(a), Some(false));
+        // a track 0.2 mm from the top edge of a 20 mm board is found
+        let d = segment_segment(
+            pt(2_000_000, 19_800_000),
+            pt(8_000_000, 19_800_000),
+            pt(20_000_000, 20_000_000),
+            pt(0, 20_000_000),
+        )
+        .unwrap();
+        assert_eq!(d.doubled_below(500_000), Some(true));
+        assert_eq!(d.doubled_below(400_000), Some(false));
     }
 
     #[test]
