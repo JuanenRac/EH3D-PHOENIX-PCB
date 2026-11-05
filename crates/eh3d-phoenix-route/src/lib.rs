@@ -12,8 +12,13 @@
 //!   adding vias as reversible operations of the board, and an editor with undo and redo;
 //! * [`live`]: the proven findings of the rules and the difference between two boards, so that an
 //!   edit reports what it adds and removes;
+//! * [`dsn`], [`ses`] and [`autorouter`]: routing by an external autorouter through files. The
+//!   board is exported as a Specctra DSN file, a Specctra session returned by the program is
+//!   read as a plan that is checked against the rules and applied all or nothing, and an optional
+//!   adapter, off unless its settings in `config/autorouter.cfg` switch it on, can start the
+//!   program;
 //! * [`settings`] and [`codes`]: every pitch, penalty and limit, read from `config/route.cfg`, and
-//!   the codes `PHOENIX-ROUTE-001` to `PHOENIX-ROUTE-020` with their titles in the eight
+//!   the codes `PHOENIX-ROUTE-001` to `PHOENIX-ROUTE-028` with their titles in the eight
 //!   languages.
 //!
 //! **State: prototype.** It has been tried on boards made by hand and by the tests only. Pads are
@@ -22,16 +27,22 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
+pub mod autorouter;
 pub mod codes;
+pub mod dsn;
 pub mod edit;
 mod geom;
 pub mod live;
 pub mod ratsnest;
 pub mod router;
+pub mod ses;
 pub mod settings;
+mod sexpr;
 mod space;
 
+pub use autorouter::{launch_plan, run_name, AutorouterConfig, Launch};
 pub use codes::RouteError;
+pub use dsn::{export as export_dsn, Dsn};
 pub use edit::{
     add_via, delete_track, move_component, move_vertex, rotate_component, set_track_width,
     via_for_layer_change, Editor,
@@ -41,4 +52,5 @@ pub use ratsnest::{item_label, ratsnest, RatLine};
 pub use router::{
     copper_layers, route, track_width, via_size, Element, Mode, RoutePlan, RouteRequest,
 };
+pub use ses::{import as import_ses, SesPlan};
 pub use settings::RouteSettings;

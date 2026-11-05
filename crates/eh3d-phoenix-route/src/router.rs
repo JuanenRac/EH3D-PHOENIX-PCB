@@ -698,7 +698,7 @@ fn to_point(p: P) -> Result<Point, RouteError> {
     Point::from_nm(p.0, p.1).map_err(|e| RouteError::new(OUT_OF_RANGE, e.to_string()))
 }
 
-fn fresh_id(
+pub(crate) fn fresh_id(
     board: &Board,
     new_id: &mut dyn FnMut() -> Id,
     taken: &mut BTreeSet<Id>,
