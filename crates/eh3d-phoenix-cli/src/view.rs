@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! The command `view`: a read-only viewer of a board or a schematic. With the `gui` feature it
+//! The command `view`: a viewer and editor of a board or a schematic. With the `gui` feature it
 //! opens a window; without it the command explains how to build the window, and `--summary` and
 //! `--bench` work on any build.
 //!
@@ -21,11 +21,14 @@ phoenix view [--settings FILE] [--lang CODE] [<board.brd | schematic.sch | board
 phoenix view --summary [--settings FILE] [--lang CODE] <file>
 phoenix view --bench [--settings FILE] [--lang CODE]
 
-  view          a read-only viewer of a board or a schematic: layers with a colour each, zoom,
-                pan, fit, a net highlighted by a click, a measure between two points and the
-                position of the pointer in millimetres. The window needs a build with the gui
-                feature (cargo run --release -p eh3d-phoenix-cli --features gui -- view FILE);
-                it is a prototype that has not been seen on a screen
+  view          a viewer of a board or a schematic: layers with a colour each, zoom, pan, fit,
+                a net highlighted by a click, a measure between two points and the position of
+                the pointer in millimetres; in the window a board is also edited (move, turn,
+                delete, vertices, widths, vias and routing, with undo and redo and the findings
+                of the rules) and a schematic is checked and synchronised with a board, always
+                saved under another name. The window needs a build with the gui feature
+                (cargo run --release -p eh3d-phoenix-cli --features gui -- view FILE); it is a
+                prototype that has not been seen on a screen
   --summary     print what the file holds (primitives, items, nets, primitives per layer)
   --bench       time the preparation of the primitives and the selection by position on three
                 synthetic boards (the sizes come from the settings); drawing on a screen is

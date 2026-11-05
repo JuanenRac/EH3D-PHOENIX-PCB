@@ -144,7 +144,7 @@ phoenix cam-import [--config FILE] [--json] [--out FILE] [--lang xx] <job.cam>
 phoenix view [--settings FILE] [--lang xx] [<board or schematic>]
 phoenix view --summary <file>  |  phoenix view --bench
 
-  view          a read-only viewer window of a board or a schematic (a build with the gui
+  view          a viewer and editor window of a board or a schematic (a build with the gui
                 feature; a prototype), a text summary of a file, or a timing of the preparation
                 and the selection on three synthetic boards
 ";
