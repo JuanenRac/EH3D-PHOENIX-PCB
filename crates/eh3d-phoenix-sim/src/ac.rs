@@ -470,9 +470,10 @@ mod tests {
         let text = "xf\nV1 p 0 AC 1\nL1 p 0 100m\nL2 s 0 400m\nK1 L1 L2 0.9999\nRL s 0 10k\n";
         let r = at(text, &[1000.0]);
         let h = r.series("v(s)").unwrap()[0];
-        // a turns ratio of sqrt(L2 / L1) = 2, times k, with the output turned by half a turn
+        // a turns ratio of sqrt(L2 / L1) = 2, times k; both inductors have their dot on the first
+        // node, so the output is in phase with the input (the load only turns it by a few thousandths of a degree)
         assert!((h.abs() - 2.0 * 0.9999).abs() < 5e-4, "{}", h.abs());
-        assert!((h.arg_deg().abs() - 180.0).abs() < 0.01, "{}", h.arg_deg());
+        assert!(h.arg_deg().abs() < 0.01, "{}", h.arg_deg());
     }
 
     #[test]
