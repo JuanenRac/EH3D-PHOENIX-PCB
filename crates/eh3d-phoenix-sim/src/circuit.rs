@@ -263,6 +263,30 @@ pub struct Saturator {
     pub limit: bool,
 }
 
+/// A voltage-controlled switch: the conductance between `a` and `b` follows the voltage between
+/// `cp` and `cn` smoothly from `1 / roff` to `1 / ron`.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Switch {
+    /// The name.
+    pub name: String,
+    /// The first switched node.
+    pub a: usize,
+    /// The second switched node.
+    pub b: usize,
+    /// The positive control node.
+    pub cp: usize,
+    /// The negative control node.
+    pub cn: usize,
+    /// The control voltage at which the switch is half on, on a logarithmic scale.
+    pub vt: f64,
+    /// The half width of the transition in volt.
+    pub vh: f64,
+    /// The conductance when on, in siemens.
+    pub g_on: f64,
+    /// The conductance when off, in siemens.
+    pub g_off: f64,
+}
+
 /// The charge of a junction: the depletion charge plus the diffusion charge of the transit time.
 /// The current from `a` to `k` is `polarity * dq/dt` with `q` a function of
 /// `polarity * (v(a) - v(k))`.
@@ -330,6 +354,8 @@ pub struct Circuit {
     pub jcaps: Vec<JunctionCap>,
     /// The number of junction voltages that Newton-Raphson limits.
     pub junctions: usize,
+    /// The voltage-controlled switches.
+    pub switches: Vec<Switch>,
 }
 
 /// The models in use after the subcircuits are expanded. A model of a subcircuit is kept under
@@ -420,6 +446,7 @@ fn flatten(
             Kind::Diode { model }
             | Kind::Bjt { model }
             | Kind::Amp { model }
+            | Kind::Switch { model }
             | Kind::Mosfet { model, .. } => {
                 if let Some(found) = local.and_then(|l| l.get(model.as_str())) {
                     let key = format!("{prefix}{model}");
@@ -838,6 +865,21 @@ impl Circuit {
                     Some(other) => return Err(mismatch(&name, model, other)),
                     None => return Err(undefined_model(&name, model)),
                 },
+                Kind::Switch { model } => match resolved.get(model) {
+                    Some(Model::Switch(m)) => circuit.switches.push(Switch {
+                        name,
+                        a: index(&n[0]),
+                        b: index(&n[1]),
+                        cp: index(&n[2]),
+                        cn: index(&n[3]),
+                        vt: m.vt,
+                        vh: m.vh,
+                        g_on: 1.0 / m.ron,
+                        g_off: 1.0 / m.roff,
+                    }),
+                    Some(other) => return Err(mismatch(&name, model, other)),
+                    None => return Err(undefined_model(&name, model)),
+                },
                 Kind::Mutual { .. } | Kind::Instance { .. } => {}
             }
         }
@@ -904,6 +946,7 @@ impl Circuit {
         edges.extend(self.bjts.iter().flat_map(|e| [(e.b, e.e), (e.b, e.c)]));
         edges.extend(self.mosfets.iter().map(|e| (e.d, e.s)));
         edges.extend(self.sats.iter().map(|e| (e.out, 0)));
+        edges.extend(self.switches.iter().map(|e| (e.a, e.b)));
         if !dc {
             edges.extend(self.capacitors.iter().map(|e| (e.a, e.b)));
         }
@@ -944,6 +987,7 @@ impl Circuit {
         !self.diodes.is_empty()
             || !self.bjts.is_empty()
             || !self.mosfets.is_empty()
+            || !self.switches.is_empty()
             || self.sats.iter().any(|s| s.limit)
     }
 }

@@ -112,6 +112,24 @@ pub struct SimSettings {
     pub comparator_low: f64,
     /// The slope at zero of a comparator model that does not give one, in V/V.
     pub comparator_gain: f64,
+    /// The most points of a DC sweep.
+    pub max_dc_points: usize,
+    /// The deepest nesting of `.include` files.
+    pub max_include_depth: usize,
+    /// The most files read through `.include` (and the model file) for one netlist.
+    pub max_include_files: usize,
+    /// The on resistance of a switch model that does not give one, in ohms.
+    pub sw_ron: f64,
+    /// The off resistance of a switch model that does not give one, in ohms.
+    pub sw_roff: f64,
+    /// The control voltage at which a switch model that does not give one is half on, in volts.
+    pub sw_vt: f64,
+    /// The half width of the transition of a switch model that does not give one, in volts.
+    pub sw_vh: f64,
+    /// The saturation current of an LED model that does not give one, in amperes.
+    pub led_is: f64,
+    /// The emission coefficient of an LED model that does not give one.
+    pub led_n: f64,
     /// How many times an output file is tried again when another program holds it.
     pub write_retries: u32,
     /// The wait between two tries, in milliseconds.
@@ -182,6 +200,15 @@ impl Default for SimSettings {
             comparator_high: 5.0,
             comparator_low: 0.0,
             comparator_gain: 1e4,
+            max_dc_points: 100_000,
+            max_include_depth: 4,
+            max_include_files: 16,
+            sw_ron: 1.0,
+            sw_roff: 1e9,
+            sw_vt: 0.0,
+            sw_vh: 0.1,
+            led_is: 1e-17,
+            led_n: 2.0,
             write_retries: 5,
             write_retry_ms: 50,
             coherence_points: 41,
@@ -288,6 +315,15 @@ impl SimSettings {
                 "comparator_high" => s.comparator_high = value.parse().map_err(|_| bad())?,
                 "comparator_low" => s.comparator_low = value.parse().map_err(|_| bad())?,
                 "comparator_gain" => s.comparator_gain = value.parse().map_err(|_| bad())?,
+                "max_dc_points" => s.max_dc_points = value.parse().map_err(|_| bad())?,
+                "max_include_depth" => s.max_include_depth = value.parse().map_err(|_| bad())?,
+                "max_include_files" => s.max_include_files = value.parse().map_err(|_| bad())?,
+                "sw_ron" => s.sw_ron = value.parse().map_err(|_| bad())?,
+                "sw_roff" => s.sw_roff = value.parse().map_err(|_| bad())?,
+                "sw_vt" => s.sw_vt = value.parse().map_err(|_| bad())?,
+                "sw_vh" => s.sw_vh = value.parse().map_err(|_| bad())?,
+                "led_is" => s.led_is = value.parse().map_err(|_| bad())?,
+                "led_n" => s.led_n = value.parse().map_err(|_| bad())?,
                 "write_retries" => s.write_retries = value.parse().map_err(|_| bad())?,
                 "write_retry_ms" => s.write_retry_ms = value.parse().map_err(|_| bad())?,
                 "coherence_points" => s.coherence_points = value.parse().map_err(|_| bad())?,
@@ -404,6 +440,24 @@ impl SimSettings {
                 "comparator_high must be above comparator_low and comparator_gain positive",
             );
         }
+        if self.max_dc_points < 1 || self.max_include_depth < 1 || self.max_include_files < 1 {
+            return fail(
+                "max_dc_points, max_include_depth and max_include_files must be at least 1",
+            );
+        }
+        if !positive(self.sw_ron)
+            || !positive(self.sw_roff)
+            || self.sw_roff <= self.sw_ron
+            || !self.sw_vt.is_finite()
+            || !positive(self.sw_vh)
+        {
+            return fail(
+                "sw_ron must be positive, sw_roff above sw_ron, sw_vt a number and sw_vh positive",
+            );
+        }
+        if !positive(self.led_is) || !positive(self.led_n) {
+            return fail("led_is and led_n must be positive");
+        }
         if self.coherence_points < 2 {
             return fail("coherence_points must be at least 2");
         }
@@ -480,6 +534,10 @@ mod tests {
             ("opamp_gain = 0", "opamp_gain"),
             ("opamp_gbw = -1", "opamp_gbw"),
             ("comparator_low = 6", "comparator_high"),
+            ("max_dc_points = 0", "max_dc_points"),
+            ("sw_roff = 0.5", "sw_roff"),
+            ("sw_vh = 0", "sw_vh"),
+            ("led_n = 0", "led_n"),
         ] {
             let e = SimSettings::parse(text).unwrap_err();
             assert_eq!(e.code, SETTINGS_INVALID, "{text}");

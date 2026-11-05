@@ -50,6 +50,10 @@ pub const PIN_UNCONNECTED: &str = "PHOENIX-SIM-020";
 pub const INPUT_UNREADABLE: &str = "PHOENIX-SIM-021";
 /// A model of a kind that does not fit the element that uses it.
 pub const MODEL_MISMATCH: &str = "PHOENIX-SIM-022";
+/// An `.include` or a model file that is not allowed or cannot be read.
+pub const INCLUDE_REFUSED: &str = "PHOENIX-SIM-023";
+/// An analysis directive of the netlist (`.op`, `.dc`, `.tran`, `.ac`) that is not valid.
+pub const DIRECTIVE_INVALID: &str = "PHOENIX-SIM-024";
 
 /// Code, then the title in English, Spanish, German, French, Italian, Japanese, Chinese and
 /// European Portuguese.
@@ -338,6 +342,32 @@ pub const TITLES: &[(&str, [&str; 8])] = &[
             "モデルが素子の種類に合っていません",
             "模型与元件不匹配",
             "O modelo não corresponde ao elemento",
+        ],
+    ),
+    (
+        INCLUDE_REFUSED,
+        [
+            "Include file is not allowed",
+            "El fichero incluido no está permitido",
+            "Die eingebundene Datei ist nicht erlaubt",
+            "Le fichier inclus n'est pas autorisé",
+            "Il file incluso non è consentito",
+            "インクルードするファイルは許可されていません",
+            "不允许包含该文件",
+            "O ficheiro incluído não é permitido",
+        ],
+    ),
+    (
+        DIRECTIVE_INVALID,
+        [
+            "Analysis directive is not valid",
+            "La directiva de análisis no es válida",
+            "Die Analyse-Direktive ist ungültig",
+            "La directive d'analyse n'est pas valide",
+            "La direttiva di analisi non è valida",
+            "解析ディレクティブが無効です",
+            "分析指令无效",
+            "A diretiva de análise não é válida",
         ],
     ),
 ];

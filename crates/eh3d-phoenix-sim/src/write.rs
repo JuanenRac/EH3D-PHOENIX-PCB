@@ -3,7 +3,8 @@
 //! name, elements in their order) and reads back, with [`crate::parse::parse`], as the same
 //! netlist.
 
-use crate::netlist::{Element, Kind, Model, Netlist, Source, Wave};
+use crate::ac::SweepKind;
+use crate::netlist::{Directive, Element, Kind, Model, Netlist, Source, Wave};
 use crate::units::format_number;
 
 fn n(v: f64) -> String {
@@ -84,7 +85,10 @@ pub fn element_line(e: &Element) -> String {
         Kind::Cccs { control, gain } => format!("{} {nodes} {control} {}", e.name, n(*gain)),
         Kind::Ccvs { control, rm } => format!("{} {nodes} {control} {}", e.name, n(*rm)),
         Kind::Mutual { l1, l2, k } => format!("{} {l1} {l2} {}", e.name, n(*k)),
-        Kind::Diode { model } | Kind::Bjt { model } | Kind::Amp { model } => {
+        Kind::Diode { model }
+        | Kind::Bjt { model }
+        | Kind::Amp { model }
+        | Kind::Switch { model } => {
             format!("{} {nodes} {model}", e.name)
         }
         Kind::Mosfet { model, w, l } => {
@@ -178,8 +182,48 @@ pub fn model_line(name: &str, model: &Model) -> String {
             n(m.gain),
             n(m.rout)
         ),
+        Model::Switch(m) => format!(
+            "VT={} VH={} RON={} ROFF={}",
+            n(m.vt),
+            n(m.vh),
+            n(m.ron),
+            n(m.roff)
+        ),
     };
     format!(".model {name} {}({params})\n", model.type_name())
+}
+
+/// The line of an analysis directive.
+pub fn directive_line(d: &Directive) -> String {
+    match d {
+        Directive::Op => ".op".to_string(),
+        Directive::Dc {
+            source,
+            start,
+            stop,
+            step,
+        } => format!(".dc {source} {} {} {}", n(*start), n(*stop), n(*step)),
+        Directive::Tran { tstep, tstop, uic } => {
+            let mut line = format!(".tran {} {}", n(*tstep), n(*tstop));
+            if *uic {
+                line.push_str(" uic");
+            }
+            line
+        }
+        Directive::Ac {
+            kind,
+            points,
+            start_hz,
+            stop_hz,
+        } => {
+            let word = match kind {
+                SweepKind::Linear => "lin",
+                SweepKind::Decade => "dec",
+                SweepKind::Octave => "oct",
+            };
+            format!(".ac {word} {points} {} {}", n(*start_hz), n(*stop_hz))
+        }
+    }
 }
 
 /// The text of a netlist.
@@ -208,6 +252,10 @@ pub fn to_spice(netlist: &Netlist) -> String {
         out.push_str(&element_line(e));
         out.push('\n');
     }
+    for d in &netlist.analyses {
+        out.push_str(&directive_line(d));
+        out.push('\n');
+    }
     out.push_str(".end\n");
     out
 }
@@ -218,7 +266,7 @@ mod tests {
     use crate::parse::parse;
     use crate::settings::SimSettings;
 
-    const FULL: &str = "everything\n.param rr=2k\n.model dm D(IS=2e-14 N=1.5 RS=2 CJO=1p BV=5.1 TT=1n)\n.model qm NPN(IS=1e-15 BF=120 VAF=60 RB=5 RC=1 RE=0.5 CJE=2p CJC=1p TF=0.3n)\n.model nm NMOS(VTO=0.8 KP=5e-5 LAMBDA=0.02 CGS=1f CGD=0.5f)\n.model oa OPAMP(GAIN=1e6 GBW=5meg VPOS=15 VNEG=-15)\n.model cm COMP(VHIGH=3.3 VLOW=0.1)\n.subckt half a b\n.model local PNP(BF=50)\nQ9 a b m local\nR1 a m 1k\nR2 m b {rr}\n.ends half\nV1 in 0 DC 5 AC 1 45 SIN(0 1 1k 0 0 0)\nV2 p 0 PULSE(0 5 1u 1n 1n 5u 10u)\nV3 q 0 PWL(0 0 1m 1)\nI1 r 0 2m\nR3 in out 4.7k\nC1 out 0 10n ic=0.5\nL1 out x 1m ic=0\nL2 y 0 4m\nK1 L1 L2 0.95\nD1 out 0 dm\nQ1 qc qb qe qm\nM1 md mg ms mb nm W=10u L=1u\nM2 md2 mg ms mb nm\nU1 up un uo oa\nU2 up un uo2 cm\nE1 e 0 in 0 2\nG1 g 0 in 0 1m\nF1 f 0 V1 3\nH1 h 0 V1 100\nX1 in z half\n";
+    const FULL: &str = "everything\n.param rr=2k\n.model dm D(IS=2e-14 N=1.5 RS=2 CJO=1p BV=5.1 TT=1n)\n.model qm NPN(IS=1e-15 BF=120 VAF=60 RB=5 RC=1 RE=0.5 CJE=2p CJC=1p TF=0.3n)\n.model nm NMOS(VTO=0.8 KP=5e-5 LAMBDA=0.02 CGS=1f CGD=0.5f)\n.model oa OPAMP(GAIN=1e6 GBW=5meg VPOS=15 VNEG=-15)\n.model cm COMP(VHIGH=3.3 VLOW=0.1)\n.subckt half a b\n.model local PNP(BF=50)\nQ9 a b m local\nR1 a m 1k\nR2 m b {rr}\n.ends half\nV1 in 0 DC 5 AC 1 45 SIN(0 1 1k 0 0 0)\nV2 p 0 PULSE(0 5 1u 1n 1n 5u 10u)\nV3 q 0 PWL(0 0 1m 1)\nI1 r 0 2m\nR3 in out 4.7k\nC1 out 0 10n ic=0.5\nL1 out x 1m ic=0\nL2 y 0 4m\nK1 L1 L2 0.95\nD1 out 0 dm\nQ1 qc qb qe qm\nM1 md mg ms mb nm W=10u L=1u\nM2 md2 mg ms mb nm\nU1 up un uo oa\nU2 up un uo2 cm\nE1 e 0 in 0 2\nG1 g 0 in 0 1m\nF1 f 0 V1 3\nH1 h 0 V1 100\nX1 in z half\nS1 sa sb sc 0 sm\n.model sm SW(VT=2 VH=0.5 RON=10 ROFF=1meg)\n.op\n.dc V1 0 5 0.5\n.tran 1u 1m uic\n.ac dec 10 1 1meg\n";
 
     #[test]
     fn a_netlist_survives_writing_and_reading() {

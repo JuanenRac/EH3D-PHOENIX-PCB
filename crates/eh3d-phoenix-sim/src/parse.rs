@@ -3,21 +3,24 @@
 //!
 //! The first line is the title. Comments start with `*` (a whole line) or `;` (the rest of a
 //! line); a line that starts with `+` continues the one before. Supported: `R C L V I E G F H K
-//! D Q M U X`, `.param`, `.model` (diodes, bipolar and MOS transistors, op-amps and comparators;
-//! a model inside a `.subckt` belongs to it), `.subckt` / `.ends` and `.end`. Other directives (`.op`,
-//! `.ac`, `.tran`, `.print` ...) are noted in [`Netlist::ignored`]: the program asks for the
-//! analyses. Every error names its line.
+//! D Q M S U X`, `.param`, `.model` (diodes, LEDs, Zener diodes, bipolar and MOS transistors,
+//! switches, op-amps and comparators; a model inside a `.subckt` belongs to it), `.subckt` /
+//! `.ends` and `.end`. The analysis directives `.op`, `.dc`, `.tran` and `.ac` are read into
+//! [`Netlist::analyses`]; other directives (`.print`, `.options` ...) are noted in
+//! [`Netlist::ignored`]. An `.include` is refused here: it is read only from a file (see
+//! [`mod@crate::include`]). Every error names its line.
 
 use std::collections::{BTreeMap, BTreeSet};
 
+use crate::ac::SweepKind;
 use crate::codes::{
-    SimError, DUPLICATE_NAME, LIMIT_EXCEEDED, MODEL_MISMATCH, NETLIST_SYNTAX, SUBCKT_INVALID,
-    UNDEFINED, UNSUPPORTED, VALUE_INVALID,
+    SimError, DIRECTIVE_INVALID, DUPLICATE_NAME, INCLUDE_REFUSED, LIMIT_EXCEEDED, MODEL_MISMATCH,
+    NETLIST_SYNTAX, SUBCKT_INVALID, UNDEFINED, UNSUPPORTED, VALUE_INVALID,
 };
 use crate::expr::{eval, ExprError};
 use crate::netlist::{
-    BjtModel, ComparatorModel, DiodeModel, Element, Ignored, Kind, Model, MosModel, Netlist,
-    OpampModel, Source, Subckt, Wave,
+    BjtModel, ComparatorModel, DiodeModel, Directive, Element, Ignored, Kind, Model, MosModel,
+    Netlist, OpampModel, Source, Subckt, SwitchModel, Wave,
 };
 use crate::settings::SimSettings;
 use crate::units::parse_number;
@@ -435,6 +438,23 @@ fn parse_element(tokens: &[String], number: usize, env: &Env) -> Result<Element,
                 },
             ))
         }
+        's' => {
+            if tokens.len() != 6 {
+                return Err(syntax(
+                    "needs two switched nodes, a positive and a negative control node and a model",
+                ));
+            }
+            let mut nodes = Vec::new();
+            for token in &tokens[1..5] {
+                nodes.push(node(token, number)?);
+            }
+            Ok(make(
+                nodes,
+                Kind::Switch {
+                    model: tokens[5].to_lowercase(),
+                },
+            ))
+        }
         'u' => {
             if tokens.len() != 5 {
                 return Err(syntax(
@@ -526,8 +546,12 @@ fn build_model(
         })
     };
     match kind {
-        "d" => {
-            let mut m = DiodeModel::new(settings.diode_is, settings.diode_n);
+        "d" | "led" | "zener" => {
+            let mut m = if kind == "led" {
+                DiodeModel::new(settings.led_is, settings.led_n)
+            } else {
+                DiodeModel::new(settings.diode_is, settings.diode_n)
+            };
             m.ibv = settings.diode_ibv;
             for (key, v) in pairs {
                 let v = *v;
@@ -559,6 +583,9 @@ fn build_model(
             }
             if m.bv.is_some_and(|b| !positive(b)) || !positive(m.ibv) || !positive(m.nbv) {
                 return Err(bad("BV, IBV and NBV of a diode must be above zero"));
+            }
+            if kind == "zener" && m.bv.is_none() {
+                return Err(bad("a ZENER model needs BV, the breakdown voltage"));
             }
             Ok(Model::Diode(m))
         }
@@ -705,11 +732,38 @@ fn build_model(
             }
             Ok(Model::Comparator(m))
         }
+        "sw" => {
+            let mut m = SwitchModel {
+                vt: settings.sw_vt,
+                vh: settings.sw_vh,
+                ron: settings.sw_ron,
+                roff: settings.sw_roff,
+            };
+            for (key, v) in pairs {
+                let v = *v;
+                match key.as_str() {
+                    "vt" => m.vt = v,
+                    "vh" => m.vh = v,
+                    "ron" => m.ron = v,
+                    "roff" => m.roff = v,
+                    other => note(other),
+                }
+            }
+            if !m.vt.is_finite() || !positive(m.vh) || !positive(m.ron) || !positive(m.roff) {
+                return Err(bad(
+                    "VT of a switch must be a number and VH, RON and ROFF must be above zero",
+                ));
+            }
+            if m.roff <= m.ron {
+                return Err(bad("ROFF of a switch must be above RON"));
+            }
+            Ok(Model::Switch(m))
+        }
         other => Err(SimError::at(
             UNSUPPORTED,
             number,
             format!(
-                "model type '{other}' is not supported (D, NPN, PNP, NMOS, PMOS, OPAMP and COMP are)"
+                "model type '{other}' is not supported (D, LED, ZENER, NPN, PNP, NMOS, PMOS, SW, OPAMP and COMP are)"
             ),
         )),
     }
@@ -763,6 +817,7 @@ fn check_model(
             | ('m', Model::Mos(_))
             | ('u', Model::Opamp(_))
             | ('u', Model::Comparator(_))
+            | ('s', Model::Switch(_))
     );
     if fits {
         Ok(())
@@ -799,6 +854,7 @@ fn check_scope(
             Kind::Bjt { model } => check_model(element, model, find(model), 'q', number)?,
             Kind::Mosfet { model, .. } => check_model(element, model, find(model), 'm', number)?,
             Kind::Amp { model } => check_model(element, model, find(model), 'u', number)?,
+            Kind::Switch { model } => check_model(element, model, find(model), 's', number)?,
             Kind::Instance { subckt } => {
                 let Some(sub) = subckts.get(subckt) else {
                     return Err(SimError::at(
@@ -869,6 +925,91 @@ struct Building {
     line: usize,
 }
 
+/// Reads the analysis directives `.op`, `.dc`, `.tran` and `.ac`.
+fn parse_directive(
+    word: &str,
+    tokens: &[String],
+    number: usize,
+    env: &Env,
+) -> Result<Directive, SimError> {
+    let bad = |why: &str| SimError::at(DIRECTIVE_INVALID, number, format!("{word}: {why}"));
+    let num = |token: &String| value(token, number, env);
+    let rest = &tokens[1..];
+    match word {
+        ".op" => {
+            if !rest.is_empty() {
+                return Err(bad("takes no arguments"));
+            }
+            Ok(Directive::Op)
+        }
+        ".dc" => {
+            if rest.len() != 4 {
+                return Err(bad("needs a source, a start, a stop and a step"));
+            }
+            let (start, stop, step) = (num(&rest[1])?, num(&rest[2])?, num(&rest[3])?);
+            if !start.is_finite() || !stop.is_finite() || !step.is_finite() || step == 0.0 {
+                return Err(bad(
+                    "the start, the stop and the step must be numbers and the step cannot be zero",
+                ));
+            }
+            if (stop - start) / step < 0.0 {
+                return Err(bad("the step goes away from the stop value"));
+            }
+            Ok(Directive::Dc {
+                source: rest[0].to_lowercase(),
+                start,
+                stop,
+                step,
+            })
+        }
+        ".tran" => {
+            let (uic, numbers) = match rest.last() {
+                Some(last) if last.eq_ignore_ascii_case("uic") => (true, &rest[..rest.len() - 1]),
+                _ => (false, rest),
+            };
+            if numbers.len() != 2 {
+                return Err(bad(
+                    "needs a step and a stop time (a start time and a largest step are not read) and may end with uic",
+                ));
+            }
+            let (tstep, tstop) = (num(&numbers[0])?, num(&numbers[1])?);
+            if !positive(tstep) || !positive(tstop) {
+                return Err(bad("the step and the stop time must be above zero"));
+            }
+            Ok(Directive::Tran { tstep, tstop, uic })
+        }
+        ".ac" => {
+            if rest.len() != 4 {
+                return Err(bad(
+                    "needs lin, dec or oct, a number of points, a start and a stop frequency",
+                ));
+            }
+            let kind = match rest[0].to_ascii_lowercase().as_str() {
+                "lin" => SweepKind::Linear,
+                "dec" => SweepKind::Decade,
+                "oct" => SweepKind::Octave,
+                _ => return Err(bad("the first word is lin, dec or oct")),
+            };
+            let points = num(&rest[1])?;
+            let (start_hz, stop_hz) = (num(&rest[2])?, num(&rest[3])?);
+            if !points.is_finite() || points < 1.0 || points.fract() != 0.0 || points > 1e9 {
+                return Err(bad("the number of points is not a whole number above zero"));
+            }
+            if !start_hz.is_finite() || !stop_hz.is_finite() || start_hz < 0.0 || stop_hz < start_hz
+            {
+                return Err(bad("the frequencies must satisfy 0 <= start <= stop"));
+            }
+            Ok(Directive::Ac {
+                kind,
+                points: points as usize,
+                start_hz,
+                stop_hz,
+            })
+        }
+        _ => Err(bad("is not an analysis")),
+    }
+}
+
 /// Reads a netlist.
 pub fn parse(text: &str, settings: &SimSettings) -> Result<Netlist, SimError> {
     if text.len() as u64 > settings.max_file_bytes {
@@ -927,6 +1068,7 @@ pub fn parse(text: &str, settings: &SimSettings) -> Result<Netlist, SimError> {
     let mut top_names: BTreeSet<String> = BTreeSet::new();
     let mut building: Option<Building> = None;
     let mut ignored: Vec<Ignored> = Vec::new();
+    let mut analyses: Vec<(usize, Directive)> = Vec::new();
     let mut element_count = 0usize;
 
     for (number, line) in &logical {
@@ -1090,6 +1232,20 @@ pub fn parse(text: &str, settings: &SimSettings) -> Result<Netlist, SimError> {
                     );
                     sub_lines.insert(done.name, done.elements);
                 }
+                ".include" | ".inc" => {
+                    return Err(SimError::at(
+                        INCLUDE_REFUSED,
+                        number,
+                        "an .include is read only from a file, and only a file in the same folder (use the file reader or the command)".to_string(),
+                    ));
+                }
+                word @ (".op" | ".dc" | ".tran" | ".ac") => {
+                    let env = Env {
+                        params: &params,
+                        max_depth: settings.max_expr_depth,
+                    };
+                    analyses.push((number, parse_directive(word, &tokens, number, &env)?));
+                }
                 other => ignored.push(Ignored {
                     line: number,
                     text: other.to_string(),
@@ -1136,6 +1292,21 @@ pub fn parse(text: &str, settings: &SimSettings) -> Result<Netlist, SimError> {
             format!("the subcircuit {} is not closed with .ends", open.name),
         ));
     }
+    for (number, directive) in &analyses {
+        if let Directive::Dc { source, .. } = directive {
+            let found = top.iter().any(|(e, _)| {
+                e.name.eq_ignore_ascii_case(source)
+                    && matches!(e.kind, Kind::Voltage(_) | Kind::Current(_))
+            });
+            if !found {
+                return Err(SimError::at(
+                    UNDEFINED,
+                    *number,
+                    format!(".dc: {source} is not an independent source of the netlist"),
+                ));
+            }
+        }
+    }
     check_scope(&top, &models, None, &subckts)?;
     for (name, placed) in &sub_lines {
         let local = subckts.get(name).map(|sub| &sub.models);
@@ -1147,6 +1318,7 @@ pub fn parse(text: &str, settings: &SimSettings) -> Result<Netlist, SimError> {
         models,
         subckts,
         elements: top.into_iter().map(|(e, _)| e).collect(),
+        analyses: analyses.into_iter().map(|(_, d)| d).collect(),
         ignored,
     })
 }
@@ -1173,12 +1345,110 @@ mod tests {
         );
         assert_eq!(nl.elements[1].kind, Kind::Resistor(1000.0));
         assert_eq!(nl.elements[2].kind, Kind::Resistor(3000.0));
-        assert_eq!(nl.ignored.len(), 1);
-        assert_eq!(nl.ignored[0].text, ".op");
+        assert!(nl.ignored.is_empty());
+        assert_eq!(nl.analyses, vec![Directive::Op]);
         match &nl.elements[0].kind {
             Kind::Voltage(s) => assert_eq!(s.dc, Some(10.0)),
             other => panic!("{other:?}"),
         }
+    }
+
+    #[test]
+    fn the_analysis_directives_are_read_and_checked() {
+        let nl = read(
+            "t\nV1 a 0 1\nR1 a 0 1k\n.op\n.dc v1 0 5 0.5\n.tran 1u 1m uic\n.ac DEC 10 1 1meg\n.print dc v(a)\n",
+        )
+        .unwrap();
+        assert_eq!(nl.analyses.len(), 4);
+        assert_eq!(
+            nl.analyses[1],
+            Directive::Dc {
+                source: "v1".to_string(),
+                start: 0.0,
+                stop: 5.0,
+                step: 0.5
+            }
+        );
+        assert_eq!(
+            nl.analyses[2],
+            Directive::Tran {
+                tstep: 1e-6,
+                tstop: 1e-3,
+                uic: true
+            }
+        );
+        assert_eq!(
+            nl.analyses[3],
+            Directive::Ac {
+                kind: SweepKind::Decade,
+                points: 10,
+                start_hz: 1.0,
+                stop_hz: 1e6
+            }
+        );
+        assert_eq!(nl.ignored.len(), 1);
+        let head = "t\nV1 a 0 1\nR1 a 0 1k\n";
+        for (text, code, line) in [
+            (".op 1", DIRECTIVE_INVALID, 4),
+            (".dc v1 0 5", DIRECTIVE_INVALID, 4),
+            (".dc v1 0 5 0", DIRECTIVE_INVALID, 4),
+            (".dc v1 0 5 -1", DIRECTIVE_INVALID, 4),
+            (".dc r1 0 5 1", UNDEFINED, 4),
+            (".dc v9 0 5 1", UNDEFINED, 4),
+            (".tran 1u", DIRECTIVE_INVALID, 4),
+            (".tran 1u 1m 0 1u", DIRECTIVE_INVALID, 4),
+            (".tran 0 1m", DIRECTIVE_INVALID, 4),
+            (".ac log 10 1 1k", DIRECTIVE_INVALID, 4),
+            (".ac dec 0 1 1k", DIRECTIVE_INVALID, 4),
+            (".ac dec 10 1k 1", DIRECTIVE_INVALID, 4),
+            (".ac dec 10 1 x", VALUE_INVALID, 4),
+        ] {
+            fails(&format!("{head}{text}\n"), code, line);
+        }
+    }
+
+    #[test]
+    fn an_include_is_refused_when_there_is_no_file() {
+        fails("t\nR1 a 0 1\n.include models.lib\n", INCLUDE_REFUSED, 3);
+        fails("t\nR1 a 0 1\n.INC models.lib\n", INCLUDE_REFUSED, 3);
+    }
+
+    #[test]
+    fn a_switch_an_led_and_a_zener_are_read() {
+        let nl = read(
+            "t\n.model sm SW(VT=2 VH=0.5 RON=10 ROFF=1meg)\n.model led1 LED\n.model z5 ZENER(BV=5.1)\nS1 a b c 0 sm\nD1 a 0 led1\nD2 0 a z5\nR1 c 0 1k\nR2 b 0 1k\n",
+        )
+        .unwrap();
+        match &nl.models["sm"] {
+            Model::Switch(m) => assert_eq!((m.vt, m.vh, m.ron, m.roff), (2.0, 0.5, 10.0, 1e6)),
+            other => panic!("{other:?}"),
+        }
+        let s = SimSettings::default();
+        match &nl.models["led1"] {
+            Model::Diode(m) => assert_eq!((m.is, m.n), (s.led_is, s.led_n)),
+            other => panic!("{other:?}"),
+        }
+        match &nl.models["z5"] {
+            Model::Diode(m) => assert_eq!(m.bv, Some(5.1)),
+            other => panic!("{other:?}"),
+        }
+        assert_eq!(
+            nl.elements[0].kind,
+            Kind::Switch {
+                model: "sm".to_string()
+            }
+        );
+        let defaults = read("t\n.model sm SW\nS1 a b c 0 sm\n").unwrap();
+        match &defaults.models["sm"] {
+            Model::Switch(m) => assert_eq!((m.ron, m.roff, m.vt, m.vh), (1.0, 1e9, 0.0, 0.1)),
+            other => panic!("{other:?}"),
+        }
+        fails("t\n.model z5 ZENER\n", VALUE_INVALID, 2);
+        fails("t\n.model sm SW(RON=10 ROFF=5)\n", VALUE_INVALID, 2);
+        fails("t\n.model sm SW(VH=0)\n", VALUE_INVALID, 2);
+        fails("t\nS1 a b c sm\n", NETLIST_SYNTAX, 2);
+        fails("t\n.model dm D\nS1 a b c 0 dm\n", MODEL_MISMATCH, 3);
+        fails("t\nS1 a b c 0 nope\n", UNDEFINED, 2);
     }
 
     #[test]

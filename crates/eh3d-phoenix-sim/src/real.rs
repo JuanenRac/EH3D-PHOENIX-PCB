@@ -8,7 +8,7 @@
 //! it from the positive node to the negative node, and a current source takes its current from
 //! the first node and gives it to the second.
 
-use crate::circuit::{Bjt, Circuit, JunctionCap, Saturator};
+use crate::circuit::{Bjt, Circuit, JunctionCap, Saturator, Switch};
 use crate::codes::{SimError, NOT_FINITE, NO_CONVERGENCE, SINGULAR_MATRIX};
 use crate::linalg::solve_real;
 use crate::netlist::Source;
@@ -411,6 +411,18 @@ pub fn sat_point(sat: &Saturator, vin: f64) -> (f64, f64) {
     }
 }
 
+/// The conductance of a switch at a control voltage and its derivative with respect to it. The
+/// logarithm of the conductance goes from `ln(g_off)` to `ln(g_on)` with
+/// `s = (1 + tanh((vc - vt) / vh)) / 2`, so the conductance is the geometric mean of the two at
+/// `vt` and the derivative exists everywhere.
+pub fn switch_point(sw: &Switch, vc: f64) -> (f64, f64) {
+    let t = ((vc - sw.vt) / sw.vh).tanh();
+    let s = 0.5 * (1.0 + t);
+    let span = sw.g_on.ln() - sw.g_off.ln();
+    let g = (sw.g_off.ln() + span * s).exp();
+    (g, g * span * 0.5 * (1.0 - t * t) / sw.vh)
+}
+
 /// A linearised piece of a device: the current that leaves `node` is `ieq + sum(g * v(k))` over
 /// the pairs `(k, g)` of `d`.
 #[derive(Debug, Clone, PartialEq)]
@@ -568,6 +580,23 @@ pub fn linearize(
             node: st.out,
             ieq: (df * vin - f) * g,
             d: vec![(st.out, g), (st.cp, -df * g), (st.cn, df * g)],
+        });
+    }
+
+    for sw in &c.switches {
+        let vab = volt(x, sw.a) - volt(x, sw.b);
+        let vc = volt(x, sw.cp) - volt(x, sw.cn);
+        let (g, dg) = switch_point(sw, vc);
+        let ieq = -dg * vab * vc;
+        lins.push(Lin {
+            node: sw.a,
+            ieq,
+            d: vec![(sw.a, g), (sw.b, -g), (sw.cp, dg * vab), (sw.cn, -dg * vab)],
+        });
+        lins.push(Lin {
+            node: sw.b,
+            ieq: -ieq,
+            d: vec![(sw.a, -g), (sw.b, g), (sw.cp, -dg * vab), (sw.cn, dg * vab)],
         });
     }
 
@@ -826,6 +855,25 @@ pub fn newton(
     ))
 }
 
+/// The largest residual of the node equations (kirchhoff's current law, in amperes) and of the
+/// branch equations (volts) at a solution of the DC equations, with the sources scaled by
+/// `mode.scale`. It measures how well the non-linear devices agree with the node equations at
+/// the point that Newton-Raphson stopped at.
+pub fn dc_residual(c: &Circuit, s: &SimSettings, mode: &Mode, x: &[f64]) -> f64 {
+    let n = c.unknowns();
+    let mut vd = junction_voltages(c, x);
+    let (a, b, _) = assemble(c, s, mode, x, &mut vd);
+    let mut worst = 0.0f64;
+    for r in 0..n {
+        let mut sum = -b[r];
+        for (col, value) in x.iter().enumerate() {
+            sum += a[r * n + col] * value;
+        }
+        worst = worst.max(sum.abs());
+    }
+    worst
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1000,6 +1048,40 @@ mod tests {
         // at a small vds the channel is a resistor of 1 / (beta (vgs - vto))
         assert!((small / 0.01 - beta * 1.5).abs() < 0.01 * beta * 1.5);
         assert!((small_gds - beta * 1.5).abs() < 0.02 * beta * 1.5);
+    }
+
+    #[test]
+    fn the_switch_goes_from_off_to_on_through_the_geometric_mean() {
+        let sw = Switch {
+            name: "s1".to_string(),
+            a: 1,
+            b: 0,
+            cp: 2,
+            cn: 0,
+            vt: 2.0,
+            vh: 0.5,
+            g_on: 1.0 / 10.0,
+            g_off: 1.0 / 1e6,
+        };
+        let (off, _) = switch_point(&sw, -5.0);
+        let (on, _) = switch_point(&sw, 9.0);
+        let (mid, _) = switch_point(&sw, 2.0);
+        assert!((off / sw.g_off - 1.0).abs() < 1e-9, "{off}");
+        assert!((on / sw.g_on - 1.0).abs() < 1e-9, "{on}");
+        assert!(
+            (mid / (sw.g_on * sw.g_off).sqrt() - 1.0).abs() < 1e-12,
+            "{mid}"
+        );
+        // the derivative is that of the conductance
+        for vc in [1.2, 1.9, 2.0, 2.3, 2.8] {
+            let h = 1e-6;
+            let numeric = (switch_point(&sw, vc + h).0 - switch_point(&sw, vc - h).0) / (2.0 * h);
+            let (g, dg) = switch_point(&sw, vc);
+            assert!(
+                (dg - numeric).abs() <= 1e-6 * g.max(numeric.abs()),
+                "{vc}: {dg} {numeric}"
+            );
+        }
     }
 
     #[test]

@@ -9,7 +9,7 @@ use serde_json::{json, Value};
 
 use crate::ac::AcResult;
 use crate::codes::{SimError, OUTPUT_FAILED, UNDEFINED};
-use crate::dc::OpResult;
+use crate::dc::{DcResult, OpResult};
 use crate::settings::SimSettings;
 use crate::tran::TranResult;
 use crate::units::format_number;
@@ -123,8 +123,46 @@ pub fn op_json(r: &OpResult, selected: &[usize]) -> String {
         "kind": KIND,
         "iterations": r.iterations,
         "strategy": r.strategy,
+        "residual": r.residual,
         "labels": labels_of(&r.labels, selected),
         "values": values,
+    }))
+}
+
+/// The DC sweep as a table: the value of the swept source, then each selected unknown.
+pub fn dc_csv(r: &DcResult, selected: &[usize]) -> String {
+    let mut header = vec![format!("sweep({})", r.source)];
+    header.extend(selected.iter().map(|&i| r.labels[i].clone()));
+    let rows = r
+        .sweep
+        .iter()
+        .zip(r.values.iter())
+        .map(|(v, values)| {
+            let mut row = vec![format_number(*v)];
+            row.extend(selected.iter().map(|&i| format_number(values[i])));
+            row
+        })
+        .collect();
+    rows_to_csv(header, rows)
+}
+
+/// The DC sweep as JSON.
+pub fn dc_json(r: &DcResult, selected: &[usize]) -> String {
+    let values: Vec<Vec<f64>> = r
+        .values
+        .iter()
+        .map(|row| selected.iter().map(|&i| row[i]).collect())
+        .collect();
+    pretty(&json!({
+        "analysis": "dc",
+        "kind": KIND,
+        "source": r.source,
+        "labels": labels_of(&r.labels, selected),
+        "sweep": r.sweep,
+        "values": values,
+        "iterations": r.iterations,
+        "restarts": r.restarts,
+        "residual": r.residual,
     }))
 }
 
@@ -237,6 +275,7 @@ mod tests {
             node_count: 1,
             iterations: 1,
             strategy: "direct",
+            residual: 0.0,
         }
     }
 
@@ -292,6 +331,29 @@ mod tests {
         let json = ac_json(&r, &[0]);
         assert!(json.contains("\"freq_hz\""));
         assert!(json.contains("\"delay_s\""));
+    }
+
+    #[test]
+    fn the_dc_sweep_tables() {
+        let r = DcResult {
+            labels: vec!["v(a)".to_string(), "i(v1)".to_string()],
+            node_count: 1,
+            source: "v1".to_string(),
+            sweep: vec![0.0, 1.0],
+            values: vec![vec![0.0, 0.0], vec![0.5, -5e-4]],
+            iterations: 2,
+            restarts: 0,
+            residual: 0.0,
+        };
+        assert_eq!(
+            dc_csv(&r, &[0, 1]),
+            "sweep(v1),v(a),i(v1)\n0e0,0e0,0e0\n1e0,5e-1,-5e-4\n"
+        );
+        assert_eq!(dc_csv(&r, &[0]), "sweep(v1),v(a)\n0e0,0e0\n1e0,5e-1\n");
+        let json = dc_json(&r, &[1]);
+        assert!(json.contains("\"analysis\": \"dc\""));
+        assert!(json.contains("\"restarts\": 0"));
+        assert!(!json.contains("v(a)"));
     }
 
     #[test]

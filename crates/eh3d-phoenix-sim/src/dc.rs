@@ -6,8 +6,8 @@
 //! from zero to their value in steps).
 
 use crate::circuit::Circuit;
-use crate::codes::{SimError, NO_CONVERGENCE};
-use crate::real::{newton, Mode};
+use crate::codes::{SimError, ANALYSIS_INVALID, LIMIT_EXCEEDED, NO_CONVERGENCE, UNDEFINED};
+use crate::real::{dc_residual, newton, Mode};
 use crate::settings::SimSettings;
 
 /// The operating point.
@@ -23,6 +23,9 @@ pub struct OpResult {
     pub iterations: usize,
     /// How the point was found: `direct`, `gmin-stepping` or `source-stepping`.
     pub strategy: &'static str,
+    /// The largest residual of the equations at the point: amperes in the node equations and
+    /// volts in the branch equations.
+    pub residual: f64,
 }
 
 impl OpResult {
@@ -132,12 +135,176 @@ pub fn operating_point(c: &Circuit, s: &SimSettings) -> Result<OpResult, SimErro
         gmin_nodes = s.gmin;
     }
     let (values, iterations, strategy) = solve_dc(c, s, gmin_nodes)?;
+    let residual = dc_residual(c, s, &Mode::dc(gmin_nodes), &values);
     Ok(OpResult {
         labels: c.labels(),
         values,
         node_count: c.node_names.len(),
         iterations,
         strategy,
+        residual,
+    })
+}
+
+/// A DC sweep: the operating point while one independent source takes the values
+/// `start`, `start + step`, ... up to `stop`.
+#[derive(Debug, Clone, PartialEq)]
+pub struct DcRequest {
+    /// The name of the independent voltage or current source (compared in lower case).
+    pub source: String,
+    /// The first value.
+    pub start: f64,
+    /// The last value (reached when the step divides the range).
+    pub stop: f64,
+    /// The increment; negative to sweep downwards.
+    pub step: f64,
+}
+
+/// The result of a DC sweep.
+#[derive(Debug, Clone, PartialEq)]
+pub struct DcResult {
+    /// The labels of the unknowns.
+    pub labels: Vec<String>,
+    /// How many of the labels are node voltages.
+    pub node_count: usize,
+    /// The name of the swept source, in lower case.
+    pub source: String,
+    /// The value of the source at each point.
+    pub sweep: Vec<f64>,
+    /// The unknowns at each point.
+    pub values: Vec<Vec<f64>>,
+    /// The Newton-Raphson iterations of all the points.
+    pub iterations: usize,
+    /// The points (after the first) that the continuation from the previous point did not solve
+    /// and that were solved again from zero with the aids of the operating point.
+    pub restarts: usize,
+    /// The largest residual over all the points.
+    pub residual: f64,
+}
+
+impl DcResult {
+    /// The values of one unknown along the sweep, by label (`v(out)`), compared in lower case.
+    pub fn series(&self, label: &str) -> Option<Vec<f64>> {
+        let wanted = label.trim().to_lowercase();
+        let column = self.labels.iter().position(|l| *l == wanted)?;
+        Some(self.values.iter().map(|row| row[column]).collect())
+    }
+}
+
+/// The values of a sweep: `start + k * step` for the whole `k` that stay on this side of `stop`
+/// (a small slack absorbs the rounding of the division).
+pub fn sweep_values(req: &DcRequest, max_points: usize) -> Result<Vec<f64>, SimError> {
+    let invalid = |why: &str| SimError::new(ANALYSIS_INVALID, format!("DC sweep: {why}"));
+    if !req.start.is_finite() || !req.stop.is_finite() || !req.step.is_finite() || req.step == 0.0 {
+        return Err(invalid(
+            "the start, the stop and the step must be numbers and the step cannot be zero",
+        ));
+    }
+    let span = (req.stop - req.start) / req.step;
+    if span < 0.0 {
+        return Err(invalid("the step goes away from the stop value"));
+    }
+    let count = (span + 1e-9).floor() + 1.0;
+    if count > max_points as f64 {
+        return Err(SimError::new(
+            LIMIT_EXCEEDED,
+            format!("the DC sweep has more than max_dc_points ({max_points}) points"),
+        ));
+    }
+    Ok((0..count as usize)
+        .map(|k| req.start + k as f64 * req.step)
+        .collect())
+}
+
+/// Sweeps one independent source and solves the operating point at each value. Each point starts
+/// from the solution of the one before (continuation); when that does not converge the point is
+/// solved again from zero with the plain iteration, gmin stepping and source stepping.
+pub fn dc_sweep(c: &Circuit, s: &SimSettings, req: &DcRequest) -> Result<DcResult, SimError> {
+    let wanted = req.source.trim().to_lowercase();
+    let mut work = c.clone();
+    enum Swept {
+        Voltage(usize),
+        Current(usize),
+    }
+    let target = if let Some(i) = work
+        .vsources
+        .iter()
+        .position(|e| e.name.to_lowercase() == wanted)
+    {
+        Swept::Voltage(i)
+    } else if let Some(i) = work
+        .isources
+        .iter()
+        .position(|e| e.name.to_lowercase() == wanted)
+    {
+        Swept::Current(i)
+    } else {
+        return Err(SimError::new(
+            UNDEFINED,
+            format!(
+                "DC sweep: {} is not an independent source of the circuit",
+                req.source
+            ),
+        ));
+    };
+    let points = sweep_values(req, s.max_dc_points)?;
+    let width = c.unknowns();
+    if (points.len() as u64).saturating_mul(width as u64) > s.max_result_cells as u64 {
+        return Err(SimError::new(
+            LIMIT_EXCEEDED,
+            format!(
+                "the DC sweep result is larger than max_result_cells ({})",
+                s.max_result_cells
+            ),
+        ));
+    }
+    let mut gmin_nodes = 0.0;
+    if let Some(error) = c.floating_error(true) {
+        if s.floating_is_error {
+            return Err(error);
+        }
+        gmin_nodes = s.gmin;
+    }
+    let mut values: Vec<Vec<f64>> = Vec::with_capacity(points.len());
+    let (mut iterations, mut restarts, mut residual) = (0usize, 0usize, 0.0f64);
+    let mut previous: Option<Vec<f64>> = None;
+    for &v in &points {
+        match target {
+            Swept::Voltage(i) => work.vsources[i].source.dc = Some(v),
+            Swept::Current(i) => work.isources[i].source.dc = Some(v),
+        }
+        let continued = previous
+            .as_ref()
+            .and_then(|x| newton(&work, s, &Mode::dc(gmin_nodes), x).ok());
+        let (x, used) = match continued {
+            Some(found) => found,
+            None => {
+                if previous.is_some() {
+                    restarts += 1;
+                }
+                let (x, used, _) = solve_dc(&work, s, gmin_nodes).map_err(|e| {
+                    SimError::new(
+                        e.code,
+                        format!("{} (DC sweep of {} at {v:e})", e.detail, req.source),
+                    )
+                })?;
+                (x, used)
+            }
+        };
+        iterations += used;
+        residual = residual.max(dc_residual(&work, s, &Mode::dc(gmin_nodes), &x));
+        values.push(x.clone());
+        previous = Some(x);
+    }
+    Ok(DcResult {
+        labels: c.labels(),
+        node_count: c.node_names.len(),
+        source: wanted,
+        sweep: points,
+        values,
+        iterations,
+        restarts,
+        residual,
     })
 }
 
@@ -252,6 +419,110 @@ mod tests {
                 assert!((a - b).abs() < 1e-4, "{a} {b}");
             }
         }
+    }
+
+    #[test]
+    fn the_residual_is_tiny_for_a_linear_circuit_and_small_for_a_diode() {
+        let r = op("divider\nV1 in 0 DC 10\nR1 in out 1k\nR2 out 0 3k\n");
+        assert!(r.residual < 1e-9, "{}", r.residual);
+        let d = op("t\n.model dm D(IS=1e-14 N=1)\nV1 in 0 5\nR1 in d 1k\nD1 d 0 dm\n");
+        assert!(d.residual < 1e-4, "{}", d.residual);
+    }
+
+    fn sweep(text: &str, source: &str, start: f64, stop: f64, step: f64) -> DcResult {
+        let s = SimSettings::default();
+        let c = Circuit::compile(&parse(text, &s).unwrap(), &s).unwrap();
+        let req = DcRequest {
+            source: source.to_string(),
+            start,
+            stop,
+            step,
+        };
+        dc_sweep(&c, &s, &req).unwrap()
+    }
+
+    #[test]
+    fn a_sweep_of_a_divider_is_a_straight_line() {
+        let r = sweep(
+            "divider\nV1 in 0 DC 1\nR1 in out 1k\nR2 out 0 3k\n",
+            "V1",
+            0.0,
+            10.0,
+            2.5,
+        );
+        assert_eq!(r.sweep, vec![0.0, 2.5, 5.0, 7.5, 10.0]);
+        let out = r.series("v(out)").unwrap();
+        for (x, y) in r.sweep.iter().zip(out.iter()) {
+            assert!((y - 0.75 * x).abs() < 1e-9, "{x} {y}");
+        }
+        assert_eq!(r.restarts, 0);
+        assert!(r.residual < 1e-9);
+    }
+
+    #[test]
+    fn a_sweep_can_go_down_and_can_sweep_a_current_source() {
+        let r = sweep("t\nI1 0 a 1m\nR1 a 0 1k\n", "i1", 2e-3, 0.0, -1e-3);
+        assert_eq!(r.sweep, vec![2e-3, 1e-3, 0.0]);
+        let a = r.series("v(a)").unwrap();
+        assert!((a[0] - 2.0).abs() < 1e-9 && a[2].abs() < 1e-9, "{a:?}");
+    }
+
+    #[test]
+    fn a_sweep_through_a_diode_follows_the_shockley_equation_at_every_point() {
+        let s = SimSettings::default();
+        let r = sweep(
+            "t\n.model dm D(IS=1e-14 N=1)\nV1 in 0 0\nR1 in d 1k\nD1 d 0 dm\n",
+            "v1",
+            0.0,
+            5.0,
+            0.5,
+        );
+        let vt = s.thermal_voltage();
+        let vd = r.series("v(d)").unwrap();
+        assert_eq!(vd.len(), 11);
+        for (v, got) in r.sweep.iter().zip(vd.iter()) {
+            // the current of the resistor falls and the one of the diode rises with the diode
+            // voltage, so the balance is found by bisection
+            let (mut low, mut high) = (0.0f64, *v);
+            for _ in 0..200 {
+                let mid = 0.5 * (low + high);
+                let balance = (v - mid) / 1000.0 - 1e-14 * ((mid / vt).exp() - 1.0);
+                if balance > 0.0 {
+                    low = mid;
+                } else {
+                    high = mid;
+                }
+            }
+            let want = 0.5 * (low + high);
+            assert!((got - want).abs() < 1e-4, "{v}: {got} {want}");
+        }
+        assert!(vd.windows(2).all(|w| w[1] >= w[0] - 1e-12));
+    }
+
+    #[test]
+    fn a_bad_sweep_is_refused() {
+        let s = SimSettings::default();
+        let c = Circuit::compile(&parse("t\nV1 a 0 1\nR1 a 0 1k\n", &s).unwrap(), &s).unwrap();
+        let ask = |source: &str, start: f64, stop: f64, step: f64| {
+            dc_sweep(
+                &c,
+                &s,
+                &DcRequest {
+                    source: source.to_string(),
+                    start,
+                    stop,
+                    step,
+                },
+            )
+            .unwrap_err()
+            .code
+        };
+        assert_eq!(ask("v9", 0.0, 1.0, 0.1), UNDEFINED);
+        assert_eq!(ask("r1", 0.0, 1.0, 0.1), UNDEFINED);
+        assert_eq!(ask("v1", 0.0, 1.0, 0.0), ANALYSIS_INVALID);
+        assert_eq!(ask("v1", 0.0, 1.0, -0.1), ANALYSIS_INVALID);
+        assert_eq!(ask("v1", 0.0, f64::NAN, 0.1), ANALYSIS_INVALID);
+        assert_eq!(ask("v1", 0.0, 1e9, 1.0), LIMIT_EXCEEDED);
     }
 
     #[test]

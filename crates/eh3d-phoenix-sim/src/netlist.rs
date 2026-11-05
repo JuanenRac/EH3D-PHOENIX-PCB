@@ -7,6 +7,8 @@ use std::f64::consts::PI;
 
 use eh3d_phoenix_rf::Complex;
 
+use crate::ac::SweepKind;
+
 /// The time dependence of an independent source.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Wave {
@@ -302,6 +304,12 @@ pub enum Kind {
         /// The model, in lower case.
         model: String,
     },
+    /// `S`: voltage-controlled switch; the nodes are the two switched nodes and then the
+    /// positive and the negative control node.
+    Switch {
+        /// The model, in lower case.
+        model: String,
+    },
     /// `X`: an instance of a subcircuit.
     Instance {
         /// The subcircuit, in lower case.
@@ -493,6 +501,22 @@ pub struct ComparatorModel {
     pub rout: f64,
 }
 
+/// A voltage-controlled switch (`.model name SW(...)`): a resistance that goes from `roff` to
+/// `ron` as the control voltage crosses `vt`. The transition is smooth (the logarithm of the
+/// conductance follows a hyperbolic tangent over `vt - vh` to `vt + vh`), so the Newton-Raphson
+/// iteration has a derivative to follow; there is no hysteresis.
+#[derive(Debug, Clone, PartialEq)]
+pub struct SwitchModel {
+    /// The control voltage at which the switch is half on (on a logarithmic scale), in volt.
+    pub vt: f64,
+    /// The half width of the transition in volt.
+    pub vh: f64,
+    /// The resistance when on, in ohm.
+    pub ron: f64,
+    /// The resistance when off, in ohm.
+    pub roff: f64,
+}
+
 /// A model of any kind.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Model {
@@ -506,6 +530,8 @@ pub enum Model {
     Opamp(OpampModel),
     /// A comparator.
     Comparator(ComparatorModel),
+    /// A voltage-controlled switch.
+    Switch(SwitchModel),
 }
 
 impl Model {
@@ -519,6 +545,7 @@ impl Model {
             Model::Mos(_) => "NMOS",
             Model::Opamp(_) => "OPAMP",
             Model::Comparator(_) => "COMP",
+            Model::Switch(_) => "SW",
         }
     }
 }
@@ -532,6 +559,44 @@ pub struct Subckt {
     pub models: BTreeMap<String, Model>,
     /// The elements of its body.
     pub elements: Vec<Element>,
+}
+
+/// An analysis asked for by a directive of the netlist (`.op`, `.dc`, `.tran`, `.ac`).
+#[derive(Debug, Clone, PartialEq)]
+pub enum Directive {
+    /// `.op`: the DC operating point.
+    Op,
+    /// `.dc source start stop step`: the operating point while one independent source is swept.
+    Dc {
+        /// The name of the independent source, in lower case.
+        source: String,
+        /// The first value.
+        start: f64,
+        /// The last value.
+        stop: f64,
+        /// The increment (negative to sweep downwards).
+        step: f64,
+    },
+    /// `.tran tstep tstop [uic]`.
+    Tran {
+        /// The step in seconds.
+        tstep: f64,
+        /// The end time in seconds.
+        tstop: f64,
+        /// Start from the initial conditions.
+        uic: bool,
+    },
+    /// `.ac lin|dec|oct points start stop`.
+    Ac {
+        /// How the frequencies are spaced.
+        kind: SweepKind,
+        /// The number of points (in all, per decade or per octave).
+        points: usize,
+        /// The first frequency in hertz.
+        start_hz: f64,
+        /// The last frequency in hertz.
+        stop_hz: f64,
+    },
 }
 
 /// A line of the netlist that was read and left out.
@@ -556,7 +621,9 @@ pub struct Netlist {
     pub subckts: BTreeMap<String, Subckt>,
     /// The elements of the top level.
     pub elements: Vec<Element>,
-    /// The directives that were read and left out (analyses are asked for by the program).
+    /// The analyses the netlist asks for, in the order of its lines.
+    pub analyses: Vec<Directive>,
+    /// The directives that were read and left out (`.print`, `.options` ...).
     pub ignored: Vec<Ignored>,
 }
 
