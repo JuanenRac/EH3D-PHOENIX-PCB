@@ -562,10 +562,10 @@ mod tests {
         assert_eq!(score_as_is(&a, &a, Mode::Footprint, &s), 100);
         let near = feat(&chip(20_000, 1_200_000), &s);
         let score = score_as_is(&a, &near, Mode::Footprint, &s);
-        assert!(score < 100 && score >= 90, "{score}");
+        assert!((90..100).contains(&score), "{score}");
         let wider = feat(&chip(0, 1_210_000), &s);
         let score2 = score_as_is(&a, &wider, Mode::Footprint, &s);
-        assert!(score2 < 100 && score2 >= 90, "{score2}");
+        assert!((90..100).contains(&score2), "{score2}");
     }
 
     #[test]
@@ -708,7 +708,7 @@ mod tests {
             &s,
         );
         let score = score_as_is(&a, &moved, Mode::Symbol, &s);
-        assert!(score < 100 && score >= 50, "{score}");
+        assert!((50..100).contains(&score), "{score}");
     }
 
     #[test]
