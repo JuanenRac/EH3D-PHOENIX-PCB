@@ -159,7 +159,7 @@ pub fn check_board(board: &Board, rules: &RuleValues) -> Report {
     run.clearances();
     run.edges();
     run.drill_spacing();
-    run.from_board_crate();
+    run.add_board_crate_findings();
     run.report.finish();
     run.report
 }
@@ -404,7 +404,7 @@ impl Run<'_> {
     /// The checks that the board crate already has for pads, the solder mask, zones and
     /// silkscreen. The clearance and edge findings it makes for tracks and vias are left out
     /// because this engine measures them itself.
-    fn from_board_crate(&mut self) {
+    fn add_board_crate_findings(&mut self) {
         let r = self.rules;
         let wanted = on(r.min_clearance)
             || on(r.min_edge_clearance)
