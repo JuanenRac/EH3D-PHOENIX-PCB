@@ -79,7 +79,7 @@ fn parse_options(args: &[&str]) -> Result<Options, String> {
     Ok(options)
 }
 
-fn read_board_file(path: &str) -> Result<Board, String> {
+pub(crate) fn read_board_file(path: &str) -> Result<Board, String> {
     if path.to_ascii_lowercase().ends_with(".json") {
         let size = std::fs::metadata(path)
             .map_err(|e| format!("cannot read {path}: {e}"))?

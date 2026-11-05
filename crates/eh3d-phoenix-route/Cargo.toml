@@ -1,0 +1,13 @@
+[package]
+name = "eh3d-phoenix-route"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Editing and routing logic of the board without an interface (prototype): the ratsnest of unrouted connections, an interactive router for 0, 45 and 90 degree tracks that stops at obstacles or goes around them and places vias by the rules, reversible editing operations with undo and redo, and the live rule check that reports what an edit adds or removes"
+
+[dependencies]
+eh3d-phoenix-board = { path = "../eh3d-phoenix-board" }
+eh3d-phoenix-model = { path = "../eh3d-phoenix-model" }
+eh3d-phoenix-rules = { path = "../eh3d-phoenix-rules" }

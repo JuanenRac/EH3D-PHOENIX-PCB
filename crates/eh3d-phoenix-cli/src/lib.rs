@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! The command line of EH3D-PHOENIX-PCB. It has thirteen commands, `inventory`, `eagle-rate`,
-//! `stackup`, `check`, `connectivity`, `erc`, `sync`, `export`, `rf`, `kicad-read`, `sanitize`, `sim` and
-//! `view`.
+//! The command line of EH3D-PHOENIX-PCB. It has fifteen commands, `inventory`, `eagle-rate`,
+//! `stackup`, `check`, `connectivity`, `erc`, `sync`, `export`, `rf`, `kicad-read`, `sanitize`, `sim`,
+//! `route`, `ratsnest` and `view`.
 //!
 //! Exit codes: 0 done, 1 `stackup` could not compute one or more of the lines it was asked for,
 //! `check`, `connectivity` and `erc` proved an error, or `sync` found changes to make, 2 the
@@ -14,6 +14,7 @@ mod design;
 mod export;
 mod kicad;
 mod rf;
+mod route;
 mod sanitize;
 mod sim;
 mod view;
@@ -95,6 +96,16 @@ phoenix sim --check-filter FAMILY ORDER BAND F1 [F2] [options]
                 group delay or a transient analysis of a SPICE-style netlist or of a schematic,
                 as CSV or JSON; run `phoenix sim` alone for its options
 
+phoenix ratsnest [--settings FILE] [--json] [--lang xx] <board>
+phoenix route [--settings FILE] [--rules FILE] [--layer NAME] [--mode around|stop] [--json]
+              [--lang xx] --from ELEMENT --to ELEMENT [--out FILE] <board>
+
+  ratsnest      the connections still to be routed on a board, net by net
+  route         one track (and the vias it needs) between two elements of a net, at 0, 45 and 90
+                degrees, keeping the clearances of the rules; writes the board with the track to
+                a new file given with --out (an existing file is never replaced); a prototype,
+                run `phoenix route` alone for its options
+
 phoenix view [--settings FILE] [--lang xx] [<board or schematic>]
 phoenix view --summary <file>  |  phoenix view --bench
 
@@ -151,6 +162,12 @@ pub fn run(args: &[String], out: &mut dyn Write, err: &mut dyn Write) -> i32 {
     }
     if let Some((&"sanitize", tail)) = rest.split_first() {
         return sanitize::sanitize_command(tail, out, err);
+    }
+    if let Some((&"route", tail)) = rest.split_first() {
+        return route::route_command(tail, out, err);
+    }
+    if let Some((&"ratsnest", tail)) = rest.split_first() {
+        return route::ratsnest_command(tail, out, err);
     }
     if let Some((&"sim", tail)) = rest.split_first() {
         return sim::sim_command(tail, out, err);

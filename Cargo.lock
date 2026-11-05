@@ -219,6 +219,7 @@ dependencies = [
  "eh3d-phoenix-kicad",
  "eh3d-phoenix-model",
  "eh3d-phoenix-rf",
+ "eh3d-phoenix-route",
  "eh3d-phoenix-rules",
  "eh3d-phoenix-sanitizer",
  "eh3d-phoenix-schematic",
@@ -333,6 +334,15 @@ dependencies = [
  "eh3d-diagnostic",
  "eh3d-phoenix-stackup",
  "thiserror",
+]
+
+[[package]]
+name = "eh3d-phoenix-route"
+version = "0.0.2"
+dependencies = [
+ "eh3d-phoenix-board",
+ "eh3d-phoenix-model",
+ "eh3d-phoenix-rules",
 ]
 
 [[package]]
