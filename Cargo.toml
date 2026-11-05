@@ -18,4 +18,5 @@ thiserror = "2"
 # the shared repository, next to this one; CI checks out the tag named in SIBLING_REFS
 eh3d-container = { version = ">=0.0.1", path = "../EH3D-COMMON/crates/container" }
 eh3d-diagnostic = { version = ">=0.0.1", path = "../EH3D-COMMON/crates/diagnostic" }
+eh3d-materials = { version = ">=0.0.1", path = "../EH3D-COMMON/crates/materials" }
 tempfile = "3"

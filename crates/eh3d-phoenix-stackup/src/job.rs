@@ -27,7 +27,9 @@ pub const MAX_MATERIALS: usize = 256;
 pub struct StackupJob {
     /// The layers of the board.
     pub stackup: Stackup,
-    /// The materials the layers refer to.
+    /// The materials the layers refer to. It may be missing when `phoenix stackup --material`
+    /// brings them from the materials database.
+    #[serde(default)]
     pub materials: Vec<MaterialSample>,
     /// The lines to compute.
     pub lines: Vec<LineSpec>,
@@ -47,14 +49,27 @@ pub struct LineOutcome {
 impl StackupJob {
     /// Read and check a job text. Nothing is computed.
     pub fn parse(text: &str) -> Result<StackupJob, StackupError> {
+        StackupJob::parse_with(text, Vec::new())
+    }
+
+    /// Read and check a job text with more materials than the file lists (for example the ones
+    /// taken from the materials database). A material of the file wins over one of the same name
+    /// in `extra`. Nothing is computed.
+    pub fn parse_with(text: &str, extra: Vec<MaterialSample>) -> Result<StackupJob, StackupError> {
         if text.len() > MAX_JOB_BYTES {
             return Err(StackupError::InvalidJob {
                 reason: format!("the file is larger than {MAX_JOB_BYTES} bytes"),
             });
         }
-        let job: StackupJob = serde_json::from_str(text).map_err(|e| StackupError::InvalidJob {
-            reason: e.to_string(),
-        })?;
+        let mut job: StackupJob =
+            serde_json::from_str(text).map_err(|e| StackupError::InvalidJob {
+                reason: e.to_string(),
+            })?;
+        for sample in extra {
+            if !job.materials.iter().any(|m| m.name == sample.name) {
+                job.materials.push(sample);
+            }
+        }
         if job.materials.len() > MAX_MATERIALS {
             return Err(StackupError::InvalidJob {
                 reason: format!("more than {MAX_MATERIALS} materials"),
@@ -394,5 +409,36 @@ mod tests {
             StackupJob::parse(&none),
             Err(StackupError::InvalidJob { .. })
         ));
+    }
+
+    fn extra(name: &str, dk: f64) -> MaterialSample {
+        MaterialSample {
+            name: name.to_string(),
+            dk_points: vec![(1.0, dk), (10.0, dk)],
+            df_points: vec![(1.0, 0.01), (10.0, 0.01)],
+            thickness_nm: None,
+        }
+    }
+
+    #[test]
+    fn extra_materials_complete_a_job_and_the_file_wins() {
+        let bare = r#"{
+            "stackup": {"name": "bare", "layers": [
+                {"kind": "copper", "name": "top", "thickness": {"um": 35.0}},
+                {"kind": "core", "name": "core", "thickness_nm": 1600000, "material": "vendor/extra"},
+                {"kind": "copper", "name": "bottom", "thickness": {"um": 35.0}}
+            ]},
+            "lines": [{"name": "fixed", "kind": "microstrip", "layer": "top", "width_nm": 3000000}]
+        }"#;
+        assert!(matches!(
+            StackupJob::parse(bare),
+            Err(StackupError::UnknownMaterial { .. })
+        ));
+        let job = StackupJob::parse_with(bare, vec![extra("vendor/extra", 3.5)]).unwrap();
+        assert_eq!(job.materials.len(), 1);
+        let kept =
+            StackupJob::parse_with(JOB, vec![extra("fr4-test", 9.0), extra("other", 3.0)]).unwrap();
+        assert_eq!(kept.materials.len(), 2);
+        assert_eq!(kept.materials[0].dk_points, vec![(1.0, 4.5), (10.0, 4.3)]);
     }
 }

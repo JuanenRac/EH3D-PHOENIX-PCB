@@ -8,15 +8,13 @@ repository.workspace = true
 description = "Board stack-up and transmission-line calculations: layers with copper in ounces or micrometres, Dk and Df interpolated between published points, impedance and effective permittivity of microstrip, stripline, coplanar waveguide and coupled pairs, conductor and dielectric loss, delay, and synthesis of a track width"
 
 [features]
-# An adapter from the materials database of EH3D-COMMON (`src/materials_adapter.rs`). It is off
-# by default and cannot be switched on yet: the CI builds against a tag of EH3D-COMMON that does
-# not contain the materials crate, and Cargo reads every dependency named here even when its
-# feature is off. When EH3D-COMMON publishes the crate, add the line
-# `eh3d-materials = { path = "../../../EH3D-COMMON/crates/materials", optional = true }` to the
-# dependencies and change this feature to `materials = ["dep:eh3d-materials"]`.
-materials = []
+# An adapter from the materials database of EH3D-COMMON (`src/materials_adapter.rs`): a material
+# of the database becomes a `MaterialSample`. It is off by default in this crate; the command line
+# switches it on.
+materials = ["dep:eh3d-materials"]
 
 [dependencies]
+eh3d-materials = { workspace = true, optional = true }
 eh3d-diagnostic.workspace = true
 serde.workspace = true
 serde_json.workspace = true

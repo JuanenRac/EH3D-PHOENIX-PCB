@@ -11,7 +11,7 @@ permissions:
 
 env:
   # The tag of each sibling repository this one is built against (name=tag, separated by spaces); a sibling that is not listed is taken at main.
-  SIBLING_REFS: "EH3D-COMMON=v0.1.6"
+  SIBLING_REFS: "EH3D-COMMON=v0.1.8"
 
 jobs:
   validate:
@@ -82,6 +82,12 @@ jobs:
         working-directory: EH3D-PHOENIX-PCB
       - name: Lints
         run: cargo clippy --all-targets -- -D warnings
+        working-directory: EH3D-PHOENIX-PCB
+      - name: Lints with the materials database
+        run: |
+          cargo clippy -p eh3d-phoenix-stackup --all-targets --features materials -- -D warnings
+          cargo clippy -p eh3d-phoenix-cli --all-targets --no-default-features -- -D warnings
+          cargo clippy --workspace --all-targets --all-features -- -D warnings
         working-directory: EH3D-PHOENIX-PCB
       - name: Lints of the window
         run: cargo clippy -p eh3d-phoenix-viewer -p eh3d-phoenix-cli --all-targets --features gui -- -D warnings
