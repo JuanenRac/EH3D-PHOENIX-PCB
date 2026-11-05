@@ -889,7 +889,7 @@ mod tests {
         let (i, g) = breakdown_point(5.1, 1e-3, 0.025_865, -5.1);
         assert!((i + 1e-3).abs() < 1e-15);
         assert!((g - 1e-3 / 0.025_865).abs() < 1e-9);
-        // a thousand times smaller a few tens of millivolts above, and nothing at zero volts
+        // two thousand times smaller 0.2 V above the knee, and nothing at zero volts
         let (small, _) = breakdown_point(5.1, 1e-3, 0.025_865, -4.9);
         assert!(small.abs() < 1e-6, "{small}");
         let (none, _) = breakdown_point(5.1, 1e-3, 0.025_865, 0.0);
