@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! The command line of EH3D-PHOENIX-PCB. It has nineteen commands, `inventory`, `eagle-rate`,
+//! The command line of EH3D-PHOENIX-PCB. It has twenty commands, `inventory`, `eagle-rate`,
 //! `stackup`, `materials`, `check`, `connectivity`, `erc`, `sync`, `export`, `rf`, `rfgen`, `kicad-read`, `sanitize`,
-//! `sim`, `route`, `ratsnest`, `script`, `cam-import` and `view`.
+//! `sim`, `route`, `ratsnest`, `script`, `cam-import`, `schedit` and `view`.
 //!
 //! Exit codes: 0 done, 1 `stackup` could not compute one or more of the lines it was asked for,
 //! `check`, `connectivity` and `erc` proved an error, or `sync` found changes to make, 2 the
@@ -18,6 +18,7 @@ mod rf;
 mod rfgen;
 mod route;
 mod sanitize;
+mod schedit;
 mod script;
 mod sim;
 mod view;
@@ -141,6 +142,16 @@ phoenix cam-import [--config FILE] [--json] [--out FILE] [--lang xx] <job.cam>
                 a prototype, run `phoenix script` alone for its options
   cam-import    read an output job into an export profile and report what could be translated
 
+phoenix schedit [--erc-config FILE] [--json] [--lang xx] --apply OPERATIONS.json [--out FILE]
+                <schematic>
+
+  schedit       apply a file of editing operations (place, move, turn, mirror and delete parts,
+                copy and paste, values and references, wires, net labels, power ports, bus labels)
+                to a schematic, all or nothing, make the nets again from the drawing and run the
+                electrical rule check on the result; a dry run unless --out names a new file
+                (.json or .sch), and an input file is never written over (run `phoenix schedit`
+                alone for its options)
+
 phoenix view [--settings FILE] [--lang xx] [<board or schematic>]
 phoenix view --summary <file>  |  phoenix view --bench
 
@@ -218,6 +229,9 @@ pub fn run(args: &[String], out: &mut dyn Write, err: &mut dyn Write) -> i32 {
     }
     if let Some((&"sim", tail)) = rest.split_first() {
         return sim::sim_command(tail, out, err);
+    }
+    if let Some((&"schedit", tail)) = rest.split_first() {
+        return schedit::schedit_command(tail, out, err);
     }
     if let Some((&"view", tail)) = rest.split_first() {
         return view::view(tail, out, err);

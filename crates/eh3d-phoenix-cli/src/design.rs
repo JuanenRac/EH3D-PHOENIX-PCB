@@ -110,7 +110,7 @@ fn fail(err: &mut dyn Write, message: &str) -> i32 {
     2
 }
 
-fn has_extension(path: &str, wanted: &str) -> bool {
+pub(crate) fn has_extension(path: &str, wanted: &str) -> bool {
     Path::new(path)
         .extension()
         .and_then(|e| e.to_str())
@@ -128,7 +128,7 @@ fn load_board(path: &str, new_id: &mut dyn FnMut() -> ObjectId) -> Result<Board,
     }
 }
 
-fn load_schematic(
+pub(crate) fn load_schematic(
     path: &str,
     footprints: &BTreeMap<String, ObjectId>,
     new_id: &mut dyn FnMut() -> ObjectId,
@@ -179,7 +179,12 @@ fn used_ids(schematic: &Schematic, board: &Board) -> BTreeSet<ObjectId> {
     used
 }
 
-fn write_atomic(path: &str, bytes: &[u8], retries: u32, wait_ms: u64) -> Result<(), String> {
+pub(crate) fn write_atomic(
+    path: &str,
+    bytes: &[u8],
+    retries: u32,
+    wait_ms: u64,
+) -> Result<(), String> {
     let target = Path::new(path);
     let mut name = target.as_os_str().to_owned();
     name.push(".tmp");
@@ -201,7 +206,7 @@ fn write_atomic(path: &str, bytes: &[u8], retries: u32, wait_ms: u64) -> Result<
     }
 }
 
-fn same_file(a: &str, b: &str) -> bool {
+pub(crate) fn same_file(a: &str, b: &str) -> bool {
     match (std::fs::canonicalize(a), std::fs::canonicalize(b)) {
         (Ok(x), Ok(y)) => x == y,
         _ => a == b,
