@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! The command line of EH3D-PHOENIX-PCB. It has six commands, `inventory`, `eagle-rate`,
-//! `stackup`, `check`, `connectivity` and `export`.
+//! The command line of EH3D-PHOENIX-PCB. It has seven commands, `inventory`, `eagle-rate`,
+//! `stackup`, `check`, `connectivity`, `export` and `rf`.
 //!
 //! Exit codes: 0 done, 1 `stackup` could not compute one or more of the lines it was asked for, or
 //! `check` and `connectivity` proved an error, 2 the arguments or the input are unusable.
@@ -9,6 +9,7 @@
 
 mod check;
 mod export;
+mod rf;
 
 use eh3d_phoenix_corpus::{inventory, InventoryConfig};
 use eh3d_phoenix_stackup::{report_json, report_text, Language, StackupJob, StackupSettings};
@@ -48,6 +49,11 @@ phoenix export [--profile NAME] [--profiles FILE] [--lang xx] [--eh3dproj FILE] 
                 placement, bill of materials) and manifest.json with their SHA-256, made with a
                 profile of a JSON file and checked against the board before they are written
                 (exit 1 when they differ)
+
+phoenix rf touchstone|match|filter ...
+
+  rf            everyday RF tools: Touchstone files, impedance matching and ladder filters
+                (run `phoenix rf` alone for its usage)
 ";
 
 /// Run the command line with the arguments that follow the program name. Returns the exit code.
@@ -83,6 +89,9 @@ pub fn run(args: &[String], out: &mut dyn Write, err: &mut dyn Write) -> i32 {
     }
     if let Some((&"export", tail)) = rest.split_first() {
         return export::export(tail, out, err);
+    }
+    if let Some((&"rf", tail)) = rest.split_first() {
+        return rf::rf(tail, out, err);
     }
     if let ["eagle-rate", source, copies] = rest.as_slice() {
         return eagle_rate(Path::new(source), Path::new(copies), out, err);

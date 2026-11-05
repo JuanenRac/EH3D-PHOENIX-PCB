@@ -22,6 +22,7 @@ eh3d-phoenix-eagle = { path = "../eh3d-phoenix-eagle" }
 eh3d-phoenix-eagle-board = { path = "../eh3d-phoenix-eagle-board" }
 eh3d-phoenix-export = { path = "../eh3d-phoenix-export" }
 eh3d-phoenix-model = { path = "../eh3d-phoenix-model" }
+eh3d-phoenix-rf = { path = "../eh3d-phoenix-rf" }
 eh3d-phoenix-rules = { path = "../eh3d-phoenix-rules" }
 eh3d-phoenix-stackup = { path = "../eh3d-phoenix-stackup" }
 

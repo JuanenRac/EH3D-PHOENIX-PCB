@@ -165,7 +165,7 @@ fn random_network(rng: &mut Lcg) -> Mat2 {
 
 #[test]
 fn every_conversion_round_trips_on_random_passive_networks() {
-    let mut rng = Lcg(2024);
+    let mut rng = Lcg(4096);
     for _ in 0..300 {
         let abcd = random_network(&mut rng);
         let z0 = 25.0 + 100.0 * rng.uniform();

@@ -217,6 +217,7 @@ dependencies = [
  "eh3d-phoenix-eagle-board",
  "eh3d-phoenix-export",
  "eh3d-phoenix-model",
+ "eh3d-phoenix-rf",
  "eh3d-phoenix-rules",
  "eh3d-phoenix-schematic",
  "eh3d-phoenix-stackup",
