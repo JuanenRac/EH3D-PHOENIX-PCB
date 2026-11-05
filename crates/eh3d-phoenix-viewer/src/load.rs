@@ -243,10 +243,10 @@ mod tests {
 
     #[test]
     fn a_document_with_nothing_to_draw_is_refused() {
-        let empty = Document::Board(Box::new(Board::default()));
+        let empty = Document::Board(Box::default());
         let error = scene_of(&empty, &ViewerSettings::default()).unwrap_err();
         assert_eq!(error.code, NOTHING_TO_DRAW);
-        let empty = Document::Schematic(Box::new(Schematic::default()));
+        let empty = Document::Schematic(Box::default());
         assert_eq!(
             scene_of(&empty, &ViewerSettings::default())
                 .unwrap_err()
