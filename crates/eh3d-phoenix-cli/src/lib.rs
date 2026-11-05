@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! The command line of EH3D-PHOENIX-PCB. It has twelve commands, `inventory`, `eagle-rate`,
-//! `stackup`, `check`, `connectivity`, `erc`, `sync`, `export`, `rf`, `kicad-read`, `sanitize` and
+//! The command line of EH3D-PHOENIX-PCB. It has thirteen commands, `inventory`, `eagle-rate`,
+//! `stackup`, `check`, `connectivity`, `erc`, `sync`, `export`, `rf`, `kicad-read`, `sanitize`, `sim` and
 //! `view`.
 //!
 //! Exit codes: 0 done, 1 `stackup` could not compute one or more of the lines it was asked for,
@@ -15,6 +15,7 @@ mod export;
 mod kicad;
 mod rf;
 mod sanitize;
+mod sim;
 mod view;
 
 use eh3d_phoenix_corpus::{inventory, InventoryConfig};
@@ -86,31 +87,13 @@ phoenix sanitize [--out BASE] [--threshold N] [--config FILE] [--lang xx] [--jso
                 report and a plan of the master library that is never applied; the libraries
                 are only read
 
-phoenix export [--profile NAME] [--profiles FILE] [--lang xx] [--eh3dproj FILE] --out <folder> <board>
+phoenix sim <netlist or schematic.json> --op | --ac KIND N F1 F2 | --tran STEP STOP [options]
+phoenix sim --check-filter FAMILY ORDER BAND F1 [F2] [options]
 
-  export        the manufacturing files of a board (Gerber X2, plated and not plated drills,
-                placement, bill of materials) and manifest.json with their SHA-256, made with a
-                profile of a JSON file and checked against the board before they are written
-                (exit 1 when they differ)
-
-phoenix rf touchstone|match|filter ...
-
-  rf            everyday RF tools: Touchstone files, impedance matching and ladder filters
-                (run `phoenix rf` alone for its usage)
-
-phoenix kicad-read [--settings FILE] [--lang xx] [--redacted] <file>
-
-  kicad-read    read a KiCad 6 to 9 file (schematic with its sheets, board, symbol library,
-                footprint or project) into the design model and summarise it: what was kept,
-                changed and left out, the findings with their codes and the fidelity level
-
-phoenix sanitize [--out BASE] [--threshold N] [--config FILE] [--lang xx] [--json] <folder>
-
-  sanitize      find the footprints, symbols and device sets that are duplicated or nearly
-                duplicated in a folder of EAGLE libraries: an inventory, a canonical geometric
-                hash, a score against a threshold, groups to confirm by hand, an HTML and a JSON
-                report and a plan of the master library that is never applied; the libraries
-                are only read
+  sim           simulate a circuit with the solver of this program (modified nodal analysis, a
+                prototype never compared with SPICE): the DC operating point, an AC sweep with
+                group delay or a transient analysis of a SPICE-style netlist or of a schematic,
+                as CSV or JSON; run `phoenix sim` alone for its options
 
 phoenix view [--settings FILE] [--lang xx] [<board or schematic>]
 phoenix view --summary <file>  |  phoenix view --bench
@@ -168,6 +151,9 @@ pub fn run(args: &[String], out: &mut dyn Write, err: &mut dyn Write) -> i32 {
     }
     if let Some((&"sanitize", tail)) = rest.split_first() {
         return sanitize::sanitize_command(tail, out, err);
+    }
+    if let Some((&"sim", tail)) = rest.split_first() {
+        return sim::sim_command(tail, out, err);
     }
     if let Some((&"view", tail)) = rest.split_first() {
         return view::view(tail, out, err);
