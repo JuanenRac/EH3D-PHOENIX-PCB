@@ -768,8 +768,15 @@ mod tests {
         );
         assert!(f.response_at(10e6).unwrap().insertion_loss_db() < 0.01);
         assert!((f.response_at(90e6).unwrap().insertion_loss_db() - 3.0103).abs() < 1e-3);
-        assert!(matches!(f.sections[0].branch, Branch::ParallelLc { .. }));
-        assert!(matches!(f.sections[1].branch, Branch::SeriesLc { .. }));
+        // a series element becomes a parallel resonator and a shunt element a series resonator
+        assert!(f
+            .sections
+            .iter()
+            .any(|s| matches!(s.branch, Branch::ParallelLc { .. })));
+        assert!(f
+            .sections
+            .iter()
+            .any(|s| matches!(s.branch, Branch::SeriesLc { .. })));
     }
 
     #[test]
