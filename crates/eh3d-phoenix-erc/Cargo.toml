@@ -1,0 +1,17 @@
+[package]
+name = "eh3d-phoenix-erc"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Electrical rule check of a schematic: unconnected pins, single-pin nets, conflicts between pin types by a matrix in a settings file, inputs without a driver, supplies without a source, similar net names, duplicate references, empty values, parts without a footprint and loose wires, with a report that keeps confirmed and inconclusive findings apart"
+
+[dependencies]
+eh3d-phoenix-rules = { path = "../eh3d-phoenix-rules" }
+eh3d-phoenix-schematic = { path = "../eh3d-phoenix-schematic" }
+serde_json = { workspace = true, features = ["float_roundtrip"] }
+thiserror.workspace = true
+
+[dev-dependencies]
+eh3d-phoenix-model = { path = "../eh3d-phoenix-model" }

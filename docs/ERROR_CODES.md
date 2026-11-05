@@ -2,7 +2,7 @@
 
 Codes have the form `PHOENIX-<AREA>-<NNN>`. A code is stable: it never changes its meaning and is never reused. Programs show the text through the key `diag.<code>`; the codes themselves are never translated. The object identity (UUID v7) is the one of the shared container, with its own codes `EH3D-ID-001` and `EH3D-ID-002`. The container codes `EH3D-PKG-001` to `EH3D-PKG-014` belong to the shared container and are listed in the registry of the documentation repository.
 
-Each table repeats the `REGISTRY` of a crate (`eh3d-phoenix-model` in `src/diagnostic.rs`, `eh3d-phoenix-project` and `eh3d-phoenix-eagle` in `src/codes.rs`, `eh3d-phoenix-hub` in `src/lib.rs`, `eh3d-phoenix-export` in `src/codes.rs`, `eh3d-phoenix-schematic` in `src/model.rs` and `src/link.rs`, `eh3d-phoenix-board` in `src/validate.rs`, `src/connectivity.rs` and `src/rules.rs`, `eh3d-phoenix-rules` in `src/codes.rs`, `eh3d-phoenix-stackup` and `eh3d-phoenix-rf` in `src/error.rs`, `eh3d-phoenix-viewer` and `eh3d-phoenix-sanitizer` in `src/codes.rs`); a test of each crate checks that every code of its registry is in the table with the same title.
+Each table repeats the `REGISTRY` of a crate (`eh3d-phoenix-model` in `src/diagnostic.rs`, `eh3d-phoenix-project` and `eh3d-phoenix-eagle` in `src/codes.rs`, `eh3d-phoenix-hub` in `src/lib.rs`, `eh3d-phoenix-export` in `src/codes.rs`, `eh3d-phoenix-schematic` in `src/model.rs` and `src/link.rs`, `eh3d-phoenix-board` in `src/validate.rs`, `src/connectivity.rs` and `src/rules.rs`, `eh3d-phoenix-rules` in `src/codes.rs`, `eh3d-phoenix-stackup` and `eh3d-phoenix-rf` in `src/error.rs`, `eh3d-phoenix-viewer`, `eh3d-phoenix-sanitizer`, `eh3d-phoenix-erc` and `eh3d-phoenix-sync` in `src/codes.rs`); a test of each crate checks that every code of its registry is in the table with the same title.
 
 ## Model foundations
 
@@ -287,3 +287,76 @@ The titles of these codes also exist in the eight languages of the suite (`TITLE
 | PHOENIX-SAN-011 | Name used twice in a library | two footprints, symbols or device sets with one name in one library; the later one is left out |
 | PHOENIX-SAN-012 | Command option is not valid | no folder or two folders, an option that does not exist or lacks its value, a threshold that is not a whole number from 0 to 100, a language that is not one of the eight |
 | PHOENIX-SAN-013 | The reader reported problems in a library | the EAGLE reader found a dangling reference or another problem in a library that is read all the same; the detail lists the codes of the reader |
+
+## Electrical rule check (`eh3d-phoenix-erc`, `src/codes.rs`)
+
+The titles of these codes also exist in the eight languages of the suite (`TITLES` in `src/codes.rs`); the detail of a finding is in English. A rule can be turned off or given another level in `config/erc.cfg`.
+
+| Code | Title | Raised by |
+|---|---|---|
+| PHOENIX-ERC-001 | Pin is not connected | a pin of a part that is on no net, unless its type is `not_connected` |
+| PHOENIX-ERC-002 | Net has a single pin | a net with one pin or none (a warning) |
+| PHOENIX-ERC-003 | Pin types in conflict on a net | two pins on one net whose types the matrix of `config/erc.cfg` does not allow together; the level is the one of the pair in the matrix |
+| PHOENIX-ERC-004 | Input pins have no driver | a net with input pins and no pin of the types listed as `drivers` |
+| PHOENIX-ERC-005 | Power input has no source | a net with power input pins and no pin of the types listed as `power_sources` |
+| PHOENIX-ERC-006 | Net names look alike | two names that differ only by case or by a number on the end, when the stem has at least `similar_name_min_stem` characters (a warning) |
+| PHOENIX-ERC-007 | Reference designator used twice | two or more parts with one reference designator |
+| PHOENIX-ERC-008 | Part has no value | a part with an empty value (a warning) |
+| PHOENIX-ERC-009 | Part has no reference designator | a part with an empty reference designator |
+| PHOENIX-ERC-010 | Part has no footprint | a part with no footprint chosen (a warning) |
+| PHOENIX-ERC-011 | Symbol pin has no number | a pin of a symbol with an empty number |
+| PHOENIX-ERC-012 | Pin number used twice in a symbol | two or more pins of one symbol with one number |
+| PHOENIX-ERC-013 | Wires join no pin | wires joined to each other but to no pin of a placed part (a warning) |
+| PHOENIX-ERC-014 | Junction on wires that join no pin | three or more wire pieces meeting at a point of wires that join no pin (a warning) |
+| PHOENIX-ERC-015 | Check could not be judged | a finding in the inconclusive list: pins without a type, pins without a position, a list cut at `max_findings` (information, never a failure) |
+| PHOENIX-ERC-016 | Settings are not valid | a line of the settings text that is not `key = value`, an unknown key or rule, or a value out of range |
+
+## Synchronisation (`eh3d-phoenix-sync`, `src/codes.rs`)
+
+The titles of these codes also exist in the eight languages of the suite (`TITLES` in `src/codes.rs`). A change (001 to 008) is in the confirmed list of the report, what could not be judged or done (009 to 013) in the inconclusive list.
+
+| Code | Title | Raised by |
+|---|---|---|
+| PHOENIX-SYNC-001 | Part has no component on the board | a part of the schematic that no component was made from; forward annotation adds the component |
+| PHOENIX-SYNC-002 | Component has no part in the schematic | a component that names a part that is gone; it is kept, or removed when `remove_missing_components` is true (information) |
+| PHOENIX-SYNC-003 | Reference designators differ | a part and its component with different reference designators |
+| PHOENIX-SYNC-004 | Values differ | a part and its component with different values |
+| PHOENIX-SYNC-005 | Footprints differ | a part with a footprint chosen that is not the one of its component (backward, also a part with none chosen) |
+| PHOENIX-SYNC-006 | Net is new on the board | a net of the schematic that the board does not have |
+| PHOENIX-SYNC-007 | Net of the board is renamed | a net of the board that the pads of a schematic net all sit on, with another name |
+| PHOENIX-SYNC-008 | Pad changes net | a pad on another net than its pin, or on a net when its pin is on none |
+| PHOENIX-SYNC-009 | Footprint is not chosen or not on the board | a part without a footprint, or with one the board does not have, so no component is made or no footprint changed (inconclusive) |
+| PHOENIX-SYNC-010 | Pin has no pad in the footprint | a pin of a net whose number no pad of the footprint of the component has (inconclusive) |
+| PHOENIX-SYNC-011 | Part used by two components | two components made from one part; the second is left alone (inconclusive) |
+| PHOENIX-SYNC-012 | Reference designator would be empty or used twice | a change of reference designator that would leave it empty or give it to two parts (inconclusive) |
+| PHOENIX-SYNC-013 | Two nets of the schematic share a name | a second net with the name of another; it is left alone (inconclusive) |
+| PHOENIX-SYNC-014 | Settings are not valid | a line of the settings text that is not `key = value`, an unknown key or a value out of range |
+| PHOENIX-SYNC-015 | Change could not be applied | an operation that does not apply to the document it is applied to (a package made for another board or schematic) |
+
+## Circuit simulator (`eh3d-phoenix-sim`, `src/codes.rs`)
+
+The titles of these codes also exist in the eight languages of the suite (`TITLES` in `src/codes.rs`); the detail of a message is in English. A message about a netlist names the line.
+
+| Code | Title | Raised by |
+|---|---|---|
+| PHOENIX-SIM-001 | Netlist line is not valid | a line with too few or too many fields, a brace or a continuation line that has nothing to continue, an option that is not understood in a source; the message names the line |
+| PHOENIX-SIM-002 | Value is not valid | a number, a unit or an expression between braces that cannot be read, a resistance or an inductance that is not above zero, a coupling coefficient outside 0 and 1, a waveform with values that do not fit; the message names the line |
+| PHOENIX-SIM-003 | Element, directive or model is not supported | an element letter other than `R C L V I E G F H K D X`, a model that is not a diode, the parameters of a subcircuit; the message names the line |
+| PHOENIX-SIM-004 | Name is used twice | two elements, two models, two subcircuits or two parameters with the same name (element names are compared without regard to case) |
+| PHOENIX-SIM-005 | Reference to something that is not defined | a diode with a model that is not there, an instance of a subcircuit that is not defined, a parameter that is not defined, an inductor of a coupling or a voltage source of a controlled source that is not in the same circuit, a probe that is not an unknown of the circuit |
+| PHOENIX-SIM-006 | Subcircuit is not valid | a `.subckt` inside another, without ports, with a ground or repeated port, not closed by `.ends`, closed with another name, an instance with the wrong number of nodes, or nested deeper than `max_subckt_depth` (a subcircuit that calls itself) |
+| PHOENIX-SIM-007 | Simulator settings are not valid | a line of the settings text that is not `key = value`, an unknown key or a value out of range |
+| PHOENIX-SIM-008 | Limit of the settings exceeded | a netlist larger than `max_file_bytes` or with more than `max_lines` lines, more than `max_elements` elements, more than `max_unknowns` unknowns, more than `max_ac_points` frequencies, more than `max_tran_steps` steps or a result of more than `max_result_cells` values |
+| PHOENIX-SIM-009 | Circuit equations cannot be solved (singular matrix) | a pivot that is zero, not finite or below `pivot_tolerance` of its column; the message names the unknown left undetermined (voltage sources in parallel, a loop of voltage sources or inductors, a node held only by current sources) |
+| PHOENIX-SIM-010 | Node has no path to ground | nodes joined to ground by nothing but capacitors (in DC) or current sources; the message names the nodes; with `floating_is_error = false` a small conductance holds them instead |
+| PHOENIX-SIM-011 | Newton-Raphson iteration did not converge | more than `newton_max_iter` iterations of a circuit with diodes, after the source stepping has also failed |
+| PHOENIX-SIM-012 | Analysis request is not valid | a time step or stop time that is not above zero or a step larger than the stop time, a sweep with no points, a start frequency that is not above zero or a stop frequency below the start, a frequency that is not above zero, an output that is not in the circuit, an RF filter that cannot be designed |
+| PHOENIX-SIM-013 | Output file cannot be written | a table or a JSON file that could not be written |
+| PHOENIX-SIM-014 | Schematic part could not be translated | a part whose reference designator is not one letter of `R C L V I D E G F H K` followed by digits, whose symbol is missing or has the wrong number of pins, that has no value, whose value does not read, or that repeats a reference designator; the message names the part and the reason (information) |
+| PHOENIX-SIM-015 | No ground node | a circuit in which no element is connected to node 0 (or `gnd`), or a schematic in which no translated element is on a ground net |
+| PHOENIX-SIM-016 | Command option is not valid | no analysis or no input, an option that does not exist or lacks its value, a number that is not a number, a language that is not one of the eight, a filter family or band that does not exist, a Chebyshev filter without `--ripple-db` |
+| PHOENIX-SIM-017 | Result is not a finite number | a solution of the equations that overflows or is not a number |
+| PHOENIX-SIM-018 | Simulation disagrees with the RF filter response | a difference of magnitude, phase or group delay above the tolerances of the settings in the check against a ladder filter of the RF tools; the message gives the figures |
+| PHOENIX-SIM-019 | Time step reached the minimum | an adaptive step at its smallest size whose estimated error is still above the tolerances; the step is kept (a warning) |
+| PHOENIX-SIM-020 | Schematic pin is on no net | a pin of a part that no net lists; it gets a node of its own and the message names the part and the pin (information) |
+| PHOENIX-SIM-021 | Input file cannot be read | a netlist or schematic file that cannot be opened, is larger than the limit, is not UTF-8 text or is not a schematic of the project format |
