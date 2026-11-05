@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! The command `sim`: circuit simulation with the solver of our own. It reads a SPICE-style
 //! netlist, or the schematic of a project and translates it, and runs one analysis: the
-//! operating point, an AC sweep or a transient. It can also print the netlist of a schematic, and
-//! check a ladder filter of the RF tools against its simulation.
+//! operating point, a DC sweep, an AC sweep or a transient (named on the command line, or else
+//! the first one the netlist asks for with `.op`, `.dc`, `.ac` or `.tran`). A file of models can
+//! be read with it (`--model`). It can also print the netlist of a schematic, and check a ladder
+//! filter of the RF tools against its simulation. Nothing is written unless `--out` is given.
 //!
 //! Exit codes: 0 done, 1 the simulation disagrees with the RF filter (`--check-filter`), 2 the
 //! arguments, the settings or the input are unusable or the circuit cannot be solved.
@@ -16,28 +18,37 @@ use eh3d_phoenix_rules::Lang;
 use eh3d_phoenix_sim::codes::{SimError, INPUT_UNREADABLE, OPTION_INVALID, SETTINGS_INVALID};
 use eh3d_phoenix_sim::filter::check_frequencies;
 use eh3d_phoenix_sim::output::{
-    ac_csv, ac_json, op_csv, op_json, select, tran_csv, tran_json, write_outputs,
+    ac_csv, ac_json, dc_csv, dc_json, op_csv, op_json, select, tran_csv, tran_json, write_outputs,
 };
 use eh3d_phoenix_sim::units::parse_number;
 use eh3d_phoenix_sim::{
-    ac_analysis, compare_filter, netlist_from_schematic_json, operating_point, parse, to_spice,
-    transient, AcRequest, Circuit, Method, Netlist, SimSettings, SweepKind, TranRequest,
+    ac_analysis, compare_filter, dc_sweep, netlist_from_schematic_json, operating_point,
+    read_netlist_file, to_spice, transient, AcRequest, Circuit, DcRequest, Directive, Method,
+    Netlist, SimSettings, SweepKind, TranRequest,
 };
 
 pub(crate) const USAGE: &str = "\
-phoenix sim [--config FILE] [--lang xx] [--json] [--out BASE] [--probe LIST] <input> <analysis>
+phoenix sim [--config FILE] [--lang xx] [--json] [--out BASE] [--probe LIST] [--model FILE] <input> [<analysis>]
 phoenix sim [--config FILE] [--lang xx] --check-filter FAMILY ORDER BAND F1 [F2] [--ripple-db DB] [--z0 OHM]
 
   sim         simulate a circuit with the solver of this program (modified nodal analysis; a
               prototype, never compared with SPICE). <input> is a SPICE-style netlist, or the
               schematic of a project (a .json file), which is translated first and reported on
-  --op                    the DC operating point (diodes by Newton-Raphson)
+  --op                    the DC operating point (Newton-Raphson for the non-linear devices; the
+                          iterations, the strategy and the residual are reported in the JSON)
+  --dc SRC START STOP STEP
+                          sweep an independent source and solve the operating point at each value
+                          (a negative STEP sweeps downwards)
   --ac KIND N F1 F2       an AC sweep; KIND is lin (N points), dec (N per decade) or oct (N per
                           octave); the magnitude, dB, phase and group delay are written
   --tran STEP STOP        a transient analysis; add --uic to start from the initial conditions,
                           --adaptive for an adaptive step (STEP is then the largest) and
                           --method be|trap (trapezoidal by default)
   --netlist               print the netlist (useful for a schematic) and stop
+  (no analysis)           the first .op, .dc, .ac or .tran line of the netlist is run
+  --model FILE            read a file of .model and .subckt lines before the netlist; it is only
+                          read, never changed. An .include in a netlist is allowed only for a file
+                          in the same folder
   --probe LIST            the unknowns to write, such as v(out),i(v1); all by default
   --out BASE              write BASE.csv and BASE.json instead of printing
   --json                  print JSON instead of CSV
@@ -55,8 +66,9 @@ const MAX_CONFIG_BYTES: u64 = 1024 * 1024;
 
 enum Analysis {
     Op,
+    Dc(String, f64, f64, f64),
     Ac(SweepKind, usize, f64, f64),
-    Tran(f64, f64),
+    Tran(f64, f64, bool),
     Netlist,
     CheckFilter(Vec<String>),
 }
@@ -68,6 +80,7 @@ struct Options {
     out: Option<String>,
     probes: Vec<String>,
     input: Option<String>,
+    model: Option<String>,
     analysis: Option<Analysis>,
     uic: bool,
     adaptive: bool,
@@ -92,6 +105,7 @@ fn parse_options(args: &[&str]) -> Result<Options, SimError> {
         out: None,
         probes: Vec::new(),
         input: None,
+        model: None,
         analysis: None,
         uic: false,
         adaptive: false,
@@ -113,6 +127,14 @@ fn parse_options(args: &[&str]) -> Result<Options, SimError> {
             "--op" => options.analysis = Some(Analysis::Op),
             "--netlist" => options.analysis = Some(Analysis::Netlist),
             "--config" => options.config = Some(take("--config", &mut iter)?),
+            "--model" => options.model = Some(take("--model", &mut iter)?),
+            "--dc" => {
+                let source = take("--dc", &mut iter)?;
+                let start = number(&take("--dc", &mut iter)?, "the start value")?;
+                let stop = number(&take("--dc", &mut iter)?, "the stop value")?;
+                let step = number(&take("--dc", &mut iter)?, "the step")?;
+                options.analysis = Some(Analysis::Dc(source, start, stop, step));
+            }
             "--out" => options.out = Some(take("--out", &mut iter)?),
             "--lang" => {
                 let value = take("--lang", &mut iter)?;
@@ -152,7 +174,7 @@ fn parse_options(args: &[&str]) -> Result<Options, SimError> {
             "--tran" => {
                 let step = number(&take("--tran", &mut iter)?, "the time step")?;
                 let stop = number(&take("--tran", &mut iter)?, "the stop time")?;
-                options.analysis = Some(Analysis::Tran(step, stop));
+                options.analysis = Some(Analysis::Tran(step, stop, false));
             }
             "--check-filter" => {
                 // FAMILY ORDER BAND F1 and, for the two-edge bands, F2
@@ -201,6 +223,7 @@ fn read_settings(path: &str) -> Result<SimSettings, SimError> {
 /// of a translation is written to `err`.
 fn load(
     path: &str,
+    model: Option<&str>,
     settings: &SimSettings,
     lang: Lang,
     err: &mut dyn Write,
@@ -215,18 +238,41 @@ fn load(
             settings.max_file_bytes
         )));
     }
-    let bytes = std::fs::read(path).map_err(|e| unreadable(e.to_string()))?;
     let is_json = Path::new(path)
         .extension()
         .is_some_and(|e| e.eq_ignore_ascii_case("json"));
     if is_json {
+        if model.is_some() {
+            return Err(bad(
+                "--model applies to a netlist file; a schematic has no place for a file of models",
+            ));
+        }
+        let bytes = std::fs::read(path).map_err(|e| unreadable(e.to_string()))?;
         let (netlist, report) = netlist_from_schematic_json(&bytes, settings)?;
         let _ = err.write_all(report.to_text(lang).as_bytes());
         Ok(netlist)
     } else {
-        let text = String::from_utf8(bytes)
-            .map_err(|_| unreadable("the netlist is not UTF-8 text".to_string()))?;
-        parse(&text, settings)
+        read_netlist_file(Path::new(path), model.map(Path::new), settings)
+    }
+}
+
+/// The analysis a directive of the netlist asks for.
+fn from_directive(d: &Directive) -> Analysis {
+    match d {
+        Directive::Op => Analysis::Op,
+        Directive::Dc {
+            source,
+            start,
+            stop,
+            step,
+        } => Analysis::Dc(source.clone(), *start, *stop, *step),
+        Directive::Tran { tstep, tstop, uic } => Analysis::Tran(*tstep, *tstop, *uic),
+        Directive::Ac {
+            kind,
+            points,
+            start_hz,
+            stop_hz,
+        } => Analysis::Ac(*kind, *points, *start_hz, *stop_hz),
     }
 }
 
@@ -322,13 +368,13 @@ fn run_inner(args: &[&str], out: &mut dyn Write, err: &mut dyn Write) -> Result<
         Some(path) => read_settings(path)?,
         None => SimSettings::default(),
     };
-    let Some(analysis) = &options.analysis else {
+    if options.analysis.is_none() && options.input.is_none() {
         let _ = err.write_all(USAGE.as_bytes());
         return Err(bad(
-            "an analysis is needed: --op, --ac, --tran, --netlist or --check-filter",
+            "an analysis is needed: --op, --dc, --ac, --tran, --netlist or --check-filter",
         ));
-    };
-    if let Analysis::CheckFilter(words) = analysis {
+    }
+    if let Some(Analysis::CheckFilter(words)) = &options.analysis {
         if options.input.is_some() {
             return Err(bad("--check-filter takes no input file"));
         }
@@ -338,7 +384,34 @@ fn run_inner(args: &[&str], out: &mut dyn Write, err: &mut dyn Write) -> Result<
         let _ = err.write_all(USAGE.as_bytes());
         return Err(bad("an input file is needed"));
     };
-    let netlist = load(input, &settings, options.lang, err)?;
+    let netlist = load(
+        input,
+        options.model.as_deref(),
+        &settings,
+        options.lang,
+        err,
+    )?;
+    let from_netlist;
+    let analysis = match &options.analysis {
+        Some(analysis) => analysis,
+        None => {
+            let Some(first) = netlist.analyses.first() else {
+                let _ = err.write_all(USAGE.as_bytes());
+                return Err(bad(
+                    "an analysis is needed: --op, --dc, --ac, --tran, --netlist or --check-filter (the netlist asks for none)",
+                ));
+            };
+            if netlist.analyses.len() > 1 {
+                let _ = writeln!(
+                    err,
+                    "note: the netlist asks for {} analyses; the first one is run (name another with --op, --dc, --ac or --tran)",
+                    netlist.analyses.len()
+                );
+            }
+            from_netlist = from_directive(first);
+            &from_netlist
+        }
+    };
     if let Analysis::Netlist = analysis {
         let _ = out.write_all(to_spice(&netlist).as_bytes());
         return Ok(0);
@@ -354,6 +427,22 @@ fn run_inner(args: &[&str], out: &mut dyn Write, err: &mut dyn Write) -> Result<
                 &settings,
                 op_csv(&result, &selected),
                 op_json(&result, &selected),
+                out,
+            )?;
+        }
+        Analysis::Dc(source, start, stop, step) => {
+            let request = DcRequest {
+                source: source.clone(),
+                start: *start,
+                stop: *stop,
+                step: *step,
+            };
+            let result = dc_sweep(&circuit, &settings, &request)?;
+            emit(
+                &options,
+                &settings,
+                dc_csv(&result, &selected),
+                dc_json(&result, &selected),
                 out,
             )?;
         }
@@ -373,13 +462,13 @@ fn run_inner(args: &[&str], out: &mut dyn Write, err: &mut dyn Write) -> Result<
                 out,
             )?;
         }
-        Analysis::Tran(step, stop) => {
+        Analysis::Tran(step, stop, uic) => {
             let request = TranRequest {
                 tstep: *step,
                 tstop: *stop,
                 method: options.method,
                 adaptive: options.adaptive,
-                uic: options.uic,
+                uic: options.uic || *uic,
             };
             let result = transient(&circuit, &settings, &request)?;
             for note in &result.notes {

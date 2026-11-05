@@ -253,3 +253,152 @@ fn unusable_input_gives_exit_code_2_with_a_code_and_the_line() {
         assert!(err.contains("PHOENIX-SIM-"), "{args:?}: {err}");
     }
 }
+
+const MOS_INVERTER: &str = "nmos inverter\n.model nm NMOS(VTO=1 KP=2e-5 W=1e-3 L=1e-5)\nVDD vdd 0 DC 5\nVIN in 0 DC 0\nRD vdd out 1k\nM1 out in 0 0 nm\n";
+
+#[test]
+fn a_dc_sweep_is_printed_and_reports_its_convergence() {
+    let dir = tempfile::tempdir().unwrap();
+    let file = write(dir.path(), "inverter.cir", MOS_INVERTER);
+    let (code, out, err) = command(&[
+        "sim", &file, "--dc", "vin", "0", "5", "0.5", "--probe", "v(out)",
+    ]);
+    assert_eq!(code, 0, "{err}");
+    let mut lines = out.lines();
+    assert_eq!(lines.next().unwrap(), "sweep(vin),v(out)");
+    assert_eq!(lines.count(), 11);
+    // the point at 2 V is in saturation: 5 V - 1 kohm x 1 mA
+    let row = out.lines().nth(5).unwrap();
+    let (vin, vout) = row.split_once(',').unwrap();
+    assert_eq!(vin, "2e0");
+    assert!((vout.parse::<f64>().unwrap() - 4.0).abs() < 1e-4, "{row}");
+    let (code, json, _) = command(&[
+        "sim", &file, "--dc", "VIN", "5", "0", "-1", "--json", "--probe", "v(out)",
+    ]);
+    assert_eq!(code, 0);
+    let json: serde_json::Value = serde_json::from_str(&json).unwrap();
+    assert_eq!(json["analysis"], "dc");
+    assert_eq!(json["source"], "vin");
+    assert_eq!(json["sweep"].as_array().unwrap().len(), 6);
+    assert!(json["residual"].as_f64().unwrap() < 1e-4);
+    // the operating point reports the iterations, the strategy and the residual
+    let (code, json, _) = command(&["sim", &file, "--op", "--json"]);
+    assert_eq!(code, 0);
+    let json: serde_json::Value = serde_json::from_str(&json).unwrap();
+    assert!(json["iterations"].as_u64().unwrap() >= 1);
+    assert_eq!(json["strategy"], "direct");
+    assert!(json["residual"].as_f64().is_some());
+}
+
+#[test]
+fn a_bad_sweep_gives_exit_code_2_with_a_code() {
+    let dir = tempfile::tempdir().unwrap();
+    let file = write(dir.path(), "inverter.cir", MOS_INVERTER);
+    for args in [
+        vec!["sim", file.as_str(), "--dc", "vin", "0", "5", "0"],
+        vec!["sim", file.as_str(), "--dc", "vin", "0", "5", "-1"],
+        vec!["sim", file.as_str(), "--dc", "nobody", "0", "5", "1"],
+        vec!["sim", file.as_str(), "--dc", "rd", "0", "5", "1"],
+        vec!["sim", file.as_str(), "--dc", "vin", "0", "5"],
+        vec!["sim", file.as_str(), "--dc", "vin", "a", "5", "1"],
+    ] {
+        let (code, _, err) = command(&args);
+        assert_eq!(code, 2, "{args:?}");
+        assert!(err.contains("PHOENIX-SIM-"), "{args:?}: {err}");
+    }
+}
+
+#[test]
+fn the_analysis_of_the_netlist_is_run_when_none_is_named() {
+    let dir = tempfile::tempdir().unwrap();
+    let file = write(
+        dir.path(),
+        "asked.cir",
+        "divider\nV1 in 0 DC 10\nR1 in out 1k\nR2 out 0 3k\n.dc v1 5 10 5\n.op\n",
+    );
+    let (code, out, err) = command(&["sim", &file, "--probe", "v(out)"]);
+    assert_eq!(code, 0, "{err}");
+    assert!(err.contains("2 analyses"), "{err}");
+    let mut lines = out.lines();
+    assert_eq!(lines.next().unwrap(), "sweep(v1),v(out)");
+    for (row, (v, want)) in lines.zip([(5.0, 3.75), (10.0, 7.5)]) {
+        let (x, y) = row.split_once(',').unwrap();
+        assert!((x.parse::<f64>().unwrap() - v).abs() < 1e-12, "{row}");
+        assert!((y.parse::<f64>().unwrap() - want).abs() < 1e-9, "{row}");
+    }
+    assert_eq!(out.lines().count(), 3);
+    // naming an analysis wins over the netlist
+    let (code, out, _) = command(&["sim", &file, "--op", "--probe", "v(out)"]);
+    assert_eq!(code, 0);
+    assert_eq!(out, "name,value\nv(out),7.5e0\n");
+    // the writer keeps the directives
+    let (code, out, _) = command(&["sim", &file, "--netlist"]);
+    assert_eq!(code, 0);
+    assert!(out.contains(".dc v1 5e0 1e1 5e0\n.op\n"), "{out}");
+}
+
+#[test]
+fn a_file_of_models_is_read_and_an_include_stays_in_its_folder() {
+    let dir = tempfile::tempdir().unwrap();
+    let models = write(
+        dir.path(),
+        "models.lib",
+        "* diode models\n.model dm D(IS=1e-14 N=1)\n.model led1 LED\n",
+    );
+    let circuit = "diode\nV1 in 0 DC 5\nR1 in d 1k\nD1 d 0 dm\n";
+    let file = write(dir.path(), "diode.cir", circuit);
+    // without the file the model is missing
+    let (code, _, err) = command(&["sim", &file, "--op"]);
+    assert_eq!(code, 2);
+    assert!(
+        err.contains("PHOENIX-SIM-005") && err.contains("line 4"),
+        "{err}"
+    );
+    let (code, out, err) = command(&["sim", &file, "--op", "--model", &models, "--probe", "v(d)"]);
+    assert_eq!(code, 0, "{err}");
+    let vd: f64 = out
+        .lines()
+        .nth(1)
+        .unwrap()
+        .split(',')
+        .nth(1)
+        .unwrap()
+        .parse()
+        .unwrap();
+    assert!(vd > 0.65 && vd < 0.75, "{out}");
+    // the file of models is never changed
+    assert_eq!(
+        fs::read_to_string(&models).unwrap(),
+        "* diode models\n.model dm D(IS=1e-14 N=1)\n.model led1 LED\n"
+    );
+    // an include of a file in the same folder works
+    let included = write(
+        dir.path(),
+        "included.cir",
+        "diode\n.include models.lib\nV1 in 0 DC 5\nR1 in d 1k\nD1 d 0 dm\n",
+    );
+    let (code, out, err) = command(&["sim", &included, "--op", "--probe", "v(d)"]);
+    assert_eq!(code, 0, "{err}");
+    assert!(out.contains("v(d),"), "{out}");
+    // an include of another folder is refused with the code and the line
+    fs::create_dir_all(dir.path().join("sub")).unwrap();
+    let outside = write(
+        dir.path(),
+        "outside.cir",
+        "diode\nV1 in 0 DC 5\n.include sub/models.lib\nR1 in d 1k\nD1 d 0 dm\n",
+    );
+    let (code, _, err) = command(&["sim", &outside, "--op"]);
+    assert_eq!(code, 2);
+    assert!(
+        err.contains("PHOENIX-SIM-023") && err.contains("line 3"),
+        "{err}"
+    );
+    // a missing file of models is an input error and a schematic takes none
+    let nothing = dir.path().join("nothing.lib");
+    let (code, _, err) = command(&["sim", &file, "--op", "--model", nothing.to_str().unwrap()]);
+    assert_eq!(code, 2);
+    assert!(err.contains("PHOENIX-SIM-021"), "{err}");
+    let (code, _, err) = command(&["sim", &file, "--op", "--model"]);
+    assert_eq!(code, 2);
+    assert!(err.contains("PHOENIX-SIM-016"), "{err}");
+}
