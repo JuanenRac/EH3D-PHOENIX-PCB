@@ -64,6 +64,8 @@ Commands and script files, a script interpreter and its object model built from 
 
 Gate: Every own script and job is listed as equivalent, adapted or pending with its cause; the equivalent rate does not drop.
 
+Progress: the interpreter and the report exist as a prototype (`eh3d-phoenix-script`, `docs/SCRIPT.md`): a reader of script files, a run of the commands with an equivalent in the board model as reversible operations (all or nothing, with an undo), the listing of every command of every script as equivalent, adapted or pending with its cause per script and per folder (text, JSON and HTML), and a reader of output jobs into an export profile. It is built from the public description of the language and tried on scripts and jobs written for its tests only; it has not been run on the author's own scripts and jobs, so the gate is not met. Design blocks, project files and rule files of the old workflow are not started.
+
 ## F9. Library sanitizer
 
 Batch inventory of old libraries, canonical geometric hash, fuzzy matching with manual confirmation, logical duplicates, an HTML report, master libraries and replace-and-relink with backup.
