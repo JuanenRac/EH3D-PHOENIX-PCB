@@ -77,7 +77,7 @@ impl View {
         self.xy(mm(p.x_nm.get()), mm(p.y_nm.get()))
     }
 
-    fn to_world(&self, p: Pos2) -> (f64, f64) {
+    fn world_at(&self, p: Pos2) -> (f64, f64) {
         (
             self.cx + f64::from(p.x - self.origin.x) / self.scale,
             self.cy - f64::from(p.y - self.origin.y) / self.scale,
@@ -178,7 +178,7 @@ impl SchematicEditUi {
     }
 
     fn zoom_at(&mut self, rect: Rect, cursor: Pos2, scroll: f32, pinch: f32) {
-        let (wx, wy) = self.view(rect).to_world(cursor);
+        let (wx, wy) = self.view(rect).world_at(cursor);
         let factor = (f64::from(scroll) * 0.0015).exp() * f64::from(pinch);
         self.scale = (self.scale * factor).clamp(SCALE_MIN, SCALE_MAX);
         self.center.0 = wx - f64::from(cursor.x - rect.center().x) / self.scale;
@@ -367,7 +367,7 @@ pub fn canvas(
     }
     let view = st.view(rect);
     let pointer = frame.latest.and_then(|p| {
-        let (x, y) = view.to_world(p);
+        let (x, y) = view.world_at(p);
         point_at(x, y)
     });
     if let Some(at) = pointer {
@@ -470,8 +470,8 @@ fn draw_schematic(
     }
     let step = mm(grid_nm);
     if step > 0.0 && step * view.scale >= 6.0 {
-        let (x0, y1) = view.to_world(rect.left_top());
-        let (x1, y0) = view.to_world(rect.right_bottom());
+        let (x0, y1) = view.world_at(rect.left_top());
+        let (x1, y0) = view.world_at(rect.right_bottom());
         let columns = ((x1 - x0) / step).ceil() as i64;
         let rows = ((y1 - y0) / step).ceil() as i64;
         if columns > 0 && rows > 0 && columns.saturating_mul(rows) <= 40_000 {
