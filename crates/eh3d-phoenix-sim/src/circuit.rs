@@ -1087,7 +1087,7 @@ mod tests {
         .unwrap();
         assert_eq!(c.node_names, vec!["in", "x1.m", "out", "x2.m"]);
         let names: Vec<&str> = c.resistors.iter().map(|r| r.name.as_str()).collect();
-        assert_eq!(names, vec!["X1.R1", "X1.R2", "X2.R1", "X2.R2"]);
+        assert_eq!(names, vec!["x1.R1", "x1.R2", "x2.R1", "x2.R2"]);
     }
 
     #[test]
