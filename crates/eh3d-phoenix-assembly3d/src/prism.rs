@@ -376,7 +376,7 @@ mod tests {
             z_low: 0,
             z_high: MM,
         };
-        assert_eq!(prisms_obj(&[flat.clone()]), prisms_obj(&[]));
+        assert_eq!(prisms_obj(std::slice::from_ref(&flat)), prisms_obj(&[]));
         assert_eq!(prisms_step(&[flat]), prisms_step(&[]));
     }
 
