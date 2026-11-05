@@ -1,6 +1,6 @@
 # EH3D-PHOENIX-PCB: electrical rule check and synchronisation
 
-Phase F7 of the roadmap asks for a schematic editor, electrical rule checks, transfer to the board, forward and backward annotation by stable identity and net classes. This page describes the parts that need no window: the electrical rule check of a schematic (`eh3d-phoenix-erc`, command `phoenix erc`), the synchronisation between a schematic and a board (`eh3d-phoenix-sync`, command `phoenix sync`) and the net classes of the rule file (`eh3d-phoenix-rules`). There is still no schematic editor. All of it is a prototype: it has been tried on schematics and boards made by hand and by the tests and it has never been compared with the reference tool, so requirement PPCB-017 stays at `prototype`.
+Phase F7 of the roadmap asks for a schematic editor, electrical rule checks, transfer to the board, forward and backward annotation by stable identity and net classes. This page describes the parts that need no window: the electrical rule check of a schematic (`eh3d-phoenix-erc`, command `phoenix erc`), the synchronisation between a schematic and a board (`eh3d-phoenix-sync`, command `phoenix sync`) and the net classes of the rule file (`eh3d-phoenix-rules`). The schematic editor (`docs/SCHEMATIC_EDIT.md`) runs the check after every change. All of it is a prototype: it has been tried on schematics and boards made by hand and by the tests and it has never been compared with the reference tool, so requirement PPCB-017 stays at `prototype`.
 
 ## Pin types
 
@@ -70,4 +70,4 @@ A rule file of the format `phoenix-rules/2` is a rule file of the first format w
 
 ## What is not done
 
-The schematic editor itself, buses, hierarchical sheets and labels, power flags, a type chosen per part instead of per pin, the pin types of the KiCad files, net ties, the assignment of a class to a net in the schematic, the clearance between nets of different classes and the comparison of any of this with the reference tool are listed in `NOT_YET.md`.
+Buses as objects of their own, hierarchical sheets and labels, power flags, a type chosen per part instead of per pin, the pin types of the KiCad files, net ties, the assignment of a class to a net in the schematic, the clearance between nets of different classes and the comparison of any of this with the reference tool are listed in `NOT_YET.md`.

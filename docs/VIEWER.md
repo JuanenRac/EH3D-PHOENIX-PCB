@@ -51,6 +51,10 @@ The select tool, the highlight of a net and the measure work on a schematic as b
 * **Electrical rule check.** The result of `eh3d-phoenix-erc` with the default matrix: the proven findings, each with a button that goes to the pin, the net or the part it names (the item is selected, its net highlighted and the view centred), and apart what could not be judged. A button runs the check again.
 * **Board and schematic.** The path of a board to compare with is opened (an EAGLE board or the JSON of the model). Then *Transfer to the board* and *Back-annotate* make a dry run with `eh3d-phoenix-sync`: nothing is changed, and the package (the changes and what was left out, as the report of `phoenix sync` writes them in the language of the window) is shown. *Apply the package* makes it as one step that undo reverts, to the board for the transfer and to the schematic for the annotation; *Discard* throws it away. A package is dropped when anything changes, so what is applied is always what was seen.
 
+### Editing a schematic
+
+The button *Edit schematic* of the left panel starts the schematic editor (`docs/SCHEMATIC_EDIT.md`): the tools to draw wires, put net labels, power ports and bus labels, place symbols from a palette, select by rectangle, drag with the wires that follow the pins, copy and paste, turn and mirror, set values and references, with undo and redo and the electrical check after every change. After every change the schematic is handed to the workspace, so the findings, the transfer to the board and saving work on what was edited.
+
 ## Saving
 
 A document is never saved over the file it was read from. The name to save to is proposed beside the input (`<name>_edited.json`); a name that is the input, even spelt another way, is refused (`PHOENIX-VIEW-011`), and so is a file that exists and that this window did not write. When the window replaces a file it saved before, a copy of the previous one is kept next to it with the ending of `backup_suffix`. A board is written as the JSON of the model, or as EAGLE XML when the name ends in `.brd` (written by the existing writer, read back by the tests of this repository, never opened in EAGLE); a schematic is written as the JSON of the model. The board that a schematic is compared with is saved with its own name box.
@@ -86,6 +90,8 @@ The crate `eh3d-phoenix-viewer` holds all of the logic, with no dependency on eg
 | `load` | Reading an EAGLE board or schematic or the JSON of the model, bounded by the settings |
 | `bench` | Three synthetic boards and their timing |
 | `settings`, `codes`, `msg`, `editmsg` | The settings file, the codes `PHOENIX-VIEW-<NNN>` and the texts in eight languages (`editmsg` those of the editing) |
+| `schematic_text`, `schematic_sync` | The texts of the schematic editor in eight languages and the hand-over of the edited schematic to the workspace (`Workspace::replace_schematic`) |
+| `schematic_gui` (feature `gui`) | The editing mode of the window for a schematic: the panel of tools, the palette, and the canvas that draws the schematic and passes on the pointer and the keys to `eh3d-phoenix-schedit` |
 | `gui` (feature `gui`) | The window: egui on eframe with the theme Forge, the icon of the program and a canvas painted by `Painter` |
 
 The window only passes on what the person does (a pixel under the pointer, a press, a drag, a release, a click, a turn of the wheel, a key) and draws what the state says: the primitives, the ratsnest, the lines of what is in progress, the ring of a finding and the panels. Every rule of editing is in `workspace` and `session`, so replacing egui means replacing `gui.rs`.
@@ -132,7 +138,7 @@ The messages are written in the eight languages of the suite; the registry is in
 
 * The window is untested on any screen, any graphics card and any operating system; only its code is checked to build and pass the lints in CI. The tools, the drags and the panels have been tried through the state that drives them, never with a mouse.
 * Editing a board has no copy, no placing of new components, no properties and no selection of several items; moving a component does not move its tracks; a vertex is moved one at a time; there is no push and shove, no arcs in the tracks the router makes and no routing around zones (`docs/ROUTE.md`).
-* The edits of a schematic do not exist yet: it is looked at, checked and annotated, not drawn.
+* The schematic editor is a mode of the window (`docs/SCHEMATIC_EDIT.md`) and has the same limits: it has never been used with a mouse, a part is drawn as the box around its pins and the window keeps the steps of the editor apart from the annotation steps of the top bar.
 * A drawn grid and a view of the board from the bottom are not done; the grid only snaps the positions of edits. There is no drawing of the symbols of a schematic beyond the box around the pins, and no text from the stroke font of the board (the window uses the font of egui).
 * The drawing on a screen and the time of an edit on a large board were not measured.
 * Saving an `.brd` goes through the EAGLE writer, which leaves out what the model does not hold; the file has never been opened in EAGLE.

@@ -221,6 +221,19 @@
           }
         },
         {
+          "name": "SCHEMATIC_EDIT.md",
+          "desc": {
+            "en": "the schematic editor: operations, nets, window",
+            "es": "el editor de esquemas: operaciones, redes, ventana",
+            "de": "der Schaltplan-Editor: Operationen, Netze, Fenster",
+            "fr": "l'éditeur de schémas : opérations, nets, fenêtre",
+            "it": "l'editor di schemi: operazioni, reti, finestra",
+            "ja": "回路図エディタ：操作、ネット、ウィンドウ",
+            "zh": "原理图编辑器：操作、网络、窗口",
+            "pt": "o editor de esquemas: operações, redes, janela"
+          }
+        },
+        {
           "name": "SIM.md",
           "desc": {
             "en": "circuit simulation: netlist, analyses, schematic export",
