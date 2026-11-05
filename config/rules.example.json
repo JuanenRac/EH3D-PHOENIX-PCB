@@ -1,0 +1,17 @@
+{
+  "format": "phoenix-rules/1",
+  "name": "example: a two-layer board from a low-cost manufacturer",
+  "rules": {
+    "min_track_width_nm": 150000,
+    "min_clearance_nm": 150000,
+    "min_drill_nm": 300000,
+    "min_via_diameter_nm": 600000,
+    "min_annular_ring_nm": 125000,
+    "min_edge_clearance_nm": 300000,
+    "min_mask_bridge_nm": 100000,
+    "min_drill_spacing_nm": 254000,
+    "connect_tolerance_nm": 0,
+    "silkscreen_over_pads": true,
+    "silkscreen_over_mask_openings": true
+  }
+}

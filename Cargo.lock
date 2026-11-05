@@ -297,6 +297,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "eh3d-phoenix-rules"
+version = "0.0.2"
+dependencies = [
+ "eh3d-diagnostic",
+ "eh3d-phoenix-board",
+ "eh3d-phoenix-eagle",
+ "eh3d-phoenix-model",
+ "eh3d-phoenix-schematic",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
 name = "eh3d-phoenix-schematic"
 version = "0.0.2"
 dependencies = [

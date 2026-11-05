@@ -1,0 +1,18 @@
+[package]
+name = "eh3d-phoenix-rules"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Connectivity and design rules of a board: the nets that the copper really forms (with a joining tolerance), the comparison with the schematic, the rule checks in a fixed order against a rule file, and a report that keeps confirmed and inconclusive results apart"
+
+[dependencies]
+eh3d-diagnostic.workspace = true
+eh3d-phoenix-board = { path = "../eh3d-phoenix-board" }
+eh3d-phoenix-eagle = { path = "../eh3d-phoenix-eagle" }
+eh3d-phoenix-model = { path = "../eh3d-phoenix-model" }
+eh3d-phoenix-schematic = { path = "../eh3d-phoenix-schematic" }
+serde.workspace = true
+serde_json = { workspace = true, features = ["float_roundtrip"] }
+thiserror.workspace = true
