@@ -35,6 +35,7 @@ gui = ["eh3d-phoenix-viewer/gui"]
 [dependencies]
 eh3d-phoenix-assembly3d = { path = "../eh3d-phoenix-assembly3d" }
 eh3d-phoenix-board = { path = "../eh3d-phoenix-board" }
+eh3d-phoenix-boardedit = { path = "../eh3d-phoenix-boardedit" }
 eh3d-phoenix-bom = { path = "../eh3d-phoenix-bom" }
 eh3d-phoenix-corpus = { path = "../eh3d-phoenix-corpus" }
 eh3d-phoenix-eagle = { path = "../eh3d-phoenix-eagle" }

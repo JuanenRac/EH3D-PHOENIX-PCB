@@ -3,7 +3,7 @@
 //! `stackup`, `materials`, `check`, `connectivity`, `erc`, `sync`, `export`, `rf`, `rfgen`, `kicad-read`, `sanitize`,
 //! `sim`, `route`, `ratsnest`, `script`, `cam-import`, `schedit` and `view`.
 //!
-//! The editor of libraries adds the commands `libedit` and `footprint`, and the routing through an
+//! The editor of boards adds the command `boardedit`. The editor of libraries adds the commands `libedit` and `footprint`, and the routing through an
 //! external autorouter adds `autoroute`, the filling of copper zones adds `zones` and the lengths
 //! of nets and pairs add `lengths`; the import of Gerber and Excellon files adds `gerber-import`
 //! and the layout of a matrix of boards adds `panel`; the bill of materials with costs adds `bom`
@@ -18,6 +18,7 @@
 
 mod assembly3d;
 mod autoroute;
+mod boardedit;
 mod bom;
 mod check;
 mod design;
@@ -130,13 +131,17 @@ phoenix sanitize [--out BASE] [--threshold N] [--config FILE] [--lang xx] [--jso
                 report and a plan of the master library that is never applied; the libraries
                 are only read
 
-phoenix sim <netlist or schematic.json> --op | --ac KIND N F1 F2 | --tran STEP STOP [options]
+phoenix sim <netlist or schematic.json> --op | --dc SRC START STOP STEP | --ac KIND N F1 F2 | --tran STEP STOP
+              [--model FILE] [options]
 phoenix sim --check-filter FAMILY ORDER BAND F1 [F2] [options]
 
   sim           simulate a circuit with the solver of this program (modified nodal analysis, a
-                prototype never compared with SPICE): the DC operating point, an AC sweep with
-                group delay or a transient analysis of a SPICE-style netlist or of a schematic,
-                as CSV or JSON; run `phoenix sim` alone for its options
+                prototype never compared with SPICE): the DC operating point, a DC sweep, an AC
+                sweep with group delay or a transient analysis of a SPICE-style netlist (diodes,
+                LEDs, Zener diodes, bipolar and MOS transistors, switches, op-amps; a file of
+                models with --model; the .op, .dc, .ac or .tran line of the netlist when no
+                analysis is named) or of a schematic, as CSV or JSON; run `phoenix sim` alone
+                for its options
 
 phoenix ratsnest [--settings FILE] [--json] [--lang xx] <board>
 phoenix route [--settings FILE] [--rules FILE] [--layer NAME] [--mode around|stop] [--json]
@@ -191,6 +196,17 @@ phoenix schedit [--erc-config FILE] [--json] [--lang xx] --apply OPERATIONS.json
                 electrical rule check on the result; a dry run unless --out names a new file
                 (.json or .sch), and an input file is never written over (run `phoenix schedit`
                 alone for its options)
+
+phoenix boardedit [--rules FILE] [--settings FILE] [--json] [--lang xx] --apply OPERATIONS.json
+                  [--out FILE] <board>
+
+  boardedit     apply a file of editing operations to a board (place, move, turn, mirror, lock and
+                remove components, orthogonal and 45-degree tracks, vias, change of layer, delete a
+                stretch or a net, paste a net with the shortest route between two pads, tune a net
+                to a length with meanders), all or nothing, with the design rules checked after
+                each one: an operation that adds a rule error is refused unless it is forced; a
+                dry run unless --out names a new file (.json or .brd), and an input file is never
+                written over (run `phoenix boardedit` alone for its options); a prototype
 
 phoenix libedit [--apply OPERATIONS.json] [--plan SANITIZER.plan.json] [--out NEW.lbr]
                 [--config FILE] [--json] [--lang xx] <library.lbr>
@@ -334,6 +350,9 @@ pub fn run(args: &[String], out: &mut dyn Write, err: &mut dyn Write) -> i32 {
     }
     if let Some((&"schedit", tail)) = rest.split_first() {
         return schedit::schedit_command(tail, out, err);
+    }
+    if let Some((&"boardedit", tail)) = rest.split_first() {
+        return boardedit::boardedit_command(tail, out, err);
     }
     if let Some((&"libedit", tail)) = rest.split_first() {
         return libedit::libedit_command(tail, out, err);
