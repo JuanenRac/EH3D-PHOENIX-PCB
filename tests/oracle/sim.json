@@ -1,0 +1,149 @@
+{
+  "format": "phoenix-oracle/1",
+  "suite": "sim",
+  "title": "Circuits with a closed-form solution: dividers, an RC filter and series RLC circuits",
+  "cases": [
+    {
+      "id": "ORACLE-SIM-001",
+      "title": "Voltage divider of 1 kohm and 3 kohm on 10 V",
+      "area": "sim",
+      "check": "sim_op",
+      "inputs": {
+        "netlist": ["divider", "V1 in 0 DC 10", "R1 in out 1k", "R2 out 0 3k"],
+        "probe": "v(out)"
+      },
+      "expected": 7.5,
+      "unit": "V",
+      "tolerance": { "abs": 1e-9 },
+      "tolerance_note": "chosen here: a linear solve of a three-node circuit, so only rounding is accepted",
+      "source": "J. W. Nilsson and S. A. Riedel, Electric Circuits, the voltage-divider circuit: Vout = Vin R2/(R1 + R2)",
+      "status": "cited"
+    },
+    {
+      "id": "ORACLE-SIM-002",
+      "title": "Loaded divider: 1 kohm over two 1 kohm resistors in parallel on 10 V",
+      "area": "sim",
+      "check": "sim_op",
+      "inputs": {
+        "netlist": ["loaded divider", "V1 in 0 DC 10", "R1 in out 1k", "R2 out 0 1k", "R3 out 0 1k"],
+        "probe": "v(out)"
+      },
+      "expected": 3.333333333333,
+      "unit": "V",
+      "tolerance": { "abs": 1e-9 },
+      "tolerance_note": "chosen here: the parallel pair is 500 ohm, so Vout = 10 x 500/1500 exactly up to rounding",
+      "source": "J. W. Nilsson and S. A. Riedel, Electric Circuits, resistors in parallel and the voltage-divider circuit",
+      "status": "cited"
+    },
+    {
+      "id": "ORACLE-SIM-003",
+      "title": "First-order RC low-pass: gain at the corner frequency",
+      "area": "sim",
+      "check": "sim_ac",
+      "inputs": {
+        "netlist": ["rc low-pass", "V1 in 0 DC 0 AC 1", "R1 in out 1k", "C1 out 0 159.15494309189535n"],
+        "probe": "v(out)",
+        "freq_hz": 1000.0,
+        "quantity": "magnitude"
+      },
+      "expected": 0.7071067811865476,
+      "unit": "",
+      "tolerance": { "rel": 1e-9 },
+      "tolerance_note": "chosen here: C = 1/(2 pi R f) for f = 1 kHz, so |H| = 1/sqrt(2) up to the rounding of C",
+      "source": "J. W. Nilsson and S. A. Riedel, Electric Circuits, frequency response of the first-order low-pass filter: |H(j w_c)| = 1/sqrt(2) at w_c = 1/(R C)",
+      "status": "cited"
+    },
+    {
+      "id": "ORACLE-SIM-004",
+      "title": "First-order RC low-pass: phase at the corner frequency",
+      "area": "sim",
+      "check": "sim_ac",
+      "inputs": {
+        "netlist": ["rc low-pass", "V1 in 0 DC 0 AC 1", "R1 in out 1k", "C1 out 0 159.15494309189535n"],
+        "probe": "v(out)",
+        "freq_hz": 1000.0,
+        "quantity": "phase_deg"
+      },
+      "expected": -45.0,
+      "unit": "deg",
+      "tolerance": { "abs": 1e-6 },
+      "tolerance_note": "chosen here: the phase is -arctan(w R C) = -45 degrees up to the rounding of C",
+      "source": "J. W. Nilsson and S. A. Riedel, Electric Circuits, frequency response of the first-order low-pass filter: phase = -arctan(w/w_c)",
+      "status": "cited"
+    },
+    {
+      "id": "ORACLE-SIM-005",
+      "title": "Series RLC (10 ohm, 1 mH, 1 uF): gain across the resistor at resonance",
+      "area": "sim",
+      "check": "sim_ac",
+      "inputs": {
+        "netlist": ["series rlc across r", "V1 in 0 DC 0 AC 1", "L1 in a 1m", "C1 a out 1u", "R1 out 0 10"],
+        "probe": "v(out)",
+        "freq_hz": 5032.921210448703,
+        "quantity": "magnitude"
+      },
+      "expected": 1.0,
+      "unit": "",
+      "tolerance": { "abs": 1e-6 },
+      "tolerance_note": "chosen here: at f0 = 1/(2 pi sqrt(LC)) the reactances cancel, so the resistor takes the whole source voltage",
+      "source": "J. W. Nilsson and S. A. Riedel, Electric Circuits, the series RLC band-pass: at the resonant frequency w0 = 1/sqrt(LC) the output across R equals the input",
+      "status": "cited"
+    },
+    {
+      "id": "ORACLE-SIM-006",
+      "title": "Series RLC (10 ohm, 1 mH, 1 uF): gain across the capacitor at resonance equals Q",
+      "area": "sim",
+      "check": "sim_ac",
+      "inputs": {
+        "netlist": ["series rlc across c", "V1 in 0 DC 0 AC 1", "R1 in a 10", "L1 a out 1m", "C1 out 0 1u"],
+        "probe": "v(out)",
+        "freq_hz": 5032.921210448703,
+        "quantity": "magnitude"
+      },
+      "expected": 3.1622776601683795,
+      "unit": "",
+      "tolerance": { "rel": 1e-6 },
+      "tolerance_note": "chosen here: at resonance the capacitor voltage is Q = sqrt(L/C)/R times the source, exactly up to rounding of the frequency",
+      "source": "J. W. Nilsson and S. A. Riedel, Electric Circuits, the series RLC circuit: at w0 the voltage across the capacitor is Q times the source with Q = (1/R) sqrt(L/C)",
+      "status": "cited"
+    },
+    {
+      "id": "ORACLE-SIM-007",
+      "title": "RC step response after one time constant",
+      "area": "sim",
+      "check": "sim_tran",
+      "inputs": {
+        "netlist": ["rc step", "V1 in 0 PULSE(0 1 0 1n 1n 10 0)", "R1 in out 1k", "C1 out 0 1u"],
+        "probe": "v(out)",
+        "tstep": 1e-5,
+        "tstop": 1e-3,
+        "at": 1e-3
+      },
+      "expected": 0.6321205588285577,
+      "unit": "V",
+      "tolerance": { "rel": 1e-3 },
+      "tolerance_note": "chosen here: wider than the error of the trapezoidal rule at 100 steps per time constant plus the first backward Euler step and the 1 ns rise of the source",
+      "source": "J. W. Nilsson and S. A. Riedel, Electric Circuits, the step response of an RC circuit: v(t) = V (1 - exp(-t/(R C))), which is 1 - 1/e = 0.6321 at t = R C",
+      "status": "cited"
+    },
+    {
+      "id": "ORACLE-SIM-008",
+      "title": "Underdamped series RLC step response at 100 us",
+      "area": "sim",
+      "check": "sim_tran",
+      "inputs": {
+        "netlist": ["rlc step", "V1 in 0 PULSE(0 1 0 1n 1n 10 0)", "R1 in a 10", "L1 a b 1m", "C1 b 0 1u"],
+        "probe": "v(b)",
+        "tstep": 1e-7,
+        "tstop": 1e-4,
+        "at": 1e-4
+      },
+      "expected": 1.604565789,
+      "unit": "V",
+      "tolerance": { "rel": 2e-3 },
+      "tolerance_note": "chosen here: wider than the error of the trapezoidal rule at 1000 steps over three quarters of a ring period, the first backward Euler step and the 1 ns rise of the source",
+      "source": "J. W. Nilsson and S. A. Riedel, Electric Circuits, the step response of a series RLC circuit, underdamped: v(t) = V (1 - exp(-a t) (cos(wd t) + (a/wd) sin(wd t))) with a = R/(2L) = 5000 1/s and wd = sqrt(1/(L C) - a^2) = 31224.99 rad/s",
+      "status": "cited"
+    }
+  ]
+}

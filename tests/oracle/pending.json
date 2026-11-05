@@ -1,0 +1,127 @@
+{
+  "format": "phoenix-oracle/1",
+  "suite": "pending",
+  "title": "Cases that cannot be run yet, each with the reason; none of them carries a number",
+  "cases": [
+    {
+      "id": "ORACLE-PENDING-001",
+      "title": "Current capacity of an external track against the chart of IPC-2221",
+      "area": "rules",
+      "source": "IPC-2221, the chart of current against cross-section and temperature rise for external conductors, and the fit I = k dT^0.44 A^0.725",
+      "status": "pending",
+      "reason": "the suite has no current capacity calculation yet (it is listed in docs/NOT_YET.md), and the tabulated points of the chart are not copied here until they can be checked against the printed chart"
+    },
+    {
+      "id": "ORACLE-PENDING-002",
+      "title": "Current capacity of an internal track against the chart of IPC-2221",
+      "area": "rules",
+      "source": "IPC-2221, the chart of current against cross-section and temperature rise for internal conductors",
+      "status": "pending",
+      "reason": "the suite has no current capacity calculation yet, and the tabulated points of the chart are not copied here until they can be checked against the printed chart"
+    },
+    {
+      "id": "ORACLE-PENDING-003",
+      "title": "Current capacity of a track against IPC-2152",
+      "area": "rules",
+      "source": "IPC-2152 (Standard for Determining Current-Carrying Capacity in Printed Board Design), the charts and the modifiers for the plane and the thickness",
+      "status": "pending",
+      "reason": "the suite has no current capacity calculation yet, and the standard is not at hand to copy values from"
+    },
+    {
+      "id": "ORACLE-PENDING-004",
+      "title": "Direct-current resistance of a track from its length, width and copper thickness",
+      "area": "stackup",
+      "source": "R = rho L / (W T) with the resistivity of copper and its temperature coefficient (a materials handbook)",
+      "status": "pending",
+      "reason": "the suite has no function that gives the resistance of a track; the formula is simple but there is nothing yet to compare it with"
+    },
+    {
+      "id": "ORACLE-PENDING-005",
+      "title": "Spacing between conductors by voltage against Table 6-1 of IPC-2221",
+      "area": "rules",
+      "source": "IPC-2221, the table of electrical conductor spacing by voltage, for the internal, external uncoated and external coated columns",
+      "status": "pending",
+      "reason": "the rule engine takes one clearance from the rule file and has no table of spacing by voltage, and the values of the table are not copied here until they can be checked against the standard"
+    },
+    {
+      "id": "ORACLE-PENDING-006",
+      "title": "Microstrip impedances from the printed tables of the handbooks",
+      "area": "stackup",
+      "source": "B. C. Wadell, Transmission Line Design Handbook (Artech House), the tables of microstrip impedance; E. Hammerstad and O. Jensen (1980), the tabulated accuracy of the closed forms",
+      "status": "pending",
+      "reason": "the book is not at hand, and a value is never entered from memory; the closed-form cross-checks in the suite stand in for them until the tables are transcribed"
+    },
+    {
+      "id": "ORACLE-PENDING-007",
+      "title": "Coplanar waveguide impedance from a published example",
+      "area": "stackup",
+      "source": "R. N. Simons, Coplanar Waveguide Circuits, Components, and Systems (Wiley), the worked examples of conformal mapping",
+      "status": "pending",
+      "reason": "the book is not at hand to take a worked example from, and the closed forms have no second published value to be checked against yet"
+    },
+    {
+      "id": "ORACLE-PENDING-008",
+      "title": "Conductor and dielectric loss in dB/cm against published curves",
+      "area": "stackup",
+      "source": "the loss curves of a laminate maker's data sheet, or the tables of a transmission-line handbook",
+      "status": "pending",
+      "reason": "the loss model uses Wheeler's rule and a roughness factor, and no published curve is at hand to compare it with"
+    },
+    {
+      "id": "ORACLE-PENDING-009",
+      "title": "Impedance and delay of a stack-up against a field solver",
+      "area": "stackup",
+      "source": "the result of a two-dimensional field solver for the same cross section (the comparison plan in docs/ORACLE.md)",
+      "status": "pending",
+      "reason": "the comparison needs an external program, which this suite does not run"
+    },
+    {
+      "id": "ORACLE-PENDING-010",
+      "title": "Ladder filter coefficients against the tables of the literature",
+      "area": "rf",
+      "source": "the tables of normalised element values of Butterworth, Chebyshev and Bessel low-pass prototypes in a filter handbook",
+      "status": "pending",
+      "reason": "the book is not at hand to copy the table from, and the Butterworth values that follow from a closed formula still need a check that maps them to the elements of the crate"
+    },
+    {
+      "id": "ORACLE-PENDING-011",
+      "title": "Clearance at exactly the limit of the rule",
+      "area": "rules",
+      "source": "the behaviour of EAGLE and KiCad for two conductors whose distance equals the clearance rule",
+      "status": "pending",
+      "reason": "whether a distance equal to the limit passes is a convention of the reference tool and no standard says it; it is decided by exporting the same board to both tools"
+    },
+    {
+      "id": "ORACLE-PENDING-012",
+      "title": "Zone fill with round obstacles against the filled zone of KiCad and EAGLE",
+      "area": "zones",
+      "source": "the area of the filled zone of the same board in KiCad and EAGLE",
+      "status": "pending",
+      "reason": "circles are cut as polygons of sixteen sides here and the other tools use their own approximation, so only a comparison with them gives the tolerance"
+    },
+    {
+      "id": "ORACLE-PENDING-013",
+      "title": "Length of an arc track against the geometry of the other tools",
+      "area": "lengths",
+      "source": "the length of the same arc track in KiCad and EAGLE",
+      "status": "pending",
+      "reason": "the arc is stored as end points and a sweep and measured with floating-point trigonometry; the other tools store a centre and a radius, so the conversion must be compared on real boards"
+    },
+    {
+      "id": "ORACLE-PENDING-014",
+      "title": "Diode, transistor and operational-amplifier circuits against a SPICE program",
+      "area": "sim",
+      "source": "the operating point, the AC and the transient results of a SPICE program for the same netlist",
+      "status": "pending",
+      "reason": "the comparison needs an external simulator, which this suite does not run, and the device models of the two differ in their parameters"
+    },
+    {
+      "id": "ORACLE-PENDING-015",
+      "title": "Scattering parameters of a two-port against a data sheet or a measurement",
+      "area": "rf",
+      "source": "a Touchstone file published by a component maker, or a measurement with a network analyser",
+      "status": "pending",
+      "reason": "no published file is stored in this repository, and no measurement has been made"
+    }
+  ]
+}

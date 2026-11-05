@@ -2,7 +2,7 @@
 
 Codes have the form `PHOENIX-<AREA>-<NNN>`. A code is stable: it never changes its meaning and is never reused. Programs show the text through the key `diag.<code>`; the codes themselves are never translated. The object identity (UUID v7) is the one of the shared container, with its own codes `EH3D-ID-001` and `EH3D-ID-002`. The container codes `EH3D-PKG-001` to `EH3D-PKG-014` belong to the shared container and are listed in the registry of the documentation repository.
 
-Each table repeats the `REGISTRY` of a crate (`eh3d-phoenix-model` in `src/diagnostic.rs`, `eh3d-phoenix-project` and `eh3d-phoenix-eagle` in `src/codes.rs`, `eh3d-phoenix-hub` in `src/lib.rs`, `eh3d-phoenix-export` in `src/codes.rs`, `eh3d-phoenix-schematic` in `src/model.rs`, `src/draw.rs`, `src/edit.rs` and `src/link.rs`, `eh3d-phoenix-board` in `src/validate.rs`, `src/connectivity.rs` and `src/rules.rs`, `eh3d-phoenix-rules` in `src/codes.rs`, `eh3d-phoenix-stackup` and `eh3d-phoenix-rf` in `src/error.rs`, `eh3d-phoenix-viewer`, `eh3d-phoenix-sanitizer`, `eh3d-phoenix-erc`, `eh3d-phoenix-sync`, `eh3d-phoenix-schedit`, `eh3d-phoenix-libedit`, `eh3d-phoenix-zones`, `eh3d-phoenix-lengths`, `eh3d-phoenix-gerber`, `eh3d-phoenix-panel`, `eh3d-phoenix-bom` and `eh3d-phoenix-assembly3d` in `src/codes.rs`); a test of each crate checks that every code of its registry is in the table with the same title.
+Each table repeats the `REGISTRY` of a crate (`eh3d-phoenix-model` in `src/diagnostic.rs`, `eh3d-phoenix-project` and `eh3d-phoenix-eagle` in `src/codes.rs`, `eh3d-phoenix-hub` in `src/lib.rs`, `eh3d-phoenix-export` in `src/codes.rs`, `eh3d-phoenix-schematic` in `src/model.rs`, `src/draw.rs`, `src/edit.rs` and `src/link.rs`, `eh3d-phoenix-board` in `src/validate.rs`, `src/connectivity.rs` and `src/rules.rs`, `eh3d-phoenix-rules` in `src/codes.rs`, `eh3d-phoenix-stackup` and `eh3d-phoenix-rf` in `src/error.rs`, `eh3d-phoenix-viewer`, `eh3d-phoenix-sanitizer`, `eh3d-phoenix-erc`, `eh3d-phoenix-sync`, `eh3d-phoenix-schedit`, `eh3d-phoenix-libedit`, `eh3d-phoenix-zones`, `eh3d-phoenix-lengths`, `eh3d-phoenix-gerber`, `eh3d-phoenix-panel`, `eh3d-phoenix-bom`, `eh3d-phoenix-assembly3d` and `eh3d-phoenix-oracle` in `src/codes.rs`); a test of each crate checks that every code of its registry is in the table with the same title.
 
 ## Model foundations
 
@@ -662,3 +662,33 @@ The titles of these codes also exist in the eight languages of the suite (`TITLE
 | PHOENIX-3D-016 | An input file cannot be read | the board, the table of models, a stack-up or a settings file that cannot be opened or read |
 | PHOENIX-3D-017 | A limit of the assembly was exceeded | more components than `max_components`, more entities in a STEP file than `max_step_entities`, or more findings of one kind than `max_findings` (the rest are counted, not listed) |
 | PHOENIX-3D-018 | The export is a simplified model | information: the OBJ and STEP files hold boxes and the prism of the board, not the copper, the pads, the holes or the real shape of the parts |
+
+## Reference cases (`eh3d-phoenix-oracle`, `src/codes.rs`)
+
+| Code | Title | Raised by |
+|---|---|---|
+| PHOENIX-ORACLE-001 | Oracle case file is not valid | a file of cases that is not JSON, has another format, an unknown field, an empty suite or title, or a case that is not valid |
+| PHOENIX-ORACLE-002 | Oracle case is not valid | an id that is not `ORACLE-` followed by capitals, digits and dashes or is used twice, an empty source, a cited case without a check, a finite reference value, a tolerance or a note about it, a pending case without a reason or with a number |
+| PHOENIX-ORACLE-003 | Oracle check is not known | a check name in a cited case that this program does not have |
+| PHOENIX-ORACLE-004 | Input of an oracle case is missing or not valid | an input of a check that is missing, is not of the kind the check reads or has a value the check does not know |
+| PHOENIX-ORACLE-005 | The calculation under test failed | the function under test returned an error, or its result is not a finite number |
+| PHOENIX-ORACLE-006 | Result is outside the tolerance of the reference | a cited case whose result differs from the reference value by more than the tolerance |
+| PHOENIX-ORACLE-007 | Case is pending | information: a case that has no value yet, with the reason it is pending |
+| PHOENIX-ORACLE-008 | Case file or folder cannot be read | `--dir` that is not a folder, holds no `.json` file or has a file that cannot be read or is over 1 MiB |
+| PHOENIX-ORACLE-009 | Command option is not valid | an option that is unknown, lacks its value or has a language code that is not one of the eight |
+| PHOENIX-ORACLE-010 | Report file cannot be written | `--out` names a file that exists (an existing file is never replaced) or cannot be created |
+
+The same titles in the eight languages of the suite (English, Spanish, German, French, Italian, Japanese, Chinese and European Portuguese), as the program prints them:
+
+| Code | en | es | de | fr | it | ja | zh | pt |
+|---|---|---|---|---|---|---|---|---|
+| PHOENIX-ORACLE-001 | Oracle case file is not valid | El archivo de casos del oráculo no es válido | Die Datei mit den Orakel-Fällen ist ungültig | Le fichier de cas de l'oracle n'est pas valide | Il file dei casi dell'oracolo non è valido | オラクルのケースファイルが無効です | 基准用例文件无效 | O ficheiro de casos do oráculo não é válido |
+| PHOENIX-ORACLE-002 | Oracle case is not valid | El caso del oráculo no es válido | Der Orakel-Fall ist ungültig | Le cas de l'oracle n'est pas valide | Il caso dell'oracolo non è valido | オラクルのケースが無効です | 基准用例无效 | O caso do oráculo não é válido |
+| PHOENIX-ORACLE-003 | Oracle check is not known | La comprobación del oráculo no se conoce | Die Orakel-Prüfung ist unbekannt | Le contrôle de l'oracle est inconnu | Il controllo dell'oracolo non è noto | オラクルのチェックが不明です | 未知的基准检查 | A verificação do oráculo não é conhecida |
+| PHOENIX-ORACLE-004 | Input of an oracle case is missing or not valid | Falta un dato de entrada del caso o no es válido | Eine Eingabe des Falls fehlt oder ist ungültig | Une entrée du cas manque ou n'est pas valide | Un ingresso del caso manca o non è valido | ケースの入力が不足または無効です | 用例的输入缺失或无效 | Falta uma entrada do caso ou não é válida |
+| PHOENIX-ORACLE-005 | The calculation under test failed | Falló el cálculo que se prueba | Die geprüfte Berechnung ist fehlgeschlagen | Le calcul testé a échoué | Il calcolo in prova è fallito | テスト対象の計算が失敗しました | 被测计算失败 | O cálculo em teste falhou |
+| PHOENIX-ORACLE-006 | Result is outside the tolerance of the reference | El resultado está fuera de la tolerancia de la referencia | Das Ergebnis liegt außerhalb der Toleranz der Referenz | Le résultat est hors de la tolérance de la référence | Il risultato è fuori dalla tolleranza del riferimento | 結果が基準の許容範囲外です | 结果超出参考值的容差 | O resultado está fora da tolerância da referência |
+| PHOENIX-ORACLE-007 | Case is pending | El caso está pendiente | Der Fall ist ausstehend | Le cas est en attente | Il caso è in sospeso | ケースは保留中です | 用例待处理 | O caso está pendente |
+| PHOENIX-ORACLE-008 | Case file or folder cannot be read | No se puede leer el archivo o la carpeta de casos | Die Falldatei oder der Ordner kann nicht gelesen werden | Le fichier ou le dossier de cas ne peut pas être lu | Il file o la cartella dei casi non può essere letto | ケースのファイルまたはフォルダを読み込めません | 无法读取用例文件或文件夹 | Não é possível ler o ficheiro ou a pasta de casos |
+| PHOENIX-ORACLE-009 | Command option is not valid | La opción del comando no es válida | Die Option des Befehls ist ungültig | L'option de la commande n'est pas valide | L'opzione del comando non è valida | コマンドのオプションが無効です | 命令选项无效 | A opção do comando não é válida |
+| PHOENIX-ORACLE-010 | Report file cannot be written | No se puede escribir el archivo del informe | Die Berichtsdatei kann nicht geschrieben werden | Le fichier du rapport ne peut pas être écrit | Il file del rapporto non può essere scritto | レポートファイルを書き込めません | 无法写入报告文件 | Não é possível escrever o ficheiro do relatório |

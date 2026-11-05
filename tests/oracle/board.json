@@ -1,0 +1,98 @@
+{
+  "format": "phoenix-oracle/1",
+  "suite": "board",
+  "title": "Boards with a shape whose answer follows from plane geometry: clearance, track length and delay, zone area",
+  "cases": [
+    {
+      "id": "ORACLE-RULES-001",
+      "title": "Two parallel tracks 0.25 mm apart edge to edge break a 0.3 mm clearance rule",
+      "area": "rules",
+      "check": "rules_clearance",
+      "inputs": { "width_mm": 0.2, "pitch_mm": 0.45, "limit_mm": 0.3, "quantity": "violations" },
+      "expected": 1.0,
+      "unit": "findings",
+      "tolerance": { "abs": 0.0 },
+      "tolerance_note": "chosen here: a count, so no difference is accepted",
+      "source": "IPC-2221 (Generic Standard on Printed Board Design), conductor spacing is the distance between the edges of two conductors; for parallel tracks it is the distance between the centre lines minus the width, here 0.45 - 0.2 = 0.25 mm",
+      "status": "cited"
+    },
+    {
+      "id": "ORACLE-RULES-002",
+      "title": "The measured clearance of the same two tracks",
+      "area": "rules",
+      "check": "rules_clearance",
+      "inputs": { "width_mm": 0.2, "pitch_mm": 0.45, "limit_mm": 0.3, "quantity": "measured_mm" },
+      "expected": 0.25,
+      "unit": "mm",
+      "tolerance": { "abs": 1e-6 },
+      "tolerance_note": "chosen here: the geometry is exact in integer nanometres, so one nanometre is wider than needed",
+      "source": "IPC-2221 conductor spacing as the distance between the edges of two conductors: centre distance 0.45 mm minus the track width 0.2 mm",
+      "status": "cited"
+    },
+    {
+      "id": "ORACLE-RULES-003",
+      "title": "Two parallel tracks 0.35 mm apart edge to edge keep a 0.3 mm clearance rule",
+      "area": "rules",
+      "check": "rules_clearance",
+      "inputs": { "width_mm": 0.2, "pitch_mm": 0.55, "limit_mm": 0.3, "quantity": "violations" },
+      "expected": 0.0,
+      "unit": "findings",
+      "tolerance": { "abs": 0.0 },
+      "tolerance_note": "chosen here: a count, so no difference is accepted",
+      "source": "IPC-2221 conductor spacing as the distance between the edges of two conductors: 0.55 - 0.2 = 0.35 mm, above the 0.3 mm limit",
+      "status": "cited"
+    },
+    {
+      "id": "ORACLE-LENGTHS-001",
+      "title": "Length of a straight track along a 3-4-5 triangle scaled to 30 mm by 40 mm",
+      "area": "lengths",
+      "check": "lengths_track",
+      "inputs": { "dx_mm": 30.0, "dy_mm": 40.0, "rate_ps_per_mm": 6.671281903963041, "quantity": "length_mm" },
+      "expected": 50.0,
+      "unit": "mm",
+      "tolerance": { "abs": 1e-6 },
+      "tolerance_note": "chosen here: the length is rounded to the nearest nanometre, so one nanometre is wider than needed",
+      "source": "Euclid, Elements, book I, proposition 47 (Pythagorean theorem): sqrt(30^2 + 40^2) = 50",
+      "status": "cited"
+    },
+    {
+      "id": "ORACLE-LENGTHS-002",
+      "title": "Delay of that track at the delay of a TEM line in a dielectric of relative permittivity 4",
+      "area": "lengths",
+      "check": "lengths_track",
+      "inputs": { "dx_mm": 30.0, "dy_mm": 40.0, "rate_ps_per_mm": 6.671281903963041, "quantity": "delay_ps" },
+      "expected": 333.5640952,
+      "unit": "ps",
+      "tolerance": { "rel": 1e-4 },
+      "tolerance_note": "chosen here: the settings keep the delay per millimetre in whole femtoseconds, which moves the result by about four parts in 1e5",
+      "source": "D. M. Pozar, Microwave Engineering, TEM lines: delay = length x sqrt(er)/c, with sqrt(4)/c = 6.671281904 ps/mm over 50 mm",
+      "status": "cited"
+    },
+    {
+      "id": "ORACLE-ZONES-001",
+      "title": "Copper area of a 10 mm by 10 mm zone with nothing near it",
+      "area": "zones",
+      "check": "zones_fill_area_mm2",
+      "inputs": { "clearance_mm": 0.2, "track_width_mm": 0.0 },
+      "expected": 100.0,
+      "unit": "mm2",
+      "tolerance": { "abs": 1e-6 },
+      "tolerance_note": "chosen here: the clipping is exact in integer nanometres for a rectangle, so a millionth of a square millimetre is wider than needed",
+      "source": "Area of a rectangle: 10 mm x 10 mm = 100 mm2",
+      "status": "cited"
+    },
+    {
+      "id": "ORACLE-ZONES-002",
+      "title": "Copper area of the same zone with a 0.5 mm track of another net across it and 0.2 mm clearance",
+      "area": "zones",
+      "check": "zones_fill_area_mm2",
+      "inputs": { "clearance_mm": 0.2, "track_width_mm": 0.5 },
+      "expected": 91.0,
+      "unit": "mm2",
+      "tolerance": { "rel": 0.005 },
+      "tolerance_note": "chosen here: the track and its clearance are cut out as a polygon with sixteen sides per round end, which moves the straight sides by at most 0.2 per cent; half a per cent is wider than that",
+      "source": "Area of a rectangle minus a strip: 10 x 10 - 10 x (0.5 + 2 x 0.2) = 91 mm2, the strip being the track widened by the clearance on each side and crossing the zone from edge to edge",
+      "status": "cited"
+    }
+  ]
+}

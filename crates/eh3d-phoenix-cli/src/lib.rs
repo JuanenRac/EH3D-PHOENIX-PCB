@@ -7,7 +7,8 @@
 //! external autorouter adds `autoroute`, the filling of copper zones adds `zones` and the lengths
 //! of nets and pairs add `lengths`; the import of Gerber and Excellon files adds `gerber-import`
 //! and the layout of a matrix of boards adds `panel`; the bill of materials with costs adds `bom`
-//! and the 3D assembly of the board with the models of its components adds `assembly3d`.
+//! and the 3D assembly of the board with the models of its components adds `assembly3d`; the run of
+//! the reference cases of the calculations adds `oracle`.
 //!
 //! Exit codes: 0 done, 1 `stackup` could not compute one or more of the lines it was asked for,
 //! `check`, `connectivity` and `erc` proved an error, or `sync` found changes to make, 2 the
@@ -26,6 +27,7 @@ mod kicad;
 mod lengths;
 mod libedit;
 mod materials;
+mod oracle;
 mod panel;
 mod rf;
 mod rfgen;
@@ -234,6 +236,15 @@ phoenix assembly3d [--config FILE] --models FILE [--stackup FILE] [--obj FILE] [
                 simplified OBJ and STEP export written only to new files, a prototype, run
                 `phoenix assembly3d` alone for its options
 
+phoenix oracle run  [--dir FOLDER] [--suite NAME] [--out FILE] [--json] [--lang xx]
+phoenix oracle list [--dir FOLDER] [--suite NAME]
+
+  oracle        run the reference cases (published values with their source and tolerance)
+                against the real calculations of the stack-up, RF, simulator, rules, lengths
+                and zones, or list them; nothing is written unless --out names a new file, a
+                prototype that does not compare anything with EAGLE, KiCad or a measurement,
+                run `phoenix oracle` alone for its options
+
 phoenix view [--settings FILE] [--lang xx] [<board or schematic>]
 phoenix view --summary <file>  |  phoenix view --bench
 
@@ -341,6 +352,9 @@ pub fn run(args: &[String], out: &mut dyn Write, err: &mut dyn Write) -> i32 {
     }
     if let Some((&"assembly3d", tail)) = rest.split_first() {
         return assembly3d::assembly3d_command(tail, out, err);
+    }
+    if let Some((&"oracle", tail)) = rest.split_first() {
+        return oracle::oracle_command(tail, out, err);
     }
     if let Some((&"view", tail)) = rest.split_first() {
         return view::view(tail, out, err);

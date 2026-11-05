@@ -1,0 +1,20 @@
+[package]
+name = "eh3d-phoenix-oracle"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Reference cases for the calculations of the suite (prototype): files of cases with a published value, its source and its tolerance, an executor that calls the real functions of the stack-up, RF, simulator, rules, lengths and zones crates, and a report that is the same every time with the cases that pass, the ones outside the tolerance and the ones still pending"
+
+[dependencies]
+eh3d-phoenix-board = { path = "../eh3d-phoenix-board" }
+eh3d-phoenix-lengths = { path = "../eh3d-phoenix-lengths" }
+eh3d-phoenix-model = { path = "../eh3d-phoenix-model" }
+eh3d-phoenix-rf = { path = "../eh3d-phoenix-rf" }
+eh3d-phoenix-rules = { path = "../eh3d-phoenix-rules" }
+eh3d-phoenix-sim = { path = "../eh3d-phoenix-sim" }
+eh3d-phoenix-stackup = { path = "../eh3d-phoenix-stackup" }
+eh3d-phoenix-zones = { path = "../eh3d-phoenix-zones" }
+serde.workspace = true
+serde_json = { workspace = true, features = ["float_roundtrip"] }
