@@ -3,6 +3,8 @@
 //! `stackup`, `materials`, `check`, `connectivity`, `erc`, `sync`, `export`, `rf`, `rfgen`, `kicad-read`, `sanitize`,
 //! `sim`, `route`, `ratsnest`, `script`, `cam-import`, `schedit` and `view`.
 //!
+//! The editor of libraries adds the commands `libedit` and `footprint`.
+//!
 //! Exit codes: 0 done, 1 `stackup` could not compute one or more of the lines it was asked for,
 //! `check`, `connectivity` and `erc` proved an error, or `sync` found changes to make, 2 the
 //! arguments or the input are unusable.
@@ -13,6 +15,7 @@ mod check;
 mod design;
 mod export;
 mod kicad;
+mod libedit;
 mod materials;
 mod rf;
 mod rfgen;
@@ -152,6 +155,19 @@ phoenix schedit [--erc-config FILE] [--json] [--lang xx] --apply OPERATIONS.json
                 (.json or .sch), and an input file is never written over (run `phoenix schedit`
                 alone for its options)
 
+phoenix libedit [--apply OPERATIONS.json] [--plan SANITIZER.plan.json] [--out NEW.lbr]
+                [--config FILE] [--json] [--lang xx] <library.lbr>
+phoenix footprint <family> [--param NAME=VALUE ...] [--config FILE] [--into LIBRARY.lbr]
+                  [--out NEW.lbr] [--json] [--lang xx]
+
+  libedit       edit an EAGLE library with a file of operations (symbols, footprints, devices,
+                pads, pins, openings and connections), all or nothing, check it and, with --out,
+                save it as a new library that is read back and compared, with a copy of the
+                original; a dry run otherwise, and a file that exists is never written over
+  footprint     make a footprint (chip, SOIC, TSSOP, QFN, QFP, DIP, header) from parameters by the
+                method of IPC-7351B with the values of config/footprints.cfg, a prototype that is
+                not checked against a datasheet (run either command alone for its options)
+
 phoenix view [--settings FILE] [--lang xx] [<board or schematic>]
 phoenix view --summary <file>  |  phoenix view --bench
 
@@ -232,6 +248,12 @@ pub fn run(args: &[String], out: &mut dyn Write, err: &mut dyn Write) -> i32 {
     }
     if let Some((&"schedit", tail)) = rest.split_first() {
         return schedit::schedit_command(tail, out, err);
+    }
+    if let Some((&"libedit", tail)) = rest.split_first() {
+        return libedit::libedit_command(tail, out, err);
+    }
+    if let Some((&"footprint", tail)) = rest.split_first() {
+        return libedit::footprint_command(tail, out, err);
     }
     if let Some((&"view", tail)) = rest.split_first() {
         return view::view(tail, out, err);
