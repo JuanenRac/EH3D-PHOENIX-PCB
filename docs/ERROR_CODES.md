@@ -2,7 +2,7 @@
 
 Codes have the form `PHOENIX-<AREA>-<NNN>`. A code is stable: it never changes its meaning and is never reused. Programs show the text through the key `diag.<code>`; the codes themselves are never translated. The object identity (UUID v7) is the one of the shared container, with its own codes `EH3D-ID-001` and `EH3D-ID-002`. The container codes `EH3D-PKG-001` to `EH3D-PKG-014` belong to the shared container and are listed in the registry of the documentation repository.
 
-Each table repeats the `REGISTRY` of a crate (`eh3d-phoenix-model` in `src/diagnostic.rs`, `eh3d-phoenix-project` and `eh3d-phoenix-eagle` in `src/codes.rs`, `eh3d-phoenix-hub` in `src/lib.rs`, `eh3d-phoenix-export` in `src/codes.rs`, `eh3d-phoenix-schematic` in `src/model.rs` and `src/link.rs`, `eh3d-phoenix-board` in `src/validate.rs`, `src/connectivity.rs` and `src/rules.rs`, `eh3d-phoenix-rules` in `src/codes.rs`, `eh3d-phoenix-stackup` in `src/error.rs`); a test of each crate checks that every code of its registry is in the table with the same title.
+Each table repeats the `REGISTRY` of a crate (`eh3d-phoenix-model` in `src/diagnostic.rs`, `eh3d-phoenix-project` and `eh3d-phoenix-eagle` in `src/codes.rs`, `eh3d-phoenix-hub` in `src/lib.rs`, `eh3d-phoenix-export` in `src/codes.rs`, `eh3d-phoenix-schematic` in `src/model.rs` and `src/link.rs`, `eh3d-phoenix-board` in `src/validate.rs`, `src/connectivity.rs` and `src/rules.rs`, `eh3d-phoenix-rules` in `src/codes.rs`, `eh3d-phoenix-stackup` and `eh3d-phoenix-rf` in `src/error.rs`); a test of each crate checks that every code of its registry is in the table with the same title.
 
 ## Model foundations
 
@@ -210,3 +210,20 @@ The titles of these codes also exist in the eight languages of the suite (`title
 | PHOENIX-STACK-014 | Quasi-static limit exceeded | a substrate height above the fraction of the guided wavelength set (a warning) |
 | PHOENIX-STACK-015 | Solder mask over the line is not modelled | solder mask over the open side of a microstrip or coplanar line (a warning) |
 | PHOENIX-STACK-016 | Approximate model | an offset stripline, a coupled pair, or a coplanar line whose plane under the substrate is left out (a warning) |
+
+## RF tools (`eh3d-phoenix-rf`, `src/error.rs`)
+
+The titles of these codes also exist in the eight languages of the suite (`title` in `src/error.rs`); the detail of a message is in English. Every code is an error.
+
+| Code | Title | Raised by |
+|---|---|---|
+| PHOENIX-RF-001 | A number is not valid | a value that is not finite or is outside what the calculation accepts, a complex number written wrongly, a port or a reference impedance that is not above zero |
+| PHOENIX-RF-002 | The Touchstone file has a syntax error | a line of a Touchstone file that cannot be read (an unknown option, a value that is not a number, a record with too many values, the keywords of version 2); the message names the line |
+| PHOENIX-RF-003 | The Touchstone data is not valid | values that are read but cannot be used (a frequency that does not increase, a negative magnitude, an incomplete record, a file with no data, noise data in the wrong place); the message names the line |
+| PHOENIX-RF-004 | The calculation is singular | a division by zero, a matrix with no inverse, a conversion that does not exist for the network (a series impedance has no Z matrix) or a result that is not a number |
+| PHOENIX-RF-005 | The network is not valid | a matrix of the wrong size or with an entry that is not finite, a pair of lists of different length, a port that the file does not have |
+| PHOENIX-RF-006 | No network gives the match | impedances for which no L network, stub or quarter-wave section of the kind asked for exists |
+| PHOENIX-RF-007 | The filter is not valid | an order below 1 or above the Bessel table, a ripple given to a filter that has none or missing for a Chebyshev one, band edges out of order, a specification whose stop band does not exceed the pass band |
+| PHOENIX-RF-008 | The settings are not valid | a line of the settings text that is not `key = value`, an unknown key or a value out of range |
+| PHOENIX-RF-009 | A value is outside the configured limit | more ports, points, bytes, filter order, ripple, impedance, frequency or sweep points than the settings allow |
+| PHOENIX-RF-010 | Frequency outside the data of the file | a frequency below the first or above the last point of a Touchstone file (nothing is extrapolated) |

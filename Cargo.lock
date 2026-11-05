@@ -309,6 +309,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "eh3d-phoenix-rf"
+version = "0.0.2"
+dependencies = [
+ "eh3d-diagnostic",
+ "eh3d-phoenix-stackup",
+ "thiserror",
+]
+
+[[package]]
 name = "eh3d-phoenix-rules"
 version = "0.0.2"
 dependencies = [

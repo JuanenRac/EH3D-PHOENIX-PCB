@@ -1,0 +1,13 @@
+[package]
+name = "eh3d-phoenix-rf"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Everyday RF tools: Touchstone files, two-port parameters and their conversions, impedance matching (L networks, single stubs, quarter-wave transformers), Smith chart coordinates and Butterworth, Chebyshev and Bessel filters"
+
+[dependencies]
+eh3d-diagnostic.workspace = true
+eh3d-phoenix-stackup = { path = "../eh3d-phoenix-stackup" }
+thiserror.workspace = true
