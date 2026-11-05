@@ -612,9 +612,14 @@ mod tests {
                 continue;
             }
             let other = words(lang);
-            assert_ne!(other.dimensions, en.dimensions, "{lang:?}");
+            // a word can be the same in two languages (dimensions in French), but not all of them
+            assert!(
+                other.dimensions != en.dimensions
+                    || other.prototype != en.prototype
+                    || other.passes != en.passes,
+                "{lang:?}"
+            );
             assert_ne!(other.prototype, en.prototype, "{lang:?}");
-            assert_ne!(other.passes, en.passes, "{lang:?}");
         }
     }
 }
