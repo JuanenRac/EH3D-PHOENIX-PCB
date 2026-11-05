@@ -143,6 +143,19 @@
           }
         },
         {
+          "name": "RFGEN.md",
+          "desc": {
+            "en": "RF structures on the board: formulas, sources and limits",
+            "es": "estructuras de RF en la placa: fórmulas, fuentes y límites",
+            "de": "HF-Strukturen auf der Platine: Formeln, Quellen, Grenzen",
+            "fr": "structures RF sur la carte : formules, sources et limites",
+            "it": "strutture RF sulla scheda: formule, fonti e limiti",
+            "ja": "基板上のRF構造：式、出典、限界",
+            "zh": "电路板上的射频结构：公式、来源与限制",
+            "pt": "estruturas de RF na placa: fórmulas, fontes e limites"
+          }
+        },
+        {
           "name": "KICAD.md",
           "desc": {
             "en": "the KiCad readers: what is read from each format",
