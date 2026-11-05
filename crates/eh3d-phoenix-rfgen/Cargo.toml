@@ -1,0 +1,17 @@
+[package]
+name = "eh3d-phoenix-rfgen"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Generator of microstrip RF structures for the board (prototype): lines, mitered bends, curves and tapers, open and short-circuited stubs, stub, quarter-wave and L matching, stepped-impedance low-pass and coupled-line band-pass filters, Wilkinson divider, branch-line coupler, patch and dipole antennas and an edge SMA launch with a via fence, made from the stack-up and the frequency and returned as reversible operations of the board with a report of the formulas used"
+
+[dependencies]
+eh3d-phoenix-board = { path = "../eh3d-phoenix-board" }
+eh3d-phoenix-model = { path = "../eh3d-phoenix-model" }
+eh3d-phoenix-rf = { path = "../eh3d-phoenix-rf" }
+eh3d-phoenix-rules = { path = "../eh3d-phoenix-rules" }
+eh3d-phoenix-stackup = { path = "../eh3d-phoenix-stackup" }
+serde.workspace = true
+serde_json.workspace = true

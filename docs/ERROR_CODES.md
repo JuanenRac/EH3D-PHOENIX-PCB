@@ -437,3 +437,29 @@ The titles of these codes also exist in the eight languages of the suite (`TITLE
 | PHOENIX-SCRIPT-040 | Selects objects by name, not by a rectangle | `GROUP` (adapted) |
 | PHOENIX-SCRIPT-041 | The shape is ignored: vias are round and join the outer copper layers | `VIA` with a shape word (adapted) |
 | PHOENIX-SCRIPT-042 | A limit of the folder walk was reached | more scripts than `max_files` or folders deeper than `max_walk_depth` in a report |
+
+## RF structure generator (`eh3d-phoenix-rfgen`, `src/codes.rs`)
+
+The titles of these codes also exist in the eight languages of the suite (`TITLES` in `src/codes.rs`); the detail of a message is in English. The last three are warnings in the report of a structure; the others are errors.
+
+| Code | Title | Raised by |
+|---|---|---|
+| PHOENIX-RFGEN-001 | RF generator settings are not valid | a line of `config/rfgen.cfg` that is not `key = value`, an unknown key or a value out of range |
+| PHOENIX-RFGEN-002 | A parameter is missing, unknown or out of range | a parameter the type of structure does not take, one that is not a finite number or not above zero, a needed parameter that is missing, a rotation that is not a multiple of 90 degrees, a length or arm that does not fit |
+| PHOENIX-RFGEN-003 | Unknown type of structure | a type that is not in `phoenix rfgen --list` |
+| PHOENIX-RFGEN-004 | The stack-up cannot carry a microstrip on this layer | a layer that is missing or not copper, an inner layer, a layer with no plane under its dielectric, a frequency or stack-up the stack-up crate refuses |
+| PHOENIX-RFGEN-005 | A track width could not be found for the impedance | an impedance outside what the widths of `config/stackup.cfg` reach |
+| PHOENIX-RFGEN-006 | The design cannot be built in microstrip | a stub shorter than the fringing field of its open end, a series element that a line cannot stand for, equal impedances for a transformer, an arm too short for its pitch, a fence that does not fit, a feed impedance above the edge resistance of a patch |
+| PHOENIX-RFGEN-007 | The search for the width and gap of a coupled pair did not converge | even and odd impedances the model of coupled microstrips cannot give, or the iteration limit |
+| PHOENIX-RFGEN-008 | The board has no copper layer of that name | a board whose copper layers are not those of the stack-up |
+| PHOENIX-RFGEN-009 | A coordinate or a length is out of range | a length or a placement that does not fit the checked range of the model |
+| PHOENIX-RFGEN-010 | The board refused an operation | an operation of the structure that the board does not apply (an id in use, a part that is not there) |
+| PHOENIX-RFGEN-011 | The rules find a new error in the result | the rule check of the board with the structure finds more errors than before while `rules_gate` is on |
+| PHOENIX-RFGEN-012 | No free id could be made | `id_attempts` ids were tried and all were in use |
+| PHOENIX-RFGEN-013 | A command option is not valid | an option that needs a value or a number, an unknown language code, an output file that does not end in `.json` or `.brd` |
+| PHOENIX-RFGEN-014 | The output file exists or cannot be written | an output file that already exists (an input file is never replaced) or cannot be created |
+| PHOENIX-RFGEN-015 | The stack-up or the board cannot be read | a stack-up, board or settings file that cannot be opened, is too large or is not valid |
+| PHOENIX-RFGEN-016 | A limit was exceeded | a structure with more items than `max_items` |
+| PHOENIX-RFGEN-017 | A value is outside the range of a formula | warning: an input of a formula beyond the range the program checks for it |
+| PHOENIX-RFGEN-018 | A shape is smaller than the minimum | warning: a copper shape narrower than `min_feature_nm` |
+| PHOENIX-RFGEN-019 | The result rests on an approximation | warning: a discontinuity that is not modelled, a short-circuited stub that grounds the net, a resistor or a connector land pattern that is not placed |

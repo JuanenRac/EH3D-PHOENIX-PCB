@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! The command line of EH3D-PHOENIX-PCB. It has seventeen commands, `inventory`, `eagle-rate`,
-//! `stackup`, `check`, `connectivity`, `erc`, `sync`, `export`, `rf`, `kicad-read`, `sanitize`, `sim`,
-//! `route`, `ratsnest`, `script`, `cam-import` and `view`.
+//! The command line of EH3D-PHOENIX-PCB. It has eighteen commands, `inventory`, `eagle-rate`,
+//! `stackup`, `check`, `connectivity`, `erc`, `sync`, `export`, `rf`, `rfgen`, `kicad-read`, `sanitize`,
+//! `sim`, `route`, `ratsnest`, `script`, `cam-import` and `view`.
 //!
 //! Exit codes: 0 done, 1 `stackup` could not compute one or more of the lines it was asked for,
 //! `check`, `connectivity` and `erc` proved an error, or `sync` found changes to make, 2 the
@@ -14,6 +14,7 @@ mod design;
 mod export;
 mod kicad;
 mod rf;
+mod rfgen;
 mod route;
 mod sanitize;
 mod script;
@@ -74,6 +75,16 @@ phoenix rf touchstone|match|filter ...
 
   rf            everyday RF tools: Touchstone files, impedance matching and ladder filters
                 (run `phoenix rf` alone for its usage)
+
+phoenix rfgen --list [--json]
+phoenix rfgen <type> --stackup FILE --freq-ghz GHZ [--board FILE] [--out FILE] [--<parameter> VALUE ...]
+
+  rfgen         draw a microstrip RF structure (line, bend, curve, taper, stubs, matching networks,
+                low-pass and band-pass filters, Wilkinson divider, branch-line coupler, patch and
+                dipole antennas, SMA launch with a via fence) from the stack-up and the frequency
+                and put it on a board as reversible operations, with a report of the dimensions,
+                the formulas, the warnings and the rule check; a prototype never compared with an
+                electromagnetic simulator (run `phoenix rfgen` alone for its options)
 
 phoenix kicad-read [--settings FILE] [--lang xx] [--redacted] <file>
 
@@ -168,6 +179,9 @@ pub fn run(args: &[String], out: &mut dyn Write, err: &mut dyn Write) -> i32 {
     }
     if let Some((&"rf", tail)) = rest.split_first() {
         return rf::rf(tail, out, err);
+    }
+    if let Some((&"rfgen", tail)) = rest.split_first() {
+        return rfgen::rfgen_command(tail, out, err);
     }
     if let Some((&"kicad-read", tail)) = rest.split_first() {
         return kicad::kicad_read(tail, out, err);

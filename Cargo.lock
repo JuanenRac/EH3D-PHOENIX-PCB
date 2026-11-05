@@ -219,6 +219,7 @@ dependencies = [
  "eh3d-phoenix-kicad",
  "eh3d-phoenix-model",
  "eh3d-phoenix-rf",
+ "eh3d-phoenix-rfgen",
  "eh3d-phoenix-route",
  "eh3d-phoenix-rules",
  "eh3d-phoenix-sanitizer",
@@ -335,6 +336,19 @@ dependencies = [
  "eh3d-diagnostic",
  "eh3d-phoenix-stackup",
  "thiserror",
+]
+
+[[package]]
+name = "eh3d-phoenix-rfgen"
+version = "0.0.2"
+dependencies = [
+ "eh3d-phoenix-board",
+ "eh3d-phoenix-model",
+ "eh3d-phoenix-rf",
+ "eh3d-phoenix-rules",
+ "eh3d-phoenix-stackup",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
