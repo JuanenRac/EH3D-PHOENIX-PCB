@@ -1,0 +1,17 @@
+[package]
+name = "eh3d-phoenix-assembly3d"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "3D assembly of a board with the models of its components (prototype): a model per footprint from a local table, the least geometry of a STEP file (a box, or the box that encloses the solid with a finding), the scene of the board and its components as data, collisions between boxes, a height limit, and a simplified OBJ and STEP export"
+
+[dependencies]
+eh3d-phoenix-board = { path = "../eh3d-phoenix-board" }
+eh3d-phoenix-bom = { path = "../eh3d-phoenix-bom" }
+eh3d-phoenix-rules = { path = "../eh3d-phoenix-rules" }
+serde_json.workspace = true
+
+[dev-dependencies]
+eh3d-phoenix-model = { path = "../eh3d-phoenix-model" }

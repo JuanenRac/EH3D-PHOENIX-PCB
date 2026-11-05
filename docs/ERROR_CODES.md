@@ -2,7 +2,7 @@
 
 Codes have the form `PHOENIX-<AREA>-<NNN>`. A code is stable: it never changes its meaning and is never reused. Programs show the text through the key `diag.<code>`; the codes themselves are never translated. The object identity (UUID v7) is the one of the shared container, with its own codes `EH3D-ID-001` and `EH3D-ID-002`. The container codes `EH3D-PKG-001` to `EH3D-PKG-014` belong to the shared container and are listed in the registry of the documentation repository.
 
-Each table repeats the `REGISTRY` of a crate (`eh3d-phoenix-model` in `src/diagnostic.rs`, `eh3d-phoenix-project` and `eh3d-phoenix-eagle` in `src/codes.rs`, `eh3d-phoenix-hub` in `src/lib.rs`, `eh3d-phoenix-export` in `src/codes.rs`, `eh3d-phoenix-schematic` in `src/model.rs`, `src/draw.rs`, `src/edit.rs` and `src/link.rs`, `eh3d-phoenix-board` in `src/validate.rs`, `src/connectivity.rs` and `src/rules.rs`, `eh3d-phoenix-rules` in `src/codes.rs`, `eh3d-phoenix-stackup` and `eh3d-phoenix-rf` in `src/error.rs`, `eh3d-phoenix-viewer`, `eh3d-phoenix-sanitizer`, `eh3d-phoenix-erc`, `eh3d-phoenix-sync`, `eh3d-phoenix-schedit`, `eh3d-phoenix-libedit`, `eh3d-phoenix-zones`, `eh3d-phoenix-lengths`, `eh3d-phoenix-gerber`, `eh3d-phoenix-panel` and `eh3d-phoenix-bom` in `src/codes.rs`); a test of each crate checks that every code of its registry is in the table with the same title.
+Each table repeats the `REGISTRY` of a crate (`eh3d-phoenix-model` in `src/diagnostic.rs`, `eh3d-phoenix-project` and `eh3d-phoenix-eagle` in `src/codes.rs`, `eh3d-phoenix-hub` in `src/lib.rs`, `eh3d-phoenix-export` in `src/codes.rs`, `eh3d-phoenix-schematic` in `src/model.rs`, `src/draw.rs`, `src/edit.rs` and `src/link.rs`, `eh3d-phoenix-board` in `src/validate.rs`, `src/connectivity.rs` and `src/rules.rs`, `eh3d-phoenix-rules` in `src/codes.rs`, `eh3d-phoenix-stackup` and `eh3d-phoenix-rf` in `src/error.rs`, `eh3d-phoenix-viewer`, `eh3d-phoenix-sanitizer`, `eh3d-phoenix-erc`, `eh3d-phoenix-sync`, `eh3d-phoenix-schedit`, `eh3d-phoenix-libedit`, `eh3d-phoenix-zones`, `eh3d-phoenix-lengths`, `eh3d-phoenix-gerber`, `eh3d-phoenix-panel`, `eh3d-phoenix-bom` and `eh3d-phoenix-assembly3d` in `src/codes.rs`); a test of each crate checks that every code of its registry is in the table with the same title.
 
 ## Model foundations
 
@@ -637,3 +637,28 @@ The titles of these codes also exist in the eight languages of the suite (`TITLE
 | PHOENIX-BOM-016 | An input file cannot be read | the board, a price file, a file of part data, a schematic, a stack-up or a settings file that cannot be opened or read |
 | PHOENIX-BOM-017 | A limit of the bill of materials was exceeded | more components than `max_items` |
 | PHOENIX-BOM-018 | The PCB cost is an estimate from the tariffs of the settings | information, always given with a PCB cost: the tariffs are an example and not the prices of any maker |
+
+## 3D assembly (`eh3d-phoenix-assembly3d`, `src/codes.rs`)
+
+The titles of these codes also exist in the eight languages of the suite (`TITLES` in `src/codes.rs`); the detail of a message is in English.
+
+| Code | Title | Raised by |
+|---|---|---|
+| PHOENIX-3D-001 | Assembly settings are not valid | a line of `config/assembly3d.cfg` that is not `key = value`, an unknown key, a number that cannot be read or a value out of range |
+| PHOENIX-3D-002 | Input file is larger than the limit | a model, table, stack-up or settings file with more bytes than `max_file_bytes` (or than the limit of a settings file); the file is not read |
+| PHOENIX-3D-003 | STEP file is not valid | a file that does not start with `ISO-10303-21` or has no `DATA` section, an entity that is not written as `#n=NAME(...)`, an entity number given twice, a point that is not three numbers or a number that cannot be read |
+| PHOENIX-3D-004 | Length unit of the STEP file is not supported | a file with no length unit, a unit with a prefix other than milli, centi, deci, micro or none, or a unit based on a conversion that is not the inch |
+| PHOENIX-3D-005 | STEP solid replaced by its enclosing box | warning: a file whose solid is not a plain box; the detail says what it is (straight edges and plane faces, circles and cylinders too, or something this reader does not know, for which the box of every point of the file is used and may not enclose the solid) |
+| PHOENIX-3D-006 | STEP file has no geometry | a file with no vertex and no circle |
+| PHOENIX-3D-007 | Footprint has no model | warning: a footprint that the table of models does not name, or a component whose footprint is not on the board; its components are left out of the scene and no model is made up |
+| PHOENIX-3D-008 | Table of models is not valid | a CSV with no `footprint` or `model` column, an empty footprint, a model that is an absolute path, has `..` or is not `box:LxWxH` with sizes above 0, a shift that is not a number, a `rot_z_deg` that is not a multiple of 90, a footprint given twice, or more lines than `max_components` |
+| PHOENIX-3D-009 | Model file cannot be read | a STEP file named by the table that cannot be opened; its components are left out |
+| PHOENIX-3D-010 | Components collide | error: the boxes of two components overlap by more than `min_overlap_nm` in the board plane and in height |
+| PHOENIX-3D-011 | Component is taller than the limit | error: a component stands higher above the board (or hangs lower below it) than `max_component_height_nm` |
+| PHOENIX-3D-012 | Component is not inside the board outline | warning: a corner of the box of a component is outside the outline of the board (with `check_outline` on) |
+| PHOENIX-3D-013 | Board thickness is not known, the default is used | information: no stack-up was given with `--stackup`, so `default_board_thickness_nm` is used |
+| PHOENIX-3D-014 | A command option is not valid | an option of `phoenix assembly3d` that the command does not know or needs a value for, an unknown language code, no `--models`, a number of board files other than one |
+| PHOENIX-3D-015 | The output file exists or cannot be written | a file named by `--obj`, `--step` or `--json-file` that exists, is named twice or cannot be created (nothing is written then) |
+| PHOENIX-3D-016 | An input file cannot be read | the board, the table of models, a stack-up or a settings file that cannot be opened or read |
+| PHOENIX-3D-017 | A limit of the assembly was exceeded | more components than `max_components`, more entities in a STEP file than `max_step_entities`, or more findings of one kind than `max_findings` (the rest are counted, not listed) |
+| PHOENIX-3D-018 | The export is a simplified model | information: the OBJ and STEP files hold boxes and the prism of the board, not the copper, the pads, the holes or the real shape of the parts |
