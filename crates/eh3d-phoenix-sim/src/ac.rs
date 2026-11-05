@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! The AC (small-signal) analysis: the circuit is linearised at its operating point (the diodes
-//! become their conductance), the equations are solved in complex numbers at each frequency, and
+//! The AC (small-signal) analysis: the circuit is linearised at its operating point (a diode, a
+//! transistor or an output stage becomes its conductances, and a junction its capacitance), the
+//! equations are solved in complex numbers at each frequency, and
 //! for each unknown the magnitude, the phase and the group delay are read from the result. The
 //! group delay is `-dφ/dω`, taken from the phase a small fraction of the frequency below and above
 //! the frequency (`delay_step_fraction`).
@@ -13,7 +14,7 @@ use crate::circuit::Circuit;
 use crate::codes::{SimError, ANALYSIS_INVALID, LIMIT_EXCEEDED, NOT_FINITE};
 use crate::dc::solve_dc;
 use crate::linalg::solve_complex;
-use crate::real::{diode_point, singular_error, volt};
+use crate::real::{singular_error, small_signal, SmallSignal};
 use crate::settings::SimSettings;
 
 /// How the frequencies of a sweep are spaced.
@@ -167,9 +168,9 @@ fn branch_voltage(a: &mut [Complex], n: usize, nn: usize, p: usize, q: usize, br
     add(a, n, Some(nn + branch), row(q), -Complex::ONE);
 }
 
-/// The matrix and the right-hand side at an angular frequency; `gd` is the small-signal
-/// conductance of each diode.
-fn assemble(c: &Circuit, omega: f64, gd: &[f64]) -> (Vec<Complex>, Vec<Complex>) {
+/// The matrix and the right-hand side at an angular frequency; `ss` is the small-signal model of
+/// the non-linear devices.
+pub(crate) fn assemble(c: &Circuit, omega: f64, ss: &SmallSignal) -> (Vec<Complex>, Vec<Complex>) {
     let n = c.unknowns();
     let nn = c.node_names.len();
     let mut a = vec![Complex::ZERO; n * n];
@@ -252,8 +253,13 @@ fn assemble(c: &Circuit, omega: f64, gd: &[f64]) -> (Vec<Complex>, Vec<Complex>)
             Complex::real(-e.rm),
         );
     }
-    for (k, d) in c.diodes.iter().enumerate() {
-        conduct(&mut a, n, d.a, d.k, Complex::real(gd[k]));
+    for lin in &ss.lins {
+        for &(col, g) in &lin.d {
+            add(&mut a, n, row(lin.node), row(col), Complex::real(g));
+        }
+    }
+    for &(p, q, farads) in &ss.caps {
+        conduct(&mut a, n, p, q, Complex::new(0.0, omega * farads));
     }
     (a, b)
 }
@@ -286,22 +292,18 @@ pub fn ac_at(c: &Circuit, s: &SimSettings, freqs: &[f64]) -> Result<AcResult, Si
             return Err(error);
         }
     }
-    let gd: Vec<f64> = if c.is_nonlinear() {
-        let (x, _, _) = solve_dc(c, s, s.gmin)?;
-        let vt = s.thermal_voltage();
-        c.diodes
-            .iter()
-            .map(|d| diode_point(d.is, d.n * vt, s.gmin, volt(&x, d.a) - volt(&x, d.k)).1)
-            .collect()
+    let x_op = if c.is_nonlinear() {
+        solve_dc(c, s, s.gmin)?.0
     } else {
-        Vec::new()
+        vec![0.0; n]
     };
+    let ss = small_signal(c, s, &x_op);
 
     let solve = |freq: f64| -> Result<Vec<Complex>, SimError> {
         if !(freq.is_finite() && freq > 0.0) {
             return Err(invalid("a frequency must be above zero"));
         }
-        let (mut a, mut b) = assemble(c, 2.0 * PI * freq, &gd);
+        let (mut a, mut b) = assemble(c, 2.0 * PI * freq, &ss);
         solve_complex(&mut a, &mut b, n, s.pivot_tolerance).map_err(|k| singular_error(c, k))?;
         if b.iter().any(|v| !v.is_finite()) {
             return Err(SimError::new(
@@ -487,6 +489,48 @@ mod tests {
         let rd = vt / id;
         let want = 1e-3 * rd / (rd + 1000.0);
         assert!((h.abs() - want).abs() / want < 5e-3, "{} {}", h.abs(), want);
+    }
+
+    #[test]
+    fn a_reverse_biased_diode_is_a_capacitor_that_follows_its_junction() {
+        // 3 V of reverse bias on a junction of 2 pF, 0.7 V and a grading of 0.5: 0.87 pF
+        let text = "j\n.model dm D(IS=1e-14 CJO=2p VJ=0.7 M=0.5)\nV1 in 0 DC 3 AC 1\nR1 in d 1k\nD1 0 d dm\n";
+        let cap = 2e-12 / (1.0f64 + 3.0 / 0.7).sqrt();
+        let fc = 1.0 / (2.0 * PI * 1e3 * cap);
+        let r = at(text, &[fc]);
+        let h = r.series("v(d)").unwrap()[0];
+        assert!(
+            (h.abs() - std::f64::consts::FRAC_1_SQRT_2).abs() < 2e-3,
+            "{}",
+            h.abs()
+        );
+        assert!((h.arg_deg() + 45.0).abs() < 0.2, "{}", h.arg_deg());
+        // far below the corner the diode is an open circuit
+        let low = at(text, &[1e3]);
+        assert!((low.series("v(d)").unwrap()[0].abs() - 1.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn the_op_amp_has_its_gain_bandwidth_product() {
+        // open loop: a pole at gbw / gain, then 20 dB per decade down to unity gain at gbw
+        let text = "oa\n.model oa OPAMP(GAIN=1e5 GBW=1e6 VPOS=15 VNEG=-15)\nV1 in 0 AC 1\nU1 in 0 out oa\nRL out 0 1meg\n";
+        let freqs = [1.0, 10.0, 1e6, 1e7];
+        let r = at(text, &freqs);
+        let h = r.series("v(out)").unwrap();
+        // 1 megohm of load against 1 ohm of output resistance, and a pole at 10 Hz
+        let load = 1e6 / (1e6 + 1.0);
+        for (k, f) in freqs.iter().enumerate() {
+            let want = 1e5 * load / (1.0f64 + (f / 10.0).powi(2)).sqrt();
+            assert!(
+                (h[k].abs() - want).abs() < 1e-3 * want,
+                "{f}: {} {want}",
+                h[k].abs()
+            );
+        }
+        // unity gain at the gain-bandwidth product, to within the pole
+        assert!((h[2].abs() - 1.0).abs() < 2e-3, "{}", h[2].abs());
+        // the phase is minus 90 degrees well above the pole
+        assert!((h[2].arg_deg() + 90.0).abs() < 0.1, "{}", h[2].arg_deg());
     }
 
     #[test]

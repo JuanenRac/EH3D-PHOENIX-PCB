@@ -48,6 +48,8 @@ pub const STEP_TOO_SMALL: &str = "PHOENIX-SIM-019";
 pub const PIN_UNCONNECTED: &str = "PHOENIX-SIM-020";
 /// An input file that cannot be read.
 pub const INPUT_UNREADABLE: &str = "PHOENIX-SIM-021";
+/// A model of a kind that does not fit the element that uses it.
+pub const MODEL_MISMATCH: &str = "PHOENIX-SIM-022";
 
 /// Code, then the title in English, Spanish, German, French, Italian, Japanese, Chinese and
 /// European Portuguese.
@@ -323,6 +325,19 @@ pub const TITLES: &[(&str, [&str; 8])] = &[
             "入力ファイルを読み込めません",
             "无法读取输入文件",
             "Não é possível ler o ficheiro de entrada",
+        ],
+    ),
+    (
+        MODEL_MISMATCH,
+        [
+            "Model does not fit the element",
+            "El modelo no corresponde al elemento",
+            "Das Modell passt nicht zum Element",
+            "Le modèle ne convient pas à l'élément",
+            "Il modello non è adatto all'elemento",
+            "モデルが素子の種類に合っていません",
+            "模型与元件不匹配",
+            "O modelo não corresponde ao elemento",
         ],
     ),
 ];

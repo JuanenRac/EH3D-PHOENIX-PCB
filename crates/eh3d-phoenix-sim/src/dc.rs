@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! The DC operating point: capacitors are open, inductors are short circuits, the sources take
-//! their DC value, and the diodes are solved by Newton-Raphson. When the plain iteration does not
-//! converge, the sources are raised from zero to their value in steps.
+//! their DC value, and the non-linear devices are solved by Newton-Raphson. When the plain
+//! iteration does not converge, two aids are tried in turn: gmin stepping (a conductance from
+//! every node to ground that is lowered step by step) and source stepping (the sources are raised
+//! from zero to their value in steps).
 
 use crate::circuit::Circuit;
 use crate::codes::{SimError, NO_CONVERGENCE};
@@ -19,7 +21,7 @@ pub struct OpResult {
     pub node_count: usize,
     /// The Newton-Raphson iterations used (1 for a linear circuit).
     pub iterations: usize,
-    /// How the point was found: `direct` or `source-stepping`.
+    /// How the point was found: `direct`, `gmin-stepping` or `source-stepping`.
     pub strategy: &'static str,
 }
 
@@ -34,8 +36,71 @@ impl OpResult {
     }
 }
 
+/// Solves with a conductance from every node to ground that starts at `gmin_start` and is lowered
+/// by `gmin_factor` at each of `gmin_steps` steps, each solution the start of the next, and then
+/// without it.
+fn gmin_stepping(
+    c: &Circuit,
+    s: &SimSettings,
+    gmin_nodes: f64,
+    start: &[f64],
+) -> Result<(Vec<f64>, usize), SimError> {
+    let mut x = start.to_vec();
+    let mut total = 0;
+    let mut g = s.gmin_start;
+    for _ in 0..s.gmin_steps {
+        let mode = Mode::dc(gmin_nodes.max(g));
+        let (next, iterations) = newton(c, s, &mode, &x).map_err(|inner| {
+            SimError::new(
+                inner.code,
+                format!("{} (gmin stepping failed at {g:e} S)", inner.detail),
+            )
+        })?;
+        x = next;
+        total += iterations;
+        g /= s.gmin_factor;
+    }
+    let (next, iterations) = newton(c, s, &Mode::dc(gmin_nodes), &x).map_err(|inner| {
+        SimError::new(
+            inner.code,
+            format!("{} (after the gmin stepping)", inner.detail),
+        )
+    })?;
+    Ok((next, total + iterations))
+}
+
+/// Solves with the sources raised from zero to their value in `source_steps` steps.
+fn source_stepping(
+    c: &Circuit,
+    s: &SimSettings,
+    gmin_nodes: f64,
+    start: &[f64],
+) -> Result<(Vec<f64>, usize), SimError> {
+    let mut x = start.to_vec();
+    let mut total = 0;
+    for step in 1..=s.source_steps {
+        let mode = Mode {
+            scale: step as f64 / s.source_steps as f64,
+            ..Mode::dc(gmin_nodes)
+        };
+        let (next, iterations) = newton(c, s, &mode, &x).map_err(|inner| {
+            SimError::new(
+                inner.code,
+                format!(
+                    "{} (source stepping failed at {} of {} steps)",
+                    inner.detail, step, s.source_steps
+                ),
+            )
+        })?;
+        x = next;
+        total += iterations;
+    }
+    Ok((x, total))
+}
+
 /// Solves the DC equations with a conductance `gmin_nodes` from every node to ground. Returns
-/// the solution, the iterations and the name of the strategy.
+/// the solution, the iterations and the name of the strategy: the plain iteration first, then
+/// gmin stepping and then source stepping.
 pub fn solve_dc(
     c: &Circuit,
     s: &SimSettings,
@@ -43,31 +108,17 @@ pub fn solve_dc(
 ) -> Result<(Vec<f64>, usize, &'static str), SimError> {
     let zero = vec![0.0; c.unknowns()];
     match newton(c, s, &Mode::dc(gmin_nodes), &zero) {
-        Ok((x, iterations)) => Ok((x, iterations, "direct")),
-        Err(e) if e.code == NO_CONVERGENCE && c.is_nonlinear() => {
-            let mut x = zero;
-            let mut total = 0;
-            for step in 1..=s.source_steps {
-                let mode = Mode {
-                    scale: step as f64 / s.source_steps as f64,
-                    ..Mode::dc(gmin_nodes)
-                };
-                let (next, iterations) = newton(c, s, &mode, &x).map_err(|inner| {
-                    SimError::new(
-                        inner.code,
-                        format!(
-                            "{} (source stepping failed at {} of {} steps)",
-                            inner.detail, step, s.source_steps
-                        ),
-                    )
-                })?;
-                x = next;
-                total += iterations;
-            }
-            Ok((x, total, "source-stepping"))
-        }
-        Err(e) => Err(e),
+        Ok((x, iterations)) => return Ok((x, iterations, "direct")),
+        Err(e) if e.code == NO_CONVERGENCE && c.is_nonlinear() => {}
+        Err(e) => return Err(e),
     }
+    if s.gmin_steps > 0 {
+        if let Ok((x, iterations)) = gmin_stepping(c, s, gmin_nodes, &zero) {
+            return Ok((x, iterations, "gmin-stepping"));
+        }
+    }
+    let (x, iterations) = source_stepping(c, s, gmin_nodes, &zero)?;
+    Ok((x, iterations, "source-stepping"))
 }
 
 /// The operating point of a circuit. A node with no DC path to ground is an error when the
@@ -173,6 +224,7 @@ mod tests {
         let s = SimSettings {
             newton_max_iter: 3,
             source_steps: 50,
+            gmin_steps: 0,
             ..SimSettings::default()
         };
         let r = op_with("t\n.model dm D\nV1 in 0 5\nR1 in d 1k\nD1 d 0 dm\n", &s);
@@ -186,10 +238,28 @@ mod tests {
     }
 
     #[test]
+    fn gmin_stepping_and_source_stepping_find_the_same_point_as_the_plain_iteration() {
+        let s = SimSettings::default();
+        let text = "t\n.model dm D(IS=1e-14 N=1)\nV1 in 0 5\nR1 in d 1k\nD1 d 0 dm\n";
+        let c = Circuit::compile(&parse(text, &s).unwrap(), &s).unwrap();
+        let (direct, _, strategy) = solve_dc(&c, &s, 0.0).unwrap();
+        assert_eq!(strategy, "direct");
+        let zero = vec![0.0; c.unknowns()];
+        let (by_gmin, _) = gmin_stepping(&c, &s, 0.0, &zero).unwrap();
+        let (by_source, _) = source_stepping(&c, &s, 0.0, &zero).unwrap();
+        for other in [by_gmin, by_source] {
+            for (a, b) in direct.iter().zip(other.iter()) {
+                assert!((a - b).abs() < 1e-4, "{a} {b}");
+            }
+        }
+    }
+
+    #[test]
     fn no_convergence_is_reported() {
         let s = SimSettings {
             newton_max_iter: 2,
             source_steps: 1,
+            gmin_steps: 0,
             ..SimSettings::default()
         };
         let e = op_with("t\n.model dm D\nV1 in 0 5\nR1 in d 1k\nD1 d 0 dm\n", &s).unwrap_err();

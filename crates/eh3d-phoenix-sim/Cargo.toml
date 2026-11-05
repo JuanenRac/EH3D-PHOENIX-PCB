@@ -5,7 +5,7 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "Circuit simulator of our own (prototype): a SPICE-style netlist reader and writer, modified nodal analysis, DC operating point with Newton-Raphson for diodes, AC sweeps with group delay, transient analysis, the netlist of a schematic and a coherence check against the RF filters"
+description = "Circuit simulator of our own (prototype): a SPICE-style netlist reader and writer, modified nodal analysis, diodes, bipolar and MOS transistors and op-amp macromodels, DC operating point with Newton-Raphson, gmin and source stepping, AC sweeps with group delay, noise, transient analysis with breakpoints, the netlist of a schematic and a coherence check against the RF filters"
 
 [dependencies]
 eh3d-phoenix-rf = { path = "../eh3d-phoenix-rf" }

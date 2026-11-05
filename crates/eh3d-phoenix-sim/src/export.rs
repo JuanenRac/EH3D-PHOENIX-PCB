@@ -22,7 +22,7 @@ use eh3d_phoenix_schematic::{NetPin, Schematic};
 use crate::codes::{
     SimError, DUPLICATE_NAME, INPUT_UNREADABLE, NO_GROUND, PART_SKIPPED, PIN_UNCONNECTED,
 };
-use crate::netlist::{DiodeModel, Netlist};
+use crate::netlist::{DiodeModel, Model, Netlist};
 use crate::parse::parse_element_line;
 use crate::settings::SimSettings;
 
@@ -219,9 +219,8 @@ pub fn netlist_from_schematic(
                 } else {
                     clean(value)
                 };
-                netlist.models.entry(model.clone()).or_insert(DiodeModel {
-                    is: settings.diode_is,
-                    n: settings.diode_n,
+                netlist.models.entry(model.clone()).or_insert_with(|| {
+                    Model::Diode(DiodeModel::new(settings.diode_is, settings.diode_n))
                 });
                 model
             }

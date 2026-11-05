@@ -6,9 +6,9 @@
 use crate::codes::{SimError, SETTINGS_INVALID};
 
 /// Boltzmann constant in J/K.
-const BOLTZMANN: f64 = 1.380_649e-23;
+pub const BOLTZMANN: f64 = 1.380_649e-23;
 /// Elementary charge in C.
-const CHARGE: f64 = 1.602_176_634e-19;
+pub const CHARGE: f64 = 1.602_176_634e-19;
 
 /// The limits, tolerances and defaults of one run.
 #[derive(Debug, Clone, PartialEq)]
@@ -72,6 +72,46 @@ pub struct SimSettings {
     pub diode_is: f64,
     /// The emission coefficient of a diode model that does not give one.
     pub diode_n: f64,
+    /// The steps of the gmin stepping that is tried when the plain iteration does not converge (zero turns it off).
+    pub gmin_steps: usize,
+    /// The conductance from every node to ground at the first step of the gmin stepping, in siemens.
+    pub gmin_start: f64,
+    /// The factor by which the gmin stepping lowers that conductance at each step.
+    pub gmin_factor: f64,
+    /// The most breakpoints (corners of pulses and piecewise-linear sources) of an adaptive transient analysis.
+    pub max_breakpoints: usize,
+    /// The current at the breakdown voltage of a diode model that does not give one, in amperes.
+    pub diode_ibv: f64,
+    /// The saturation current of a transistor model that does not give one, in amperes.
+    pub bjt_is: f64,
+    /// The forward current gain of a transistor model that does not give one.
+    pub bjt_bf: f64,
+    /// The reverse current gain of a transistor model that does not give one.
+    pub bjt_br: f64,
+    /// The threshold voltage of a MOSFET model that does not give one, in volts.
+    pub mos_vto: f64,
+    /// The transconductance parameter of a MOSFET model that does not give one, in A/V^2.
+    pub mos_kp: f64,
+    /// The channel-length modulation of a MOSFET model that does not give one, in 1/V.
+    pub mos_lambda: f64,
+    /// The channel width when neither the model nor the instance give one, in metres.
+    pub mos_w: f64,
+    /// The channel length when neither the model nor the instance give one, in metres.
+    pub mos_l: f64,
+    /// The open-loop DC gain of an op-amp model that does not give one.
+    pub opamp_gain: f64,
+    /// The gain-bandwidth product of an op-amp model that does not give one, in hertz.
+    pub opamp_gbw: f64,
+    /// The output resistance of an op-amp or comparator model that does not give one, in ohms.
+    pub opamp_rout: f64,
+    /// The resistance of the node that holds the pole of the op-amp macromodel, in ohms.
+    pub opamp_pole_ohms: f64,
+    /// The high output level of a comparator model that does not give one, in volts.
+    pub comparator_high: f64,
+    /// The low output level of a comparator model that does not give one, in volts.
+    pub comparator_low: f64,
+    /// The slope at zero of a comparator model that does not give one, in V/V.
+    pub comparator_gain: f64,
     /// How many times an output file is tried again when another program holds it.
     pub write_retries: u32,
     /// The wait between two tries, in milliseconds.
@@ -122,6 +162,26 @@ impl Default for SimSettings {
                 .collect(),
             diode_is: 1e-14,
             diode_n: 1.0,
+            gmin_steps: 10,
+            gmin_start: 1e-2,
+            gmin_factor: 10.0,
+            max_breakpoints: 100_000,
+            diode_ibv: 1e-3,
+            bjt_is: 1e-16,
+            bjt_bf: 100.0,
+            bjt_br: 1.0,
+            mos_vto: 0.0,
+            mos_kp: 2e-5,
+            mos_lambda: 0.0,
+            mos_w: 1e-4,
+            mos_l: 1e-4,
+            opamp_gain: 1e5,
+            opamp_gbw: 1e6,
+            opamp_rout: 1.0,
+            opamp_pole_ohms: 1000.0,
+            comparator_high: 5.0,
+            comparator_low: 0.0,
+            comparator_gain: 1e4,
             write_retries: 5,
             write_retry_ms: 50,
             coherence_points: 41,
@@ -208,6 +268,26 @@ impl SimSettings {
                 "schematic_ground" => s.schematic_ground = parse_names(value).ok_or_else(bad)?,
                 "diode_is" => s.diode_is = value.parse().map_err(|_| bad())?,
                 "diode_n" => s.diode_n = value.parse().map_err(|_| bad())?,
+                "gmin_steps" => s.gmin_steps = value.parse().map_err(|_| bad())?,
+                "gmin_start" => s.gmin_start = value.parse().map_err(|_| bad())?,
+                "gmin_factor" => s.gmin_factor = value.parse().map_err(|_| bad())?,
+                "max_breakpoints" => s.max_breakpoints = value.parse().map_err(|_| bad())?,
+                "diode_ibv" => s.diode_ibv = value.parse().map_err(|_| bad())?,
+                "bjt_is" => s.bjt_is = value.parse().map_err(|_| bad())?,
+                "bjt_bf" => s.bjt_bf = value.parse().map_err(|_| bad())?,
+                "bjt_br" => s.bjt_br = value.parse().map_err(|_| bad())?,
+                "mos_vto" => s.mos_vto = value.parse().map_err(|_| bad())?,
+                "mos_kp" => s.mos_kp = value.parse().map_err(|_| bad())?,
+                "mos_lambda" => s.mos_lambda = value.parse().map_err(|_| bad())?,
+                "mos_w" => s.mos_w = value.parse().map_err(|_| bad())?,
+                "mos_l" => s.mos_l = value.parse().map_err(|_| bad())?,
+                "opamp_gain" => s.opamp_gain = value.parse().map_err(|_| bad())?,
+                "opamp_gbw" => s.opamp_gbw = value.parse().map_err(|_| bad())?,
+                "opamp_rout" => s.opamp_rout = value.parse().map_err(|_| bad())?,
+                "opamp_pole_ohms" => s.opamp_pole_ohms = value.parse().map_err(|_| bad())?,
+                "comparator_high" => s.comparator_high = value.parse().map_err(|_| bad())?,
+                "comparator_low" => s.comparator_low = value.parse().map_err(|_| bad())?,
+                "comparator_gain" => s.comparator_gain = value.parse().map_err(|_| bad())?,
                 "write_retries" => s.write_retries = value.parse().map_err(|_| bad())?,
                 "write_retry_ms" => s.write_retry_ms = value.parse().map_err(|_| bad())?,
                 "coherence_points" => s.coherence_points = value.parse().map_err(|_| bad())?,
@@ -288,6 +368,42 @@ impl SimSettings {
         if !positive(self.diode_is) || !positive(self.diode_n) {
             return fail("diode_is and diode_n must be positive");
         }
+        if !positive(self.gmin_start) || !self.gmin_factor.is_finite() || self.gmin_factor <= 1.0 {
+            return fail("gmin_start must be positive and gmin_factor above 1");
+        }
+        if self.max_breakpoints < 1 {
+            return fail("max_breakpoints must be at least 1");
+        }
+        if !positive(self.diode_ibv)
+            || !positive(self.bjt_is)
+            || !positive(self.bjt_bf)
+            || !positive(self.bjt_br)
+        {
+            return fail("diode_ibv, bjt_is, bjt_bf and bjt_br must be positive");
+        }
+        if !self.mos_vto.is_finite() || !self.mos_lambda.is_finite() || self.mos_lambda < 0.0 {
+            return fail("mos_vto must be a number and mos_lambda cannot be negative");
+        }
+        if !positive(self.mos_kp) || !positive(self.mos_w) || !positive(self.mos_l) {
+            return fail("mos_kp, mos_w and mos_l must be positive");
+        }
+        if !positive(self.opamp_gain)
+            || !self.opamp_gbw.is_finite()
+            || self.opamp_gbw < 0.0
+            || !positive(self.opamp_rout)
+            || !positive(self.opamp_pole_ohms)
+        {
+            return fail("opamp_gain, opamp_rout and opamp_pole_ohms must be positive and opamp_gbw cannot be negative");
+        }
+        if !self.comparator_high.is_finite()
+            || !self.comparator_low.is_finite()
+            || self.comparator_high <= self.comparator_low
+            || !positive(self.comparator_gain)
+        {
+            return fail(
+                "comparator_high must be above comparator_low and comparator_gain positive",
+            );
+        }
         if self.coherence_points < 2 {
             return fail("coherence_points must be at least 2");
         }
@@ -338,6 +454,10 @@ mod tests {
         assert!(!s.is_netlist_ground("agnd"));
         assert_eq!(s.max_unknowns, 50);
         assert_eq!(s.vntol, SimSettings::default().vntol);
+        let t = SimSettings::parse("gmin_steps = 0\nopamp_gbw = 0\nmos_w = 2e-5\n").unwrap();
+        assert_eq!(t.gmin_steps, 0);
+        assert_eq!(t.opamp_gbw, 0.0);
+        assert_eq!(t.mos_w, 2e-5);
     }
 
     #[test]
@@ -351,6 +471,15 @@ mod tests {
             ("newton_max_iter = 1", "newton_max_iter"),
             ("netlist_ground = ,", "netlist_ground"),
             ("pivot_tolerance = 2", "pivot_tolerance"),
+            ("gmin_factor = 1", "gmin_factor"),
+            ("gmin_start = 0", "gmin_start"),
+            ("max_breakpoints = 0", "max_breakpoints"),
+            ("bjt_bf = 0", "bjt_bf"),
+            ("mos_kp = -1", "mos_kp"),
+            ("mos_lambda = -1", "mos_lambda"),
+            ("opamp_gain = 0", "opamp_gain"),
+            ("opamp_gbw = -1", "opamp_gbw"),
+            ("comparator_low = 6", "comparator_high"),
         ] {
             let e = SimSettings::parse(text).unwrap_err();
             assert_eq!(e.code, SETTINGS_INVALID, "{text}");

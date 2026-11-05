@@ -117,6 +117,55 @@ impl Wave {
         }
     }
 
+    /// The times in `(0, stop]` where the waveform has a corner or a jump, in no particular
+    /// order and possibly repeated. `None` when there would be more than `limit` of them (a
+    /// pulse with a very short period).
+    pub fn breakpoints(&self, stop: f64, limit: usize) -> Option<Vec<f64>> {
+        let mut out: Vec<f64> = Vec::new();
+        let mut push = |t: f64| {
+            if t > 0.0 && t <= stop {
+                out.push(t);
+            }
+        };
+        match self {
+            Wave::None => {}
+            Wave::Sin { td, .. } => push(*td),
+            Wave::Pulse {
+                td,
+                tr,
+                tf,
+                pw,
+                per,
+                ..
+            } => {
+                let periods = if *per > 0.0 && stop >= *td {
+                    ((stop - td) / per).floor() + 1.0
+                } else {
+                    1.0
+                };
+                if periods * 4.0 > limit as f64 {
+                    return None;
+                }
+                for k in 0..(periods as usize) {
+                    let base = td + k as f64 * per;
+                    push(base);
+                    push(base + tr);
+                    push(base + tr + pw);
+                    push(base + tr + pw + tf);
+                }
+            }
+            Wave::Pwl(points) => {
+                if points.len() > limit {
+                    return None;
+                }
+                for (t, _) in points {
+                    push(*t);
+                }
+            }
+        }
+        Some(out)
+    }
+
     /// The value the waveform starts from, at time zero before any delay.
     pub fn start_value(&self) -> f64 {
         match self {
@@ -232,6 +281,27 @@ pub enum Kind {
         /// The model, in lower case.
         model: String,
     },
+    /// `Q`: bipolar transistor; the nodes are collector, base and emitter.
+    Bjt {
+        /// The model, in lower case.
+        model: String,
+    },
+    /// `M`: MOSFET; the nodes are drain, gate, source and bulk (the level 1 model does not use
+    /// the bulk).
+    Mosfet {
+        /// The model, in lower case.
+        model: String,
+        /// The channel width in metres, when the line gives it.
+        w: Option<f64>,
+        /// The channel length in metres, when the line gives it.
+        l: Option<f64>,
+    },
+    /// `U`: operational amplifier or comparator; the nodes are the non-inverting input, the
+    /// inverting input and the output.
+    Amp {
+        /// The model, in lower case.
+        model: String,
+    },
     /// `X`: an instance of a subcircuit.
     Instance {
         /// The subcircuit, in lower case.
@@ -250,13 +320,207 @@ pub struct Element {
     pub kind: Kind,
 }
 
-/// A diode model (`.model name D(IS=.. N=..)`): the Shockley equation.
+/// A diode model (`.model name D(...)`): the Shockley equation with a series resistance, a
+/// junction capacitance, a transit time and a reverse breakdown.
 #[derive(Debug, Clone, PartialEq)]
 pub struct DiodeModel {
     /// The saturation current in ampere.
     pub is: f64,
     /// The emission coefficient.
     pub n: f64,
+    /// The series resistance in ohm (zero for none).
+    pub rs: f64,
+    /// The junction capacitance at zero bias in farad.
+    pub cjo: f64,
+    /// The junction potential in volt.
+    pub vj: f64,
+    /// The grading coefficient of the junction.
+    pub m: f64,
+    /// The coefficient of the forward-bias depletion capacitance, below 1.
+    pub fc: f64,
+    /// The transit time in second.
+    pub tt: f64,
+    /// The reverse breakdown voltage (a positive number), when the model has one.
+    pub bv: Option<f64>,
+    /// The current at the breakdown voltage, in ampere.
+    pub ibv: f64,
+    /// The emission coefficient of the breakdown.
+    pub nbv: f64,
+}
+
+impl DiodeModel {
+    /// A diode model with a saturation current and an emission coefficient and the defaults of
+    /// SPICE for everything else.
+    pub fn new(is: f64, n: f64) -> DiodeModel {
+        DiodeModel {
+            is,
+            n,
+            rs: 0.0,
+            cjo: 0.0,
+            vj: 1.0,
+            m: 0.5,
+            fc: 0.5,
+            tt: 0.0,
+            bv: None,
+            ibv: 1e-3,
+            nbv: 1.0,
+        }
+    }
+}
+
+/// A bipolar transistor model (`.model name NPN(...)` or `PNP(...)`): the transport form of
+/// Ebers-Moll with the forward Early effect, parasitic resistances, depletion capacitances and
+/// transit times.
+#[derive(Debug, Clone, PartialEq)]
+pub struct BjtModel {
+    /// True for a PNP transistor.
+    pub pnp: bool,
+    /// The transport saturation current in ampere.
+    pub is: f64,
+    /// The ideal maximum forward current gain.
+    pub bf: f64,
+    /// The ideal maximum reverse current gain.
+    pub br: f64,
+    /// The forward emission coefficient.
+    pub nf: f64,
+    /// The reverse emission coefficient.
+    pub nr: f64,
+    /// The forward Early voltage, when the model has one.
+    pub vaf: Option<f64>,
+    /// The base resistance in ohm.
+    pub rb: f64,
+    /// The collector resistance in ohm.
+    pub rc: f64,
+    /// The emitter resistance in ohm.
+    pub re: f64,
+    /// The base-emitter capacitance at zero bias in farad.
+    pub cje: f64,
+    /// The base-emitter junction potential in volt.
+    pub vje: f64,
+    /// The base-emitter grading coefficient.
+    pub mje: f64,
+    /// The base-collector capacitance at zero bias in farad.
+    pub cjc: f64,
+    /// The base-collector junction potential in volt.
+    pub vjc: f64,
+    /// The base-collector grading coefficient.
+    pub mjc: f64,
+    /// The coefficient of the forward-bias depletion capacitances, below 1.
+    pub fc: f64,
+    /// The forward transit time in second.
+    pub tf: f64,
+    /// The reverse transit time in second.
+    pub tr: f64,
+}
+
+impl BjtModel {
+    /// A transistor model with the three main parameters and the defaults of SPICE for
+    /// everything else.
+    pub fn new(pnp: bool, is: f64, bf: f64, br: f64) -> BjtModel {
+        BjtModel {
+            pnp,
+            is,
+            bf,
+            br,
+            nf: 1.0,
+            nr: 1.0,
+            vaf: None,
+            rb: 0.0,
+            rc: 0.0,
+            re: 0.0,
+            cje: 0.0,
+            vje: 0.75,
+            mje: 0.33,
+            cjc: 0.0,
+            vjc: 0.75,
+            mjc: 0.33,
+            fc: 0.5,
+            tf: 0.0,
+            tr: 0.0,
+        }
+    }
+}
+
+/// A MOSFET model of level 1 (`.model name NMOS(...)` or `PMOS(...)`).
+#[derive(Debug, Clone, PartialEq)]
+pub struct MosModel {
+    /// True for a P channel.
+    pub pmos: bool,
+    /// The threshold voltage (negative for an enhancement P channel).
+    pub vto: f64,
+    /// The transconductance parameter in A/V^2.
+    pub kp: f64,
+    /// The channel-length modulation in 1/V.
+    pub lambda: f64,
+    /// The width in metres, used when the instance does not give one.
+    pub w: f64,
+    /// The length in metres, used when the instance does not give one.
+    pub l: f64,
+    /// The gate-source capacitance in farad (constant).
+    pub cgs: f64,
+    /// The gate-drain capacitance in farad (constant).
+    pub cgd: f64,
+}
+
+/// An operational-amplifier macromodel (`.model name OPAMP(...)`): a transconductance into a
+/// pole that sets the gain-bandwidth product, a smooth limit at the supply rails and an output
+/// resistance.
+#[derive(Debug, Clone, PartialEq)]
+pub struct OpampModel {
+    /// The open-loop DC gain.
+    pub gain: f64,
+    /// The gain-bandwidth product in hertz (zero for no pole).
+    pub gbw: f64,
+    /// The positive limit of the output in volt, when the model has one.
+    pub vpos: Option<f64>,
+    /// The negative limit of the output in volt, when the model has one.
+    pub vneg: Option<f64>,
+    /// The output resistance in ohm.
+    pub rout: f64,
+}
+
+/// A simple comparator (`.model name COMP(...)`): the output goes smoothly from the low level to
+/// the high level as the input difference crosses zero.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ComparatorModel {
+    /// The output level for a positive difference, in volt.
+    pub vhigh: f64,
+    /// The output level for a negative difference, in volt.
+    pub vlow: f64,
+    /// The slope of the transition at zero difference, in V/V.
+    pub gain: f64,
+    /// The output resistance in ohm.
+    pub rout: f64,
+}
+
+/// A model of any kind.
+#[derive(Debug, Clone, PartialEq)]
+pub enum Model {
+    /// A diode.
+    Diode(DiodeModel),
+    /// A bipolar transistor.
+    Bjt(BjtModel),
+    /// A MOSFET.
+    Mos(MosModel),
+    /// An operational amplifier.
+    Opamp(OpampModel),
+    /// A comparator.
+    Comparator(ComparatorModel),
+}
+
+impl Model {
+    /// The type as it is written in a `.model` line.
+    pub fn type_name(&self) -> &'static str {
+        match self {
+            Model::Diode(_) => "D",
+            Model::Bjt(m) if m.pnp => "PNP",
+            Model::Bjt(_) => "NPN",
+            Model::Mos(m) if m.pmos => "PMOS",
+            Model::Mos(_) => "NMOS",
+            Model::Opamp(_) => "OPAMP",
+            Model::Comparator(_) => "COMP",
+        }
+    }
 }
 
 /// A subcircuit definition.
@@ -264,6 +528,8 @@ pub struct DiodeModel {
 pub struct Subckt {
     /// The ports, in lower case.
     pub ports: Vec<String>,
+    /// The models defined inside it; they hide the models of the netlist with the same name.
+    pub models: BTreeMap<String, Model>,
     /// The elements of its body.
     pub elements: Vec<Element>,
 }
@@ -284,8 +550,8 @@ pub struct Netlist {
     pub title: String,
     /// The parameters, by name in lower case.
     pub params: BTreeMap<String, f64>,
-    /// The diode models, by name in lower case.
-    pub models: BTreeMap<String, DiodeModel>,
+    /// The models, by name in lower case.
+    pub models: BTreeMap<String, Model>,
     /// The subcircuits, by name in lower case.
     pub subckts: BTreeMap<String, Subckt>,
     /// The elements of the top level.
@@ -358,6 +624,48 @@ mod tests {
         assert_eq!(w.at(0.5), 2.0);
         assert_eq!(w.at(1.5), 7.0);
         assert_eq!(w.at(9.0), 7.0);
+    }
+
+    #[test]
+    fn the_corners_of_a_pulse_and_of_a_piecewise_linear_source_are_breakpoints() {
+        let pulse = Wave::Pulse {
+            v1: 0.0,
+            v2: 1.0,
+            td: 1.0,
+            tr: 0.5,
+            tf: 0.5,
+            pw: 2.0,
+            per: 10.0,
+        };
+        let mut t = pulse.breakpoints(12.0, 100).unwrap();
+        t.sort_by(f64::total_cmp);
+        assert_eq!(t, vec![1.0, 1.5, 3.5, 4.0, 11.0, 11.5]);
+        let single = Wave::Pulse {
+            v1: 0.0,
+            v2: 1.0,
+            td: 0.0,
+            tr: 0.0,
+            tf: 0.0,
+            pw: 1.0,
+            per: 0.0,
+        };
+        let mut t = single.breakpoints(5.0, 100).unwrap();
+        t.sort_by(f64::total_cmp);
+        assert_eq!(t, vec![1.0, 1.0]);
+        let pwl = Wave::Pwl(vec![(0.0, 0.0), (1.0, 2.0), (3.0, 2.0), (9.0, 0.0)]);
+        assert_eq!(pwl.breakpoints(5.0, 100).unwrap(), vec![1.0, 3.0]);
+        assert!(Wave::None.breakpoints(5.0, 100).unwrap().is_empty());
+        // a period that is too short for the limit
+        let fast = Wave::Pulse {
+            v1: 0.0,
+            v2: 1.0,
+            td: 0.0,
+            tr: 0.0,
+            tf: 0.0,
+            pw: 1e-9,
+            per: 2e-9,
+        };
+        assert!(fast.breakpoints(1.0, 1000).is_none());
     }
 
     #[test]

@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! The transient analysis: backward Euler or the trapezoidal rule, with a fixed step or with a
-//! simple adaptive step (the answer of one step is compared with the answer of two half steps),
-//! from the operating point or from the initial conditions (`uic`). The first step is always
-//! backward Euler, which does not need the currents of the capacitors before it.
+//! The transient analysis: backward Euler or the trapezoidal rule, with a fixed step or with an
+//! adaptive step (the answer of one step is compared with the answer of two half steps, and the
+//! step stops at the corners of the pulses and the piecewise-linear sources), from the operating
+//! point or from the initial conditions (`uic`). The first step, and the first one after a
+//! corner, is backward Euler, which does not need the currents of the capacitors before it.
 
 use crate::circuit::Circuit;
 use crate::codes::{SimError, ANALYSIS_INVALID, LIMIT_EXCEEDED, NO_CONVERGENCE, STEP_TOO_SMALL};
@@ -81,6 +82,39 @@ fn step(
         gmin_nodes: 0.0,
     };
     newton(c, s, &mode, &state.x)
+}
+
+/// The times where a source has a corner or a jump, sorted and without repeats. The adaptive
+/// step lands on each of them.
+fn breakpoints(c: &Circuit, s: &SimSettings, end: f64) -> Result<Vec<f64>, SimError> {
+    let too_many = || {
+        SimError::new(
+            LIMIT_EXCEEDED,
+            format!(
+                "the sources have more than max_breakpoints ({}) corners before the stop time",
+                s.max_breakpoints
+            ),
+        )
+    };
+    let mut all: Vec<f64> = Vec::new();
+    let waves = c
+        .vsources
+        .iter()
+        .map(|e| &e.source.wave)
+        .chain(c.isources.iter().map(|e| &e.source.wave));
+    for wave in waves {
+        let found = wave
+            .breakpoints(end, s.max_breakpoints)
+            .ok_or_else(too_many)?;
+        all.extend(found);
+        if all.len() > s.max_breakpoints {
+            return Err(too_many());
+        }
+    }
+    all.sort_by(f64::total_cmp);
+    let tolerance = end * 1e-12;
+    all.dedup_by(|later, earlier| *later - *earlier <= tolerance);
+    Ok(all)
 }
 
 /// The size of the difference between two solutions in units of the tolerances.
@@ -222,16 +256,28 @@ pub fn transient(c: &Circuit, s: &SimSettings, req: &TranRequest) -> Result<Tran
 
     let dt_max = req.tstep;
     let dt_min = dt_max * s.min_step_fraction;
-    let mut dt = (dt_max * s.initial_step_fraction).max(dt_min);
+    let restart = (dt_max * s.initial_step_fraction).max(dt_min);
+    let mut dt = restart;
     let end = req.tstop;
+    let corners = breakpoints(c, s, end)?;
+    let mut next_corner = 0usize;
     let mut t = 0.0;
     let mut warned = false;
     while t < end - end * 1e-12 {
-        let remaining = end - t;
+        while next_corner < corners.len() && corners[next_corner] <= t + end * 1e-12 {
+            next_corner += 1;
+        }
+        let target = match corners.get(next_corner) {
+            Some(corner) if *corner < end => *corner,
+            _ => end,
+        };
+        let remaining = target - t;
         if remaining - dt < dt_min {
             dt = remaining;
         }
         let last = dt >= remaining;
+        let on_corner = last && target < end;
+        let mut landed = false;
         let attempt = try_step(c, s, &state, t, dt, req.method);
         let at_minimum = dt <= dt_min * (1.0 + 1e-9);
         match attempt {
@@ -252,8 +298,13 @@ pub fn transient(c: &Circuit, s: &SimSettings, req: &TranRequest) -> Result<Tran
                             ),
                         ));
                     }
-                    t = if last { end } else { t + dt };
+                    t = if last { target } else { t + dt };
                     state = next;
+                    if on_corner {
+                        // start again with a small backward Euler step after a corner
+                        state.fresh = true;
+                        landed = true;
+                    }
                     result.times.push(t);
                     result.values.push(state.x.clone());
                     result.accepted += 1;
@@ -283,6 +334,9 @@ pub fn transient(c: &Circuit, s: &SimSettings, req: &TranRequest) -> Result<Tran
                 let factor = (s.step_safety * err.max(1e-10).powf(-1.0 / (order + 1.0)))
                     .clamp(s.step_min_shrink, s.step_max_growth);
                 dt = (dt * factor).clamp(dt_min, dt_max);
+                if landed {
+                    dt = restart;
+                }
             }
             Err(e) if e.code == NO_CONVERGENCE && !at_minimum => {
                 result.rejected += 1;
@@ -357,6 +411,56 @@ mod tests {
             let exact = 1.0 - (-t / 1e-3).exp();
             assert!((x - exact).abs() < 5e-3, "t = {t}: {x} {exact}");
         }
+    }
+
+    #[test]
+    fn the_adaptive_step_lands_on_every_corner_of_a_pulse() {
+        let text = "rc\nV1 in 0 PULSE(0 1 1m 1u 1u 2m 5m)\nR1 in out 1k\nC1 out 0 1u\n";
+        let mut req = request(1e-4, 8e-3, Method::Trapezoidal);
+        req.adaptive = true;
+        let r = run(text, req);
+        let corners = [
+            1e-3,
+            1e-3 + 1e-6,
+            1e-3 + 1e-6 + 2e-3,
+            1e-3 + 2e-6 + 2e-3,
+            6e-3,
+            6e-3 + 1e-6,
+        ];
+        for corner in corners {
+            assert!(
+                r.times.iter().any(|t| (t - corner).abs() < 1e-14),
+                "no point at {corner}"
+            );
+        }
+        assert!(r.times.windows(2).all(|w| w[1] > w[0]));
+        assert_eq!(*r.times.last().unwrap(), 8e-3);
+        // just before the fall the output has risen for 2 ms and a half microsecond of ramp
+        let v = r.series("v(out)").unwrap();
+        let index = r
+            .times
+            .iter()
+            .position(|t| (t - (1e-3 + 1e-6 + 2e-3)).abs() < 1e-14)
+            .unwrap();
+        let exact = 1.0 - (-2.0f64).exp();
+        assert!((v[index] - exact).abs() < 5e-3, "{} {exact}", v[index]);
+        // nothing happens before the first corner
+        let before = r.times.iter().position(|t| *t >= 1e-3).unwrap();
+        assert!(v[before].abs() < 1e-9, "{}", v[before]);
+    }
+
+    #[test]
+    fn a_pulse_that_is_too_fast_for_the_breakpoint_limit_is_refused() {
+        let text = "rc\nV1 in 0 PULSE(0 1 0 1n 1n 1u 2u)\nR1 in out 1k\nC1 out 0 1n\n";
+        let s = SimSettings::parse("max_breakpoints = 100\n").unwrap();
+        let mut req = request(1e-6, 1e-3, Method::Trapezoidal);
+        req.adaptive = true;
+        let e = transient(&circuit(text), &s, &req).unwrap_err();
+        assert_eq!(e.code, LIMIT_EXCEEDED);
+        assert!(e.detail.contains("max_breakpoints"), "{}", e.detail);
+        // the fixed step does not look for corners
+        req.adaptive = false;
+        assert!(transient(&circuit(text), &s, &req).is_ok());
     }
 
     #[test]
