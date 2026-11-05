@@ -742,7 +742,7 @@ fn a_track_that_the_router_returns_always_passes_the_rules() {
         for (i, place) in places.iter().enumerate().skip(2) {
             let net = if i % 2 == 0 { n1 } else { n2 };
             // some obstacles are on both layers, some only on the top
-            let layers: &[u32] = if next(&mut state) % 2 == 0 {
+            let layers: &[u32] = if next(&mut state).is_multiple_of(2) {
                 &[TOP, BOT]
             } else {
                 &[TOP]
