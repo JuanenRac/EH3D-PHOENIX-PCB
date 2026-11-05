@@ -21,6 +21,9 @@
 //! * [`workspace`]: the state of editing in the window: the tool, the drag, the first click of a
 //!   route, the keyboard shortcuts, undo and redo, the notes of the status bar and the jump to the
 //!   place of a finding;
+//! * [`schematic_sync`] and [`schematic_text`]: how the schematic editor of `eh3d-phoenix-schedit`
+//!   hands its schematic to the workspace, and its texts in the eight languages (the window of
+//!   the editor is in `schematic_gui`, behind the `gui` feature);
 //! * [`settings`], [`codes`], [`msg`] and [`editmsg`]: the settings file, the codes
 //!   `PHOENIX-VIEW-<NNN>` and the texts in the eight languages.
 //!
@@ -44,6 +47,10 @@ pub mod prim;
 #[cfg(test)]
 pub(crate) mod sample;
 pub mod scene;
+#[cfg(feature = "gui")]
+pub mod schematic_gui;
+pub mod schematic_sync;
+pub mod schematic_text;
 pub mod session;
 pub mod settings;
 pub mod view;

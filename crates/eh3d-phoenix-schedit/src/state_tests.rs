@@ -292,3 +292,22 @@ fn a_schematic_without_a_sheet_gets_one_when_something_is_drawn() {
     let schematic = se.into_schematic();
     assert_eq!(schematic.sheets.len(), 1);
 }
+
+#[test]
+fn the_revision_grows_with_every_change_an_undo_and_a_redo_but_not_with_a_refusal() {
+    let f = fixture();
+    let mut se = edit(&f);
+    assert_eq!(se.revision(), 0);
+    se.selection.insert(Item::Part(f.r1));
+    se.set_value("1").unwrap();
+    assert_eq!(se.revision(), 1);
+    assert!(se.undo());
+    assert_eq!(se.revision(), 2);
+    assert!(se.redo());
+    assert_eq!(se.revision(), 3);
+    assert!(se.set_refdes("R2").is_err());
+    assert_eq!(se.revision(), 3);
+    assert!(se.dirty());
+    se.mark_saved();
+    assert!(!se.dirty());
+}

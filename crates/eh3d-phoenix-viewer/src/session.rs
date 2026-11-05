@@ -580,6 +580,20 @@ impl SchematicSession {
         })
     }
 
+    /// Puts a schematic that was edited elsewhere (the schematic editor of the window) in the place
+    /// of the one of the session: a package that was ready is thrown away, the annotation steps
+    /// that were done are forgotten (they were made for the old schematic), the rule check is run
+    /// again and the session counts as changed.
+    pub fn replace_schematic(&mut self, schematic: Schematic) {
+        self.schematic = schematic;
+        self.preview = None;
+        self.history = SchematicHistory::new();
+        self.done.retain(|t| *t != Target::Schematic);
+        self.undone.retain(|t| *t != Target::Schematic);
+        self.serial += 1;
+        self.run_erc();
+    }
+
     /// Runs the electrical rule check again.
     pub fn run_erc(&mut self) {
         self.erc = erc::check(&self.schematic, &self.erc_config);

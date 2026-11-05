@@ -15,6 +15,8 @@ use crate::editmsg::EditMsg;
 use crate::msg::Msg;
 use crate::prim::{arc_points, triangulate, Shape, P};
 use crate::scene::SceneKind;
+use crate::schematic_gui::{self, SchematicEditUi};
+use crate::schematic_text::SchMsg;
 use crate::settings::ViewerSettings;
 use crate::viewer::Tool;
 use crate::workspace::{erc_line, finding_line, suggested_save_path, Key, Shortcut, Workspace};
@@ -109,6 +111,8 @@ struct App {
     /// True while the drag in progress belongs to a tool and not to the panning of the drawing.
     tool_drag: bool,
     focus_save: bool,
+    /// The schematic editor, while the person is editing the schematic that is open.
+    sch: Option<SchematicEditUi>,
 }
 
 impl App {
@@ -127,6 +131,7 @@ impl App {
             fit_pending: false,
             tool_drag: false,
             focus_save: false,
+            sch: None,
         };
         if let Some(path) = initial {
             app.path_text = path.to_string_lossy().into_owned();
@@ -144,6 +149,7 @@ impl App {
                 self.error = None;
                 self.fit_pending = true;
                 self.tool_drag = false;
+                self.sch = None;
             }
             Err(error) => self.error = Some(error),
         }
@@ -175,16 +181,23 @@ impl App {
                 {
                     self.fit_pending = true;
                 }
+                let editing = self.sch.is_some();
                 if let Some(w) = self.workspace.as_mut() {
                     ui.separator();
                     if ui
-                        .add_enabled(w.can_undo(), egui::Button::new(EditMsg::Undo.tr(lang)))
+                        .add_enabled(
+                            !editing && w.can_undo(),
+                            egui::Button::new(EditMsg::Undo.tr(lang)),
+                        )
                         .clicked()
                     {
                         w.undo();
                     }
                     if ui
-                        .add_enabled(w.can_redo(), egui::Button::new(EditMsg::Redo.tr(lang)))
+                        .add_enabled(
+                            !editing && w.can_redo(),
+                            egui::Button::new(EditMsg::Redo.tr(lang)),
+                        )
                         .clicked()
                     {
                         w.redo();
@@ -229,6 +242,20 @@ impl App {
                 };
                 egui::ScrollArea::vertical().show(ui, |ui| {
                     ui.add_space(4.0);
+                    let mut leave = false;
+                    if let Some(sch) = self.sch.as_mut() {
+                        leave = schematic_gui::tools_panel(ui, sch, lang);
+                        if leave {
+                            schematic_gui::finish(sch, workspace);
+                        }
+                    }
+                    if leave {
+                        self.sch = None;
+                        self.fit_pending = true;
+                    }
+                    if self.sch.is_some() {
+                        return;
+                    }
                     let board = workspace.is_board();
                     let viewer = &mut workspace.viewer;
                     let kind = match viewer.scene.kind {
@@ -273,6 +300,10 @@ impl App {
                     }
                     if tool != workspace.viewer.tool {
                         workspace.set_tool(tool);
+                    }
+                    if !board && ui.button(SchMsg::EditSchematic.tr(lang)).clicked() {
+                        self.sch = schematic_gui::start(workspace);
+                        self.fit_pending = true;
                     }
                     if board {
                         ui.horizontal(|ui| {
@@ -390,6 +421,10 @@ impl App {
         let lang = self.lang;
         let background = rgba(self.settings.colour("background"));
         egui::CentralPanel::no_frame().show(ui, |ui| {
+            if let (Some(sch), Some(workspace)) = (self.sch.as_mut(), self.workspace.as_mut()) {
+                schematic_gui::canvas(ui, sch, workspace, lang, background, &mut self.fit_pending);
+                return;
+            }
             let size = ui.available_size();
             let (response, painter) = ui.allocate_painter(size, egui::Sense::click_and_drag());
             let rect = response.rect;

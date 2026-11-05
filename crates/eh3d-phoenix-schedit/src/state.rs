@@ -93,6 +93,7 @@ pub struct SchEdit {
     editor: Editor,
     sheet: Option<Id>,
     dirty: bool,
+    revision: u64,
 }
 
 fn items_of(s: &Schematic, ids: &[Id]) -> BTreeSet<Item> {
@@ -177,6 +178,7 @@ impl SchEdit {
             editor,
             sheet,
             dirty: false,
+            revision: 0,
         }
     }
 
@@ -188,6 +190,12 @@ impl SchEdit {
     /// Gives the schematic back.
     pub fn into_schematic(self) -> Schematic {
         self.editor.into_schematic()
+    }
+
+    /// A number that grows with every change of the schematic (also with an undo or a redo): the
+    /// window compares it with the one it saw to know when to pass the schematic on.
+    pub fn revision(&self) -> u64 {
+        self.revision
     }
 
     /// True when there are changes that were not saved.
@@ -271,6 +279,7 @@ impl SchEdit {
     }
 
     fn after_change(&mut self) {
+        self.revision += 1;
         let s = self.editor.schematic();
         self.selection.retain(|item| exists(s, item));
         self.preview = None;

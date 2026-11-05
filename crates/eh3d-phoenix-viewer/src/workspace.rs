@@ -454,7 +454,7 @@ impl Workspace {
     }
 
     /// Draws the document again after it changed.
-    fn rebuild(&mut self) {
+    pub(crate) fn rebuild(&mut self) {
         let scene = match &self.doc {
             Doc::Board(s) => Scene::from_board(&s.board, &self.viewer.settings),
             Doc::Schematic(s) => Scene::from_schematic(&s.schematic, &self.viewer.settings),
