@@ -143,6 +143,19 @@
           }
         },
         {
+          "name": "VIEWER.md",
+          "desc": {
+            "en": "the read-only viewer prototype and its benchmark",
+            "es": "el prototipo de visor de solo lectura y su prueba de rendimiento",
+            "de": "der Prototyp des Betrachters (nur Lesen) und sein Leistungstest",
+            "fr": "le prototype de visionneuse en lecture seule et son banc d'essai",
+            "it": "il prototipo di visualizzatore in sola lettura e il suo benchmark",
+            "ja": "読み取り専用ビューアの試作とそのベンチマーク",
+            "zh": "只读查看器原型及其基准测试",
+            "pt": "o protótipo de visualizador só de leitura e o seu teste de desempenho"
+          }
+        },
+        {
           "name": "GATE_F1.md",
           "desc": {
             "en": "what the gate of the first phase checks and what it does not",
@@ -157,14 +170,14 @@
         },
         {
           "desc": {
-            "en": "the accepted decision records",
-            "es": "los registros de decisiones aceptadas",
-            "de": "die angenommenen Entscheidungsprotokolle",
-            "fr": "les décisions acceptées",
-            "it": "i registri delle decisioni accettate",
-            "ja": "承認された決定の記録",
-            "zh": "已接受的决策记录",
-            "pt": "os registos das decisões aceites"
+            "en": "the decision records",
+            "es": "los registros de decisiones",
+            "de": "die Entscheidungsprotokolle",
+            "fr": "les registres de décisions",
+            "it": "i registri delle decisioni",
+            "ja": "決定の記録",
+            "zh": "决策记录",
+            "pt": "os registos das decisões"
           },
           "name": "adr/"
         }
@@ -224,24 +237,24 @@
         {
           "name": "crates/",
           "desc": {
-            "en": "model, project, board, schematic, EAGLE, rules, hub, export, stack-up, RF, CLI",
-            "es": "modelo, proyecto, placa, esquemático, EAGLE, reglas, hub, exportación, apilado, RF, comandos",
-            "de": "Modell, Projekt, Platine, Schaltplan, EAGLE, Regeln, Hub, Export, Lagenaufbau, HF, CLI",
-            "fr": "modèle, projet, carte, schéma, EAGLE, règles, hub, export, empilage, RF, CLI",
-            "it": "modello, progetto, scheda, schema, EAGLE, regole, hub, esportazione, stratificazione, RF, CLI",
-            "ja": "モデル、プロジェクト、基板、回路図、EAGLE、ルール、ハブ、書き出し、スタックアップ、RF、CLI",
-            "zh": "模型、项目、电路板、原理图、EAGLE、规则、枢纽、导出、叠层、射频、命令行",
-            "pt": "modelo, projeto, placa, esquema, EAGLE, regras, hub, exportação, empilhamento, RF, CLI"
+            "en": "model, board, schematic, EAGLE, rules, export, stack-up, RF, viewer, CLI",
+            "es": "modelo, placa, esquemático, EAGLE, reglas, exportación, apilado, RF, visor, comandos",
+            "de": "Modell, Platine, Schaltplan, EAGLE, Regeln, Hub, Export, Lagenaufbau, HF, Betrachter, CLI",
+            "fr": "modèle, carte, schéma, EAGLE, règles, export, empilage, RF, visionneuse, CLI",
+            "it": "modello, scheda, schema, EAGLE, regole, esportazione, stratificazione, RF, visualizzatore, CLI",
+            "ja": "モデル、基板、回路図、EAGLE、ルール、書き出し、スタックアップ、RF、ビューア、CLI",
+            "zh": "模型、电路板、原理图、EAGLE、规则、导出、叠层、射频、查看器、命令行",
+            "pt": "modeloo, placa, esquema, EAGLE, regras, exportação, empilhamento, RF, visualizador, CLI"
           },
           "tree_desc": {
-            "en": "inventory, model, project, board, schematic, EAGLE, rules, hub, export, stack-up, RF, CLI",
-            "es": "inventario, modelo, proyecto, placa, esquemático, EAGLE, reglas, hub, exportación, apilado, RF, comandos",
-            "de": "Inventar, Modell, Projekt, Platine, Schaltplan, EAGLE, Regeln, Hub, Export, Lagenaufbau, HF, CLI",
-            "fr": "inventaire, modèle, projet, carte, schéma, EAGLE, règles, hub, export, empilage, RF, CLI",
-            "it": "inventario, modello, progetto, scheda, schema, EAGLE, regole, hub, esportazione, stratificazione, RF, CLI",
-            "ja": "棚卸し、モデル、プロジェクト、基板、回路図、EAGLE、ルール、ハブ、書き出し、スタックアップ、RF、CLI",
-            "zh": "清点、模型、项目、电路板、原理图、EAGLE、规则、枢纽、导出、叠层、射频、命令行",
-            "pt": "inventário, modelo, projeto, placa, esquema, EAGLE, regras, hub, exportação, empilhamento, RF, CLI"
+            "en": "inventory, model, project, board, schematic, EAGLE, rules, hub, export, stack-up, RF, viewer, CLI",
+            "es": "inventario, modelo, proyecto, placa, esquemático, EAGLE, reglas, hub, exportación, apilado, RF, visor, comandos",
+            "de": "Inventar, Modell, Projekt, Platine, Schaltplan, EAGLE, Regeln, Hub, Export, Lagenaufbau, HF, Betrachter, CLI",
+            "fr": "inventaire, modèle, projet, carte, schéma, EAGLE, règles, hub, export, empilage, RF, visionneuse, CLI",
+            "it": "inventario, modello, progetto, scheda, schema, EAGLE, regole, hub, esportazione, stratificazione, RF, visualizzatore, CLI",
+            "ja": "棚卸し、モデル、プロジェクト、基板、回路図、EAGLE、ルール、ハブ、書き出し、スタックアップ、RF、ビューア、CLI",
+            "zh": "清点、模型、项目、电路板、原理图、EAGLE、规则、枢纽、导出、叠层、射频、查看器、命令行",
+            "pt": "inventário, modelo, projeto, placa, esquema, EAGLE, regras, hub, exportação, empilhamento, RF, visualizador, CLI"
           }
         },
         {
