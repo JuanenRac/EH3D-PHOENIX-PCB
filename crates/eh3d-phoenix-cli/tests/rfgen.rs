@@ -69,7 +69,8 @@ fn the_list_names_every_type_with_its_parameters() {
 fn a_line_is_reported_and_nothing_is_written_without_out() {
     let dir = tempfile::tempdir().unwrap();
     let stackup = stackup_file(dir.path());
-    let (code, out, err) = command(&["rfgen", "line", "--stackup", &stackup, "--freq-ghz", "1"]);
+    let stackup = stackup.as_str();
+    let (code, out, err) = command(&["rfgen", "line", "--stackup", stackup, "--freq-ghz", "1"]);
     assert_eq!(code, 0, "{err}");
     assert!(out.contains("structure: line"), "{out}");
     assert!(out.contains("line width ="), "{out}");
@@ -79,7 +80,7 @@ fn a_line_is_reported_and_nothing_is_written_without_out() {
         "rfgen",
         "line",
         "--stackup",
-        &stackup,
+        stackup,
         "--freq-ghz",
         "1",
         "--json",
@@ -94,13 +95,14 @@ fn a_line_is_reported_and_nothing_is_written_without_out() {
 fn the_board_is_written_to_a_new_json_file_and_never_over_an_existing_one() {
     let dir = tempfile::tempdir().unwrap();
     let stackup = stackup_file(dir.path());
+    let stackup = stackup.as_str();
     let target = dir.path().join("board.json");
     let target = target.to_str().unwrap();
     let args = [
         "rfgen",
         "bend",
         "--stackup",
-        &stackup,
+        stackup,
         "--freq-ghz",
         "2",
         "--turn",
@@ -125,6 +127,7 @@ fn the_board_is_written_to_a_new_json_file_and_never_over_an_existing_one() {
 fn a_second_structure_is_added_to_the_board_of_the_first() {
     let dir = tempfile::tempdir().unwrap();
     let stackup = stackup_file(dir.path());
+    let stackup = stackup.as_str();
     let first = dir.path().join("first.json");
     let second = dir.path().join("second.json");
     let (first, second) = (first.to_str().unwrap(), second.to_str().unwrap());
@@ -132,7 +135,7 @@ fn a_second_structure_is_added_to_the_board_of_the_first() {
         "rfgen",
         "line",
         "--stackup",
-        &stackup,
+        stackup,
         "--freq-ghz",
         "1",
         "--out",
@@ -143,7 +146,7 @@ fn a_second_structure_is_added_to_the_board_of_the_first() {
         "rfgen",
         "stub-open",
         "--stackup",
-        &stackup,
+        stackup,
         "--freq-ghz",
         "1",
         "--board",
@@ -168,13 +171,14 @@ fn a_second_structure_is_added_to_the_board_of_the_first() {
 fn the_board_can_be_written_as_an_eagle_file() {
     let dir = tempfile::tempdir().unwrap();
     let stackup = stackup_file(dir.path());
+    let stackup = stackup.as_str();
     let target = dir.path().join("board.brd");
     let target = target.to_str().unwrap();
     let (code, _, err) = command(&[
         "rfgen",
         "stub-short",
         "--stackup",
-        &stackup,
+        stackup,
         "--freq-ghz",
         "1",
         "--out",
@@ -190,11 +194,12 @@ fn the_board_can_be_written_as_an_eagle_file() {
 fn the_parameters_of_the_structure_are_options_and_a_wrong_one_is_refused() {
     let dir = tempfile::tempdir().unwrap();
     let stackup = stackup_file(dir.path());
+    let stackup = stackup.as_str();
     let (code, out, err) = command(&[
         "rfgen",
         "line",
         "--stackup",
-        &stackup,
+        stackup,
         "--freq-ghz",
         "1",
         "--length-mm",
@@ -208,7 +213,7 @@ fn the_parameters_of_the_structure_are_options_and_a_wrong_one_is_refused() {
         "rfgen",
         "line",
         "--stackup",
-        &stackup,
+        stackup,
         "--freq-ghz",
         "1",
         "--speed",
@@ -221,7 +226,7 @@ fn the_parameters_of_the_structure_are_options_and_a_wrong_one_is_refused() {
         "rfgen",
         "line",
         "--stackup",
-        &stackup,
+        stackup,
         "--freq-ghz",
         "1",
         "--speed",
@@ -237,6 +242,7 @@ fn the_parameters_of_the_structure_are_options_and_a_wrong_one_is_refused() {
 fn bad_arguments_are_refused_before_anything_is_written() {
     let dir = tempfile::tempdir().unwrap();
     let stackup = stackup_file(dir.path());
+    let stackup = stackup.as_str();
     let (code, _, err) = command(&["rfgen"]);
     assert_eq!(code, 2);
     assert!(err.contains("phoenix rfgen"), "{err}");
@@ -244,15 +250,15 @@ fn bad_arguments_are_refused_before_anything_is_written() {
         "rfgen",
         "amplifier",
         "--stackup",
-        &stackup,
+        stackup,
         "--freq-ghz",
         "1",
     ]);
     assert_eq!(code, 2);
     assert!(err.contains("PHOENIX-RFGEN-003"), "{err}");
-    let (code, _, _) = command(&["rfgen", "line", "--stackup", &stackup]);
+    let (code, _, _) = command(&["rfgen", "line", "--stackup", stackup]);
     assert_eq!(code, 2);
-    let (code, _, err) = command(&["rfgen", "line", "--stackup", &stackup, "--freq-ghz", "fast"]);
+    let (code, _, err) = command(&["rfgen", "line", "--stackup", stackup, "--freq-ghz", "fast"]);
     assert_eq!(code, 2);
     assert!(err.contains("PHOENIX-RFGEN-013"), "{err}");
     let target = dir.path().join("board.txt");
@@ -260,7 +266,7 @@ fn bad_arguments_are_refused_before_anything_is_written() {
         "rfgen",
         "line",
         "--stackup",
-        &stackup,
+        stackup,
         "--freq-ghz",
         "1",
         "--out",
@@ -283,7 +289,7 @@ fn bad_arguments_are_refused_before_anything_is_written() {
         "rfgen",
         "line",
         "--stackup",
-        &stackup,
+        stackup,
         "--freq-ghz",
         "1",
         "--rotation",
