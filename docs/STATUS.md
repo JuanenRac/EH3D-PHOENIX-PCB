@@ -23,7 +23,7 @@ The official state of each capability is in REQUIREMENTS.md: 30 requirements: 18
 
 ## Known technical debt and omitted tests
 
-* 1879 tests of the Rust code and 3 of the base; the inventory tests build their own folders and never touch a real project.
+* 1900 tests of the Rust code and 3 of the base; the inventory tests build their own folders and never touch a real project.
 * The window of the viewer has never been seen on a screen, a graphics card or an operating system: the lints of CI check that it builds, nothing more. The timing of `phoenix view --bench` covers the preparation of the primitives and the selection by position, not the drawing, and its numbers depend on the computer.
 * The manufacturing export (`docs/EXPORT.md`) has been read back only by the parsers of EH3D-CORE-LIBS and by the import of this repository (`docs/GERBER_IMPORT.md`): no independent Gerber or Excellon viewer, no manufacturer and no assembler has opened a file of it, the rule for the rotation of a bottom part and the columns of the `jlc-like` profile are settings that nobody has compared with a real sample, and copper pours, blind vias and polygon pads are not written.
 * The import of Gerber and Excellon files (`docs/GERBER_IMPORT.md`) and the panelization (`docs/PANEL.md`) have been tried on files and boards made by the tests only: the import has never read a file written by a CAD program or a manufacturer and its geometry has never been compared with a reference viewer, and no manufacturer has accepted a panel.

@@ -338,6 +338,32 @@
           }
         },
         {
+          "name": "BOM.md",
+          "desc": {
+            "en": "bill of materials with costs, CSV, JSON, HTML",
+            "es": "lista de materiales con costes, CSV, JSON, HTML",
+            "de": "Stückliste mit Kosten, CSV, JSON, HTML",
+            "fr": "nomenclature avec coûts, CSV, JSON, HTML",
+            "it": "distinta base con costi, CSV, JSON, HTML",
+            "ja": "コスト付き部品表、CSV、JSON、HTML",
+            "zh": "带成本的物料清单、CSV、JSON、HTML",
+            "pt": "lista de materiais com custos, CSV, JSON, HTML"
+          }
+        },
+        {
+          "name": "ASSEMBLY3D.md",
+          "desc": {
+            "en": "3D assembly: STEP models, collisions, OBJ, STEP",
+            "es": "ensamblado 3D: modelos STEP, colisiones, OBJ, STEP",
+            "de": "3D-Baugruppe: STEP-Modelle, Kollisionen, OBJ, STEP",
+            "fr": "assemblage 3D : modèles STEP, collisions, OBJ, STEP",
+            "it": "assemblaggio 3D: modelli STEP, collisioni, OBJ, STEP",
+            "ja": "3Dアセンブリ：STEPモデル、干渉、OBJ、STEP",
+            "zh": "3D 装配：STEP 模型、碰撞、OBJ、STEP",
+            "pt": "montagem 3D: modelos STEP, colisões, OBJ, STEP"
+          }
+        },
+        {
           "name": "GATE_F1.md",
           "desc": {
             "en": "what the gate of the first phase checks and what it does not",
@@ -429,14 +455,14 @@
             "pt": "modelo, placa, esquema, EAGLE, KiCad, regras, exportação, RF, saneador, visualizador, CLI"
           },
           "tree_desc": {
-            "en": "inventory, model, project, board, schematic, EAGLE, KiCad, rules, ERC, sync, hub, export, Gerber import, panel, stack-up, RF, simulator, router, zones, lengths, sanitizer, scripts, viewer, CLI",
-            "es": "inventario, modelo, proyecto, placa, esquemático, EAGLE, KiCad, reglas, ERC, sincronización, hub, exportación, importación Gerber, panel, apilado, RF, simulador, enrutador, zonas, longitudes, saneador, scripts, visor, comandos",
-            "de": "Inventar, Modell, Projekt, Platine, Schaltplan, EAGLE, KiCad, Regeln, ERC, Abgleich, Hub, Export, Gerber-Import, Nutzen, Lagenaufbau, HF, Simulator, Router, Zonen, Längen, Bereiniger, Skripte, Betrachter, CLI",
-            "fr": "inventaire, modèle, projet, carte, schéma, EAGLE, KiCad, règles, ERC, synchronisation, hub, export, import Gerber, panneau, empilage, RF, simulateur, routeur, zones, longueurs, assainisseur, scripts, visionneuse, CLI",
-            "it": "inventario, modello, progetto, scheda, schema, EAGLE, KiCad, regole, ERC, sincronizzazione, hub, esportazione, importazione Gerber, pannello, stratificazione, RF, simulatore, router, zone, lunghezze, sanificatore, script, visualizzatore, CLI",
-            "ja": "棚卸し、モデル、プロジェクト、基板、回路図、EAGLE、KiCad、ルール、ERC、同期、ハブ、書き出し、Gerber 読み込み、パネル、スタックアップ、RF、シミュレータ、ルーター、ゾーン、長さ、整理、スクリプト、ビューア、CLI",
-            "zh": "清点、模型、项目、电路板、原理图、EAGLE、KiCad、规则、ERC、同步、枢纽、导出、Gerber 导入、拼板、叠层、射频、仿真器、布线器、铜区、长度、清理器、脚本、查看器、命令行",
-            "pt": "inventário, modelo, projeto, placa, esquema, EAGLE, KiCad, regras, ERC, sincronização, hub, exportação, importação Gerber, painel, empilhamento, RF, simulador, encaminhador, zonas, comprimentos, saneador, scripts, visualizador, CLI"
+            "en": "inventory, model, project, board, schematic, EAGLE, KiCad, rules, ERC, sync, hub, export, Gerber import, panel, stack-up, RF, simulator, router, zones, lengths, bill of materials, 3D assembly, sanitizer, scripts, viewer, CLI",
+            "es": "inventario, modelo, proyecto, placa, esquemático, EAGLE, KiCad, reglas, ERC, sincronización, hub, exportación, importación Gerber, panel, apilado, RF, simulador, enrutador, zonas, longitudes, lista de materiales, ensamblado 3D, saneador, scripts, visor, comandos",
+            "de": "Inventar, Modell, Projekt, Platine, Schaltplan, EAGLE, KiCad, Regeln, ERC, Abgleich, Hub, Export, Gerber-Import, Nutzen, Lagenaufbau, HF, Simulator, Router, Zonen, Längen, Stückliste, 3D-Baugruppe, Bereiniger, Skripte, Betrachter, CLI",
+            "fr": "inventaire, modèle, projet, carte, schéma, EAGLE, KiCad, règles, ERC, synchronisation, hub, export, import Gerber, panneau, empilage, RF, simulateur, routeur, zones, longueurs, nomenclature, assemblage 3D, assainisseur, scripts, visionneuse, CLI",
+            "it": "inventario, modello, progetto, scheda, schema, EAGLE, KiCad, regole, ERC, sincronizzazione, hub, esportazione, importazione Gerber, pannello, stratificazione, RF, simulatore, router, zone, lunghezze, distinta base, assemblaggio 3D, sanificatore, script, visualizzatore, CLI",
+            "ja": "棚卸し、モデル、プロジェクト、基板、回路図、EAGLE、KiCad、ルール、ERC、同期、ハブ、書き出し、Gerber 読み込み、パネル、スタックアップ、RF、シミュレータ、ルーター、ゾーン、長さ、部品表、3Dアセンブリ、整理、スクリプト、ビューア、CLI",
+            "zh": "清点、模型、项目、电路板、原理图、EAGLE、KiCad、规则、ERC、同步、枢纽、导出、Gerber 导入、拼板、叠层、射频、仿真器、布线器、铜区、长度、物料清单、3D 装配、清理器、脚本、查看器、命令行",
+            "pt": "inventário, modelo, projeto, placa, esquema, EAGLE, KiCad, regras, ERC, sincronização, hub, exportação, importação Gerber, painel, empilhamento, RF, simulador, encaminhador, zonas, comprimentos, lista de materiais, montagem 3D, saneador, scripts, visualizador, CLI"
           }
         },
         {
