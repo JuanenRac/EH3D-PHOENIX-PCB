@@ -32,6 +32,7 @@ mod schedit;
 mod script;
 mod sim;
 mod view;
+pub mod window_args;
 mod zones;
 
 use eh3d_phoenix_corpus::{inventory, InventoryConfig};

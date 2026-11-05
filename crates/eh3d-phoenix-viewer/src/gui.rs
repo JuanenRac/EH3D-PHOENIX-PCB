@@ -12,6 +12,9 @@ use eh3d_phoenix_rules::Lang;
 
 use crate::codes::{ViewError, FILE_UNUSABLE, WINDOW_FAILED};
 use crate::editmsg::EditMsg;
+use crate::launcher_gui;
+use crate::launcher_session::{Launch, Launcher};
+use crate::launcher_text::LauncherText;
 use crate::library_gui::LibraryUi;
 use crate::library_text::LibText;
 use crate::msg::Msg;
@@ -27,10 +30,10 @@ use crate::workspace::{erc_line, finding_line, suggested_save_path, Key, Shortcu
 const PANEL: Color32 = Color32::from_rgb(0x17, 0x13, 0x10);
 const RAISED: Color32 = Color32::from_rgb(0x22, 0x1c, 0x17);
 const TEXT: Color32 = Color32::from_rgb(0xf4, 0xec, 0xe0);
-const DIM: Color32 = Color32::from_rgb(0x9c, 0x8d, 0x7a);
-const ACCENT: Color32 = Color32::from_rgb(0xff, 0xb0, 0x00);
+pub(crate) const DIM: Color32 = Color32::from_rgb(0x9c, 0x8d, 0x7a);
+pub(crate) const ACCENT: Color32 = Color32::from_rgb(0xff, 0xb0, 0x00);
 const OK: Color32 = Color32::from_rgb(0x9b, 0xe3, 0x4a);
-const DANGER: Color32 = Color32::from_rgb(0xff, 0x54, 0x70);
+pub(crate) const DANGER: Color32 = Color32::from_rgb(0xff, 0x54, 0x70);
 
 /// The keys of the toolkit that the editing answers to and what they mean. The plus sign is the
 /// key of the equals sign on many keyboards, so both are taken.
@@ -117,13 +120,17 @@ struct App {
     sch: Option<SchematicEditUi>,
     /// The library mode, while a library of footprints, symbols and devices is open.
     lib: LibraryUi,
+    /// The start screen, shown while nothing is open: the typed path and the recent files.
+    launcher: Launcher,
+    /// What the start screen could not do last (an empty path, dropped files that do not open).
+    launch_note: Option<LauncherText>,
 }
 
 impl App {
     fn new(lang: Lang, settings: ViewerSettings, initial: Option<PathBuf>) -> App {
         let mut app = App {
             lang,
-            settings,
+            settings: settings.clone(),
             route_settings: RouteSettings::default(),
             workspace: None,
             path_text: String::new(),
@@ -137,6 +144,8 @@ impl App {
             focus_save: false,
             sch: None,
             lib: LibraryUi::new(eh3d_phoenix_libedit::LibSettings::default()),
+            launcher: Launcher::from_env(&settings, &|name: &str| std::env::var(name).ok()),
+            launch_note: None,
         };
         if let Some(path) = initial {
             app.path_text = path.to_string_lossy().into_owned();
@@ -156,6 +165,7 @@ impl App {
                 self.workspace = None;
                 self.sch = None;
                 self.error = None;
+                self.launcher.opened(path);
             } else if let Some(e) = self.lib.take_error() {
                 self.error = Some(ViewError::new(FILE_UNUSABLE, e.message(Lang::En)));
             }
@@ -170,8 +180,24 @@ impl App {
                 self.fit_pending = true;
                 self.tool_drag = false;
                 self.sch = None;
+                self.launcher.opened(path);
             }
             Err(error) => self.error = Some(error),
+        }
+    }
+
+    /// Does what the start screen asked for.
+    fn launch(&mut self, asked: Launch) {
+        match asked {
+            Launch::Open(path) => {
+                self.path_text = path.to_string_lossy().into_owned();
+                self.open(&path);
+            }
+            Launch::NewLibrary => {
+                self.lib.new_library();
+                self.workspace = None;
+                self.sch = None;
+            }
         }
     }
 
@@ -450,18 +476,21 @@ impl App {
                 schematic_gui::canvas(ui, sch, workspace, lang, background, &mut self.fit_pending);
                 return;
             }
+            if self.workspace.is_none() {
+                // nothing is open: the start screen
+                ui.painter().rect_filled(ui.max_rect(), 0.0, background);
+                if let Some(asked) =
+                    launcher_gui::show(ui, &mut self.launcher, lang, &mut self.launch_note)
+                {
+                    self.launch(asked);
+                }
+                return;
+            }
             let size = ui.available_size();
             let (response, painter) = ui.allocate_painter(size, egui::Sense::click_and_drag());
             let rect = response.rect;
             painter.rect_filled(rect, 0.0, background);
             let Some(workspace) = self.workspace.as_mut() else {
-                painter.text(
-                    rect.center(),
-                    egui::Align2::CENTER_CENTER,
-                    Msg::DropHint.tr(lang),
-                    egui::FontId::proportional(18.0),
-                    DIM,
-                );
                 return;
             };
             workspace
@@ -926,9 +955,14 @@ impl eframe::App for App {
                 .map(|f| f.path().to_path_buf())
                 .collect()
         });
-        if let Some(path) = dropped.first() {
-            self.path_text = path.to_string_lossy().into_owned();
-            self.open(path);
+        if !dropped.is_empty() {
+            match Launcher::dropped_launch(&dropped) {
+                Ok(asked) => {
+                    self.launch_note = None;
+                    self.launch(asked);
+                }
+                Err(note) => self.launch_note = Some(note),
+            }
         }
         if self.lib.is_open() {
             self.top_bar(ui);

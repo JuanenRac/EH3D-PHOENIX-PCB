@@ -131,6 +131,7 @@ jobs:
         env:
           MATRIX_TARGET: ${{ matrix.target }}
       - name: Build
+        # builds both programs: phoenix (command line) and phoenix-gui (the window, which needs the gui feature)
         run: cargo build --release -p eh3d-phoenix-cli --features gui --target ${MATRIX_TARGET}
         working-directory: EH3D-PHOENIX-PCB
         shell: bash
@@ -144,7 +145,9 @@ jobs:
           version=$(python3 -c "import json;print(json.load(open('eh3d.project.json'))['version'])")
           name="eh3d-phoenix-pcb-${version}-${MATRIX_LABEL}"
           mkdir "$name"
+          # the command line and the window, in the same archive (the window needs the gui feature of the build above)
           cp "target/${MATRIX_TARGET}/release/phoenix${MATRIX_EXT}" "$name/"
+          cp "target/${MATRIX_TARGET}/release/phoenix-gui${MATRIX_EXT}" "$name/"
           cp LICENSE README.md CHANGELOG.md "$name/"
           # the icon of the program and the sample files, as examples
           cp images/brand/app.ico images/brand/icon-256.png "$name/"

@@ -116,6 +116,10 @@ pub struct ViewerSettings {
     pub findings_shown: usize,
     /// The ending of the name of the copy that is made before a saved file is replaced.
     pub backup_suffix: String,
+    /// How many recent files the start screen of the window keeps.
+    pub recent_max: usize,
+    /// The name of the file that holds the recent files, in the settings folder of the user.
+    pub recent_file: String,
     /// The colours by name, each red, green, blue and alpha.
     pub colours: BTreeMap<String, [u8; 4]>,
 }
@@ -163,6 +167,8 @@ impl Default for ViewerSettings {
             marker_radius_px: 14.0,
             findings_shown: 500,
             backup_suffix: ".bak".to_string(),
+            recent_max: 10,
+            recent_file: "recent.cfg".to_string(),
             colours: DEFAULT_COLOURS
                 .iter()
                 .map(|(name, rgba)| ((*name).to_string(), *rgba))
@@ -300,6 +306,16 @@ impl ViewerSettings {
                     }
                     s.backup_suffix = value.to_string();
                 }
+                "recent_max" => s.recent_max = count(value, line, key)?,
+                "recent_file" => {
+                    if value.is_empty() || value.contains(['/', '\\']) {
+                        return Err(invalid(
+                            line,
+                            format!("{key}: must be a non-empty file name without a slash"),
+                        ));
+                    }
+                    s.recent_file = value.to_string();
+                }
                 _ => return Err(invalid(line, format!("unknown key {key}"))),
             }
         }
@@ -379,6 +395,9 @@ mod tests {
             "rotate_step_deg = 400",
             "backup_suffix = ",
             "backup_suffix = a/b",
+            "recent_max = 0",
+            "recent_file = ",
+            "recent_file = a/b",
         ] {
             let error = ViewerSettings::parse(text).unwrap_err();
             assert_eq!(error.code, SETTINGS_INVALID, "{text}");

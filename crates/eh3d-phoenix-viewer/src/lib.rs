@@ -29,6 +29,10 @@
 //!   the snap, the selection and the drag, the measure, the checks, the plan to replace by a master
 //!   and the saving as a new file) and its texts in the eight languages (the window is in
 //!   `library_gui`, behind the `gui` feature);
+//! * [`launcher_session`], [`launcher_recent`] and [`launcher_text`]: the start screen of the window
+//!   (what a typed path, a dropped file or a recent file asks for, the list of recent files kept in a
+//!   file of the settings folder of the user, and its texts in the eight languages; the drawing is in
+//!   `launcher_gui`, behind the `gui` feature);
 //! * [`settings`], [`codes`], [`msg`] and [`editmsg`]: the settings file, the codes
 //!   `PHOENIX-VIEW-<NNN>` and the texts in the eight languages.
 //!
@@ -45,6 +49,11 @@ pub mod editmsg;
 pub mod grid;
 #[cfg(feature = "gui")]
 pub mod gui;
+#[cfg(feature = "gui")]
+pub mod launcher_gui;
+pub mod launcher_recent;
+pub mod launcher_session;
+pub mod launcher_text;
 #[cfg(feature = "gui")]
 pub mod library_gui;
 pub mod library_session;

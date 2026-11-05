@@ -16,12 +16,20 @@ path = "src/lib.rs"
 name = "phoenix"
 path = "src/main.rs"
 
+# the window as a program of its own: it opens with the start screen and, on Windows, without the
+# black console window that the command line keeps
+[[bin]]
+name = "phoenix-gui"
+path = "src/gui_main.rs"
+required-features = ["gui"]
+
 [features]
 default = ["materials"]
 # the materials database of EH3D-COMMON: `phoenix materials` and `phoenix stackup --material`;
 # `--no-default-features` builds without it
 materials = ["eh3d-phoenix-stackup/materials", "dep:eh3d-materials"]
-# the window of the viewer: `cargo run --release -p eh3d-phoenix-cli --features gui -- view <file>`
+# the window of the viewer: `cargo run --release -p eh3d-phoenix-cli --features gui --bin phoenix-gui`
+# (or `phoenix view <file>`)
 gui = ["eh3d-phoenix-viewer/gui"]
 
 [dependencies]
