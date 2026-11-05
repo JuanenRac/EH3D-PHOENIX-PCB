@@ -228,7 +228,7 @@ fn the_half_wave_rectifier_with_a_capacitor_has_the_ripple_of_the_book() {
     let samples = tran(text, 10e-6, 0.1, Method::BackwardEuler, false);
     let window: Vec<f64> = samples
         .iter()
-        .filter(|(t, _)| *t >= 0.06 && *t <= 0.08)
+        .filter(|(t, _)| (0.06..=0.08).contains(t))
         .map(|(_, y)| *y)
         .collect();
     let peak = window.iter().copied().fold(f64::MIN, f64::max);
