@@ -34,6 +34,11 @@ pub const SILK_OVER_MASK: &str = "PHOENIX-CHECK-012";
 /// A check that could not be judged.
 pub const NOT_JUDGED: &str = "PHOENIX-CHECK-013";
 
+/// A track narrower than the minimum of the net class of its net.
+pub const CLASS_TRACK_NARROW: &str = "PHOENIX-CHECK-014";
+/// A via whose diameter or drill is below the minimum of the net class of its net.
+pub const CLASS_VIA_SMALL: &str = "PHOENIX-CHECK-015";
+
 /// A rule file that cannot be read.
 pub const RULEFILE_UNREADABLE: &str = "PHOENIX-RULEFILE-001";
 /// A value of a rule file that is not valid.
@@ -42,6 +47,9 @@ pub const RULEFILE_VALUE: &str = "PHOENIX-RULEFILE-002";
 pub const RULEFILE_PARAM: &str = "PHOENIX-RULEFILE-003";
 /// An EAGLE board file with no design rules in it.
 pub const RULEFILE_NO_RULES: &str = "PHOENIX-RULEFILE-004";
+
+/// A net class that is not valid.
+pub const RULEFILE_CLASS: &str = "PHOENIX-RULEFILE-005";
 
 /// A net of the schematic that the board does not have.
 pub const NET_MISSING: &str = "PHOENIX-CONN-001";
@@ -141,10 +149,19 @@ pub const REGISTRY: &[(&str, &str)] = &[
         "Silkscreen printed over a solder mask opening",
     ),
     (NOT_JUDGED, "Check could not be judged"),
+    (
+        CLASS_TRACK_NARROW,
+        "Track narrower than the minimum of its net class",
+    ),
+    (
+        CLASS_VIA_SMALL,
+        "Via smaller than the minimum of its net class",
+    ),
     (RULEFILE_UNREADABLE, "Rule file cannot be read"),
     (RULEFILE_VALUE, "Rule value is not valid"),
     (RULEFILE_PARAM, "Design rule parameter not used"),
     (RULEFILE_NO_RULES, "Board file holds no design rules"),
+    (RULEFILE_CLASS, "Net class is not valid"),
     (NET_MISSING, "Schematic net missing from the board"),
     (PIN_UNCONNECTED, "Pin not connected on the board"),
     (
@@ -334,6 +351,45 @@ const TITLES: &[(&str, [&str; 8])] = &[
             "判定できなかった",
             "无法判定该项检查",
             "A verificação não pôde ser avaliada",
+        ],
+    ),
+    (
+        CLASS_TRACK_NARROW,
+        [
+            "Track narrower than the minimum of its net class",
+            "Pista más estrecha que el mínimo de su clase de red",
+            "Leiterbahn schmaler als das Minimum ihrer Netzklasse",
+            "Piste plus étroite que le minimum de sa classe de réseau",
+            "Pista più stretta del minimo della sua classe di rete",
+            "配線がネットクラスの最小幅より細い",
+            "走线比其网络类的最小宽度更窄",
+            "Pista mais estreita do que o mínimo da sua classe de rede",
+        ],
+    ),
+    (
+        CLASS_VIA_SMALL,
+        [
+            "Via smaller than the minimum of its net class",
+            "Vía menor que el mínimo de su clase de red",
+            "Via kleiner als das Minimum ihrer Netzklasse",
+            "Via plus petite que le minimum de sa classe de réseau",
+            "Via più piccola del minimo della sua classe di rete",
+            "ビアがネットクラスの最小値より小さい",
+            "过孔小于其网络类的最小值",
+            "Via mais pequena do que o mínimo da sua classe de rede",
+        ],
+    ),
+    (
+        RULEFILE_CLASS,
+        [
+            "Net class is not valid",
+            "Clase de red no válida",
+            "Netzklasse ungültig",
+            "Classe de réseau non valide",
+            "Classe di rete non valida",
+            "ネットクラスが正しくない",
+            "网络类无效",
+            "Classe de rede inválida",
         ],
     ),
     (

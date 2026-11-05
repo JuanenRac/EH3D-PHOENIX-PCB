@@ -8,6 +8,8 @@
 //!   its place, the rule, the measured value, the limit and the severity;
 //! * [`connectivity`]: the nets that the copper really forms (a gap of the tolerance still counts as
 //!   touching), shorts and unrouted connections, and the comparison with the schematic;
+//! * [`classes`]: net classes of a rule file of the second format, with limits of their own for
+//!   the width of the tracks and the size of the vias of their nets;
 //! * [`report`]: the report as text and as JSON, with proven (`confirmed`) and unjudged
 //!   (`inconclusive`) findings in two lists;
 //! * [`codes`]: the stable codes `PHOENIX-CHECK-<NNN>`, `PHOENIX-RULEFILE-<NNN>` and
@@ -21,6 +23,7 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
+pub mod classes;
 pub mod codes;
 pub mod connectivity;
 pub mod engine;
@@ -29,8 +32,9 @@ mod items;
 pub mod report;
 pub mod rulefile;
 
+pub use classes::{check_classes, NetClass, NetClasses};
 pub use codes::{title, Lang, REGISTRY};
 pub use connectivity::{analyse_board, check_connectivity, compare_schematic};
 pub use engine::{check_board, Rule};
 pub use report::{Finding, Report, Severity};
-pub use rulefile::{RuleFileError, RuleValues};
+pub use rulefile::{RuleFile, RuleFileError, RuleValues};

@@ -5,7 +5,9 @@
 //! two sources:
 //!
 //! * a JSON rule file of this tool (`phoenix-rules/1`), with every length in nanometres in a field
-//!   whose name ends in `_nm`; a field that is left out turns its rule off (zero is off);
+//!   whose name ends in `_nm`; a field that is left out turns its rule off (zero is off). The
+//!   format `phoenix-rules/2` is the same file with an optional list of net classes (see
+//!   [`crate::classes`]); a file of the first format is read as before;
 //! * the `<designrules>` of an EAGLE board file, read by [`RuleValues::from_eagle_board`]. EAGLE
 //!   has more parameters than this engine uses: the clearances between wires, pads, vias and SMD
 //!   pads are folded into one clearance (the largest), and every parameter that is not used is
@@ -17,15 +19,21 @@ use eh3d_phoenix_eagle::xml::{parse, Limits};
 use eh3d_phoenix_model::Nm;
 use serde::{Deserialize, Serialize};
 
+use crate::classes::{NetClass, NetClasses};
 use crate::codes::{
-    REGISTRY, RULEFILE_NO_RULES, RULEFILE_PARAM, RULEFILE_UNREADABLE, RULEFILE_VALUE,
+    REGISTRY, RULEFILE_CLASS, RULEFILE_NO_RULES, RULEFILE_PARAM, RULEFILE_UNREADABLE,
+    RULEFILE_VALUE,
 };
 
 /// The largest rule file that is read, in bytes.
 pub const MAX_RULE_FILE_BYTES: usize = 1 << 20;
 
-/// The format name that a rule file must declare.
+/// The format name of a rule file without net classes.
 pub const FORMAT: &str = "phoenix-rules/1";
+
+/// The format name of a rule file that may carry net classes. Everything the first format has is
+/// read the same way.
+pub const FORMAT_V2: &str = "phoenix-rules/2";
 
 /// Why a rule file could not be used.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
@@ -42,7 +50,7 @@ pub enum RuleFileError {
     #[error("the rule file cannot be read: {0}")]
     Unreadable(String),
     /// The file declares another format.
-    #[error("the rule file declares the format {found:?}, expected \"phoenix-rules/1\"")]
+    #[error("the rule file declares the format {found:?}, expected \"phoenix-rules/1\" or \"phoenix-rules/2\"")]
     WrongFormat {
         /// What it declares.
         found: String,
@@ -54,6 +62,14 @@ pub enum RuleFileError {
         name: &'static str,
         /// The value.
         value: i64,
+    },
+    /// A net class is not valid (a repeated name, a net in two classes, a nameless class).
+    #[error("the net class {name:?} is not valid: {why}")]
+    BadClass {
+        /// The name of the class.
+        name: String,
+        /// What is wrong.
+        why: &'static str,
     },
     /// The board file has no `<designrules>`.
     #[error("the board file holds no design rules")]
@@ -72,6 +88,7 @@ impl RuleFileError {
             | RuleFileError::WrongFormat { .. }
             | RuleFileError::BoardUnreadable(_) => RULEFILE_UNREADABLE,
             RuleFileError::BadValue { .. } => RULEFILE_VALUE,
+            RuleFileError::BadClass { .. } => RULEFILE_CLASS,
             RuleFileError::NoDesignRules => RULEFILE_NO_RULES,
         }
     }
@@ -147,6 +164,17 @@ struct RulesJson {
     silkscreen_over_mask_openings: bool,
 }
 
+#[derive(Debug, Default, Serialize, Deserialize)]
+#[serde(deny_unknown_fields, default)]
+struct ClassJson {
+    name: String,
+    nets: Vec<String>,
+    min_track_width_nm: i64,
+    min_clearance_nm: i64,
+    min_via_diameter_nm: i64,
+    min_via_drill_nm: i64,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct FileJson {
@@ -154,18 +182,24 @@ struct FileJson {
     #[serde(default)]
     name: String,
     rules: RulesJson,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    classes: Vec<ClassJson>,
 }
 
-fn length(name: &'static str, value: i64) -> Result<Nm, RuleFileError> {
-    if value < 0 {
-        return Err(RuleFileError::BadValue { name, value });
-    }
-    Nm::new(value).map_err(|_| RuleFileError::BadValue { name, value })
+/// A rule file read whole: the values, and the net classes of a file of the second format.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RuleFile {
+    /// The name the file gives itself.
+    pub name: String,
+    /// The values of the rules.
+    pub values: RuleValues,
+    /// The net classes (none in a file of the first format).
+    pub classes: NetClasses,
 }
 
-impl RuleValues {
-    /// Reads a JSON rule file of this tool. The result carries the name the file gives itself.
-    pub fn from_json(text: &str) -> Result<(String, RuleValues), RuleFileError> {
+impl RuleFile {
+    /// Reads a JSON rule file of the first or the second format.
+    pub fn from_json(text: &str) -> Result<RuleFile, RuleFileError> {
         if text.len() > MAX_RULE_FILE_BYTES {
             return Err(RuleFileError::TooLarge {
                 size: text.len(),
@@ -174,8 +208,13 @@ impl RuleValues {
         }
         let file: FileJson =
             serde_json::from_str(text).map_err(|e| RuleFileError::Unreadable(e.to_string()))?;
-        if file.format != FORMAT {
+        if file.format != FORMAT && file.format != FORMAT_V2 {
             return Err(RuleFileError::WrongFormat { found: file.format });
+        }
+        if file.format == FORMAT && !file.classes.is_empty() {
+            return Err(RuleFileError::Unreadable(
+                "net classes need the format phoenix-rules/2".to_owned(),
+            ));
         }
         let r = &file.rules;
         let values = RuleValues {
@@ -191,7 +230,83 @@ impl RuleValues {
             silkscreen_over_pads: r.silkscreen_over_pads,
             silkscreen_over_mask_openings: r.silkscreen_over_mask_openings,
         };
-        Ok((file.name, values))
+        let mut classes = Vec::with_capacity(file.classes.len());
+        for c in &file.classes {
+            classes.push(NetClass {
+                name: c.name.clone(),
+                nets: c.nets.clone(),
+                min_track_width: length("min_track_width_nm", c.min_track_width_nm)?,
+                min_clearance: length("min_clearance_nm", c.min_clearance_nm)?,
+                min_via_diameter: length("min_via_diameter_nm", c.min_via_diameter_nm)?,
+                min_via_drill: length("min_via_drill_nm", c.min_via_drill_nm)?,
+            });
+        }
+        Ok(RuleFile {
+            name: file.name,
+            values,
+            classes: NetClasses::new(classes)?,
+        })
+    }
+
+    /// Writes the file: the first format when there are no classes, the second when there are.
+    /// Reading it back gives the same file.
+    pub fn to_json(&self) -> String {
+        let v = &self.values;
+        let format = if self.classes.is_empty() {
+            FORMAT
+        } else {
+            FORMAT_V2
+        };
+        let file = FileJson {
+            format: format.to_owned(),
+            name: self.name.clone(),
+            rules: RulesJson {
+                min_track_width_nm: v.min_track_width.get(),
+                min_clearance_nm: v.min_clearance.get(),
+                min_drill_nm: v.min_drill.get(),
+                min_via_diameter_nm: v.min_via_diameter.get(),
+                min_annular_ring_nm: v.min_annular_ring.get(),
+                min_edge_clearance_nm: v.min_edge_clearance.get(),
+                min_mask_bridge_nm: v.min_mask_bridge.get(),
+                min_drill_spacing_nm: v.min_drill_spacing.get(),
+                connect_tolerance_nm: v.connect_tolerance.get(),
+                silkscreen_over_pads: v.silkscreen_over_pads,
+                silkscreen_over_mask_openings: v.silkscreen_over_mask_openings,
+            },
+            classes: self
+                .classes
+                .classes()
+                .iter()
+                .map(|c| ClassJson {
+                    name: c.name.clone(),
+                    nets: c.nets.clone(),
+                    min_track_width_nm: c.min_track_width.get(),
+                    min_clearance_nm: c.min_clearance.get(),
+                    min_via_diameter_nm: c.min_via_diameter.get(),
+                    min_via_drill_nm: c.min_via_drill.get(),
+                })
+                .collect(),
+        };
+        let mut text = serde_json::to_string_pretty(&file).unwrap_or_default();
+        text.push('\n');
+        text
+    }
+}
+
+fn length(name: &'static str, value: i64) -> Result<Nm, RuleFileError> {
+    if value < 0 {
+        return Err(RuleFileError::BadValue { name, value });
+    }
+    Nm::new(value).map_err(|_| RuleFileError::BadValue { name, value })
+}
+
+impl RuleValues {
+    /// Reads a JSON rule file of this tool. The result carries the name the file gives itself.
+    /// The net classes of a file of the second format are not part of the values: read the file
+    /// with [`RuleFile::from_json`] to get them.
+    pub fn from_json(text: &str) -> Result<(String, RuleValues), RuleFileError> {
+        let file = RuleFile::from_json(text)?;
+        Ok((file.name, file.values))
     }
 
     /// Writes the values as a JSON rule file; reading it back gives the same values.
@@ -212,6 +327,7 @@ impl RuleValues {
                 silkscreen_over_pads: self.silkscreen_over_pads,
                 silkscreen_over_mask_openings: self.silkscreen_over_mask_openings,
             },
+            classes: Vec::new(),
         };
         let mut text = serde_json::to_string_pretty(&file).unwrap_or_default();
         text.push('\n');

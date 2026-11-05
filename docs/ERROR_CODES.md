@@ -174,10 +174,13 @@ Each table repeats the `REGISTRY` of a crate (`eh3d-phoenix-model` in `src/diagn
 | PHOENIX-CHECK-011 | Silkscreen printed over a pad | the rule `silkscreen_over_pads` (from the board crate) |
 | PHOENIX-CHECK-012 | Silkscreen printed over a solder mask opening | the rule `silkscreen_over_mask_openings` (from the board crate) |
 | PHOENIX-CHECK-013 | Check could not be judged | a finding in the inconclusive list: an arc, a pad shape too coarse to tell, numbers too large for the exact test, a board without an outline for the edge rule (information, never a failure) |
+| PHOENIX-CHECK-014 | Track narrower than the minimum of its net class | a track of a net that belongs to a class of a rule file of the second format whose width is below the `min_track_width_nm` of that class |
+| PHOENIX-CHECK-015 | Via smaller than the minimum of its net class | a via of a net of a class whose diameter is below `min_via_diameter_nm` or whose drill is below `min_via_drill_nm` of the class |
 | PHOENIX-RULEFILE-001 | Rule file cannot be read | a rule file that is too large, is not JSON of the format `phoenix-rules/1`, has a field it does not know, or an EAGLE board file that cannot be read |
 | PHOENIX-RULEFILE-002 | Rule value is not valid | a length that is negative or outside the design range |
 | PHOENIX-RULEFILE-003 | Design rule parameter not used | a parameter of the `<designrules>` of an EAGLE board that has no rule here, or clearances and rings that differ and were folded into the largest value (information) |
 | PHOENIX-RULEFILE-004 | Board file holds no design rules | an EAGLE board file without `<designrules>`: the limits have to come from a rule file |
+| PHOENIX-RULEFILE-005 | Net class is not valid | a class without a name, two classes with one name, or a net in two classes |
 | PHOENIX-CONN-001 | Schematic net missing from the board | a schematic net of two or more pins none of whose pins is on a net of the board |
 | PHOENIX-CONN-002 | Pin not connected on the board | a pin of a schematic net whose pad does not exist on the board, is on no net, or is on another net than the other pins |
 | PHOENIX-CONN-003 | Board net joins pins of several schematic nets | one net of the board that holds the pins of two or more nets of the schematic |
