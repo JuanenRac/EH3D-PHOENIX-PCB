@@ -2,7 +2,7 @@
 
 Codes have the form `PHOENIX-<AREA>-<NNN>`. A code is stable: it never changes its meaning and is never reused. Programs show the text through the key `diag.<code>`; the codes themselves are never translated. The object identity (UUID v7) is the one of the shared container, with its own codes `EH3D-ID-001` and `EH3D-ID-002`. The container codes `EH3D-PKG-001` to `EH3D-PKG-014` belong to the shared container and are listed in the registry of the documentation repository.
 
-Each table repeats the `REGISTRY` of a crate (`eh3d-phoenix-model` in `src/diagnostic.rs`, `eh3d-phoenix-project` and `eh3d-phoenix-eagle` in `src/codes.rs`, `eh3d-phoenix-hub` in `src/lib.rs`, `eh3d-phoenix-export` in `src/codes.rs`, `eh3d-phoenix-schematic` in `src/model.rs`, `src/draw.rs`, `src/edit.rs` and `src/link.rs`, `eh3d-phoenix-board` in `src/validate.rs`, `src/connectivity.rs` and `src/rules.rs`, `eh3d-phoenix-rules` in `src/codes.rs`, `eh3d-phoenix-stackup` and `eh3d-phoenix-rf` in `src/error.rs`, `eh3d-phoenix-viewer`, `eh3d-phoenix-sanitizer`, `eh3d-phoenix-erc`, `eh3d-phoenix-sync`, `eh3d-phoenix-schedit`, `eh3d-phoenix-libedit`, `eh3d-phoenix-zones`, `eh3d-phoenix-lengths`, `eh3d-phoenix-gerber`, `eh3d-phoenix-panel`, `eh3d-phoenix-bom`, `eh3d-phoenix-assembly3d` and `eh3d-phoenix-oracle` in `src/codes.rs`); a test of each crate checks that every code of its registry is in the table with the same title.
+Each table repeats the `REGISTRY` of a crate (`eh3d-phoenix-model` in `src/diagnostic.rs`, `eh3d-phoenix-project` and `eh3d-phoenix-eagle` in `src/codes.rs`, `eh3d-phoenix-hub` in `src/lib.rs`, `eh3d-phoenix-export` in `src/codes.rs`, `eh3d-phoenix-schematic` in `src/model.rs`, `src/draw.rs`, `src/edit.rs` and `src/link.rs`, `eh3d-phoenix-board` in `src/validate.rs`, `src/connectivity.rs` and `src/rules.rs`, `eh3d-phoenix-rules` in `src/codes.rs`, `eh3d-phoenix-stackup` and `eh3d-phoenix-rf` in `src/error.rs`, `eh3d-phoenix-viewer`, `eh3d-phoenix-sanitizer`, `eh3d-phoenix-erc`, `eh3d-phoenix-sync`, `eh3d-phoenix-schedit`, `eh3d-phoenix-boardedit`, `eh3d-phoenix-libedit`, `eh3d-phoenix-zones`, `eh3d-phoenix-lengths`, `eh3d-phoenix-gerber`, `eh3d-phoenix-panel`, `eh3d-phoenix-bom`, `eh3d-phoenix-assembly3d` and `eh3d-phoenix-oracle` in `src/codes.rs`); a test of each crate checks that every code of its registry is in the table with the same title.
 
 ## Model foundations
 
@@ -380,6 +380,19 @@ The titles of these codes also exist in the eight languages of the suite (`TITLE
 | PHOENIX-SCHEDIT-001 | Settings file is not valid | a line of `config/schedit.cfg` that is not `key = value`, an unknown key, or a value out of range |
 | PHOENIX-SCHEDIT-002 | File of operations is not valid | a file of operations or a library of symbols that cannot be read, or an operation of the file that the editor refused (the message gives its number) |
 | PHOENIX-SCHEDIT-003 | Output file is not allowed | `phoenix schedit` asked to write onto its input file or onto a file that exists, or in a format the editor does not write |
+
+## Board editor (`eh3d-phoenix-boardedit`, `src/codes.rs`)
+
+| Code | Title | Raised by |
+|---|---|---|
+| PHOENIX-BEDIT-001 | Settings file is not valid | a line of `config/boardedit.cfg` that is not `key = value`, an unknown key, or a value out of range |
+| PHOENIX-BEDIT-002 | File of operations is not valid | a file of operations that cannot be read or that has more than the largest number of operations, or a settings file that cannot be opened |
+| PHOENIX-BEDIT-003 | Output file is not allowed | `phoenix boardedit` asked to write onto an input file or onto a file that exists, or in a format the editor does not write |
+| PHOENIX-BEDIT-004 | Operation was refused | an operation that refers to a component, track, via, net, layer, footprint or pad the board does not have, a reference that is used, two pads on different nets, a layer that is not copper, or that the board refuses; the message of a run gives the number of the operation |
+| PHOENIX-BEDIT-005 | Operation adds a rule error | an operation that adds a finding of the design rules that is an error (a clearance, a short, a width) while `reject_new_errors` is on and the operation is not forced |
+| PHOENIX-BEDIT-006 | Component is locked | moving, turning, mirroring or removing a component that was locked |
+| PHOENIX-BEDIT-007 | Shape cannot be made | a route of fewer than two points or of no length, a width that is not above zero, a vertex or a piece that does not exist, a point out of the design range |
+| PHOENIX-BEDIT-008 | Net cannot be tuned to the length asked for | a target that is not above zero, a net with no copper, a net already longer than the target, no horizontal or vertical piece long enough for the meanders, an amplitude above the largest allowed, or a result that would end farther from the target than the tolerance |
 
 ## Circuit simulator (`eh3d-phoenix-sim`, `src/codes.rs`)
 

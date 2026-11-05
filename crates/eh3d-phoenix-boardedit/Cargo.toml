@@ -1,0 +1,17 @@
+[package]
+name = "eh3d-phoenix-boardedit"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "The state of the board editor without a screen (prototype): reversible all-or-nothing operations to place, move, turn, mirror and lock components, route orthogonal and 45-degree tracks with the width of the net class, add vias, change layer, delete a stretch or a net, paste a net with the shortest route between two pads and tune a net to a length with meanders, a design rule check after every operation, the tool, the grid and snapping, the selection, the drag with the tracks that follow, and the file of operations that the command line applies"
+
+[dependencies]
+eh3d-phoenix-board = { path = "../eh3d-phoenix-board" }
+eh3d-phoenix-lengths = { path = "../eh3d-phoenix-lengths" }
+eh3d-phoenix-model = { path = "../eh3d-phoenix-model" }
+eh3d-phoenix-route = { path = "../eh3d-phoenix-route" }
+eh3d-phoenix-rules = { path = "../eh3d-phoenix-rules" }
+serde.workspace = true
+serde_json = { workspace = true, features = ["float_roundtrip"] }
