@@ -42,7 +42,7 @@ pub enum Msg {
     ZoomHint,
     /// The label of the path box.
     PathHint,
-    /// The note that the window is a read-only prototype.
+    /// The note that the window is a prototype that has never been seen on a screen.
     Prototype,
     /// The word for drawing primitives.
     Primitives,
@@ -262,14 +262,14 @@ impl Msg {
                 "Path", "Ruta", "Pfad", "Chemin", "Percorso", "パス", "路径", "Caminho",
             ],
             Msg::Prototype => [
-                "Prototype: read only",
-                "Prototipo: solo lectura",
-                "Prototyp: nur Lesen",
-                "Prototype : lecture seule",
-                "Prototipo: sola lettura",
-                "プロトタイプ：読み取り専用",
-                "原型：只读",
-                "Protótipo: só de leitura",
+                "Prototype: never seen on a screen",
+                "Prototipo: nunca visto en una pantalla",
+                "Prototyp: nie auf einem Bildschirm gesehen",
+                "Prototype : jamais vu sur un écran",
+                "Prototipo: mai visto su uno schermo",
+                "プロトタイプ：画面で確認されていません",
+                "原型：从未在屏幕上看过",
+                "Protótipo: nunca visto num ecrã",
             ],
             Msg::Primitives => [
                 "primitives",

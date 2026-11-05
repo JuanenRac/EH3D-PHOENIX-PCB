@@ -5,7 +5,7 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "Prototype viewer of boards and schematics: the drawing primitives, the view, the layers, the picking of nets and the measure as pure state, a benchmark with synthetic boards, and a window of egui behind the gui feature"
+description = "Prototype viewer and editor of boards and schematics: the drawing primitives, the view, the layers, the picking of nets, the measure and the state of editing (tools, drags, shortcuts, undo, rules, ratsnest, synchronisation, saving) as pure state, a benchmark with synthetic boards, and a window of egui behind the gui feature"
 
 [features]
 default = []
@@ -15,9 +15,12 @@ gui = ["dep:eframe", "dep:png"]
 [dependencies]
 eh3d-phoenix-board = { path = "../eh3d-phoenix-board" }
 eh3d-phoenix-eagle-board = { path = "../eh3d-phoenix-eagle-board" }
+eh3d-phoenix-erc = { path = "../eh3d-phoenix-erc" }
 eh3d-phoenix-model = { path = "../eh3d-phoenix-model" }
+eh3d-phoenix-route = { path = "../eh3d-phoenix-route" }
 eh3d-phoenix-rules = { path = "../eh3d-phoenix-rules" }
 eh3d-phoenix-schematic = { path = "../eh3d-phoenix-schematic" }
+eh3d-phoenix-sync = { path = "../eh3d-phoenix-sync" }
 thiserror.workspace = true
 
 # the window

@@ -1241,8 +1241,8 @@ mod tests {
 
     #[test]
     fn the_items_of_a_schematic_carry_their_parts_pins_and_wires() {
-        let scene = Scene::from_schematic(&sample::schematic(), &ViewerSettings::default())
-            .unwrap();
+        let scene =
+            Scene::from_schematic(&sample::schematic(), &ViewerSettings::default()).unwrap();
         let docs: Vec<DocRef> = scene.items.iter().map(|i| i.doc).collect();
         let count = |f: fn(&DocRef) -> bool| docs.iter().filter(|d| f(d)).count();
         assert_eq!(count(|d| matches!(d, DocRef::Part(_))), 2);

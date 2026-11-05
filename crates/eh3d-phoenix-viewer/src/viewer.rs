@@ -733,7 +733,7 @@ mod tests {
         let area = v.item_bounds(pad);
         // the round pad has a radius of 0.8 mm and a hole in the drill layer inside it
         assert!(area.contains(P::new(11.5, 10.0)));
-        assert!(area.width() >= 1.6 - 1e-9 && area.width() < 3.0);
+        assert!((1.6 - 1e-9..3.0).contains(&area.width()));
         assert!(v.item_bounds(999).is_empty());
         v.centre_on(P::new(3.0, 4.0));
         assert_eq!(v.view.centre, P::new(3.0, 4.0));

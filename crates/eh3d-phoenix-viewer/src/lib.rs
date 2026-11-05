@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! A prototype viewer of boards and schematics, read only.
+//! A prototype viewer and editor of boards and schematics.
 //!
 //! The logic has no screen and is tested without one:
 //!
@@ -15,17 +15,25 @@
 //!   cheap;
 //! * [`load`]: reading an EAGLE board or schematic or the JSON of the model;
 //! * [`bench`]: three synthetic boards and the time of preparing and picking on them;
-//! * [`settings`], [`codes`] and [`msg`]: the settings file, the codes `PHOENIX-VIEW-<NNN>` and the
-//!   texts in the eight languages.
+//! * [`session`]: the document that is edited: a board with its rules, its history of edits, the
+//!   findings of the rules and the ratsnest, or a schematic with its electrical rule check and the
+//!   synchronisation with a board, and the saving of either under another name;
+//! * [`workspace`]: the state of editing in the window: the tool, the drag, the first click of a
+//!   route, the keyboard shortcuts, undo and redo, the notes of the status bar and the jump to the
+//!   place of a finding;
+//! * [`settings`], [`codes`], [`msg`] and [`editmsg`]: the settings file, the codes
+//!   `PHOENIX-VIEW-<NNN>` and the texts in the eight languages.
 //!
 //! The window is behind the `gui` feature (`gui`, egui on eframe) and has not been seen on a
-//! screen: the benchmark measures the preparation of the data, not the drawing.
+//! screen: the benchmark measures the preparation of the data, not the drawing, and the editing
+//! has been tried through the state above only.
 
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
 pub mod bench;
 pub mod codes;
+pub mod editmsg;
 pub mod grid;
 #[cfg(feature = "gui")]
 pub mod gui;
@@ -36,12 +44,16 @@ pub mod prim;
 #[cfg(test)]
 pub(crate) mod sample;
 pub mod scene;
+pub mod session;
 pub mod settings;
 pub mod view;
 pub mod viewer;
+pub mod workspace;
 
 pub use codes::{ViewError, REGISTRY};
 pub use load::{open, Document};
 pub use scene::{Scene, SceneKind};
+pub use session::{BoardSession, SchematicSession};
 pub use settings::ViewerSettings;
 pub use viewer::{Tool, Viewer};
+pub use workspace::Workspace;
