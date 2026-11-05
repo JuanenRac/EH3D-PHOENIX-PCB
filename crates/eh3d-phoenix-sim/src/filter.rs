@@ -110,14 +110,17 @@ pub fn netlist_of_filter(f: &Filter) -> (Netlist, String) {
 }
 
 /// The frequencies of the check: `coherence_points` in a geometric progression from a tenth of
-/// the lowest edge of the filter to ten times the highest.
+/// the lowest edge of the filter (a ninth for a band filter) to ten times the highest.
 pub fn check_frequencies(f: &Filter, s: &SimSettings) -> Vec<f64> {
     let (low, high) = match f.band {
         Band::LowPass { cutoff_hz } | Band::HighPass { cutoff_hz } => {
             (cutoff_hz / 10.0, cutoff_hz * 10.0)
         }
+        // a ninth and not a tenth: with a tenth the geometric middle of the range is the centre
+        // frequency of the filter, where a resonant branch has zero impedance or admittance and
+        // the RF crate divides by zero
         Band::BandPass { low_hz, high_hz } | Band::BandStop { low_hz, high_hz } => {
-            (low_hz / 10.0, high_hz * 10.0)
+            (low_hz / 9.0, high_hz * 10.0)
         }
     };
     let last = (s.coherence_points - 1) as f64;
