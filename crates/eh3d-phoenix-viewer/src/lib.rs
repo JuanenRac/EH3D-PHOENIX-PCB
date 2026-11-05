@@ -24,6 +24,10 @@
 //! * [`schematic_sync`] and [`schematic_text`]: how the schematic editor of `eh3d-phoenix-schedit`
 //!   hands its schematic to the workspace, and its texts in the eight languages (the window of
 //!   the editor is in `schematic_gui`, behind the `gui` feature);
+//! * [`library_session`] and [`library_text`]: the library mode: an EAGLE library edited with the
+//!   operations of `eh3d-phoenix-libedit` (footprints, symbols and devices, the tools, the grid and
+//!   the snap, the selection and the drag, the measure, the checks, the plan to replace by a master
+//!   and the saving as a new file) and its texts in the eight languages;
 //! * [`settings`], [`codes`], [`msg`] and [`editmsg`]: the settings file, the codes
 //!   `PHOENIX-VIEW-<NNN>` and the texts in the eight languages.
 //!
@@ -40,6 +44,8 @@ pub mod editmsg;
 pub mod grid;
 #[cfg(feature = "gui")]
 pub mod gui;
+pub mod library_session;
+pub mod library_text;
 pub mod load;
 pub mod measure;
 pub mod msg;
