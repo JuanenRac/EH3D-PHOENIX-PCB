@@ -56,6 +56,7 @@
         "crates/eh3d-phoenix-rf/src/touchstone.rs",
         "crates/eh3d-phoenix-rfgen/src/formulas.rs",
         "crates/eh3d-phoenix-kicad/src/pcb.rs",
+        "crates/eh3d-phoenix-kicad/src/set.rs",
         "crates/eh3d-phoenix-sanitizer/src/group.rs",
         "crates/eh3d-phoenix-script/src/exec.rs",
         "crates/eh3d-phoenix-sim/src/tran.rs",

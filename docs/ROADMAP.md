@@ -42,7 +42,7 @@ Readers for KiCad schematics, boards, symbols and footprints; a public oracle in
 
 Gate: The rate of identical connectivity does not drop; each failure is classified.
 
-Progress: the readers exist as a prototype (`eh3d-phoenix-kicad`, `docs/KICAD.md`): symbols, footprints, schematics with sheets, boards and the project file, with the import report and a fidelity level; they are tried on files written by hand only. The public oracle in CI and the public corpus are not started.
+Progress: the readers exist as a prototype (`eh3d-phoenix-kicad`, `docs/KICAD.md`): symbols, footprints, schematics with sheets, boards and the project file, with the import report and a fidelity level; they are tried on files written by hand only. A whole project is read together by `phoenix kicad-import` (`docs/KICAD_IMPORT.md`). The public oracle in CI and the public corpus are not started.
 
 ## F6. PCB viewer and editor
 

@@ -169,6 +169,19 @@
           }
         },
         {
+          "name": "KICAD_IMPORT.md",
+          "desc": {
+            "en": "reading a whole KiCad project: the command, the report",
+            "es": "leer un proyecto completo de KiCad: el comando, el informe",
+            "de": "ein ganzes KiCad-Projekt lesen: Befehl, Bericht",
+            "fr": "lire un projet KiCad entier : la commande, le rapport",
+            "it": "leggere un intero progetto KiCad: comando, rapporto",
+            "ja": "KiCad プロジェクト全体の読み込み：コマンドとレポート",
+            "zh": "读取完整的 KiCad 项目：命令与报告",
+            "pt": "ler um projeto KiCad completo: o comando, o relatório"
+          }
+        },
+        {
           "name": "VIEWER.md",
           "desc": {
             "en": "the viewer and editor prototype and its benchmark",

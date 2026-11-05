@@ -14,6 +14,8 @@ The crate `eh3d-phoenix-kicad` reads the files of KiCad 6 to 9 into the same des
 | `.kicad_pcb` (`kicad_pcb`) | the board model | the layer table and from it the order of the copper layers, the nets, the footprints with their pads and the net of each pad, tracks (lines and arcs), vias, zones (outline, clearance, one zone for each layer), the outline on `Edge.Cuts`, lines, arcs, circles, rectangles, polygons and texts on the silkscreen layers | the setup (stack-up, rules, plot settings), the filled copper of zones, keep-out zones, zones, tracks and vias without a net, graphics on layers other than the outline and the silkscreen, dimensions, groups, images and generated items |
 | `.kicad_pro` (JSON) | net classes and design rules (not in the board model) | the version, the net classes with clearance, track width, via diameter and via drill, the numeric minimum values of the design rules, the number of text variables | the rest (editor settings, ERC rules, colours, plot settings, the sheet list) |
 
+A whole project (the project file, the schematic with its sheets and the board) is read together by `phoenix kicad-import` (`docs/KICAD_IMPORT.md`).
+
 Everything that is left out is counted: the quality report of the import has three lists, what was kept, what was changed and what was left out, each category with its reason in its name (for example `filled copper of zones (computed again by the tool)`), and the elements the readers do not interpret are counted by name with a note `PHOENIX-KICAD-006`.
 
 ## Conventions of the model
@@ -59,7 +61,9 @@ Every file is hostile until proven otherwise. The s-expression reader keeps no r
 
 ## Findings
 
-The codes `PHOENIX-KICAD-001` to `PHOENIX-KICAD-014` are in `docs/ERROR_CODES.md`, with their titles in the eight languages in `eh3d-phoenix-kicad` (`title`). Every finding that comes from a place in a file says the line (and, for a syntax error, the column).
+The codes `PHOENIX-KICAD-001` to `PHOENIX-KICAD-017` are in `docs/ERROR_CODES.md`, with their titles in the eight languages in `eh3d-phoenix-kicad` (`title`). Every finding that comes from a place in a file says the line (and, for a syntax error, the column).
+
+A label that names a bus (`D[0..7]`) or a group of signals (`USB{DP DM}`) is not read as the name of a net; it is counted under `bus labels (the members are not expanded)`, because the members of a bus join through the labels of their own wires.
 
 ## The importer and the command
 
@@ -73,4 +77,4 @@ It prints the format, the kind, the version, whether the file was usable, the fi
 
 ## What is next
 
-The comparison with the oracle: the same connectivity as KiCad on a public corpus of open hardware with reviewed licences, a classification of every difference, and the check of the points marked above (the nets of a schematic, the mirroring of the pads of the bottom side, the arcs). Writing KiCad files (requirement PPCB-013) and the items the readers leave out are in `docs/NOT_YET.md`.
+The command for a whole project is in `docs/KICAD_IMPORT.md`. The comparison with the oracle: the same connectivity as KiCad on a public corpus of open hardware with reviewed licences, a classification of every difference, and the check of the points marked above (the nets of a schematic, the mirroring of the pads of the bottom side, the arcs). Writing KiCad files (requirement PPCB-013) and the items the readers leave out are in `docs/NOT_YET.md`.
