@@ -98,8 +98,11 @@ fn pads_on(board: &Board, layer: Id) -> Points {
     sorted(points)
 }
 
+/// Holes as `(diameter, x, y)`.
+type Holes = Vec<(i64, i64, i64)>;
+
 /// The holes of the board as `(diameter, x, y)`, plated and not plated apart.
-fn holes_of(board: &Board) -> (Vec<(i64, i64, i64)>, Vec<(i64, i64, i64)>) {
+fn holes_of(board: &Board) -> (Holes, Holes) {
     let mut plated = Vec::new();
     let mut not_plated = Vec::new();
     for via in board.vias.values() {

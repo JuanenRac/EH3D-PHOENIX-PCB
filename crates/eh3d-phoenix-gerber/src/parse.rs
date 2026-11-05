@@ -433,7 +433,7 @@ impl<'a> Reader<'a> {
 
     fn format_command(&mut self, command: &str, line: usize) -> Result<(), GbrError> {
         let bad = |what: &str| GbrError::at(FORMAT_INVALID, line, what.to_owned());
-        let rest = command[2..].as_bytes();
+        let rest = &command.as_bytes()[2..];
         let omission = match rest.first() {
             Some(b'L' | b'D') => ZeroOmission::Leading,
             Some(b'T') => ZeroOmission::Trailing,
