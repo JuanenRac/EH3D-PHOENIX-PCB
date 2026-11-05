@@ -2,7 +2,7 @@
 
 Codes have the form `PHOENIX-<AREA>-<NNN>`. A code is stable: it never changes its meaning and is never reused. Programs show the text through the key `diag.<code>`; the codes themselves are never translated. The object identity (UUID v7) is the one of the shared container, with its own codes `EH3D-ID-001` and `EH3D-ID-002`. The container codes `EH3D-PKG-001` to `EH3D-PKG-014` belong to the shared container and are listed in the registry of the documentation repository.
 
-Each table repeats the `REGISTRY` of a crate (`eh3d-phoenix-model` in `src/diagnostic.rs`, `eh3d-phoenix-project` and `eh3d-phoenix-eagle` in `src/codes.rs`, `eh3d-phoenix-hub` in `src/lib.rs`, `eh3d-phoenix-export` in `src/codes.rs`, `eh3d-phoenix-schematic` in `src/model.rs`, `src/draw.rs`, `src/edit.rs` and `src/link.rs`, `eh3d-phoenix-board` in `src/validate.rs`, `src/connectivity.rs` and `src/rules.rs`, `eh3d-phoenix-rules` in `src/codes.rs`, `eh3d-phoenix-stackup` and `eh3d-phoenix-rf` in `src/error.rs`, `eh3d-phoenix-viewer`, `eh3d-phoenix-sanitizer`, `eh3d-phoenix-erc`, `eh3d-phoenix-sync` and `eh3d-phoenix-schedit` in `src/codes.rs`); a test of each crate checks that every code of its registry is in the table with the same title.
+Each table repeats the `REGISTRY` of a crate (`eh3d-phoenix-model` in `src/diagnostic.rs`, `eh3d-phoenix-project` and `eh3d-phoenix-eagle` in `src/codes.rs`, `eh3d-phoenix-hub` in `src/lib.rs`, `eh3d-phoenix-export` in `src/codes.rs`, `eh3d-phoenix-schematic` in `src/model.rs`, `src/draw.rs`, `src/edit.rs` and `src/link.rs`, `eh3d-phoenix-board` in `src/validate.rs`, `src/connectivity.rs` and `src/rules.rs`, `eh3d-phoenix-rules` in `src/codes.rs`, `eh3d-phoenix-stackup` and `eh3d-phoenix-rf` in `src/error.rs`, `eh3d-phoenix-viewer`, `eh3d-phoenix-sanitizer`, `eh3d-phoenix-erc`, `eh3d-phoenix-sync`, `eh3d-phoenix-schedit` and `eh3d-phoenix-libedit` in `src/codes.rs`); a test of each crate checks that every code of its registry is in the table with the same title.
 
 ## Model foundations
 
@@ -292,6 +292,41 @@ The titles of these codes also exist in the eight languages of the suite (`TITLE
 | PHOENIX-SAN-011 | Name used twice in a library | two footprints, symbols or device sets with one name in one library; the later one is left out |
 | PHOENIX-SAN-012 | Command option is not valid | no folder or two folders, an option that does not exist or lacks its value, a threshold that is not a whole number from 0 to 100, a language that is not one of the eight |
 | PHOENIX-SAN-013 | The reader reported problems in a library | the EAGLE reader found a dangling reference or another problem in a library that is read all the same; the detail lists the codes of the reader |
+
+## Library editor (`eh3d-phoenix-libedit`, `src/codes.rs`)
+
+The titles of these codes also exist in the eight languages of the suite (`TITLES` in `src/codes.rs`); the detail of a message is in English. Codes 001 to 014 are the findings of the check of a library (`phoenix libedit`, and the window in the library mode); codes 020 and above are errors of reading, editing, saving and generating.
+
+| Code | Title | Raised by |
+|---|---|---|
+| PHOENIX-LIB-001 | Pin of a symbol without a name | a pin of a symbol whose name is empty (error); the pad it reaches is given by the connections of each device |
+| PHOENIX-LIB-002 | Pins of a symbol with the same name | two pins of one symbol with one name (error) |
+| PHOENIX-LIB-003 | Pads of a footprint with the same name | two pads, of either kind, with one name in one footprint (error) |
+| PHOENIX-LIB-004 | Pad without a copper layer or a size | a surface-mount pad on a layer that is not in `copper_layers`, or with no width or height, and a through-hole pad without a drill (error) |
+| PHOENIX-LIB-005 | Drill larger than the pad | a through-hole pad whose drill is larger than its diameter, the automatic one when it has none (error) |
+| PHOENIX-LIB-006 | Silkscreen drawn over a pad | a line, an arc or a circle on a layer of `silk_layers` whose distance to the copper of a pad, less half its width, is below `silk_clearance_nm` (warning) |
+| PHOENIX-LIB-007 | Pin of a device without a pad | a device with a footprint in which a pin of the symbol of a gate has no connection (warning) |
+| PHOENIX-LIB-008 | Connection to a gate, pin or pad that does not exist | a connection of a device that names a gate, a pin of the symbol of the gate or a pad of the footprint that is not there (error) |
+| PHOENIX-LIB-009 | Device uses a footprint that the library does not have | a device whose footprint is not in the library (error) |
+| PHOENIX-LIB-010 | Gate uses a symbol that the library does not have | a gate whose symbol is not in the library (error) |
+| PHOENIX-LIB-011 | Footprint without an origin inside its pads | the origin is further than `origin_tolerance_nm` from the box of the centres of the pads, or the footprint has no pads (warning) |
+| PHOENIX-LIB-012 | Footprint without a name or value text | no text `>NAME` or no text `>VALUE`; turned off with `require_name_texts` (warning) |
+| PHOENIX-LIB-013 | Device set without gates or devices | a device set with no gate or no device (warning) |
+| PHOENIX-LIB-014 | Device set without a reference prefix | a device set whose prefix is empty (warning) |
+| PHOENIX-LIB-020 | Library file cannot be used | a file that cannot be read, is larger than `max_file_bytes`, is an EAGLE binary file, is not XML, or is a board or a schematic and not a library |
+| PHOENIX-LIB-021 | Name is not valid | a name that is empty, longer than 127 characters or has white space, control characters or one of `<>&"` |
+| PHOENIX-LIB-022 | Name is already used | creating or renaming a footprint, symbol, device set, gate or device to a name that is taken, or generating a footprint whose name is in the library given with `--into` |
+| PHOENIX-LIB-023 | Item does not exist | an operation about a footprint, symbol, device set, gate, device, pad, pin or item that is not there |
+| PHOENIX-LIB-024 | Value is not valid for the item | a value out of the range of the design, a size that is zero or negative, a keyword that does not exist, a rotation that is not written as the file does, a text with space at its ends, an item in the wrong kind of drawing, or an item that cannot be moved |
+| PHOENIX-LIB-025 | Library cannot be written | the target exists (the input exists too, so it is never replaced either) or cannot be made or written |
+| PHOENIX-LIB-026 | Written library does not read back the same | the file written and read again is not the library in memory, or writing it again gives another text; nothing is written |
+| PHOENIX-LIB-027 | File of operations is not valid | a file that is not JSON, is not a list of operations (or an object with `operations`) or has an operation that does not exist; also a plan of the sanitizer that is not valid |
+| PHOENIX-LIB-028 | Footprint parameter is not valid | a family that does not exist, a parameter that the family does not have or lacks, a number out of range or lands that would touch |
+| PHOENIX-LIB-029 | Library editor settings are not valid | a line of `config/libedit.cfg` or `config/footprints.cfg` that is not `key = value`, an unknown key or a value out of range, or a value that the family needs and the file lacks |
+| PHOENIX-LIB-030 | Replacement by the master is not confirmed | a step of a plan of the sanitizer applied without the confirmation of the owner (nothing is changed) |
+| PHOENIX-LIB-031 | Command option is not valid | an option that does not exist or lacks its value, no library or family, two libraries, a language that is not one of the eight |
+| PHOENIX-LIB-032 | Backup of the original cannot be made | the copy of the original next to the new file cannot be made (nothing is written) |
+| PHOENIX-LIB-033 | Item is still used by a device | deleting a footprint that a device uses or a symbol that a gate uses |
 
 ## Electrical rule check (`eh3d-phoenix-erc`, `src/codes.rs`)
 

@@ -1,0 +1,20 @@
+[package]
+name = "eh3d-phoenix-libedit"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Library editor (prototype): an EAGLE library in memory with reversible, all-or-nothing operations on symbols, footprints and devices, checks of the library, footprint generators with the dimensions of IPC-7351 read from a settings file, saving as a new library that is read back and compared, and a plan to replace an item by its master that is never applied without confirmation"
+
+[dependencies]
+eh3d-phoenix-eagle = { path = "../eh3d-phoenix-eagle" }
+eh3d-phoenix-model = { path = "../eh3d-phoenix-model" }
+eh3d-phoenix-rules = { path = "../eh3d-phoenix-rules" }
+eh3d-phoenix-sanitizer = { path = "../eh3d-phoenix-sanitizer" }
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
