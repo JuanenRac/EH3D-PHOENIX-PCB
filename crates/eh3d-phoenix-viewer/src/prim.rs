@@ -498,7 +498,7 @@ mod tests {
         assert_eq!(b.area(), 6.0_f64);
         let c = Bounds {
             min: P::new(0.0, 0.0),
-            max: P::new(9.0, 1.0),
+            max: P::new(9.0, 3.0),
         };
         assert!(b.intersects(&c));
         let u = b.union(c);
