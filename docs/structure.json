@@ -171,14 +171,14 @@
         {
           "name": "VIEWER.md",
           "desc": {
-            "en": "the read-only viewer prototype and its benchmark",
-            "es": "el prototipo de visor de solo lectura y su prueba de rendimiento",
-            "de": "der Prototyp des Betrachters (nur Lesen) und sein Leistungstest",
-            "fr": "le prototype de visionneuse en lecture seule et son banc d'essai",
-            "it": "il prototipo di visualizzatore in sola lettura e il suo benchmark",
-            "ja": "読み取り専用ビューアの試作とそのベンチマーク",
-            "zh": "只读查看器原型及其基准测试",
-            "pt": "o protótipo de visualizador só de leitura e o seu teste de desempenho"
+            "en": "the viewer and editor prototype and its benchmark",
+            "es": "el prototipo de visor y editor y su prueba de rendimiento",
+            "de": "der Prototyp des Betrachters und Editors und sein Leistungstest",
+            "fr": "le prototype de visionneuse et éditeur et son banc d'essai",
+            "it": "il prototipo di visualizzatore ed editor e il suo benchmark",
+            "ja": "ビューア兼エディタの試作とそのベンチマーク",
+            "zh": "查看器兼编辑器原型及其基准测试",
+            "pt": "o protótipo de visualizador e editor e o seu teste de desempenho"
           }
         },
         {
