@@ -23,7 +23,7 @@ The official state of each capability is in REQUIREMENTS.md: 30 requirements: 16
 
 ## Known technical debt and omitted tests
 
-* 996 tests of the Rust code and 3 of the base; the inventory tests build their own folders and never touch a real project.
+* 1034 tests of the Rust code and 3 of the base; the inventory tests build their own folders and never touch a real project.
 * The window of the viewer has never been seen on a screen, a graphics card or an operating system: the lints of CI check that it builds, nothing more. The timing of `phoenix view --bench` covers the preparation of the primitives and the selection by position, not the drawing, and its numbers depend on the computer.
 * The manufacturing export (`docs/EXPORT.md`) has been read back only by the parsers of EH3D-CORE-LIBS: no independent Gerber or Excellon viewer, no manufacturer and no assembler has opened a file of it, the rule for the rotation of a bottom part and the columns of the `jlc-like` profile are settings that nobody has compared with a real sample, and copper pours, blind vias and polygon pads are not written.
 * The model foundations are checked with generated and edge cases only: there is no design object on top of them yet, so the identities across save, migration and reopening are untested. Duplicate keys in an input JSON text are not detected before canonical writing. The system random source for ids is not cryptographic (ids need uniqueness, not secrecy).
