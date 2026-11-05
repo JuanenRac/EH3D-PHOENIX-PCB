@@ -1,0 +1,15 @@
+[package]
+name = "eh3d-phoenix-zones"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Copper zone filling of a board (prototype): the outline of a zone cut into convex pieces and the copper of other nets, the board edge and the zones of higher priority taken out with exact integer polygon clipping, thermal reliefs on the pads of the net, islands judged by area, width and connection, and a check that measures the result against the clearance"
+
+[dependencies]
+eh3d-phoenix-board = { path = "../eh3d-phoenix-board" }
+eh3d-phoenix-model = { path = "../eh3d-phoenix-model" }
+eh3d-phoenix-rules = { path = "../eh3d-phoenix-rules" }
+serde.workspace = true
+serde_json = { workspace = true, features = ["float_roundtrip"] }

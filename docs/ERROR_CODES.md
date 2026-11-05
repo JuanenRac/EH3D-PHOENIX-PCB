@@ -2,7 +2,7 @@
 
 Codes have the form `PHOENIX-<AREA>-<NNN>`. A code is stable: it never changes its meaning and is never reused. Programs show the text through the key `diag.<code>`; the codes themselves are never translated. The object identity (UUID v7) is the one of the shared container, with its own codes `EH3D-ID-001` and `EH3D-ID-002`. The container codes `EH3D-PKG-001` to `EH3D-PKG-014` belong to the shared container and are listed in the registry of the documentation repository.
 
-Each table repeats the `REGISTRY` of a crate (`eh3d-phoenix-model` in `src/diagnostic.rs`, `eh3d-phoenix-project` and `eh3d-phoenix-eagle` in `src/codes.rs`, `eh3d-phoenix-hub` in `src/lib.rs`, `eh3d-phoenix-export` in `src/codes.rs`, `eh3d-phoenix-schematic` in `src/model.rs`, `src/draw.rs`, `src/edit.rs` and `src/link.rs`, `eh3d-phoenix-board` in `src/validate.rs`, `src/connectivity.rs` and `src/rules.rs`, `eh3d-phoenix-rules` in `src/codes.rs`, `eh3d-phoenix-stackup` and `eh3d-phoenix-rf` in `src/error.rs`, `eh3d-phoenix-viewer`, `eh3d-phoenix-sanitizer`, `eh3d-phoenix-erc`, `eh3d-phoenix-sync`, `eh3d-phoenix-schedit` and `eh3d-phoenix-libedit` in `src/codes.rs`); a test of each crate checks that every code of its registry is in the table with the same title.
+Each table repeats the `REGISTRY` of a crate (`eh3d-phoenix-model` in `src/diagnostic.rs`, `eh3d-phoenix-project` and `eh3d-phoenix-eagle` in `src/codes.rs`, `eh3d-phoenix-hub` in `src/lib.rs`, `eh3d-phoenix-export` in `src/codes.rs`, `eh3d-phoenix-schematic` in `src/model.rs`, `src/draw.rs`, `src/edit.rs` and `src/link.rs`, `eh3d-phoenix-board` in `src/validate.rs`, `src/connectivity.rs` and `src/rules.rs`, `eh3d-phoenix-rules` in `src/codes.rs`, `eh3d-phoenix-stackup` and `eh3d-phoenix-rf` in `src/error.rs`, `eh3d-phoenix-viewer`, `eh3d-phoenix-sanitizer`, `eh3d-phoenix-erc`, `eh3d-phoenix-sync`, `eh3d-phoenix-schedit`, `eh3d-phoenix-libedit`, `eh3d-phoenix-zones` and `eh3d-phoenix-lengths` in `src/codes.rs`); a test of each crate checks that every code of its registry is in the table with the same title.
 
 ## Model foundations
 
@@ -519,3 +519,27 @@ The titles of these codes also exist in the eight languages of the suite (`TITLE
 | PHOENIX-RFGEN-017 | A value is outside the range of a formula | warning: an input of a formula beyond the range the program checks for it |
 | PHOENIX-RFGEN-018 | A shape is smaller than the minimum | warning: a copper shape narrower than `min_feature_nm` |
 | PHOENIX-RFGEN-019 | The result rests on an approximation | warning: a discontinuity that is not modelled, a short-circuited stub that grounds the net, a resistor or a connector land pattern that is not placed |
+
+## Zone filling (`eh3d-phoenix-zones`, `src/codes.rs`)
+
+| Code | Title | Raised by |
+|---|---|---|
+| PHOENIX-ZONE-001 | Zone settings are not valid | a line of `config/zones.cfg` that is not `key = value`, an unknown key, a number that cannot be read or a value out of range |
+| PHOENIX-ZONE-002 | Zone rules file is not valid | a file of zone rules (`phoenix-zones/1`) that is not JSON, has another format or an unknown field, names a zone twice or has a negative length |
+| PHOENIX-ZONE-003 | Zone is not on the board | a zone named in the file of zone rules that the board does not have; nothing is filled |
+| PHOENIX-ZONE-004 | Zone outline cannot be filled | an outline with fewer than three points, with no area, with sides that touch, that cannot be cut into convex pieces, or on a layer that is not copper; the zone gets no copper and the others are filled |
+| PHOENIX-ZONE-005 | A limit of the fill was exceeded | an outline with more points than `max_outline_points`, or a zone cut into more pieces than `max_fragments`; the zone gets no copper |
+| PHOENIX-ZONE-006 | Fill is closer to other copper than the clearance | check: a side of a polygon nearer than the clearance (less the tolerance of the cut points) to a pad, track or via of another net, to a pad or via that is not joined, or to the edge of the board, or copper of another net inside a polygon |
+| PHOENIX-ZONE-007 | Fill lies outside the zone or the board | check: a polygon with a point beyond the outline of the zone or of the board |
+| PHOENIX-ZONE-008 | Copper island narrower than the minimum width | fill: information, the island is dropped; check: error, an island whose convex hull is narrower than the minimum width |
+| PHOENIX-ZONE-009 | Copper island smaller than the minimum area | fill: information, the island is dropped; check: error, an island with less area than the minimum |
+| PHOENIX-ZONE-010 | Copper island not connected to its net | fill: information, the island is dropped unless `keep_unconnected_islands` is on; check: warning |
+| PHOENIX-ZONE-011 | Thermal relief cannot be made | warning: spokes too wide for the ring around a pad, which is then joined solid |
+| PHOENIX-ZONE-012 | Zones of different nets share a priority and overlap | warning: two zones of different nets on one layer with the same priority whose outlines overlap |
+| PHOENIX-ZONE-013 | Arc kept away from with a safe margin | information: an arc of a track near the zone, kept away from as short pieces widened by their sagitta |
+| PHOENIX-ZONE-014 | Zone has no copper after the fill | warning: nothing is left of the zone |
+| PHOENIX-ZONE-015 | A command option is not valid | an option the command does not know or needs a value for, an unknown language code, `--fill` with `fill` or `--out` with `check`, a number of board files other than one |
+| PHOENIX-ZONE-016 | The output file exists or cannot be written | an output file that already exists (an input file is never replaced) or cannot be created |
+| PHOENIX-ZONE-017 | Board, rule or fill file cannot be read | a board, rule, zone or fill file that cannot be opened, is too large or is not valid |
+| PHOENIX-ZONE-018 | A coordinate is out of range | check: a polygon of a fill file with a coordinate outside the design range |
+| PHOENIX-ZONE-019 | The fill file does not match the board | check: a fill with another format or for a board of another name, a zone that is not on the board or whose net or layer changed, a polygon with fewer than three points |
