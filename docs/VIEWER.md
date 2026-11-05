@@ -13,6 +13,7 @@ State: **prototype**. The logic, including the whole state of editing, is tested
 * Measure: with the measure tool the first click sets a point, the second the other one, and the third starts again; the distance, its parts and its angle are shown in millimetres.
 * The position of the pointer is shown in millimetres.
 * Eight languages (English, Spanish, German, French, Italian, Japanese, Chinese and European Portuguese), chosen with `--lang` or in the window.
+* With nothing open, a start screen: a box for the path of a file, the button *Open*, the button *New library*, the list of recent files and the note that a file can be dropped on the window. A file chosen there opens in the mode its extension says: a board (`.brd`, or the JSON of the model) or a schematic (`.sch`) in the viewer, where the editing of boards and the editing of schematics are reached as before, and a library (`.lbr`) in the library mode.
 
 ## Editing a board
 
@@ -59,6 +60,14 @@ The button *Edit schematic* of the left panel starts the schematic editor (`docs
 
 A `.lbr` file given to the window, or the button *Library editor*, starts the library mode (`docs/LIBRARY_EDIT.md`): lists of footprints, symbols and device sets, a drawing board with a fine grid and snapping, tools to place pads, holes, lines, arcs, circles, texts and pins, a measure, the properties of the item selected, the openings of the mask and the paste, the gates, variants and connections of a device set, the findings of the check of the library, the footprint generator and the plan to replace an item by its master. Every edit is a reversible operation of `eh3d-phoenix-libedit`, and the library is saved only as a new file that is read back and compared. The state is tested without a screen (`library_session`); the window (`library_gui`) has never been seen on a screen.
 
+## The start screen
+
+The program `phoenix-gui` opens the window with no arguments, and the release archive holds it beside `phoenix`. It is built with the `gui` feature (`cargo build --release -p eh3d-phoenix-cli --features gui` makes both programs) and accepts `phoenix-gui [--settings FILE] [--lang xx] [<file>]`; with a file it opens it at once, without one it shows the start screen. On Windows it is a program of the graphical subsystem, so no console window opens behind it and it prints nothing; an error that keeps the window from opening is written to `last_error.txt` in the settings folder of the user. If no `--settings` is given it reads `config/viewer.cfg` beside the program when that file is there, and the language comes from `--lang` or from the environment (`LC_ALL`, `LC_MESSAGES` or `LANG`), with English when none names one of the eight.
+
+The recent files are a plain text file, one path per line, the newest first, in the settings folder of the user: `%APPDATA%\EH3D-PHOENIX-PCB` on Windows, `$XDG_CONFIG_HOME/eh3d-phoenix-pcb` or `~/.config/eh3d-phoenix-pcb` on the other systems. A file is added when it has been opened (by the start screen, the path box or a drop), a path that repeats moves to the front, and a file that is no longer there is shown as not found and cannot be opened from the list; each entry can be forgotten, or the whole list cleared. The name of the file (`recent_file`) and the number of entries (`recent_max`) are settings of `config/viewer.cfg`. When the list cannot be written the window says so and goes on.
+
+What the start screen decides (a typed path with or without the quotes that Windows adds when it copies a path, which of several dropped files is opened, the list, its limit and its file) is in the modules `launcher_session`, `launcher_recent` and `launcher_text` of the crate `eh3d-phoenix-viewer`, with tests and without a screen; `launcher_gui` only draws it. The arguments of `phoenix-gui` are read by `window_args` in the crate `eh3d-phoenix-cli`. Like the rest of the window, the start screen is a prototype that has not been seen on a screen or tried with a mouse.
+
 ## Saving
 
 A document is never saved over the file it was read from. The name to save to is proposed beside the input (`<name>_edited.json`); a name that is the input, even spelt another way, is refused (`PHOENIX-VIEW-011`), and so is a file that exists and that this window did not write. When the window replaces a file it saved before, a copy of the previous one is kept next to it with the ending of `backup_suffix`. A board is written as the JSON of the model, or as EAGLE XML when the name ends in `.brd` (written by the existing writer, read back by the tests of this repository, never opened in EAGLE); a schematic is written as the JSON of the model. The board that a schematic is compared with is saved with its own name box.
@@ -71,7 +80,7 @@ phoenix view --summary [--settings FILE] [--lang xx] <file>
 phoenix view --bench [--settings FILE] [--lang xx]
 ```
 
-* `view` opens the window. The window is behind the `gui` feature, which is off by default: `cargo run --release -p eh3d-phoenix-cli --features gui -- view FILE`. A build without it explains this (code `PHOENIX-VIEW-008`, exit code 2). A file can also be typed in the path box or dropped on the window.
+* `view` opens the window. The window is behind the `gui` feature, which is off by default: `cargo run --release -p eh3d-phoenix-cli --features gui -- view FILE` (or the program `phoenix-gui`, below, which opens it with a start screen). A build without it explains this (code `PHOENIX-VIEW-008`, exit code 2). A file can also be typed in the path box or dropped on the window.
 * `--summary` prints what the file holds without a window: the primitives, the items and the nets, the primitives of each layer and the size in millimetres.
 * `--bench` runs the benchmark below.
 
@@ -98,6 +107,8 @@ The crate `eh3d-phoenix-viewer` holds all of the logic, with no dependency on eg
 | `schematic_gui` (feature `gui`) | The editing mode of the window for a schematic: the panel of tools, the palette, and the canvas that draws the schematic and passes on the pointer and the keys to `eh3d-phoenix-schedit` |
 | `library_session`, `library_text` | The state of the library mode (the library with its history, the footprint or symbol on the board, the tool, the grid and the snap, the selection and the drag, the measure, the checks, the plan to replace by a master, the saving as a new file) and its texts in eight languages |
 | `library_gui` (feature `gui`) | The library mode of the window: the lists, the drawing board, the properties, the device sets, the findings, the generator and the plan |
+| `launcher_session`, `launcher_recent`, `launcher_text` | The state of the start screen (what a typed path, a dropped file or a recent file asks for), the list of recent files and the file that keeps it, and its texts in eight languages |
+| `launcher_gui` (feature `gui`) | The start screen of the window: the path box, the buttons and the list of recent files |
 | `gui` (feature `gui`) | The window: egui on eframe with the theme Forge, the icon of the program and a canvas painted by `Painter` |
 
 The window only passes on what the person does (a pixel under the pointer, a press, a drag, a release, a click, a turn of the wheel, a key) and draws what the state says: the primitives, the ratsnest, the lines of what is in progress, the ring of a finding and the panels. Every rule of editing is in `workspace` and `session`, so replacing egui means replacing `gui.rs`.
@@ -118,7 +129,7 @@ What it does **not** measure is the drawing on a screen: that needs a window and
 
 ## Settings
 
-`config/viewer.cfg` holds every limit, tolerance, size and colour: the largest file and the most primitives, the limits and the speed of the zoom, the tolerance of a click in pixels, the error allowed when an arc is drawn as lines, the widths and heights of outlines, wires and texts, the parameters of the spatial index, the sizes of the benchmark boards, for the editing the grid that positions snap to, the step of a rotation, how far from a vertex a press takes it, the step of the width keys, the width of the ratsnest lines, the radius of the ring of a finding, the most findings a panel lists and the ending of the copy kept when a saved file is replaced, and the colour of every layer and mark (`#rrggbb` or `#rrggbbaa`). The behaviour of the router and of strict edits is in `config/route.cfg`, which the window reads as built in (the same values as the file). A missing key keeps its default and an unknown key is an error (`PHOENIX-VIEW-005`).
+`config/viewer.cfg` holds every limit, tolerance, size and colour: the largest file and the most primitives, the limits and the speed of the zoom, the tolerance of a click in pixels, the error allowed when an arc is drawn as lines, the widths and heights of outlines, wires and texts, the parameters of the spatial index, the sizes of the benchmark boards, for the editing the grid that positions snap to, the step of a rotation, how far from a vertex a press takes it, the step of the width keys, the width of the ratsnest lines, the radius of the ring of a finding, the most findings a panel lists, the ending of the copy kept when a saved file is replaced, the number of recent files and the name of their file, and the colour of every layer and mark (`#rrggbb` or `#rrggbbaa`). The behaviour of the router and of strict edits is in `config/route.cfg`, which the window reads as built in (the same values as the file). A missing key keeps its default and an unknown key is an error (`PHOENIX-VIEW-005`).
 
 ## Codes
 
