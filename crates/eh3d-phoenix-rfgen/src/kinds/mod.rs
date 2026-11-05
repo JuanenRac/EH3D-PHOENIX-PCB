@@ -89,7 +89,7 @@ const TURN: ParamSpec = ParamSpec {
 const ARM: ParamSpec = ParamSpec {
     name: "arm_mm",
     unit: "mm",
-    default: "lead_length_nm",
+    default: "lead_length_nm, or the minimum arm of a bend",
     help: "the length of each arm",
 };
 

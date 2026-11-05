@@ -69,12 +69,13 @@ fn turn_left(params: &Params) -> Result<bool, RfgenError> {
     Ok(params.choice("turn", &["left", "right"], "left")? == "left")
 }
 
-/// The length of the arms of a bend or a curve.
-fn arm_nm(env: &Environment, params: &Params) -> Result<i64, RfgenError> {
+/// The length of the arms of a bend or a curve: the one given, or the length of the leads, or
+/// `minimum` when that is longer.
+fn arm_nm(env: &Environment, params: &Params, minimum: i64) -> Result<i64, RfgenError> {
     match params.number("arm_mm")? {
         Some(mm) if mm > 0.0 => mm_to_nm(mm),
         Some(_) => Err(bad("arm_mm must be above zero")),
-        None => Ok(env.settings.lead_length_nm),
+        None => Ok(env.settings.lead_length_nm.max(minimum)),
     }
 }
 
@@ -90,7 +91,8 @@ pub(super) fn bend(
     let z0 = params.positive("z0", settings.default_z0_ohm)?;
     let line = env.line_for_z0(z0)?;
     let width = line.width_nm;
-    let arm = arm_nm(env, params)?;
+    let minimum = nm_from_f64((settings.miter_min_arm_over_width * width as f64).ceil())?;
+    let arm = arm_nm(env, params, minimum)?;
     let left = turn_left(params)?;
     let w_over_h = line.width_m() / env.substrate.h_m;
     let fraction = miter_fraction(w_over_h);
@@ -101,10 +103,9 @@ pub(super) fn bend(
         &miter_range(w_over_h, env.substrate.er),
     );
     let leg = miter_leg_nm(width, fraction)?;
-    let minimum = settings.miter_min_arm_over_width * width as f64;
-    if (arm as f64) < minimum {
+    if arm < minimum {
         return Err(bad(&format!(
-            "the arms of {arm} nm are shorter than {} widths ({minimum:.0} nm)",
+            "the arms of {arm} nm are shorter than {} widths ({minimum} nm)",
             settings.miter_min_arm_over_width
         )));
     }
@@ -136,7 +137,7 @@ pub(super) fn curve(
     let z0 = params.positive("z0", settings.default_z0_ohm)?;
     let line = env.line_for_z0(z0)?;
     let width = line.width_nm;
-    let arm = arm_nm(env, params)?;
+    let arm = arm_nm(env, params, 0)?;
     let left = turn_left(params)?;
     let radius = match params.number("radius_mm")? {
         Some(mm) if mm > 0.0 => mm_to_nm(mm)?,
