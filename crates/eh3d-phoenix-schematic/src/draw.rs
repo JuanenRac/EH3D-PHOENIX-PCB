@@ -105,7 +105,7 @@ fn make(code: &'static str, severity: Severity, detail: String) -> Diagnostic {
 }
 
 /// Turns an offset by a multiple of 90 degrees.
-fn turn(x: i64, y: i64, rotation: Udeg) -> Option<(i64, i64)> {
+pub(crate) fn turn(x: i64, y: i64, rotation: Udeg) -> Option<(i64, i64)> {
     let a = rotation.get();
     if a % 90_000_000 != 0 {
         return None;
