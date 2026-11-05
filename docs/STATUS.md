@@ -6,7 +6,7 @@ EH3D-PHOENIX-PCB is early code. Beside the base that every repository of the sui
 
 ## Capabilities
 
-The official state of each capability is in REQUIREMENTS.md: 30 requirements: 8 `prototype` (PPCB-001, PPCB-002, PPCB-003, PPCB-007, PPCB-008, PPCB-024, PPCB-029, PPCB-030) and 22 `planned`. This page never states a state that REQUIREMENTS.md does not.
+The official state of each capability is in REQUIREMENTS.md: 30 requirements: 10 `prototype` (PPCB-001, PPCB-002, PPCB-003, PPCB-007, PPCB-008, PPCB-009, PPCB-011, PPCB-024, PPCB-029, PPCB-030) and 20 `planned`. This page never states a state that REQUIREMENTS.md does not.
 
 ## Open questions
 
@@ -23,7 +23,8 @@ The official state of each capability is in REQUIREMENTS.md: 30 requirements: 8 
 
 ## Known technical debt and omitted tests
 
-* 393 tests of the Rust code and 3 of the base; the inventory tests build their own folders and never touch a real project.
+* 428 tests of the Rust code and 3 of the base; the inventory tests build their own folders and never touch a real project.
+* The manufacturing export (`docs/EXPORT.md`) has been read back only by the parsers of EH3D-CORE-LIBS: no independent Gerber or Excellon viewer, no manufacturer and no assembler has opened a file of it, the rule for the rotation of a bottom part and the columns of the `jlc-like` profile are settings that nobody has compared with a real sample, and copper pours, blind vias and polygon pads are not written.
 * The model foundations are checked with generated and edge cases only: there is no design object on top of them yet, so the identities across save, migration and reopening are untested. Duplicate keys in an input JSON text are not detected before canonical writing. The system random source for ids is not cryptographic (ids need uniqueness, not secrecy).
 * Not tested: a corpus of hundreds of thousands of files, folders synchronised by a cloud service, and links (they are skipped and counted; the test for it runs only on Unix-like systems).
 * The kind of a file is read from its first bytes only: a file that starts like XML but is damaged later is counted by its start.
