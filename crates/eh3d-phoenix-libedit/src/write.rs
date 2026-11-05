@@ -186,7 +186,7 @@ pub fn item_element(item: &Item) -> Element {
     }
 }
 
-fn named(name: &str, extra: &Attrs) -> Attrs {
+fn named(name: &str, extra: &[(String, String)]) -> Attrs {
     let mut a = vec![("name".to_owned(), name.to_owned())];
     a.extend(extra.iter().cloned());
     a

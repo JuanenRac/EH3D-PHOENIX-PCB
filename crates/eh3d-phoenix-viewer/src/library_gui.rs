@@ -1110,17 +1110,14 @@ fn canvas(ui: &mut egui::Ui, s: &mut LibrarySession, tool_drag: &mut bool, lang:
             }
             *tool_drag = false;
         }
-        match response.hover_pos() {
-            Some(p) => {
-                let (sx, sy) = local(p);
-                let (x, y) = s.world(sx, sy);
-                s.cursor = Some(s.snapped(x, y));
-                let (scroll, pinch) = ui.input(|i| (i.smooth_scroll_delta.y, i.zoom_delta()));
-                if scroll.abs() > f32::EPSILON || (pinch - 1.0).abs() > 1e-6 {
-                    s.view.zoom_at(sx, sy, f64::from(scroll), f64::from(pinch));
-                }
+        if let Some(p) = response.hover_pos() {
+            let (sx, sy) = local(p);
+            let (x, y) = s.world(sx, sy);
+            s.cursor = Some(s.snapped(x, y));
+            let (scroll, pinch) = ui.input(|i| (i.smooth_scroll_delta.y, i.zoom_delta()));
+            if scroll.abs() > f32::EPSILON || (pinch - 1.0).abs() > 1e-6 {
+                s.view.zoom_at(sx, sy, f64::from(scroll), f64::from(pinch));
             }
-            None => {}
         }
         if response.clicked() {
             if let Some(p) = response.interact_pointer_pos() {
