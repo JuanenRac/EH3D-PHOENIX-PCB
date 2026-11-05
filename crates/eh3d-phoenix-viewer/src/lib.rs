@@ -33,6 +33,9 @@
 //!   (what a typed path, a dropped file or a recent file asks for, the list of recent files kept in a
 //!   file of the settings folder of the user, and its texts in the eight languages; the drawing is in
 //!   `launcher_gui`, behind the `gui` feature);
+//! * [`scene3d`]: the 3D scene of the assembled board (the board with the thickness of its
+//!   stack-up and each component as a box, from `eh3d-phoenix-assembly3d`) as data in millimetres:
+//!   the box that holds it all and the outlines on the board plane, with no window;
 //! * [`settings`], [`codes`], [`msg`] and [`editmsg`]: the settings file, the codes
 //!   `PHOENIX-VIEW-<NNN>` and the texts in the eight languages.
 //!
@@ -65,6 +68,7 @@ pub mod prim;
 #[cfg(test)]
 pub(crate) mod sample;
 pub mod scene;
+pub mod scene3d;
 #[cfg(feature = "gui")]
 pub mod schematic_gui;
 pub mod schematic_sync;

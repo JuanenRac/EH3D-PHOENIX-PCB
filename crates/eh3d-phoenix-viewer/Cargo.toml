@@ -13,6 +13,7 @@ default = []
 gui = ["dep:eframe", "dep:png"]
 
 [dependencies]
+eh3d-phoenix-assembly3d = { path = "../eh3d-phoenix-assembly3d" }
 eh3d-phoenix-board = { path = "../eh3d-phoenix-board" }
 eh3d-phoenix-eagle-board = { path = "../eh3d-phoenix-eagle-board" }
 eh3d-phoenix-erc = { path = "../eh3d-phoenix-erc" }
