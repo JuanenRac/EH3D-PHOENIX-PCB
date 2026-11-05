@@ -1264,6 +1264,20 @@ impl History {
         Ok(())
     }
 
+    /// Replaces the library by another as one step that can be undone. It is for changes that
+    /// are not a list of operations, such as the replacement by a master after the owner has
+    /// confirmed it.
+    pub fn replace(&mut self, library: Library, label: &str) {
+        let before = std::mem::replace(&mut self.current, library);
+        self.past.push((label.to_owned(), before, self.revision));
+        if self.past.len() > self.limit {
+            self.past.remove(0);
+        }
+        self.future.clear();
+        self.revision = self.next_revision;
+        self.next_revision += 1;
+    }
+
     /// True when there is a step to undo.
     pub fn can_undo(&self) -> bool {
         !self.past.is_empty()
@@ -1815,6 +1829,21 @@ mod tests {
         assert!(h.undo() && h.undo());
         assert_eq!(h.library(), &sample());
         assert!(!h.dirty());
+    }
+
+    #[test]
+    fn a_library_put_in_place_is_a_step_that_can_be_undone() {
+        let mut h = History::new(sample(), 10);
+        let mut other = sample();
+        other.packages.pop();
+        h.replace(other.clone(), "replace by the master");
+        assert_eq!(h.library(), &other);
+        assert_eq!(h.undo_label(), Some("replace by the master"));
+        assert!(h.dirty());
+        assert!(h.undo());
+        assert_eq!(h.library(), &sample());
+        assert!(h.redo());
+        assert_eq!(h.library(), &other);
     }
 
     #[test]
