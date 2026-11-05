@@ -45,11 +45,23 @@ pub const REGISTRY: &[(&str, &str)] = &[
     ("PHOENIX-KICAD-012", "The file is not valid UTF-8 text"),
     ("PHOENIX-KICAD-013", "Nets derived from the drawing"),
     ("PHOENIX-KICAD-014", "Fidelity level of the import"),
+    (
+        "PHOENIX-KICAD-015",
+        "A file of the KiCad project is missing",
+    ),
+    (
+        "PHOENIX-KICAD-016",
+        "The output of the import is not allowed",
+    ),
+    (
+        "PHOENIX-KICAD-017",
+        "The schematic and the board list different parts",
+    ),
 ];
 
 /// The titles of the codes in the eight languages: English, Spanish, German, French, Italian,
 /// Japanese, Chinese and European Portuguese.
-const TITLES: [(&str, [&str; 8]); 14] = [
+const TITLES: [(&str, [&str; 8]); 17] = [
     (
         "PHOENIX-KICAD-001",
         [
@@ -232,6 +244,45 @@ const TITLES: [(&str, [&str; 8]); 14] = [
             "Nível de fidelidade da importação",
         ],
     ),
+    (
+        "PHOENIX-KICAD-015",
+        [
+            "A file of the KiCad project is missing",
+            "Falta un archivo del proyecto de KiCad",
+            "Eine Datei des KiCad-Projekts fehlt",
+            "Un fichier du projet KiCad est absent",
+            "Manca un file del progetto KiCad",
+            "KiCad プロジェクトのファイルが見つかりません",
+            "缺少 KiCad 项目的文件",
+            "Falta um ficheiro do projeto KiCad",
+        ],
+    ),
+    (
+        "PHOENIX-KICAD-016",
+        [
+            "The output of the import is not allowed",
+            "No se permite el archivo de salida de la importación",
+            "Die Ausgabedatei des Imports ist nicht erlaubt",
+            "Le fichier de sortie de l'import n'est pas autorisé",
+            "Il file di uscita dell'importazione non è consentito",
+            "インポートの出力ファイルは許可されていません",
+            "不允许使用该导入输出文件",
+            "O ficheiro de saída da importação não é permitido",
+        ],
+    ),
+    (
+        "PHOENIX-KICAD-017",
+        [
+            "The schematic and the board list different parts",
+            "El esquema y la placa listan piezas distintas",
+            "Schaltplan und Platine führen unterschiedliche Bauteile auf",
+            "Le schéma et la carte listent des composants différents",
+            "Lo schema e la scheda elencano componenti diversi",
+            "回路図と基板で部品の一覧が異なります",
+            "原理图与电路板列出的元件不同",
+            "O esquema e a placa listam peças diferentes",
+        ],
+    ),
 ];
 
 fn column_of(language: Language) -> usize {
@@ -378,6 +429,26 @@ pub enum KicadError {
         /// What it means for this file.
         detail: String,
     },
+    /// A file the project names (its schematic or its board) is not there or was not read.
+    #[error("{what}: {detail}")]
+    ProjectFile {
+        /// The file.
+        what: String,
+        /// What happened to it.
+        detail: String,
+    },
+    /// The file the import was asked to write cannot be written.
+    #[error("{reason}")]
+    OutputRefused {
+        /// Why.
+        reason: String,
+    },
+    /// The schematic and the board of one project do not hold the same parts.
+    #[error("{detail}")]
+    PartsDiffer {
+        /// Which parts are on one side only.
+        detail: String,
+    },
 }
 
 impl KicadError {
@@ -398,6 +469,9 @@ impl KicadError {
             KicadError::Encoding { .. } => "PHOENIX-KICAD-012",
             KicadError::Derived { .. } => "PHOENIX-KICAD-013",
             KicadError::Fidelity { .. } => "PHOENIX-KICAD-014",
+            KicadError::ProjectFile { .. } => "PHOENIX-KICAD-015",
+            KicadError::OutputRefused { .. } => "PHOENIX-KICAD-016",
+            KicadError::PartsDiffer { .. } => "PHOENIX-KICAD-017",
         }
     }
 
@@ -409,10 +483,13 @@ impl KicadError {
             | KicadError::NotKicad { .. }
             | KicadError::Truncated { .. }
             | KicadError::InvalidSettings { .. }
+            | KicadError::OutputRefused { .. }
             | KicadError::Project { .. } => Severity::Error,
             KicadError::InvalidValue { .. }
             | KicadError::MissingReference { .. }
             | KicadError::Version { .. }
+            | KicadError::ProjectFile { .. }
+            | KicadError::PartsDiffer { .. }
             | KicadError::Encoding { .. } => Severity::Warning,
             KicadError::NotRead { .. }
             | KicadError::Simplified { .. }
@@ -518,6 +595,12 @@ mod tests {
                 level: "partial".into(),
                 detail: "d".into(),
             },
+            KicadError::ProjectFile {
+                what: "w".into(),
+                detail: "d".into(),
+            },
+            KicadError::OutputRefused { reason: "r".into() },
+            KicadError::PartsDiffer { detail: "d".into() },
         ]
     }
 

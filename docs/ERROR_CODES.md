@@ -272,6 +272,9 @@ The titles of these codes also exist in the eight languages of the suite (`title
 | PHOENIX-KICAD-012 | The file is not valid UTF-8 text | bytes that are not UTF-8; they are replaced and the file is read (a warning) |
 | PHOENIX-KICAD-013 | Nets derived from the drawing | a schematic: the nets are computed from wires, junctions, labels and power symbols because the file stores no net list (information) |
 | PHOENIX-KICAD-014 | Fidelity level of the import | the last finding of every import by the hub: `complete`, `partial` or `unusable` (information) |
+| PHOENIX-KICAD-015 | A file of the KiCad project is missing | `phoenix kicad-import` of a `.kicad_pro` whose schematic or board of the same name is not next to it; the rest of the project is read (a warning) |
+| PHOENIX-KICAD-016 | The output of the import is not allowed | `--out` of `phoenix kicad-import` that is not a `.json` file, is an input or already exists; nothing is read or written (an error, exit code 2) |
+| PHOENIX-KICAD-017 | The schematic and the board list different parts | a project whose schematic and board were both read and whose references differ; the finding names the references on one side only (a warning) |
 
 ## Library sanitizer (`eh3d-phoenix-sanitizer`, `src/codes.rs`)
 

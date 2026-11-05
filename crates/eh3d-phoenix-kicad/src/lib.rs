@@ -11,8 +11,10 @@
 //! * [`pcb`]: `.kicad_pcb` files into the board model, in integer nanometres;
 //! * [`project`]: `.kicad_pro` files (JSON) into the net classes and the design rules;
 //! * [`import`]: the importer of the format hub, with the quality report and the fidelity level;
+//! * [`set`]: the files of a whole project (project file, schematic with its sheets and board)
+//!   read together, with one report, one fidelity level and one JSON document;
 //! * [`settings`]: the limits, read from `config/kicad.cfg`;
-//! * [`error`]: typed errors with the codes `PHOENIX-KICAD-001` to `PHOENIX-KICAD-014` and their
+//! * [`error`]: typed errors with the codes `PHOENIX-KICAD-001` to `PHOENIX-KICAD-017` and their
 //!   titles in the eight languages of the suite.
 //!
 //! **State: prototype.** The readers are written from the public description of the file formats
@@ -36,6 +38,7 @@ mod layers;
 pub mod pcb;
 pub mod project;
 pub mod schematic;
+pub mod set;
 pub mod settings;
 pub mod sexpr;
 pub mod symbols;
@@ -48,6 +51,7 @@ pub use import::{detect_kind, fidelity_of, Fidelity, KicadImporter, KicadKind};
 pub use pcb::{read_pcb, ReadPcb};
 pub use project::{read_project, NetClassLimits, ReadProject};
 pub use schematic::{read_schematic, read_schematic_with_sheets, ReadSchematic};
+pub use set::{read_design, DesignFiles, DesignImport};
 pub use settings::KicadSettings;
 pub use symbols::{read_symbol_library, ReadSymbols};
 

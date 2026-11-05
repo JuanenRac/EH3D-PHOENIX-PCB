@@ -144,6 +144,13 @@ fn property_named(node: &Node, names: &[&str]) -> Option<String> {
     })
 }
 
+/// Whether a label names a bus (`D[0..7]`) or a group of signals (`USB{DP DM}`) and not one net.
+fn is_bus_name(text: &str) -> bool {
+    let vector = text.contains('[') && text.contains("..") && text.ends_with(']');
+    let group = text.contains('{') && text.ends_with('}');
+    vector || group
+}
+
 fn parse_label(node: &Node, kind: LabelKind, ctx: &mut Ctx) -> Option<RawLabel> {
     let Some(text) = node.arg_text(0) else {
         ctx.invalid(node, "label", "it has no text");
@@ -318,7 +325,11 @@ fn parse_sheet(root: &Node, ctx: &mut Ctx) -> Parsed {
                     _ => LabelKind::Hierarchical,
                 };
                 if let Some(label) = parse_label(child, kind, ctx) {
-                    p.labels.push(label);
+                    if is_bus_name(&label.text) {
+                        ctx.lose("bus labels (the members are not expanded)", 1);
+                    } else {
+                        p.labels.push(label);
+                    }
                 }
             }
             "sheet" => {
@@ -1477,6 +1488,37 @@ pub(crate) mod tests {
                 let _ = read_schematic(&text.as_bytes()[..cut], &s, &mut ids);
             }
         }
+    }
+
+    #[test]
+    fn a_label_that_names_a_bus_is_counted_and_does_not_make_a_net() {
+        assert!(is_bus_name("D[0..7]"));
+        assert!(is_bus_name("USB{DP DM}"));
+        assert!(!is_bus_name("D3"));
+        assert!(!is_bus_name("A[3]"));
+        let text = format!(
+            r#"(kicad_sch (version 20230121) (generator eeschema) (paper "A4")
+  {LIBS}
+  (wire (pts (xy 100 46.19) (xy 120 46.19)) (stroke (width 0) (type default)) (uuid "w"))
+  (label "D[0..3]" (at 110 46.19 0) (effects (font (size 1.27 1.27))) (uuid "l"))
+  {a}
+  {b})"#,
+            a = placed_symbol("Device:R", "R1", "1k", "100 50 0", ""),
+            b = placed_symbol("Device:R", "R2", "1k", "120 50 0", ""),
+        );
+        let r = read(&text);
+        assert_eq!(r.schematic.nets.len(), 1);
+        assert_eq!(
+            r.schematic.nets.values().next().unwrap().name,
+            "Net-(R1-Pad1)"
+        );
+        let counted = r
+            .quality
+            .dropped
+            .iter()
+            .find(|i| i.category == "bus labels (the members are not expanded)")
+            .map(|i| i.count);
+        assert_eq!(counted, Some(1));
     }
 
     #[test]
