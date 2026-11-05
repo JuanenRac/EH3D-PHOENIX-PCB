@@ -216,6 +216,7 @@ dependencies = [
  "eh3d-phoenix-eagle",
  "eh3d-phoenix-eagle-board",
  "eh3d-phoenix-export",
+ "eh3d-phoenix-kicad",
  "eh3d-phoenix-model",
  "eh3d-phoenix-rf",
  "eh3d-phoenix-rules",

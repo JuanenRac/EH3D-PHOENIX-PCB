@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! The command line of EH3D-PHOENIX-PCB. It has eight commands, `inventory`, `eagle-rate`,
-//! `stackup`, `check`, `connectivity`, `export`, `rf` and `view`.
+//! The command line of EH3D-PHOENIX-PCB. It has nine commands, `inventory`, `eagle-rate`,
+//! `stackup`, `check`, `connectivity`, `export`, `rf`, `kicad-read` and `view`.
 //!
 //! Exit codes: 0 done, 1 `stackup` could not compute one or more of the lines it was asked for, or
 //! `check` and `connectivity` proved an error, 2 the arguments or the input are unusable.
@@ -9,6 +9,7 @@
 
 mod check;
 mod export;
+mod kicad;
 mod rf;
 mod view;
 
@@ -56,6 +57,12 @@ phoenix rf touchstone|match|filter ...
   rf            everyday RF tools: Touchstone files, impedance matching and ladder filters
                 (run `phoenix rf` alone for its usage)
 
+phoenix kicad-read [--settings FILE] [--lang xx] [--redacted] <file>
+
+  kicad-read    read a KiCad 6 to 9 file (schematic with its sheets, board, symbol library,
+                footprint or project) into the design model and summarise it: what was kept,
+                changed and left out, the findings with their codes and the fidelity level
+
 phoenix view [--settings FILE] [--lang xx] [<board or schematic>]
 phoenix view --summary <file>  |  phoenix view --bench
 
@@ -100,6 +107,9 @@ pub fn run(args: &[String], out: &mut dyn Write, err: &mut dyn Write) -> i32 {
     }
     if let Some((&"rf", tail)) = rest.split_first() {
         return rf::rf(tail, out, err);
+    }
+    if let Some((&"kicad-read", tail)) = rest.split_first() {
+        return kicad::kicad_read(tail, out, err);
     }
     if let Some((&"view", tail)) = rest.split_first() {
         return view::view(tail, out, err);
