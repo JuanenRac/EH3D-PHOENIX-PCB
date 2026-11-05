@@ -3,6 +3,9 @@
 All notable changes to this project are documented here.
 
 ## [Unreleased]
+
+## [0.0.3] - Design rules, stack-up, RF tools, circuit simulation, routing, manufacturing output, KiCad and EAGLE tools, library sanitizer and the editing window
+
 - Add to the schematic model the marks that a schematic editor needs: net labels, power ports and junction dots (not written when a schematic has none), a part drawn mirrored, and the names of the members of a simple bus such as `D[0..7]`. Labels and power ports with one name join their pins in the reading of the drawing, which now also gives the names of each group. The editor itself (reversible operations, rubber-banding, the palette, the live check and the command) is not written yet.
 - Add editing in the window of the viewer. Tools move and turn a component, delete a track, move a vertex, change a width, add a via and route a track by clicking its origin and its destination (stopping in front of obstacles or going around them). Every edit is a reversible operation of the board, tried on a copy first and refused with its code when the board or the strict rules refuse it, with undo and redo (Ctrl+Z, Ctrl+Y and buttons), positions snapped to a grid and a key for every tool.
 - Show in a panel of the window the findings of the rules, the findings that each edit, undo or redo adds and resolves (the difference is computed for every step), a jump to the place of each finding, the loading of a rule file, the ratsnest as thin lines, and the list of nets with their connections still to be routed and a click to highlight a net.

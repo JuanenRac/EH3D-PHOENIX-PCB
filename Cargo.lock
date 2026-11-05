@@ -197,7 +197,7 @@ dependencies = [
 
 [[package]]
 name = "eh3d-phoenix-board"
-version = "0.0.2"
+version = "0.0.3"
 dependencies = [
  "eh3d-container",
  "eh3d-diagnostic",
@@ -209,7 +209,7 @@ dependencies = [
 
 [[package]]
 name = "eh3d-phoenix-cli"
-version = "0.0.2"
+version = "0.0.3"
 dependencies = [
  "eh3d-phoenix-board",
  "eh3d-phoenix-corpus",
@@ -233,7 +233,7 @@ dependencies = [
 
 [[package]]
 name = "eh3d-phoenix-corpus"
-version = "0.0.2"
+version = "0.0.3"
 dependencies = [
  "serde",
  "serde_json",
@@ -244,7 +244,7 @@ dependencies = [
 
 [[package]]
 name = "eh3d-phoenix-eagle"
-version = "0.0.2"
+version = "0.0.3"
 dependencies = [
  "eh3d-diagnostic",
  "eh3d-phoenix-hub",
@@ -254,7 +254,7 @@ dependencies = [
 
 [[package]]
 name = "eh3d-phoenix-eagle-board"
-version = "0.0.2"
+version = "0.0.3"
 dependencies = [
  "eh3d-diagnostic",
  "eh3d-phoenix-board",
@@ -265,7 +265,7 @@ dependencies = [
 
 [[package]]
 name = "eh3d-phoenix-export"
-version = "0.0.2"
+version = "0.0.3"
 dependencies = [
  "chrono",
  "eh3d-common",
@@ -286,14 +286,14 @@ dependencies = [
 
 [[package]]
 name = "eh3d-phoenix-hub"
-version = "0.0.2"
+version = "0.0.3"
 dependencies = [
  "eh3d-diagnostic",
 ]
 
 [[package]]
 name = "eh3d-phoenix-kicad"
-version = "0.0.2"
+version = "0.0.3"
 dependencies = [
  "eh3d-diagnostic",
  "eh3d-phoenix-board",
@@ -307,7 +307,7 @@ dependencies = [
 
 [[package]]
 name = "eh3d-phoenix-model"
-version = "0.0.2"
+version = "0.0.3"
 dependencies = [
  "eh3d-container",
  "eh3d-diagnostic",
@@ -318,7 +318,7 @@ dependencies = [
 
 [[package]]
 name = "eh3d-phoenix-project"
-version = "0.0.2"
+version = "0.0.3"
 dependencies = [
  "eh3d-container",
  "eh3d-diagnostic",
@@ -331,7 +331,7 @@ dependencies = [
 
 [[package]]
 name = "eh3d-phoenix-rf"
-version = "0.0.2"
+version = "0.0.3"
 dependencies = [
  "eh3d-diagnostic",
  "eh3d-phoenix-stackup",
@@ -340,7 +340,7 @@ dependencies = [
 
 [[package]]
 name = "eh3d-phoenix-rfgen"
-version = "0.0.2"
+version = "0.0.3"
 dependencies = [
  "eh3d-phoenix-board",
  "eh3d-phoenix-model",
@@ -353,7 +353,7 @@ dependencies = [
 
 [[package]]
 name = "eh3d-phoenix-route"
-version = "0.0.2"
+version = "0.0.3"
 dependencies = [
  "eh3d-phoenix-board",
  "eh3d-phoenix-model",
@@ -362,7 +362,7 @@ dependencies = [
 
 [[package]]
 name = "eh3d-phoenix-rules"
-version = "0.0.2"
+version = "0.0.3"
 dependencies = [
  "eh3d-diagnostic",
  "eh3d-phoenix-board",
@@ -376,7 +376,7 @@ dependencies = [
 
 [[package]]
 name = "eh3d-phoenix-sanitizer"
-version = "0.0.2"
+version = "0.0.3"
 dependencies = [
  "eh3d-phoenix-corpus",
  "eh3d-phoenix-eagle",
@@ -391,7 +391,7 @@ dependencies = [
 
 [[package]]
 name = "eh3d-phoenix-schematic"
-version = "0.0.2"
+version = "0.0.3"
 dependencies = [
  "eh3d-container",
  "eh3d-diagnostic",
@@ -403,7 +403,7 @@ dependencies = [
 
 [[package]]
 name = "eh3d-phoenix-script"
-version = "0.0.2"
+version = "0.0.3"
 dependencies = [
  "eh3d-phoenix-board",
  "eh3d-phoenix-erc",
@@ -418,7 +418,7 @@ dependencies = [
 
 [[package]]
 name = "eh3d-phoenix-sim"
-version = "0.0.2"
+version = "0.0.3"
 dependencies = [
  "eh3d-container",
  "eh3d-phoenix-rf",
@@ -429,7 +429,7 @@ dependencies = [
 
 [[package]]
 name = "eh3d-phoenix-stackup"
-version = "0.0.2"
+version = "0.0.3"
 dependencies = [
  "eh3d-diagnostic",
  "serde",
