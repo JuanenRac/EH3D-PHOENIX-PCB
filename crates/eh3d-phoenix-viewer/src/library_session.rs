@@ -1134,11 +1134,10 @@ impl LibrarySession {
 
     /// Turns the item selected by a quarter of a turn.
     pub fn rotate_selected(&mut self) -> bool {
-        let Some(item) = self.selected_item().cloned() else {
+        let Some(mut item) = self.selected_item().cloned() else {
             self.note = Some(LibNote::NoSelection);
             return false;
         };
-        let mut item = item;
         match &mut item {
             Item::Pad(p) => p.rot = turned(&p.rot),
             Item::Smd(p) => p.rot = turned(&p.rot),
