@@ -31,6 +31,10 @@
 //!   chosen, the points of its centre line, the drawing of the pair, the matching of its lengths, the
 //!   correction of its gap and the report of the checks of the pairs) and its texts in the eight
 //!   languages (the section of the panel is in `board_pair_gui`, behind the `gui` feature);
+//! * [`board_shove`] and [`board_shove_text`]: the push tool of the board editor (the net that is
+//!   chosen, the points of the new track, the preview of the tracks that the push would move, and
+//!   the acceptance of the push as one step of the editor) and its texts in the eight languages
+//!   (the section of the panel is in `board_shove_gui`, behind the `gui` feature);
 //! * [`library_session`] and [`library_text`]: the library mode: an EAGLE library edited with the
 //!   operations of `eh3d-phoenix-libedit` (footprints, symbols and devices, the tools, the grid and
 //!   the snap, the selection and the drag, the measure, the checks, the plan to replace by a master
@@ -69,6 +73,10 @@ pub mod board_pair;
 #[cfg(feature = "gui")]
 pub mod board_pair_gui;
 pub mod board_pair_text;
+pub mod board_shove;
+#[cfg(feature = "gui")]
+pub mod board_shove_gui;
+pub mod board_shove_text;
 pub mod board_sync;
 pub mod board_text;
 pub mod codes;

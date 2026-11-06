@@ -14,6 +14,7 @@ use eh3d_phoenix_route::copper_layers;
 use eh3d_phoenix_rules::{Lang, Severity};
 
 use crate::board_pair::PairTool;
+use crate::board_shove::ShoveTool;
 use crate::board_text::BoardMsg;
 use crate::editmsg::EditMsg;
 use crate::workspace::Workspace;
@@ -48,6 +49,7 @@ pub struct BoardEditUi {
     length_mm: Option<f64>,
     target_mm: f64,
     pair: PairTool,
+    shove: ShoveTool,
 }
 
 /// Where a point of the drawing is on the screen, and back.
@@ -134,6 +136,7 @@ pub fn start(workspace: &Workspace) -> Option<BoardEditUi> {
         length_mm: None,
         target_mm: 0.0,
         pair: PairTool::default(),
+        shove: ShoveTool::default(),
     })
 }
 
@@ -359,12 +362,17 @@ pub fn canvas(
         let (x, y) = view.world_at(p);
         point_at(x, y)
     });
-    if let Some(at) = pointer.filter(|_| st.pair.on) {
+    if let Some(at) = pointer.filter(|_| st.shove.on) {
+        if frame.pressed && inside.is_some() {
+            st.shove.click(&mut st.state, at);
+        }
+    }
+    if let Some(at) = pointer.filter(|_| st.pair.on && !st.shove.on) {
         if frame.pressed && inside.is_some() {
             st.pair.click(&st.state, at);
         }
     }
-    if let Some(at) = pointer.filter(|_| !st.pair.on) {
+    if let Some(at) = pointer.filter(|_| !st.pair.on && !st.shove.on) {
         if frame.pressed && inside.is_some() {
             st.state.pointer_pressed(at, frame.shift);
         } else {
@@ -401,6 +409,7 @@ pub fn canvas(
         painter.circle_stroke(view.at(target), 5.0, Stroke::new(1.0, ACCENT));
     }
     crate::board_pair_gui::draw(&painter, &st.pair, &|p: Point| view.at(p));
+    crate::board_shove_gui::draw(&painter, &st.shove, &|p: Point| view.at(p));
     if let Some((a, b)) = st.state.marquee {
         let corners = vec![
             view.xy(mm(a.x_nm.get()), mm(a.y_nm.get())),
@@ -763,6 +772,7 @@ pub fn tools_panel(ui: &mut egui::Ui, st: &mut BoardEditUi, lang: Lang) -> bool 
         )));
     }
     crate::board_pair_gui::panel(ui, &mut st.pair, &mut st.state, lang);
+    crate::board_shove_gui::panel(ui, &mut st.shove, &mut st.state, lang);
 
     ui.separator();
     ui.horizontal(|ui| {
