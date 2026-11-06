@@ -576,6 +576,19 @@
           }
         },
         {
+          "name": "AUTOROUTE_NATIVE.md",
+          "desc": {
+            "en": "the autorouter of our own: grid search, vias, weights, pairs",
+            "es": "el autorruteador propio: búsqueda en rejilla, vías, pesos, pares",
+            "de": "der eigene Autorouter: Rastersuche, Vias, Gewichte, Paare",
+            "fr": "l'autorouteur maison : recherche sur grille, vias, poids, paires",
+            "it": "l'autorouter proprio: ricerca su griglia, via, pesi, coppie",
+            "ja": "自前のオートルーター：グリッド探索、ビア、重み、ペア",
+            "zh": "自带的自动布线器：网格搜索、过孔、权重、差分对",
+            "pt": "o encaminhador automático próprio: pesquisa em grelha, vias, pesos, pares"
+          }
+        },
+        {
           "name": "ZONES.md",
           "desc": {
             "en": "filling copper zones: clipping, reliefs, islands, check",

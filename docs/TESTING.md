@@ -35,7 +35,7 @@ This page is the policy for tests of EH3D-PHOENIX-PCB. A test here proves someth
 | Folder | Holds |
 |---|---|
 | `tests/corpus/{eagle,kicad,gerber,model,route,spice}/` | pieces written by hand, with a `NAME.expect.json` beside each |
-| `tests/oracle/` | the reference cases (`board`, `netlist`, `rf`, `si`, `sim`, `stackup`) and `pending.json`, the cases that are written but not yet run |
+| `tests/oracle/` | the reference cases (`board`, `field`, `netlist`, `rf`, `si`, `sim`, `stackup`) and `pending.json`, the cases that are written but not yet run |
 | `tests/dxf/` | the small DXF files used by the DXF tests |
 | `tests/golden/` | the expected output of commands (`check` in text, JSON, CSV and HTML) and the rule file that gives it; `PHOENIX_BLESS_GOLDENS=1` writes them again when an output changes on purpose, and the difference is read before it is committed |
 | `examples/tutorials/` | the small files that the tutorials use |
