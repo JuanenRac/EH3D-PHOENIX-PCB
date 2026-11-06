@@ -65,7 +65,9 @@ fn parse_options(args: &[&str]) -> Result<Options, GbrError> {
 }
 
 /// The findings of one file, or the reason it could not be read.
-fn check_file(path: &Path, settings: &ImportSettings) -> Result<Vec<Finding>, GbrError> {
+type Checked = Result<Vec<Finding>, GbrError>;
+
+fn check_file(path: &Path, settings: &ImportSettings) -> Checked {
     let length = std::fs::metadata(path)
         .map_err(|e| GbrError::new(INPUT_UNREADABLE, format!("{}: {e}", path.display())))?
         .len();
@@ -108,7 +110,7 @@ pub(crate) fn gerber_check_command(args: &[&str], out: &mut dyn Write, err: &mut
             return 2;
         }
     };
-    let results: Vec<(String, Result<Vec<Finding>, GbrError>)> = entries
+    let results: Vec<(String, Checked)> = entries
         .into_iter()
         .map(|(name, path)| (name, check_file(&path, &settings)))
         .collect();
