@@ -73,7 +73,7 @@
       "title": "Overshoot at an open end of a step driven through Z0/3, from the time stepping",
       "area": "si",
       "check": "si_bergeron_overshoot_pct",
-      "inputs": { "z0_ohm": 50.0, "rs_ohm": 16.666666666666668, "td_ps": 1000.0, "tr_ps": 50.0 },
+      "inputs": { "z0_ohm": 50.0, "rs_ohm": 16.666666666666668, "rl_ohm": 0.0, "td_ps": 1000.0, "tr_ps": 50.0 },
       "expected": 50.0,
       "unit": "%",
       "tolerance": { "abs": 0.5 },
