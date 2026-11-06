@@ -409,9 +409,11 @@ fn a_pour_with_nothing_to_clear_has_no_change_of_polarity() {
     let set = build(&b, &Profile::default()).unwrap();
     let text = layer_text(&set, id(1));
     assert!(!text.contains("LPC") && !text.contains("LPD"), "{text}");
+}
 
-    #[test]
-    fn the_file_of_a_span_is_named_from_the_file_of_the_plated_holes() {
+#[test]
+fn the_file_of_a_span_is_named_from_the_file_of_the_plated_holes() {
+    {
         use eh3d_phoenix_export::fab::span_file_name;
         assert_eq!(
             span_file_name("drill_pth.drl", 1, 2, false),

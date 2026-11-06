@@ -366,7 +366,6 @@ pub fn describe_operation(
                 (None, _) => WinText::OpUnknown.tr(lang).to_string(),
             }
         }
-        _ => WinText::OpUnknown.tr(lang).to_string(),
     }
 }
 

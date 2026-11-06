@@ -71,6 +71,7 @@ eh3d-phoenix-stackup = { path = "../eh3d-phoenix-stackup" }
 eh3d-phoenix-sync = { path = "../eh3d-phoenix-sync" }
 eh3d-phoenix-viewer = { path = "../eh3d-phoenix-viewer" }
 eh3d-phoenix-zones = { path = "../eh3d-phoenix-zones" }
+serde.workspace = true
 serde_json.workspace = true
 eh3d-materials = { workspace = true, optional = true }
 
