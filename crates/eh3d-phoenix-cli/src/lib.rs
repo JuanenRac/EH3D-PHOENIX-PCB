@@ -58,6 +58,7 @@ mod netlist;
 mod oracle;
 mod pairs;
 mod panel;
+mod perf;
 mod parts;
 mod pnp;
 mod print;
@@ -427,6 +428,7 @@ phoenix dxf-import <drawing.dxf> --board BOARD [--layer LAYER] [--join-tolerance
 phoenix dxf-export <board|panel> [--out FILE.dxf] [--config FILE] [--silk] [--json] [--lang xx] <file>
 phoenix enclosure <board> --enclosure FILE [--models FILE] [--stackup FILE] [--config FILE]
                   [--step FILE] [--json] [--lang xx]
+phoenix perf <board> [--config FILE] [--clearance-mm N] [--json] [--lang xx]
 
   dxf-import    the outline of a board from the contours of a DXF drawing: the pieces are joined
                 into closed contours, the outer one becomes the outline and its cutouts are listed
@@ -442,6 +444,10 @@ phoenix enclosure <board> --enclosure FILE [--models FILE] [--stackup FILE] [--c
                 collisions and least clearances with the codes PHOENIX-ENCL-NNN, and the board as a
                 STEP solid with its holes written only to a new file, a prototype, run
                 `phoenix enclosure` alone for its options
+  perf          how much work the copper clearance check and the ratsnest do on a board with the
+                spatial index and without it, counted in comparisons and not timed, with the codes
+                PHOENIX-SPATIAL-NNN; read-only, a prototype, run `phoenix perf` alone for its
+                options
 
 phoenix view [--settings FILE] [--lang xx] [<board or schematic>]
 phoenix view --summary <file>  |  phoenix view --bench
@@ -550,6 +556,9 @@ pub fn run(args: &[String], out: &mut dyn Write, err: &mut dyn Write) -> i32 {
     }
     if let Some((&"enclosure", tail)) = rest.split_first() {
         return enclosure::enclosure_command(tail, out, err);
+    }
+    if let Some((&"perf", tail)) = rest.split_first() {
+        return perf::perf_command(tail, out, err);
     }
     if let Some((&"sim", tail)) = rest.split_first() {
         return sim::sim_command(tail, out, err);

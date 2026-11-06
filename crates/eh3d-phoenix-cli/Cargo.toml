@@ -57,6 +57,7 @@ eh3d-phoenix-rf = { path = "../eh3d-phoenix-rf" }
 eh3d-phoenix-rfgen = { path = "../eh3d-phoenix-rfgen" }
 eh3d-phoenix-route = { path = "../eh3d-phoenix-route" }
 eh3d-phoenix-rules = { path = "../eh3d-phoenix-rules" }
+eh3d-phoenix-spatial = { path = "../eh3d-phoenix-spatial" }
 eh3d-phoenix-sanitizer = { path = "../eh3d-phoenix-sanitizer" }
 eh3d-phoenix-schedit = { path = "../eh3d-phoenix-schedit" }
 eh3d-phoenix-schematic = { path = "../eh3d-phoenix-schematic" }
