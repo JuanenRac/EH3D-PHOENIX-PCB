@@ -14,10 +14,11 @@ use std::collections::BTreeMap;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-use eh3d_phoenix_erc::{check, ErcConfig, Report as ErcReport};
+use eh3d_phoenix_erc::{check_hier, ErcConfig, Report as ErcReport};
 use eh3d_phoenix_rules::{Lang, Severity};
+use eh3d_phoenix_schematic::HierConfig;
 use eh3d_phoenix_sim::netcodes::{GenIssue, ERC_ERRORS, OUTPUT_REFUSED};
-use eh3d_phoenix_sim::{generate_netlist, ModelTable, NetlistText, SimSettings};
+use eh3d_phoenix_sim::{generate_netlist_hier, ModelTable, NetlistText, SimSettings};
 use serde_json::json;
 
 use crate::check::{id_source, read_text};
@@ -142,12 +143,15 @@ pub(crate) fn prepare(
     };
     let mut new_id = id_source()?;
     let schematic = load_schematic(inputs.schematic, &BTreeMap::new(), &mut new_id)?;
+    // a schematic with sheet symbols is drawn out first: every instance of every sheet
+    let hier = HierConfig::default();
     let erc = if inputs.no_erc {
         None
     } else {
-        Some(check(&schematic, &erc_config))
+        Some(check_hier(&schematic, &hier, &erc_config).map_err(|e| e.to_string())?)
     };
-    let mut generated = generate_netlist(&schematic, &table, None, settings);
+    let mut generated = generate_netlist_hier(&schematic, &hier, &table, None, settings)
+        .map_err(|e| e.to_string())?;
     if let Some(report) = &erc {
         let errors = report.count(Severity::Error);
         if errors > 0 {

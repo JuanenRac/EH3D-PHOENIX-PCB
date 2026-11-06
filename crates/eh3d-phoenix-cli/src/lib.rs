@@ -18,6 +18,7 @@
 //! The pick and place files, the solder paste stencil and the fabrication package add `pnp`,
 //! `stencil` and `fabpack`.
 //! The local parts base adds `parts`, and the bill of materials takes its data from it.
+//! The hierarchy of sheets and the buses of a schematic add `hier`.
 //!
 //! Exit codes: 0 done, 1 `stackup` could not compute one or more of the lines it was asked for,
 //! `check`, `connectivity` and `erc` proved an error, or `sync` or `annotate` found changes to
@@ -36,6 +37,7 @@ mod export;
 mod fabpack;
 mod gerber_check;
 mod gerber_import;
+mod hier;
 mod ipclib;
 mod kicad;
 mod kicad_export;
@@ -200,6 +202,15 @@ phoenix netlist [--models FILE] [--out NEW.cir] [--json] [--lang xx] [--no-erc] 
                 codes PHOENIX-NETLIST-<NNN>, after the electrical rule check; a dry run that
                 writes only to a new file named with --out, a prototype, run `phoenix netlist`
                 alone for its options
+
+phoenix hier [--config FILE] [--json] [--lang xx] <schematic>
+
+  hier          the hierarchy of sheets of a schematic: the sheets and the sheet symbols that show
+                them, the instances (a sheet shown N times is N instances, with references such
+                as U1/R1), the nets by hierarchical name with the instances where they have a
+                pin, and the problems of the sheet symbols, pins, ports and buses with codes
+                PHOENIX-HIER-<NNN> and PHOENIX-BUS-<NNN>; it only reads, a prototype, run
+                `phoenix hier` alone for its options
 
 phoenix ratsnest [--settings FILE] [--json] [--lang xx] <board>
 phoenix route [--settings FILE] [--rules FILE] [--layer NAME] [--mode around|stop] [--json]
@@ -482,6 +493,9 @@ pub fn run(args: &[String], out: &mut dyn Write, err: &mut dyn Write) -> i32 {
     }
     if let Some((&"netlist", tail)) = rest.split_first() {
         return netlist::netlist_command(tail, out, err);
+    }
+    if let Some((&"hier", tail)) = rest.split_first() {
+        return hier::hier_command(tail, out, err);
     }
     if let Some((&"schedit", tail)) = rest.split_first() {
         return schedit::schedit_command(tail, out, err);

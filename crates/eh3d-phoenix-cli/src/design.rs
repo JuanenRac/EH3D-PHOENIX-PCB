@@ -16,10 +16,10 @@ use std::time::Duration;
 
 use eh3d_phoenix_board::{Board, History};
 use eh3d_phoenix_eagle_board::{read_board, read_schematic, write_board, write_schematic};
-use eh3d_phoenix_erc::{check, ErcConfig};
+use eh3d_phoenix_erc::{check_hier, ErcConfig};
 use eh3d_phoenix_model::ObjectId;
 use eh3d_phoenix_rules::Lang;
-use eh3d_phoenix_schematic::Schematic;
+use eh3d_phoenix_schematic::{HierConfig, Schematic};
 use eh3d_phoenix_sync::{compare, plan_backward, plan_forward, SchematicHistory, SyncSettings};
 
 use crate::check::{id_source, read_text};
@@ -319,7 +319,11 @@ pub(crate) fn erc(args: &[&str], out: &mut dyn Write, err: &mut dyn Write) -> i3
         Ok(schematic) => schematic,
         Err(message) => return fail(err, &message),
     };
-    let report = check(&schematic, &config);
+    // a schematic with sheet symbols is checked with every instance of every sheet drawn out
+    let report = match check_hier(&schematic, &HierConfig::default(), &config) {
+        Ok(report) => report,
+        Err(e) => return fail(err, &e.to_string()),
+    };
     let text = if options.json {
         report.to_json()
     } else {
