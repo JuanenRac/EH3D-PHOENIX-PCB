@@ -11,6 +11,7 @@ description = "The state of the schematic editor without a screen: the tool, the
 eh3d-phoenix-board = { path = "../eh3d-phoenix-board" }
 eh3d-phoenix-erc = { path = "../eh3d-phoenix-erc" }
 eh3d-phoenix-model = { path = "../eh3d-phoenix-model" }
+eh3d-phoenix-parts = { path = "../eh3d-phoenix-parts" }
 eh3d-phoenix-rules = { path = "../eh3d-phoenix-rules" }
 eh3d-phoenix-schematic = { path = "../eh3d-phoenix-schematic" }
 eh3d-phoenix-sim = { path = "../eh3d-phoenix-sim" }

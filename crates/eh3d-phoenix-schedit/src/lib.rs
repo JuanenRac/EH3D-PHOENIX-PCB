@@ -17,6 +17,9 @@
 //!   as data), and the export of the net list to the simulator (made by the generator of the
 //!   simulator crate from a table of models) and the operating point net by net as data;
 //! * [`ops_file`]: the file of operations that `phoenix schedit` applies;
+//! * [`assign`]: the plan of assigning a part of the parts base to a placed symbol (the value, the
+//!   maker and the part number, the footprint and the model it asks for) and its application as
+//!   one step that one undo takes back;
 //! * [`codes`]: the codes `PHOENIX-SCHEDIT-<NNN>`.
 //!
 //! The editing itself (the operations, the nets made again from the drawing, undo and redo) is in
@@ -25,6 +28,7 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
+pub mod assign;
 pub mod codes;
 pub mod hit;
 pub mod ops_file;
@@ -37,6 +41,7 @@ mod state_tests;
 mod testutil;
 pub mod transfer;
 
+pub use assign::{apply_assignments, plan_assignment, plan_selected, AssignPlan};
 pub use codes::{SchEditError, REGISTRY};
 pub use ops_file::{apply_operations, read_operations, ApplyReport};
 pub use palette::{Palette, PaletteEntry};
