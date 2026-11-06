@@ -793,7 +793,7 @@ const TABLE: [(LibText, [&str; 8]); 88] = [
         [
             "Gates",
             "Puertas",
-            "Gates",
+            "Gatter",
             "Portes",
             "Porte",
             "ゲート",

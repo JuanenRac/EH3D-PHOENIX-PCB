@@ -262,7 +262,7 @@ const TABLE: [(BoardMsg, [&str; 8]); BoardMsg::COUNT] = [
             "Huella",
             "Footprint",
             "Empreinte",
-            "Footprint",
+            "Impronta",
             "フットプリント",
             "封装",
             "Pegada",
