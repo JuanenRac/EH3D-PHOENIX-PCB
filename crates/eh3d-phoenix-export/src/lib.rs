@@ -19,6 +19,8 @@
 //! * [`stencil`]: the openings of the solder paste stencil of each face as Gerber files, reduced and
 //!   split into windows by `config/stencil.cfg`, with the checks of the aspect and area ratios and a
 //!   report of every opening;
+//! * [`fabpack`] and [`zipfile`]: the fabrication package, a deterministic `.zip` (or a new folder)
+//!   with a manifest `phoenix-fab-package/1`, written with no dependency and read back to check it;
 //! * [`fabcodes`] and [`fabutil`]: the codes `PHOENIX-PNP-<NNN>`, `PHOENIX-STENCIL-<NNN>` and
 //!   `PHOENIX-FABPACK-<NNN>` with their titles in the eight languages, and the small helpers of those
 //!   modules;
@@ -37,6 +39,7 @@ pub mod codes;
 pub mod excellon;
 pub mod fab;
 pub mod fabcodes;
+pub mod fabpack;
 pub mod fabutil;
 pub mod gerber;
 pub mod messages;
@@ -46,6 +49,7 @@ pub mod profile;
 pub mod stencil;
 pub mod verify;
 pub mod x2;
+pub mod zipfile;
 
 pub use fab::{build, FabFile, FabSet, FileRole};
 pub use messages::Lang;
