@@ -9,7 +9,7 @@
 //! and the check of their structure adds `gerber-check`; the layout of a panel of boards adds `panel`; the bill of materials with costs adds `bom`
 //! and the 3D assembly of the board with the models of its components adds `assembly3d`; the run of
 //! the reference cases of the calculations adds `oracle`, and the run of the own corpus of small
-//! hand-written pieces adds `corpus`.
+//! hand-written pieces adds `corpus`. The signal integrity estimates add `si`.
 //! The writing of boards, schematics and libraries as KiCad 8 files adds `kicad-export`.
 //! The simulation netlist of a schematic, made from a table of models, adds `netlist`.
 //! The annotation back into the schematic, as a plan that is read before it is applied, adds
@@ -68,6 +68,7 @@ mod route;
 mod sanitize;
 mod schedit;
 mod script;
+mod si;
 mod sim;
 mod stencil;
 mod view;
@@ -347,6 +348,15 @@ phoenix lengths [--config FILE] [--stackup FILE] [--groups FILE] [--out FILE] [-
                 must match in length and differential pairs; a prototype, run `phoenix lengths`
                 alone for its options
 
+phoenix si <crosstalk|reflect|eye|check> [--stackup FILE] [--net NAME] [--config FILE]
+           [--out FILE] [--json] [--lang xx] <board>
+
+  si            signal integrity estimates of a board: the crosstalk between parallel tracks, the
+                reflections and terminations by the method of Bergeron with the slowing of the
+                edge by the loss, a simplified eye diagram and the return path of the tracks, with
+                the codes PHOENIX-SI-<NNN>; quasi-static, a prototype, a dry run unless --out names
+                a new file, run `phoenix si` alone for its options
+
 phoenix bom [--config FILE] [--prices FILE] [--parts FILE] [--schematic FILE] [--stackup FILE]
             [--boards N] [--csv FILE] [--json-file FILE] [--html FILE] [--json] [--lang xx]
             <board>
@@ -595,6 +605,9 @@ pub fn run(args: &[String], out: &mut dyn Write, err: &mut dyn Write) -> i32 {
     }
     if let Some((&"lengths", tail)) = rest.split_first() {
         return lengths::lengths_command(tail, out, err);
+    }
+    if let Some((&"si", tail)) = rest.split_first() {
+        return si::si_command(tail, out, err);
     }
     if let Some((&"bom", tail)) = rest.split_first() {
         return bom::bom_command(tail, out, err);
