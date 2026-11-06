@@ -149,7 +149,7 @@ fn want_bool(v: Value, pos: Pos, what: &str) -> Result<bool, Diag> {
     }
 }
 
-impl<'a> Interp<'a> {
+impl Interp<'_> {
     fn tick(&mut self, pos: Pos) -> Result<(), Diag> {
         self.charge(1, pos)
     }

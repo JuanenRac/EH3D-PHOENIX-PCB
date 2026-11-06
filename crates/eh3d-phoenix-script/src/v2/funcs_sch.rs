@@ -216,7 +216,7 @@ fn f_place_part(i: &mut Interp<'_>, a: &[Value]) -> R {
 
 fn f_draw_wire(i: &mut Interp<'_>, a: &[Value]) -> R {
     let items = crate::v2::funcs::list(a, 0)?;
-    if items.len() % 2 != 0 || items.len() < 4 {
+    if items.len() & 1 == 1 || items.len() < 4 {
         return Err(Diag::plain(
             TYPE_MISMATCH,
             "a wire is a flat list of x, y pairs with at least two points",

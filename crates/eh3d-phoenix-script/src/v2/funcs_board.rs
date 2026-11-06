@@ -67,7 +67,7 @@ fn component_of(w: &BoardWorld, id: Id) -> Result<&Component, Diag> {
 
 fn points(args: &[Value], index: usize, least: usize) -> Result<Vec<Point>, Diag> {
     let items = list(args, index)?;
-    if items.len() % 2 != 0 || items.len() < least * 2 {
+    if items.len() & 1 == 1 || items.len() < least * 2 {
         return Err(Diag::plain(
             TYPE_MISMATCH,
             format!(

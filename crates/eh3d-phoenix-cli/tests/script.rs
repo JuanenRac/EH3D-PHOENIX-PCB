@@ -497,7 +497,7 @@ fn out_writes_the_result_of_a_second_version_script_once() {
     ]);
     assert_eq!(code, 2);
     assert!(err.contains("never replaced"), "{err}");
-    assert_eq!(fs::read(&target).unwrap(), written);
+    assert_eq!(fs::read(target.as_path()).unwrap(), written);
 }
 
 #[test]
@@ -573,7 +573,7 @@ fn the_data_folder_is_the_only_place_a_script_can_write_and_only_when_applied() 
         &board_path,
     ]);
     assert_eq!(code, 0, "{err}");
-    assert_eq!(fs::read_to_string(&file).unwrap(), "hi");
+    assert_eq!(fs::read_to_string(file.as_path()).unwrap(), "hi");
     let escape = write_script(
         dir.path(),
         "e.phs",

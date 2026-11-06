@@ -393,7 +393,9 @@ fn a_script_is_one_step_of_the_history_and_one_undo_gives_the_board_back() {
     };
     let mut board = fx.board.clone();
     let mut history = History::new();
-    history.execute(&mut board, (**batch).clone()).unwrap();
+    history
+        .execute(&mut board, Operation::clone(batch))
+        .unwrap();
     assert_eq!(&board, o.board.as_ref().unwrap());
     assert_eq!(history.done().len(), 1);
     assert!(history.undo(&mut board));
@@ -807,8 +809,9 @@ fn files_are_unreachable_without_a_data_folder() {
     assert_eq!(lines(&o), vec!["false"]);
     let o = run_in(dir.path(), "print(data_enabled())", &data_settings());
     assert_eq!(lines(&o), vec!["true"]);
-    let program = parse_program(&source("print(read_text(\"a.txt\"))"), &data_settings()).unwrap();
-    let ctx = RunContext::new(&data_settings());
+    let with_folder = data_settings();
+    let program = parse_program(&source("print(read_text(\"a.txt\"))"), &with_folder).unwrap();
+    let ctx = RunContext::new(&with_folder);
     let o = run(&program, Doc::None, &ctx);
     assert_eq!(o.diagnostics[0].code, c::DATA_PATH);
 }
