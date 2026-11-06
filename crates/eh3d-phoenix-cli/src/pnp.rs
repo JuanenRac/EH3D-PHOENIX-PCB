@@ -140,6 +140,21 @@ fn parse_options(args: &[&str]) -> Result<Options, FabError> {
     Ok(o)
 }
 
+/// The language of the design rules for the language of the export (the two enums have the same variants).
+fn rules_lang(lang: Lang) -> eh3d_phoenix_rules::Lang {
+    use eh3d_phoenix_rules::Lang as R;
+    match lang {
+        Lang::En => R::En,
+        Lang::Es => R::Es,
+        Lang::De => R::De,
+        Lang::Fr => R::Fr,
+        Lang::It => R::It,
+        Lang::Ja => R::Ja,
+        Lang::Zh => R::Zh,
+        Lang::Pt => R::Pt,
+    }
+}
+
 fn pnp(o: &Options, out: &mut dyn Write) -> Result<i32, FabError> {
     let [board_path] = o.files.as_slice() else {
         return Err(FabError::new(
@@ -161,7 +176,7 @@ fn pnp(o: &Options, out: &mut dyn Write) -> Result<i32, FabError> {
     let mut variant_note = String::new();
     if let Some(name) = &o.variant {
         let source = o.variant_file.as_deref().unwrap_or(board_path);
-        let view = crate::eagle_deep::variant_view(source, name, o.lang)
+        let view = crate::eagle_deep::variant_view(source, name, rules_lang(o.lang))
             .map_err(|message| FabError::new(PNP_OPTION_INVALID, message))?;
         let left_out = view.not_fitted();
         variant_note = format!(
