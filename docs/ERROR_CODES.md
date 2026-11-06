@@ -438,6 +438,36 @@ The titles of these codes also exist in the eight languages of the suite (`TITLE
 | PHOENIX-SYNC-014 | Settings are not valid | a line of the settings text that is not `key = value`, an unknown key or a value out of range |
 | PHOENIX-SYNC-015 | Change could not be applied | an operation that does not apply to the document it is applied to (a package made for another board or schematic) |
 
+## Annotation back into the schematic and comparison (`eh3d-phoenix-sync`, `src/annot_codes.rs`)
+
+The titles of these codes also exist in the eight languages of the suite (`TITLES` in `src/annot_codes.rs`). The codes 001 to 009 are the items of the plan of `phoenix annotate` (001 to 007 the changes, 008 the state conflict, 009 the state left out by the settings), 010 to 012 are errors of the command, and 013 to 023 are the entries of the comparison of the two documents (`phoenix sync --diff`); 021 to 023 are conflicts.
+
+| Code | Title | Raised by |
+|---|---|---|
+| PHOENIX-ANNOT-001 | Reference designator differs on the board | a component whose reference designator is not the one of its part; the plan writes the one of the board into the schematic |
+| PHOENIX-ANNOT-002 | Value differs on the board | a component whose value is not the one of its part |
+| PHOENIX-ANNOT-003 | Footprint differs on the board | a component whose footprint is not the one chosen for its part |
+| PHOENIX-ANNOT-004 | Component on the board has no part | a component with no part in the schematic; listed and ignored, a part needs a symbol that only the drawing can give |
+| PHOENIX-ANNOT-005 | Part has no component on the board | a part with no component; listed and ignored |
+| PHOENIX-ANNOT-006 | Equivalent pins or gates swapped on the board | pins or gates that `config/annotate.cfg` lists as equivalent and that the board connects to the nets of the schematic the other way round |
+| PHOENIX-ANNOT-007 | Reference designator renumbered by position | a reference that the renumbering by position (`renumber = true`) changes, on the board and in the schematic |
+| PHOENIX-ANNOT-008 | Change conflicts with the rest of the plan | the state `conflict` of an item: a reference that would be empty or used twice, a second component of one part, a footprint the board does not have, a swap that the net list alone cannot take |
+| PHOENIX-ANNOT-009 | Change left out by the settings | the state `ignored` of a value or footprint change when `values` or `footprints` is false |
+| PHOENIX-ANNOT-010 | Annotation settings are not valid | a line of the settings text that is not `key = value`, an unknown key or a value out of range |
+| PHOENIX-ANNOT-011 | Confirmation does not match the plan | `--apply` with a confirmation code that is not the digest of the plan that was read |
+| PHOENIX-ANNOT-012 | Plan could not be applied | an edit that does not apply to the schematic or the board it is applied to |
+| PHOENIX-ANNOT-013 | Part has no component (schematic only) | a part of the schematic with no component on the board |
+| PHOENIX-ANNOT-014 | Component has no part (board only) | a component of the board with no part in the schematic |
+| PHOENIX-ANNOT-015 | Values differ | a part and its component with different values |
+| PHOENIX-ANNOT-016 | Footprints differ | a part and its component with different footprints |
+| PHOENIX-ANNOT-017 | Reference designators differ | a part and its component with different reference designators |
+| PHOENIX-ANNOT-018 | Net exists in one document only | a net name that the other document does not have |
+| PHOENIX-ANNOT-019 | Pin is on a net in one document only | a pin of a paired part on a net in one document and on none in the other |
+| PHOENIX-ANNOT-020 | Net holds other pins in each document | a net name that both have, with other pins of paired parts on it |
+| PHOENIX-ANNOT-021 | Reference designator used twice | one reference designator on two parts or on two components (a conflict) |
+| PHOENIX-ANNOT-022 | Part used by two components | two components made from one part (a conflict) |
+| PHOENIX-ANNOT-023 | Reference designator taken by another item | a change that would give a reference to an item while another item of the other document keeps it (a conflict) |
+
 ## Schematic editor (`eh3d-phoenix-schedit`, `src/codes.rs`)
 
 | Code | Title | Raised by |
@@ -762,6 +792,14 @@ The titles of these codes also exist in the eight languages of the suite (`TITLE
 | PHOENIX-PANEL-010 | Gap ignored for V-score | information: with `joint = v_score` the boards touch and `gap_nm` is not used |
 | PHOENIX-PANEL-011 | Marks skipped: the panel has no frame | warning: fiducials or tooling holes were asked for and `frame = none`, so none was put on the panel |
 | PHOENIX-PANEL-012 | Mouse bite holes do not fit the tab | `mouse_bite_holes` holes at `mouse_bite_pitch_nm` that take more than `tab_width_nm` |
+| PHOENIX-PANEL-013 | Board list or placement is not valid | an empty list of boards, a board number in a `place` line that is not in the list, a rotation that is not 0, 90, 180 or 270, a position below zero, or some boards placed and others not |
+| PHOENIX-PANEL-014 | Boards overlap or are too close | two boards of the panel whose boxes overlap or are closer than `gap_nm` |
+| PHOENIX-PANEL-015 | V-score line too close to copper | a V-score line that passes closer than `v_score_clearance_nm` to a pad, a track, a via or a zone of a board |
+| PHOENIX-PANEL-016 | V-score lines cannot separate the boards | with `joint = v_score`, two boards for which no line of the panel runs between them from edge to edge (the boards are not in a grid) |
+| PHOENIX-PANEL-017 | Local fiducial does not fit on the board | `local_fiducial_count` marks that do not fit inside the box of a board at `local_fiducial_inset_nm` from its edges |
+| PHOENIX-PANEL-018 | Boards of the panel have different layers | boards of a panel with another number of copper layers, or a layer that has no layer of the same kind and name in the first board |
+| PHOENIX-PANEL-019 | Panel files differ from the plan when read back | the files of the panel read back with the importer of this suite do not hold the copies, the holes and the marks that the plan has |
+| PHOENIX-PANEL-020 | Board is not joined to the panel | warning: with `joint = mouse_bites` a board with no tab on any side (no board or rail at the distance `gap_nm` from an edge) |
 
 ## Bill of materials with costs (`eh3d-phoenix-bom`, `src/codes.rs`)
 

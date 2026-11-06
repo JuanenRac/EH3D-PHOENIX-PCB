@@ -8,16 +8,25 @@
 //! edit is touched.
 
 use std::collections::btree_map::Entry;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use eh3d_phoenix_board::Board;
-use eh3d_phoenix_schematic::{Id, Schematic};
+use eh3d_phoenix_schematic::{Id, NetPin, Schematic};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
 use crate::codes::{ChangeKind, FOOTPRINT_UNUSABLE, PART_TWICE, REFDES_CLASH};
 use crate::report::{Change, Direction, Report, Skipped};
 use crate::settings::SyncSettings;
+
+/// A pin put on a net, or on none.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PinMove {
+    /// The pin.
+    pub pin: NetPin,
+    /// The net it is put on, or `None` to take it off every net.
+    pub net: Option<Id>,
+}
 
 /// A change to a schematic.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -44,6 +53,13 @@ pub enum SchematicEdit {
         /// The new footprint.
         footprint: Option<Id>,
     },
+    /// Puts pins on nets in the net list (equivalent pins or gates that the board connects the other
+    /// way round). The drawing is not changed, so the editor only offers it for a schematic
+    /// without wires.
+    SetPinNets {
+        /// The pins and the nets they are put on.
+        moves: Vec<PinMove>,
+    },
     /// Several edits that are applied and undone as one.
     Batch {
         /// The edits, in order.
@@ -57,6 +73,12 @@ pub enum SyncError {
     /// The part to change does not exist.
     #[error("the part {0} does not exist")]
     MissingPart(Id),
+    /// The pin to move does not exist.
+    #[error("the pin {0:?} does not exist")]
+    MissingPin(NetPin),
+    /// The net to put a pin on does not exist.
+    #[error("the net {0} does not exist")]
+    MissingNet(Id),
 }
 
 impl SyncError {
@@ -100,6 +122,44 @@ impl SchematicEdit {
                     part: *part,
                     footprint: std::mem::replace(&mut p.footprint, *footprint),
                 })
+            }
+            SchematicEdit::SetPinNets { moves } => {
+                // checked first, so that an error leaves the schematic as it was
+                for m in moves {
+                    if schematic.pin_number(m.pin).is_none() {
+                        return Err(SyncError::MissingPin(m.pin));
+                    }
+                    if let Some(net) = m.net {
+                        if !schematic.nets.contains_key(&net) {
+                            return Err(SyncError::MissingNet(net));
+                        }
+                    }
+                }
+                let inverse: Vec<PinMove> = moves
+                    .iter()
+                    .map(|m| PinMove {
+                        pin: m.pin,
+                        net: schematic
+                            .nets
+                            .iter()
+                            .find(|(_, net)| net.pins.contains(&m.pin))
+                            .map(|(id, _)| *id),
+                    })
+                    .collect();
+                let moved: BTreeSet<NetPin> = moves.iter().map(|m| m.pin).collect();
+                for net in schematic.nets.values_mut() {
+                    net.pins.retain(|p| !moved.contains(p));
+                }
+                for m in moves {
+                    if let Some(id) = m.net {
+                        if let Some(net) = schematic.nets.get_mut(&id) {
+                            net.pins.push(m.pin);
+                            net.pins.sort();
+                            net.pins.dedup();
+                        }
+                    }
+                }
+                Ok(SchematicEdit::SetPinNets { moves: inverse })
             }
             SchematicEdit::Batch { edits } => {
                 // All or nothing: on a failure everything applied so far is undone.
