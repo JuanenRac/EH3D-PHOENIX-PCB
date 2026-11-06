@@ -209,8 +209,22 @@ fn export_can_also_write_a_package() {
     assert_eq!(code, 0, "{err}");
     let first = std::fs::read(&package).unwrap();
     assert!(first.starts_with(b"PK"));
-    assert_eq!(call(&args).0, 0);
+    // a file that is there is never replaced, so the same call again is refused
+    assert_eq!(call(&args).0, 2);
     assert_eq!(std::fs::read(&package).unwrap(), first);
+    // the same board in new places gives the very same package
+    let again = f.path("again.eh3dproj");
+    let fab_again = f.path("fab_again");
+    let (code, _, err) = call(&[
+        "export",
+        "--eh3dproj",
+        again.to_str().unwrap(),
+        "--out",
+        fab_again.to_str().unwrap(),
+        json.as_str(),
+    ]);
+    assert_eq!(code, 0, "{err}");
+    assert_eq!(std::fs::read(&again).unwrap(), first);
 }
 
 #[test]
