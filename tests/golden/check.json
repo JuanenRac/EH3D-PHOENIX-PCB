@@ -1,0 +1,21 @@
+{
+  "confirmed": [
+    {
+      "at_nm": [
+        7000000,
+        10000000
+      ],
+      "code": "PHOENIX-CHECK-001",
+      "detail": "",
+      "limit_nm": 220000,
+      "location": "track <ID>",
+      "measured_nm": 200000,
+      "rank": 1,
+      "rule": "track_width",
+      "severity": "error"
+    }
+  ],
+  "inconclusive": [],
+  "passes": false,
+  "schema": "phoenix-check/1"
+}

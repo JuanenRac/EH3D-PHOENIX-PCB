@@ -1,0 +1,3 @@
+Confirmados: 1
+  [error] PHOENIX-CHECK-001 Pista mais estreita do que o mínimo: track <ID> | at (7000000, 10000000) nm | medido 200000 nm | limite 220000 nm
+Inconclusivos: 0

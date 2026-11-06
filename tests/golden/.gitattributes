@@ -1,0 +1,2 @@
+# the goldens hold exact bytes; the test reads them with the line ends of Unix
+* -text

@@ -1,0 +1,2 @@
+list,category,severity,code,title,location,x_nm,y_nm,measured_nm,limit_nm,detail
+confirmed,size,error,PHOENIX-CHECK-001,Leiterbahn schmaler als das Minimum,track <ID>,7000000,10000000,200000,220000,
