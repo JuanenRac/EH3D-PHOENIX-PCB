@@ -177,3 +177,30 @@ fn a_via_of_another_net_or_outside_the_grid_is_not_used() {
     assert!(free[0].is_empty());
     assert!(off[0].is_empty());
 }
+
+#[test]
+fn a_route_that_starts_on_the_node_of_a_via_off_it_starts_at_the_via() {
+    // the connection ends at the via itself, 0.1 mm east of the node (1 mm, 0): the piece that
+    // goes to the node and comes back is not a track
+    let node = |ix: i64, slot: usize| Node { ix, iy: 0, slot };
+    let found = Found {
+        nodes: vec![node(2, 0), node(2, 1), node(3, 1)],
+        src: 0,
+        dst: 0,
+        expansions: 3,
+    };
+    let sources = [Terminal {
+        slot: 0,
+        ix: 2,
+        iy: 0,
+        stub: vec![(1_100_000, 0), (1_000_000, 0)],
+    }];
+    let targets = [terminal(1, 3, (1_500_000, 0))];
+    let free: HashMap<(i64, i64), (usize, usize)> = HashMap::from([((2, 0), (0, 1))]);
+    let off: HashMap<(i64, i64), (i64, i64)> = HashMap::from([((2, 0), (1_100_000, 0))]);
+    let route = assemble(&found, &sources, &targets, &[0, 1], &grid(), &free, &off);
+    assert_eq!(route.snapped, 1);
+    assert_eq!(route.runs.len(), 1);
+    assert_eq!(route.runs[0].layer, 1);
+    assert_eq!(route.runs[0].pts, vec![(1_100_000, 0), (1_500_000, 0)]);
+}

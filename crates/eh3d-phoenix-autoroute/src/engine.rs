@@ -197,6 +197,10 @@ fn simplify(points: &[P]) -> Vec<P> {
         while out.len() >= 2 && turn(out[out.len() - 2], out[out.len() - 1], *p) == 0 {
             out.pop();
         }
+        // a piece that goes out and comes back leaves the point it came from, once
+        if out.last() == Some(p) {
+            continue;
+        }
         out.push(*p);
     }
     out
