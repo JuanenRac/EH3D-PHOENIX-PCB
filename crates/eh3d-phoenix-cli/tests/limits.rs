@@ -71,10 +71,7 @@ fn a_limit_of_the_reader_changes_what_check_reads_and_without_it_nothing_changes
     let (code, out, err) = call(&["check", "--rules", &rules, &brd]);
     let (tight_code, tight_out, tight_err) =
         call(&["check", "--limits", &tight, "--rules", &rules, &brd]);
-    assert!(
-        code < 2 && tight_code == code,
-        "{out}\n{err}\n{tight_err}"
-    );
+    assert!(code < 2 && tight_code == code, "{out}\n{err}\n{tight_err}");
     // the report is the same, the note that parts were not read is not
     assert_eq!(out, tight_out);
     assert!(!err.contains("note: "), "{err}");
