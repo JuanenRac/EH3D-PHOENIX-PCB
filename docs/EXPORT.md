@@ -17,7 +17,7 @@ A file name and a column come from the profile; the names above are the defaults
 
 ## Gerber X2
 
-Every layer file has `.GenerationSoftware` (`EH3D,PHOENIX-PCB,<version of the crate>`), `.FileFunction` and, for copper, solder mask, paste and legend, `.FilePolarity`.
+Every layer file has `.GenerationSoftware` (`EH3D,PHOENIX-PCB,<version of the crate>`), `.FileFunction` and, for copper, solder mask, paste and legend, `.FilePolarity`. This is the level `legacy` of the section `gerber.x2` of a profile and it is the default; the levels `x1` (no attribute), `file`, `aperture` and `full` (the file, aperture and object attributes, with the net, pin and component of every object) are described in `docs/GERBER_X2.md`.
 
 | Layer | `.FileFunction` | `.FilePolarity` |
 |---|---|---|
@@ -38,7 +38,7 @@ What is drawn:
 * **Profile:** the outline polygon as lines of `gerber.outline_width_nm`.
 * **Apertures** are numbered from 10 in the order of their sorted shapes, so there is one definition per shape.
 
-Not done: copper pours (a zone is its outline, `PHOENIX-EXPORT-002`), clearances, blind and buried vias, the object attributes of pads and nets (`TA`, `TO`) and a polygon pad.
+Not done: copper pours (a zone is its outline, `PHOENIX-EXPORT-002`), clearances, blind and buried vias, the component attributes beyond the reference, the pin and the net, and a polygon pad.
 
 ## Excellon
 
@@ -57,13 +57,16 @@ Both are plain text with one line per part or group, in the natural order of the
 
 ## Profiles
 
-A profile file is JSON: `{"format": "phoenix-export/1", "profiles": [...]}`. `config/export_profiles.json` holds `generic` and `jlc-like` (the second is shaped after the files low-cost assemblers ask for and has not been compared with any manufacturer). A missing field takes the default of its profile section; an unknown field, a value out of its range or a file name that is not a plain name is an error (`PHOENIX-EXPORT-011`). Lengths are integer nanometres.
+A profile file is JSON: `{"format": "phoenix-export/1", "profiles": [...]}`. `config/export_profiles.json` holds `generic`, `jlc-like` (shaped after the files low-cost assemblers ask for and not compared with any manufacturer), `x2-full` (the generic profile with every Gerber X2 attribute) and `x1` (the generic profile without any attribute). A missing field takes the default of its profile section; an unknown field, a value out of its range or a file name that is not a plain name is an error (`PHOENIX-EXPORT-011`). Lengths are integer nanometres.
 
 | Section | Field | Meaning (default) |
 |---|---|---|
 | `gerber` | `extension`, `decimal_digits` | Extension of the layer files (`gbr`) and digits after the point, 1 to 6 (6) |
 | | `mask_expansion_nm`, `paste_shrink_nm` | Opening past the pad in the mask (50000) and inside the pad in the paste (0), per side, within 1 mm |
 | | `outline_width_nm` | Width of the line of the profile (100000) |
+| `gerber.x2` | `level`, `object_attributes`, `strict` | `legacy`, `x1`, `file`, `aperture` or `full` (`legacy`); the object attributes `net`, `pin`, `component` of the level `full` (all three); refuse instead of escaping text a field cannot hold (false) |
+| | `creation_date`, `project_id`, `project_revision`, `same_coordinates` | `.CreationDate` (not written unless given), the UUID of `.ProjectId` (derived from the name of the board), its revision (`1`) and the identifier of `.SameCoordinates` (`Original`) |
+| | `fiducial_names`, `fiducial_scope`, `heatsink_pad_numbers` | Words of a footprint name that make its pads fiducials (`fiducial`), `local` or `global` (`local`) and the pad numbers that are heatsink pads (`EP`) |
 | `drill` | `style`, `decimals` | `decimal` or `fixed`, and the decimals of the decimal style (`decimal`, 6) |
 | | `fixed_integer_digits`, `fixed_decimal_digits` | The fixed format (3 and 3) |
 | | `plated_file`, `non_plated_file`, `oblong_as_slot` | File names and slots for oblong pads (`drill_pth.drl`, `drill_npth.drl`, false) |
@@ -98,7 +101,7 @@ phoenix export [--profile NAME] [--profiles FILE] [--lang CODE] [--eh3dproj FILE
 
 ## Codes
 
-`PHOENIX-EXPORT-001` to `PHOENIX-EXPORT-018`, with their titles in the eight languages (`messages.rs`) and in `ERROR_CODES.md`. A message is built from the title and a detail; the detail is in English.
+`PHOENIX-EXPORT-001` to `PHOENIX-EXPORT-020`, with their titles in the eight languages (`messages.rs`) and in `ERROR_CODES.md`. A message is built from the title and a detail; the detail is in English.
 
 ## Rounding and units
 

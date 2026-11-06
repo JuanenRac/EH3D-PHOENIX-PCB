@@ -48,7 +48,7 @@
         "crates/eh3d-phoenix-corpus/src/inventory.rs",
         "crates/eh3d-phoenix-model/src/canonical.rs",
         "crates/eh3d-phoenix-eagle/src/document.rs",
-        "crates/eh3d-phoenix-export/src/package.rs",
+        "crates/eh3d-phoenix-export/src/package.rs", "crates/eh3d-phoenix-export/src/x2.rs", "crates/eh3d-phoenix-gerber/src/x2check.rs",
         "crates/eh3d-phoenix-cli/src/lib.rs",
         "crates/eh3d-phoenix-eagle-board/src/writer.rs",
         "crates/eh3d-phoenix-rules/src/engine.rs",

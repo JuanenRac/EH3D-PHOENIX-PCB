@@ -31,6 +31,8 @@ Step and repeat (`SR`), aperture blocks (`AB`) and aperture transforms (`LM`, `L
 * on the outline, the number of lines and the bounding box;
 * in the drill files, the units, the number of holes, and the diameters and positions of the holes (as long as no slot is in the file); and that a file exists for every kind of hole the board has.
 
+When the profile of the export asks for Gerber X2 attributes (`docs/GERBER_X2.md`) the round trip also compares them: the file attributes, the function of each aperture and drill tool, and the pin, component and net of the objects of copper, solder mask and paste against the board. The import keeps the attributes of apertures and tools and the set of object attributes of every drawn object.
+
 Positions are compared within `compare_tolerance_nm`, so a coarser coordinate format is not a difference. Silkscreen and documentation layers are only read, because their strokes depend on the font. A difference is `PHOENIX-GBR-016`; a file of the export that cannot be read back is a difference too. `compare_files` does the same for files that were made from a board and changed afterwards.
 
 ## The command
@@ -42,6 +44,8 @@ phoenix gerber-import [--config FILE] [--json] [--lang CODE] [--profile NAME] [-
 ```
 
 A folder is read file by file, not below. The files are only read: the summary goes to the screen, and `--out` writes the JSON summary to a new file (an existing file, and any input, is refused). With `--roundtrip` the board is exported in memory and nothing is written. Exit code 0 is done, 1 a file could not be read or the round trip found a difference, 2 the arguments, the settings or the output are unusable.
+
+The structure of Gerber X2 and Excellon files can be checked with `phoenix gerber-check <file or folder> ...`, which reports the codes `PHOENIX-GX2-001` to `-010` (`docs/GERBER_X2.md`).
 
 ## What is not here
 

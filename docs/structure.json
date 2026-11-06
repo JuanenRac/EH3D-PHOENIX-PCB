@@ -403,6 +403,19 @@
           }
         },
         {
+          "name": "GERBER_X2.md",
+          "desc": {
+            "en": "Gerber X2 attributes in the export, and their check",
+            "es": "atributos Gerber X2 en la exportación, y su comprobación",
+            "de": "Gerber-X2-Attribute im Export und ihre Prüfung",
+            "fr": "attributs Gerber X2 dans l'export, et leur vérification",
+            "it": "attributi Gerber X2 nell'esportazione e la loro verifica",
+            "ja": "エクスポートの Gerber X2 属性とその検査",
+            "zh": "导出中的 Gerber X2 属性及其检查",
+            "pt": "atributos Gerber X2 na exportação, e a sua verificação"
+          }
+        },
+        {
           "name": "PANEL.md",
           "desc": {
             "en": "panelization: matrix, frame, tabs, V-score, fiducials, tooling holes",
