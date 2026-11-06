@@ -27,6 +27,9 @@ pub struct BoardEditSettings {
     pub live_drc: bool,
     /// Whether an operation that adds a rule error is refused.
     pub reject_new_errors: bool,
+    /// Whether the advanced checks (`config/drc_advanced.cfg`) run with the live check, so that
+    /// the findings they add or remove are part of the report before and after an operation.
+    pub advanced_drc: bool,
     /// Whether the tracks on the pads of a component follow it when it moves.
     pub follow_tracks: bool,
     /// Whether tracks may use 45-degree pieces.
@@ -92,6 +95,7 @@ impl BoardEditSettings {
             part_padding_nm: 0,
             live_drc: false,
             reject_new_errors: false,
+            advanced_drc: false,
             follow_tracks: false,
             diagonal_routes: false,
             corner_horizontal_first: true,
@@ -153,6 +157,7 @@ impl BoardEditSettings {
                 "reject_new_errors" => {
                     self.reject_new_errors = parse_bool(value).ok_or_else(bad)?
                 }
+                "advanced_drc" => self.advanced_drc = parse_bool(value).ok_or_else(bad)?,
                 "follow_tracks" => self.follow_tracks = parse_bool(value).ok_or_else(bad)?,
                 "diagonal_routes" => self.diagonal_routes = parse_bool(value).ok_or_else(bad)?,
                 "corner_horizontal_first" => {
@@ -268,6 +273,7 @@ mod tests {
         let s = BoardEditSettings::default();
         assert_eq!(s.grid_nm, 250_000);
         assert!(s.snap && s.live_drc && s.reject_new_errors && s.follow_tracks);
+        assert!(!s.advanced_drc);
         assert!(s.diagonal_routes && s.corner_horizontal_first);
         assert_eq!(s.track_width_nm, 250_000);
         assert_eq!(s.meander_candidates, 3);
@@ -300,6 +306,7 @@ mod tests {
             "grid_nm = x",
             "grid_nm = 0",
             "snap = maybe",
+            "advanced_drc = yes",
             "track_width_nm = 0",
             "meander_candidates = 0",
             "meander_candidates = 65",

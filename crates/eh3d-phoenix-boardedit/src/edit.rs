@@ -10,7 +10,7 @@ use std::sync::Arc;
 use eh3d_phoenix_board::{Board, Id, Operation, Step};
 use eh3d_phoenix_lengths::{measure_nets, LengthSettings};
 use eh3d_phoenix_route::{diff, findings, ratsnest, RatLine, RuleContext};
-use eh3d_phoenix_rules::{title, Finding, Lang, Severity};
+use eh3d_phoenix_rules::{advanced_findings, title, Finding, Lang, Severity};
 use eh3d_phoenix_zones::{FillReport, ZoneSettings};
 use serde_json::{json, Value};
 
@@ -241,7 +241,7 @@ impl BoardEdit {
         settings: BoardEditSettings,
     ) -> Result<BoardEdit, BoardEditError> {
         let found = if settings.live_drc {
-            rule_findings(&board, &ctx, &ZoneData::default())
+            rule_findings(&board, &ctx, &ZoneData::default(), settings.advanced_drc)
         } else {
             Vec::new()
         };
@@ -274,7 +274,12 @@ impl BoardEdit {
     pub fn with_zone_data(mut self, data: ZoneData) -> BoardEdit {
         self.zone_data = Arc::new(data);
         if self.settings.live_drc {
-            self.findings = rule_findings(&self.board, &self.ctx, &self.zone_data);
+            self.findings = rule_findings(
+                &self.board,
+                &self.ctx,
+                &self.zone_data,
+                self.settings.advanced_drc,
+            );
         }
         self
     }
@@ -384,7 +389,12 @@ impl BoardEdit {
     fn recheck(&mut self) {
         self.revision += 1;
         if self.settings.live_drc {
-            self.findings = rule_findings(&self.board, &self.ctx, &self.zone_data);
+            self.findings = rule_findings(
+                &self.board,
+                &self.ctx,
+                &self.zone_data,
+                self.settings.advanced_drc,
+            );
         }
     }
 
@@ -542,14 +552,19 @@ impl BoardEdit {
             .map_err(|e| BoardEditError::new(OPERATION_REFUSED, e.to_string()))?;
         let checked = self.settings.live_drc || plan.strict;
         let after = if checked {
-            rule_findings(&trial, &self.ctx, &plan.data)
+            rule_findings(&trial, &self.ctx, &plan.data, self.settings.advanced_drc)
         } else {
             Vec::new()
         };
         let before = if self.settings.live_drc || !plan.strict {
             self.findings.clone()
         } else {
-            rule_findings(&self.board, &self.ctx, &self.zone_data)
+            rule_findings(
+                &self.board,
+                &self.ctx,
+                &self.zone_data,
+                self.settings.advanced_drc,
+            )
         };
         let drc = DrcReport::new(&before, &after);
         if !force && (self.settings.reject_new_errors || plan.strict) {
@@ -653,7 +668,12 @@ impl BoardEdit {
                 continue;
             }
             let after = if self.settings.live_drc {
-                rule_findings(&trial, &self.ctx, &self.zone_data)
+                rule_findings(
+                    &trial,
+                    &self.ctx,
+                    &self.zone_data,
+                    self.settings.advanced_drc,
+                )
             } else {
                 Vec::new()
             };

@@ -51,6 +51,8 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
+#[cfg(test)]
+mod advanced_tests;
 mod arc;
 #[cfg(test)]
 mod arc_tests;
