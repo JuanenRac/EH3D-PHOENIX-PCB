@@ -312,46 +312,46 @@ fn the_wrong_arguments_of_the_export_exit_2() {
     assert_eq!(call(&["dxf-export", "board"]).0, 2);
     assert_eq!(call(&["dxf-export", "board", &f.board, "--nope"]).0, 2);
     assert_eq!(call(&["dxf-export", "board", &f.path("none.json")]).0, 2);
+}
 
-    #[test]
-    fn a_board_with_a_cutout_goes_to_a_drawing_and_back() {
-        let dir = tempfile::tempdir().unwrap();
-        let mut with = board();
-        with.outline_cutouts = vec![vec![pt(20, 25), pt(30, 25), pt(30, 35), pt(20, 35)]];
-        let with_path = dir.path().join("with.json");
-        std::fs::write(&with_path, with.to_bytes().unwrap()).unwrap();
-        let with_path = with_path.to_string_lossy().into_owned();
-        let target = dir.path().join("b.dxf").to_string_lossy().into_owned();
-        // the outline and the cutout are two closed contours on the layer of the outline
-        let (code, out, err) = call(&["dxf-export", "board", &with_path, "--out", &target]);
-        assert_eq!(code, 0, "{out}{err}");
-        assert!(out.contains("layer OUTLINE: 2"), "{out}");
-        // into a board that has no cutout: it is kept and written with the new board
-        let plain = files();
-        let result = plain.path("result.json");
-        let (code, out, err) = call(&[
-            "dxf-import",
-            &target,
-            "--board",
-            &plain.board,
-            "--layer",
-            "OUTLINE",
-            "--out",
-            &result,
-            "--json",
-        ]);
-        assert_eq!(code, 0, "{out}{err}");
-        let value: serde_json::Value = serde_json::from_str(&out).unwrap();
-        assert_eq!(value["cutouts"], 1);
-        assert_eq!(value["outline_cutouts_after"], 1);
-        let written = Board::from_bytes(&std::fs::read(&result).unwrap()).unwrap();
-        assert_eq!(written.outline.len(), 4);
-        assert_eq!(written.outline_cutouts.len(), 1);
-        let mut corners: Vec<(i64, i64)> = written.outline_cutouts[0]
-            .iter()
-            .map(|p| (p.x_nm.get() / MM, p.y_nm.get() / MM))
-            .collect();
-        corners.sort_unstable();
-        assert_eq!(corners, vec![(20, 25), (20, 35), (30, 25), (30, 35)]);
-    }
+#[test]
+fn a_board_with_a_cutout_goes_to_a_drawing_and_back() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut with = board();
+    with.outline_cutouts = vec![vec![pt(20, 25), pt(30, 25), pt(30, 35), pt(20, 35)]];
+    let with_path = dir.path().join("with.json");
+    std::fs::write(&with_path, with.to_bytes().unwrap()).unwrap();
+    let with_path = with_path.to_string_lossy().into_owned();
+    let target = dir.path().join("b.dxf").to_string_lossy().into_owned();
+    // the outline and the cutout are two closed contours on the layer of the outline
+    let (code, out, err) = call(&["dxf-export", "board", &with_path, "--out", &target]);
+    assert_eq!(code, 0, "{out}{err}");
+    assert!(out.contains("layer OUTLINE: 2"), "{out}");
+    // into a board that has no cutout: it is kept and written with the new board
+    let plain = files();
+    let result = plain.path("result.json");
+    let (code, out, err) = call(&[
+        "dxf-import",
+        &target,
+        "--board",
+        &plain.board,
+        "--layer",
+        "OUTLINE",
+        "--out",
+        &result,
+        "--json",
+    ]);
+    assert_eq!(code, 0, "{out}{err}");
+    let value: serde_json::Value = serde_json::from_str(&out).unwrap();
+    assert_eq!(value["cutouts"], 1);
+    assert_eq!(value["outline_cutouts_after"], 1);
+    let written = Board::from_bytes(&std::fs::read(&result).unwrap()).unwrap();
+    assert_eq!(written.outline.len(), 4);
+    assert_eq!(written.outline_cutouts.len(), 1);
+    let mut corners: Vec<(i64, i64)> = written.outline_cutouts[0]
+        .iter()
+        .map(|p| (p.x_nm.get() / MM, p.y_nm.get() / MM))
+        .collect();
+    corners.sort_unstable();
+    assert_eq!(corners, vec![(20, 25), (20, 35), (30, 25), (30, 35)]);
 }
