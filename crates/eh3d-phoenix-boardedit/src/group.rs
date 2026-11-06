@@ -126,7 +126,10 @@ fn validate(board: &Board, items: &[Item]) -> Result<(), BoardEditError> {
             return Err(missing(*item));
         }
         if !seen.insert(*item) {
-            return Err(refused(format!("{item:?} is named twice")));
+            return Err(BoardEditError::new(
+                ITEM_MISSING,
+                format!("{item:?} is named twice"),
+            ));
         }
     }
     Ok(())

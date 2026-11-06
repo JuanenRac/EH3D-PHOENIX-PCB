@@ -319,7 +319,7 @@ fn a_locked_component_or_a_missing_object_refuses_the_whole_operation() {
     let twice = EditOp::DeleteItems {
         items: vec![Item::Via(vias[0]), Item::Via(vias[0])],
     };
-    assert!(e.apply(&twice).is_err());
+    assert_eq!(e.apply(&twice).unwrap_err().code, ITEM_MISSING);
     assert_eq!(bytes(&e), before);
 }
 
