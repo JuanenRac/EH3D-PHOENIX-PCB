@@ -160,7 +160,7 @@ fn a_step_on_a_parameter_and_monte_carlo_work_through_one_plan() {
     // of 2 % of the value over sqrt(3)
     for (summary, (rl, mean)) in table.summaries.iter().zip([(1e3, 5.0), (3e3, 7.5)]) {
         let m = summary.per_measure[0].as_ref().unwrap();
-        let r1 = 1e3;
+        let r1: f64 = 1e3;
         let d1 = -10.0 * rl / ((r1 + rl) * (r1 + rl));
         let d2 = 10.0 * r1 / ((r1 + rl) * (r1 + rl));
         let sigma = ((d1 * 0.02 * r1).powi(2) + (d2 * 0.02 * rl).powi(2)).sqrt() / 3f64.sqrt();

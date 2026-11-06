@@ -222,7 +222,7 @@ pub fn parse_step(text: &str, line: Option<usize>) -> Result<StepSpec, SimError>
             }
             let mut list = Vec::new();
             for word in values {
-                list.push(num(*word)?);
+                list.push(num(word)?);
             }
             Spacing::List(list)
         }
