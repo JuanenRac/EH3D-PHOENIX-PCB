@@ -16,7 +16,7 @@ use eh3d_phoenix_corpus::suite::{self, CorpusSettings, SuiteError};
 use eh3d_phoenix_rules::Lang;
 
 pub(crate) const USAGE: &str = "\
-phoenix corpus run   [--dir FOLDER] [--filter TEXT] [--properties] [--settings FILE] [--out FILE] [--json] [--lang CODE]
+phoenix corpus run   [--dir FOLDER] [--filter TEXT] [--properties] [--settings FILE] [--limits FILE] [--out FILE] [--json] [--lang CODE]
 phoenix corpus list  [--dir FOLDER] [--filter TEXT] [--settings FILE]
 phoenix corpus check [--dir FOLDER] [--settings FILE] [--lang CODE]
 
@@ -33,6 +33,8 @@ phoenix corpus check [--dir FOLDER] [--settings FILE] [--lang CODE]
   --dir         the folder of the corpus (default tests/corpus)
   --filter      only the pieces whose id or kind contains the text
   --settings    a settings file (config/corpus.cfg) with the limits and the number of seeds
+  --limits      the limits of the EAGLE readers and of the checks of a board (config/eagle_board.cfg
+                and config/board.cfg), as for every command; without it the defaults are used
   --out         write the JSON report to a new file (an existing file is never replaced)
   --lang CODE   the words and messages in en, es, de, fr, it, ja, zh or pt
 ";
@@ -88,14 +90,21 @@ fn parse_options(args: &[&str]) -> Result<Options, SuiteError> {
 }
 
 fn settings_of(options: &Options) -> Result<CorpusSettings, SuiteError> {
-    match &options.settings {
-        None => Ok(CorpusSettings::default()),
+    let settings = match &options.settings {
+        None => CorpusSettings::default(),
         Some(path) => {
             let text = crate::bounded::read_config_text(path)
                 .map_err(|e| SuiteError::new(SETTINGS_INVALID, format!("{path}: {e}")))?;
-            CorpusSettings::parse(&text)
+            CorpusSettings::parse(&text)?
         }
-    }
+    };
+    // the limits of `--limits` (the defaults without it) go to the readers and the checks
+    let limits = crate::limits::active();
+    Ok(CorpusSettings {
+        board_limits: limits.board,
+        eagle_limits: limits.eagle,
+        ..settings
+    })
 }
 
 /// Writes a new file. An existing file is never replaced.

@@ -9,7 +9,7 @@ use std::io::Write;
 use std::path::Path;
 
 use eh3d_phoenix_board::Board;
-use eh3d_phoenix_eagle_board::read_board;
+use eh3d_phoenix_eagle_board::read_board_with_limits;
 use eh3d_phoenix_export::messages::{localize, written};
 use eh3d_phoenix_export::{
     build, export_package_reproducible, verify, ExportError, Lang, Profile, ProfileSet,
@@ -98,7 +98,7 @@ pub(crate) fn read_board_file(path: &str) -> Result<Board, String> {
     }
     let text = read_text(path)?;
     let mut new_id = id_source()?;
-    read_board(&text, &mut new_id)
+    read_board_with_limits(&text, &mut new_id, &crate::limits::active().eagle)
         .map(|read| read.board)
         .map_err(|diagnostic| diagnostic.message)
 }

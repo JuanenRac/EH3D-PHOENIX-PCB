@@ -9,7 +9,7 @@ use std::collections::BTreeMap;
 use std::io::Write;
 use std::time::Instant;
 
-use eh3d_phoenix_eagle_board::{read_board, read_schematic};
+use eh3d_phoenix_eagle_board::{read_board_with_limits, read_schematic_with_limits};
 use eh3d_phoenix_model::{DeterministicRandom, IdGenerator, Nm, ObjectId, StepClock};
 use eh3d_phoenix_rules::{
     check_advanced, check_board, check_classes, check_connectivity, dfm_findings, report_csv,
@@ -25,7 +25,7 @@ const KICAD_NEEDS_RULES: &str =
 const MAX_INPUT_BYTES: u64 = 256 * 1024 * 1024;
 
 pub(crate) const USAGE: &str = "\
-phoenix check [--rules FILE | --rules-dru FILE | --dfm FILE] [--advanced] [--drc-config FILE] [--json | --sarif] [--csv FILE] [--html FILE] [--time] [--lang CODE] <board.brd>
+phoenix check [--rules FILE | --rules-dru FILE | --dfm FILE] [--advanced] [--drc-config FILE] [--limits FILE] [--json | --sarif] [--csv FILE] [--html FILE] [--time] [--lang CODE] <board.brd>
 
   check         run the design rules on an EAGLE board. The limits come from FILE (a JSON rule
                 file, format phoenix-rules/1 or phoenix-rules/2, which adds net classes with
@@ -38,7 +38,7 @@ phoenix check [--rules FILE | --rules-dru FILE | --dfm FILE] [--advanced] [--drc
                 names (which implies --advanced); the spacing table is not verified against the
                 standard. --sarif prints a layout like SARIF, phoenix-drc/1
 
-phoenix connectivity [--rules FILE] [--json] [--csv FILE] [--html FILE] [--time] [--lang CODE] <schematic.sch> <board.brd>
+phoenix connectivity [--rules FILE] [--limits FILE] [--json] [--csv FILE] [--html FILE] [--time] [--lang CODE] <schematic.sch> <board.brd>
 
   connectivity  the copper of the board (shorts, unrouted nets) and the board against the schematic
                 (missing nets, unconnected pins, joined nets, names). The tolerance for copper
@@ -50,6 +50,8 @@ phoenix connectivity [--rules FILE] [--json] [--csv FILE] [--html FILE] [--time]
                 docs/DFM.md and config/dfm/example.cfg): its limits replace the rules of the board
                 and it also judges the copper layers, the size of the board, the largest drill and
                 the number of holes. The example profile is not verified against any maker
+  --limits FILE the limits of the reader of the EAGLE files (config/eagle_board.cfg), as for every
+                command; without it the defaults are used and the report is the same
   --csv FILE    also write the findings as a table of CSV, one row for each, with the stable keys of
                 the category and the severity and the title in the language of --lang
   --html FILE   also write the report as a page of HTML, grouped by category, with the headings in
@@ -316,7 +318,8 @@ pub(crate) fn check(args: &[&str], out: &mut dyn Write, err: &mut dyn Write) -> 
             Err(message) => return fail(err, &message),
         }
     } else {
-        let read = match read_board(&text, &mut new_id) {
+        let read = match read_board_with_limits(&text, &mut new_id, &crate::limits::active().eagle)
+        {
             Ok(read) => read,
             Err(diagnostic) => return fail(err, &diagnostic.message),
         };
@@ -398,16 +401,22 @@ pub(crate) fn connectivity(args: &[&str], out: &mut dyn Write, err: &mut dyn Wri
         Ok(source) => source,
         Err(message) => return fail(err, &message),
     };
-    let board = match read_board(&board_text, &mut new_id) {
-        Ok(read) => read.board,
-        Err(diagnostic) => return fail(err, &diagnostic.message),
-    };
+    let board =
+        match read_board_with_limits(&board_text, &mut new_id, &crate::limits::active().eagle) {
+            Ok(read) => read.board,
+            Err(diagnostic) => return fail(err, &diagnostic.message),
+        };
     let footprints: BTreeMap<String, ObjectId> = board
         .footprints
         .iter()
         .map(|(id, footprint)| (footprint.name.clone(), *id))
         .collect();
-    let schematic = match read_schematic(&schematic_text, &footprints, &mut new_id) {
+    let schematic = match read_schematic_with_limits(
+        &schematic_text,
+        &footprints,
+        &mut new_id,
+        &crate::limits::active().eagle,
+    ) {
         Ok(read) => read.schematic,
         Err(diagnostic) => return fail(err, &diagnostic.message),
     };

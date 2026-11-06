@@ -68,6 +68,7 @@ mod kicad_import;
 pub mod launch;
 mod lengths;
 mod libedit;
+mod limits;
 mod materials;
 mod netlist;
 mod oracle;
@@ -134,8 +135,8 @@ phoenix materials show <id> [--at-ghz F] [--json]
               frequency) and, with --phoenix, keeps the materials that serve the design tool;
               show prints one record (run `phoenix materials` alone for the kinds)
 
-phoenix check [--rules FILE | --rules-dru FILE] [--json] [--lang xx] <board.brd>
-phoenix connectivity [--rules FILE] [--json] [--lang xx] <schematic.sch> <board.brd>
+phoenix check [--rules FILE | --rules-dru FILE] [--limits FILE] [--json] [--lang xx] <board.brd>
+phoenix connectivity [--rules FILE] [--limits FILE] [--json] [--lang xx] <schematic.sch> <board.brd>
 
   check         run the design rules of FILE (JSON, phoenix-rules/1), of an EAGLE design rule file
                 (--rules-dru, a .dru) or of the board on an EAGLE board
@@ -542,6 +543,14 @@ phoenix --help [--lang xx]
   help          the listing of the commands and of the topics (schematic, board, libraries,
                 manufacturing, simulation, rf, signal, formats, safety, errors, scripts), or the
                 help of one topic or one command, in en, es, de, fr, it, ja, zh or pt
+
+phoenix --limits FILE <command> ...  |  phoenix <command> ... --limits FILE
+
+  --limits      every command takes it: the limits of the readers of EAGLE files
+                (max_outline_rings, max_restrict_checks, max_bus_checks of config/eagle_board.cfg)
+                and of the checks of a board (max_polygon_points of config/board.cfg), as
+                `key = value` lines of one file; without it the defaults of those files are used and
+                no output changes. The file is only read
 ";
 
 /// The options whose value is a path that a command writes to (or a folder it writes in).
@@ -597,6 +606,26 @@ pub fn run(args: &[String], out: &mut dyn Write, err: &mut dyn Write) -> i32 {
         let _ = writeln!(err, "error: {message}");
         return 2;
     }
+    // `--limits FILE` is read by every command: the limits of the readers of EAGLE files and of
+    // the checks of a board (config/eagle_board.cfg and config/board.cfg); without it the defaults
+    // are in force. The file is read, never written, so it is not an output option
+    let limits_file = match limits::take_option(&mut args) {
+        Ok(file) => file,
+        Err(message) => {
+            let _ = writeln!(err, "error: {message}");
+            return 2;
+        }
+    };
+    let _limits_guard = match limits_file {
+        Some(path) => match limits::Limits::load(&path) {
+            Ok(loaded) => limits::Guard::set(loaded),
+            Err(message) => {
+                let _ = writeln!(err, "error: {message}");
+                return 2;
+            }
+        },
+        None => limits::Guard::set(limits::Limits::default()),
+    };
     let rest: Vec<&str> = args.iter().map(String::as_str).collect();
     // the words of the table of commands, then `help` and the options that ask for it
     if let Some((name, tail)) = rest.split_first() {

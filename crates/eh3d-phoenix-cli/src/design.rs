@@ -15,7 +15,9 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use eh3d_phoenix_board::{Board, History};
-use eh3d_phoenix_eagle_board::{read_board, read_schematic, write_board, write_schematic};
+use eh3d_phoenix_eagle_board::{
+    read_board_with_limits, read_schematic_with_limits, write_board, write_schematic,
+};
 use eh3d_phoenix_erc::{check_hier, ErcConfig};
 use eh3d_phoenix_model::ObjectId;
 use eh3d_phoenix_rules::Lang;
@@ -174,7 +176,7 @@ pub(crate) fn load_board(
     if has_extension(path, "json") {
         Board::from_bytes(text.as_bytes()).map_err(|e| format!("cannot read {path}: {e}"))
     } else {
-        read_board(&text, new_id)
+        read_board_with_limits(&text, new_id, &crate::limits::active().eagle)
             .map(|read| read.board)
             .map_err(|d| format!("cannot read {path}: {}", d.message))
     }
@@ -192,7 +194,7 @@ pub(crate) fn load_schematic(
     if has_extension(path, "json") {
         Schematic::from_bytes(text.as_bytes()).map_err(|e| format!("cannot read {path}: {e}"))
     } else {
-        read_schematic(&text, footprints, new_id)
+        read_schematic_with_limits(&text, footprints, new_id, &crate::limits::active().eagle)
             .map(|read| read.schematic)
             .map_err(|d| format!("cannot read {path}: {}", d.message))
     }

@@ -15,7 +15,7 @@ use std::io::Write;
 use std::path::Path;
 
 use eh3d_phoenix_board::Board;
-use eh3d_phoenix_eagle_board::read_schematic;
+use eh3d_phoenix_eagle_board::read_schematic_with_limits;
 use eh3d_phoenix_libedit::{read_library, to_text as library_text, LibSettings, Library};
 use eh3d_phoenix_parts::{PartsDb, PartsSettings};
 use eh3d_phoenix_rules::{Lang, RuleFile, RuleValues};
@@ -210,9 +210,14 @@ fn load_document(path: &str) -> Result<Document, Diag> {
         let text = read_text(path).map_err(unreadable)?;
         let mut new_id = id_source().map_err(unreadable)?;
         let footprints = BTreeMap::new();
-        return read_schematic(&text, &footprints, &mut new_id)
-            .map(|read| Document::Schematic(read.schematic))
-            .map_err(|d| Diag::plain(INPUT_UNREADABLE, format!("{path}: {}", d.message)));
+        return read_schematic_with_limits(
+            &text,
+            &footprints,
+            &mut new_id,
+            &crate::limits::active().eagle,
+        )
+        .map(|read| Document::Schematic(read.schematic))
+        .map_err(|d| Diag::plain(INPUT_UNREADABLE, format!("{path}: {}", d.message)));
     }
     if has_extension(path, "json") {
         let text = read_text(path).map_err(unreadable)?;

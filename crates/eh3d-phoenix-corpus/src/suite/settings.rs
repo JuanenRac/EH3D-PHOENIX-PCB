@@ -3,6 +3,9 @@
 //! A missing line keeps the default; an unknown key or a value out of range is refused with its
 //! line number.
 
+use eh3d_phoenix_board::validate::BoardLimits;
+use eh3d_phoenix_eagle_board::EagleLimits;
+
 use super::codes::{SuiteError, SETTINGS_INVALID};
 
 /// The bounds of a run of the own corpus and of the properties.
@@ -25,6 +28,11 @@ pub struct CorpusSettings {
     pub property_max_components: u32,
     /// The most changes tried on a generated board by the properties of undo and rejection.
     pub property_max_steps: u32,
+    /// The limits of the checks of a board; they are not read from the settings file but given by
+    /// the caller (the command takes them from `--limits`).
+    pub board_limits: BoardLimits,
+    /// The limits of the readers of EAGLE files, given by the caller like `board_limits`.
+    pub eagle_limits: EagleLimits,
 }
 
 impl Default for CorpusSettings {
@@ -38,6 +46,8 @@ impl Default for CorpusSettings {
             property_first_seed: 1,
             property_max_components: 5,
             property_max_steps: 12,
+            board_limits: BoardLimits::default(),
+            eagle_limits: EagleLimits::default(),
         }
     }
 }

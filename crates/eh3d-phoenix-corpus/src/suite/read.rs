@@ -8,7 +8,7 @@ use std::path::Path;
 use eh3d_phoenix_board::rules::RuleSet;
 use eh3d_phoenix_board::Board;
 use eh3d_phoenix_eagle::{read_bytes, Limits};
-use eh3d_phoenix_eagle_board::{read_board, read_schematic as read_eagle_schematic};
+use eh3d_phoenix_eagle_board::{read_board_with_limits, read_schematic_with_limits};
 use eh3d_phoenix_erc::{check as erc_check, ErcConfig};
 use eh3d_phoenix_gerber::{import_file, Content, ImportSettings};
 use eh3d_phoenix_kicad::{
@@ -222,10 +222,10 @@ fn erc_measures(o: &mut Outcome, report: &eh3d_phoenix_erc::Report) {
     }
 }
 
-fn eagle_board(bytes: &[u8]) -> Outcome {
+fn eagle_board(bytes: &[u8], settings: &CorpusSettings) -> Outcome {
     let mut ids = id_source(1);
     let mut o = Outcome::default();
-    match read_board(&text_of(bytes), &mut ids) {
+    match read_board_with_limits(&text_of(bytes), &mut ids, &settings.eagle_limits) {
         Ok(read) => {
             o.merge(board_measures(&read.board));
             for d in &read.diagnostics {
@@ -244,11 +244,16 @@ fn eagle_board(bytes: &[u8]) -> Outcome {
     o
 }
 
-fn eagle_schematic(entry: &Entry, bytes: &[u8]) -> Outcome {
+fn eagle_schematic(entry: &Entry, bytes: &[u8], settings: &CorpusSettings) -> Outcome {
     let mut ids = id_source(1);
     let mut o = Outcome::default();
     let footprints = std::collections::BTreeMap::new();
-    match read_eagle_schematic(&text_of(bytes), &footprints, &mut ids) {
+    match read_schematic_with_limits(
+        &text_of(bytes),
+        &footprints,
+        &mut ids,
+        &settings.eagle_limits,
+    ) {
         Ok(read) => {
             let s = &read.schematic;
             o.put("symbols", s.symbols.len());
@@ -494,7 +499,7 @@ fn board_from(bytes: &[u8]) -> Result<Board, String> {
     Board::from_bytes(bytes).map_err(|e| e.to_string())
 }
 
-fn board_json(entry: &Entry, bytes: &[u8]) -> Outcome {
+fn board_json(entry: &Entry, bytes: &[u8], settings: &CorpusSettings) -> Outcome {
     let board = match board_from(bytes) {
         Ok(board) => board,
         Err(why) => {
@@ -505,8 +510,11 @@ fn board_json(entry: &Entry, bytes: &[u8]) -> Outcome {
     };
     let mut o = Outcome::default();
     o.merge(board_measures(&board));
-    o.put("consistent", board.is_consistent());
-    for d in board.validate() {
+    o.put(
+        "consistent",
+        board.is_consistent_with(&settings.board_limits),
+    );
+    for d in board.validate_with(&settings.board_limits) {
         if let Some(c) = d.code.as_deref() {
             o.code(c);
             let key = format!("validate.{c}");
@@ -685,15 +693,15 @@ pub fn run_entry(
     let bytes = read_file(folder, &entry.input, settings)?;
     match entry.kind.as_str() {
         "eagle" => eagle(entry, &bytes),
-        "eagle-board" => Ok(eagle_board(&bytes)),
-        "eagle-schematic" => Ok(eagle_schematic(entry, &bytes)),
+        "eagle-board" => Ok(eagle_board(&bytes, settings)),
+        "eagle-schematic" => Ok(eagle_schematic(entry, &bytes, settings)),
         "kicad-board" => kicad_board(entry, &bytes),
         "kicad-schematic" => kicad_schematic(entry, &bytes),
         "kicad-footprint" => kicad_footprint(entry, &bytes),
         "kicad-symbols" => kicad_symbols(entry, &bytes),
         "kicad-project" => kicad_project(entry, &bytes),
         "gerber" => gerber(entry, &bytes),
-        "board-json" => Ok(board_json(entry, &bytes)),
+        "board-json" => Ok(board_json(entry, &bytes, settings)),
         "dsn" => Ok(dsn_kind(&bytes)),
         "dsn-ses" => {
             let name = entry.session.as_deref().unwrap_or_default();
