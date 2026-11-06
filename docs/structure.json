@@ -613,6 +613,32 @@
           }
         },
         {
+          "name": "DXF.md",
+          "desc": {
+            "en": "DXF: board outline, board and panel export",
+            "es": "DXF: contorno y exportación de placas y paneles",
+            "de": "DXF: Umriss, Export von Platinen und Nutzen",
+            "fr": "DXF : contour, export de cartes et panneaux",
+            "it": "DXF: contorno, esportazione schede e pannelli",
+            "ja": "DXF：基板外形と基板・パネルの出力",
+            "zh": "DXF：板框与板、拼板导出",
+            "pt": "DXF: contorno, exportação de placas e painéis"
+          }
+        },
+        {
+          "name": "ENCLOSURE.md",
+          "desc": {
+            "en": "board against its enclosure, STEP solid",
+            "es": "placa frente a su carcasa, sólido STEP",
+            "de": "Platine gegen Gehäuse, STEP-Körper",
+            "fr": "carte face au boîtier, solide STEP",
+            "it": "scheda contro involucro, solido STEP",
+            "ja": "基板と筐体の照合、STEPソリッド",
+            "zh": "电路板与外壳核对，STEP 实体",
+            "pt": "placa contra a caixa, sólido STEP"
+          }
+        },
+        {
           "name": "ORACLE.md",
           "desc": {
             "en": "reference cases and the plan to compare with EAGLE and KiCad",
