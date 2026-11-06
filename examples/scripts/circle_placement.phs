@@ -1,0 +1,15 @@
+phoenix-script/2 board
+# Place count components of a footprint on a circle of a radius around a centre, turned to face
+# outwards. The angles come from the whole turn divided by the count, in integers.
+let count = 4
+let radius = 10mm
+let center_x = 20mm
+let center_y = 15mm
+for k in 0..count {
+    let angle = muldiv(k, deg(360), count)
+    let x = center_x + polar_x(radius, angle)
+    let y = center_y + polar_y(radius, angle)
+    let name = "D" + str(k + 1)
+    place(name, "R0603", x, y, angle)
+    print(name, mm(x), mm(y))
+}

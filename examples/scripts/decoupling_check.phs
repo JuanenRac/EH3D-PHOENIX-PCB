@@ -1,0 +1,18 @@
+phoenix-script/2 board
+# A report of the capacitors (C*) that are farther than max_distance from the nearest IC (U*).
+# It changes nothing.
+let max_distance = 5mm
+let ics = select("component", "U*")
+let far = 0
+let caps = sort_refdes(select("component", "C*"))
+for cap in caps {
+    let ic = nearest(cap, ics)
+    if ic == nil {
+        print(cap.refdes, "has no IC to be near")
+        far = far + 1
+    } else if distance(cap, ic) > max_distance {
+        print(cap.refdes, "is", mm(distance(cap, ic)), "mm from", ic.refdes)
+        far = far + 1
+    }
+}
+print(far, "of", len(caps), "capacitors are too far")

@@ -1,0 +1,17 @@
+phoenix-script/2 board
+# A bill of materials of the resistors (R*) as CSV. It is written to the data folder (data_dir of
+# config/script.cfg) only when the run is applied with --out, and never over a file that exists.
+let rows = ["designator,value,footprint"]
+for part in sort_refdes(select("component", "R*")) {
+    rows = push(rows, join([part.refdes, part.value, part.footprint], ","))
+}
+for row in rows {
+    print(row)
+}
+print(len(rows) - 1, "resistors")
+if data_enabled() {
+    let size = write_text("bom_resistors.csv", join(rows, "\n") + "\n")
+    print("wrote", size, "bytes")
+} else {
+    print("data_dir is not set: the file is not written")
+}

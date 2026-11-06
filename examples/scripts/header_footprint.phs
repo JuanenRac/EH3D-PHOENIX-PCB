@@ -1,0 +1,10 @@
+phoenix-script/2 library
+# A footprint for a single-row pin header of N pins on a 2.54 mm pitch, with round pads.
+let pins = 6
+let pitch = 2.54mm
+let name = "HEADER_1X" + str(pins)
+lib_create("package", name)
+for k in 0..pins {
+    lib_add_pad(name, str(k + 1), k * pitch, 0mm, 1mm, 1.7mm)
+}
+print(name, "with", lib_pad_count(name), "pads")

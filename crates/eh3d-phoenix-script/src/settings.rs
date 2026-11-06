@@ -71,6 +71,32 @@ pub struct ScriptSettings {
     pub layer_numbers: Vec<(u32, String)>,
     /// The names of commands of the original language that are known and have no equivalent yet.
     pub known_pending: Vec<String>,
+    /// The most steps of the interpreter (statements and expression nodes) a script of the second
+    /// version may take before it is stopped.
+    pub max_steps: u64,
+    /// The most turns of one loop of a script of the second version.
+    pub max_loop_iterations: u64,
+    /// The deepest nesting of blocks (`if`, `for`, `while`) in a script of the second version.
+    pub max_block_depth: usize,
+    /// The deepest nesting of an expression in a script of the second version.
+    pub max_expr_depth: usize,
+    /// The most cells the values of the variables may hold together (a number or an object is one
+    /// cell, a list is one cell and the cells of its items, a text is one cell and one more for
+    /// every 16 characters).
+    pub max_value_cells: usize,
+    /// The most items of one list.
+    pub max_list_len: usize,
+    /// The most bytes a text made while running (a value or a data file) may have.
+    pub max_text_bytes: usize,
+    /// The most bytes of output (`print`) of one run.
+    pub max_output_bytes: usize,
+    /// The folder, relative to the folder of the script, that the data files of a script of the
+    /// second version are read from and written to; empty: no file is reachable.
+    pub data_dir: String,
+    /// The most data files one run may read or write.
+    pub max_data_files: usize,
+    /// The largest data file one run may read, in bytes.
+    pub max_data_bytes: u64,
     /// The options of `SET` that only change the original interface and are accepted and ignored.
     pub set_ignored: Vec<String>,
 }
@@ -138,6 +164,17 @@ impl Default for ScriptSettings {
             id_epoch_ms: 1_700_000_000_000,
             layer_numbers: layer_pairs(LAYER_NUMBERS).unwrap_or_default(),
             known_pending: words(KNOWN_PENDING, true),
+            max_steps: 1_000_000,
+            max_loop_iterations: 10_000,
+            max_block_depth: 16,
+            max_expr_depth: 32,
+            max_value_cells: 20_000,
+            max_list_len: 5_000,
+            max_text_bytes: 262_144,
+            max_output_bytes: 65_536,
+            data_dir: String::new(),
+            max_data_files: 8,
+            max_data_bytes: 1_048_576,
             set_ignored: words(SET_IGNORED, true),
         }
     }
@@ -214,6 +251,19 @@ impl ScriptSettings {
                 "id_epoch_ms" => s.id_epoch_ms = value.parse().map_err(|_| bad())?,
                 "layer_numbers" => s.layer_numbers = layer_pairs(value).ok_or_else(bad)?,
                 "known_pending" => s.known_pending = words(value, true),
+                "max_steps" => s.max_steps = value.parse().map_err(|_| bad())?,
+                "max_loop_iterations" => {
+                    s.max_loop_iterations = value.parse().map_err(|_| bad())?
+                }
+                "max_block_depth" => s.max_block_depth = value.parse().map_err(|_| bad())?,
+                "max_expr_depth" => s.max_expr_depth = value.parse().map_err(|_| bad())?,
+                "max_value_cells" => s.max_value_cells = value.parse().map_err(|_| bad())?,
+                "max_list_len" => s.max_list_len = value.parse().map_err(|_| bad())?,
+                "max_text_bytes" => s.max_text_bytes = value.parse().map_err(|_| bad())?,
+                "max_output_bytes" => s.max_output_bytes = value.parse().map_err(|_| bad())?,
+                "data_dir" => s.data_dir = value.to_owned(),
+                "max_data_files" => s.max_data_files = value.parse().map_err(|_| bad())?,
+                "max_data_bytes" => s.max_data_bytes = value.parse().map_err(|_| bad())?,
                 "set_ignored" => s.set_ignored = words(value, true),
                 _ => {
                     return Err(Diag::new(
@@ -242,6 +292,12 @@ impl ScriptSettings {
             ("max_files", self.max_files),
             ("max_cam_bytes", self.max_cam_bytes),
             ("max_cam_sections", self.max_cam_sections),
+            ("max_block_depth", self.max_block_depth),
+            ("max_expr_depth", self.max_expr_depth),
+            ("max_value_cells", self.max_value_cells),
+            ("max_list_len", self.max_list_len),
+            ("max_text_bytes", self.max_text_bytes),
+            ("max_output_bytes", self.max_output_bytes),
         ] {
             if value == 0 {
                 return bad(&format!("{name} must be at least 1"));
@@ -255,6 +311,15 @@ impl ScriptSettings {
         }
         if self.max_file_bytes == 0 {
             return bad("max_file_bytes must be at least 1");
+        }
+        if self.max_steps == 0 || self.max_loop_iterations == 0 || self.max_data_bytes == 0 {
+            return bad("max_steps, max_loop_iterations and max_data_bytes must be at least 1");
+        }
+        if self.max_block_depth > 64 || self.max_expr_depth > 256 {
+            return bad("max_block_depth is beyond 64 or max_expr_depth beyond 256");
+        }
+        if self.max_data_files > 1024 {
+            return bad("max_data_files is beyond 1024");
         }
         for (name, value) in [
             ("default_grid_nm", self.default_grid_nm),
@@ -372,6 +437,11 @@ mod tests {
             "default_width_nm = 0",
             "default_drill_nm = 600000",
             "id_epoch_ms = 281474976710656",
+            "max_steps = 0",
+            "max_block_depth = 65",
+            "max_expr_depth = 0",
+            "max_data_files = 1025",
+            "max_loop_iterations = ten",
         ] {
             let e = ScriptSettings::parse(text).unwrap_err();
             assert_eq!(e.code, SETTINGS_INVALID, "{text}");

@@ -5,13 +5,16 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "Script interpreter for the command language of the old workflow (built from the public description of the language): a parser for script files, reversible all-or-nothing execution on a board, a compatibility report per script and a reader of output jobs into an export profile"
+description = "Script interpreter: the command language of the old workflow (built from the public description of the language) with a compatibility report per script and a reader of output jobs into an export profile, and the language phoenix-script/2 with variables, bounded loops and a sandbox that works on a board, a schematic or a library as one reversible step"
 
 [dependencies]
 eh3d-phoenix-board = { path = "../eh3d-phoenix-board" }
 eh3d-phoenix-erc = { path = "../eh3d-phoenix-erc" }
 eh3d-phoenix-export = { path = "../eh3d-phoenix-export" }
+eh3d-phoenix-libedit = { path = "../eh3d-phoenix-libedit" }
 eh3d-phoenix-model = { path = "../eh3d-phoenix-model" }
+eh3d-phoenix-panel = { path = "../eh3d-phoenix-panel" }
+eh3d-phoenix-parts = { path = "../eh3d-phoenix-parts" }
 eh3d-phoenix-route = { path = "../eh3d-phoenix-route" }
 eh3d-phoenix-rules = { path = "../eh3d-phoenix-rules" }
 eh3d-phoenix-schematic = { path = "../eh3d-phoenix-schematic" }

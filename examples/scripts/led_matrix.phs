@@ -1,0 +1,20 @@
+phoenix-script/2 board
+# An LED matrix: columns x rows LEDs on a pitch, designators D1, D2, ... in rows, and the second pad
+# of every LED on one common net. The board needs a footprint with the name below.
+let columns = 3
+let rows = 2
+let pitch = 2.5mm
+let origin_x = 5mm
+let origin_y = 5mm
+let footprint = "LED0603"
+let common = "LEDCOM"
+
+for r in 0..rows {
+    for c in 0..columns {
+        let n = r * columns + c + 1
+        let led = place("D" + str(n), footprint, origin_x + c * pitch, origin_y + r * pitch, 0, "LED")
+        connect(led, "2", common)
+    }
+}
+print("placed", rows * columns, "LEDs on net", common)
+print("pads on the net:", select("net", common)[0].pads)

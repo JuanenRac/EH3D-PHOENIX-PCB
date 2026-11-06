@@ -729,7 +729,7 @@ The titles of these codes also exist in the eight languages of the suite (`TITLE
 | PHOENIX-ROUTE-027 | The external autorouter ran out of time | a program that is still running after `timeout_s` seconds; it is ended |
 | PHOENIX-ROUTE-028 | The external autorouter left no session | a program that ended well and wrote no session file at the place given |
 
-## Script interpreter (`eh3d-phoenix-script`, `src/codes.rs`)
+## Script interpreter (`eh3d-phoenix-script`, `src/codes.rs` and `src/v2/codes.rs`)
 
 The titles of these codes also exist in the eight languages of the suite (`TITLES` in `src/codes.rs`); the detail of a message is in English and a message that is about a place of a script carries its line and column. Codes 027 to 041 are the causes and the differences that the compatibility report gives to a command that is pending or adapted (see `docs/SCRIPT.md`).
 
@@ -777,6 +777,33 @@ The titles of these codes also exist in the eight languages of the suite (`TITLE
 | PHOENIX-SCRIPT-040 | Selects objects by name, not by a rectangle | `GROUP` (adapted) |
 | PHOENIX-SCRIPT-041 | The shape is ignored: vias are round and join the outer copper layers | `VIA` with a shape word (adapted) |
 | PHOENIX-SCRIPT-042 | A limit of the folder walk was reached | more scripts than `max_files` or folders deeper than `max_walk_depth` in a report |
+
+Codes 043 to 064 belong to the scripts of the second version (`phoenix-script/2`, `docs/SCRIPT_API.md`, `eh3d-phoenix-script`, `src/v2/codes.rs`); their titles are in the eight languages too, and every message names the line and the column of the statement or of the part of the expression that caused it.
+
+| Code | Title | Raised by |
+|---|---|---|
+| PHOENIX-SCRIPT-043 | Syntax error in the script | a character, a number, a unit or a construction that is not part of the language; a text not closed; a bracket not closed; `break` or `continue` outside a loop; a statement that does not end where it should |
+| PHOENIX-SCRIPT-044 | The script does not start with the line phoenix-script/2 | an empty script, another version in the header, a word after the version that is not `board`, `schematic` or `library`, or one that comes twice |
+| PHOENIX-SCRIPT-045 | Variable is not defined | a name used, or assigned to, before it is defined in this block or in one around it |
+| PHOENIX-SCRIPT-046 | Variable is already defined in this block | `let` of a name that the same block already has |
+| PHOENIX-SCRIPT-047 | Unknown function | a call of a name that is not in the table of functions (there is no function that reaches the network, a program or a file, so such a name is this error) |
+| PHOENIX-SCRIPT-048 | Wrong number of arguments | a call with fewer or more arguments than the function takes |
+| PHOENIX-SCRIPT-049 | A value has the wrong type | an operator or a function given a type it does not take (`1 + "a"`, a condition that is not a bool, an angle that is not a multiple of 90deg for a part of a schematic, an unknown kind) |
+| PHOENIX-SCRIPT-050 | Division by zero or number out of range | `/` or `%` by zero, a result beyond 64 bits, a place outside the range of the model, a count or a width out of its range |
+| PHOENIX-SCRIPT-051 | The script took more steps than the limit | more than `max_steps` steps of the interpreter |
+| PHOENIX-SCRIPT-052 | A loop turned more times than the limit | a loop with more than `max_loop_iterations` turns |
+| PHOENIX-SCRIPT-053 | The values of the script grew beyond the limit | variables over `max_value_cells`, a list over `max_list_len`, a text over `max_text_bytes`, or lists nested deeper than 8 |
+| PHOENIX-SCRIPT-054 | The output grew beyond the limit | `print` beyond `max_output_bytes` |
+| PHOENIX-SCRIPT-055 | Blocks or expressions are nested too deeply | blocks deeper than `max_block_depth` or an expression deeper than `max_expr_depth` |
+| PHOENIX-SCRIPT-056 | Data file path is not allowed | `read_text` or `write_text` with an absolute path, a drive, `..`, a link on the way or a path outside `data_dir`, or with no `data_dir` in the settings |
+| PHOENIX-SCRIPT-057 | Data file cannot be used or a file limit was reached | a data file that is missing, too large (`max_data_bytes`), not UTF-8 or that exists when it should be new, or more than `max_data_files` files in a run |
+| PHOENIX-SCRIPT-058 | The function does not apply to this document | a function called on a kind of document it does not apply to, or a script written for one kind (`board`, `schematic`, `library`) run on another |
+| PHOENIX-SCRIPT-059 | Object not found | a designator, a net, a layer, a footprint, a pad or an object that is not (or no longer) in the document |
+| PHOENIX-SCRIPT-060 | Assertion failed | `assert` with a false condition, or `fail` |
+| PHOENIX-SCRIPT-061 | The editor refused the operation | an operation that the model refuses (a name taken, a layer that is not copper, a footprint in use, ...); nothing of the script is kept |
+| PHOENIX-SCRIPT-062 | Index out of range | `list[i]` or `text[i]` outside the list or the text |
+| PHOENIX-SCRIPT-063 | No parts base was given or the part is not in it | `assign_part` without `--parts`, with a part that is not in the base or that has no value |
+| PHOENIX-SCRIPT-064 | The estimated steps are over the limit | warning of `phoenix script check`: the estimate of the steps of the script is above `max_steps` |
 
 ## RF structure generator (`eh3d-phoenix-rfgen`, `src/codes.rs`)
 

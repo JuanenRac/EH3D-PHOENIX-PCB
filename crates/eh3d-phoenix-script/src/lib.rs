@@ -19,6 +19,15 @@
 //! * [`settings`] and [`codes`]: every limit, default and permission, read from `config/script.cfg`,
 //!   and the codes `PHOENIX-SCRIPT-<NNN>` with their titles in the eight languages.
 //!
+//! * [`v2`]: the scripts of the second version, `phoenix-script/2`, a small language with variables,
+//!   bounded loops and conditions on measures (counts, lengths, findings of the rule checks) that
+//!   selects objects of a board, a schematic or a library by a query and changes them through the
+//!   same reversible operations as the editors; a whole script is one step of the history, and it
+//!   runs in a sandbox with limits of steps, memory and output and no access to the network, to a
+//!   program or to a file but the data folder of the settings. `phoenix script check` reads it
+//!   without running it, `phoenix script list` shows the examples of `examples/scripts/` and
+//!   `phoenix script help` prints the reference written from the table of functions.
+//!
 //! A script never runs a program, never reaches an absolute path or a path with `..`, and is held
 //! to the limits of the settings; a command it does not know is a diagnostic with its line and
 //! column. The commands were written from the public description of the language and from nothing
@@ -35,6 +44,7 @@ pub mod files;
 pub mod parse;
 pub mod report;
 pub mod settings;
+pub mod v2;
 pub mod values;
 
 pub use actions::{classify, interpret, Action, Status};
@@ -44,6 +54,9 @@ pub use exec::{commit_writes, run_board, run_schematic, Run, RunContext};
 pub use parse::{parse_script, Parsed};
 pub use report::{analyse_path, analyse_text, Folder, ScriptReport};
 pub use settings::ScriptSettings;
+pub use v2::check::{check_text, CheckReport};
+pub use v2::interp::{run as run_v2, Doc, Outcome, PendingFile, Plan};
+pub use v2::syntax::{parse_program, version_of, Program, Target, Version};
 
 #[cfg(test)]
 mod testdata;

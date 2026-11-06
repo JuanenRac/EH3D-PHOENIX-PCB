@@ -1,0 +1,9 @@
+phoenix-script/2 board
+# Renumber the capacitors C1, C2, ... from left to right (then from bottom to top on a tie). The
+# names are changed in two passes, so a new name never clashes with an old one on the way.
+let caps = sort_position(select("component", "C*"), "xy")
+let renamed = renumber(caps, "C", 1)
+print("renumbered", renamed, "components")
+for cap in sort_position(select("component", "C*"), "xy") {
+    print(cap.refdes, cap.x)
+}

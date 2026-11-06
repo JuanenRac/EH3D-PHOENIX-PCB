@@ -724,12 +724,13 @@ pub fn column(lang: Lang) -> usize {
     Lang::ALL.iter().position(|l| *l == lang).unwrap_or(0)
 }
 
-/// The title of a code in a language; empty for a code that is not in the table.
+/// The title of a code in a language, from this table or from the one of the scripts of the second
+/// version; empty for a code that is in neither.
 pub fn title(code: &str, lang: Lang) -> &'static str {
-    TITLES
-        .iter()
-        .find(|(c, _)| *c == code)
-        .map_or("", |(_, row)| row[column(lang)])
+    match TITLES.iter().find(|(c, _)| *c == code) {
+        Some((_, row)) => row[column(lang)],
+        None => crate::v2::codes::title(code, lang).unwrap_or(""),
+    }
 }
 
 /// A diagnostic: a registered code, the place in the script (line and column from 1, or 0 when

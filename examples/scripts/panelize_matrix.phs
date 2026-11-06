@@ -1,0 +1,12 @@
+phoenix-script/2 board
+# Panelize the board as a matrix of columns x rows copies with a gap between them. The designators
+# of the copies end with _1, _2, ... The run replaces the board as a whole, so it has no batch that
+# undoes it; phoenix panel makes the frame, the tabs and the files of the fabrication.
+let columns = 2
+let rows = 2
+let gap = 2mm
+let before = len(select("component", "*"))
+let copies = panelize(columns, rows, gap)
+let after = len(select("component", "*"))
+print("copies:", copies)
+print("components:", before, "->", after)

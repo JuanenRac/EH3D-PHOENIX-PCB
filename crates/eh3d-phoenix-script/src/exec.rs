@@ -50,6 +50,8 @@ pub struct RunContext<'a> {
     /// The folder that relative paths of `SCRIPT`, `OPEN` and `WRITE` start from; without it every
     /// file command is refused.
     pub base_dir: Option<&'a Path>,
+    /// The parts base that `assign_part` of a script of the second version looks parts up in.
+    pub parts: Option<&'a eh3d_phoenix_parts::PartsDb>,
 }
 
 impl<'a> RunContext<'a> {
@@ -61,6 +63,7 @@ impl<'a> RunContext<'a> {
             route: RouteSettings::default(),
             lang: Lang::En,
             base_dir: None,
+            parts: None,
         }
     }
 }
@@ -190,13 +193,13 @@ impl State {
     }
 }
 
-struct Ids {
+pub(crate) struct Ids {
     generator: IdGenerator<StepClock, DeterministicRandom>,
-    used: BTreeSet<Id>,
+    pub(crate) used: BTreeSet<Id>,
 }
 
 impl Ids {
-    fn new(s: &ScriptSettings, used: BTreeSet<Id>) -> Ids {
+    pub(crate) fn new(s: &ScriptSettings, used: BTreeSet<Id>) -> Ids {
         Ids {
             generator: IdGenerator::new(
                 StepClock::new(s.id_epoch_ms, 1),
@@ -206,7 +209,7 @@ impl Ids {
         }
     }
 
-    fn fresh(&mut self) -> Result<Id, Diag> {
+    pub(crate) fn fresh(&mut self) -> Result<Id, Diag> {
         for _ in 0..1000 {
             match self.generator.generate() {
                 Ok(id) => {
@@ -222,7 +225,7 @@ impl Ids {
 }
 
 /// Every id that the board already uses.
-fn used_ids(board: &Board) -> BTreeSet<Id> {
+pub(crate) fn used_ids(board: &Board) -> BTreeSet<Id> {
     let mut used: BTreeSet<Id> = BTreeSet::new();
     used.extend(board.layers.keys());
     used.extend(board.nets.keys());
