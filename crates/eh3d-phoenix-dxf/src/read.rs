@@ -224,7 +224,7 @@ struct Converter<'a> {
 }
 
 impl Converter<'_> {
-    fn to_nodes(&mut self, raws: &[Raw]) -> Result<Vec<Node>, DxfError> {
+    fn chain_nodes(&mut self, raws: &[Raw]) -> Result<Vec<Node>, DxfError> {
         let mut nodes = Vec::new();
         let mut i = 0;
         while i < raws.len() {
@@ -843,7 +843,7 @@ pub fn read_dxf(text: &str, settings: &DxfSettings) -> Result<Read, DxfError> {
         match name.as_str() {
             "ENTITIES" => {
                 let raws = collect_raws(&pairs, &mut i, &["ENDSEC"]);
-                top = Some(conv.to_nodes(&raws)?);
+                top = Some(conv.chain_nodes(&raws)?);
             }
             "BLOCKS" => {
                 while i < pairs.len() && !is_head(&pairs[i], "ENDSEC") {
@@ -877,7 +877,7 @@ pub fn read_dxf(text: &str, settings: &DxfSettings) -> Result<Read, DxfError> {
                         block_name,
                         Block {
                             base,
-                            nodes: conv.to_nodes(&raws)?,
+                            nodes: conv.chain_nodes(&raws)?,
                         },
                     );
                 }
