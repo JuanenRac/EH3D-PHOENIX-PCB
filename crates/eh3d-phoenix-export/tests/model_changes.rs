@@ -625,11 +625,17 @@ fn the_gaps_of_a_rectangular_pad_follow_the_turn_of_its_component() {
     let profile = thermal_profile(4, true);
     let flat = build(&with_a_rectangular_pad(0), &profile).unwrap();
     let (rx, ry) = reach(layer_text(&flat, id(1)));
-    assert!((rx - 0.75).abs() < 1e-6 && (ry - 0.55).abs() < 1e-6, "{rx} {ry}");
+    assert!(
+        (rx - 0.75).abs() < 1e-6 && (ry - 0.55).abs() < 1e-6,
+        "{rx} {ry}"
+    );
     // a quarter turn swaps them
     let upright = build(&with_a_rectangular_pad(90_000_000), &profile).unwrap();
     let (rx, ry) = reach(layer_text(&upright, id(1)));
-    assert!((rx - 0.55).abs() < 1e-6 && (ry - 0.75).abs() < 1e-6, "{rx} {ry}");
+    assert!(
+        (rx - 0.55).abs() < 1e-6 && (ry - 0.75).abs() < 1e-6,
+        "{rx} {ry}"
+    );
 }
 
 #[test]

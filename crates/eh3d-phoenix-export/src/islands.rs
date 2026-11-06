@@ -157,7 +157,6 @@ pub fn dropped_zones(board: &Board, layer: Id, min_area_nm2: i64) -> DroppedIsla
 #[cfg(test)]
 mod tests {
     use super::*;
-    use eh3d_phoenix_board::Zone;
     use eh3d_phoenix_model::{Nm, ObjectId};
 
     fn id(n: u16) -> Id {
@@ -218,10 +217,7 @@ mod tests {
         // exactly the area is not smaller than the minimum
         assert!(dropped_zones(&b, layer, 1_000_000_000_000).zones.is_empty());
         // one more square nanometre of minimum drops it
-        assert_eq!(
-            dropped_zones(&b, layer, 1_000_000_000_001).zones.len(),
-            1
-        );
+        assert_eq!(dropped_zones(&b, layer, 1_000_000_000_001).zones.len(), 1);
     }
 
     #[test]
@@ -235,10 +231,7 @@ mod tests {
         let layer = id(1);
         let out = dropped_zones(&b, layer, 1_500_000_000_000);
         assert_eq!(out.islands, 1);
-        assert_eq!(
-            out.zones.iter().copied().collect::<Vec<_>>(),
-            vec![id(102)]
-        );
+        assert_eq!(out.zones.iter().copied().collect::<Vec<_>>(), vec![id(102)]);
         // a bigger minimum takes the pair too
         let out = dropped_zones(&b, layer, 2_500_000_000_000);
         assert_eq!((out.islands, out.zones.len()), (2, 3));
@@ -277,17 +270,12 @@ mod tests {
         assert!(dropped_zones(&b, layer, 12_000_000_000_000)
             .zones
             .is_empty());
-        assert_eq!(
-            dropped_zones(&b, layer, 12_000_000_000_001).zones.len(),
-            1
-        );
+        assert_eq!(dropped_zones(&b, layer, 12_000_000_000_001).zones.len(), 1);
     }
 
     #[test]
     fn zones_of_other_layers_are_not_looked_at() {
         let b = board_of(vec![zone(5, square(0, 0, MM))]);
-        assert!(dropped_zones(&b, id(2), 9_000_000_000_000)
-            .zones
-            .is_empty());
+        assert!(dropped_zones(&b, id(2), 9_000_000_000_000).zones.is_empty());
     }
 }

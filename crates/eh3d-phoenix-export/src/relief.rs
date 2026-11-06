@@ -182,7 +182,7 @@ mod tests {
     /// Twice the signed area of a polygon, in square nanometres.
     fn area(ring: &[Point]) -> f64 {
         let n = ring.len();
-        let mut sum = 0.0;
+        let mut sum: f64 = 0.0;
         for i in 0..n {
             let (a, b) = (ring[i], ring[(i + 1) % n]);
             sum += a.x_nm.get() as f64 * b.y_nm.get() as f64
@@ -209,7 +209,11 @@ mod tests {
         for ring in &gaps {
             assert_eq!(ring.len(), 6);
             // (0.75 - 0.125) * (0.55 - 0.125) - (0.5 - 0.125) * (0.3 - 0.125) = 0.265625 - 0.065625
-            assert!((area(ring) - 200_000_000_000.0).abs() < 1.0, "{}", area(ring));
+            assert!(
+                (area(ring) - 200_000_000_000.0).abs() < 1.0,
+                "{}",
+                area(ring)
+            );
         }
         let mut first: Vec<(i64, i64)> = gaps[0]
             .iter()
@@ -242,7 +246,11 @@ mod tests {
         for ring in &gaps {
             assert_eq!(ring.len(), 8);
             // 1.5 * 0.425 - 1.0 * 0.175
-            assert!((area(ring) - 462_500_000_000.0).abs() < 1.0, "{}", area(ring));
+            assert!(
+                (area(ring) - 462_500_000_000.0).abs() < 1.0,
+                "{}",
+                area(ring)
+            );
             // no corner is inside a spoke
             assert!(ring.iter().all(|p| (p.y_nm.get() - AT.1).abs() >= 125_000));
         }
@@ -277,7 +285,7 @@ mod tests {
                 );
             }
         }
-        // a tall pad is the same pad turned: the pieces are on its left and right instead
+        // a tall pad is the same pad turned: the pieces are still above and below, and reach farther
         let tall = relief_gaps(
             ReliefShape::Obround(500_000, 1_000_000),
             pt(AT.0, AT.1),
@@ -296,7 +304,13 @@ mod tests {
 
     #[test]
     fn a_circle_with_two_spokes_has_two_arches() {
-        let gaps = relief_gaps(ReliefShape::Circle(1_000_000), pt(0, 0), 250_000, 250_000, 2);
+        let gaps = relief_gaps(
+            ReliefShape::Circle(1_000_000),
+            pt(0, 0),
+            250_000,
+            250_000,
+            2,
+        );
         assert_eq!(gaps.len(), 2);
         for ring in &gaps {
             for p in ring {
