@@ -273,6 +273,20 @@
           }
         },
         {
+          "name": "HIERARCHY.md  BUSES.md",
+          "tree_name": "HIERARCHY.md BUSES.md",
+          "desc": {
+            "en": "sheet symbols, repeated sheets and buses",
+            "es": "símbolos de hoja, hojas repetidas y buses",
+            "de": "Blattsymbole, wiederholte Blätter und Busse",
+            "fr": "symboles de feuille, feuilles répétées et bus",
+            "it": "simboli di foglio, fogli ripetuti e bus",
+            "ja": "シートシンボル、繰り返しシート、バス",
+            "zh": "图纸符号、重复图纸和总线",
+            "pt": "símbolos de folha, folhas repetidas e barramentos"
+          }
+        },
+        {
           "name": "LIBRARY_EDIT.md",
           "desc": {
             "en": "the library editor: edits, checks, generators",

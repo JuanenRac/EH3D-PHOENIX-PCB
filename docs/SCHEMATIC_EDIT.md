@@ -20,6 +20,8 @@ An operation is one change that is asked for. It is a value (`EditOp`) that can 
 | `add_label`, `add_power_port` | Puts a net label or a power port with a name (not empty, at most 128 characters, no control characters). |
 | `add_bus` | Puts the labels of a bus such as `D[0..7]`, one per member, the first at a point and each next one an offset further (2.54 mm down when both offsets are zero). A bus is a way of naming: its members are ordinary nets. |
 | `rename_mark` | Renames a net label or a power port. |
+| `remove_sheet`, `rename_sheet`, `add_sheet_block`, `remove_sheet_block`, `rename_sheet_block`, `add_hier_pin`, `remove_hier_pin`, `add_sheet_port`, `remove_sheet_port`, `move_to_sheet` | Sheets and the hierarchy: removing and renaming a sheet, the sheet symbols that show a sheet (also the same sheet several times), their pins and the ports of the sheet that is shown, and moving items to another sheet with the nets made again. See `docs/HIERARCHY.md`. |
+| `place_bus`, `remove_bus`, `add_bus_entry`, `remove_bus_entry`, `set_bus_alias`, `remove_bus_alias` | Buses as objects: a bus such as `D[0..7]` or `USB{DP DM}`, the entries that take a member out of it (they name the net like a label), and the aliases of groups. See `docs/BUSES.md`. |
 | `batch` | Several operations that are one step. |
 
 ## Assigning a part of the parts base
@@ -30,7 +32,7 @@ The state of the editor can make the plan of assigning a part of the local parts
 
 The `Editor` applies an operation on a copy of the schematic. The copy is tidied (below), the nets are made again, and only then does the schematic change; an operation that is refused (code `PHOENIX-SCH-010`: a part, sheet, symbol or item that does not exist, a reference that is used, a name that is empty or too long, a wire that is not orthogonal, a bus that is not of the form `D[0..7]`, a coordinate out of range) changes nothing, not the history and not the supply of ids. A batch is refused as a whole when one of its operations is.
 
-Each step is kept as the differences between the maps of the schematic (symbols, parts, nets, sheets, wires, pin types, labels, junctions, power ports and the set of mirrored parts): for every id, what it was and what it became. Undo puts back exactly what was there, redo exactly what was made; a new operation after an undo drops the steps that could be redone. The history keeps at most `history_limit` steps.
+Each step is kept as the differences between the maps of the schematic (symbols, parts, nets, sheets, wires, pin types, labels, junctions, power ports, sheet symbols, their pins, the ports of sheets, buses, bus entries, bus aliases and the set of mirrored parts): for every id, what it was and what it became. Undo puts back exactly what was there, redo exactly what was made; a new operation after an undo drops the steps that could be redone. The history keeps at most `history_limit` steps.
 
 New ids come from a supply that knows every id the schematic already uses and gives ids in a fixed order, so the same schematic and the same operations always give the same bytes.
 

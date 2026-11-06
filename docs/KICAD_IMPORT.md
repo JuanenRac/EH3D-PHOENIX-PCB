@@ -49,6 +49,8 @@ The **fidelity level** of the set is `complete` when every file was read and not
 
 ## Buses
 
+A sheet symbol of the schematic is kept as a sheet symbol of the model (its name, corner and size, a pin for each pin with its shape as direction), the file it names is the sheet it shows and each hierarchical label of that file is a port (`docs/HIERARCHY.md`); the nets are still computed for the whole design as described here.
+
 A bus is not a net: the members of a bus join through the labels of their wires, which the reader already joins by name. A label that names a bus (`D[0..7]`) or a group of signals (`USB{DP DM}`) would only make a net with a wrong name, so it is not read as a net and is counted under `bus labels (the members are not expanded)`. The bus lines themselves and the bus entries are counted by name as before. Members that are joined only through a bus label between sheets are therefore not joined; this is listed in `docs/NOT_YET.md`.
 
 ## Other commands
