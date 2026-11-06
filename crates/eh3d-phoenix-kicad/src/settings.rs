@@ -31,6 +31,12 @@ pub struct KicadSettings {
     pub max_project_bytes: u64,
     /// The straight pieces that replace a quarter turn of an arc of the board outline.
     pub outline_arc_steps_per_quarter: usize,
+    /// The most point-in-polygon tests (corners of a rule area times edges of a zone) that the
+    /// assignment of the rule areas that keep the pour out to the zones may make.
+    pub max_keepout_checks: u64,
+    /// The most closed rings of the board outline (the outline and its openings) that are kept
+    /// and tested for lying inside the largest one.
+    pub max_outline_rings: usize,
 }
 
 impl Default for KicadSettings {
@@ -48,6 +54,8 @@ impl Default for KicadSettings {
             max_tested_version: 20_251_231,
             max_project_bytes: 4 * 1024 * 1024,
             outline_arc_steps_per_quarter: 8,
+            max_keepout_checks: 100_000_000,
+            max_outline_rings: 10_000,
         }
     }
 }
@@ -116,6 +124,8 @@ impl KicadSettings {
                         });
                     }
                 }
+                "max_keepout_checks" => s.max_keepout_checks = whole(value, line, key)?,
+                "max_outline_rings" => s.max_outline_rings = count(value, line, key)?,
                 _ => {
                     return Err(KicadError::InvalidSettings {
                         line,
@@ -161,6 +171,8 @@ mod tests {
             ("\n\nwhat = 3", 3),
             ("max_file_bytes = -4", 1),
             ("outline_arc_steps_per_quarter = 5000", 1),
+            ("max_keepout_checks = 0", 1),
+            ("max_outline_rings = x", 1),
         ] {
             match KicadSettings::parse(text) {
                 Err(KicadError::InvalidSettings { line: l, .. }) => assert_eq!(l, line, "{text}"),

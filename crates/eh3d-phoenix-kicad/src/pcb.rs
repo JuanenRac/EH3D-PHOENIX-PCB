@@ -390,11 +390,22 @@ impl Reader {
 
     /// Gives each rule area that keeps the pour out to the zones of its layers that it lies in.
     fn attach_pour_keepouts(&mut self, ctx: &mut Ctx) {
+        let mut budget = ctx.settings.max_keepout_checks;
         for (layers, ring) in std::mem::take(&mut self.pour_keepouts) {
             let mut attached = false;
             for zone in self.board.zones.values_mut() {
+                if !layers.contains(&zone.layer) {
+                    continue;
+                }
+                let cost = (ring.len() as u64).saturating_mul(zone.outline.len() as u64);
+                if cost > budget {
+                    budget = 0;
+                    ctx.ignore("keep-out assignment (over max_keepout_checks)");
+                    continue;
+                }
+                budget -= cost;
                 let inside = ring.iter().all(|p| inside_or_on(&zone.outline, *p));
-                if layers.contains(&zone.layer) && inside {
+                if inside {
                     zone.cutouts.push(ring.clone());
                     attached = true;
                 }
@@ -733,7 +744,14 @@ impl Reader {
             Some(ring) => {
                 // a closed ring inside the largest one is an opening of the board
                 let mut cutouts: Vec<Vec<Point>> = Vec::new();
+                let mut tested = 1usize;
                 for other in others {
+                    if tested >= ctx.settings.max_outline_rings {
+                        ctx.ignore("outline ring (over max_outline_rings)");
+                        unused += 1;
+                        continue;
+                    }
+                    tested += 1;
                     if other.len() >= 3 && other.iter().all(|p| point_in_polygon(*p, &ring)) {
                         cutouts.push(other);
                     } else {
@@ -1294,6 +1312,92 @@ pub(crate) mod tests {
             .diagnostics
             .iter()
             .any(|d| d.message.contains("over max_items")));
+    }
+
+    fn read_with(text: &str, settings: &KicadSettings) -> ReadPcb {
+        let mut ids = crate::sequential_ids().unwrap();
+        read_pcb(text.as_bytes(), settings, &mut ids).unwrap()
+    }
+
+    /// A board of one square outline, `rings` squares inside it, drawn as rectangles.
+    fn board_with_rings(rings: usize) -> String {
+        let mut text = String::from(
+            "(kicad_pcb (version 20221018) (generator pcbnew)
+  (layers (0 \"F.Cu\" signal) (44 \"Edge.Cuts\" user))
+  (gr_rect (start 0 0) (end 200 200) (layer \"Edge.Cuts\") (width 0.1))
+",
+        );
+        for i in 0..rings {
+            let x = 1 + 2 * (i % 90);
+            let y = 1 + 2 * (i / 90);
+            text.push_str(&format!(
+                "  (gr_rect (start {x} {y}) (end {} {}) (layer \"Edge.Cuts\") (width 0.1))
+",
+                x + 1,
+                y + 1
+            ));
+        }
+        text.push(')');
+        text
+    }
+
+    #[test]
+    fn rings_over_the_limit_are_reported_and_not_tested_for_openings() {
+        let text = board_with_rings(5);
+        let all = read_with(&text, &KicadSettings::default());
+        assert_eq!(all.board.outline_cutouts.len(), 5);
+        // the outline and two openings are kept; the other three are left over
+        let tight = KicadSettings {
+            max_outline_rings: 3,
+            ..KicadSettings::default()
+        };
+        let r = read_with(&text, &tight);
+        assert_eq!(r.board.outline.len(), 4);
+        assert_eq!(r.board.outline_cutouts.len(), 2);
+        assert!(r
+            .diagnostics
+            .iter()
+            .any(|d| d.message.contains("over max_outline_rings")));
+        assert_eq!(
+            count(
+                &r.quality.dropped,
+                "outline pieces not used (cut-outs and pieces that do not close)"
+            ),
+            Some(3)
+        );
+    }
+
+    #[test]
+    fn rule_areas_over_the_check_budget_are_reported_and_not_given_to_a_zone() {
+        let text = r#"(kicad_pcb (version 20221018) (generator pcbnew)
+  (layers (0 "F.Cu" signal) (44 "Edge.Cuts" user))
+  (net 0 "") (net 1 "GND")
+  (zone (net 1) (net_name "GND") (layer "F.Cu") (tstamp "z")
+    (polygon (pts (xy 0 0) (xy 20 0) (xy 20 20) (xy 0 20))))
+  (zone (net 0) (net_name "") (layer "F.Cu") (tstamp "k")
+    (keepout (tracks allowed) (vias allowed) (pads allowed) (copperpour not_allowed) (footprints allowed))
+    (polygon (pts (xy 5 5) (xy 8 5) (xy 8 8) (xy 5 8))))
+)"#;
+        let all = read_with(text, &KicadSettings::default());
+        assert_eq!(all.board.zones.len(), 1);
+        assert_eq!(all.board.zones.values().next().unwrap().cutouts.len(), 1);
+        // a rule area of 4 corners against a zone of 4 corners costs 16 tests
+        let exact = KicadSettings {
+            max_keepout_checks: 16,
+            ..KicadSettings::default()
+        };
+        let r = read_with(text, &exact);
+        assert_eq!(r.board.zones.values().next().unwrap().cutouts.len(), 1);
+        let tight = KicadSettings {
+            max_keepout_checks: 15,
+            ..KicadSettings::default()
+        };
+        let r = read_with(text, &tight);
+        assert!(r.board.zones.values().next().unwrap().cutouts.is_empty());
+        assert!(r
+            .diagnostics
+            .iter()
+            .any(|d| d.message.contains("over max_keepout_checks")));
     }
 
     #[test]
