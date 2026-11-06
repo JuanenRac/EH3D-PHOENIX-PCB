@@ -12,6 +12,8 @@
 //!   compared with that board;
 //! * [`report`]: the summary as text and as JSON;
 //! * [`settings`]: the limits and defaults, read from `config/gerber_import.cfg`;
+//! * [`x2check`]: a basic check of the structure of Gerber X2 and Excellon files, with the stable
+//!   codes `PHOENIX-GX2-<NNN>` (the command `phoenix gerber-check`);
 //! * [`codes`]: the stable codes `PHOENIX-GBR-<NNN>` with their titles in the eight languages.
 //!
 //! The geometry is kept apart from the board model: nothing is merged into a board and nothing is
@@ -33,9 +35,10 @@ pub mod parse;
 pub mod report;
 pub mod settings;
 pub mod units;
+pub mod x2check;
 
 pub use codes::{title, Finding, GbrError, Severity, TITLES};
-pub use compare::{compare_files, round_trip, Difference, RoundTrip};
+pub use compare::{compare_files, compare_files_with, round_trip, Difference, RoundTrip};
 pub use drill::parse_drill;
 pub use identify::{identify, Identified, Role, Source};
 pub use import::{import_file, import_files, Content, ImportedFile, ImportedSet};

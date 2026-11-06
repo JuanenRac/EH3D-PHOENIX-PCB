@@ -303,6 +303,7 @@ pub fn title(code: &str, lang: Lang) -> &'static str {
     let column = Lang::ALL.iter().position(|l| *l == lang).unwrap_or(0);
     TITLES
         .iter()
+        .chain(crate::x2check::TITLES.iter())
         .find(|(c, _)| *c == code)
         .map_or("", |(_, row)| row[column])
 }

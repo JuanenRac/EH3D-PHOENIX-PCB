@@ -4,9 +4,13 @@
 //! with a tolerance from the settings, so a coarser coordinate format does not count as a
 //! difference. Silkscreen layers are only read; their strokes depend on the font.
 
+use std::collections::BTreeMap;
+
 use eh3d_phoenix_board::connectivity::pad_position;
 use eh3d_phoenix_board::{Board, Id, LayerKind, PadRef, Segment};
 use eh3d_phoenix_export::fab::{FabFile, FileRole};
+use eh3d_phoenix_export::profile::{ObjectAttribute, X2Level, X2Profile};
+use eh3d_phoenix_export::x2::{unescape_field, NO_NET};
 use eh3d_phoenix_export::{build, Profile};
 
 use crate::codes::{Finding, GbrError, Severity, ROUND_TRIP_DIFFERENCE, ROUND_TRIP_FAILED};
@@ -149,9 +153,76 @@ fn arc_is_written(start: (i64, i64), end: (i64, i64), sweep_udeg: i64) -> bool {
     distance > 0.0 && distance.is_finite() && half.sin().abs() >= 1e-9
 }
 
+/// The label of a net for the attribute `.N`: its name, or `N/C` when there is no net.
+fn net_label(board: &Board, id: Option<Id>) -> String {
+    id.and_then(|i| board.nets.get(&i))
+        .map(|n| n.name.as_str())
+        .filter(|n| !n.is_empty())
+        .unwrap_or(NO_NET)
+        .to_owned()
+}
+
+/// The pads of the board on a layer: for each reference designator and pin number, where the pads
+/// with that name are and on which net.
+type PadTable = BTreeMap<(String, String), Vec<((i64, i64), String)>>;
+
+fn pad_table(board: &Board, layer: Id) -> PadTable {
+    let mut table = PadTable::new();
+    for (component_id, component) in &board.components {
+        let Some(footprint) = board.footprints.get(&component.footprint) else {
+            continue;
+        };
+        for (pad_id, pad) in &footprint.pads {
+            if !pad.layers.contains(&layer) || component.refdes.is_empty() || pad.number.is_empty()
+            {
+                continue;
+            }
+            let pad_ref = PadRef {
+                component: *component_id,
+                pad: *pad_id,
+            };
+            let Some(at) = pad_position(board, pad_ref) else {
+                continue;
+            };
+            table
+                .entry((component.refdes.clone(), pad.number.clone()))
+                .or_default()
+                .push((
+                    (at.x_nm.get(), at.y_nm.get()),
+                    net_label(board, board.net_of(pad_ref)),
+                ));
+        }
+    }
+    table
+}
+
+/// The nets of the tracks of a layer that the export writes, one per line or arc, sorted.
+fn track_nets(board: &Board, layer: Id) -> Vec<String> {
+    let mut nets = Vec::new();
+    for track in board.tracks.values().filter(|t| t.layer == layer) {
+        let label = net_label(board, Some(track.net));
+        for segment in &track.path {
+            let written = match segment {
+                Segment::Line { .. } => true,
+                Segment::Arc { start, end, sweep } => arc_is_written(
+                    (start.x_nm.get(), start.y_nm.get()),
+                    (end.x_nm.get(), end.y_nm.get()),
+                    sweep.get(),
+                ),
+            };
+            if written {
+                nets.push(label.clone());
+            }
+        }
+    }
+    nets.sort_unstable();
+    nets
+}
+
 struct Checker<'a> {
     board: &'a Board,
     tolerance: i64,
+    x2: &'a X2Profile,
     differences: Vec<Difference>,
 }
 
@@ -246,6 +317,245 @@ impl Checker<'_> {
         }
     }
 
+    /// The attributes of a file against the level of X2 the export was asked for.
+    fn x2_file(&mut self, name: &str, attributes: &BTreeMap<String, Vec<String>>) {
+        let level = self.x2.level;
+        if level == X2Level::X1 {
+            if !attributes.is_empty() {
+                self.differ(
+                    name,
+                    "the file has attributes although the level is X1".to_owned(),
+                );
+            }
+            return;
+        }
+        if !level.has_file_attributes() {
+            return;
+        }
+        for required in [
+            ".GenerationSoftware",
+            ".ProjectId",
+            ".SameCoordinates",
+            ".Part",
+        ] {
+            if !attributes.contains_key(required) {
+                self.differ(name, format!("the attribute {required} is missing"));
+            }
+        }
+        if let Some(values) = attributes.get(".ProjectId") {
+            let board_name = if self.board.name.trim().is_empty() {
+                "board"
+            } else {
+                self.board.name.as_str()
+            };
+            let name_ok = values
+                .first()
+                .is_some_and(|v| unescape_field(v) == board_name);
+            let id_ok = values.get(1).is_some_and(|v| {
+                v.len() == 36
+                    && v.matches('-').count() == 4
+                    && self
+                        .x2
+                        .project_id
+                        .as_deref()
+                        .is_none_or(|wanted| v.eq_ignore_ascii_case(wanted))
+            });
+            if values.len() != 3 || !name_ok || !id_ok {
+                self.differ(
+                    name,
+                    "the attribute .ProjectId does not agree with the board".to_owned(),
+                );
+            }
+        }
+        if attributes.contains_key(".CreationDate") != self.x2.creation_date.is_some() {
+            self.differ(
+                name,
+                "the attribute .CreationDate does not agree with the profile".to_owned(),
+            );
+        }
+    }
+
+    /// The attributes of a layer file: the file attributes, the function of each aperture and the
+    /// attributes of the objects.
+    fn x2_layer(&mut self, name: &str, layer: Id, kind: LayerKind, imported: &ImportedFile) {
+        let Some(gerber) = imported.gerber() else {
+            return;
+        };
+        self.x2_file(name, &gerber.attributes);
+        let level = self.x2.level;
+        if level.has_aperture_attributes() && kind != LayerKind::Silkscreen {
+            for number in gerber.apertures.keys() {
+                let named = gerber
+                    .aperture_attributes
+                    .get(number)
+                    .is_some_and(|a| a.contains_key(".AperFunction"));
+                if !named {
+                    self.differ(name, format!("the aperture D{number} has no function"));
+                }
+            }
+        }
+        if level.has_object_attributes()
+            && matches!(
+                kind,
+                LayerKind::Copper | LayerKind::SolderMask | LayerKind::Paste
+            )
+        {
+            self.x2_objects(name, layer, kind, gerber);
+        }
+    }
+
+    /// The object attributes of a copper, solder mask or paste layer against the board: the pins
+    /// of the pads (reference designator, pin number, place and net), the components and the nets
+    /// of vias, tracks and zones.
+    fn x2_objects(
+        &mut self,
+        name: &str,
+        layer: Id,
+        kind: LayerKind,
+        gerber: &crate::model::GerberLayer,
+    ) {
+        let copper = kind == LayerKind::Copper;
+        let (nets_wanted, pins_wanted, components_wanted) = (
+            copper && self.x2.writes(ObjectAttribute::Net),
+            self.x2.writes(ObjectAttribute::Pin),
+            self.x2.writes(ObjectAttribute::Component),
+        );
+        let table = pad_table(self.board, layer);
+        let pad_total: usize = table.values().map(Vec::len).sum();
+        let (mut with_pin, mut with_component, mut without_net) = (0usize, 0usize, 0usize);
+        let (mut loose, mut lines, mut regions): (Vec<String>, Vec<String>, Vec<String>) =
+            (Vec::new(), Vec::new(), Vec::new());
+        for (index, item) in gerber.items.iter().enumerate() {
+            let attributes = gerber.object_attributes(index);
+            let value = |key: &str, at: usize| {
+                attributes
+                    .and_then(|a| a.get(key))
+                    .and_then(|v| v.get(at))
+                    .map(|v| unescape_field(v))
+            };
+            let net = value(".N", 0);
+            if nets_wanted && net.is_none() {
+                without_net += 1;
+            }
+            let label = net.clone().unwrap_or_default();
+            match item {
+                crate::model::Item::Flash { at, .. } => {
+                    let pin = (value(".P", 0), value(".P", 1));
+                    if let (Some(refdes), Some(number)) = pin {
+                        with_pin += 1;
+                        let key = (refdes, number);
+                        match table.get(&key) {
+                            None => self.differ(
+                                name,
+                                format!("the pin {},{} is not a pad of the board", key.0, key.1),
+                            ),
+                            Some(list) => {
+                                let found = list.iter().any(|(place, pad_net)| {
+                                    near(place.0, at.x, self.tolerance)
+                                        && near(place.1, at.y, self.tolerance)
+                                        && net.as_ref().is_none_or(|n| n == pad_net)
+                                });
+                                if !found {
+                                    self.differ(
+                                        name,
+                                        format!(
+                                            "the pin {},{} is not where the board has it or is on another net",
+                                            key.0, key.1
+                                        ),
+                                    );
+                                }
+                            }
+                        }
+                        if components_wanted {
+                            if value(".C", 0).as_deref() == Some(key.0.as_str()) {
+                                with_component += 1;
+                            } else {
+                                self.differ(
+                                    name,
+                                    format!(
+                                        "the component of the pin {},{} is wrong",
+                                        key.0, key.1
+                                    ),
+                                );
+                            }
+                        }
+                    } else {
+                        loose.push(label);
+                    }
+                }
+                crate::model::Item::Line { .. } | crate::model::Item::Arc { .. } => {
+                    lines.push(label)
+                }
+                crate::model::Item::Region { .. } => regions.push(label),
+            }
+        }
+        if pins_wanted {
+            self.count(name, "pads with a pin attribute", pad_total, with_pin);
+        }
+        if components_wanted && pins_wanted {
+            self.count(
+                name,
+                "pads with a component attribute",
+                pad_total,
+                with_component,
+            );
+        }
+        if nets_wanted {
+            if without_net > 0 {
+                self.differ(name, format!("{without_net} object(s) without a net"));
+            }
+            let mut vias: Vec<String> = self
+                .board
+                .vias
+                .values()
+                .filter(|v| v.from_layer == layer || v.to_layer == layer)
+                .map(|v| net_label(self.board, Some(v.net)))
+                .collect();
+            vias.sort_unstable();
+            let mut zones: Vec<String> = self
+                .board
+                .zones
+                .values()
+                .filter(|z| z.layer == layer && z.outline.len() >= 3)
+                .map(|z| net_label(self.board, Some(z.net)))
+                .collect();
+            zones.sort_unstable();
+            let tracks = track_nets(self.board, layer);
+            for (what, mut expected, mut found, applies) in [
+                ("vias", vias, loose, pins_wanted),
+                ("lines", tracks, lines, true),
+                ("regions", zones, regions, true),
+            ] {
+                expected.sort_unstable();
+                found.sort_unstable();
+                if applies && expected != found {
+                    self.differ(
+                        name,
+                        format!("the nets of the {what} do not agree with the board"),
+                    );
+                }
+            }
+        }
+    }
+
+    fn x2_drill(&mut self, name: &str, imported: &ImportedFile) {
+        let Some(file) = imported.drill() else {
+            return;
+        };
+        self.x2_file(name, &file.attributes);
+        if self.x2.level.has_aperture_attributes() {
+            for tool in file.tools.keys() {
+                let named = file
+                    .tool_attributes
+                    .get(tool)
+                    .is_some_and(|a| a.contains_key(".AperFunction"));
+                if !named {
+                    self.differ(name, format!("the tool T{tool} has no function"));
+                }
+            }
+        }
+    }
+
     fn flashes(&mut self, name: &str, expected: Points, gerber: &crate::model::GerberLayer) {
         let found = sorted(
             gerber
@@ -323,15 +633,34 @@ pub fn round_trip(
 ) -> Result<RoundTrip, GbrError> {
     let set = build(board, profile)
         .map_err(|e| GbrError::new(ROUND_TRIP_FAILED, e.diagnostic().message))?;
-    Ok(compare_files(board, &set.files, settings))
+    Ok(compare_files_with(
+        board,
+        &set.files,
+        settings,
+        &profile.gerber.x2,
+    ))
 }
 
 /// Reads files that were made from `board` (the files of an export, perhaps changed since) and
-/// compares them with it.
+/// compares them with it. The files are expected to carry the attributes of the default profile,
+/// which are the three file attributes of a layer file.
 pub fn compare_files(board: &Board, set_files: &[FabFile], settings: &ImportSettings) -> RoundTrip {
+    compare_files_with(board, set_files, settings, &X2Profile::default())
+}
+
+/// Like [`compare_files`], and also compares the Gerber X2 attributes of the files with what the
+/// profile `x2` asks for: the file attributes, the function of each aperture and of each drill
+/// tool, and the net, pin and component of the objects, read back and checked against the board.
+pub fn compare_files_with(
+    board: &Board,
+    set_files: &[FabFile],
+    settings: &ImportSettings,
+    x2: &X2Profile,
+) -> RoundTrip {
     let mut checker = Checker {
         board,
         tolerance: settings.compare_tolerance_nm,
+        x2,
         differences: Vec::new(),
     };
     let mut files: Vec<ImportedFile> = Vec::new();
@@ -353,6 +682,7 @@ pub fn compare_files(board: &Board, set_files: &[FabFile], settings: &ImportSett
                         checker.differ(&name, format!("the attribute says {}", found.name()));
                     }
                     checker.layer(&name, *layer, *kind, &imported);
+                    checker.x2_layer(&name, *layer, *kind, &imported);
                 }
                 files.push(imported);
             }
@@ -362,6 +692,7 @@ pub fn compare_files(board: &Board, set_files: &[FabFile], settings: &ImportSett
                     checker.differ(&name, format!("the file cannot be read back: {error}"));
                 } else {
                     checker.drill(&name, *plated, &imported);
+                    checker.x2_drill(&name, &imported);
                 }
                 files.push(imported);
             }

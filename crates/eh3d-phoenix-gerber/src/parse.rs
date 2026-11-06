@@ -171,6 +171,11 @@ struct Reader<'a> {
     findings: Vec<Finding>,
     noted: BTreeSet<&'static str>,
     attributes: BTreeMap<String, Vec<String>>,
+    aperture_attributes: BTreeMap<String, Vec<String>>,
+    object_attributes: BTreeMap<String, Vec<String>>,
+    aperture_attribute_map: BTreeMap<u32, BTreeMap<String, Vec<String>>>,
+    attribute_sets: Vec<BTreeMap<String, Vec<String>>>,
+    set_runs: Vec<(usize, usize)>,
     block_depth: u32,
     ended: bool,
     complete: bool,
@@ -215,6 +220,11 @@ impl<'a> Reader<'a> {
             findings: Vec::new(),
             noted: BTreeSet::new(),
             attributes: BTreeMap::new(),
+            aperture_attributes: BTreeMap::new(),
+            object_attributes: BTreeMap::new(),
+            aperture_attribute_map: BTreeMap::new(),
+            attribute_sets: vec![BTreeMap::new()],
+            set_runs: Vec::new(),
             block_depth: 0,
             ended: false,
             complete: true,
@@ -324,6 +334,57 @@ impl<'a> Reader<'a> {
         Ok(())
     }
 
+    /// `TA`, `TO` and `TD`: the attributes of the apertures defined next and of the objects drawn
+    /// next. The sets of object attributes are kept apart, each once, and the places where the set
+    /// in force changes are recorded to give every object its set.
+    fn attribute_command(&mut self, command: &str, line: usize) -> Result<(), GbrError> {
+        let kind = &command[..2];
+        let mut values = command[2..].split(',');
+        let name = values.next().unwrap_or("").to_owned();
+        let rest: Vec<String> = values.map(str::to_owned).collect();
+        match kind {
+            "TA" | "TO" if name.is_empty() => {
+                return Err(syntax(line, "an attribute without a name"));
+            }
+            "TA" => {
+                self.aperture_attributes.insert(name, rest);
+            }
+            "TO" => {
+                self.object_attributes.insert(name, rest);
+                self.note_object_set();
+            }
+            _ => {
+                if name.is_empty() {
+                    self.aperture_attributes.clear();
+                    self.object_attributes.clear();
+                } else {
+                    self.aperture_attributes.remove(&name);
+                    self.object_attributes.remove(&name);
+                }
+                self.note_object_set();
+            }
+        }
+        Ok(())
+    }
+
+    fn note_object_set(&mut self) {
+        let index = match self
+            .attribute_sets
+            .iter()
+            .position(|set| *set == self.object_attributes)
+        {
+            Some(index) => index,
+            None => {
+                self.attribute_sets.push(self.object_attributes.clone());
+                self.attribute_sets.len() - 1
+            }
+        };
+        let last = self.set_runs.last().map_or(0, |run| run.1);
+        if index != last {
+            self.set_runs.push((self.items.len(), index));
+        }
+    }
+
     fn extended(&mut self, text: &str, line: usize) -> Result<(), GbrError> {
         let parts: Vec<&str> = text.split('*').collect();
         let command = parts[0];
@@ -378,7 +439,8 @@ impl<'a> Reader<'a> {
                 self.attributes.insert(name, rest);
                 Ok(())
             }
-            "TA" | "TO" | "TD" | "IN" | "LN" => Ok(()),
+            "TA" | "TO" | "TD" => self.attribute_command(command, line),
+            "IN" | "LN" => Ok(()),
             "SR" => {
                 if command.len() > 2 {
                     self.skipped("SR", line, "step and repeat (SR)");
@@ -625,6 +687,10 @@ impl<'a> Reader<'a> {
             }
         };
         self.apertures.insert(number, aperture);
+        if !self.aperture_attributes.is_empty() {
+            self.aperture_attribute_map
+                .insert(number, self.aperture_attributes.clone());
+        }
         Ok(())
     }
 
@@ -1022,10 +1088,26 @@ pub fn parse_gerber(text: &str, settings: &ImportSettings) -> Result<GerberLayer
     if !reader.ended {
         reader.note(NO_END, Severity::Warning, last_line, "no M02");
     }
+    let mut item_sets = Vec::with_capacity(reader.items.len());
+    let mut runs = reader.set_runs.iter().peekable();
+    let mut in_force = 0usize;
+    for index in 0..reader.items.len() {
+        while let Some(&&(start, set)) = runs.peek() {
+            if start > index {
+                break;
+            }
+            in_force = set;
+            runs.next();
+        }
+        item_sets.push(in_force);
+    }
     Ok(GerberLayer {
         units: reader.units.unwrap_or(Units::Millimetres),
         attributes: reader.attributes,
         apertures: reader.apertures,
+        aperture_attributes: reader.aperture_attribute_map,
+        attribute_sets: reader.attribute_sets,
+        item_sets,
         items: reader.items,
         findings: reader.findings,
         ended: reader.ended,
@@ -1047,6 +1129,66 @@ mod tests {
     }
 
     const HEAD: &str = "%FSLAX46Y46*%\n%MOMM*%\n";
+
+    #[test]
+    fn aperture_and_object_attributes_are_kept_for_what_they_describe() {
+        let layer = read(&format!(
+            "{HEAD}%TA.AperFunction,ViaPad*%
+%ADD10C,0.6*%
+%TD.AperFunction*%
+%ADD11C,0.2*%
+%TO.N,GND*%
+D10*
+X1000000Y1000000D03*
+%TO.P,R1,1*%
+X2000000Y1000000D03*
+%TD.N*%
+D11*
+X0Y0D02*
+X1000000Y0D01*
+%TD*%
+X3000000Y1000000D03*
+M02*
+"
+        ));
+        assert_eq!(layer.findings, Vec::new());
+        assert_eq!(
+            layer.aperture_attributes[&10][".AperFunction"],
+            vec!["ViaPad"]
+        );
+        assert!(!layer.aperture_attributes.contains_key(&11));
+        assert_eq!(layer.items.len(), 4);
+        assert_eq!(layer.item_sets.len(), 4);
+        let at = |i: usize| layer.object_attributes(i).unwrap();
+        assert_eq!(at(0).len(), 1);
+        assert_eq!(at(0)[".N"], vec!["GND"]);
+        assert_eq!(at(1)[".N"], vec!["GND"]);
+        assert_eq!(at(1)[".P"], vec!["R1", "1"]);
+        // the net was deleted, the pin stays, and the line carries it
+        assert_eq!(at(2).len(), 1);
+        assert_eq!(at(2)[".P"], vec!["R1", "1"]);
+        // a delete without a name clears them all
+        assert!(at(3).is_empty());
+        // the sets are kept once: the empty one and three more
+        assert_eq!(layer.attribute_sets.len(), 4);
+        assert!(layer.attribute_sets[0].is_empty());
+        assert_eq!(layer.item_sets[3], 0);
+        assert!(layer.object_attributes(9).is_none());
+    }
+
+    #[test]
+    fn a_file_without_object_attributes_has_only_the_empty_set() {
+        let layer = read(&format!(
+            "{HEAD}%ADD10C,0.6*%
+D10*
+X1000000Y1000000D03*
+M02*
+"
+        ));
+        assert_eq!(layer.attribute_sets.len(), 1);
+        assert_eq!(layer.item_sets, vec![0]);
+        assert!(layer.aperture_attributes.is_empty());
+    }
 
     #[test]
     fn lines_flashes_and_attributes() {

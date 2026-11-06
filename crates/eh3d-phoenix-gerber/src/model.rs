@@ -233,6 +233,15 @@ pub struct GerberLayer {
     pub attributes: BTreeMap<String, Vec<String>>,
     /// The apertures by number.
     pub apertures: BTreeMap<u32, Aperture>,
+    /// The attributes of the apertures (`TA`, such as `.AperFunction`) by aperture number; only the
+    /// apertures that were defined with some are here.
+    pub aperture_attributes: BTreeMap<u32, BTreeMap<String, Vec<String>>>,
+    /// The distinct sets of object attributes (`TO`, such as `.N` and `.P`) that the objects of the
+    /// file carry; the first is always the empty set.
+    pub attribute_sets: Vec<BTreeMap<String, Vec<String>>>,
+    /// For each object of `items`, in the same order, the index in `attribute_sets` of the object
+    /// attributes in force when it was drawn.
+    pub item_sets: Vec<usize>,
     /// The drawn objects in file order.
     pub items: Vec<Item>,
     /// What was found while reading.
@@ -276,6 +285,9 @@ pub struct DrillFile {
     pub slots: Vec<Slot>,
     /// The attributes found in comments (`.FileFunction`), each with its values.
     pub attributes: BTreeMap<String, Vec<String>>,
+    /// The attributes of the tools (`.AperFunction`) by tool number, found in the comments before
+    /// the definition of the tool; only the tools that were defined with some are here.
+    pub tool_attributes: BTreeMap<u32, BTreeMap<String, Vec<String>>>,
     /// What was found while reading.
     pub findings: Vec<Finding>,
     /// True when the file ends with its end command.
@@ -313,6 +325,13 @@ pub fn bounds_of(points: impl Iterator<Item = P>) -> Option<(P, P)> {
 }
 
 impl GerberLayer {
+    /// The object attributes of the object number `index` of `items`.
+    pub fn object_attributes(&self, index: usize) -> Option<&BTreeMap<String, Vec<String>>> {
+        self.item_sets
+            .get(index)
+            .and_then(|set| self.attribute_sets.get(*set))
+    }
+
     /// The corners of the box around the centre lines of the objects (the width of a line and the
     /// size of an aperture are not added).
     pub fn centre_bounds(&self) -> Option<(P, P)> {

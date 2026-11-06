@@ -33,6 +33,8 @@ struct Reader<'a> {
     hits: Vec<Hit>,
     slots: Vec<Slot>,
     attributes: BTreeMap<String, Vec<String>>,
+    pending: BTreeMap<String, Vec<String>>,
+    tool_attributes: BTreeMap<u32, BTreeMap<String, Vec<String>>>,
     findings: Vec<Finding>,
     noted: BTreeSet<&'static str>,
     ended: bool,
@@ -130,6 +132,26 @@ impl Reader<'_> {
 
     fn comment(&mut self, text: &str) {
         let text = text.trim();
+        if let Some(command) = text.strip_prefix("#@!").map(str::trim) {
+            if let Some(attribute) = command.strip_prefix("TA") {
+                let mut values = attribute.split(',');
+                let name = values.next().unwrap_or("").trim().to_owned();
+                if !name.is_empty() {
+                    let rest: Vec<String> = values.map(|v| v.trim().to_owned()).collect();
+                    self.pending.insert(name, rest);
+                }
+                return;
+            }
+            if let Some(name) = command.strip_prefix("TD") {
+                let name = name.trim();
+                if name.is_empty() {
+                    self.pending.clear();
+                } else {
+                    self.pending.remove(name);
+                }
+                return;
+            }
+        }
         if let Some(index) = text.find("TF.") {
             let attribute = &text[index + 2..];
             let mut values = attribute.split(',');
@@ -296,6 +318,9 @@ impl Reader<'_> {
                 ));
             }
             self.tools.insert(number, value);
+            if !self.pending.is_empty() {
+                self.tool_attributes.insert(number, self.pending.clone());
+            }
             if !in_header {
                 self.current = Some(number);
             }
@@ -506,6 +531,8 @@ pub fn parse_drill(text: &str, settings: &ImportSettings) -> Result<DrillFile, G
         hits: Vec::new(),
         slots: Vec::new(),
         attributes: BTreeMap::new(),
+        pending: BTreeMap::new(),
+        tool_attributes: BTreeMap::new(),
         findings: Vec::new(),
         noted: BTreeSet::new(),
         ended: false,
@@ -545,6 +572,7 @@ pub fn parse_drill(text: &str, settings: &ImportSettings) -> Result<DrillFile, G
         hits: reader.hits,
         slots: reader.slots,
         attributes: reader.attributes,
+        tool_attributes: reader.tool_attributes,
         findings: reader.findings,
         ended: reader.ended,
         omission,
@@ -561,6 +589,33 @@ mod tests {
 
     fn fail(text: &str) -> GbrError {
         parse_drill(text, &ImportSettings::default()).unwrap_err()
+    }
+
+    #[test]
+    fn tool_attributes_are_read_from_the_comments_before_the_tool() {
+        let file = read(
+            "M48
+; #@! TF.FileFunction,Plated,1,2,PTH,Drill
+METRIC,TZ
+; #@! TA.AperFunction,Plated,PTH,ViaDrill
+T01C0.3
+; #@! TD.AperFunction
+T02C0.8
+%
+T01
+X1.0Y2.0
+M30
+",
+        );
+        assert_eq!(
+            file.tool_attributes[&1][".AperFunction"],
+            vec!["Plated", "PTH", "ViaDrill"]
+        );
+        assert!(!file.tool_attributes.contains_key(&2));
+        assert_eq!(
+            file.attributes[".FileFunction"],
+            vec!["Plated", "1", "2", "PTH", "Drill"]
+        );
     }
 
     #[test]
