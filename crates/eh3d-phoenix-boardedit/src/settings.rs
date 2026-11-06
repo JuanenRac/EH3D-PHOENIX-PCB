@@ -49,6 +49,19 @@ pub struct BoardEditSettings {
     pub length_tolerance_nm: i64,
     /// How many places (the longest straight pieces) are tried before a tuning is refused.
     pub meander_candidates: usize,
+    /// How many levels of tracks a push may move one after the other (the track that is pushed
+    /// pushes the next one, and so on).
+    pub shove_max_depth: usize,
+    /// The most tracks a push may move.
+    pub shove_max_moved: usize,
+    /// The gap added to the clearance of the rules when a track is pushed, in nanometres.
+    pub shove_margin_nm: i64,
+    /// The smallest radius of an arc in a track, in nanometres.
+    pub arc_min_radius_nm: i64,
+    /// How many chords an arc of a quarter turn is cut into to check it against the rules.
+    pub arc_steps_per_quarter: usize,
+    /// The gap added to the clearance of the rules when an arc is checked, in nanometres.
+    pub arc_margin_nm: i64,
 }
 
 impl Default for BoardEditSettings {
@@ -90,6 +103,12 @@ impl BoardEditSettings {
             meander_pitch_nm: 1,
             length_tolerance_nm: 0,
             meander_candidates: 1,
+            shove_max_depth: 1,
+            shove_max_moved: 1,
+            shove_margin_nm: 0,
+            arc_min_radius_nm: 1,
+            arc_steps_per_quarter: 1,
+            arc_margin_nm: 0,
         }
     }
 
@@ -155,6 +174,16 @@ impl BoardEditSettings {
                 "meander_candidates" => {
                     self.meander_candidates = value.parse().map_err(|_| bad())?;
                 }
+                "shove_max_depth" => self.shove_max_depth = value.parse().map_err(|_| bad())?,
+                "shove_max_moved" => self.shove_max_moved = value.parse().map_err(|_| bad())?,
+                "shove_margin_nm" => self.shove_margin_nm = value.parse().map_err(|_| bad())?,
+                "arc_min_radius_nm" => {
+                    self.arc_min_radius_nm = value.parse().map_err(|_| bad())?;
+                }
+                "arc_steps_per_quarter" => {
+                    self.arc_steps_per_quarter = value.parse().map_err(|_| bad())?;
+                }
+                "arc_margin_nm" => self.arc_margin_nm = value.parse().map_err(|_| bad())?,
                 _ => return Err(fail(format!("unknown key {key}"))),
             }
         }
@@ -175,6 +204,9 @@ impl BoardEditSettings {
             ("meander_max_amplitude_nm", self.meander_max_amplitude_nm, 1),
             ("meander_pitch_nm", self.meander_pitch_nm, 1),
             ("length_tolerance_nm", self.length_tolerance_nm, 0),
+            ("shove_margin_nm", self.shove_margin_nm, 0),
+            ("arc_min_radius_nm", self.arc_min_radius_nm, 1),
+            ("arc_margin_nm", self.arc_margin_nm, 0),
         ];
         for (name, value, low) in ranges {
             if !(low..=limit).contains(&value) {
@@ -195,6 +227,19 @@ impl BoardEditSettings {
                 SETTINGS_INVALID,
                 "meander_candidates must be between 1 and 64",
             ));
+        }
+        let counts = [
+            ("shove_max_depth", self.shove_max_depth, 16),
+            ("shove_max_moved", self.shove_max_moved, 256),
+            ("arc_steps_per_quarter", self.arc_steps_per_quarter, 64),
+        ];
+        for (name, value, high) in counts {
+            if !(1..=high).contains(&value) {
+                return Err(BoardEditError::new(
+                    SETTINGS_INVALID,
+                    format!("{name} must be between 1 and {high}"),
+                ));
+            }
         }
         Ok(())
     }
@@ -226,6 +271,10 @@ mod tests {
         assert!(s.diagonal_routes && s.corner_horizontal_first);
         assert_eq!(s.track_width_nm, 250_000);
         assert_eq!(s.meander_candidates, 3);
+        assert_eq!((s.shove_max_depth, s.shove_max_moved), (3, 8));
+        assert_eq!(s.shove_margin_nm, 1_000);
+        assert_eq!(s.arc_min_radius_nm, 500_000);
+        assert_eq!(s.arc_steps_per_quarter, 8);
         let route = s.route_settings();
         assert_eq!(route.default_width_nm, 250_000);
         assert_eq!(route.via_diameter_nm, 600_000);
@@ -256,6 +305,14 @@ mod tests {
             "meander_candidates = 65",
             "meander_max_amplitude_nm = 10",
             "length_tolerance_nm = -1",
+            "shove_max_depth = 0",
+            "shove_max_depth = 17",
+            "shove_max_moved = 0",
+            "shove_max_moved = 257",
+            "shove_margin_nm = -1",
+            "arc_min_radius_nm = 0",
+            "arc_steps_per_quarter = 65",
+            "arc_margin_nm = x",
         ] {
             let error = BoardEditSettings::parse(text).unwrap_err();
             assert_eq!(error.code, SETTINGS_INVALID, "{text}");
