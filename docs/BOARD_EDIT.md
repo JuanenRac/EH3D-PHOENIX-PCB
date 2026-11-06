@@ -52,6 +52,7 @@ Undo and redo give back the same bytes. The ids of the parts the editor makes co
 | `grid_nm`, `snap` | 250000, true | The grid and whether points snap to it. |
 | `pick_tolerance_nm`, `part_padding_nm` | 300000, 500000 | How near a click picks a track or a via, and the space around the pads that picks a component. |
 | `live_drc`, `reject_new_errors` | true, true | The rule check after each operation, and the refusal of an operation that adds a rule error. |
+| `advanced_drc` | false | Also run the advanced checks (`docs/DRC_ADVANCED.md`) in that rule check, so that the findings they add or remove are in the report of an operation. |
 | `follow_tracks` | true | The tracks on the pads of a component follow it. |
 | `diagonal_routes`, `corner_horizontal_first` | true, true | 45-degree pieces, and which way a corner goes. |
 | `track_width_nm`, `via_drill_nm`, `via_diameter_nm` | 250000, 300000, 600000 | The width of a track and the size of a via when the net class asks for no other; the rules and the classes raise them. |

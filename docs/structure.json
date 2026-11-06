@@ -417,6 +417,19 @@
           }
         },
         {
+          "name": "DRC_ADVANCED.md",
+          "desc": {
+            "en": "advanced design rule checks and their settings",
+            "es": "comprobaciones avanzadas de reglas y sus ajustes",
+            "de": "erweiterte Entwurfsregelprüfungen und ihre Einstellungen",
+            "fr": "contrôles avancés des règles et leurs réglages",
+            "it": "controlli avanzati delle regole e relative impostazioni",
+            "ja": "高度な設計ルール検査とその設定",
+            "zh": "高级设计规则检查及其设置",
+            "pt": "verificações avançadas de regras e as suas definições"
+          }
+        },
+        {
           "name": "AUTOROUTE.md",
           "desc": {
             "en": "routing by an external autorouter: DSN, session, adapter",

@@ -52,6 +52,7 @@
         "crates/eh3d-phoenix-cli/src/lib.rs",
         "crates/eh3d-phoenix-eagle-board/src/writer.rs",
         "crates/eh3d-phoenix-rules/src/engine.rs",
+        "crates/eh3d-phoenix-rules/src/advanced/checks.rs",
         "crates/eh3d-phoenix-stackup/src/models.rs",
         "crates/eh3d-phoenix-rf/src/touchstone.rs",
         "crates/eh3d-phoenix-rfgen/src/formulas.rs",
