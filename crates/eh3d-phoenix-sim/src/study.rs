@@ -599,7 +599,7 @@ mod tests {
         let s = SimSettings::default();
         let plan = plan_of(RC, &s);
         let build = builder(RC, &s);
-        let table = run_study(&plan, &*build, &s).unwrap();
+        let table = run_study(&plan, build.as_ref(), &s).unwrap();
         assert_eq!(table.rows.len(), 1);
         let rise = table.rows[0].values[0].unwrap();
         // ln(9) RC with RC = 1 ms
@@ -624,7 +624,7 @@ mod tests {
             uic: false,
         });
         let build = builder(RC, &s);
-        let table = run_study(&plan, &*build, &s).unwrap();
+        let table = run_study(&plan, build.as_ref(), &s).unwrap();
         assert_eq!(table.axes, vec!["param:rr".to_string()]);
         assert_eq!(table.rows.len(), 3);
         let first = table.rows[0].values[0].unwrap();
@@ -643,7 +643,7 @@ mod tests {
         plan.steps.push(parse_step("R2 list 1k 3k", None).unwrap());
         plan.steps.push(parse_step("R1 list 1k 9k", None).unwrap());
         let build = builder(text, &s);
-        let table = run_study(&plan, &*build, &s).unwrap();
+        let table = run_study(&plan, build.as_ref(), &s).unwrap();
         assert_eq!(table.axes, vec!["r2".to_string(), "r1".to_string()]);
         // the first step is the outermost
         let wanted = [
@@ -672,7 +672,7 @@ mod tests {
             seed: 7,
         });
         let build = builder(text, &s);
-        let table = run_study(&plan, &*build, &s).unwrap();
+        let table = run_study(&plan, build.as_ref(), &s).unwrap();
         assert_eq!(table.rows.len(), 3000);
         assert_eq!(table.summaries.len(), 1);
         let summary = table.summaries[0].per_measure[0].as_ref().unwrap();
@@ -686,13 +686,13 @@ mod tests {
         assert!((summary.mean - 5.0).abs() < 0.003, "{}", summary.mean);
         assert!(summary.min >= 5.0 - 3.0 * want_std * 3.0f64.sqrt());
         // the same seed gives the same table, another seed does not
-        let again = run_study(&plan, &*build, &s).unwrap();
+        let again = run_study(&plan, build.as_ref(), &s).unwrap();
         assert_eq!(again, table);
         plan.mc = Some(McSpec {
             runs: 3000,
             seed: 8,
         });
-        let other = run_study(&plan, &*build, &s).unwrap();
+        let other = run_study(&plan, build.as_ref(), &s).unwrap();
         assert_ne!(other.rows, table.rows);
     }
 
@@ -704,9 +704,12 @@ mod tests {
         plan.mc = Some(McSpec { runs: 20, seed: 1 });
         let build = builder(text, &s);
         // no tolerance anywhere: refused
-        assert_eq!(run_study(&plan, &*build, &s).unwrap_err().code, MC_INVALID);
+        assert_eq!(
+            run_study(&plan, build.as_ref(), &s).unwrap_err().code,
+            MC_INVALID
+        );
         plan.default_tolerances = parse_default_tolerances("r=5%").unwrap();
-        let table = run_study(&plan, &*build, &s).unwrap();
+        let table = run_study(&plan, build.as_ref(), &s).unwrap();
         let summary = table.summaries[0].per_measure[0].as_ref().unwrap();
         assert!(summary.std > 0.0);
     }
@@ -729,7 +732,7 @@ mod tests {
             step: 1.0,
         });
         let build = builder(text, &s);
-        let table = run_study(&plan, &*build, &s).unwrap();
+        let table = run_study(&plan, build.as_ref(), &s).unwrap();
         assert_eq!(table.sensitivities.len(), 2);
         let r2 = &table.sensitivities[0];
         assert_eq!(r2.target, "r2");
@@ -746,39 +749,45 @@ mod tests {
         let mut plan = plan_of(RC, &s);
         plan.tran = None;
         assert_eq!(
-            run_study(&plan, &*build, &s).unwrap_err().code,
+            run_study(&plan, build.as_ref(), &s).unwrap_err().code,
             MEASURE_FAILED
         );
         let mut plan = plan_of(RC, &s);
         plan.measures.clear();
         assert_eq!(
-            run_study(&plan, &*build, &s).unwrap_err().code,
+            run_study(&plan, build.as_ref(), &s).unwrap_err().code,
             MEASURE_INVALID
         );
         let mut plan = plan_of(RC, &s);
         plan.measures.push(plan.measures[0].clone());
         assert_eq!(
-            run_study(&plan, &*build, &s).unwrap_err().code,
+            run_study(&plan, build.as_ref(), &s).unwrap_err().code,
             MEASURE_INVALID
         );
         let mut plan = plan_of(RC, &s);
         plan.steps
             .push(parse_step("param nothere list 1 2", None).unwrap());
-        assert_eq!(run_study(&plan, &*build, &s).unwrap_err().code, UNDEFINED);
+        assert_eq!(
+            run_study(&plan, build.as_ref(), &s).unwrap_err().code,
+            UNDEFINED
+        );
         let mut plan = plan_of(RC, &s);
         plan.steps
             .push(parse_step("R1 lin 1 2000 1", None).unwrap());
         assert_eq!(
-            run_study(&plan, &*build, &s).unwrap_err().code,
+            run_study(&plan, build.as_ref(), &s).unwrap_err().code,
             LIMIT_EXCEEDED
         );
         let mut plan = plan_of(RC, &s);
         plan.mc = Some(McSpec { runs: 0, seed: 1 });
-        assert_eq!(run_study(&plan, &*build, &s).unwrap_err().code, MC_INVALID);
+        assert_eq!(
+            run_study(&plan, build.as_ref(), &s).unwrap_err().code,
+            MC_INVALID
+        );
         let mut plan = plan_of(RC, &s);
         plan.measures = vec![parse_measure("tran m at v(zz) 1m", None).unwrap()];
         assert_eq!(
-            run_study(&plan, &*build, &s).unwrap_err().code,
+            run_study(&plan, build.as_ref(), &s).unwrap_err().code,
             MEASURE_FAILED
         );
     }
