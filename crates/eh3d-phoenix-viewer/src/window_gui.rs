@@ -435,7 +435,7 @@ impl WindowUi {
             settings,
             lang,
             workspace.as_deref_mut(),
-            view3d.as_deref_mut(),
+            view3d.as_mut().map(|v| &mut **v),
         );
         self.measures_window(ctx, settings, lang, workspace.as_deref_mut());
         self.layers_window(ctx, settings, lang, workspace.as_deref_mut());
@@ -658,7 +658,11 @@ impl WindowUi {
                     go = true;
                 }
                 if go {
-                    self.go_current(settings, workspace.as_deref_mut(), view3d.as_deref_mut());
+                    self.go_current(
+                        settings,
+                        workspace.as_mut().map(|w| &mut **w),
+                        view3d.as_mut().map(|v| &mut **v),
+                    );
                 }
             });
         self.search_open = open;
