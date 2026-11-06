@@ -291,7 +291,13 @@ impl Schematic {
         }
         let pin_nodes: Vec<usize> = pins.iter().map(|p| node(p.sheet, p.at)).collect();
         // net labels and power ports: the same name joins the nets wherever they are
+        let entry_marks = self.bus_entry_marks();
         let mut named: Vec<(&str, usize)> = Vec::new();
+        for (sheet, at, name) in &entry_marks {
+            if self.sheets.contains_key(sheet) {
+                named.push((name.as_str(), node(*sheet, *at)));
+            }
+        }
         for label in self.labels.values() {
             if self.sheets.contains_key(&label.sheet) {
                 named.push((label.name.as_str(), node(label.sheet, label.at)));

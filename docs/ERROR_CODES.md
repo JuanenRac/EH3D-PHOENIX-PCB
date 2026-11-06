@@ -2,7 +2,7 @@
 
 Codes have the form `PHOENIX-<AREA>-<NNN>`. A code is stable: it never changes its meaning and is never reused. Programs show the text through the key `diag.<code>`; the codes themselves are never translated. The object identity (UUID v7) is the one of the shared container, with its own codes `EH3D-ID-001` and `EH3D-ID-002`. The container codes `EH3D-PKG-001` to `EH3D-PKG-014` belong to the shared container and are listed in the registry of the documentation repository.
 
-Each table repeats the `REGISTRY` of a crate (`eh3d-phoenix-model` in `src/diagnostic.rs`, `eh3d-phoenix-project` and `eh3d-phoenix-eagle` in `src/codes.rs`, `eh3d-phoenix-hub` in `src/lib.rs`, `eh3d-phoenix-export` in `src/codes.rs` and `src/fabcodes.rs`, `eh3d-phoenix-schematic` in `src/model.rs`, `src/draw.rs`, `src/edit.rs` and `src/link.rs`, `eh3d-phoenix-board` in `src/validate.rs`, `src/connectivity.rs` and `src/rules.rs`, `eh3d-phoenix-rules` in `src/codes.rs`, `eh3d-phoenix-stackup` and `eh3d-phoenix-rf` in `src/error.rs`, `eh3d-phoenix-viewer`, `eh3d-phoenix-sanitizer`, `eh3d-phoenix-erc`, `eh3d-phoenix-sync`, `eh3d-phoenix-schedit`, `eh3d-phoenix-boardedit` (also in `src/pair_codes.rs`, `src/shove_codes.rs` and `src/zone_codes.rs`), `eh3d-phoenix-libedit`, `eh3d-phoenix-zones`, `eh3d-phoenix-lengths`, `eh3d-phoenix-gerber`, `eh3d-phoenix-panel`, `eh3d-phoenix-bom`, `eh3d-phoenix-assembly3d` and `eh3d-phoenix-oracle` in `src/codes.rs`); a test of each crate checks that every code of its registry is in the table with the same title.
+Each table repeats the `REGISTRY` of a crate (`eh3d-phoenix-model` in `src/diagnostic.rs`, `eh3d-phoenix-project` and `eh3d-phoenix-eagle` in `src/codes.rs`, `eh3d-phoenix-hub` in `src/lib.rs`, `eh3d-phoenix-export` in `src/codes.rs` and `src/fabcodes.rs`, `eh3d-phoenix-schematic` in `src/model.rs`, `src/draw.rs`, `src/edit.rs`, `src/link.rs`, `src/hier.rs` and `src/bus.rs`, `eh3d-phoenix-board` in `src/validate.rs`, `src/connectivity.rs` and `src/rules.rs`, `eh3d-phoenix-rules` in `src/codes.rs`, `eh3d-phoenix-stackup` and `eh3d-phoenix-rf` in `src/error.rs`, `eh3d-phoenix-viewer`, `eh3d-phoenix-sanitizer`, `eh3d-phoenix-erc`, `eh3d-phoenix-sync`, `eh3d-phoenix-schedit`, `eh3d-phoenix-boardedit` (also in `src/pair_codes.rs`, `src/shove_codes.rs` and `src/zone_codes.rs`), `eh3d-phoenix-libedit`, `eh3d-phoenix-zones`, `eh3d-phoenix-lengths`, `eh3d-phoenix-gerber`, `eh3d-phoenix-panel`, `eh3d-phoenix-bom`, `eh3d-phoenix-assembly3d` and `eh3d-phoenix-oracle` in `src/codes.rs`); a test of each crate checks that every code of its registry is in the table with the same title.
 
 ## Model foundations
 
@@ -148,7 +148,7 @@ Each table repeats the `REGISTRY` of a crate (`eh3d-phoenix-model` in `src/diagn
 | PHOENIX-SCH-007 | Pin position is not given | a pin of a placed part whose symbol does not give the position of the pin, so its connections cannot be judged (information) |
 | PHOENIX-SCH-008 | Point in the middle of a wire looks connected | a wire point or a pin that lies in the middle of a piece of another wire without being a point of it, so it is not connected (a warning) |
 | PHOENIX-SCH-009 | Placement is not valid | a placed part whose rotation is not a multiple of 90 degrees or whose pins fall outside the coordinate range |
-| PHOENIX-SCH-010 | Edit refused | an editing operation that was refused and changed nothing: a part, sheet, symbol or item that does not exist, a reference that is already used, a name that is empty or too long, a wire that is not made of horizontal and vertical pieces, a bus that is not of the form `D[0..7]`, or a coordinate out of range (in `src/edit.rs`) |
+| PHOENIX-SCH-010 | Edit refused | an editing operation that was refused and changed nothing: a part, sheet, symbol or item that does not exist, a reference that is already used, a name that is empty or too long, a wire that is not made of horizontal and vertical pieces, a bus that is not of the form `D[0..7]`, a sheet symbol whose name is used twice on its sheet or that would show its own sheet, a sheet removed while a symbol still shows it, or a coordinate out of range (in `src/edit.rs` and `src/hier_edit.rs`) |
 | PHOENIX-LINK-001 | Part has no component on the board | a part of the schematic that no component of the board was made from (in `src/link.rs`) |
 | PHOENIX-LINK-002 | Component names a part that does not exist | a component whose link names a part that the schematic does not have |
 | PHOENIX-LINK-003 | Reference designators differ | a part and its component with different designators |
@@ -479,6 +479,58 @@ The titles of these codes also exist in the eight languages of the suite (`TITLE
 | PHOENIX-SCHEDIT-001 | Settings file is not valid | a line of `config/schedit.cfg` that is not `key = value`, an unknown key, or a value out of range |
 | PHOENIX-SCHEDIT-002 | File of operations is not valid | a file of operations or a library of symbols that cannot be read, or an operation of the file that the editor refused (the message gives its number) |
 | PHOENIX-SCHEDIT-003 | Output file is not allowed | `phoenix schedit` asked to write onto its input file or onto a file that exists, or in a format the editor does not write |
+
+## Sheet hierarchy (`eh3d-phoenix-schematic`, `src/hier.rs`)
+
+| Code | Title | Raised by |
+|---|---|---|
+| PHOENIX-HIER-001 | Sheet symbol, pin or port refers to something that does not exist | a sheet symbol that is drawn on, or shows, a sheet that does not exist, a pin on a symbol that does not exist, or a port on a sheet that does not exist |
+| PHOENIX-HIER-002 | Sheet contains itself | a sheet symbol that shows the sheet that holds it, directly or through other sheets (a loop; the operation that would make one is refused) |
+| PHOENIX-HIER-003 | Sheet symbol name is empty, repeated on its sheet or has a slash | a sheet symbol whose name is empty, has a slash or surrounding spaces, or is the name of another symbol of the same sheet |
+| PHOENIX-HIER-004 | Pin of a sheet symbol has no port in the sheet it shows | a pin of a sheet symbol whose name is not the name of any port of the sheet that the symbol shows (an error) |
+| PHOENIX-HIER-005 | Port of a sheet has no pin on the sheet symbol | a port of a sheet with no pin of its name on a symbol that shows the sheet (a warning) |
+| PHOENIX-HIER-006 | Pin or port name is repeated | two pins of one sheet symbol, or two ports of one sheet, with the same name |
+| PHOENIX-HIER-007 | Reference designator repeated after expanding the sheets | two parts with the same reference after the sheets are expanded (found by the expansion) |
+| PHOENIX-HIER-008 | Hierarchy is too deep or has too many instances | a hierarchy deeper than `max_depth` or with more instances than `max_instances` in `config/hierarchy.cfg` |
+| PHOENIX-HIER-009 | Pin and port of one name have different directions | a pin and a port of one name whose directions do not fit, such as an input against an output (a warning) |
+
+The titles of the hierarchy codes in the eight languages of the suite:
+
+| Code | English | Español | Deutsch | Français | Italiano | 日本語 | 中文 | Português (Portugal) |
+|---|---|---|---|---|---|---|---|---|
+| `PHOENIX-HIER-001` | Sheet symbol, pin or port refers to something that does not exist | El símbolo de hoja, el pin o el puerto se refiere a algo que no existe | Blattsymbol, Pin oder Port verweist auf etwas, das nicht existiert | Le symbole de feuille, la broche ou le port renvoie à quelque chose qui n'existe pas | Il simbolo di foglio, il pin o la porta rimanda a qualcosa che non esiste | シートシンボル、ピン、またはポートが存在しないものを参照しています | 图纸符号、引脚或端口引用了不存在的对象 | O símbolo de folha, o pino ou a porta refere algo que não existe |
+| `PHOENIX-HIER-002` | Sheet contains itself | Una hoja se contiene a sí misma | Ein Blatt enthält sich selbst | Une feuille se contient elle-même | Un foglio contiene se stesso | シートが自分自身を含んでいます | 图纸包含自身 | Uma folha contém-se a si própria |
+| `PHOENIX-HIER-003` | Sheet symbol name is empty, repeated on its sheet or has a slash | El nombre del símbolo de hoja está vacío, repetido en su hoja o lleva una barra | Name des Blattsymbols ist leer, auf dem Blatt doppelt oder enthält einen Schrägstrich | Le nom du symbole de feuille est vide, répété sur sa feuille ou contient une barre oblique | Il nome del simbolo di foglio è vuoto, ripetuto nel foglio o contiene una barra | シートシンボル名が空、同じシート上で重複、またはスラッシュを含んでいます | 图纸符号名称为空、在图纸上重复或含有斜杠 | O nome do símbolo de folha está vazio, repetido na sua folha ou tem uma barra |
+| `PHOENIX-HIER-004` | Pin of a sheet symbol has no port in the sheet it shows | Un pin del símbolo de hoja no tiene puerto en la hoja que muestra | Ein Pin des Blattsymbols hat keinen Port auf dem gezeigten Blatt | Une broche du symbole de feuille n'a pas de port dans la feuille qu'il montre | Un pin del simbolo di foglio non ha porta nel foglio che mostra | シートシンボルのピンに対応するポートが参照先のシートにありません | 图纸符号的引脚在其引用的图纸中没有对应端口 | Um pino do símbolo de folha não tem porta na folha que mostra |
+| `PHOENIX-HIER-005` | Port of a sheet has no pin on the sheet symbol | Un puerto de la hoja no tiene pin en el símbolo de hoja | Ein Port des Blatts hat keinen Pin am Blattsymbol | Un port de la feuille n'a pas de broche sur le symbole de feuille | Una porta del foglio non ha pin sul simbolo di foglio | シートのポートに対応するピンがシートシンボルにありません | 图纸的端口在图纸符号上没有对应引脚 | Uma porta da folha não tem pino no símbolo de folha |
+| `PHOENIX-HIER-006` | Pin or port name is repeated | Nombre de pin o de puerto repetido | Pin- oder Portname doppelt | Nom de broche ou de port répété | Nome di pin o di porta ripetuto | ピン名またはポート名が重複しています | 引脚或端口名称重复 | Nome de pino ou de porta repetido |
+| `PHOENIX-HIER-007` | Reference designator repeated after expanding the sheets | Designador de referencia repetido al expandir las hojas | Bauteilkennung nach dem Auffalten der Blätter doppelt | Référence en double après le dépliage des feuilles | Designatore di riferimento ripetuto dopo l'espansione dei fogli | シートの展開後に参照指定子が重複しています | 展开图纸后位号重复 | Designador de referência repetido depois de expandir as folhas |
+| `PHOENIX-HIER-008` | Hierarchy is too deep or has too many instances | La jerarquía es demasiado profunda o tiene demasiadas instancias | Die Hierarchie ist zu tief oder hat zu viele Instanzen | La hiérarchie est trop profonde ou a trop d'instances | La gerarchia è troppo profonda o ha troppe istanze | 階層が深すぎるか、インスタンスが多すぎます | 层次过深或实例过多 | A hierarquia é demasiado profunda ou tem demasiadas instâncias |
+| `PHOENIX-HIER-009` | Pin and port of one name have different directions | El pin y el puerto del mismo nombre tienen direcciones distintas | Pin und Port gleichen Namens haben verschiedene Richtungen | La broche et le port du même nom ont des directions différentes | Il pin e la porta con lo stesso nome hanno direzioni diverse | 同名のピンとポートの方向が異なります | 同名的引脚和端口方向不同 | O pino e a porta com o mesmo nome têm direções diferentes |
+
+## Buses (`eh3d-phoenix-schematic`, `src/bus.rs`)
+
+| Code | Title | Raised by |
+|---|---|---|
+| PHOENIX-BUS-001 | Bus name is not valid | a bus name that is not a vector such as `D[0..7]`, a group such as `USB{DP DM}` or the name of an alias, or that expands to more than 4096 members |
+| PHOENIX-BUS-002 | Bus member has no connection | members of a bus that no bus entry uses (a warning that lists the first eight) |
+| PHOENIX-BUS-003 | Bus has repeated members | a bus with two members of one name, as in `U{A A}` |
+| PHOENIX-BUS-004 | Bus range is not valid | a vector with a negative number or with more than 256 members |
+| PHOENIX-BUS-005 | Bus is connected to a simple net | a bus whose anchor is the position of a pin or a point of a wire, so it would be joined to a simple net (an error) |
+| PHOENIX-BUS-006 | Bus entry names a bus or a member that does not exist | a bus entry that names a bus that does not exist or a member that the bus does not have |
+| PHOENIX-BUS-007 | Bus alias is not valid | an alias with an empty list, a name that cannot be used or the name of another alias, or items that do not expand |
+
+The titles of the bus codes in the eight languages of the suite:
+
+| Code | English | Español | Deutsch | Français | Italiano | 日本語 | 中文 | Português (Portugal) |
+|---|---|---|---|---|---|---|---|---|
+| `PHOENIX-BUS-001` | Bus name is not valid | El nombre del bus no es válido | Busname ist ungültig | Le nom du bus n'est pas valide | Il nome del bus non è valido | バス名が正しくありません | 总线名称无效 | O nome do barramento não é válido |
+| `PHOENIX-BUS-002` | Bus member has no connection | Un miembro del bus no tiene conexión | Ein Busmitglied hat keine Verbindung | Un membre du bus n'a aucune connexion | Un membro del bus non ha connessioni | バスのメンバーが接続されていません | 总线成员没有连接 | Um membro do barramento não tem ligação |
+| `PHOENIX-BUS-003` | Bus has repeated members | El bus tiene miembros repetidos | Der Bus hat doppelte Mitglieder | Le bus a des membres en double | Il bus ha membri ripetuti | バスにメンバーの重複があります | 总线含有重复成员 | O barramento tem membros repetidos |
+| `PHOENIX-BUS-004` | Bus range is not valid | El intervalo del bus no es válido | Der Busbereich ist ungültig | La plage du bus n'est pas valide | L'intervallo del bus non è valido | バスの範囲が正しくありません | 总线范围无效 | O intervalo do barramento não é válido |
+| `PHOENIX-BUS-005` | Bus is connected to a simple net | Un bus está conectado a una red simple | Ein Bus ist mit einem einfachen Netz verbunden | Un bus est relié à un réseau simple | Un bus è collegato a una rete semplice | バスが単一のネットに接続されています | 总线连接到了普通网络 | Um barramento está ligado a uma rede simples |
+| `PHOENIX-BUS-006` | Bus entry names a bus or a member that does not exist | La entrada de bus nombra un bus o un miembro que no existe | Der Buseintrag nennt einen Bus oder ein Mitglied, das nicht existiert | L'entrée de bus nomme un bus ou un membre qui n'existe pas | L'ingresso di bus nomina un bus o un membro che non esiste | バスエントリが存在しないバスまたはメンバーを指しています | 总线入口指向不存在的总线或成员 | A entrada de barramento indica um barramento ou um membro que não existe |
+| `PHOENIX-BUS-007` | Bus alias is not valid | El alias de bus no es válido | Der Busalias ist ungültig | L'alias de bus n'est pas valide | L'alias di bus non è valido | バスのエイリアスが正しくありません | 总线别名无效 | O alias de barramento não é válido |
 
 ## Board editor (`eh3d-phoenix-boardedit`, `src/codes.rs`)
 

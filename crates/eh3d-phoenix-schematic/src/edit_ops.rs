@@ -462,6 +462,22 @@ pub(crate) fn run(
             }
             *wiring = true;
         }
+        EditOp::RemoveSheet { .. }
+        | EditOp::RenameSheet { .. }
+        | EditOp::AddSheetBlock { .. }
+        | EditOp::RemoveSheetBlock { .. }
+        | EditOp::RenameSheetBlock { .. }
+        | EditOp::AddHierPin { .. }
+        | EditOp::RemoveHierPin { .. }
+        | EditOp::AddSheetPort { .. }
+        | EditOp::RemoveSheetPort { .. }
+        | EditOp::MoveToSheet { .. }
+        | EditOp::PlaceBus { .. }
+        | EditOp::RemoveBus { .. }
+        | EditOp::AddBusEntry { .. }
+        | EditOp::RemoveBusEntry { .. }
+        | EditOp::SetBusAlias { .. }
+        | EditOp::RemoveBusAlias { .. } => crate::hier_edit::run(s, ids, op, wiring)?,
         EditOp::Batch { ops } => {
             if depth >= MAX_DEPTH || ops.len() > MAX_BATCH {
                 return Err(EditError::TooMany);
@@ -746,6 +762,17 @@ fn split_wires(s: &mut Schematic) {
     }
     for port in s.power_ports.values() {
         candidates.push((port.sheet, None, port.at));
+    }
+    for pin in s.hier_pins.values() {
+        if let Some(block) = s.sheet_blocks.get(&pin.block) {
+            candidates.push((block.sheet, None, pin.at));
+        }
+    }
+    for port in s.sheet_ports.values() {
+        candidates.push((port.sheet, None, port.at));
+    }
+    for (sheet, at, _) in s.bus_entry_marks() {
+        candidates.push((sheet, None, at));
     }
     let wire_ids: Vec<Id> = s.wires.keys().copied().collect();
     for wid in wire_ids {

@@ -6,7 +6,9 @@ use eh3d_diagnostic::{Category, Diagnostic, Recoverability, Severity};
 use eh3d_phoenix_model::Point;
 use serde::{Deserialize, Serialize};
 
+use crate::bus::{Bus, BusAlias, BusEntry};
 use crate::draw::{Placement, Sheet, Wire};
+use crate::hier::{HierConfig, HierPin, SheetBlock, SheetPort};
 use crate::marks::{Junction, NetLabel, PowerPort};
 
 /// The identity of any part of the schematic: the shared object identity of the suite.
@@ -173,6 +175,24 @@ pub struct Schematic {
     /// written when empty.
     #[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
     pub mirrored: BTreeSet<Id>,
+    /// The sheet symbols, by id: blocks that show another sheet. Not written when empty.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub sheet_blocks: BTreeMap<Id, SheetBlock>,
+    /// The pins of the sheet symbols, by id. Not written when empty.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub hier_pins: BTreeMap<Id, HierPin>,
+    /// The ports of the sheets that sheet symbols show, by id. Not written when empty.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub sheet_ports: BTreeMap<Id, SheetPort>,
+    /// The buses of the drawing, by id. Not written when empty.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub buses: BTreeMap<Id, Bus>,
+    /// The entries that take a member out of a bus, by id. Not written when empty.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub bus_entries: BTreeMap<Id, BusEntry>,
+    /// The names given to groups of bus members, by id. Not written when empty.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub bus_aliases: BTreeMap<Id, BusAlias>,
 }
 
 /// A reference to a part, symbol or pin that does not exist.
@@ -254,6 +274,10 @@ impl Schematic {
             }
         }
         out.extend(self.drawn().problems);
+        if self.has_hier_data() {
+            out.extend(self.hier_problems(&HierConfig::default()));
+        }
+        out.extend(self.bus_problems());
         out
     }
 

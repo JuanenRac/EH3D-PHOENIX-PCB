@@ -125,6 +125,12 @@ impl IdSource {
         taken.extend(s.labels.keys());
         taken.extend(s.junctions.keys());
         taken.extend(s.power_ports.keys());
+        taken.extend(s.sheet_blocks.keys());
+        taken.extend(s.hier_pins.keys());
+        taken.extend(s.sheet_ports.keys());
+        taken.extend(s.buses.keys());
+        taken.extend(s.bus_entries.keys());
+        taken.extend(s.bus_aliases.keys());
         IdSource { taken, next: 0 }
     }
 
@@ -450,6 +456,131 @@ pub enum EditOp {
         /// The new name.
         name: String,
     },
+    /// Removes a sheet with everything drawn on it (parts, wires, labels, power ports, junctions,
+    /// the sheet symbols on it with their pins, its ports and its buses). Refused while a sheet
+    /// symbol shows the sheet.
+    RemoveSheet {
+        /// The sheet.
+        sheet: Id,
+    },
+    /// Gives a sheet another name.
+    RenameSheet {
+        /// The sheet.
+        sheet: Id,
+        /// The new name.
+        name: String,
+    },
+    /// Draws a sheet symbol on `sheet` that shows the sheet `child`. The same `child` may be shown
+    /// by several symbols with different names: each one is an instance.
+    AddSheetBlock {
+        /// The sheet the symbol is drawn on.
+        sheet: Id,
+        /// The sheet it shows.
+        child: Id,
+        /// The name of the instance.
+        name: String,
+        /// The corner with the smallest coordinates.
+        at: Point,
+        /// The width of the block.
+        width: Nm,
+        /// The height of the block.
+        height: Nm,
+    },
+    /// Removes a sheet symbol and its pins.
+    RemoveSheetBlock {
+        /// The sheet symbol.
+        block: Id,
+    },
+    /// Gives a sheet symbol another name.
+    RenameSheetBlock {
+        /// The sheet symbol.
+        block: Id,
+        /// The new name.
+        name: String,
+    },
+    /// Puts a pin on a sheet symbol.
+    AddHierPin {
+        /// The sheet symbol.
+        block: Id,
+        /// The name, which is the name of the port it joins.
+        name: String,
+        /// The direction.
+        dir: crate::hier::PortDir,
+        /// Where it is, on the sheet of the symbol.
+        at: Point,
+    },
+    /// Removes the pin of a sheet symbol.
+    RemoveHierPin {
+        /// The pin.
+        pin: Id,
+    },
+    /// Puts a port on a sheet.
+    AddSheetPort {
+        /// The sheet.
+        sheet: Id,
+        /// The name, which is the name of the pin it joins.
+        name: String,
+        /// The direction.
+        dir: crate::hier::PortDir,
+        /// Where it is.
+        at: Point,
+    },
+    /// Removes the port of a sheet.
+    RemoveSheetPort {
+        /// The port.
+        port: Id,
+    },
+    /// Moves items to another sheet, shifted by an offset; the nets are made again.
+    MoveToSheet {
+        /// What to move.
+        items: Vec<Item>,
+        /// The sheet they go to.
+        sheet: Id,
+        /// The offset along x, in nanometres.
+        dx: i64,
+        /// The offset along y, in nanometres.
+        dy: i64,
+    },
+    /// Places a bus on a sheet: `D[0..7]`, `USB{DP DM}` or the name of an alias.
+    PlaceBus {
+        /// The sheet.
+        sheet: Id,
+        /// The anchor.
+        at: Point,
+        /// The name of the bus.
+        spec: String,
+    },
+    /// Removes a bus and its entries.
+    RemoveBus {
+        /// The bus.
+        bus: Id,
+    },
+    /// Takes a member out of a bus at a point: the net there takes the name of the member.
+    AddBusEntry {
+        /// The bus.
+        bus: Id,
+        /// The member (`D3`, `USB.DP`).
+        member: String,
+        /// Where the member leaves the bus.
+        at: Point,
+    },
+    /// Removes a bus entry.
+    RemoveBusEntry {
+        /// The entry.
+        entry: Id,
+    },
+    /// Gives a name to a group of bus members, or replaces the group of that name.
+    SetBusAlias {
+        /// The name of the alias.
+        name: String,
+        /// The items: plain names or vectors.
+        members: Vec<String>,
+    },
+    /// Removes an alias.
+    RemoveBusAlias {
+        /// The name of the alias.
+        name: String,
+    },
     /// Several operations that are one step: all or none.
     Batch {
         /// The operations, in order.
@@ -508,6 +639,12 @@ struct Change {
     labels: Delta<crate::marks::NetLabel>,
     junctions: Delta<crate::marks::Junction>,
     power_ports: Delta<crate::marks::PowerPort>,
+    sheet_blocks: Delta<crate::hier::SheetBlock>,
+    hier_pins: Delta<crate::hier::HierPin>,
+    sheet_ports: Delta<crate::hier::SheetPort>,
+    buses: Delta<crate::bus::Bus>,
+    bus_entries: Delta<crate::bus::BusEntry>,
+    bus_aliases: Delta<crate::bus::BusAlias>,
     mirrored: Vec<(Id, bool)>,
 }
 
@@ -523,6 +660,12 @@ impl Change {
             labels: delta(&a.labels, &b.labels),
             junctions: delta(&a.junctions, &b.junctions),
             power_ports: delta(&a.power_ports, &b.power_ports),
+            sheet_blocks: delta(&a.sheet_blocks, &b.sheet_blocks),
+            hier_pins: delta(&a.hier_pins, &b.hier_pins),
+            sheet_ports: delta(&a.sheet_ports, &b.sheet_ports),
+            buses: delta(&a.buses, &b.buses),
+            bus_entries: delta(&a.bus_entries, &b.bus_entries),
+            bus_aliases: delta(&a.bus_aliases, &b.bus_aliases),
             mirrored: a
                 .mirrored
                 .symmetric_difference(&b.mirrored)
@@ -541,6 +684,12 @@ impl Change {
             && self.labels.is_empty()
             && self.junctions.is_empty()
             && self.power_ports.is_empty()
+            && self.sheet_blocks.is_empty()
+            && self.hier_pins.is_empty()
+            && self.sheet_ports.is_empty()
+            && self.buses.is_empty()
+            && self.bus_entries.is_empty()
+            && self.bus_aliases.is_empty()
             && self.mirrored.is_empty()
     }
 
@@ -555,6 +704,12 @@ impl Change {
         put(&mut s.labels, &self.labels, forward);
         put(&mut s.junctions, &self.junctions, forward);
         put(&mut s.power_ports, &self.power_ports, forward);
+        put(&mut s.sheet_blocks, &self.sheet_blocks, forward);
+        put(&mut s.hier_pins, &self.hier_pins, forward);
+        put(&mut s.sheet_ports, &self.sheet_ports, forward);
+        put(&mut s.buses, &self.buses, forward);
+        put(&mut s.bus_entries, &self.bus_entries, forward);
+        put(&mut s.bus_aliases, &self.bus_aliases, forward);
         for (id, now) in &self.mirrored {
             // `now` is the state after the change
             if *now == forward {
@@ -574,6 +729,12 @@ impl Change {
         ids.extend(added(&self.wires));
         ids.extend(added(&self.labels));
         ids.extend(added(&self.power_ports));
+        ids.extend(added(&self.sheet_blocks));
+        ids.extend(added(&self.hier_pins));
+        ids.extend(added(&self.sheet_ports));
+        ids.extend(added(&self.buses));
+        ids.extend(added(&self.bus_entries));
+        ids.extend(added(&self.bus_aliases));
         ids
     }
 }
