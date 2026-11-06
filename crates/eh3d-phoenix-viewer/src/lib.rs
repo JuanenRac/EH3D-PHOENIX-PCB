@@ -21,6 +21,10 @@
 //! * [`workspace`]: the state of editing in the window: the tool, the drag, the first click of a
 //!   route, the keyboard shortcuts, undo and redo, the notes of the status bar and the jump to the
 //!   place of a finding;
+//! * [`schematic_hier`], [`schematic_hier_text`] and [`schematic_bus`]: the tabs of the sheets of a
+//!   hierarchical schematic, the way into a sheet symbol and back, the marks of sheet symbols and
+//!   buses, and the tools «Bus» and «Bus entry» with their texts in the eight languages (the window is
+//!   in `schematic_gui`, behind the `gui` feature);
 //! * [`schematic_sync`] and [`schematic_text`]: how the schematic editor of `eh3d-phoenix-schedit`
 //!   hands its schematic to the workspace, and its texts in the eight languages (the window of
 //!   the editor is in `schematic_gui`, behind the `gui` feature);
@@ -124,8 +128,15 @@ pub mod prim;
 pub(crate) mod sample;
 pub mod scene;
 pub mod scene3d;
+pub mod schematic_bus;
+#[cfg(feature = "gui")]
+pub mod schematic_bus_gui;
 #[cfg(feature = "gui")]
 pub mod schematic_gui;
+pub mod schematic_hier;
+#[cfg(feature = "gui")]
+pub mod schematic_hier_gui;
+pub mod schematic_hier_text;
 pub mod schematic_sync;
 pub mod schematic_text;
 pub mod session;

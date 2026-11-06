@@ -14,6 +14,11 @@ use eh3d_phoenix_schedit::{SchEdit, SchEditSettings, Tool};
 use eh3d_phoenix_schematic::{Id, Item, Schematic};
 
 use crate::editmsg::EditMsg;
+use crate::schematic_bus::{BusMode, BusUi};
+use crate::schematic_bus_gui;
+use crate::schematic_hier::{block_at, Navigation};
+use crate::schematic_hier_gui;
+use crate::schematic_hier_text::HierMsg;
 use crate::schematic_text::SchMsg;
 use crate::workspace::Workspace;
 
@@ -54,6 +59,8 @@ pub struct SchematicEditUi {
     value_text: String,
     refdes_text: String,
     shown_part: Option<Id>,
+    bus: BusUi,
+    way: Navigation,
 }
 
 /// Where a point of the drawing is on the screen, and back.
@@ -142,6 +149,8 @@ pub fn start(workspace: &Workspace) -> Option<SchematicEditUi> {
         value_text: String::new(),
         refdes_text: String::new(),
         shown_part: None,
+        bus: BusUi::new(),
+        way: Navigation::new(),
     })
 }
 
@@ -289,6 +298,7 @@ fn apply_keys(st: &mut SchematicEditUi, keys: &Keys, pointer: Option<Point>) {
     }
     if keys.escape {
         st.edit.cancel();
+        st.bus.mode = BusMode::Off;
     }
     if keys.space {
         st.edit.flip_corner();
@@ -372,12 +382,26 @@ pub fn canvas(
     });
     if let Some(at) = pointer {
         if frame.pressed && inside.is_some() {
-            st.edit.pointer_pressed(at, frame.shift);
+            if st.bus.active() {
+                let _ = st.bus.click(&mut st.edit, at);
+            } else {
+                st.edit.pointer_pressed(at, frame.shift);
+            }
         } else {
             st.edit.pointer_moved(at);
         }
         if frame.released {
             st.edit.pointer_released(at);
+        }
+    }
+    // a double click on a sheet symbol opens the sheet it shows
+    if response.double_clicked() {
+        if let (Some(at), Some(sheet)) = (pointer, st.edit.sheet()) {
+            let block = block_at(st.edit.schematic(), sheet, at);
+            if let Some(child) = block.and_then(|b| st.way.enter(st.edit.schematic(), sheet, b)) {
+                st.edit.set_sheet(child);
+                *fit_pending = true;
+            }
         }
     }
     let keys = read_keys(ui.ctx());
@@ -397,6 +421,8 @@ pub fn canvas(
             &st.edit.selection,
             st.edit.settings.grid_nm,
         );
+        let to_screen = |x: f64, y: f64| view.xy(x, y);
+        schematic_hier_gui::draw_marks(&painter, &to_screen, shown, sheet, view.scale >= 4.0);
     }
     if let Some(at) = pointer.filter(|_| inside.is_some()) {
         let path = st.edit.wire_preview(at);
@@ -425,10 +451,15 @@ pub fn canvas(
         Tool::Label | Tool::PowerPort | Tool::Bus => SchMsg::HintLabel,
         Tool::Place => SchMsg::HintPlace,
     };
+    let hint_text = match st.bus.mode {
+        BusMode::Bus => HierMsg::HintBus.tr(lang),
+        BusMode::Entry => HierMsg::HintBusEntry.tr(lang),
+        BusMode::Off => hint.tr(lang),
+    };
     painter.text(
         rect.left_bottom() + egui::vec2(8.0, -8.0),
         egui::Align2::LEFT_BOTTOM,
-        hint.tr(lang),
+        hint_text,
         egui::FontId::proportional(13.0),
         DIM,
     );
@@ -654,6 +685,10 @@ pub fn tools_panel(ui: &mut egui::Ui, st: &mut SchematicEditUi, lang: Lang) -> b
         );
     }
     ui.label(dim(SchMsg::KeysHint.tr(lang)));
+    schematic_bus_gui::section(ui, &mut st.bus, &mut st.edit, lang);
+    if schematic_hier_gui::tabs_section(ui, &mut st.way, &mut st.edit, lang) {
+        st.fitted = false;
+    }
 
     ui.separator();
     ui.label(dim(format!(
