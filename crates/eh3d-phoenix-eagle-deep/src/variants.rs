@@ -318,13 +318,6 @@ impl VariantSet {
     }
 }
 
-fn set_attr(e: &mut Element, key: &str, value: &str) {
-    match e.attrs.iter_mut().find(|(k, _)| k == key) {
-        Some((_, v)) => *v = value.to_owned(),
-        None => e.attrs.push((key.to_owned(), value.to_owned())),
-    }
-}
-
 /// Writes the variants and attributes of `set` into the tree of a file. Elements that already say
 /// the same are not touched, so reading a file and writing what was read changes nothing. A part
 /// that the set names and the file does not have is skipped and named in a finding.
