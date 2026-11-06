@@ -23,6 +23,9 @@ An operation is one change that is asked for. It is a value (`EditOp`) that can 
 | `tune_length` | Adds square meanders to the longest straight pieces (horizontal, vertical or at 45 degrees, the meanders turned with the piece) of a net until its copper length (measured by `eh3d-phoenix-lengths`: tracks and vias) is the target, to within `length_tolerance_nm`. Both sides of the piece are tried in turn. A net already within the tolerance is left as it is; a net longer than the target, or with no piece long enough, is refused (`PHOENIX-BEDIT-008`). |
 | `route_pair`, `tune_pair`, `fix_pair_gap` | The operations on a differential pair: the two tracks drawn side by side, the shorter net made as long as the other with meanders, and the pieces with a wrong gap moved to the gap of the pair. They are described in `docs/DIFFPAIRS.md`. |
 | `zone_add`, `zone_edit`, `zone_remove`, `zone_fill`, `zone_priority`, `zone_cutout`, `paste_group` | Copper zones with a priority, cutouts and a thermal relief of their own, their fill, and the paste of a net or a group with an offset, a turn and a mirror. They are described in `docs/BOARD_ZONES.md`. |
+| `select` | Changes the selection of the editor by steps (see *The selection of several objects*). It changes nothing on the board and is not a step of the history. |
+| `move_selection`, `delete_selection`, `align_selection` | Move, delete or line up every selected object as one step (see below). |
+| `move_items`, `delete_items` | The same on objects that the operation names, each with its own offset. |
 | `group` | Several operations that are one step of the history and are refused as a whole when one is. |
 | `forced` | An operation that is kept even if it adds a rule error. |
 
@@ -31,6 +34,39 @@ An operation is one change that is asked for. It is a value (`EditOp`) that can 
 An operation is planned into the reversible operations of `eh3d-phoenix-board` (one batch), tried on a copy of the board and checked by the design rules (`docs/RULES.md`): the findings before and after are compared. An operation that the board refuses, or that adds a finding that is an error, is refused and changes nothing, not the board, not the history and not the ids (`PHOENIX-BEDIT-004`, `PHOENIX-BEDIT-005`), unless it is `forced` or `reject_new_errors` is off. The result of every operation carries a report: the rule errors before and after, and the findings added and removed. Some operations have alternatives (the other corner, the other side of the meanders); the first one that the board accepts and the rules pass is kept.
 
 Undo and redo give back the same bytes. The ids of the parts the editor makes come from a supply that skips every id the board uses, so the same board and the same operations always give the same bytes.
+
+## The selection of several objects
+
+The selection is an ordered set of references to components, tracks, vias, zones and silkscreen items (`selection` in `eh3d-phoenix-boardedit`), kept by the editor next to the board. It is not part of the history, and what an operation or an undo removes from the board is dropped from it. An object is written `{"kind": "component", "id": "..."}` (`component`, `track`, `via`, `zone` or `silk`). The operation `select` takes a list of steps, applied in order and all or nothing:
+
+| Step (`"select"`) | What it does |
+|---|---|
+| `add`, `remove`, `toggle` | The objects of `items`; `add` and `toggle` refuse an object the board does not have (`PHOENIX-BEDIT-010`). |
+| `net` | Every object of a net (`net`): its tracks, vias and zones and the components with a pad on it. `action` is `add` (by default), `remove` or `toggle`. |
+| `rect` | What the rectangle between `from` and `to` takes in. `mode` is `contained` (by default: the whole extent of the object is inside) or `crossed` (also what it touches; a track is judged by its centre line, the rest by its extent). `action` as above. |
+| `all`, `invert`, `clear` | Every object of the board; what is not selected instead of what is; nothing. |
+
+The extent of an object is the box of what it covers: the pads of a component with half of their largest side around each centre, the pieces of a track and of a silkscreen item with half of their width, a via with half of its diameter, the corners of a zone. An arc counts as its chord.
+
+The operations on the selection are one step of the history each, with an exact inverse (undo gives the same bytes):
+
+* `move_selection` (`dx_nm`, `dy_nm`, `snap`) moves every selected object by one offset. The offset is rounded to a multiple of the grid (halves upwards) when `snap` is true, or when it is left out and the setting `snap` is on. A component keeps its rotation; a track, a silkscreen item and a via are drawn again at the new place with the same id; a zone is moved by the zone editor with its cutouts and its fill is dropped (fill it again). The tracks that are not selected do not follow a component: select the net first to carry the copper along. Up is positive.
+* `delete_selection` removes every selected object (a component with the nets of its pads; a zone with its properties and fill).
+* `align_selection` (`mode`) lines the extents up with the box that holds them all: `left`, `right`, `top` (the largest y) and `bottom` (the smallest y) put the matching edge of each object on the matching edge of the group, `center_x` and `center_y` put the centres on the centre of the group to within a nanometre. `distribute_x` and `distribute_y` (three objects or more) leave the first and the last by centre where they are and spread the others so that the gaps between extents are equal, to within a nanometre.
+* `move_items` (`moves`: a list of `{"item": ..., "dx_nm": ..., "dy_nm": ...}`) and `delete_items` (`items`) are the same operations on objects that are named, which the first three are made of.
+
+A locked component refuses the whole operation (`PHOENIX-BEDIT-006`), an empty selection is `PHOENIX-BEDIT-009`, an object the board does not have is `PHOENIX-BEDIT-010`, and fewer than two objects to align, or fewer than three to distribute, is `PHOENIX-BEDIT-011`. An example of a file of operations:
+
+```json
+[
+  {"op": "select", "steps": [{"select": "net", "net": "<net id>"}]},
+  {"op": "move_selection", "dx_nm": 1000000, "dy_nm": 0, "snap": false},
+  {"op": "align_selection", "mode": "left"},
+  {"op": "delete_selection"}
+]
+```
+
+The window does not offer the selection of several objects yet (see `docs/NOT_YET.md`): its own selection is the one of the tools, with components, tracks and vias only.
 
 ## The state without a screen
 
@@ -81,7 +117,7 @@ The board is an EAGLE `.brd` file or the JSON of the model. The operations are a
 ```
 
 * It is a dry run: the operations are applied in memory, the design rules are checked after each one and the counts and the findings are printed. Nothing is written unless `--out` names a **new** file (`.json` for the model, `.brd` for EAGLE). An input file (the board, the file of operations, the rules and the settings) and a file that exists are never written over (`PHOENIX-BEDIT-003`).
-* All or nothing: the first operation that is refused ends the run, names its number and writes nothing (`PHOENIX-BEDIT-004` to `PHOENIX-BEDIT-008`; a file that cannot be read is `PHOENIX-BEDIT-002`).
+* All or nothing: the first operation that is refused ends the run, names its number and writes nothing (`PHOENIX-BEDIT-004` to `PHOENIX-BEDIT-011`; a file that cannot be read is `PHOENIX-BEDIT-002`).
 * `--pair-config` and `--pairs` give the settings and the pairs for the pair operations (`docs/DIFFPAIRS.md`): the settings file (default `config/diffpairs.cfg` when it exists) and a JSON file of pairs.
 * `--rules` is the JSON rule file (`docs/RULES.md`); without it an EAGLE board gives its own design rules and any other board is checked only for shorts.
 * Exit codes: 0 done and the rules prove no error on the result, 1 done and they prove an error (one that was there before, or one that a forced operation added), 2 the arguments, the input, an operation or the output are unusable.
@@ -94,7 +130,7 @@ After every change the window gives the workspace the board as it is (`Workspace
 
 ## Codes
 
-`PHOENIX-BEDIT-001` to `PHOENIX-BEDIT-008` are in `docs/ERROR_CODES.md`, with their titles in the eight languages in `eh3d-phoenix-boardedit` (`src/codes.rs`). The codes `PHOENIX-PAIR-001` to `PHOENIX-PAIR-011` of the differential pairs are there too (`src/pair_codes.rs`), and so are `PHOENIX-SHOVE-001` to `006` and `PHOENIX-ARC-001` to `003` of the push and the arcs (`src/shove_codes.rs`) and `PHOENIX-BZONE-001` to `011` of the zones (`src/zone_codes.rs`).
+`PHOENIX-BEDIT-001` to `PHOENIX-BEDIT-011` are in `docs/ERROR_CODES.md`, with their titles in the eight languages in `eh3d-phoenix-boardedit` (`src/codes.rs`). The codes `PHOENIX-PAIR-001` to `PHOENIX-PAIR-011` of the differential pairs are there too (`src/pair_codes.rs`), and so are `PHOENIX-SHOVE-001` to `006` and `PHOENIX-ARC-001` to `003` of the push and the arcs (`src/shove_codes.rs`) and `PHOENIX-BZONE-001` to `011` of the zones (`src/zone_codes.rs`).
 
 ## What is not done
 
