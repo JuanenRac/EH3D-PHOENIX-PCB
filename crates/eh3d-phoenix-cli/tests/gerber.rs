@@ -406,3 +406,92 @@ fn a_v_score_panel_has_its_own_file_and_unusable_input_exits_2() {
         assert!(!err.is_empty(), "{list:?}");
     }
 }
+
+const PROFILES: &str = include_str!("../../../config/export_profiles.json");
+
+#[test]
+fn the_round_trip_reads_back_every_level_of_x2() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("board.json");
+    fs::write(&path, board().to_bytes().unwrap()).unwrap();
+    let board_path = path.to_str().unwrap();
+    let profiles = write(dir.path(), "profiles.json", PROFILES);
+    for name in ["generic", "x1", "x2-full"] {
+        let (code, text, err) = command(&[
+            "gerber-import",
+            "--profiles",
+            profiles.as_str(),
+            "--profile",
+            name,
+            "--roundtrip",
+            board_path,
+        ]);
+        assert_eq!((code, err.as_str()), (0, ""), "{name}: {text}");
+        assert!(
+            text.contains(" files read back, 0 differences"),
+            "{name}: {text}"
+        );
+    }
+}
+
+#[test]
+fn gerber_check_reports_the_codes_and_the_exit_code() {
+    let dir = tempfile::tempdir().unwrap();
+    let good = write(dir.path(), "board.gtl", COPPER);
+    let (code, text, err) = command(&["gerber-check", good.as_str()]);
+    assert_eq!((code, err.as_str()), (0, ""), "{text}");
+    assert!(text.contains("board.gtl: 3 finding(s)"), "{text}");
+    assert!(
+        text.contains("warning PHOENIX-GX2-003: Recommended file attribute missing: .Part"),
+        "{text}"
+    );
+    assert!(
+        text.ends_with(
+            "1 files, 0 with errors
+"
+        ),
+        "{text}"
+    );
+    let cut = write(
+        dir.path(),
+        "cut.gbr",
+        "%TF.FileFunction,Copper,L1,Top*%
+%FSLAX46Y46*%
+%MOMM*%
+",
+    );
+    let (code, text, _) = command(&["gerber-check", cut.as_str()]);
+    assert_eq!(code, 1, "{text}");
+    assert!(text.contains("error PHOENIX-GX2-001"), "{text}");
+    let (_, portuguese, _) = command(&["gerber-check", "--lang", "pt", cut.as_str()]);
+    assert!(
+        portuguese.contains("O comando de fim falta ou não é o último"),
+        "{portuguese}"
+    );
+    let (code, json, _) = command(&["gerber-check", "--json", dir.path().to_str().unwrap()]);
+    assert_eq!(code, 1);
+    let value: serde_json::Value = serde_json::from_str(&json).unwrap();
+    assert_eq!(value["files"].as_array().unwrap().len(), 2);
+    assert_eq!(value["failed"], 1);
+    assert_eq!(value["files"][0]["findings"][0]["code"], "PHOENIX-GX2-003");
+}
+
+#[test]
+fn gerber_check_refuses_arguments_it_cannot_use() {
+    let dir = tempfile::tempdir().unwrap();
+    let good = write(dir.path(), "board.gtl", COPPER);
+    for list in [
+        &["gerber-check"][..],
+        &["gerber-check", "--nonsense", good.as_str()],
+        &["gerber-check", "--lang", "xx", good.as_str()],
+        &["gerber-check", "--lang"],
+        &["gerber-check", "--config"],
+    ] {
+        let (code, out, err) = command(list);
+        assert_eq!((code, out.is_empty()), (2, true), "{list:?}");
+        assert!(!err.is_empty(), "{list:?}");
+    }
+    let (code, text, _) = command(&["gerber-check", "absent.gbr"]);
+    assert_eq!(code, 1, "{text}");
+    assert!(text.contains("PHOENIX-GBR-015"), "{text}");
+}

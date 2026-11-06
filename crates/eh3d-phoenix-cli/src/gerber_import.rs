@@ -116,7 +116,7 @@ fn small_text(path: &str) -> Result<String, GbrError> {
         .map_err(|e| GbrError::new(INPUT_UNREADABLE, format!("{path}: {e}")))
 }
 
-fn load_settings(path: Option<&str>) -> Result<ImportSettings, GbrError> {
+pub(crate) fn load_settings(path: Option<&str>) -> Result<ImportSettings, GbrError> {
     let chosen = path.or_else(|| {
         Path::new(DEFAULT_CONFIG)
             .is_file()
@@ -164,7 +164,7 @@ fn load_profile(options: &Options) -> Result<Profile, GbrError> {
 }
 
 /// The files to read: each input that is a file, and the files of each input that is a folder.
-fn collect(
+pub(crate) fn collect(
     inputs: &[String],
     settings: &ImportSettings,
 ) -> Result<Vec<(String, PathBuf)>, GbrError> {

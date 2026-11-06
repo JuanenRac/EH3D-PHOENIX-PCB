@@ -6,7 +6,7 @@
 //! The editor of boards adds the command `boardedit`. The editor of libraries adds the commands `libedit` and `footprint`, and the routing through an
 //! external autorouter adds `autoroute`, the filling of copper zones adds `zones` and the lengths
 //! of nets and pairs add `lengths`; the import of Gerber and Excellon files adds `gerber-import`
-//! and the layout of a matrix of boards adds `panel`; the bill of materials with costs adds `bom`
+//! and the check of their structure adds `gerber-check`; the layout of a matrix of boards adds `panel`; the bill of materials with costs adds `bom`
 //! and the 3D assembly of the board with the models of its components adds `assembly3d`; the run of
 //! the reference cases of the calculations adds `oracle`.
 //! The writing of boards, schematics and libraries as KiCad 8 files adds `kicad-export`.
@@ -25,6 +25,7 @@ mod bom;
 mod check;
 mod design;
 mod export;
+mod gerber_check;
 mod gerber_import;
 mod kicad;
 mod kicad_export;
@@ -199,6 +200,7 @@ phoenix autoroute export-dsn|import-ses|run [--rules FILE] [--out FILE] [--lang 
 phoenix gerber-import [--config FILE] [--json] [--lang xx] [--out FILE] <file or folder> ...
 phoenix gerber-import [--config FILE] [--json] [--lang xx] [--profile NAME] [--profiles FILE]
                       --roundtrip <board>
+phoenix gerber-check [--config FILE] [--json] [--lang xx] <file or folder> ...
 phoenix panel [--config FILE] [--columns N] [--rows N] [--json] [--lang xx] [--out FOLDER] <board>
 
   gerber-import read Gerber RS-274X and Excellon files as read-only geometry for review (the layer
@@ -206,6 +208,9 @@ phoenix panel [--config FILE] [--columns N] [--rows N] [--json] [--lang xx] [--o
                 regions, arcs, drill tools, holes and slots), with a code for what cannot be read;
                 the files are only read, and --roundtrip exports a board and compares the files
                 read back with it; a prototype, run `phoenix gerber-import` alone for its options
+  gerber-check  check the structure of Gerber X2 and Excellon files (end command, definitions
+                before use, regions, attributes) with the codes PHOENIX-GX2-nnn; the files are
+                only read, a prototype, run `phoenix gerber-check` alone for its options
   panel         lay a board out in a matrix with a gap, a frame, tabs with mouse bite holes or
                 V-score lines, fiducials and tooling holes from config/panel.cfg, and write the
                 outline and the drills of the panel; a dry run unless --out names a folder, a
@@ -391,6 +396,9 @@ pub fn run(args: &[String], out: &mut dyn Write, err: &mut dyn Write) -> i32 {
     }
     if let Some((&"gerber-import", tail)) = rest.split_first() {
         return gerber_import::gerber_import_command(tail, out, err);
+    }
+    if let Some((&"gerber-check", tail)) = rest.split_first() {
+        return gerber_check::gerber_check_command(tail, out, err);
     }
     if let Some((&"panel", tail)) = rest.split_first() {
         return panel::panel_command(tail, out, err);
