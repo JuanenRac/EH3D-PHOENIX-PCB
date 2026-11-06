@@ -27,7 +27,7 @@ pub const DUPLICATE_REFDES: &str = "PHOENIX-BOARD-008";
 /// An arc that has no shape.
 pub const BAD_ARC: &str = "PHOENIX-BOARD-009";
 /// A polygon with more points than the limit: its edges were not tested for crossing.
-pub const POLYGON_NOT_CHECKED: &str = "PHOENIX-BOARD-010";
+pub const POLYGON_NOT_CHECKED: &str = "PHOENIX-BOARD-017";
 
 /// The limits of the validation, read from `config/board.cfg`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -106,6 +106,37 @@ pub const REGISTRY: &[(&str, &str)] = &[
         "Polygon has more points than the limit, its edges were not tested for crossing",
     ),
 ];
+
+/// The tags of the languages of [`TITLES`], in the order of its columns.
+pub const TITLE_LANGUAGES: [&str; 8] = ["en", "es", "de", "fr", "it", "ja", "zh", "pt"];
+
+/// The titles of the codes that are printed for a person, in English, Spanish, German, French, Italian, Japanese,
+/// Chinese and European Portuguese. The messages of the diagnostics keep the English title.
+pub const TITLES: &[(&str, [&str; 8])] = &[
+    (
+        POLYGON_NOT_CHECKED,
+        [
+            "Polygon has more points than the limit, its edges were not tested for crossing",
+            "El polígono tiene más puntos que el límite, no se comprobó si sus aristas se cruzan",
+            "Das Polygon hat mehr Punkte als das Limit, seine Kanten wurden nicht auf Überschneidung geprüft",
+            "Le polygone a plus de points que la limite, ses arêtes n'ont pas été testées pour les croisements",
+            "Il poligono ha più punti del limite, i suoi lati non sono stati controllati per gli incroci",
+            "ポリゴンの点数が上限を超えているため、辺の交差は検査されませんでした",
+            "多边形的点数超过上限，未检查其边是否相交",
+            "O polígono tem mais pontos do que o limite, as suas arestas não foram verificadas quanto a cruzamentos",
+        ],
+    ),
+];
+
+/// The title of a code in a language (one of [`TITLE_LANGUAGES`]), or none when the code or the language is not
+/// in the table.
+pub fn title(code: &str, language: &str) -> Option<&'static str> {
+    let column = TITLE_LANGUAGES.iter().position(|l| *l == language)?;
+    TITLES
+        .iter()
+        .find(|(c, _)| *c == code)
+        .map(|(_, row)| row[column])
+}
 
 fn make(code: &'static str, severity: Severity, detail: String) -> Diagnostic {
     let title = REGISTRY
@@ -409,7 +440,12 @@ impl Board {
 
     /// True when [`Board::validate`] finds no error (warnings do not count).
     pub fn is_consistent(&self) -> bool {
-        self.validate()
+        self.is_consistent_with(&BoardLimits::default())
+    }
+
+    /// True when [`Board::validate_with`] finds no error with these limits.
+    pub fn is_consistent_with(&self, limits: &BoardLimits) -> bool {
+        self.validate_with(limits)
             .iter()
             .all(|d| d.severity != Severity::Error)
     }
@@ -434,6 +470,48 @@ mod tests {
                 .find(|l| l.starts_with(&format!("| {code} |")))
                 .unwrap_or_else(|| panic!("{code} is not documented"));
             assert!(row.contains(title), "{code}: {row}");
+        }
+    }
+
+    #[test]
+    fn the_titles_in_eight_languages_agree_with_the_registry_and_the_document() {
+        let doc = include_str!("../../../docs/ERROR_CODES.md");
+        for (code, texts) in TITLES {
+            let english = REGISTRY
+                .iter()
+                .find(|(c, _)| c == code)
+                .unwrap_or_else(|| panic!("{code} is not in the registry"))
+                .1;
+            assert_eq!(texts[0], english, "{code}");
+            for (language, text) in TITLE_LANGUAGES.iter().zip(texts) {
+                assert!(!text.is_empty(), "{code} {language}");
+                assert_eq!(title(code, language), Some(*text));
+            }
+            assert_ne!(texts[5], texts[0], "{code}: Japanese");
+            assert_ne!(texts[6], texts[0], "{code}: Chinese");
+            assert_ne!(texts[7], texts[1], "{code}: Portuguese is not Spanish");
+            let wanted = format!("| {code} | {} |", texts.join(" | "));
+            assert!(doc.lines().any(|l| l == wanted), "{code}: {wanted}");
+        }
+        assert_eq!(
+            title(POLYGON_NOT_CHECKED, "pt"),
+            Some("O polígono tem mais pontos do que o limite, as suas arestas não foram verificadas quanto a cruzamentos")
+        );
+        assert_eq!(title("PHOENIX-BOARD-999", "en"), None);
+        assert_eq!(title(POLYGON_NOT_CHECKED, "xx"), None);
+    }
+
+    #[test]
+    fn no_code_of_the_board_crate_is_used_twice() {
+        use crate::{connectivity, silk, stack};
+        let mut seen = std::collections::BTreeSet::new();
+        for (code, _) in REGISTRY
+            .iter()
+            .chain(connectivity::REGISTRY)
+            .chain(silk::REGISTRY)
+            .chain(stack::REGISTRY)
+        {
+            assert!(seen.insert(*code), "{code} is defined twice");
         }
     }
 

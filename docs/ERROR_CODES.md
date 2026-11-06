@@ -43,11 +43,10 @@ Each table repeats the `REGISTRY` of a crate (`eh3d-phoenix-model` in `src/diagn
 | PHOENIX-BOARD-003 | Straight track piece off the 45-degree grid | a straight piece that is not horizontal, vertical or at 45 degrees (a warning) |
 | PHOENIX-BOARD-004 | Size is zero or negative | a width, drill, diameter, clearance, pad dimension or reference designator that is not positive or not empty |
 | PHOENIX-BOARD-005 | Pad assigned twice or pad nets out of order | the list of pad nets is not strictly sorted by pad, so a pad appears twice or the order is wrong |
-| PHOENIX-BOARD-006 | Outline is not a closed polygon | an outline with fewer than three points, repeated points or crossing edges (the crossing test is made on a polygon of at most `max_polygon_points` points, see PHOENIX-BOARD-010) |
+| PHOENIX-BOARD-006 | Outline is not a closed polygon | an outline with fewer than three points, repeated points or crossing edges (the crossing test is made on a polygon of at most `max_polygon_points` points, see PHOENIX-BOARD-017) |
 | PHOENIX-BOARD-007 | Layer of the wrong kind | a track, via or zone on a layer that is not copper, or a via that starts and ends on one layer |
 | PHOENIX-BOARD-008 | Duplicate reference designator | two components with the same reference designator |
 | PHOENIX-BOARD-009 | Arc has no shape | an arc piece with a zero sweep or end points that do not fit its sweep |
-| PHOENIX-BOARD-010 | Polygon has more points than the limit, its edges were not tested for crossing | a warning for an outline, a cutout or a zone with more points than `max_polygon_points` of `config/board.cfg` (`BoardLimits`, `Board::validate_with`; 10000 by default): the test of repeated points is made, the test of crossing edges, which takes time with the square of the number of points, is not |
 | PHOENIX-BOARD-010 | Net is split into islands | a net whose pads, tracks, vias and zones do not all touch: the connections still to route (information, in `src/connectivity.rs`) |
 | PHOENIX-BOARD-011 | Arc judged by its end points only | a track with an arc piece, whose connections are judged by its end points (information, in `src/connectivity.rs`) |
 | PHOENIX-BOARD-012 | Copper stack entry is invalid | an entry of the copper stack that names a layer that does not exist, is not copper or is listed twice (in `src/stack.rs`) |
@@ -55,6 +54,13 @@ Each table repeats the `REGISTRY` of a crate (`eh3d-phoenix-model` in `src/diagn
 | PHOENIX-BOARD-014 | Silkscreen text rotation is not a right angle | no longer raised: a silkscreen text may have any rotation; the code stays so that its number is not reused (in `src/silk.rs`) |
 | PHOENIX-BOARD-015 | Silkscreen text does not fit the coordinate range | a silkscreen text whose characters reach outside the checked coordinate range (in `src/silk.rs`) |
 | PHOENIX-BOARD-016 | Silkscreen text has characters without a glyph | a silkscreen text with characters that the built-in font does not have, drawn as boxes (a warning, in `src/silk.rs`) |
+| PHOENIX-BOARD-017 | Polygon has more points than the limit, its edges were not tested for crossing | a warning for an outline, a cutout or a zone with more points than `max_polygon_points` of `config/board.cfg` (`BoardLimits`, `Board::validate_with`; 10000 by default): the test of repeated points is made, the test of crossing edges, which takes time with the square of the number of points, is not |
+
+The same titles in the eight languages of the suite (English, Spanish, German, French, Italian, Japanese, Chinese and European Portuguese), as the program prints them:
+
+| Code | en | es | de | fr | it | ja | zh | pt |
+|---|---|---|---|---|---|---|---|---|
+| PHOENIX-BOARD-017 | Polygon has more points than the limit, its edges were not tested for crossing | El polígono tiene más puntos que el límite, no se comprobó si sus aristas se cruzan | Das Polygon hat mehr Punkte als das Limit, seine Kanten wurden nicht auf Überschneidung geprüft | Le polygone a plus de points que la limite, ses arêtes n'ont pas été testées pour les croisements | Il poligono ha più punti del limite, i suoi lati non sono stati controllati per gli incroci | ポリゴンの点数が上限を超えているため、辺の交差は検査されませんでした | 多边形的点数超过上限，未检查其边是否相交 | O polígono tem mais pontos do que o limite, as suas arestas não foram verificadas quanto a cruzamentos |
 
 ## EAGLE reader (`eh3d-phoenix-eagle`, `src/codes.rs`)
 
@@ -83,6 +89,15 @@ Each table repeats the `REGISTRY` of a crate (`eh3d-phoenix-model` in `src/diagn
 | PHOENIX-EAGLE-021 | Item left out of the EAGLE file | an item with no place in the file: a component without a footprint, a track, zone, via or silkscreen item on a layer that has no EAGLE number, a silkscreen item that cannot be drawn, a seventeenth copper layer, a cutout of a zone with fewer than three points or on an inner layer, buses and bus entries of a schematic (a warning) |
 | PHOENIX-EAGLE-022 | Part of the EAGLE file not read into the board | elements of a board file that the board reader does not interpret, counted by name, and the wires and labels of a bus, the names of a bus that are not vectors and a restrict area that lies in no pour (information); also what went over a limit of `config/eagle_board.cfg` (`EagleLimits`), counted under the name `outline ring (over max_outline_rings)`, `polygon (over max_restrict_checks)` or `bus entry (over max_bus_checks)` |
 | PHOENIX-EAGLE-023 | EAGLE file cannot be read into a board | text that is not XML, whose root is not `eagle` or that has no board in its drawing (an error) |
+
+The same titles in the eight languages of the suite (English, Spanish, German, French, Italian, Japanese, Chinese and European Portuguese), as the program prints them:
+
+| Code | en | es | de | fr | it | ja | zh | pt |
+|---|---|---|---|---|---|---|---|---|
+| PHOENIX-EAGLE-020 | Item written in a simpler form | Elemento escrito de forma más simple | Element in einfacherer Form geschrieben | Élément écrit sous une forme plus simple | Elemento scritto in forma più semplice | 項目はより単純な形で書き出されました | 项目以更简单的形式写入 | Elemento escrito de forma mais simples |
+| PHOENIX-EAGLE-021 | Item left out of the EAGLE file | Elemento omitido del fichero EAGLE | Element nicht in die EAGLE-Datei geschrieben | Élément omis du fichier EAGLE | Elemento omesso dal file EAGLE | 項目は EAGLE ファイルに書き出されませんでした | 项目未写入 EAGLE 文件 | Elemento omitido do ficheiro EAGLE |
+| PHOENIX-EAGLE-022 | Part of the EAGLE file not read into the board | Parte del fichero EAGLE no leída en la placa | Teil der EAGLE-Datei nicht in die Platine eingelesen | Partie du fichier EAGLE non lue dans la carte | Parte del file EAGLE non letta nella scheda | EAGLE ファイルの一部は基板に読み込まれませんでした | EAGLE 文件的一部分未读入电路板 | Parte do ficheiro EAGLE não lida para a placa |
+| PHOENIX-EAGLE-023 | EAGLE file cannot be read into a board | El fichero EAGLE no se puede leer como placa | Die EAGLE-Datei kann nicht als Platine gelesen werden | Le fichier EAGLE ne peut pas être lu comme une carte | Il file EAGLE non può essere letto come scheda | EAGLE ファイルを基板として読み込めません | 无法将 EAGLE 文件读取为电路板 | O ficheiro EAGLE não pode ser lido como placa |
 
 ## Rule check (`eh3d-phoenix-board`, `src/rules.rs`)
 

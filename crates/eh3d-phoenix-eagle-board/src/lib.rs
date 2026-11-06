@@ -32,7 +32,10 @@ mod sch_read;
 mod signature;
 mod writer;
 
-pub use codes::{diagnostic, ITEM_LEFT_OUT, ITEM_SIMPLIFIED, NOT_READ, REGISTRY, UNREADABLE};
+pub use codes::{
+    diagnostic, title, ITEM_LEFT_OUT, ITEM_SIMPLIFIED, NOT_READ, REGISTRY, TITLES, TITLE_LANGUAGES,
+    UNREADABLE,
+};
 pub use library::write_library;
 pub use limits::EagleLimits;
 pub use reader::{read_board, read_board_with_limits, ReadBoard};
