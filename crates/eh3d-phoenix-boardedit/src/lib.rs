@@ -26,7 +26,7 @@
 //!   rest, with the design rules checked before and after), the checks of the gap, the symmetry, the
 //!   uncoupled stretch, the lengths, the vias, the width and the impedance, and the codes
 //!   `PHOENIX-PAIR-<NNN>`;
-//! * [`shove`] and [`arc`]: the push of neighbour tracks when a track is routed (`route_shove`:
+//! * [`shove`] and `arc`: the push of neighbour tracks when a track is routed (`route_shove`:
 //!   tracks of other nets that the clearance would invade are moved in parallel, within a depth and
 //!   a number of tracks of the settings, all or nothing) and the arcs in tracks (`route_arc`,
 //!   `round_corners`, the arc checked against the clearance of the rules), with the codes
