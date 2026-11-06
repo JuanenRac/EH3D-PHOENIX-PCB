@@ -2,7 +2,7 @@
 
 The exchange with an external autorouter is the part of requirement PPCB-016 that was called the remote auto-routing task. It goes by files and has three parts, all in the crate `eh3d-phoenix-route` and in the command `phoenix autoroute`: the export of the board as a Specctra DSN file, the import of a Specctra session (SES) as a plan that is checked before anything is changed, and an optional adapter that starts a program. It reuses the settings of the router (`config/route.cfg`: default width, size of the vias, margin of the clearances) and the rules and net classes of a rule file.
 
-**State: prototype.** It has been tried with boards and sessions made by hand and by the tests only. No autorouter has ever read a file written here, and no file written by an autorouter has ever been read. The adapter has never started a real program. Nothing here has been compared with the files of the reference tool.
+**State: prototype.** It has been tried with boards and sessions made by hand and by the tests only. No autorouter has ever read a file written here, and no file written by an autorouter has ever been read. The adapter has never started a real program. Nothing here has been compared with the files of the reference tool. To route with no outside program see `docs/AUTOROUTE_NATIVE.md`.
 
 ## The DSN file
 
