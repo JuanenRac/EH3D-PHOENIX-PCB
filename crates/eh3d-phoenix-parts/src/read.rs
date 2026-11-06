@@ -392,7 +392,7 @@ pub fn parse_csv(text: &str, file: &str, s: &PartsSettings) -> Result<Vec<Part>,
         }
         for item in get("alternatives").split(';') {
             let item = item.trim();
-            if !item.is_empty() && !part.alternatives.iter().any(|a| a == item) {
+            if !item.is_empty() && !part.alternatives.iter().any(|a| a.as_str() == item) {
                 part.alternatives.push(item.to_owned());
             }
         }
