@@ -82,10 +82,12 @@ Every expectation says how, in `how`. The rule is the one of `ORACLE.md`: a numb
 ## The command
 
 ```
-phoenix corpus run   [--dir FOLDER] [--filter TEXT] [--properties] [--settings FILE] [--out FILE] [--json] [--lang CODE]
+phoenix corpus run   [--dir FOLDER] [--filter TEXT] [--properties] [--settings FILE] [--limits FILE] [--out FILE] [--json] [--lang CODE]
 phoenix corpus list  [--dir FOLDER] [--filter TEXT] [--settings FILE]
 phoenix corpus check [--dir FOLDER] [--settings FILE] [--lang CODE]
 ```
+
+`--limits FILE` gives the readers of EAGLE files and the checks of a board the limits of `config/eagle_board.cfg` and `config/board.cfg` (see `docs/SECURITY_REVIEW.md`); without it the defaults are used and the verdicts do not change.
 
 `run` gives each piece a verdict: **ok**, **difference** (the result is not what the expectation says), **expected error** (the file had to be refused and was) or **failed** (a reader failed where it had to succeed, or the piece could not run). The report is the same every time, in text (eight languages) and in JSON (`phoenix-corpus-report/1`). The exit code is 0 when no piece is a difference or a failure, 1 otherwise and 2 when the arguments or the folder are unusable. `check` finds, without running anything, the expectations that are not valid, an id used twice, a data file that an expectation names and is not there, and a data file that no expectation names. `--properties` adds the properties below. The command starts no other program and writes nothing unless `--out` names a new file; an existing file is never replaced. The default folder is `tests/corpus`; the settings are in `config/corpus.cfg` (the largest file, the most expectations, the depth of folders, the tolerance of the round trips, the number of seeds).
 
