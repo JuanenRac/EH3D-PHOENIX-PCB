@@ -20,6 +20,7 @@ use eh3d_phoenix_viewer::{open, Viewer, ViewerSettings};
 pub(crate) const USAGE: &str = "\
 phoenix view [--settings FILE] [--lang CODE] [<board.brd | schematic.sch | board.json>]
 phoenix view --summary [--settings FILE] [--lang CODE] <file>
+phoenix view --snapshot OUT.svg [--settings FILE] [--lang CODE] <file>
 phoenix view --bench [--settings FILE] [--lang CODE]
 phoenix view --panel [--panel-config FILE] [--settings FILE] [--lang CODE] [<board>[,<board>...]]
 phoenix view --panel --summary [--panel-config FILE] [--settings FILE] [--lang CODE] <board>[,<board>...]
@@ -33,6 +34,8 @@ phoenix view --panel --summary [--panel-config FILE] [--settings FILE] [--lang C
                 (cargo run --release -p eh3d-phoenix-cli --features gui -- view FILE); it is a
                 prototype that has not been seen on a screen
   --summary     print what the file holds (primitives, items, nets, primitives per layer)
+  --snapshot    write the scene of the file (the layers, in the colours of the window) as an SVG
+                picture, without a window; the output must be a new file
   --bench       time the preparation of the primitives and the selection by position on three
                 synthetic boards (the sizes come from the settings); drawing on a screen is
                 not measured
@@ -50,6 +53,7 @@ struct Options {
     lang: Lang,
     bench: bool,
     summary: bool,
+    snapshot: Option<String>,
     panel: bool,
     panel_config: Option<String>,
     file: Option<String>,
@@ -61,6 +65,7 @@ fn parse_options(args: &[&str]) -> Result<Options, String> {
         lang: Lang::En,
         bench: false,
         summary: false,
+        snapshot: None,
         panel: false,
         panel_config: None,
         file: None,
@@ -70,6 +75,10 @@ fn parse_options(args: &[&str]) -> Result<Options, String> {
         match *arg {
             "--bench" => options.bench = true,
             "--summary" => options.summary = true,
+            "--snapshot" => {
+                let path = iter.next().ok_or("--snapshot needs a file to write")?;
+                options.snapshot = Some((*path).to_owned());
+            }
             "--panel" => options.panel = true,
             "--panel-config" => {
                 let path = iter.next().ok_or("--panel-config needs a file")?;
@@ -97,6 +106,14 @@ fn parse_options(args: &[&str]) -> Result<Options, String> {
     }
     if options.summary && options.file.is_none() {
         return Err("--summary needs a file".to_owned());
+    }
+    if options.snapshot.is_some()
+        && (options.bench || options.panel || options.summary || options.file.is_none())
+    {
+        return Err(
+            "--snapshot needs a file and cannot be combined with --bench, --panel or --summary"
+                .to_owned(),
+        );
     }
     if options.panel && options.bench {
         return Err("--panel cannot be combined with --bench".to_owned());
@@ -170,6 +187,34 @@ fn window(file: Option<&str>, lang: Lang, settings: ViewerSettings, err: &mut dy
     }
 }
 
+/// Writes the scene of `file` as an SVG picture to `target`, which must be a path that may be
+/// written and a file that does not exist.
+fn snapshot(file: &str, target: &str, settings: &ViewerSettings, lang: Lang) -> Result<(), String> {
+    if let Some(reason) = eh3d_phoenix_model::output_path_problem(target) {
+        return Err(format!(
+            "{}: --snapshot: {reason}",
+            crate::sec_codes::OUTPUT_PATH_REFUSED
+        ));
+    }
+    if crate::design::same_file(file, target) {
+        return Err(format!("{target} is the input"));
+    }
+    let (scene, _) = open(Path::new(file), settings).map_err(|e| e.message(lang))?;
+    let svg = eh3d_phoenix_viewer::snapshot::scene_svg(&scene, settings);
+    let path = Path::new(target);
+    if let Some(parent) = path.parent().filter(|p| !p.as_os_str().is_empty()) {
+        std::fs::create_dir_all(parent)
+            .map_err(|e| format!("cannot create {}: {e}", parent.display()))?;
+    }
+    let mut out = std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(path)
+        .map_err(|e| format!("cannot write {target}: {e}"))?;
+    out.write_all(svg.as_bytes())
+        .map_err(|e| format!("cannot write {target}: {e}"))
+}
+
 pub(crate) fn view(args: &[&str], out: &mut dyn Write, err: &mut dyn Write) -> i32 {
     let options = match parse_options(args) {
         Ok(options) => options,
@@ -184,6 +229,18 @@ pub(crate) fn view(args: &[&str], out: &mut dyn Write, err: &mut dyn Write) -> i
         Ok(settings) => settings,
         Err(error) => return fail(err, lang, &error),
     };
+    if let (Some(target), Some(file)) = (options.snapshot.as_deref(), options.file.as_deref()) {
+        return match snapshot(file, target, &settings, lang) {
+            Ok(()) => {
+                let _ = writeln!(out, "wrote {target}");
+                0
+            }
+            Err(message) => {
+                let _ = writeln!(err, "error: {message}");
+                2
+            }
+        };
+    }
     if options.panel {
         let files = parse_files(options.file.as_deref().unwrap_or(""));
         if options.summary {
@@ -369,6 +426,66 @@ mod tests {
         let (code, _, err) = run_view(&["--panel", "--summary", ""]);
         assert_eq!(code, 2);
         assert!(err.contains("PHOENIX-VIEW-014"), "{err}");
+    }
+
+    #[test]
+    fn a_snapshot_writes_the_scene_as_svg_and_never_over_a_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let settings = ViewerSettings::parse("bench_seed = 3").unwrap();
+        let board = synthetic_board(200, &settings).unwrap();
+        let file = dir.path().join("board.json");
+        std::fs::write(&file, board.to_bytes().unwrap()).unwrap();
+        let name = file.to_string_lossy().into_owned();
+        let target = dir.path().join("out").join("board.svg");
+        let target_name = target.to_string_lossy().into_owned();
+        let (code, out, err) = run_view(&["--snapshot", &target_name, &name]);
+        assert_eq!(code, 0, "{err}");
+        assert!(out.starts_with("wrote "), "{out}");
+        let svg = std::fs::read_to_string(&target).unwrap();
+        assert!(
+            svg.contains("<svg ") && svg.contains("<g id=\"layer-"),
+            "{svg}"
+        );
+        // a second run does not replace the file
+        let (code, _, err) = run_view(&["--snapshot", &target_name, &name]);
+        assert_eq!(code, 2);
+        assert!(err.contains("cannot write"), "{err}");
+        assert_eq!(std::fs::read_to_string(&target).unwrap(), svg);
+        // the input is not a target
+        let (code, _, err) = run_view(&["--snapshot", &name, &name]);
+        assert_eq!(code, 2);
+        assert!(err.contains("is the input"), "{err}");
+        // a path that may not be written is refused with its code
+        let (code, _, err) = run_view(&["--snapshot", "NUL", &name]);
+        assert_eq!(code, 2);
+        assert!(err.contains("PHOENIX-SEC-001"), "{err}");
+    }
+
+    #[test]
+    fn the_snapshot_options_are_checked() {
+        for args in [
+            vec!["--snapshot"],
+            vec!["--snapshot", "out.svg"],
+            vec!["--snapshot", "out.svg", "--bench"],
+            vec!["--snapshot", "out.svg", "--summary", "a.brd"],
+            vec!["--snapshot", "out.svg", "--panel", "a.brd"],
+        ] {
+            let (code, out, err) = run_view(&args);
+            assert_eq!(code, 2, "{args:?}");
+            assert!(out.is_empty(), "{args:?}");
+            assert!(err.contains("phoenix view"), "{args:?}");
+        }
+        let dir = tempfile::tempdir().unwrap();
+        let target = dir.path().join("x.svg");
+        let missing = dir.path().join("missing.brd");
+        let (code, _, err) = run_view(&[
+            "--snapshot",
+            target.to_str().unwrap(),
+            missing.to_str().unwrap(),
+        ]);
+        assert_eq!(code, 2);
+        assert!(err.contains("PHOENIX-VIEW-001"), "{err}");
+        assert!(!target.exists());
     }
 
     #[cfg(not(feature = "gui"))]

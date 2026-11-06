@@ -15,6 +15,7 @@
 //!   cheap;
 //! * [`load`]: reading an EAGLE board or schematic or the JSON of the model;
 //! * [`bench`]: three synthetic boards and the time of preparing and picking on them;
+//! * [`snapshot`]: the scene as a deterministic SVG picture, made without a window;
 //! * [`session`]: the document that is edited: a board with its rules, its history of edits, the
 //!   findings of the rules and the ratsnest, or a schematic with its electrical rule check and the
 //!   synchronisation with a board, and the saving of either under another name;
@@ -176,6 +177,7 @@ pub mod schematic_text;
 pub mod search_index;
 pub mod session;
 pub mod settings;
+pub mod snapshot;
 pub mod view;
 pub mod view3d;
 #[cfg(feature = "gui")]

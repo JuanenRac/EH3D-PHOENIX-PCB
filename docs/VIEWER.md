@@ -117,6 +117,7 @@ A document is never saved over the file it was read from. The name to save to is
 ```text
 phoenix view [--settings FILE] [--lang xx] [<board.brd | schematic.sch | board.json>]
 phoenix view --summary [--settings FILE] [--lang xx] <file>
+phoenix view --snapshot OUT.svg [--settings FILE] [--lang xx] <file>
 phoenix view --bench [--settings FILE] [--lang xx]
 phoenix view --panel [--panel-config FILE] [--settings FILE] [--lang xx] [<board>[,<board>...]]
 phoenix view --panel --summary [--panel-config FILE] [--settings FILE] [--lang xx] <board>[,<board>...]
@@ -124,6 +125,7 @@ phoenix view --panel --summary [--panel-config FILE] [--settings FILE] [--lang x
 
 * `view` opens the window. The window is behind the `gui` feature, which is off by default: `cargo run --release -p eh3d-phoenix-cli --features gui -- view FILE` (or the program `phoenix-gui`, below, which opens it with a start screen). A build without it explains this (code `PHOENIX-VIEW-008`, exit code 2). A file can also be typed in the path box or dropped on the window.
 * `--summary` prints what the file holds without a window: the primitives, the items and the nets, the primitives of each layer and the size in millimetres.
+* `--snapshot OUT.svg` writes the scene of the file as an SVG picture without a window: the same layers, in the same drawing order and with the colours of the window (the dark theme of the settings, on its background colour), one group `layer-N` for each visible layer that has something to draw, in millimetres, with the y axis turned to run down. It is deterministic (the same file and settings give the same bytes), works for a board and a schematic, and is the way to look at the drawing without a screen. The output must be a new file: an existing file, the input itself and a path that may not be written (`PHOENIX-SEC-001`) are refused with exit code 2. Highlights, selection and measures are not drawn, only the layers; the module is `snapshot` of the viewer crate.
 * `--bench` runs the benchmark below.
 * `--panel` opens the window of the panel of boards (above); with `--summary` it prints the measures of the panel. `--panel-config` is the settings file of the panel (`config/panel.cfg` shows every key).
 
@@ -145,6 +147,7 @@ The crate `eh3d-phoenix-viewer` holds all of the logic, with no dependency on eg
 | `grid` | A uniform grid over the boxes of the primitives: the primitives near a point or inside a window without looking at all of them |
 | `load` | Reading an EAGLE board or schematic or the JSON of the model, bounded by the settings |
 | `bench` | Three synthetic boards and their timing |
+| `snapshot` | The scene as a deterministic SVG picture, for `phoenix view --snapshot` |
 | `settings`, `codes`, `msg`, `editmsg` | The settings file, the codes `PHOENIX-VIEW-<NNN>` and the texts in eight languages (`editmsg` those of the editing) |
 | `board_text`, `board_sync` | The texts of the board editor in eight languages and the hand-over of the edited board to the workspace (`Workspace::replace_board`) |
 | `board_zone`, `board_zone_text` | The state of the zone tool of the board editor (the polygon drawn by clicks, its vertices, the preview of the fill, the zones by priority and the operations on them) and its texts in eight languages |

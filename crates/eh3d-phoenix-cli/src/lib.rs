@@ -496,11 +496,11 @@ phoenix eagle-convert <dru-to-rules|rules-to-dru|cam-to-profile|layers|variants>
                 run `phoenix eagle-convert` alone for its options
 
 phoenix view [--settings FILE] [--lang xx] [<board or schematic>]
-phoenix view --summary <file>  |  phoenix view --bench
+phoenix view --summary <file>  |  phoenix view --snapshot OUT.svg <file>  |  phoenix view --bench
 
   view          a viewer and editor window of a board or a schematic (a build with the gui
-                feature; a prototype), a text summary of a file, or a timing of the preparation
-                and the selection on three synthetic boards
+                feature; a prototype), a text summary of a file, a picture of it as SVG, or a
+                timing of the preparation and the selection on three synthetic boards
 
 phoenix help [<topic or command>] [--lang xx]
 phoenix --help [--lang xx]
