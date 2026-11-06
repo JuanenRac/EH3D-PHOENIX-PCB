@@ -86,6 +86,14 @@ pub fn file_text(file: &ImportedFile, lang: Lang) -> String {
                 "  bounds: {}\n",
                 bounds_text(drill.centre_bounds())
             ));
+            if let Some(span) = file.drill_span() {
+                out.push_str(&format!(
+                    "  {} vias between layers {} and {}\n",
+                    if span.buried { "buried" } else { "blind" },
+                    span.from,
+                    span.to
+                ));
+            }
         }
         Content::Failed(error) => {
             out.push_str(&format!("  error {}\n", error.message(lang)));
@@ -166,6 +174,11 @@ pub fn summary_json(set: &ImportedSet) -> Value {
                     "holes": drill.hits.len(),
                     "slots": drill.slots.len(),
                     "bounds": bounds_json(drill.centre_bounds()),
+                    "span": file.drill_span().map(|s| json!({
+                        "from": s.from,
+                        "to": s.to,
+                        "kind": if s.buried { "buried" } else { "blind" },
+                    })),
                     "findings": findings,
                 }),
                 Content::Failed(error) => json!({

@@ -60,6 +60,13 @@ impl ImportedFile {
             _ => None,
         }
     }
+
+    /// The layers a drill file of blind or buried vias joins, when the file says so with its
+    /// `.FileFunction` (`Plated,1,2,Blind`, `Plated,2,3,Buried`).
+    pub fn drill_span(&self) -> Option<crate::identify::DrillSpan> {
+        self.drill()
+            .and_then(|file| crate::identify::drill_span(&file.attributes))
+    }
 }
 
 /// The files of one import, in the order they were given.

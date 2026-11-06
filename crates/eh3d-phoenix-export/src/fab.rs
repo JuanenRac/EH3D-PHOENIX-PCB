@@ -41,10 +41,33 @@ pub enum FileRole {
         /// True for the plated holes.
         plated: bool,
     },
+    /// An Excellon file of the blind or the buried vias that join one pair of layers.
+    DrillSpan {
+        /// The upper layer, counted from 1 at the top of the copper stack.
+        from: usize,
+        /// The lower layer.
+        to: usize,
+        /// True for buried vias, false for blind ones.
+        buried: bool,
+    },
     /// The placement file.
     Placement,
     /// The bill of materials.
     Bom,
+}
+
+/// The name of the drill file of the blind or buried vias between layers `from` and `to`: the name
+/// of the plated file with `_blind_<from>-<to>` or `_buried_<from>-<to>` before its extension
+/// (`drill_pth.drl` gives `drill_pth_blind_1-2.drl`). The name only follows the profile and the
+/// layers, so the same board always gives the same names.
+pub fn span_file_name(plated_file: &str, from: usize, to: usize, buried: bool) -> String {
+    let kind = if buried { "buried" } else { "blind" };
+    match plated_file.rsplit_once('.') {
+        Some((stem, extension)) if !stem.is_empty() => {
+            format!("{stem}_{kind}_{from}-{to}.{extension}")
+        }
+        _ => format!("{plated_file}_{kind}_{from}-{to}"),
+    }
 }
 
 /// One file of the set.
@@ -271,6 +294,20 @@ pub fn build(board: &Board, profile: &Profile) -> Result<FabSet, ExportError> {
                 role: FileRole::Drill { plated },
             });
         }
+    }
+    for span in drills.spans {
+        files.push(FabFile {
+            path: format!(
+                "layers/{}",
+                span_file_name(&d.plated_file, span.from, span.to, span.buried)
+            ),
+            bytes: span.text.into_bytes(),
+            role: FileRole::DrillSpan {
+                from: span.from,
+                to: span.to,
+                buried: span.buried,
+            },
+        });
     }
     let (placement, mut found) = placement_csv(board, &profile.placement);
     diagnostics.append(&mut found);

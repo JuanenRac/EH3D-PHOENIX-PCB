@@ -312,7 +312,7 @@ fn fabpack(o: &Options, out: &mut dyn Write) -> Result<i32, FabError> {
     for file in &set.files {
         let folder = match file.role {
             FileRole::Layer { .. } => "gerber",
-            FileRole::Drill { .. } => "drill",
+            FileRole::Drill { .. } | FileRole::DrillSpan { .. } => "drill",
             FileRole::Placement | FileRole::Bom => continue,
         };
         files.push((

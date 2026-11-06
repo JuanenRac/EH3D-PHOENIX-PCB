@@ -61,6 +61,41 @@ impl Role {
     }
 }
 
+/// The two layers that a drill file of blind or buried vias joins.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct DrillSpan {
+    /// The upper layer, counted from 1 at the top of the stack.
+    pub from: u32,
+    /// The lower layer.
+    pub to: u32,
+    /// True for buried vias, false for blind ones.
+    pub buried: bool,
+}
+
+/// The span of a drill file told by its `.FileFunction` attribute (`Plated,1,2,Blind` or
+/// `Plated,2,3,Buried`); `None` for any other drill file, a file of through holes included.
+pub fn drill_span(attributes: &BTreeMap<String, Vec<String>>) -> Option<DrillSpan> {
+    let values = attributes.get(".FileFunction")?;
+    if !values.first()?.eq_ignore_ascii_case("plated") {
+        return None;
+    }
+    let from = values.get(1)?.trim().parse::<u32>().ok()?;
+    let to = values.get(2)?.trim().parse::<u32>().ok()?;
+    match values.get(3)?.to_ascii_lowercase().as_str() {
+        "blind" => Some(DrillSpan {
+            from: from.min(to),
+            to: from.max(to),
+            buried: false,
+        }),
+        "buried" => Some(DrillSpan {
+            from: from.min(to),
+            to: from.max(to),
+            buried: true,
+        }),
+        _ => None,
+    }
+}
+
 /// Where the role was found.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Source {
@@ -273,6 +308,8 @@ mod tests {
             (vec!["Profile", "NP"], Role::Outline),
             (vec!["Plated", "1", "2", "PTH"], Role::DrillPlated),
             (vec!["NonPlated", "1", "2", "NPTH"], Role::DrillNonPlated),
+            (vec!["Plated", "1", "2", "Blind"], Role::DrillPlated),
+            (vec!["Plated", "2", "3", "Buried"], Role::DrillPlated),
         ] {
             assert_eq!(
                 from_attributes(&attributes(&values)),

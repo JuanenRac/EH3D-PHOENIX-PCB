@@ -8,8 +8,9 @@ use std::collections::BTreeMap;
 
 use eh3d_phoenix_board::connectivity::pad_position;
 use eh3d_phoenix_board::{Board, Id, LayerKind, PadRef, Segment};
+use eh3d_phoenix_export::excellon::{via_span, ViaSpan};
 use eh3d_phoenix_export::fab::{FabFile, FileRole};
-use eh3d_phoenix_export::gerber::via_on_layer;
+use eh3d_phoenix_export::gerber::{pad_is_region, via_on_layer};
 use eh3d_phoenix_export::profile::{ObjectAttribute, X2Level, X2Profile};
 use eh3d_phoenix_export::x2::{unescape_field, NO_NET};
 use eh3d_phoenix_export::{build, Profile};
@@ -77,7 +78,18 @@ fn same_points(expected: &[(i64, i64)], found: &[(i64, i64)], tolerance: i64) ->
             .all(|(a, b)| near(a.0, b.0, tolerance) && near(a.1, b.1, tolerance))
 }
 
-/// The positions of the pads that appear on `layer`.
+/// True when the pad has no copper to put on the layer: a hole that is not plated, on a copper
+/// layer.
+fn no_copper(board: &Board, layer: Id, pad: &eh3d_phoenix_board::Pad) -> bool {
+    pad.is_npth()
+        && board
+            .layers
+            .get(&layer)
+            .is_some_and(|l| l.kind == LayerKind::Copper)
+}
+
+/// The positions of the pads that appear on `layer` and that the export flashes (a pad with
+/// rounded corners is a region, see [`region_pads_on`]).
 fn pads_on(board: &Board, layer: Id) -> Points {
     let mut points = Vec::new();
     for (component_id, component) in &board.components {
@@ -85,7 +97,10 @@ fn pads_on(board: &Board, layer: Id) -> Points {
             continue;
         };
         for (pad_id, pad) in &footprint.pads {
-            if !pad.layers.contains(&layer) {
+            if !pad.layers.contains(&layer)
+                || no_copper(board, layer, pad)
+                || pad_is_region(pad, component.rotation)
+            {
                 continue;
             }
             let at = pad_position(
@@ -103,15 +118,46 @@ fn pads_on(board: &Board, layer: Id) -> Points {
     sorted(points)
 }
 
+/// The nets (as the label of `.N`) of the pads on `layer` that the export writes as regions.
+fn region_pads_on(board: &Board, layer: Id) -> Vec<String> {
+    let mut nets = Vec::new();
+    for (component_id, component) in &board.components {
+        let Some(footprint) = board.footprints.get(&component.footprint) else {
+            continue;
+        };
+        for (pad_id, pad) in &footprint.pads {
+            if !pad.layers.contains(&layer)
+                || no_copper(board, layer, pad)
+                || !pad_is_region(pad, component.rotation)
+            {
+                continue;
+            }
+            let pad_ref = PadRef {
+                component: *component_id,
+                pad: *pad_id,
+            };
+            if pad_position(board, pad_ref).is_some() {
+                nets.push(net_label(board, board.net_of(pad_ref)));
+            }
+        }
+    }
+    nets.sort_unstable();
+    nets
+}
+
 /// Holes as `(diameter, x, y)`.
 type Holes = Vec<(i64, i64, i64)>;
 
-/// The holes of the board as `(diameter, x, y)`, plated and not plated apart.
+/// The holes of the board as `(diameter, x, y)`, plated and not plated apart. The plated holes are
+/// the through vias and the plated pads; the blind and buried vias have a file of their own
+/// ([`span_holes`]).
 fn holes_of(board: &Board) -> (Holes, Holes) {
     let mut plated = Vec::new();
     let mut not_plated = Vec::new();
     for via in board.vias.values() {
-        plated.push((via.drill.get(), via.at.x_nm.get(), via.at.y_nm.get()));
+        if via_span(board, via) == ViaSpan::Through {
+            plated.push((via.drill.get(), via.at.x_nm.get(), via.at.y_nm.get()));
+        }
     }
     for (component_id, component) in &board.components {
         let Some(footprint) = board.footprints.get(&component.footprint) else {
@@ -134,7 +180,7 @@ fn holes_of(board: &Board) -> (Holes, Holes) {
                     .is_some_and(|layer| layer.kind == LayerKind::Copper)
             });
             let hole = (drill.get(), at.x_nm.get(), at.y_nm.get());
-            if on_copper {
+            if on_copper && pad.plated {
                 plated.push(hole);
             } else {
                 not_plated.push(hole);
@@ -146,12 +192,53 @@ fn holes_of(board: &Board) -> (Holes, Holes) {
     (plated, not_plated)
 }
 
+/// The holes of the blind (`buried` false) or buried vias between layers `from` and `to`.
+fn span_holes(board: &Board, from: usize, to: usize, buried: bool) -> Holes {
+    let wanted = if buried {
+        ViaSpan::Buried(from, to)
+    } else {
+        ViaSpan::Blind(from, to)
+    };
+    let mut holes: Holes = board
+        .vias
+        .values()
+        .filter(|v| via_span(board, v) == wanted)
+        .map(|v| (v.drill.get(), v.at.x_nm.get(), v.at.y_nm.get()))
+        .collect();
+    holes.sort_unstable();
+    holes
+}
+
 /// True when the export can write the arc: its ends differ and its sweep is not a whole turn.
 fn arc_is_written(start: (i64, i64), end: (i64, i64), sweep_udeg: i64) -> bool {
     let (dx, dy) = ((end.0 - start.0) as f64, (end.1 - start.1) as f64);
     let distance = dx.hypot(dy);
     let half = (sweep_udeg.abs() as f64) / 1_000_000.0 * std::f64::consts::PI / 360.0;
     distance > 0.0 && distance.is_finite() && half.sin().abs() >= 1e-9
+}
+
+fn dark_regions(gerber: &crate::model::GerberLayer) -> usize {
+    gerber
+        .items
+        .iter()
+        .filter(|i| matches!(i, crate::model::Item::Region { dark: true, .. }))
+        .count()
+}
+
+fn dark_lines(gerber: &crate::model::GerberLayer) -> usize {
+    gerber
+        .items
+        .iter()
+        .filter(|i| matches!(i, crate::model::Item::Line { dark: true, .. }))
+        .count()
+}
+
+fn dark_arcs(gerber: &crate::model::GerberLayer) -> usize {
+    gerber
+        .items
+        .iter()
+        .filter(|i| matches!(i, crate::model::Item::Arc { dark: true, .. }))
+        .count()
 }
 
 /// The label of a net for the attribute `.N`: its name, or `N/C` when there is no net.
@@ -174,7 +261,11 @@ fn pad_table(board: &Board, layer: Id) -> PadTable {
             continue;
         };
         for (pad_id, pad) in &footprint.pads {
-            if !pad.layers.contains(&layer) || component.refdes.is_empty() || pad.number.is_empty()
+            if !pad.layers.contains(&layer)
+                || component.refdes.is_empty()
+                || pad.number.is_empty()
+                || no_copper(board, layer, pad)
+                || pad_is_region(pad, component.rotation)
             {
                 continue;
             }
@@ -263,7 +354,8 @@ impl Checker<'_> {
                     .values()
                     .filter(|z| z.layer == layer && z.outline.len() >= 3)
                     .count();
-                self.count(name, "regions", zones, gerber.regions());
+                let pad_regions = region_pads_on(self.board, layer).len();
+                self.count(name, "regions", zones + pad_regions, dark_regions(gerber));
                 let (mut lines, mut arcs) = (0usize, 0usize);
                 for track in self.board.tracks.values().filter(|t| t.layer == layer) {
                     for segment in &track.path {
@@ -279,12 +371,14 @@ impl Checker<'_> {
                         }
                     }
                 }
-                self.count(name, "lines", lines, gerber.lines());
-                self.count(name, "arcs", arcs, gerber.arcs());
+                self.count(name, "lines", lines, dark_lines(gerber));
+                self.count(name, "arcs", arcs, dark_arcs(gerber));
             }
             LayerKind::SolderMask | LayerKind::Paste => {
                 let expected = pads_on(self.board, layer);
                 self.flashes(name, expected, gerber);
+                let pad_regions = region_pads_on(self.board, layer).len();
+                self.count(name, "regions", pad_regions, dark_regions(gerber));
             }
             LayerKind::Outline => {
                 let board = self.board;
@@ -292,7 +386,13 @@ impl Checker<'_> {
                 if outline.len() < 3 {
                     return;
                 }
-                self.count(name, "lines", outline.len(), gerber.lines());
+                let cutout_lines: usize = board
+                    .outline_cutouts
+                    .iter()
+                    .filter(|c| c.len() >= 3)
+                    .map(Vec::len)
+                    .sum();
+                self.count(name, "lines", outline.len() + cutout_lines, gerber.lines());
                 let xs = outline.iter().map(|p| p.x_nm.get());
                 let ys = outline.iter().map(|p| p.y_nm.get());
                 let model = (
@@ -427,6 +527,16 @@ impl Checker<'_> {
         let (mut loose, mut lines, mut regions): (Vec<String>, Vec<String>, Vec<String>) =
             (Vec::new(), Vec::new(), Vec::new());
         for (index, item) in gerber.items.iter().enumerate() {
+            let dark = match item {
+                crate::model::Item::Flash { dark, .. }
+                | crate::model::Item::Line { dark, .. }
+                | crate::model::Item::Arc { dark, .. }
+                | crate::model::Item::Region { dark, .. } => *dark,
+            };
+            if !dark {
+                // what takes copper away (a cutout of a zone, a keep-away) has no attributes
+                continue;
+            }
             let attributes = gerber.object_attributes(index);
             let value = |key: &str, at: usize| {
                 attributes
@@ -520,6 +630,7 @@ impl Checker<'_> {
                 .filter(|z| z.layer == layer && z.outline.len() >= 3)
                 .map(|z| net_label(self.board, Some(z.net)))
                 .collect();
+            zones.extend(region_pads_on(self.board, layer));
             zones.sort_unstable();
             let tracks = track_nets(self.board, layer);
             for (what, mut expected, mut found, applies) in [
@@ -563,7 +674,7 @@ impl Checker<'_> {
                 .items
                 .iter()
                 .filter_map(|i| match i {
-                    crate::model::Item::Flash { at, .. } => Some((at.x, at.y)),
+                    crate::model::Item::Flash { at, dark: true, .. } => Some((at.x, at.y)),
                     _ => None,
                 })
                 .collect(),
@@ -573,6 +684,48 @@ impl Checker<'_> {
             self.count(name, "flashes", expected.len(), found.len());
         } else if !same_points(&expected, &found, self.tolerance) {
             self.differ(name, "the positions of the flashes".to_owned());
+        }
+    }
+
+    /// The drill file of the blind (or buried) vias between two layers against the vias of that
+    /// span, and the layers it says in its `.FileFunction` against the ones of its role.
+    fn drill_span(&mut self, name: &str, span: (usize, usize, bool), imported: &ImportedFile) {
+        let Some(file) = imported.drill() else {
+            return;
+        };
+        let (from, to, buried) = span;
+        let expected = span_holes(self.board, from, to, buried);
+        let total = file.hits.len() + file.slots.len();
+        self.count(name, "holes", expected.len(), total);
+        match imported.drill_span() {
+            Some(found)
+                if found.buried == buried
+                    && usize::try_from(found.from) == Ok(from)
+                    && usize::try_from(found.to) == Ok(to) => {}
+            _ => self.differ(
+                name,
+                "the attribute .FileFunction does not name the layers of the vias".to_owned(),
+            ),
+        }
+        if file.units != crate::model::Units::Millimetres {
+            self.differ(name, "the units are not millimetres".to_owned());
+        }
+        if !file.slots.is_empty() || expected.len() != total {
+            return;
+        }
+        let mut found: Vec<(i64, i64, i64)> = file
+            .hits
+            .iter()
+            .map(|h| (file.diameter(h.tool), h.at.x, h.at.y))
+            .collect();
+        found.sort_unstable();
+        let same = found.iter().zip(expected.iter()).all(|(f, m)| {
+            near(f.0, m.0, self.tolerance)
+                && near(f.1, m.1, self.tolerance)
+                && near(f.2, m.2, self.tolerance)
+        });
+        if !same {
+            self.differ(name, "the diameters or positions of the holes".to_owned());
         }
     }
 
@@ -693,6 +846,16 @@ pub fn compare_files_with(
                     checker.differ(&name, format!("the file cannot be read back: {error}"));
                 } else {
                     checker.drill(&name, *plated, &imported);
+                    checker.x2_drill(&name, &imported);
+                }
+                files.push(imported);
+            }
+            FileRole::DrillSpan { from, to, buried } => {
+                let imported = import_file(&name, bytes, settings);
+                if let Content::Failed(error) = &imported.content {
+                    checker.differ(&name, format!("the file cannot be read back: {error}"));
+                } else {
+                    checker.drill_span(&name, (*from, *to, *buried), &imported);
                     checker.x2_drill(&name, &imported);
                 }
                 files.push(imported);

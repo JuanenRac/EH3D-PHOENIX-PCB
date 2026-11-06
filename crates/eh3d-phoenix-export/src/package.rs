@@ -123,6 +123,14 @@ pub fn package_of(set: &FabSet, options: &ExportOptions) -> Result<Package, Expo
                     "Drill (not plated)".to_owned()
                 },
             }),
+            FileRole::DrillSpan { from, to, buried } => metadata.layers.push(LayerRef {
+                path: file.path.clone(),
+                kind: PackageLayerKind::Drill,
+                name: format!(
+                    "Drill ({} vias, layers {from} to {to})",
+                    if *buried { "buried" } else { "blind" }
+                ),
+            }),
             FileRole::Placement | FileRole::Bom => {}
         }
     }

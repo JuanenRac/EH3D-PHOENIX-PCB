@@ -19,14 +19,15 @@ use std::collections::BTreeSet;
 
 use eh3d_diagnostic::{Diagnostic, Severity};
 use eh3d_parser_excellon::Units as DrillUnits;
-use eh3d_parser_gerber::Operation;
+use eh3d_parser_gerber::{Operation, Polarity};
 use eh3d_phoenix_board::connectivity::pad_position;
 use eh3d_phoenix_board::{Board, Id, LayerKind, PadRef, Segment};
 
 use crate::assembly::parse_csv;
 use crate::codes;
+use crate::excellon::{via_span, ViaSpan};
 use crate::fab::{FabFile, FabSet, FileRole};
-use crate::gerber::{arc_centre, via_on_layer};
+use crate::gerber::{arc_centre, pad_is_region, via_on_layer};
 use crate::profile::Profile;
 
 fn unreadable(out: &mut Vec<Diagnostic>, file: &FabFile, detail: &str) {
@@ -50,9 +51,14 @@ fn compare(out: &mut Vec<Diagnostic>, file: &FabFile, what: &str, model: usize, 
     }
 }
 
-/// The number of pads of the board that appear on `layer`.
-fn pads_on(board: &Board, layer: Id) -> usize {
-    let mut count = 0;
+/// The pads of the board that appear on `layer`, as the number written as flashes and the number
+/// written as regions (pads with rounded corners). A hole that is not plated has no copper.
+fn pads_on(board: &Board, layer: Id) -> (usize, usize) {
+    let copper = board
+        .layers
+        .get(&layer)
+        .is_some_and(|l| l.kind == LayerKind::Copper);
+    let (mut flashes, mut regions) = (0, 0);
     for (cid, component) in &board.components {
         let Some(footprint) = board.footprints.get(&component.footprint) else {
             continue;
@@ -65,12 +71,16 @@ fn pads_on(board: &Board, layer: Id) -> usize {
                     pad: *pid,
                 },
             );
-            if pad.layers.contains(&layer) && at.is_some() {
-                count += 1;
+            if pad.layers.contains(&layer) && at.is_some() && !(copper && pad.is_npth()) {
+                if pad_is_region(pad, component.rotation) {
+                    regions += 1;
+                } else {
+                    flashes += 1;
+                }
             }
         }
     }
-    count
+    (flashes, regions)
 }
 
 /// The number of drilled pads, plated and not plated.
@@ -97,7 +107,7 @@ fn drilled_pads(board: &Board) -> (usize, usize) {
                     .get(l)
                     .is_some_and(|layer| layer.kind == LayerKind::Copper)
             });
-            if on_copper {
+            if on_copper && pad.plated {
                 plated += 1;
             } else {
                 not_plated += 1;
@@ -123,7 +133,16 @@ fn check_layer(
     let (mut flashes, mut lines, mut arcs, mut regions) = (0usize, 0usize, 0usize, 0usize);
     let mut in_region = false;
     let mut bbox: Option<(f64, f64, f64, f64)> = None;
+    // the objects of clear polarity take copper away and are not counted
+    let mut clear = false;
     for command in &read.commands {
+        if let Operation::Polarity(p) = &command.op {
+            clear = matches!(p, Polarity::Clear);
+            continue;
+        }
+        if clear {
+            continue;
+        }
         match &command.op {
             Operation::Flash { .. } => flashes += 1,
             Operation::Line { from, to } => {
@@ -159,13 +178,14 @@ fn check_layer(
                 .values()
                 .filter(|v| via_on_layer(board, v, layer))
                 .count();
-            compare(out, file, "flashes", pads_on(board, layer) + vias, flashes);
+            let (pad_flashes, pad_regions) = pads_on(board, layer);
+            compare(out, file, "flashes", pad_flashes + vias, flashes);
             let zones = board
                 .zones
                 .values()
                 .filter(|z| z.layer == layer && z.outline.len() >= 3)
                 .count();
-            compare(out, file, "regions", zones, regions);
+            compare(out, file, "regions", zones + pad_regions, regions);
             let (mut model_lines, mut model_arcs) = (0usize, 0usize);
             for track in board.tracks.values().filter(|t| t.layer == layer) {
                 for segment in &track.path {
@@ -183,11 +203,25 @@ fn check_layer(
             compare(out, file, "arcs", model_arcs, arcs);
         }
         LayerKind::SolderMask | LayerKind::Paste => {
-            compare(out, file, "flashes", pads_on(board, layer), flashes);
+            let (pad_flashes, pad_regions) = pads_on(board, layer);
+            compare(out, file, "flashes", pad_flashes, flashes);
+            compare(out, file, "regions", pad_regions, regions);
         }
         LayerKind::Outline => {
             if board.outline.len() >= 3 {
-                compare(out, file, "lines", board.outline.len(), lines);
+                let cutout_lines: usize = board
+                    .outline_cutouts
+                    .iter()
+                    .filter(|c| c.len() >= 3)
+                    .map(Vec::len)
+                    .sum();
+                compare(
+                    out,
+                    file,
+                    "lines",
+                    board.outline.len() + cutout_lines,
+                    lines,
+                );
                 let xs = board.outline.iter().map(|p| p.x_nm.get());
                 let ys = board.outline.iter().map(|p| p.y_nm.get());
                 let to_mm = |v: Option<i64>| v.unwrap_or(0) as f64 / 1_000_000.0;
@@ -218,18 +252,32 @@ fn check_layer(
     }
 }
 
-fn check_drill(board: &Board, file: &FabFile, plated: bool, out: &mut Vec<Diagnostic>) {
+/// The number of vias of the board whose span is `span`.
+fn vias_of_span(board: &Board, span: ViaSpan) -> usize {
+    board
+        .vias
+        .values()
+        .filter(|v| via_span(board, v) == span)
+        .count()
+}
+
+/// The number of holes the model has for a drill file of `plated` holes (the through vias and the
+/// plated pads) or of holes that are not plated.
+fn model_holes(board: &Board, plated: bool) -> usize {
+    let (plated_pads, not_plated_pads) = drilled_pads(board);
+    if plated {
+        vias_of_span(board, ViaSpan::Through) + plated_pads
+    } else {
+        not_plated_pads
+    }
+}
+
+fn check_drill(file: &FabFile, model: usize, out: &mut Vec<Diagnostic>) {
     let read = eh3d_parser_excellon::parse(file.text());
     if !read.is_clean() {
         unreadable(out, file, "the Excellon file has errors");
         return;
     }
-    let (plated_pads, not_plated_pads) = drilled_pads(board);
-    let model = if plated {
-        board.vias.len() + plated_pads
-    } else {
-        not_plated_pads
-    };
     compare(
         out,
         file,
@@ -327,13 +375,23 @@ pub fn verify(board: &Board, profile: &Profile, set: &FabSet) -> Vec<Diagnostic>
             FileRole::Layer { layer, kind, .. } => {
                 check_layer(board, profile, file, *layer, *kind, &mut out)
             }
-            FileRole::Drill { plated } => check_drill(board, file, *plated, &mut out),
+            FileRole::Drill { plated } => check_drill(file, model_holes(board, *plated), &mut out),
+            FileRole::DrillSpan { from, to, buried } => {
+                let span = if *buried {
+                    ViaSpan::Buried(*from, *to)
+                } else {
+                    ViaSpan::Blind(*from, *to)
+                };
+                check_drill(file, vias_of_span(board, span), &mut out)
+            }
             FileRole::Placement => check_placement(board, profile, file, &mut out),
             FileRole::Bom => check_bom(board, profile, file, &mut out),
         }
     }
-    let (plated, not_plated) = drilled_pads(board);
-    for (plated_file, model) in [(true, board.vias.len() + plated), (false, not_plated)] {
+    for (plated_file, model) in [
+        (true, model_holes(board, true)),
+        (false, model_holes(board, false)),
+    ] {
         let present = set.files.iter().any(|f| {
             f.role
                 == FileRole::Drill {
@@ -348,6 +406,34 @@ pub fn verify(board: &Board, profile: &Profile, set: &FabSet) -> Vec<Diagnostic>
                     "the model has {model} {} hole(s) and there is no file for them",
                     if plated_file { "plated" } else { "not plated" }
                 ),
+            ));
+        }
+    }
+    // every span of blind or buried vias has a file
+    let mut spans: Vec<ViaSpan> = board
+        .vias
+        .values()
+        .map(|v| via_span(board, v))
+        .filter(|s| *s != ViaSpan::Through)
+        .collect();
+    spans.sort_unstable();
+    spans.dedup();
+    for span in spans {
+        let present = set.files.iter().any(|f| match f.role {
+            FileRole::DrillSpan { from, to, buried } => {
+                span == if buried {
+                    ViaSpan::Buried(from, to)
+                } else {
+                    ViaSpan::Blind(from, to)
+                }
+            }
+            _ => false,
+        });
+        if !present {
+            out.push(codes::diagnostic(
+                codes::VERIFY_MISMATCH,
+                Severity::Error,
+                &format!("the model has vias of {span:?} and there is no file for them"),
             ));
         }
     }

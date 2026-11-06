@@ -40,7 +40,7 @@ pub mod x2check;
 pub use codes::{title, Finding, GbrError, Severity, TITLES};
 pub use compare::{compare_files, compare_files_with, round_trip, Difference, RoundTrip};
 pub use drill::parse_drill;
-pub use identify::{identify, Identified, Role, Source};
+pub use identify::{drill_span, identify, DrillSpan, Identified, Role, Source};
 pub use import::{import_file, import_files, Content, ImportedFile, ImportedSet};
 pub use model::{
     Aperture, ApertureShape, DrillFile, GerberLayer, Hit, Item, MacroShape, Slot, Units, P,

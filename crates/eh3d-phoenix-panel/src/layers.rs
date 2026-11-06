@@ -132,7 +132,10 @@ pub fn panel_layers(
 
     let mut files: Vec<PanelFile> = Vec::new();
     for file in &set.files {
-        if matches!(file.role, FileRole::Layer { .. } | FileRole::Drill { .. }) {
+        if matches!(
+            file.role,
+            FileRole::Layer { .. } | FileRole::Drill { .. } | FileRole::DrillSpan { .. }
+        ) {
             files.push(PanelFile {
                 name: format!("panel_{}", file.folder_name()),
                 text: file.text().to_owned(),
@@ -228,6 +231,8 @@ mod tests {
             rotation: Udeg::ZERO,
             drill: drill.map(|d| Nm::new(d).unwrap()),
             layers,
+            roundness: 0,
+            plated: true,
         };
         b.footprints.insert(
             id(20),

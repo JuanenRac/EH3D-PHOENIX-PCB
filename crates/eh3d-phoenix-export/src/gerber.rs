@@ -10,11 +10,11 @@ use std::collections::BTreeMap;
 use eh3d_diagnostic::{Diagnostic, Severity};
 use eh3d_parser_gerber::{
     Aperture, Attribute, Command, CoordinateFormat, GerberFile, Operation, Point as GPoint,
-    QuadrantMode, Units, ZeroOmission,
+    Polarity, QuadrantMode, Units, ZeroOmission,
 };
 use eh3d_phoenix_board::connectivity::pad_position;
-use eh3d_phoenix_board::{Board, Id, LayerKind, Pad, PadRef, PadShape, Segment, Via};
-use eh3d_phoenix_model::Point;
+use eh3d_phoenix_board::{Board, Id, LayerKind, Pad, PadRef, PadShape, Segment, Via, Zone};
+use eh3d_phoenix_model::{Point, Udeg};
 use eh3d_writer_gerber::{GerberOptions, GerberOutput, WriteError};
 
 use crate::codes;
@@ -64,6 +64,53 @@ enum Draw {
     Line(Ap, Point, Point),
     Arc(Ap, Point, Point, (f64, f64), bool),
     Region(Vec<Point>),
+    /// What follows is drawn with this polarity until the next change.
+    Polarity(Polarity),
+}
+
+/// How many straight pieces make the quarter of a circle at the corner of a rounded pad.
+const CORNER_STEPS: i64 = 6;
+
+/// True when the export writes the pad as a region and not as a flash: a pad with rounded
+/// corners whose angle on the board is a right angle (at any other angle the pad is flashed
+/// unrotated, as every pad is, with the warning `PHOENIX-EXPORT-001`).
+pub fn pad_is_region(pad: &Pad, component_rotation: Udeg) -> bool {
+    pad.corner_radius_nm().is_some()
+        && (pad.rotation.get() + component_rotation.get()).rem_euclid(360_000_000) % 90_000_000 == 0
+}
+
+/// The corners of a rectangle of `width` by `height` about `at` with corners of `radius`, counter
+/// clockwise, the corner arcs cut into `CORNER_STEPS` pieces each. The radius is at most half of
+/// the shorter side.
+fn rounded_rectangle(at: Point, width: i64, height: i64, radius: i64) -> Vec<Point> {
+    let radius = radius.clamp(0, width.min(height) / 2);
+    let (cx, cy) = (at.x_nm.get(), at.y_nm.get());
+    let (hx, hy) = (width / 2 - radius, height / 2 - radius);
+    let mut out: Vec<Point> = Vec::new();
+    // the centres of the four corner arcs and the angle where each starts, counter clockwise from
+    // the lower right corner
+    let corners = [
+        (hx, -hy, -90.0_f64),
+        (hx, hy, 0.0),
+        (-hx, hy, 90.0),
+        (-hx, -hy, 180.0),
+    ];
+    for (dx, dy, start) in corners {
+        for step in 0..=CORNER_STEPS {
+            let angle = (start + 90.0 * step as f64 / CORNER_STEPS as f64).to_radians();
+            let x = cx + dx + (radius as f64 * angle.cos()).round() as i64;
+            let y = cy + dy + (radius as f64 * angle.sin()).round() as i64;
+            if let Ok(p) = Point::from_nm(x, y) {
+                if out.last() != Some(&p) {
+                    out.push(p);
+                }
+            }
+        }
+    }
+    if out.len() > 1 && out.first() == out.last() {
+        out.pop();
+    }
+    out
 }
 
 /// A drawn object with the object attributes it carries.
@@ -180,6 +227,118 @@ fn pad_function(pad: &Pad, footprint_name: &str, x2: &X2Profile) -> ApFunction {
     }
 }
 
+/// The objects that clear the copper of a zone: its own cutouts and a keep-away of its clearance
+/// around the tracks, vias and pads of other nets that lie on the layer. All are drawn with clear
+/// polarity, between a change to clear and a change back to dark, so that what is drawn after
+/// them (the copper of the board) stays. Nothing when there is nothing to clear. The aperture of
+/// a keep-away has the function of the object it keeps away from.
+fn zone_clearing(board: &Board, zone: &Zone, layer: Id, x2: &X2Profile) -> Vec<Drawn> {
+    let named = x2.level.has_aperture_attributes();
+    let ap = |key: ApKey, function: ApFunction| Ap {
+        key,
+        function: named.then_some(function),
+    };
+    let none = ObjectSet::default;
+    let mut clear: Vec<Drawn> = Vec::new();
+    for cutout in zone.cutouts.iter().filter(|c| c.len() >= 3) {
+        clear.push((Draw::Region(cutout.clone()), none()));
+    }
+    let c = zone.clearance.get();
+    if c > 0 {
+        let grow = c.saturating_mul(2);
+        let xs = zone.outline.iter().map(|p| p.x_nm.get());
+        let ys = zone.outline.iter().map(|p| p.y_nm.get());
+        let (x0, x1) = (xs.clone().min().unwrap_or(0), xs.max().unwrap_or(0));
+        let (y0, y1) = (ys.clone().min().unwrap_or(0), ys.max().unwrap_or(0));
+        // an object is left out when its box, with the keep-away, is clear of the box of the zone
+        let near = |p: Point, reach: i64| {
+            let reach = reach.saturating_add(c);
+            p.x_nm.get().saturating_add(reach) >= x0
+                && p.x_nm.get().saturating_sub(reach) <= x1
+                && p.y_nm.get().saturating_add(reach) >= y0
+                && p.y_nm.get().saturating_sub(reach) <= y1
+        };
+        for track in board
+            .tracks
+            .values()
+            .filter(|t| t.layer == layer && t.net != zone.net)
+        {
+            let key = ap(
+                ApKey::Circle(track.width.get().saturating_add(grow)),
+                ApFunction::Conductor,
+            );
+            let has_arc = track.path.iter().any(|s| matches!(s, Segment::Arc { .. }));
+            let reach = track.width.get() / 2;
+            for piece in &track.path {
+                match piece {
+                    Segment::Line { start, end } => {
+                        if has_arc || near(*start, reach) || near(*end, reach) {
+                            clear.push((Draw::Line(key, *start, *end), none()));
+                        }
+                    }
+                    Segment::Arc { start, end, sweep } => {
+                        if let Some((offset, clockwise)) = arc_centre(*start, *end, sweep.get()) {
+                            clear.push((Draw::Arc(key, *start, *end, offset, clockwise), none()));
+                        }
+                    }
+                }
+            }
+        }
+        for via in board
+            .vias
+            .values()
+            .filter(|v| v.net != zone.net && via_on_layer(board, v, layer))
+        {
+            if near(via.at, via.diameter.get() / 2) {
+                let key = ap(
+                    ApKey::Circle(via.diameter.get().saturating_add(grow)),
+                    ApFunction::ViaPad,
+                );
+                clear.push((Draw::Flash(key, via.at), none()));
+            }
+        }
+        for (cid, component) in &board.components {
+            let Some(footprint) = board.footprints.get(&component.footprint) else {
+                continue;
+            };
+            for (pid, pad) in &footprint.pads {
+                if !pad.layers.contains(&layer) || pad.is_npth() {
+                    continue;
+                }
+                let pad_ref = PadRef {
+                    component: *cid,
+                    pad: *pid,
+                };
+                if board.net_of(pad_ref) == Some(zone.net) {
+                    continue;
+                }
+                let Some(at) = pad_position(board, pad_ref) else {
+                    continue;
+                };
+                let total = (pad.rotation.get() + component.rotation.get()).rem_euclid(360_000_000);
+                let swapped = (total / 90_000_000) % 2 == 1 && total % 90_000_000 == 0;
+                let key = adjust(pad_key(pad.shape, swapped), grow);
+                let reach = match key {
+                    ApKey::Circle(d) => d / 2,
+                    ApKey::Rect(w, h) | ApKey::Obround(w, h) => w.max(h),
+                };
+                if near(at, reach) {
+                    let function = pad_function(pad, &footprint.name, x2);
+                    clear.push((Draw::Flash(ap(key, function), at), none()));
+                }
+            }
+        }
+    }
+    if clear.is_empty() {
+        return clear;
+    }
+    let mut out: Vec<Drawn> = Vec::with_capacity(clear.len() + 2);
+    out.push((Draw::Polarity(Polarity::Clear), none()));
+    out.extend(clear);
+    out.push((Draw::Polarity(Polarity::Dark), none()));
+    out
+}
+
 fn collect(
     board: &Board,
     spec: &LayerFileSpec,
@@ -223,6 +382,9 @@ fn collect(
             if z.outline.len() >= 3 {
                 draws.push((Draw::Region(z.outline.clone()), net_set(z.net)));
                 zones += 1;
+                // the openings of the pour and the keep-away of other copper are cleared out of
+                // it, before the copper of the board is drawn on top
+                draws.extend(zone_clearing(board, z, layer, x2));
             }
         }
         if zones > 0 {
@@ -287,14 +449,20 @@ fn collect(
             ));
         }
     }
-    if kind == LayerKind::Outline && board.outline.len() >= 3 {
+    if kind == LayerKind::Outline {
+        // the profile is the outline and then every opening inside it, each a closed contour
         let line = ap(ApKey::Circle(outline_width), ApFunction::Profile);
-        let n = board.outline.len();
-        for i in 0..n {
-            draws.push((
-                Draw::Line(line, board.outline[i], board.outline[(i + 1) % n]),
-                ObjectSet::default(),
-            ));
+        for ring in std::iter::once(&board.outline).chain(board.outline_cutouts.iter()) {
+            let n = ring.len();
+            if n < 3 {
+                continue;
+            }
+            for i in 0..n {
+                draws.push((
+                    Draw::Line(line, ring[i], ring[(i + 1) % n]),
+                    ObjectSet::default(),
+                ));
+            }
         }
     }
     let mut rotated = 0usize;
@@ -304,6 +472,10 @@ fn collect(
         };
         for (pid, pad) in &footprint.pads {
             if !pad.layers.contains(&layer) {
+                continue;
+            }
+            if is_copper && pad.is_npth() {
+                // a hole that is not plated has no copper
                 continue;
             }
             let pad_ref = PadRef {
@@ -331,6 +503,23 @@ fn collect(
                     .map(|r| (r, pad.number.clone())),
                 component: refdes.filter(|_| x2.writes(ObjectAttribute::Component)),
             };
+            if let (true, PadShape::Rect { width, height }, Some(radius)) = (
+                pad_is_region(pad, component.rotation),
+                pad.shape,
+                pad.corner_radius_nm(),
+            ) {
+                let (w, h) = if swapped {
+                    (height.get(), width.get())
+                } else {
+                    (width.get(), height.get())
+                };
+                let grow = |v: i64| v.saturating_add(delta).max(MIN_APERTURE_NM);
+                let ring = rounded_rectangle(at, grow(w), grow(h), (radius + delta / 2).max(0));
+                if ring.len() >= 3 {
+                    draws.push((Draw::Region(ring), set));
+                    continue;
+                }
+            }
             let function = pad_function(pad, &footprint.name, x2);
             draws.push((
                 Draw::Flash(ap(adjust(pad_key(pad.shape, swapped), delta), function), at),
@@ -444,7 +633,7 @@ pub fn write_layer(
         .iter()
         .filter_map(|(d, _)| match d {
             Draw::Flash(k, _) | Draw::Line(k, _, _) | Draw::Arc(k, _, _, _, _) => Some(*k),
-            Draw::Region(_) => None,
+            Draw::Region(_) | Draw::Polarity(_) => None,
         })
         .collect();
     keys.sort();
@@ -544,6 +733,7 @@ pub fn write_layer(
                 );
                 push(&mut file, Operation::RegionEnd);
             }
+            Draw::Polarity(p) => push(&mut file, Operation::Polarity(*p)),
         }
     }
     if objects {
@@ -674,5 +864,62 @@ mod tests {
                 ApKey::Obround(1, 2)
             ]
         );
+    }
+
+    #[test]
+    fn a_rounded_rectangle_has_its_corners_cut_into_pieces() {
+        // 2 by 1 mm with the largest radius, 0.5 mm: both ends are half circles. Each quarter has
+        // 7 points; the point where two quarters meet at the end of a half circle is the same and
+        // is kept once, so 7 + 6 + 7 + 6 = 26
+        let ring = rounded_rectangle(pt(0, 0), 2_000_000, 1_000_000, 500_000);
+        assert_eq!(ring.len(), 26);
+        assert!(ring.contains(&pt(1_000_000, 0)));
+        assert!(ring.contains(&pt(-1_000_000, 0)));
+        assert!(ring.contains(&pt(500_000, -500_000)));
+        assert!(ring.contains(&pt(-500_000, 500_000)));
+        let xs: Vec<i64> = ring.iter().map(|p| p.x_nm.get()).collect();
+        let ys: Vec<i64> = ring.iter().map(|p| p.y_nm.get()).collect();
+        assert_eq!(
+            (xs.iter().min(), xs.iter().max()),
+            (Some(&-1_000_000), Some(&1_000_000))
+        );
+        assert_eq!(
+            (ys.iter().min(), ys.iter().max()),
+            (Some(&-500_000), Some(&500_000))
+        );
+        // a radius larger than half the shorter side is cut to it
+        assert_eq!(
+            ring,
+            rounded_rectangle(pt(0, 0), 2_000_000, 1_000_000, 9_000_000)
+        );
+        // the box moves with the centre
+        let moved = rounded_rectangle(pt(10_000_000, 5_000_000), 2_000_000, 1_000_000, 200_000);
+        assert_eq!(moved.iter().map(|p| p.x_nm.get()).min(), Some(9_000_000));
+        assert_eq!(moved.iter().map(|p| p.y_nm.get()).max(), Some(5_500_000));
+    }
+
+    #[test]
+    fn only_a_rounded_rectangle_at_a_right_angle_is_a_region() {
+        let pad = Pad {
+            number: "1".into(),
+            shape: PadShape::Rect {
+                width: eh3d_phoenix_model::Nm::new(2_000_000).unwrap(),
+                height: eh3d_phoenix_model::Nm::new(1_000_000).unwrap(),
+            },
+            at: pt(0, 0),
+            rotation: Udeg::ZERO,
+            drill: None,
+            layers: Vec::new(),
+            roundness: 500,
+            plated: true,
+        };
+        assert!(pad_is_region(&pad, Udeg::ZERO));
+        assert!(pad_is_region(&pad, Udeg::new(90_000_000).unwrap()));
+        assert!(!pad_is_region(&pad, Udeg::new(45_000_000).unwrap()));
+        let square = Pad {
+            roundness: 0,
+            ..pad.clone()
+        };
+        assert!(!pad_is_region(&square, Udeg::ZERO));
     }
 }
