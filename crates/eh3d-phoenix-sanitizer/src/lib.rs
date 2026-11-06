@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! The library sanitizer: it reads a folder of old EAGLE libraries (`.lbr`) and reports the
-//! footprints, symbols and device sets that are duplicated or nearly duplicated. It is analysis
-//! only: no library is rewritten, nothing is merged, and the plan it writes is never applied.
+//! footprints, symbols and device sets that are duplicated or nearly duplicated. The analysis
+//! changes nothing; the plan it writes can be applied to a copy of the libraries, with the
+//! confirmation code of the plan, and the copy goes to a new folder.
 //!
 //! * [`scan`]: the batch inventory, with the limits of the corpus crate; a file that cannot be
 //!   used is noted and the walk goes on;
@@ -11,7 +12,11 @@
 //! * [`fuzzy`]: the approximate distance between two items, as a score with a threshold;
 //! * [`group`]: the groups of duplicates, the item to keep and the replacements;
 //! * [`report`], [`html`] and [`plan`]: the report as JSON and as one HTML page, and the plan
-//!   of the master library that is written and not applied;
+//!   of the master library;
+//! * [`apply`]: the confirmation code of a plan, the application of the plan to a copy of the
+//!   libraries (footprints and symbols replaced by the master item, under the name they had), the
+//!   dry run, the steps that are left out with their reason and the undo that gives back the same
+//!   bytes;
 //! * [`settings`]: every limit, tolerance and weight, read from `config/sanitizer.cfg`.
 //!
 //! The codes are `PHOENIX-SAN-<NNN>`, with their titles in the eight languages of the suite.
@@ -20,6 +25,7 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
+pub mod apply;
 pub mod codes;
 pub mod fuzzy;
 pub mod group;
@@ -33,6 +39,10 @@ pub mod report;
 pub mod scan;
 pub mod settings;
 
+pub use apply::{
+    apply_plan, confirmation_code, preview_plan, read_folder, write_folder, ApplyOptions, LibFile,
+    Outcome, Reason, Skipped, Step, Undo,
+};
 pub use codes::SanError;
 pub use group::{Group, Member};
 pub use html::html_report;

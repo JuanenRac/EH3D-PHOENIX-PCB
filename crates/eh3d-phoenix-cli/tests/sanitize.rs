@@ -173,3 +173,173 @@ fn unusable_arguments_and_folders_give_exit_code_2_with_a_code_in_the_chosen_lan
         "{err}"
     );
 }
+
+fn apply_folder(dir: &Path) -> String {
+    let src = dir.join("libs");
+    fs::create_dir(&src).unwrap();
+    fs::write(src.join("a.lbr"), library(&[footprint("R0805", "-0.9")])).unwrap();
+    fs::write(src.join("b.lbr"), library(&[footprint("RES", "-0.9")])).unwrap();
+    fs::write(src.join("d.lbr"), library(&[footprint("CLOSE", "-0.905")])).unwrap();
+    src.to_str().unwrap().to_owned()
+}
+
+#[test]
+fn apply_is_a_dry_run_until_it_has_the_code_and_writes_a_copy_in_a_new_folder_only() {
+    let dir = tempfile::tempdir().unwrap();
+    let src = apply_folder(dir.path());
+    let (code, out, err) = command(&["sanitize", "--apply", &src]);
+    assert_eq!(code, 0, "{err}");
+    let line = out
+        .lines()
+        .find(|l| l.starts_with("confirmation code: "))
+        .unwrap();
+    let confirm = line.trim_start_matches("confirmation code: ").to_owned();
+    assert!(
+        out.contains("applied P001 package b.lbr:RES <- a.lbr:R0805"),
+        "{out}"
+    );
+    assert!(
+        out.contains("left out P001 package d.lbr:CLOSE (not-exact)"),
+        "{out}"
+    );
+    assert!(out.contains("dry run: nothing was written"), "{out}");
+    // the same plan gives the same code
+    let (_, again, _) = command(&["sanitize", "--apply", &src]);
+    assert!(again.contains(&format!("confirmation code: {confirm}\n")));
+    let (_, json, _) = command(&["sanitize", "--apply", "--json", &src]);
+    let value: serde_json::Value = serde_json::from_str(&json).unwrap();
+    assert_eq!(value["confirmation_code"], confirm.as_str());
+    assert_eq!(value["dry_run"], true);
+    assert_eq!(value["skipped"][0]["reason"], "not-exact");
+
+    // a wrong code writes nothing
+    let target = dir.path().join("copy");
+    let target_s = target.to_str().unwrap();
+    let (code, _, err) = command(&[
+        "sanitize",
+        "--apply",
+        "--confirm",
+        "0000-0000-0000",
+        "--out",
+        target_s,
+        &src,
+    ]);
+    assert_eq!(code, 2);
+    assert!(err.contains("PHOENIX-SAN-014"), "{err}");
+    assert!(!target.exists());
+
+    // the right code writes the copy; the close footprint waits for permission
+    let (code, out, err) = command(&[
+        "sanitize",
+        "--apply",
+        "--confirm",
+        &confirm,
+        "--out",
+        target_s,
+        &src,
+    ]);
+    assert_eq!(code, 0, "{out}{err}");
+    assert!(err.contains("note: wrote 3 libraries to"), "{err}");
+    for name in ["a.lbr", "b.lbr", "d.lbr"] {
+        assert!(target.join(name).is_file(), "{name}");
+    }
+    assert!(fs::read_to_string(target.join("d.lbr"))
+        .unwrap()
+        .contains("x=\"-0.905\""));
+    // a folder that exists is never written over
+    let (code, _, err) = command(&[
+        "sanitize",
+        "--apply",
+        "--confirm",
+        &confirm,
+        "--out",
+        target_s,
+        &src,
+    ]);
+    assert_eq!(code, 2);
+    assert!(err.contains("PHOENIX-SAN-008"), "{err}");
+
+    // with the permission the close footprint is drawn as the master, under its own name
+    let near = dir.path().join("near");
+    let (code, out, err) = command(&[
+        "sanitize",
+        "--apply",
+        "--allow-near",
+        "--confirm",
+        &confirm,
+        "--out",
+        near.to_str().unwrap(),
+        &src,
+    ]);
+    assert_eq!(code, 0, "{out}{err}");
+    let drawn = fs::read_to_string(near.join("d.lbr")).unwrap();
+    assert!(
+        drawn.contains("<package name=\"CLOSE\">") && drawn.contains("x=\"-0.9\""),
+        "{drawn}"
+    );
+    assert!(!drawn.contains("-0.905"));
+
+    // the libraries that were read are the ones they were
+    let original = fs::read_to_string(Path::new(&src).join("d.lbr")).unwrap();
+    assert!(original.contains("x=\"-0.905\""));
+    assert_eq!(names_of(Path::new(&src)), vec!["a.lbr", "b.lbr", "d.lbr"]);
+}
+
+fn names_of(dir: &Path) -> Vec<String> {
+    let mut v: Vec<String> = fs::read_dir(dir)
+        .unwrap()
+        .map(|e| e.unwrap().file_name().to_str().unwrap().to_owned())
+        .collect();
+    v.sort();
+    v
+}
+
+#[test]
+fn apply_refuses_what_it_cannot_use_and_a_group_can_be_chosen() {
+    let dir = tempfile::tempdir().unwrap();
+    let src = apply_folder(dir.path());
+    let out_dir = dir.path().join("x");
+    let out_s = out_dir.to_str().unwrap();
+    for args in [
+        vec!["sanitize", "--confirm", "A", &src],
+        vec!["sanitize", "--group", "P001", &src],
+        vec!["sanitize", "--allow-near", &src],
+        vec!["sanitize", "--apply", "--out", out_s, &src],
+        vec!["sanitize", "--apply", "--confirm", "A", &src],
+        vec!["sanitize", "--apply", "--group"],
+        vec!["sanitize", "--apply", "--confirm"],
+    ] {
+        let (code, _, err) = command(&args);
+        assert_eq!(code, 2, "{args:?}");
+        assert!(err.contains("PHOENIX-SAN-012"), "{args:?}: {err}");
+    }
+    assert!(!out_dir.exists());
+    // a group that the plan does not have
+    let (code, _, err) = command(&["sanitize", "--apply", "--group", "Z999", &src]);
+    assert_eq!(code, 2);
+    assert!(err.contains("PHOENIX-SAN-015"), "{err}");
+    // the group that it has: the others are none
+    let (code, out, _) = command(&["sanitize", "--apply", "--group", "P001", &src]);
+    assert_eq!(code, 0);
+    assert!(out.contains("plan steps: 1 applied, 1 left out"), "{out}");
+    // the copy cannot go inside the folder that was read
+    let (_, dry, _) = command(&["sanitize", "--apply", &src]);
+    let confirm = dry
+        .lines()
+        .find_map(|l| l.strip_prefix("confirmation code: "))
+        .unwrap()
+        .to_owned();
+    let inside = Path::new(&src).join("copy");
+    let (code, _, err) = command(&[
+        "sanitize",
+        "--apply",
+        "--confirm",
+        &confirm,
+        "--out",
+        inside.to_str().unwrap(),
+        &src,
+    ]);
+    assert_eq!(code, 2);
+    assert!(err.contains("PHOENIX-SAN-008"), "{err}");
+    assert!(!inside.exists());
+}

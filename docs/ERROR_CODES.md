@@ -298,6 +298,9 @@ The titles of these codes also exist in the eight languages of the suite (`TITLE
 | PHOENIX-SAN-011 | Name used twice in a library | two footprints, symbols or device sets with one name in one library; the later one is left out |
 | PHOENIX-SAN-012 | Command option is not valid | no folder or two folders, an option that does not exist or lacks its value, a threshold that is not a whole number from 0 to 100, a language that is not one of the eight |
 | PHOENIX-SAN-013 | The reader reported problems in a library | the EAGLE reader found a dangling reference or another problem in a library that is read all the same; the detail lists the codes of the reader |
+| PHOENIX-SAN-014 | The plan was not confirmed with its code | `phoenix sanitize --apply --confirm CODE` was given a code that is not the one of the plan; nothing is applied and nothing is written |
+| PHOENIX-SAN-015 | The plan cannot be applied | a plan whose format is not `phoenix-sanitize-plan/1`, or `--group` names a group that the plan does not have |
+| PHOENIX-SAN-016 | A step of the plan was left out | information in the report of an application: the step turns, mirrors or shifts the part, renames pads or pins, is a device set, is only close (without `--allow-near`), or its library or item is missing, named twice or not UTF-8 text; the reason is in the report |
 
 ## Library editor (`eh3d-phoenix-libedit`, `src/codes.rs`)
 

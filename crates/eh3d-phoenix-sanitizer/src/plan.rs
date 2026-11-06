@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! The master-library plan: for each group, the item that would be kept and the items that would
-//! be replaced by it. The plan is a file for the owner to read and to edit; nothing in this
-//! program applies it. Applying it (replacing and relinking with a backup) is a later step with
-//! the checks listed in the plan, which must all pass before any file is written.
+//! be replaced by it. The plan is a file for the owner to read and to edit. It is applied by
+//! [`crate::apply`], to a copy of the libraries and only with the confirmation code of the plan;
+//! the checks listed in the plan are the ones that application makes for every step.
 
 use serde::Serialize;
 
@@ -101,7 +101,8 @@ pub struct Precondition {
 pub struct Plan {
     /// The format tag.
     pub format: String,
-    /// Always false: this program does not apply plans.
+    /// Always false: the file of a plan is never changed; applying it makes a copy of the
+    /// libraries.
     pub applied: bool,
     /// The threshold of the report the plan comes from.
     pub threshold: u32,

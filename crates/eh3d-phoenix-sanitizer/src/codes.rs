@@ -30,6 +30,13 @@ pub const DUPLICATE_NAME: &str = "PHOENIX-SAN-011";
 pub const OPTION_INVALID: &str = "PHOENIX-SAN-012";
 /// The EAGLE reader reported problems in a library (a dangling reference, an unknown element).
 pub const READER_WARNINGS: &str = "PHOENIX-SAN-013";
+/// The plan was not confirmed with its code, so nothing was applied.
+pub const NOT_CONFIRMED: &str = "PHOENIX-SAN-014";
+/// The plan cannot be applied (it is not a plan of this program, or it names a group it does not
+/// have).
+pub const PLAN_INVALID: &str = "PHOENIX-SAN-015";
+/// A step of the plan was left out when the plan was applied.
+pub const STEP_SKIPPED: &str = "PHOENIX-SAN-016";
 
 /// Every code with its English title, in order.
 pub const REGISTRY: &[(&str, &str)] = &[
@@ -52,11 +59,14 @@ pub const REGISTRY: &[(&str, &str)] = &[
     (DUPLICATE_NAME, "Name used twice in a library"),
     (OPTION_INVALID, "Command option is not valid"),
     (READER_WARNINGS, "The reader reported problems in a library"),
+    (NOT_CONFIRMED, "The plan was not confirmed with its code"),
+    (PLAN_INVALID, "The plan cannot be applied"),
+    (STEP_SKIPPED, "A step of the plan was left out"),
 ];
 
 /// Code, then the title in English, Spanish, German, French, Italian, Japanese, Chinese and
 /// European Portuguese.
-pub const TITLES: [(&str, [&str; 8]); 13] = [
+pub const TITLES: [(&str, [&str; 8]); 16] = [
     (
         FOLDER_UNUSABLE,
         [
@@ -224,6 +234,45 @@ pub const TITLES: [(&str, [&str; 8]); 13] = [
             "リーダーがライブラリの問題を報告しました",
             "读取器报告了库中的问题",
             "O leitor comunicou problemas numa biblioteca",
+        ],
+    ),
+    (
+        NOT_CONFIRMED,
+        [
+            "The plan was not confirmed with its code",
+            "El plan no se confirmó con su código",
+            "Der Plan wurde nicht mit seinem Code bestätigt",
+            "Le plan n'a pas été confirmé avec son code",
+            "Il piano non è stato confermato con il suo codice",
+            "計画がそのコードで確認されていません",
+            "计划未用其代码确认",
+            "O plano não foi confirmado com o seu código",
+        ],
+    ),
+    (
+        PLAN_INVALID,
+        [
+            "The plan cannot be applied",
+            "El plan no se puede aplicar",
+            "Der Plan kann nicht angewendet werden",
+            "Le plan ne peut pas être appliqué",
+            "Il piano non può essere applicato",
+            "計画を適用できません",
+            "无法应用该计划",
+            "O plano não pode ser aplicado",
+        ],
+    ),
+    (
+        STEP_SKIPPED,
+        [
+            "A step of the plan was left out",
+            "Se omitió un paso del plan",
+            "Ein Schritt des Plans wurde ausgelassen",
+            "Une étape du plan a été omise",
+            "Un passaggio del piano è stato omesso",
+            "計画の一部の手順を省略しました",
+            "计划中的一个步骤已被跳过",
+            "Um passo do plano foi omitido",
         ],
     ),
 ];

@@ -5,7 +5,7 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "Library sanitizer (analysis only): a batch inventory of EAGLE libraries, a canonical geometric hash of footprints and symbols, fuzzy matching with a threshold, groups of duplicates for manual confirmation, a self-contained HTML report with its JSON and a master-library plan that is never applied"
+description = "Library sanitizer: a batch inventory of EAGLE libraries, a canonical geometric hash of footprints and symbols, fuzzy matching with a threshold, groups of duplicates for manual confirmation, a self-contained HTML report with its JSON, a master-library plan and its application to a copy of the libraries with a confirmation code, a dry run and an undo"
 
 [dependencies]
 eh3d-phoenix-corpus = { path = "../eh3d-phoenix-corpus" }
