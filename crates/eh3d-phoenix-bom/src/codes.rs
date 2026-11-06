@@ -42,6 +42,12 @@ pub const INPUT_UNREADABLE: &str = "PHOENIX-BOM-016";
 pub const LIMIT_EXCEEDED: &str = "PHOENIX-BOM-017";
 /// The PCB cost is an estimate from example tariffs.
 pub const PCB_ESTIMATE: &str = "PHOENIX-BOM-018";
+/// A quantity of an imported bill differs from the number of its references.
+pub const IMPORT_QUANTITY: &str = "PHOENIX-BOM-019";
+/// A reference is in two lines of an imported bill.
+pub const IMPORT_DUPLICATE: &str = "PHOENIX-BOM-020";
+/// An imported bill and the board disagree about a part.
+pub const IMPORT_DISAGREES: &str = "PHOENIX-BOM-021";
 
 /// Code, then the title in English, Spanish, German, French, Italian, Japanese, Chinese and
 /// European Portuguese.
@@ -278,6 +284,45 @@ pub const TITLES: &[(&str, [&str; 8])] = &[
             "PCBコストは設定の料金表による見積りです",
             "PCB成本是按设置中的费率得出的估算值",
             "O custo da PCB é uma estimativa com as tarifas das definições",
+        ],
+    ),
+    (
+        IMPORT_QUANTITY,
+        [
+            "A quantity of the imported bill differs from its references",
+            "Una cantidad de la lista importada no coincide con sus referencias",
+            "Eine Menge der importierten Stückliste weicht von ihren Referenzen ab",
+            "Une quantité de la nomenclature importée diffère de ses références",
+            "Una quantità della distinta importata non corrisponde ai suoi riferimenti",
+            "インポートした部品表の数量が参照の数と一致しません",
+            "导入的物料清单中的数量与其位号数不一致",
+            "Uma quantidade da lista importada difere das suas referências",
+        ],
+    ),
+    (
+        IMPORT_DUPLICATE,
+        [
+            "A reference is in two lines of the imported bill",
+            "Una referencia está en dos líneas de la lista importada",
+            "Eine Referenz steht in zwei Zeilen der importierten Stückliste",
+            "Une référence figure sur deux lignes de la nomenclature importée",
+            "Un riferimento è in due righe della distinta importata",
+            "同じ参照がインポートした部品表の 2 行にあります",
+            "同一位号出现在导入物料清单的两行中",
+            "Uma referência está em duas linhas da lista importada",
+        ],
+    ),
+    (
+        IMPORT_DISAGREES,
+        [
+            "The imported bill and the board disagree about a part",
+            "La lista importada y la placa no coinciden en una pieza",
+            "Die importierte Stückliste und die Platine widersprechen sich bei einem Bauteil",
+            "La nomenclature importée et la carte divergent sur un composant",
+            "La distinta importata e la scheda non concordano su un componente",
+            "インポートした部品表と基板で部品が一致しません",
+            "导入的物料清单与电路板在某个元件上不一致",
+            "A lista importada e a placa não concordam sobre uma peça",
         ],
     ),
 ];

@@ -1041,6 +1041,9 @@ The titles of these codes also exist in the eight languages of the suite (`TITLE
 | PHOENIX-BOM-016 | An input file cannot be read | the board, a price file, a file of part data, a schematic, a stack-up or a settings file that cannot be opened or read |
 | PHOENIX-BOM-017 | A limit of the bill of materials was exceeded | more components than `max_items` |
 | PHOENIX-BOM-018 | The PCB cost is an estimate from the tariffs of the settings | information, always given with a PCB cost: the tariffs are an example and not the prices of any maker |
+| PHOENIX-BOM-019 | A quantity of the imported bill differs from its references | `phoenix bom --import`: a line states a quantity that is not the number of references in its cell (warning) |
+| PHOENIX-BOM-020 | A reference is in two lines of the imported bill | `phoenix bom --import`: the first line that names it is used (warning) |
+| PHOENIX-BOM-021 | The imported bill and the board disagree about a part | `phoenix bom --import`: a part on one side only, or a value that differs (warning); nothing is changed |
 
 ## Parts base (`eh3d-phoenix-parts`, `src/codes.rs`)
 

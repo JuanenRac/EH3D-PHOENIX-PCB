@@ -22,6 +22,15 @@ impl Table {
 /// blank lines and lines starting with `#` skipped, the first line the header. The error is the
 /// line of the file and what is wrong with it.
 pub fn parse_table(text: &str) -> Result<Table, String> {
+    parse_table_with(text, ',')
+}
+
+/// Reads CSV text like [`parse_table`] with another delimiter between the cells (a semicolon or a
+/// tab, as other programs write). A quote or a line break cannot be the delimiter.
+pub fn parse_table_with(text: &str, delimiter: char) -> Result<Table, String> {
+    if matches!(delimiter, '"' | '\n' | '\r') {
+        return Err("the delimiter cannot be a quote or a line break".to_owned());
+    }
     let text = text.strip_prefix('\u{feff}').unwrap_or(text);
     let mut records: Vec<(usize, Vec<String>)> = Vec::new();
     let mut cell = String::new();
@@ -62,7 +71,7 @@ pub fn parse_table(text: &str) -> Result<Table, String> {
                     "line {line}: a quote inside a cell that is not quoted"
                 ))
             }
-            ',' => {
+            c if c == delimiter => {
                 record.push(finish_cell(&mut cell, &mut quoted));
                 pending = true;
             }

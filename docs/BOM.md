@@ -68,7 +68,7 @@ Every estimate says so (`PHOENIX-BOM-018`). The total of the batch is the parts 
 ## The command
 
 ```
-phoenix bom [--config FILE] [--prices FILE] [--parts FILE] [--parts-db PATH] [--schematic FILE]
+phoenix bom [--config FILE] [--prices FILE] [--parts FILE] [--import FILE [--import-map FILE]] [--parts-out FILE] [--parts-db PATH] [--schematic FILE]
             [--stackup FILE] [--boards N] [--csv FILE] [--json-file FILE] [--html FILE] [--json] [--lang CODE]
             <board>
 ```
@@ -85,6 +85,18 @@ The columns of the CSV file, and their order, are the `csv_columns` of `config/c
 * **JSON** (`phoenix-bom/1`): the lines with their offers and price breaks, the totals of the parts, the estimate of the boards, the total, whether it is complete and the findings; money is a string with six decimals.
 * **HTML**: one page with a table, the totals and the findings, with no script and no outside file; every text that comes from a file is escaped.
 
+## Importing the bill of another program
+
+`--import FILE` reads a CSV bill written by another program and uses what it says about the parts of the board. `--import-map FILE` (default `config/bom_import.cfg` when it exists) says how to read it: the delimiter (comma, semicolon or tab), the names of the columns for the references, value, footprint, maker, part number and quantity (several names for one column are separated by a bar, the first one the file has is used, case does not matter), a column that says the part is fitted and one that says it is not to be fitted (with the cells that mean so), and the characters that separate several references in one cell. Only the references are required. The names that come with the program are common English names written as a guess: they are not the layout of any program, no file of any program was compared, and the map is meant to be copied and changed.
+
+What is done with the bill:
+
+* the maker, the part number and the parts that are not fitted fill the references that `--parts` does not name (what `--parts` says wins), so they take part in the grouping and the prices as if they were in a file of part data;
+* the report gets the findings `PHOENIX-BOM-019` (a quantity that is not the number of references of its line), `PHOENIX-BOM-020` (a reference in two lines, the first is used) and `PHOENIX-BOM-021` (a part that is in the bill and not on the board, on the board and not in the bill, or whose value differs, compared without regard to case); all are warnings and change nothing;
+* `--parts-out FILE` writes the data as a file of part data, one line for each reference that has a maker, a part number or is not fitted (a new file; one that exists is never replaced), to be used later as `--parts`.
+
+A reference range such as `R1-R5` is not expanded. Nothing is fetched from a network.
+
 ## Completing the bill from the parts base
 
 With `--parts-db PATH` (a file or a folder of the local parts base, `docs/PARTS.md`) every part of the design is looked up in the base, by the part number that `--parts` gives or else by value and footprint, and the maker, the part number and the prices of the bill are completed from it. What `--parts` and `--prices` say wins over the base. The text of the bill ends with the parts without a match (`PHOENIX-PARTS-014`), the parts that match several parts of the base, which get none (`PHOENIX-PARTS-015`), and the parts that are obsolete or not recommended with the alternatives proposed for them (`PHOENIX-PARTS-016`); the proposals change nothing.
@@ -97,11 +109,11 @@ The CSV file of a face has the columns `references`, `quantity_board`, `quantity
 
 ## The codes
 
-`PHOENIX-BOM-001` to `PHOENIX-BOM-018`, with their titles in the eight languages; the table is in `docs/ERROR_CODES.md`.
+`PHOENIX-BOM-001` to `PHOENIX-BOM-021`, with their titles in the eight languages; the table is in `docs/ERROR_CODES.md`.
 
 ## What it does not do
 
 * It does not fetch prices, stock or part numbers from a supplier, and it does not order anything.
 * It does not merge lines of equivalent parts, split a quantity between suppliers or choose by stock or lead time.
 * It does not know the real tariff of any maker: the cost of the boards is the shape of a quote, with the numbers you put in the settings.
-* It does not read a bill from an assembler's format.
+* It reads a bill of another program only through a map of columns that you write; it does not know the format of any program.

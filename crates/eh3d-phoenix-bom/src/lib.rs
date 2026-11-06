@@ -15,7 +15,9 @@
 //! * [`report`]: the CSV, the JSON, the HTML and the text, the same every time;
 //! * [`money`] and [`text`]: money in whole millionths, and the reading and the quoting of CSV
 //!   and the escaping of HTML;
-//! * [`codes`]: the codes `PHOENIX-BOM-001` to `PHOENIX-BOM-018` with their titles in the eight
+//! * [`import`]: the bill of another program read with a map of columns, written as part data or
+//!   compared with a board;
+//! * [`codes`]: the codes `PHOENIX-BOM-001` to `PHOENIX-BOM-021` with their titles in the eight
 //!   languages.
 //!
 //! **State: prototype.** It has been tried on small boards made by the tests only. The tariffs of
@@ -28,6 +30,7 @@
 pub mod assembly;
 pub mod bom;
 pub mod codes;
+pub mod import;
 pub mod money;
 pub mod parts;
 pub mod pcb;
@@ -38,6 +41,7 @@ pub mod text;
 
 pub use bom::{build_bom, natural_key, Bom, BomInputs, BomLine, Purchase};
 pub use codes::{title, BomError, Finding, Severity};
+pub use import::{import_bill, ImportMap, ImportedBill, ImportedLine};
 pub use parts::{PartData, PartsFile};
 pub use pcb::{pcb_cost, polygon_area, PcbCost};
 pub use prices::{PriceBook, PriceRow};

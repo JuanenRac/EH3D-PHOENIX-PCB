@@ -325,3 +325,53 @@ fn assembly3d_refuses_what_it_cannot_use() {
     assert!(out.contains("PHOENIX-3D-003"), "{out}");
     assert!(out.contains("0 components with a box"));
 }
+
+#[test]
+fn an_imported_bill_completes_the_parts_and_is_compared_with_the_board() {
+    let dir = tempfile::tempdir().unwrap();
+    let board = write_board(dir.path(), (6 * MM, 6 * MM));
+    let bill = dir.path().join("bill.csv");
+    fs::write(
+        &bill,
+        "Designator;Comment;Manufacturer;MPN\nR1;10k;Acme;AC-1\nR3;10k;;\n",
+    )
+    .unwrap();
+    let map = dir.path().join("map.cfg");
+    fs::write(&map, "delimiter = semicolon\n").unwrap();
+    let out_parts = dir.path().join("parts_out.csv");
+    let args = [
+        "bom",
+        "--import",
+        bill.to_str().unwrap(),
+        "--import-map",
+        map.to_str().unwrap(),
+        "--parts-out",
+        out_parts.to_str().unwrap(),
+        board.as_str(),
+    ];
+    let (code, out, err) = command(&args);
+    assert_eq!((code, err.as_str()), (0, ""), "{out}");
+    // R3 is only in the bill and R2 only on the board
+    assert!(out.contains("PHOENIX-BOM-021"), "{out}");
+    assert!(
+        out.contains("[R3]: in the imported bill, not on the board"),
+        "{out}"
+    );
+    assert!(
+        out.contains("[R2]: on the board, not in the imported bill"),
+        "{out}"
+    );
+    // the maker of R1 comes from the bill, so R1 is a line of its own
+    assert_eq!(
+        fs::read_to_string(&out_parts).unwrap(),
+        "match,manufacturer,mpn,fitted\nR1,Acme,AC-1,yes\n"
+    );
+    // a file that exists is never replaced
+    let (code, _, err) = command(&args);
+    assert_eq!(code, 2);
+    assert!(err.contains("PHOENIX-BOM-015"), "{err}");
+    // the options of the import need --import
+    let (code, _, err) = command(&["bom", "--parts-out", "x.csv", board.as_str()]);
+    assert_eq!(code, 2);
+    assert!(err.contains("need --import"), "{err}");
+}

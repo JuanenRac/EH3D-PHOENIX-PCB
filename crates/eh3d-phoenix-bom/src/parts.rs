@@ -85,6 +85,16 @@ impl PartsFile {
         Ok(file)
     }
 
+    /// Adds the lines of another file for the references this one does not name; what this file
+    /// says always wins.
+    pub fn merge_missing(&mut self, other: &PartsFile) {
+        for (reference, data) in &other.by_reference {
+            self.by_reference
+                .entry(reference.clone())
+                .or_insert_with(|| data.clone());
+        }
+    }
+
     /// What the file says about a part: its reference first, then its value and footprint.
     pub fn find(&self, reference: &str, value: &str, footprint: &str) -> Option<&PartData> {
         self.by_reference
