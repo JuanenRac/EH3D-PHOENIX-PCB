@@ -4,7 +4,8 @@
 //! stadium in inches with arcs written as bulges.
 
 use eh3d_phoenix_dxf::codes::{
-    ARCS_APPROXIMATED, CHAIN_OPEN, CUTOUT_NOT_KEPT, ENTITY_UNSUPPORTED, UNIT_UNKNOWN,
+    ARCS_APPROXIMATED, CHAIN_OPEN, CUTOUT_NOT_KEPT, DUPLICATE_DROPPED, ENTITY_UNSUPPORTED,
+    NO_CONTOUR, UNIT_UNKNOWN,
 };
 use eh3d_phoenix_dxf::geom::{bounds, twice_area};
 use eh3d_phoenix_dxf::{extract_outline, read_dxf, write_dxf, DxfSettings, Seg, Shape};
@@ -203,4 +204,115 @@ fn what_is_read_and_written_and_read_again_is_the_same_drawing() {
         );
         assert_eq!(written, write_dxf(&second.drawing));
     }
+}
+
+const STADIUM_HOLES: &str = include_str!("../../../tests/dxf/stadium_holes.dxf");
+const EMPTY_ENTITIES: &str = include_str!("../../../tests/dxf/empty_entities.dxf");
+const REPEATED_LINE: &str = include_str!("../../../tests/dxf/rectangle_repeated_line.dxf");
+
+#[test]
+fn a_stadium_with_a_round_hole_and_a_square_hole_has_the_areas_worked_out() {
+    let settings = DxfSettings::default();
+    let read = read_dxf(STADIUM_HOLES, &settings).unwrap();
+    assert_eq!(read.unit_mm, 1.0);
+    assert_eq!(read.counts.get("LWPOLYLINE"), Some(&2));
+    assert_eq!(read.counts.get("CIRCLE"), Some(&1));
+    assert!(read.report.findings.is_empty());
+    assert_eq!(read.drawing.entities.len(), 3);
+    let found = extract_outline(
+        &read.drawing,
+        Some("edge"),
+        settings.join_tolerance_nm,
+        &settings,
+    );
+    // 40 by 20 mm and two half circles of radius 10 mm: 800 + 314.159 = 1114.159 mm2, a little
+    // less as a polygon whose corners lie on the arcs
+    let outline = area_mm2(&found.exterior.unwrap());
+    assert!(outline > 1113.5 && outline < 1114.16, "{outline}");
+    assert_eq!(found.holes.len(), 2);
+    // the holes come largest first: a circle of radius 4 mm (50.265 mm2) and a rectangle 4 by 3 mm
+    let round = area_mm2(&found.holes[0]);
+    assert!(round > 50.0 && round < 50.27, "{round}");
+    assert!((area_mm2(&found.holes[1]) - 12.0).abs() < 1e-9);
+    assert_eq!(
+        (
+            found.stats.pieces,
+            found.stats.chains,
+            found.stats.contours,
+            found.stats.open_chains,
+            found.stats.duplicates,
+            found.stats.arcs_approximated
+        ),
+        (9, 0, 3, 0, 0, 3)
+    );
+    let codes: Vec<&str> = found.report.findings.iter().map(|f| f.code).collect();
+    assert_eq!(codes, vec![CUTOUT_NOT_KEPT, ARCS_APPROXIMATED]);
+    assert!(found.report.findings[0].detail.starts_with("2 cutouts"));
+}
+
+#[test]
+fn a_drawing_with_nothing_in_its_entities_is_read_and_has_no_contour() {
+    let settings = DxfSettings::default();
+    let read = read_dxf(EMPTY_ENTITIES, &settings).unwrap();
+    assert_eq!(read.unit_mm, 1.0);
+    assert!(read.drawing.entities.is_empty());
+    assert!(read.counts.is_empty());
+    assert!(read.report.findings.is_empty());
+    let found = extract_outline(&read.drawing, Some("EDGE"), 10_000, &settings);
+    assert_eq!(found.exterior, None);
+    assert!(found.holes.is_empty());
+    assert_eq!(
+        (
+            found.stats.pieces,
+            found.stats.chains,
+            found.stats.contours,
+            found.stats.open_chains,
+            found.stats.duplicates,
+            found.stats.arcs_approximated
+        ),
+        (0, 0, 0, 0, 0, 0)
+    );
+    let codes: Vec<&str> = found.report.findings.iter().map(|f| f.code).collect();
+    assert_eq!(codes, vec![NO_CONTOUR]);
+    assert_eq!(
+        found.report.findings[0].detail,
+        "no closed contour on the layer EDGE"
+    );
+}
+
+#[test]
+fn a_line_drawn_twice_is_dropped_and_an_open_polyline_is_listed() {
+    let settings = DxfSettings::default();
+    let read = read_dxf(REPEATED_LINE, &settings).unwrap();
+    assert_eq!(read.counts.get("LINE"), Some(&5));
+    assert_eq!(read.counts.get("LWPOLYLINE"), Some(&1));
+    let found = extract_outline(
+        &read.drawing,
+        Some("EDGE"),
+        settings.join_tolerance_nm,
+        &settings,
+    );
+    let exterior = found.exterior.unwrap();
+    assert_eq!(
+        exterior,
+        vec![(0, 0), (40 * MM, 0), (40 * MM, 20 * MM), (0, 20 * MM)]
+    );
+    // the fifth line goes from (40, 20) to (40, 0), the second one backwards
+    assert_eq!(
+        (
+            found.stats.pieces,
+            found.stats.chains,
+            found.stats.contours,
+            found.stats.open_chains,
+            found.stats.duplicates,
+            found.stats.arcs_approximated
+        ),
+        (7, 2, 1, 1, 1, 0)
+    );
+    let codes: Vec<&str> = found.report.findings.iter().map(|f| f.code).collect();
+    assert_eq!(codes, vec![CHAIN_OPEN, DUPLICATE_DROPPED]);
+    assert!(found.report.findings[0]
+        .detail
+        .starts_with("2 pieces from (100.000, 100.000) mm to (110.000, 110.000) mm"));
+    assert!(found.holes.is_empty());
 }
