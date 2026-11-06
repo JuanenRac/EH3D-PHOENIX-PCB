@@ -2,7 +2,7 @@
 
 Codes have the form `PHOENIX-<AREA>-<NNN>`. A code is stable: it never changes its meaning and is never reused. Programs show the text through the key `diag.<code>`; the codes themselves are never translated. The object identity (UUID v7) is the one of the shared container, with its own codes `EH3D-ID-001` and `EH3D-ID-002`. The container codes `EH3D-PKG-001` to `EH3D-PKG-014` belong to the shared container and are listed in the registry of the documentation repository.
 
-Each table repeats the `REGISTRY` of a crate (`eh3d-phoenix-model` in `src/diagnostic.rs`, `eh3d-phoenix-project` and `eh3d-phoenix-eagle` in `src/codes.rs`, `eh3d-phoenix-hub` in `src/lib.rs`, `eh3d-phoenix-export` in `src/codes.rs` and `src/fabcodes.rs`, `eh3d-phoenix-schematic` in `src/model.rs`, `src/draw.rs`, `src/edit.rs`, `src/link.rs`, `src/hier.rs` and `src/bus.rs`, `eh3d-phoenix-board` in `src/validate.rs`, `src/connectivity.rs` and `src/rules.rs`, `eh3d-phoenix-rules` in `src/codes.rs` and `src/advanced/codes.rs`, `eh3d-phoenix-stackup` and `eh3d-phoenix-rf` in `src/error.rs`, `eh3d-phoenix-viewer`, `eh3d-phoenix-sanitizer`, `eh3d-phoenix-erc`, `eh3d-phoenix-sync`, `eh3d-phoenix-schedit`, `eh3d-phoenix-boardedit` (also in `src/pair_codes.rs`, `src/shove_codes.rs` and `src/zone_codes.rs`), `eh3d-phoenix-libedit`, `eh3d-phoenix-zones`, `eh3d-phoenix-lengths`, `eh3d-phoenix-gerber`, `eh3d-phoenix-panel`, `eh3d-phoenix-bom`, `eh3d-phoenix-assembly3d`, `eh3d-phoenix-si`, `eh3d-phoenix-eagle-deep` and `eh3d-phoenix-oracle` in `src/codes.rs`, `eh3d-phoenix-corpus` in `src/suite/codes.rs`); a test of each crate checks that every code of its registry is in the table with the same title.
+Each table repeats the `REGISTRY` of a crate (`eh3d-phoenix-model` in `src/diagnostic.rs`, `eh3d-phoenix-project` and `eh3d-phoenix-eagle` in `src/codes.rs`, `eh3d-phoenix-hub` in `src/lib.rs`, `eh3d-phoenix-export` in `src/codes.rs` and `src/fabcodes.rs`, `eh3d-phoenix-schematic` in `src/model.rs`, `src/draw.rs`, `src/edit.rs`, `src/link.rs`, `src/hier.rs` and `src/bus.rs`, `eh3d-phoenix-board` in `src/validate.rs`, `src/connectivity.rs` and `src/rules.rs`, `eh3d-phoenix-rules` in `src/codes.rs` and `src/advanced/codes.rs`, `eh3d-phoenix-stackup` and `eh3d-phoenix-rf` in `src/error.rs`, `eh3d-phoenix-viewer`, `eh3d-phoenix-sanitizer`, `eh3d-phoenix-erc`, `eh3d-phoenix-sync`, `eh3d-phoenix-schedit`, `eh3d-phoenix-boardedit` (also in `src/pair_codes.rs`, `src/shove_codes.rs` and `src/zone_codes.rs`), `eh3d-phoenix-libedit`, `eh3d-phoenix-zones`, `eh3d-phoenix-autoroute`, `eh3d-phoenix-lengths`, `eh3d-phoenix-gerber`, `eh3d-phoenix-panel`, `eh3d-phoenix-bom`, `eh3d-phoenix-assembly3d`, `eh3d-phoenix-si`, `eh3d-phoenix-eagle-deep` and `eh3d-phoenix-oracle` in `src/codes.rs`, `eh3d-phoenix-corpus` in `src/suite/codes.rs`); a test of each crate checks that every code of its registry is in the table with the same title.
 
 ## Model foundations
 
@@ -1158,6 +1158,29 @@ The titles of these codes also exist in the eight languages of the suite (`TITLE
 | PHOENIX-SPATIAL-003 | There are more items than the spatial index accepts | more boxes than `max_items`; the index is not built |
 | PHOENIX-SPATIAL-004 | A command option is not valid | an option of `phoenix perf` that the command does not know or needs a value for, a clearance out of its range, an unknown language code, no board or more than one |
 | PHOENIX-SPATIAL-005 | Input file cannot be read | the board or a settings file that cannot be opened or read |
+
+## Autorouter (`eh3d-phoenix-autoroute`, `src/codes.rs`)
+
+The titles of these codes also exist in the eight languages of the suite (`TITLES` in `src/codes.rs`); the detail of a message is in English. The codes `011` to `015` are the reasons that a connection is left unrouted and are in the report of the plan; the others stop the run.
+
+| Code | Title | Raised by |
+|---|---|---|
+| PHOENIX-AROUTE-001 | Autorouter settings are not valid | a line of `config/autoroute_native.cfg` that is not `key = value`, an unknown key, a key written twice, a value out of range or a file larger than 64 KiB |
+| PHOENIX-AROUTE-002 | A command option is not valid | an option of `phoenix autoroute native` that the command does not know or needs a value for, or an unknown language code |
+| PHOENIX-AROUTE-003 | Input file cannot be read | a settings file that cannot be opened or read |
+| PHOENIX-AROUTE-004 | A net named in the request is not on the board | a name given to `--nets` that no net of the board has |
+| PHOENIX-AROUTE-005 | A layer named in the request is not a copper layer of the board | a name given to `--layers` that no copper layer of the board has |
+| PHOENIX-AROUTE-006 | The routing grid would have more nodes than the limit | a board whose outline, at the pitch of `grid_nm`, needs more nodes than `max_nodes` (nodes of one layer times layers), or an index of obstacles that would be too large |
+| PHOENIX-AROUTE-007 | The board has no closed outline or no copper layer to route on | a board with fewer than three corners in its outline or with no copper layer |
+| PHOENIX-AROUTE-008 | There are more connections to route than the limit | more open connections than `max_connections`, or a ratsnest that compared more pairs of points than its limit |
+| PHOENIX-AROUTE-009 | The result cannot be written | the board with the routes that cannot be turned into bytes or written to a new file |
+| PHOENIX-AROUTE-010 | The board refused the operations of the plan | an operation of the plan that the board does not accept |
+| PHOENIX-AROUTE-011 | No free place near a pad to start or end a track | a connection that is not routed because no node near one of its ends is clear, or the end is on no layer that may be used |
+| PHOENIX-AROUTE-012 | No path exists on the routing grid | a connection that is not routed because every node that can be reached was expanded and none is an end |
+| PHOENIX-AROUTE-013 | The search reached its limit of expanded nodes | a connection that is not routed because the search reached `max_expansions_per_search` or `max_expansions_total` |
+| PHOENIX-AROUTE-014 | Rip-up and reroute reached its limit | a connection that is not routed because `max_ripup_iterations` or `max_rips_per_connection` was reached |
+| PHOENIX-AROUTE-015 | The routes of a net were refused because they add a rule error | a net whose routes add an error of the design rules that the board did not have; the net is left out of the plan |
+| PHOENIX-AROUTE-016 | The plan leaves connections unrouted | `--require-complete` with a plan that leaves a connection of the nets asked for unrouted |
 
 ## Printing (`eh3d-phoenix-print`, `src/codes.rs`)
 

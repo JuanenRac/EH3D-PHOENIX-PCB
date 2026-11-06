@@ -1,0 +1,16 @@
+[package]
+name = "eh3d-phoenix-autoroute"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "A simple autorouter of the board with no outside program (prototype): a routing grid derived from the rules, a map of obstacles per copper layer, an A* search per layer with vias, corners and preferred directions in its cost, rip-up and reroute with limits counted in nodes and not in time, the result as one reversible all-or-nothing plan checked against the design rules before and after, and a report that is the same for the same input"
+
+[dependencies]
+eh3d-phoenix-board = { path = "../eh3d-phoenix-board" }
+eh3d-phoenix-boardedit = { path = "../eh3d-phoenix-boardedit" }
+eh3d-phoenix-model = { path = "../eh3d-phoenix-model" }
+eh3d-phoenix-route = { path = "../eh3d-phoenix-route" }
+eh3d-phoenix-rules = { path = "../eh3d-phoenix-rules" }
+eh3d-phoenix-spatial = { path = "../eh3d-phoenix-spatial" }
