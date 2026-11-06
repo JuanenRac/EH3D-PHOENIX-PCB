@@ -17,6 +17,9 @@ use eh3d_phoenix_board::rules::RuleSet;
 use eh3d_phoenix_board::{Board, Id};
 use eh3d_phoenix_model::{Nm, Point};
 
+use eh3d_phoenix_spatial::{inflate, Bx, Index, SpatialConfig, SpatialError};
+
+use crate::advanced::IndexMode;
 use crate::codes;
 use crate::geometry::{outline_edges, pad_min_side, Dist2, Prim};
 use crate::items::{placed_pads, track_prim, via_prim, PlacedPad};
@@ -114,13 +117,14 @@ struct Hole {
 struct Run<'a> {
     board: &'a Board,
     rules: &'a RuleValues,
+    mode: IndexMode,
     pads: Vec<PlacedPad>,
     copper: Vec<Copper>,
     report: Report,
 }
 
-/// Checks a board against the values of a rule file.
-pub fn check_board(board: &Board, rules: &RuleValues) -> Report {
+/// The tracks and then the vias of a board as copper that can touch other copper.
+fn copper_of(board: &Board) -> Vec<Copper> {
     let mut copper = Vec::new();
     for (id, track) in &board.tracks {
         if let Some(prim) = track_prim(track) {
@@ -146,9 +150,103 @@ pub fn check_board(board: &Board, rules: &RuleValues) -> Report {
             });
         }
     }
+    copper
+}
+
+/// The boxes that find the pairs of copper to compare: the box of the end points of each item,
+/// grown by half of its widest reading, which is how far the item reaches.
+fn grown_boxes(copper: &[Copper]) -> Vec<Bx> {
+    copper
+        .iter()
+        .map(|c| inflate(&c.prim.bbox(), c.prim.hi / 2 + 1))
+        .collect()
+}
+
+/// The way to find the neighbours of each box: the grid, or the comparison of every pair. A grid
+/// that the settings refuse is replaced by the comparison of every pair, which gives the same
+/// result more slowly; the refusal is returned.
+fn clearance_index(
+    boxes: &[Bx],
+    mode: IndexMode,
+    config: &SpatialConfig,
+) -> (Index, Option<SpatialError>) {
+    match mode {
+        IndexMode::Naive => (Index::naive(boxes.len()), None),
+        IndexMode::Grid => match Index::grid(boxes, config) {
+            Ok(index) => (index, None),
+            Err(refused) => (Index::naive(boxes.len()), Some(refused)),
+        },
+    }
+}
+
+/// How much work the copper clearance check does on a board.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ClearanceWork {
+    /// The tracks and vias that are compared.
+    pub items: usize,
+    /// The candidates that the search handed out: the pairs the check had to look at (each pair
+    /// is seen from both items).
+    pub comparisons: u64,
+    /// The size of a cell in nanometres (1 when every pair is compared).
+    pub cell_nm: i128,
+    /// The cells that hold an item.
+    pub cells_used: usize,
+    /// The entries of the grid.
+    pub entries: u64,
+    /// The code of the refusal when the settings would not let the grid be built.
+    pub refused: Option<&'static str>,
+}
+
+/// The work of the copper clearance check on a board, counted and not timed: the same search as
+/// the check makes, with the candidates counted instead of judged. A rule file with no clearance
+/// turns the check off, and then there is no work.
+pub fn clearance_work(
+    board: &Board,
+    rules: &RuleValues,
+    mode: IndexMode,
+    config: &SpatialConfig,
+) -> ClearanceWork {
+    let copper = copper_of(board);
+    let limit = rules.min_clearance;
+    if !on(limit) {
+        return ClearanceWork {
+            items: copper.len(),
+            comparisons: 0,
+            cell_nm: 1,
+            cells_used: 0,
+            entries: 0,
+            refused: None,
+        };
+    }
+    let c = i128::from(limit.get());
+    let boxes = grown_boxes(&copper);
+    let (index, refused) = clearance_index(&boxes, mode, config);
+    for b in &boxes {
+        let _ = index.candidates(&inflate(b, c));
+    }
+    ClearanceWork {
+        items: copper.len(),
+        comparisons: index.examined(),
+        cell_nm: index.cell_nm(),
+        cells_used: index.cells_used(),
+        entries: index.entries(),
+        refused: refused.map(|e| e.code),
+    }
+}
+
+/// Checks a board against the values of a rule file.
+pub fn check_board(board: &Board, rules: &RuleValues) -> Report {
+    check_board_with(board, rules, IndexMode::Grid)
+}
+
+/// Checks a board with the chosen way of finding the pieces of copper that are close. Both ways
+/// give the same report, finding for finding and in the same order.
+pub fn check_board_with(board: &Board, rules: &RuleValues, mode: IndexMode) -> Report {
+    let copper = copper_of(board);
     let mut run = Run {
         board,
         rules,
+        mode,
         pads: placed_pads(board),
         copper,
         report: Report::new("check"),
@@ -265,8 +363,14 @@ impl Run<'_> {
                 );
             }
         }
+        let boxes = grown_boxes(&self.copper);
+        let (index, _) = clearance_index(&boxes, self.mode, &SpatialConfig::default());
         for (i, a) in self.copper.iter().enumerate() {
-            for b in &self.copper[i + 1..] {
+            for j in index.candidates(&inflate(&boxes[i], c)) {
+                if j <= i {
+                    continue;
+                }
+                let b = &self.copper[j];
                 if a.net == b.net || !a.layers.iter().any(|l| b.layers.contains(l)) {
                     continue;
                 }

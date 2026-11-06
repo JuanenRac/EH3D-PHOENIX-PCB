@@ -48,7 +48,7 @@ pub use edit::{
     via_for_layer_change, Editor,
 };
 pub use live::{diff, findings, LiveDiff, RuleContext};
-pub use ratsnest::{item_label, ratsnest, RatLine};
+pub use ratsnest::{item_label, ratsnest, ratsnest_with, RatLine, RatsnestWork};
 pub use router::{
     copper_layers, route, track_width, via_size, Element, Mode, RoutePlan, RouteRequest,
 };

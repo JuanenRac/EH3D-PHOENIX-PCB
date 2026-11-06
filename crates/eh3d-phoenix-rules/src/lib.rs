@@ -44,6 +44,6 @@ pub use advanced::{
 pub use classes::{check_classes, NetClass, NetClasses};
 pub use codes::{title, Lang, REGISTRY};
 pub use connectivity::{analyse_board, check_connectivity, compare_schematic};
-pub use engine::{check_board, Rule};
+pub use engine::{check_board, check_board_with, clearance_work, ClearanceWork, Rule};
 pub use report::{Finding, Report, Severity};
 pub use rulefile::{RuleFile, RuleFileError, RuleValues};

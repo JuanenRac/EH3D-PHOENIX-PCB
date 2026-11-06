@@ -10,6 +10,8 @@
 use eh3d_phoenix_board::connectivity::{pad_position, Item};
 use eh3d_phoenix_board::{Board, Id};
 use eh3d_phoenix_model::Point;
+use eh3d_phoenix_rules::IndexMode;
+use eh3d_phoenix_spatial::{inflate, Bx, Index, SpatialConfig};
 
 use crate::codes::{RouteError, LIMIT_EXCEEDED};
 use crate::geom::{isqrt, pair};
@@ -106,11 +108,125 @@ fn closest(
     best
 }
 
+/// An island with more anchors than this gets a spatial index; a smaller one is compared point
+/// by point, which is as fast.
+const SMALL_ISLAND: usize = 24;
+
+/// The work of a ratsnest, counted and not timed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct RatsnestWork {
+    /// The nets with two islands or more.
+    pub nets: usize,
+    /// The islands of those nets.
+    pub islands: usize,
+    /// The anchor points of those islands.
+    pub anchors: usize,
+    /// The distances between two points that were measured.
+    pub comparisons: u64,
+}
+
+/// The anchors of an island and, when it has many, the index that finds the nearest one.
+struct Anchors {
+    list: Vec<(Item, Point)>,
+    index: Option<Index>,
+}
+
+fn point_box(p: Point) -> Bx {
+    let (x, y) = (i128::from(p.x_nm.get()), i128::from(p.y_nm.get()));
+    [x, y, x, y]
+}
+
+impl Anchors {
+    fn new(list: Vec<(Item, Point)>, mode: IndexMode) -> Anchors {
+        let index = if mode == IndexMode::Grid && list.len() > SMALL_ISLAND {
+            let boxes: Vec<Bx> = list.iter().map(|(_, p)| point_box(*p)).collect();
+            // a cell as wide as the points are apart if they were spread along their longest side
+            let (mut lo, mut hi) = ([i128::MAX; 2], [i128::MIN; 2]);
+            for b in &boxes {
+                lo = [lo[0].min(b[0]), lo[1].min(b[1])];
+                hi = [hi[0].max(b[0]), hi[1].max(b[1])];
+            }
+            let extent = (hi[0] - lo[0]).max(hi[1] - lo[1]);
+            let cell = (extent / list.len() as i128).max(1);
+            let config = SpatialConfig {
+                cell_nm: i64::try_from(cell).unwrap_or(i64::MAX),
+                ..SpatialConfig::default()
+            };
+            Index::grid(&boxes, &config).ok()
+        } else {
+            None
+        };
+        Anchors { list, index }
+    }
+}
+
+/// The anchor of `list` nearest to `from`, as the squared distance and the place in the list; of
+/// several at the same distance, the one that comes first. The square around the point grows
+/// until the nearest anchor found is inside it, so no anchor nearer can have been missed.
+fn nearest(
+    index: &Index,
+    list: &[(Item, Point)],
+    from: Point,
+    evals: &mut u64,
+) -> Option<(i128, usize)> {
+    let query = point_box(from);
+    let mut radius = index.cell_nm().max(1);
+    loop {
+        let found = index.candidates(&inflate(&query, radius));
+        *evals = evals.saturating_add(found.len() as u64);
+        let mut best: Option<(i128, usize)> = None;
+        for &j in &found {
+            let d = distance_squared(from, list[j].1);
+            if best.is_none_or(|(current, _)| d < current) {
+                best = Some((d, j));
+            }
+        }
+        let everything = found.len() == index.count();
+        match best {
+            Some((d, j)) if everything || d <= radius.saturating_mul(radius) => {
+                return Some((d, j));
+            }
+            None if everything => return None,
+            _ => radius = radius.saturating_mul(2),
+        }
+    }
+}
+
+/// The closest pair of anchors of two islands, the second with an index: the same pair as
+/// [`closest`] gives.
+fn closest_indexed(
+    a: &[(Item, Point)],
+    b: &Anchors,
+    index: &Index,
+    evals: &mut u64,
+) -> Option<(i128, usize, usize)> {
+    let mut best: Option<(i128, usize, usize)> = None;
+    for (i, (_, p)) in a.iter().enumerate() {
+        if let Some((d, j)) = nearest(index, &b.list, *p, evals) {
+            if best.is_none_or(|(current, _, _)| d < current) {
+                best = Some((d, i, j));
+            }
+        }
+    }
+    best
+}
+
 /// The connections still to be routed on the board, net by net.
 pub fn ratsnest(board: &Board, settings: &RouteSettings) -> Result<Vec<RatLine>, RouteError> {
+    ratsnest_with(board, settings, IndexMode::Grid).map(|(lines, _)| lines)
+}
+
+/// The connections still to be routed, with the chosen way of finding the closest anchors of two
+/// islands (the lines are the same either way) and the work it took.
+pub fn ratsnest_with(
+    board: &Board,
+    settings: &RouteSettings,
+    mode: IndexMode,
+) -> Result<(Vec<RatLine>, RatsnestWork), RouteError> {
     let report = board.connectivity();
     let mut lines: Vec<RatLine> = Vec::new();
     let mut pairs = 0_u64;
+    let mut work = RatsnestWork::default();
     for net in &report.nets {
         if net.islands.len() < 2 {
             continue;
@@ -129,6 +245,13 @@ pub fn ratsnest(board: &Board, settings: &RouteSettings) -> Result<Vec<RatLine>,
             })
             .collect();
         let count = islands.len();
+        work.nets += 1;
+        work.islands += count;
+        work.anchors += islands.iter().map(Vec::len).sum::<usize>();
+        let islands: Vec<Anchors> = islands
+            .into_iter()
+            .map(|list| Anchors::new(list, mode))
+            .collect();
         let mut in_tree = vec![false; count];
         // for every island outside the tree: the squared distance, the island of the tree and the
         // two anchors of the closest pair
@@ -140,7 +263,26 @@ pub fn ratsnest(board: &Board, settings: &RouteSettings) -> Result<Vec<RatLine>,
                 if in_tree[other] {
                     continue;
                 }
-                if let Some((d, i, j)) = closest(&islands[last], &islands[other], &mut pairs) {
+                let found = match &islands[other].index {
+                    Some(index) => {
+                        let size = (islands[last].list.len() as u64)
+                            .saturating_mul(islands[other].list.len() as u64);
+                        pairs = pairs.saturating_add(size);
+                        closest_indexed(
+                            &islands[last].list,
+                            &islands[other],
+                            index,
+                            &mut work.comparisons,
+                        )
+                    }
+                    None => {
+                        let before = pairs;
+                        let found = closest(&islands[last].list, &islands[other].list, &mut pairs);
+                        work.comparisons = work.comparisons.saturating_add(pairs - before);
+                        found
+                    }
+                };
+                if let Some((d, i, j)) = found {
                     let better = match best[other] {
                         None => true,
                         Some((current, _, _, _)) => d < current,
@@ -177,8 +319,8 @@ pub fn ratsnest(board: &Board, settings: &RouteSettings) -> Result<Vec<RatLine>,
             let Some((_, from_island, i, j)) = best[next] else {
                 break;
             };
-            let (from, from_at) = islands[from_island][i];
-            let (to, to_at) = islands[next][j];
+            let (from, from_at) = islands[from_island].list[i];
+            let (to, to_at) = islands[next].list[j];
             lines.push(RatLine {
                 net: net.net,
                 from,
@@ -191,7 +333,7 @@ pub fn ratsnest(board: &Board, settings: &RouteSettings) -> Result<Vec<RatLine>,
             last = next;
         }
     }
-    Ok(lines)
+    Ok((lines, work))
 }
 
 fn escape(text: &str) -> String {

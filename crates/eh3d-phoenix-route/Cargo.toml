@@ -11,3 +11,4 @@ description = "Editing and routing logic of the board without an interface (prot
 eh3d-phoenix-board = { path = "../eh3d-phoenix-board" }
 eh3d-phoenix-model = { path = "../eh3d-phoenix-model" }
 eh3d-phoenix-rules = { path = "../eh3d-phoenix-rules" }
+eh3d-phoenix-spatial = { path = "../eh3d-phoenix-spatial" }
