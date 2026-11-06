@@ -12,7 +12,7 @@ use eh3d_parser_gerber::{
     Aperture, Attribute, Command, CoordinateFormat, GerberFile, Operation, Point as GPoint,
     Polarity, QuadrantMode, Units, ZeroOmission,
 };
-use eh3d_phoenix_board::connectivity::pad_position;
+use eh3d_phoenix_board::connectivity::{pad_position, point_in_polygon};
 use eh3d_phoenix_board::{Board, Id, LayerKind, Pad, PadRef, PadShape, Segment, Via, Zone};
 use eh3d_phoenix_model::{Point, Udeg};
 use eh3d_writer_gerber::{GerberOptions, GerberOutput, WriteError};
@@ -227,12 +227,73 @@ fn pad_function(pad: &Pad, footprint_name: &str, x2: &X2Profile) -> ApFunction {
     }
 }
 
-/// The objects that clear the copper of a zone: its own cutouts and a keep-away of its clearance
-/// around the tracks, vias and pads of other nets that lie on the layer. All are drawn with clear
-/// polarity, between a change to clear and a change back to dark, so that what is drawn after
-/// them (the copper of the board) stays. Nothing when there is nothing to clear. The aperture of
-/// a keep-away has the function of the object it keeps away from.
-fn zone_clearing(board: &Board, zone: &Zone, layer: Id, x2: &X2Profile) -> Vec<Drawn> {
+/// The thermal relief that the round pads of the net of a pour get.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct ZoneThermal {
+    /// 0 leaves the pads solid; 4 clears four gaps and leaves four spokes.
+    pub spokes: u32,
+    /// The width of each gap, in nanometres.
+    pub gap_nm: i64,
+    /// The width of each spoke, in nanometres.
+    pub spoke_width_nm: i64,
+}
+
+/// The four gaps of the thermal relief of a round pad at `at`, as closed polygons. Each is the
+/// part of the ring between the edge of the pad and `gap` beyond it that lies between two of the
+/// four spokes, which run along the axes and are `spoke` wide; the arcs are sampled in six steps.
+/// Nothing when the gap or the spoke is not positive or the spoke is as wide as the pad.
+pub fn thermal_gaps(at: Point, diameter: i64, gap: i64, spoke: i64) -> Vec<Vec<Point>> {
+    let r_in = diameter as f64 / 2.0;
+    let r_out = r_in + gap as f64;
+    let half = spoke as f64 / 2.0;
+    if gap <= 0 || spoke <= 0 || half >= r_in {
+        return Vec::new();
+    }
+    const STEPS: usize = 6;
+    // where the edge of a spoke meets a circle of the radius r, as an angle from the axis
+    let start = |r: f64| (half / r).asin();
+    let arc = |r: f64, j: usize| {
+        let a = start(r);
+        let theta = a + (std::f64::consts::FRAC_PI_2 - 2.0 * a) * j as f64 / STEPS as f64;
+        (r * theta.cos(), r * theta.sin())
+    };
+    let mut quadrant: Vec<(f64, f64)> = (0..=STEPS).map(|j| arc(r_in, j)).collect();
+    quadrant.extend((0..=STEPS).rev().map(|j| arc(r_out, j)));
+    let (ax, ay) = (at.x_nm.get(), at.y_nm.get());
+    let mut out: Vec<Vec<Point>> = Vec::new();
+    for turns in 0..4 {
+        let ring: Option<Vec<Point>> = quadrant
+            .iter()
+            .map(|&(x, y)| {
+                let (x, y) = match turns {
+                    0 => (x, y),
+                    1 => (-y, x),
+                    2 => (-x, -y),
+                    _ => (y, -x),
+                };
+                Point::from_nm(ax + x.round() as i64, ay + y.round() as i64).ok()
+            })
+            .collect();
+        if let Some(ring) = ring {
+            out.push(ring);
+        }
+    }
+    out
+}
+
+/// The objects that clear the copper of a zone: its own cutouts, the gaps of the thermal relief
+/// of the round pads of its own net, when the profile asks for them, and a keep-away of its
+/// clearance around the tracks, vias and pads of other nets that lie on the layer. All are drawn
+/// with clear polarity, between a change to clear and a change back to dark, so that what is
+/// drawn after them (the copper of the board) stays. Nothing when there is nothing to clear. The
+/// aperture of a keep-away has the function of the object it keeps away from.
+fn zone_clearing(
+    board: &Board,
+    zone: &Zone,
+    layer: Id,
+    x2: &X2Profile,
+    thermal: &ZoneThermal,
+) -> Vec<Drawn> {
     let named = x2.level.has_aperture_attributes();
     let ap = |key: ApKey, function: ApFunction| Ap {
         key,
@@ -329,6 +390,38 @@ fn zone_clearing(board: &Board, zone: &Zone, layer: Id, x2: &X2Profile) -> Vec<D
             }
         }
     }
+    if thermal.spokes == 4 {
+        for (cid, component) in &board.components {
+            let Some(footprint) = board.footprints.get(&component.footprint) else {
+                continue;
+            };
+            for (pid, pad) in &footprint.pads {
+                if !pad.layers.contains(&layer) || pad.is_npth() {
+                    continue;
+                }
+                let pad_ref = PadRef {
+                    component: *cid,
+                    pad: *pid,
+                };
+                let PadShape::Circle { diameter } = pad.shape else {
+                    continue;
+                };
+                if board.net_of(pad_ref) != Some(zone.net) {
+                    continue;
+                }
+                let Some(at) = pad_position(board, pad_ref) else {
+                    continue;
+                };
+                if !point_in_polygon(at, &zone.outline) {
+                    continue;
+                }
+                for gap in thermal_gaps(at, diameter.get(), thermal.gap_nm, thermal.spoke_width_nm)
+                {
+                    clear.push((Draw::Region(gap), none()));
+                }
+            }
+        }
+    }
     if clear.is_empty() {
         return clear;
     }
@@ -384,7 +477,7 @@ fn collect(
                 zones += 1;
                 // the openings of the pour and the keep-away of other copper are cleared out of
                 // it, before the copper of the board is drawn on top
-                draws.extend(zone_clearing(board, z, layer, x2));
+                draws.extend(zone_clearing(board, z, layer, x2, &spec.zone_thermal));
             }
         }
         if zones > 0 {
@@ -573,6 +666,8 @@ pub struct LayerFileSpec {
     pub mask_expansion: i64,
     /// How far, per side, a paste opening is smaller than its pad, in nanometres.
     pub paste_shrink: i64,
+    /// The thermal relief of the round pads of the net of a pour.
+    pub zone_thermal: ZoneThermal,
     /// The Gerber X2 attributes to write.
     pub x2: X2Profile,
 }
@@ -921,5 +1016,48 @@ mod tests {
             ..pad.clone()
         };
         assert!(!pad_is_region(&square, Udeg::ZERO));
+    }
+
+    #[test]
+    fn the_gaps_of_a_thermal_relief_are_four_pieces_of_the_ring_between_the_spokes() {
+        let at = Point::from_nm(10_000_000, 5_000_000).unwrap();
+        // a pad of 1 mm, a gap of 0.25 mm and spokes of 0.25 mm: the ring goes from the radius
+        // 0.5 to the radius 0.75 mm and a spoke covers 0.125 mm on each side of its axis
+        let gaps = thermal_gaps(at, 1_000_000, 250_000, 250_000);
+        assert_eq!(gaps.len(), 4);
+        for ring in &gaps {
+            assert_eq!(ring.len(), 14);
+            for p in ring {
+                let dx = (p.x_nm.get() - 10_000_000) as f64;
+                let dy = (p.y_nm.get() - 5_000_000) as f64;
+                let r = dx.hypot(dy);
+                assert!((499_999.0..=750_001.0).contains(&r), "{r}");
+                assert!(dx.abs() >= 124_999.0 || dy.abs() >= 124_999.0);
+            }
+        }
+        // the first piece starts on the inner circle where it meets the edge of the east spoke:
+        // x = sqrt(500000^2 - 125000^2) = 484123 (rounded), y = 125000
+        assert_eq!(
+            (gaps[0][0].x_nm.get(), gaps[0][0].y_nm.get()),
+            (10_484_123, 5_125_000)
+        );
+        // and ends on the outer circle on the same edge: x = sqrt(750000^2 - 125000^2) = 739510
+        assert_eq!(
+            (gaps[0][13].x_nm.get(), gaps[0][13].y_nm.get()),
+            (10_739_510, 5_125_000)
+        );
+        // the other pieces are the first one turned by right angles about the pad
+        assert_eq!(
+            (gaps[1][0].x_nm.get(), gaps[1][0].y_nm.get()),
+            (9_875_000, 5_484_123)
+        );
+        assert_eq!(
+            (gaps[2][0].x_nm.get(), gaps[2][0].y_nm.get()),
+            (9_515_877, 4_875_000)
+        );
+        // no gap, no spoke or a spoke as wide as the pad: nothing to clear
+        assert!(thermal_gaps(at, 1_000_000, 0, 250_000).is_empty());
+        assert!(thermal_gaps(at, 1_000_000, 250_000, 0).is_empty());
+        assert!(thermal_gaps(at, 1_000_000, 250_000, 1_000_000).is_empty());
     }
 }

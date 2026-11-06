@@ -245,6 +245,15 @@ pub struct GerberProfile {
     pub paste_shrink_nm: i64,
     /// The width of the line that draws the board outline, in nanometres.
     pub outline_width_nm: i64,
+    /// The spokes of the thermal relief that the pads of the net of a pour get: 0 leaves them
+    /// solid (the default), 4 clears four gaps around each round pad and leaves four spokes
+    /// along the axes. They are the `thermal_spokes`, `thermal_gap_nm` and
+    /// `thermal_spoke_width_nm` of `config/zones.cfg`.
+    pub zone_thermal_spokes: u32,
+    /// The width of the gap of a thermal relief, in nanometres.
+    pub zone_thermal_gap_nm: i64,
+    /// The width of each spoke of a thermal relief, in nanometres.
+    pub zone_thermal_spoke_width_nm: i64,
     /// The Gerber X2 attributes.
     pub x2: X2Profile,
 }
@@ -257,6 +266,9 @@ impl Default for GerberProfile {
             mask_expansion_nm: 50_000,
             paste_shrink_nm: 0,
             outline_width_nm: 100_000,
+            zone_thermal_spokes: 0,
+            zone_thermal_gap_nm: 250_000,
+            zone_thermal_spoke_width_nm: 250_000,
             x2: X2Profile::default(),
         }
     }
@@ -474,6 +486,22 @@ impl Profile {
             return Err(bad(format!(
                 "{name}: gerber.outline_width_nm is not 1 to 10000000"
             )));
+        }
+        if !matches!(g.zone_thermal_spokes, 0 | 4) {
+            return Err(bad(format!(
+                "{name}: gerber.zone_thermal_spokes is not 0 or 4"
+            )));
+        }
+        for (field, value) in [
+            ("gerber.zone_thermal_gap_nm", g.zone_thermal_gap_nm),
+            (
+                "gerber.zone_thermal_spoke_width_nm",
+                g.zone_thermal_spoke_width_nm,
+            ),
+        ] {
+            if !(1..=5_000_000).contains(&value) {
+                return Err(bad(format!("{name}: {field} is not 1 to 5000000")));
+            }
         }
         g.x2.validate(name)?;
         let d = &self.drill;

@@ -17,7 +17,7 @@ use eh3d_writer_excellon::CoordinateStyle;
 use crate::assembly::{bom_csv, placement_csv};
 use crate::codes;
 use crate::excellon::{write_drill_files, DrillOptions};
-use crate::gerber::{format_with_decimals, write_layer, LayerError, LayerFileSpec};
+use crate::gerber::{format_with_decimals, write_layer, LayerError, LayerFileSpec, ZoneThermal};
 use crate::package::ExportError;
 use crate::profile::{DrillStyle, Profile};
 
@@ -229,6 +229,11 @@ pub fn build(board: &Board, profile: &Profile) -> Result<FabSet, ExportError> {
             format,
             mask_expansion: profile.gerber.mask_expansion_nm,
             paste_shrink: profile.gerber.paste_shrink_nm,
+            zone_thermal: ZoneThermal {
+                spokes: profile.gerber.zone_thermal_spokes,
+                gap_nm: profile.gerber.zone_thermal_gap_nm,
+                spoke_width_nm: profile.gerber.zone_thermal_spoke_width_nm,
+            },
             x2: profile.gerber.x2.clone(),
         };
         let (output, mut found) = write_layer(board, &spec, profile.gerber.outline_width_nm)

@@ -424,3 +424,110 @@ fn a_pour_with_nothing_to_clear_has_no_change_of_polarity() {
         assert_eq!(span_file_name("holes", 1, 3, false), "holes_blind_1-3");
     }
 }
+
+/// The pour with a pad of its own net, round and 1 mm wide, at (16, 7) mm.
+fn with_pour_and_a_pad_of_its_net() -> Board {
+    let mut b = with_pour();
+    b.footprints.insert(
+        id(40),
+        Footprint {
+            name: "ROUND".into(),
+            pads: BTreeMap::from([(
+                id(41),
+                Pad {
+                    number: "1".into(),
+                    shape: PadShape::Circle {
+                        diameter: nm(1_000_000),
+                    },
+                    at: mm(0, 0),
+                    rotation: Udeg::ZERO,
+                    drill: None,
+                    layers: vec![id(1)],
+                    roundness: 0,
+                    plated: true,
+                },
+            )]),
+        },
+    );
+    b.components.insert(
+        id(42),
+        Component {
+            refdes: "TP1".into(),
+            value: "x".into(),
+            symbol: None,
+            footprint: id(40),
+            at: mm(16, 7),
+            rotation: Udeg::ZERO,
+            side: Side::Top,
+        },
+    );
+    b.pad_nets.push(PadNet {
+        component: id(42),
+        pad: id(41),
+        net: id(7),
+    });
+    b.pad_nets.sort_by_key(|p| p.pad_ref());
+    b
+}
+
+fn regions(text: &str) -> usize {
+    count(text, |o| matches!(o, Operation::RegionStart))
+}
+
+#[test]
+fn the_pad_of_the_net_of_a_pour_is_solid_unless_the_profile_asks_for_a_thermal_relief() {
+    let b = with_pour_and_a_pad_of_its_net();
+    let set = build(&b, &Profile::default()).unwrap();
+    // the pour and its cutout
+    assert_eq!(regions(layer_text(&set, id(1))), 2);
+    let mut profile = Profile::default();
+    profile.gerber.zone_thermal_spokes = 4;
+    profile.validate().unwrap();
+    let set = build(&b, &profile).unwrap();
+    let text = layer_text(&set, id(1));
+    // four more regions of clear polarity, the gaps between the four spokes
+    assert_eq!(regions(text), 6);
+    let read = eh3d_parser_gerber::parse(text);
+    assert!(read.is_clean());
+    // every corner of the gaps is on the ring between the pad (radius 0.5 mm) and 0.25 mm beyond
+    // it, and none is inside a spoke (0.25 mm wide, along the axes)
+    let mut ring = 0;
+    let mut in_region = false;
+    for command in &read.commands {
+        match &command.op {
+            Operation::RegionStart => in_region = true,
+            Operation::RegionEnd => in_region = false,
+            Operation::Line { to, .. } if in_region => {
+                let (dx, dy) = (to.x - 16.0, to.y - 7.0);
+                if dx.hypot(dy) < 1.0 {
+                    ring += 1;
+                    let r = dx.hypot(dy);
+                    assert!((0.4999..=0.7501).contains(&r), "{r}");
+                    assert!(dx.abs() >= 0.1249 || dy.abs() >= 0.1249);
+                }
+            }
+            _ => {}
+        }
+    }
+    // each of the four gaps has 14 corners
+    assert!(ring >= 4 * 13, "{ring}");
+    // the clear regions come before the copper is drawn again, and the check of the export does
+    // not count what takes copper away
+    assert!(verify(&b, &profile, &set).is_empty());
+    // the same board and profile give the same file
+    let again = build(&b, &profile).unwrap();
+    assert_eq!(layer_text(&again, id(1)), text);
+}
+
+#[test]
+fn a_thermal_relief_asks_for_a_valid_profile() {
+    let mut profile = Profile::default();
+    profile.gerber.zone_thermal_spokes = 3;
+    assert!(profile.validate().is_err());
+    profile.gerber.zone_thermal_spokes = 4;
+    profile.gerber.zone_thermal_gap_nm = 0;
+    assert!(profile.validate().is_err());
+    profile.gerber.zone_thermal_gap_nm = 250_000;
+    profile.gerber.zone_thermal_spoke_width_nm = 6_000_000;
+    assert!(profile.validate().is_err());
+}
