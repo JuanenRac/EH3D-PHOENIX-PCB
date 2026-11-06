@@ -216,7 +216,7 @@ impl ExportReport {
         self.notes
             .iter()
             .map(|((code, category), (count, detail))| Note {
-                code: *code,
+                code,
                 category: category.clone(),
                 count: *count,
                 detail: detail.clone(),
@@ -244,7 +244,7 @@ impl ExportReport {
             self.wrote(what, *count);
         }
         for ((code, category), (count, detail)) in &other.notes {
-            self.note_many(*code, category, detail, *count);
+            self.note_many(code, category, detail, *count);
         }
     }
 
