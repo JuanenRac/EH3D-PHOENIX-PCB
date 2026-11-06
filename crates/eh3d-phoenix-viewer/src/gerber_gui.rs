@@ -15,25 +15,23 @@ use crate::gerber_scene::{
     board_scene, compare_scenes, load_board, open_folder, Comparison, DiffKind, GerberScene,
 };
 use crate::gerber_text::{role_title, GerberText};
-use crate::gui::{ACCENT, DANGER, DIM};
+use crate::gui::{ui_accent, ui_danger, ui_dim, ui_ok};
 use crate::measure::Measure;
 use crate::msg::Msg;
 use crate::prim::P;
 use crate::settings::ViewerSettings;
 use crate::view::{View, ZoomLimits};
 
-const OK: Color32 = Color32::from_rgb(0x9b, 0xe3, 0x4a);
-
 fn rgba(c: [u8; 4]) -> Color32 {
     Color32::from_rgba_unmultiplied(c[0], c[1], c[2], c[3])
 }
 
 fn heading(text: &str) -> egui::RichText {
-    egui::RichText::new(text).strong().color(ACCENT)
+    egui::RichText::new(text).strong().color(ui_accent())
 }
 
 fn dim(text: impl Into<String>) -> egui::RichText {
-    egui::RichText::new(text.into()).color(DIM)
+    egui::RichText::new(text.into()).color(ui_dim())
 }
 
 /// What the person asked for in the list of layers.
@@ -173,7 +171,7 @@ impl GerberUi {
                     egui::RichText::new(GerberText::Title.tr(lang))
                         .strong()
                         .size(18.0)
-                        .color(ACCENT),
+                        .color(ui_accent()),
                 );
                 ui.separator();
                 ui.label(dim(format!(
@@ -199,12 +197,12 @@ impl GerberUi {
         egui::Panel::bottom("gerber_status").show(ui, |ui| {
             ui.horizontal(|ui| {
                 if let Some(error) = &self.error {
-                    ui.label(egui::RichText::new(error.message(lang)).color(DANGER));
+                    ui.label(egui::RichText::new(error.message(lang)).color(ui_danger()));
                 } else {
                     ui.label(dim(GerberText::ReadOnly.tr(lang)));
                 }
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    ui.label(egui::RichText::new(Msg::Prototype.tr(lang)).color(ACCENT));
+                    ui.label(egui::RichText::new(Msg::Prototype.tr(lang)).color(ui_accent()));
                 });
             });
         });
@@ -234,7 +232,7 @@ impl GerberUi {
             }
         });
         if self.scene.truncated {
-            ui.label(egui::RichText::new(GerberText::Truncated.tr(lang)).color(DANGER));
+            ui.label(egui::RichText::new(GerberText::Truncated.tr(lang)).color(ui_danger()));
         }
         let mut action = None;
         // the layer drawn last is the first of the list
@@ -258,7 +256,7 @@ impl GerberUi {
                 });
                 ui.label(dim(row.details.as_str()));
                 if let Some(problem) = &row.problem {
-                    ui.label(egui::RichText::new(problem.as_str()).color(DANGER));
+                    ui.label(egui::RichText::new(problem.as_str()).color(ui_danger()));
                 }
                 if row.drawable {
                     let mut opacity = row.opacity;
@@ -319,10 +317,12 @@ impl GerberUi {
                         diff.name,
                         GerberText::Identical.tr(lang)
                     ))
-                    .color(OK),
+                    .color(ui_ok()),
                 );
             } else {
-                ui.label(egui::RichText::new(format!("{title} ({})", diff.name)).color(DANGER));
+                ui.label(
+                    egui::RichText::new(format!("{title} ({})", diff.name)).color(ui_danger()),
+                );
                 ui.label(dim(format!(
                     "  {}: {:.3} mm² · {}: {:.3} mm² · {} {:.3}",
                     GerberText::OnlyFiles.tr(lang),
@@ -495,7 +495,7 @@ impl GerberUi {
                 egui::Align2::LEFT_BOTTOM,
                 format!("x {:.3}  y {:.3} mm", p.x, p.y),
                 egui::FontId::proportional(13.0),
-                DIM,
+                ui_dim(),
             );
         }
     }

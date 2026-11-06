@@ -75,6 +75,24 @@
 //!   plan and the layers of a board and a panel as pages for `eh3d-phoenix-print`, the export of the
 //!   open document to SVG and PDF in a place that is new, and the texts of the button in the eight
 //!   languages (the controls are in `print_gui`, behind the `gui` feature);
+//! * [`search_index`]: the search of components by reference, value or footprint, nets by name and
+//!   pads or pins by `U1.5`, the list of results that the keys walk through and the selection and
+//!   the zoom that a result asks for, also over the components of the 3D window;
+//! * [`measure_set`]: several measures of distance and angle, the unit of the readings (millimetres
+//!   or mils) and the snap of a click to the pads, the ends of the tracks and the corners;
+//! * [`layer_presets`]: layer presets saved with a name (which layers are shown, their order and
+//!   their opacity), the view of only the active layer and the highlight of the net of the selection;
+//! * [`keymap`]: the table from action to keys, read from the settings with the clashes refused,
+//!   from which the list of shortcuts of the window is made;
+//! * [`history_view`]: the steps that were done and the ones that were undone as a list with a
+//!   description of each, and the undos or redos it takes to go to a step;
+//! * [`appearance`]: the theme (dark, light or high contrast), the scale of the interface, the size
+//!   of the letters and the contrast between two colours;
+//! * [`prefs`]: the preferences that the window remembers between runs, read strictly and written
+//!   to a side file that is renamed over the old one (the window of these parts is in `window_gui`,
+//!   behind the `gui` feature);
+//! * [`help_text`] and [`window_text`]: the help of each mode and the texts of these parts in the
+//!   eight languages;
 //! * [`settings`], [`codes`], [`msg`] and [`editmsg`]: the settings file, the codes
 //!   `PHOENIX-VIEW-<NNN>` and the texts in the eight languages.
 //!
@@ -85,6 +103,7 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
+pub mod appearance;
 pub mod bench;
 #[cfg(feature = "gui")]
 pub mod board_gui;
@@ -111,22 +130,28 @@ pub mod gerber_text;
 pub mod grid;
 #[cfg(feature = "gui")]
 pub mod gui;
+pub mod help_text;
+pub mod history_view;
+pub mod keymap;
 #[cfg(feature = "gui")]
 pub mod launcher_gui;
 pub mod launcher_recent;
 pub mod launcher_session;
 pub mod launcher_text;
+pub mod layer_presets;
 #[cfg(feature = "gui")]
 pub mod library_gui;
 pub mod library_session;
 pub mod library_text;
 pub mod load;
 pub mod measure;
+pub mod measure_set;
 pub mod msg;
 #[cfg(feature = "gui")]
 pub mod panel_gui;
 pub mod panel_scene;
 pub mod panel_text;
+pub mod prefs;
 pub mod prim;
 pub mod print_export;
 #[cfg(feature = "gui")]
@@ -148,6 +173,7 @@ pub mod schematic_hier_gui;
 pub mod schematic_hier_text;
 pub mod schematic_sync;
 pub mod schematic_text;
+pub mod search_index;
 pub mod session;
 pub mod settings;
 pub mod view;
@@ -156,6 +182,9 @@ pub mod view3d;
 pub mod view3d_gui;
 pub mod view3d_text;
 pub mod viewer;
+#[cfg(feature = "gui")]
+pub mod window_gui;
+pub mod window_text;
 pub mod workspace;
 
 pub use codes::{ViewError, REGISTRY};

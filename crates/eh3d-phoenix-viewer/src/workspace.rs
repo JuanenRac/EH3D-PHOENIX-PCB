@@ -441,6 +441,14 @@ impl Workspace {
         }
     }
 
+    /// The steps of the history of the document, for the list of the window: at most `max` of them.
+    pub fn history_view(&self, lang: Lang, max: usize) -> crate::history_view::HistoryView {
+        match &self.doc {
+            Doc::Board(s) => crate::history_view::HistoryView::of_board(s, lang, max),
+            Doc::Schematic(s) => crate::history_view::HistoryView::of_schematic(s, lang, max),
+        }
+    }
+
     /// True when there is something to redo.
     pub fn can_redo(&self) -> bool {
         match &self.doc {
@@ -681,6 +689,10 @@ impl Workspace {
     /// A click at a pixel with the active tool.
     pub fn click(&mut self, sx: f64, sy: f64) {
         let tool = self.viewer.tool;
+        if tool == Tool::Measure {
+            self.viewer.measure_click(sx, sy);
+            return;
+        }
         if !tool.edits() {
             self.viewer.click(sx, sy);
             return;
@@ -1913,5 +1925,44 @@ mod tests {
         w.run_erc();
         let mut b = board_workspace();
         assert!(!b.open_companion(&path));
+    }
+
+    #[test]
+    fn the_measure_tool_of_the_workspace_snaps_to_the_pads_and_keeps_the_measures() {
+        let mut w = board_workspace();
+        assert!(w.shortcut(Shortcut::plain(Key::M)));
+        click_at(&mut w, 11.6, 10.1);
+        let a = w.viewer.measure.a.unwrap();
+        assert!((a.x - 11.5).abs() < 1e-9 && (a.y - 10.0).abs() < 1e-9);
+        click_at(&mut w, 8.55, 10.05);
+        let b = w.viewer.measure.b.unwrap();
+        assert!((b.x - 8.5).abs() < 1e-6 && (b.y - 10.0).abs() < 1e-6);
+        assert!(w.viewer.measures.is_empty());
+        // the third click keeps the measure and starts another
+        click_at(&mut w, 20.0, 5.0);
+        assert_eq!(w.viewer.measures.len(), 1);
+        assert!(w.viewer.measure.b.is_none());
+        assert_eq!(w.viewer.readings().len(), 1);
+    }
+
+    #[test]
+    fn the_history_of_a_board_is_listed_from_the_workspace() {
+        let mut w = board_workspace();
+        assert!(w.history_view(Lang::En, 10).rows.is_empty());
+        w.set_tool(Tool::MoveComponent);
+        assert!(drag(&mut w, (11.5, 10.0), (13.52, 10.01)));
+        let view = w.history_view(Lang::En, 10);
+        assert_eq!(view.rows.len(), 1);
+        assert_eq!(view.rows[0].label, "Move R1");
+        assert_eq!(view.done_count(), 1);
+        assert!(w.undo());
+        let view = w.history_view(Lang::Es, 10);
+        assert_eq!(view.done_count(), 0);
+        assert_eq!(view.rows.len(), 1);
+        assert!(!view.rows[0].done);
+        assert_eq!(view.rows[0].label, "Mover R1");
+        // a schematic lists nothing before its first package
+        let schematic = schematic_workspace();
+        assert!(schematic.history_view(Lang::En, 10).rows.is_empty());
     }
 }

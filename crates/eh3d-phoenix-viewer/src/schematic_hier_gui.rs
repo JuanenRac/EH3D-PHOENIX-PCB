@@ -9,11 +9,10 @@ use eh3d_phoenix_rules::Lang;
 use eh3d_phoenix_schedit::SchEdit;
 use eh3d_phoenix_schematic::{Id, Schematic};
 
+use crate::gui::{ui_accent, ui_dim};
 use crate::schematic_hier::{marks, tabs, MarkKind, Navigation};
 use crate::schematic_hier_text::HierMsg;
 
-const ACCENT: Color32 = Color32::from_rgb(0xff, 0xb0, 0x00);
-const DIM: Color32 = Color32::from_rgb(0x9c, 0x8d, 0x7a);
 const BLOCK: Color32 = Color32::from_rgb(0xc2, 0x8b, 0xff);
 const PIN: Color32 = Color32::from_rgb(0xff, 0xb0, 0x00);
 const PORT: Color32 = Color32::from_rgb(0x6e, 0xc8, 0xff);
@@ -33,7 +32,7 @@ pub fn tabs_section(
         ui.label(
             egui::RichText::new(HierMsg::Sheets.tr(lang))
                 .strong()
-                .color(ACCENT),
+                .color(ui_accent()),
         );
         let current = edit.sheet();
         let mut picked: Option<Id> = None;
@@ -68,7 +67,7 @@ pub fn tabs_section(
         }
     }
     if !edit.schematic().sheet_blocks.is_empty() {
-        ui.label(egui::RichText::new(HierMsg::HintEnter.tr(lang)).color(DIM));
+        ui.label(egui::RichText::new(HierMsg::HintEnter.tr(lang)).color(ui_dim()));
     }
     changed
 }

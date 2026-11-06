@@ -18,13 +18,10 @@ use crate::board_shove::ShoveTool;
 use crate::board_text::BoardMsg;
 use crate::board_zone::ZoneTool;
 use crate::editmsg::EditMsg;
+use crate::gui::{ui_accent, ui_danger, ui_dim, ui_text};
 use crate::workspace::Workspace;
 
 // the colours of the theme Forge, as in the window of the viewer
-const TEXT: Color32 = Color32::from_rgb(0xf4, 0xec, 0xe0);
-const DIM: Color32 = Color32::from_rgb(0x9c, 0x8d, 0x7a);
-const ACCENT: Color32 = Color32::from_rgb(0xff, 0xb0, 0x00);
-const DANGER: Color32 = Color32::from_rgb(0xff, 0x54, 0x70);
 const TOP_COPPER: Color32 = Color32::from_rgb(0xd8, 0x4a, 0x4a);
 const BOTTOM_COPPER: Color32 = Color32::from_rgb(0x4a, 0x7a, 0xd8);
 const INNER_COPPER: Color32 = Color32::from_rgb(0x9b, 0xe3, 0x4a);
@@ -99,11 +96,11 @@ fn point_at(x_mm: f64, y_mm: f64) -> Option<Point> {
 }
 
 fn heading(text: &str) -> egui::RichText {
-    egui::RichText::new(text).strong().color(ACCENT)
+    egui::RichText::new(text).strong().color(ui_accent())
 }
 
 fn dim(text: impl Into<String>) -> egui::RichText {
-    egui::RichText::new(text.into()).color(DIM)
+    egui::RichText::new(text.into()).color(ui_dim())
 }
 
 /// The settings of the editor: `config/boardedit.cfg` when it is there and good, else the built-in
@@ -416,10 +413,10 @@ pub fn canvas(
         let path = st.state.route_preview(at);
         if path.len() >= 2 {
             let points: Vec<Pos2> = path.iter().map(|p| view.at(*p)).collect();
-            painter.add(egui::Shape::line(points, Stroke::new(1.5, ACCENT)));
+            painter.add(egui::Shape::line(points, Stroke::new(1.5, ui_accent())));
         }
         let target = st.state.snap(at);
-        painter.circle_stroke(view.at(target), 5.0, Stroke::new(1.0, ACCENT));
+        painter.circle_stroke(view.at(target), 5.0, Stroke::new(1.0, ui_accent()));
     }
     crate::board_pair_gui::draw(&painter, &st.pair, &|p: Point| view.at(p));
     crate::board_shove_gui::draw(&painter, &st.shove, &|p: Point| view.at(p));
@@ -431,7 +428,10 @@ pub fn canvas(
             view.xy(mm(b.x_nm.get()), mm(b.y_nm.get())),
             view.xy(mm(a.x_nm.get()), mm(b.y_nm.get())),
         ];
-        painter.add(egui::Shape::closed_line(corners, Stroke::new(1.0, ACCENT)));
+        painter.add(egui::Shape::closed_line(
+            corners,
+            Stroke::new(1.0, ui_accent()),
+        ));
     }
     let hint = match st.state.tool {
         Tool::Select => BoardMsg::HintSelect,
@@ -446,7 +446,7 @@ pub fn canvas(
         egui::Align2::LEFT_BOTTOM,
         hint.tr(lang),
         egui::FontId::proportional(13.0),
-        DIM,
+        ui_dim(),
     );
 }
 
@@ -479,7 +479,10 @@ fn draw_board(
 ) {
     if !board.outline.is_empty() {
         let corners: Vec<Pos2> = board.outline.iter().map(|p| view.at(*p)).collect();
-        painter.add(egui::Shape::closed_line(corners, Stroke::new(1.0, DIM)));
+        painter.add(egui::Shape::closed_line(
+            corners,
+            Stroke::new(1.0, ui_dim()),
+        ));
     }
     let step = mm(grid_nm);
     if step > 0.0 && step * view.scale >= 6.0 {
@@ -512,7 +515,7 @@ fn draw_board(
         let selected = st.selection.contains(&Picked::Track(*id));
         let lit = st.highlight_net == Some(track.net);
         let colour = if selected || lit {
-            ACCENT
+            ui_accent()
         } else {
             copper_colour(board, track.layer)
         };
@@ -528,20 +531,20 @@ fn draw_board(
     for (id, via) in &board.vias {
         let selected = st.selection.contains(&Picked::Via(*id));
         let lit = st.highlight_net == Some(via.net);
-        let colour = if selected || lit { ACCENT } else { PAD };
+        let colour = if selected || lit { ui_accent() } else { PAD };
         let radius = ((mm(via.diameter.get()) * view.scale / 2.0) as f32).max(2.0);
         painter.circle_filled(view.at(via.at), radius, colour);
         let hole = ((mm(via.drill.get()) * view.scale / 2.0) as f32).max(1.0);
-        painter.circle_stroke(view.at(via.at), hole, Stroke::new(1.0, DIM));
+        painter.circle_stroke(view.at(via.at), hole, Stroke::new(1.0, ui_dim()));
     }
     let text_shown = view.scale >= 6.0;
     for (cid, component) in &board.components {
         let selected = st.selection.contains(&Picked::Component(*cid));
         let locked = st.edit.is_locked(*cid);
         let colour = if selected {
-            ACCENT
+            ui_accent()
         } else if locked {
-            DANGER
+            ui_danger()
         } else {
             PAD
         };
@@ -559,7 +562,7 @@ fn draw_board(
                 let lit = board
                     .net_of(pad_ref)
                     .is_some_and(|net| st.highlight_net == Some(net));
-                let fill = if lit { ACCENT } else { colour };
+                let fill = if lit { ui_accent() } else { colour };
                 let (w, h) = pad_size_mm(pad.shape);
                 let (w, h) = if turned { (h, w) } else { (w, h) };
                 match pad.shape {
@@ -586,7 +589,7 @@ fn draw_board(
                 egui::Align2::CENTER_BOTTOM,
                 &component.refdes,
                 egui::FontId::proportional((view.scale * 1.6).clamp(7.0, 16.0) as f32),
-                if selected { ACCENT } else { TEXT },
+                if selected { ui_accent() } else { ui_text() },
             );
         }
     }
@@ -739,7 +742,7 @@ pub fn tools_panel(ui: &mut egui::Ui, st: &mut BoardEditUi, lang: Lang) -> bool 
                 BoardMsg::Refused.tr(lang),
                 error.message(lang)
             ))
-            .color(DANGER),
+            .color(ui_danger()),
         );
     }
     ui.label(dim(BoardMsg::KeysHint.tr(lang)));

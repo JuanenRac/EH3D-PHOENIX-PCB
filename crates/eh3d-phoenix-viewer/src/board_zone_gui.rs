@@ -13,9 +13,8 @@ use eh3d_phoenix_rules::Lang;
 use crate::board_shove::ShoveTool;
 use crate::board_zone::{ZoneMode, ZoneTool};
 use crate::board_zone_text::ZoneMsg;
+use crate::gui::{ui_accent, ui_dim};
 
-const ACCENT: Color32 = Color32::from_rgb(0xff, 0xb0, 0x00);
-const DIM: Color32 = Color32::from_rgb(0x9c, 0x8d, 0x7a);
 const FILLED: Color32 = Color32::from_rgb(0x5f, 0xd0, 0xb0);
 const HOLE: Color32 = Color32::from_rgb(0xff, 0x54, 0x70);
 
@@ -39,7 +38,7 @@ pub fn draw(painter: &egui::Painter, tool: &ZoneTool, to_screen: &dyn Fn(Point) 
         return;
     }
     let colour = match tool.mode {
-        ZoneMode::Outline => ACCENT,
+        ZoneMode::Outline => ui_accent(),
         ZoneMode::Cutout => HOLE,
     };
     let points: Vec<Pos2> = tool.points.iter().map(|p| to_screen(*p)).collect();
@@ -64,11 +63,11 @@ pub fn panel(ui: &mut egui::Ui, tool: &mut ZoneTool, state: &mut EditState, lang
     }
     let nets = ShoveTool::nets(state);
     if nets.is_empty() {
-        ui.label(egui::RichText::new(ZoneMsg::NoNets.tr(lang)).color(DIM));
+        ui.label(egui::RichText::new(ZoneMsg::NoNets.tr(lang)).color(ui_dim()));
     } else {
         let mut chosen = tool.net_index.min(nets.len() - 1);
         ui.horizontal(|ui| {
-            ui.label(egui::RichText::new(ZoneMsg::NetLabel.tr(lang)).color(DIM));
+            ui.label(egui::RichText::new(ZoneMsg::NetLabel.tr(lang)).color(ui_dim()));
             egui::ComboBox::from_id_salt("board-zone")
                 .selected_text(nets[chosen].1.clone())
                 .show_ui(ui, |ui| {
@@ -80,7 +79,7 @@ pub fn panel(ui: &mut egui::Ui, tool: &mut ZoneTool, state: &mut EditState, lang
         tool.net_index = chosen;
     }
     ui.horizontal(|ui| {
-        ui.label(egui::RichText::new(ZoneMsg::Priority.tr(lang)).color(DIM));
+        ui.label(egui::RichText::new(ZoneMsg::Priority.tr(lang)).color(ui_dim()));
         ui.add(egui::DragValue::new(&mut tool.priority).range(-100..=100));
     });
     let mut cutout = tool.mode == ZoneMode::Cutout;
@@ -101,7 +100,7 @@ pub fn panel(ui: &mut egui::Ui, tool: &mut ZoneTool, state: &mut EditState, lang
             ZoneMsg::Points.tr(lang),
             ZoneMsg::Hint.tr(lang)
         ))
-        .color(DIM),
+        .color(ui_dim()),
     );
     ui.horizontal_wrapped(|ui| {
         if ui.button(ZoneMsg::Close.tr(lang)).clicked() {
@@ -146,7 +145,7 @@ pub fn panel(ui: &mut egui::Ui, tool: &mut ZoneTool, state: &mut EditState, lang
     if rows.is_empty() {
         return;
     }
-    ui.label(egui::RichText::new(ZoneMsg::Order.tr(lang)).color(DIM));
+    ui.label(egui::RichText::new(ZoneMsg::Order.tr(lang)).color(ui_dim()));
     for row in rows {
         let mut text = format!("{} · {} · {}", row.priority, row.net, row.layer);
         if !row.filled {
@@ -176,6 +175,6 @@ pub fn panel(ui: &mut egui::Ui, tool: &mut ZoneTool, state: &mut EditState, lang
         }
     }
     for line in ZoneTool::issue_lines(state, lang).iter().take(4) {
-        ui.label(egui::RichText::new(line.as_str()).color(DIM));
+        ui.label(egui::RichText::new(line.as_str()).color(ui_dim()));
     }
 }

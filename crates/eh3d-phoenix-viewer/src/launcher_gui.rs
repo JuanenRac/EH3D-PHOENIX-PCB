@@ -7,7 +7,7 @@
 use eframe::egui;
 use eh3d_phoenix_rules::Lang;
 
-use crate::gui::{ACCENT, DANGER, DIM};
+use crate::gui::{ui_accent, ui_danger, ui_dim};
 use crate::launcher_session::{kind_text, Launch, Launcher};
 use crate::launcher_text::LauncherText;
 use crate::msg::Msg;
@@ -29,12 +29,12 @@ pub fn show(
             egui::RichText::new("EH3D-PHOENIX-PCB")
                 .strong()
                 .size(30.0)
-                .color(ACCENT),
+                .color(ui_accent()),
         );
         ui.label(egui::RichText::new(LauncherText::Welcome.tr(lang)).size(18.0));
         ui.add_space(16.0);
 
-        ui.label(egui::RichText::new(LauncherText::TypePath.tr(lang)).color(DIM));
+        ui.label(egui::RichText::new(LauncherText::TypePath.tr(lang)).color(ui_dim()));
         ui.horizontal(|ui| {
             let edit = egui::TextEdit::singleline(&mut launcher.typed).desired_width(440.0);
             let response = ui.add(edit);
@@ -71,11 +71,11 @@ pub fn show(
                 launch = Some(Launch::NewLibrary);
             }
         });
-        ui.label(egui::RichText::new(LauncherText::DropHere.tr(lang)).color(DIM));
-        ui.label(egui::RichText::new(LauncherText::GerberHint.tr(lang)).color(DIM));
-        ui.label(egui::RichText::new(PanelText::Hint.tr(lang)).color(DIM));
+        ui.label(egui::RichText::new(LauncherText::DropHere.tr(lang)).color(ui_dim()));
+        ui.label(egui::RichText::new(LauncherText::GerberHint.tr(lang)).color(ui_dim()));
+        ui.label(egui::RichText::new(PanelText::Hint.tr(lang)).color(ui_dim()));
         if let Some(text) = *note {
-            ui.label(egui::RichText::new(text.tr(lang)).color(DANGER));
+            ui.label(egui::RichText::new(text.tr(lang)).color(ui_danger()));
         }
 
         ui.add_space(18.0);
@@ -83,11 +83,11 @@ pub fn show(
         ui.label(
             egui::RichText::new(LauncherText::Recent.tr(lang))
                 .strong()
-                .color(ACCENT),
+                .color(ui_accent()),
         );
         let rows = launcher.rows(&|path| path.exists());
         if rows.is_empty() {
-            ui.label(egui::RichText::new(LauncherText::NoRecent.tr(lang)).color(DIM));
+            ui.label(egui::RichText::new(LauncherText::NoRecent.tr(lang)).color(ui_dim()));
         }
         let mut forget = None;
         for row in &rows {
@@ -101,11 +101,13 @@ pub fn show(
                         launch = Some(Launch::Open(row.path.clone()));
                     }
                     if let Some(kind) = row.kind {
-                        ui.label(egui::RichText::new(kind_text(kind).tr(lang)).color(ACCENT));
+                        ui.label(egui::RichText::new(kind_text(kind).tr(lang)).color(ui_accent()));
                     }
-                    ui.label(egui::RichText::new(row.folder.as_str()).color(DIM));
+                    ui.label(egui::RichText::new(row.folder.as_str()).color(ui_dim()));
                     if !row.exists {
-                        ui.label(egui::RichText::new(LauncherText::Missing.tr(lang)).color(DANGER));
+                        ui.label(
+                            egui::RichText::new(LauncherText::Missing.tr(lang)).color(ui_danger()),
+                        );
                     }
                     if ui.small_button(LauncherText::Forget.tr(lang)).clicked() {
                         forget = Some(row.index);
@@ -124,7 +126,7 @@ pub fn show(
             launcher.clear();
         }
         if launcher.save_failed {
-            ui.label(egui::RichText::new(LauncherText::SaveFailed.tr(lang)).color(DANGER));
+            ui.label(egui::RichText::new(LauncherText::SaveFailed.tr(lang)).color(ui_danger()));
         }
     });
     launch

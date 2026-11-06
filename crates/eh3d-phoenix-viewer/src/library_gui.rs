@@ -19,17 +19,13 @@ use eh3d_phoenix_libedit::{LibSettings, Severity};
 use eh3d_phoenix_rules::Lang;
 
 use crate::editmsg::EditMsg;
+use crate::gui::{ui_accent, ui_danger, ui_dim, ui_ok, ui_text};
 use crate::library_session::{LibShape, LibTool, LibView, LibrarySession};
 use crate::library_text::LibText;
 use crate::msg::Msg;
 
 // the colours of the theme Forge, the same as the rest of the window
 const BACKGROUND: Color32 = Color32::from_rgb(0x0f, 0x0c, 0x0a);
-const TEXT: Color32 = Color32::from_rgb(0xf4, 0xec, 0xe0);
-const DIM: Color32 = Color32::from_rgb(0x9c, 0x8d, 0x7a);
-const ACCENT: Color32 = Color32::from_rgb(0xff, 0xb0, 0x00);
-const OK: Color32 = Color32::from_rgb(0x9b, 0xe3, 0x4a);
-const DANGER: Color32 = Color32::from_rgb(0xff, 0x54, 0x70);
 const GRID: Color32 = Color32::from_rgb(0x3a, 0x30, 0x27);
 const AXES: Color32 = Color32::from_rgb(0x6a, 0x5a, 0x48);
 const MEASURE: Color32 = Color32::from_rgb(0x4a, 0xc8, 0xff);
@@ -40,11 +36,11 @@ const MAX_FINDINGS_SHOWN: usize = 300;
 const MAX_GRID_POINTS: i64 = 40_000;
 
 fn heading(text: &str) -> egui::RichText {
-    egui::RichText::new(text).strong().color(ACCENT)
+    egui::RichText::new(text).strong().color(ui_accent())
 }
 
 fn dim(text: impl Into<String>) -> egui::RichText {
-    egui::RichText::new(text.into()).color(DIM)
+    egui::RichText::new(text.into()).color(ui_dim())
 }
 
 /// The colour a layer is drawn in.
@@ -223,7 +219,7 @@ fn left_panel(
                         }
                     });
                     if s.dirty() {
-                        ui.label(egui::RichText::new(LibText::Unsaved.tr(lang)).color(DANGER));
+                        ui.label(egui::RichText::new(LibText::Unsaved.tr(lang)).color(ui_danger()));
                     }
                 });
                 ui.separator();
@@ -961,7 +957,7 @@ fn variants_section(
 fn findings(ui: &mut egui::Ui, s: &mut LibrarySession, lang: Lang) {
     ui.label(heading(LibText::Findings.tr(lang)));
     if s.report.findings.is_empty() {
-        ui.label(egui::RichText::new(LibText::NoFindings.tr(lang)).color(OK));
+        ui.label(egui::RichText::new(LibText::NoFindings.tr(lang)).color(ui_ok()));
         return;
     }
     ui.label(dim(format!(
@@ -983,9 +979,9 @@ fn findings(ui: &mut egui::Ui, s: &mut LibrarySession, lang: Lang) {
                     go = Some((kind_of(f.kind), f.name.clone()));
                 }
                 let colour = if f.severity == Severity::Error {
-                    DANGER
+                    ui_danger()
                 } else {
-                    ACCENT
+                    ui_accent()
                 };
                 let mut line = format!("{} {}: {}", f.code, f.name, title(f.code, lang));
                 if !f.detail.is_empty() {
@@ -1004,9 +1000,13 @@ fn bottom_panel(ui: &mut egui::Ui, s: &LibrarySession, error: Option<&LibError>,
     egui::Panel::bottom("library_status").show(ui, |ui| {
         ui.horizontal(|ui| {
             if let Some(e) = error {
-                ui.label(egui::RichText::new(e.message(lang)).color(DANGER));
+                ui.label(egui::RichText::new(e.message(lang)).color(ui_danger()));
             } else if let Some(note) = &s.note {
-                let colour = if note.is_error() { DANGER } else { ACCENT };
+                let colour = if note.is_error() {
+                    ui_danger()
+                } else {
+                    ui_accent()
+                };
                 ui.label(egui::RichText::new(note.text(lang)).color(colour));
             }
             if let Some((x, y)) = s.cursor {
@@ -1023,7 +1023,7 @@ fn bottom_panel(ui: &mut egui::Ui, s: &LibrarySession, error: Option<&LibError>,
                 );
             }
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                ui.label(egui::RichText::new(LibText::Title.tr(lang)).color(ACCENT));
+                ui.label(egui::RichText::new(LibText::Title.tr(lang)).color(ui_accent()));
             });
         });
     });
@@ -1072,7 +1072,7 @@ fn canvas(ui: &mut egui::Ui, s: &mut LibrarySession, tool_drag: &mut bool, lang:
                 egui::Align2::CENTER_CENTER,
                 LibText::NoteNoEntity.tr(lang),
                 egui::FontId::proportional(18.0),
-                DIM,
+                ui_dim(),
             );
             return;
         }
@@ -1193,11 +1193,11 @@ fn paint(s: &LibrarySession, painter: &egui::Painter, rect: Rect) {
         let a = pos(&view, rect, first.0 as f64 / 1e6, first.1 as f64 / 1e6);
         let b = pos(&view, rect, cursor.0 as f64 / 1e6, cursor.1 as f64 / 1e6);
         if s.tool == LibTool::Circle {
-            painter.circle_stroke(a, a.distance(b), Stroke::new(1.0, ACCENT));
+            painter.circle_stroke(a, a.distance(b), Stroke::new(1.0, ui_accent()));
         } else {
-            painter.line_segment([a, b], Stroke::new(1.0, ACCENT));
+            painter.line_segment([a, b], Stroke::new(1.0, ui_accent()));
         }
-        painter.circle_filled(a, 3.0, ACCENT);
+        painter.circle_filled(a, 3.0, ui_accent());
     }
     // the measure, over everything
     if let Some(a) = s.measure[0] {
@@ -1254,12 +1254,16 @@ fn paint_shape(
     let scale = view.scale;
     let at = |p: (f64, f64)| pos(view, rect, p.0, p.1);
     let px = |mm: f64| (mm * scale) as f32;
-    let outline = if marked { ACCENT } else { TEXT };
+    let outline = if marked { ui_accent() } else { ui_text() };
     match shape {
         LibShape::Line {
             a, b, width, layer, ..
         } => {
-            let colour = if marked { ACCENT } else { layer_colour(*layer) };
+            let colour = if marked {
+                ui_accent()
+            } else {
+                layer_colour(*layer)
+            };
             let w = px(*width).max(if marked { 2.0 } else { 1.0 });
             painter.line_segment([at(*a), at(*b)], Stroke::new(w, colour));
             if w > 2.0 {
@@ -1275,7 +1279,11 @@ fn paint_shape(
             layer,
             ..
         } => {
-            let colour = if marked { ACCENT } else { layer_colour(*layer) };
+            let colour = if marked {
+                ui_accent()
+            } else {
+                layer_colour(*layer)
+            };
             let line: Vec<Pos2> = points.iter().map(|p| at(*p)).collect();
             if *filled {
                 fill_convex(painter, &line, colour);
@@ -1299,7 +1307,11 @@ fn paint_shape(
             layer,
             ..
         } => {
-            let colour = if marked { ACCENT } else { layer_colour(*layer) };
+            let colour = if marked {
+                ui_accent()
+            } else {
+                layer_colour(*layer)
+            };
             if *filled {
                 painter.circle_filled(at(*c), px(*r).max(0.6), colour);
             } else {
@@ -1325,7 +1337,7 @@ fn paint_shape(
                         painter.circle_stroke(
                             at((cx, cy)),
                             px(r).max(1.0),
-                            Stroke::new(2.0, ACCENT),
+                            Stroke::new(2.0, ui_accent()),
                         );
                     }
                     (cx, cy)
@@ -1337,7 +1349,7 @@ fn paint_shape(
                     if marked {
                         painter.add(egui::Shape::closed_line(
                             vec![a, Pos2::new(b.x, a.y), b, Pos2::new(a.x, b.y)],
-                            Stroke::new(2.0, ACCENT),
+                            Stroke::new(2.0, ui_accent()),
                         ));
                     }
                     (cx, cy)
@@ -1363,7 +1375,11 @@ fn paint_shape(
             layer,
             ..
         } => {
-            let colour = if marked { ACCENT } else { layer_colour(*layer) };
+            let colour = if marked {
+                ui_accent()
+            } else {
+                layer_colour(*layer)
+            };
             painter.text(
                 at(*origin),
                 egui::Align2::LEFT_BOTTOM,
@@ -1373,7 +1389,11 @@ fn paint_shape(
             );
         }
         LibShape::Pin { from, to, name, .. } => {
-            let colour = if marked { ACCENT } else { layer_colour(94) };
+            let colour = if marked {
+                ui_accent()
+            } else {
+                layer_colour(94)
+            };
             painter.line_segment(
                 [at(*from), at(*to)],
                 Stroke::new(if marked { 2.5 } else { 1.5 }, colour),
@@ -1385,7 +1405,7 @@ fn paint_shape(
                     egui::Align2::CENTER_BOTTOM,
                     name,
                     egui::FontId::proportional(11.0),
-                    TEXT,
+                    ui_text(),
                 );
             }
         }

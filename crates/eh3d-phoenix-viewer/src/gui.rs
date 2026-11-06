@@ -10,11 +10,14 @@ use eframe::egui::{self, Color32, FontData, FontDefinitions, FontFamily, Pos2, R
 use eh3d_phoenix_route::{Mode, RouteSettings};
 use eh3d_phoenix_rules::Lang;
 
+use crate::appearance;
 use crate::board_gui::{self, BoardEditUi};
 use crate::board_text::BoardMsg;
 use crate::codes::{ViewError, FILE_UNUSABLE, WINDOW_FAILED};
 use crate::editmsg::EditMsg;
 use crate::gerber_gui::GerberUi;
+use crate::help_text::HelpMode;
+use crate::keymap::Action;
 use crate::launcher_gui;
 use crate::launcher_session::{Launch, Launcher};
 use crate::launcher_text::LauncherText;
@@ -32,43 +35,33 @@ use crate::settings::ViewerSettings;
 use crate::view3d_gui::View3dUi;
 use crate::view3d_text::View3dText;
 use crate::viewer::Tool;
-use crate::workspace::{erc_line, finding_line, suggested_save_path, Key, Shortcut, Workspace};
-
-// the colours of the theme Forge, the one the programs of the suite start with: amber on charcoal
-const PANEL: Color32 = Color32::from_rgb(0x17, 0x13, 0x10);
-const RAISED: Color32 = Color32::from_rgb(0x22, 0x1c, 0x17);
-const TEXT: Color32 = Color32::from_rgb(0xf4, 0xec, 0xe0);
-pub(crate) const DIM: Color32 = Color32::from_rgb(0x9c, 0x8d, 0x7a);
-pub(crate) const ACCENT: Color32 = Color32::from_rgb(0xff, 0xb0, 0x00);
-const OK: Color32 = Color32::from_rgb(0x9b, 0xe3, 0x4a);
-pub(crate) const DANGER: Color32 = Color32::from_rgb(0xff, 0x54, 0x70);
-
-/// The keys of the toolkit that the editing answers to and what they mean. The plus sign is the
-/// key of the equals sign on many keyboards, so both are taken.
-const KEYS: [(egui::Key, Key); 19] = [
-    (egui::Key::Z, Key::Z),
-    (egui::Key::Y, Key::Y),
-    (egui::Key::S, Key::S),
-    (egui::Key::R, Key::R),
-    (egui::Key::V, Key::V),
-    (egui::Key::M, Key::M),
-    (egui::Key::G, Key::G),
-    (egui::Key::O, Key::O),
-    (egui::Key::D, Key::D),
-    (egui::Key::E, Key::E),
-    (egui::Key::W, Key::W),
-    (egui::Key::I, Key::I),
-    (egui::Key::T, Key::T),
-    (egui::Key::F, Key::F),
-    (egui::Key::Delete, Key::Delete),
-    (egui::Key::Escape, Key::Escape),
-    (egui::Key::Plus, Key::Plus),
-    (egui::Key::Equals, Key::Plus),
-    (egui::Key::Minus, Key::Minus),
-];
+use crate::window_gui::{self, FrameContext, WindowUi};
+use crate::workspace::{erc_line, finding_line, suggested_save_path, Workspace};
 
 fn rgba(c: [u8; 4]) -> Color32 {
     Color32::from_rgba_unmultiplied(c[0], c[1], c[2], c[3])
+}
+
+// the colours of the controls in the theme in use (amber on charcoal in the dark one, which the
+// programs of the suite start with); they change when the person chooses another theme
+pub(crate) fn ui_text() -> Color32 {
+    rgba(appearance::current().text)
+}
+
+pub(crate) fn ui_dim() -> Color32 {
+    rgba(appearance::current().dim)
+}
+
+pub(crate) fn ui_accent() -> Color32 {
+    rgba(appearance::current().accent)
+}
+
+pub(crate) fn ui_ok() -> Color32 {
+    rgba(appearance::current().ok)
+}
+
+pub(crate) fn ui_danger() -> Color32 {
+    rgba(appearance::current().danger)
 }
 
 fn language_name(lang: Lang) -> &'static str {
@@ -85,28 +78,11 @@ fn language_name(lang: Lang) -> &'static str {
 }
 
 fn heading(text: &str) -> egui::RichText {
-    egui::RichText::new(text).strong().color(ACCENT)
+    egui::RichText::new(text).strong().color(ui_accent())
 }
 
 fn dim(text: impl Into<String>) -> egui::RichText {
-    egui::RichText::new(text.into()).color(DIM)
-}
-
-/// The keys pressed in this frame, unless a text box has the keyboard.
-fn shortcuts(ctx: &egui::Context) -> Vec<Shortcut> {
-    if ctx.egui_wants_keyboard_input() {
-        return Vec::new();
-    }
-    ctx.input(|i| {
-        KEYS.iter()
-            .filter(|(pressed, _)| i.key_pressed(*pressed))
-            .map(|(_, key)| Shortcut {
-                key: *key,
-                ctrl: i.modifiers.command,
-                shift: i.modifiers.shift,
-            })
-            .collect()
-    })
+    egui::RichText::new(text.into()).color(ui_dim())
 }
 
 struct App {
@@ -144,10 +120,15 @@ struct App {
     models_text: String,
     /// The controls that export the open document as SVG or PDF.
     print: PrintUi,
+    /// The search, the measures, the layers, the history, the appearance, the shortcuts, the help
+    /// and the preferences that are remembered.
+    win: WindowUi,
+    /// The actions whose keys were pressed in this frame.
+    actions: Vec<Action>,
 }
 
 impl App {
-    fn new(lang: Lang, settings: ViewerSettings, initial: Option<PathBuf>) -> App {
+    fn new(lang: Lang, settings: ViewerSettings, win: WindowUi, initial: Option<PathBuf>) -> App {
         let mut app = App {
             lang,
             settings: settings.clone(),
@@ -172,6 +153,8 @@ impl App {
             panel: None,
             models_text: String::new(),
             print: PrintUi::new(),
+            win,
+            actions: Vec::new(),
         };
         if let Some(path) = initial {
             app.path_text = path.to_string_lossy().into_owned();
@@ -203,6 +186,9 @@ impl App {
                 self.lib.close();
                 self.save_text = suggested_save_path(path).to_string_lossy().into_owned();
                 self.workspace = Some(workspace);
+                if let Some(w) = self.workspace.as_mut() {
+                    self.win.after_open(w, &self.settings);
+                }
                 self.error = None;
                 self.fit_pending = true;
                 self.tool_drag = false;
@@ -275,7 +261,7 @@ impl App {
                     egui::RichText::new("EH3D-PHOENIX-PCB")
                         .strong()
                         .size(18.0)
-                        .color(ACCENT),
+                        .color(ui_accent()),
                 );
                 ui.separator();
                 ui.label(dim(Msg::PathHint.tr(lang)));
@@ -343,7 +329,7 @@ impl App {
                         w.save_as(&target);
                     }
                     if w.dirty() {
-                        ui.label(egui::RichText::new(EditMsg::Unsaved.tr(lang)).color(DANGER));
+                        ui.label(egui::RichText::new(EditMsg::Unsaved.tr(lang)).color(ui_danger()));
                     }
                     ui.separator();
                     self.print.show(ui, w, lang);
@@ -550,15 +536,21 @@ impl App {
             ui.horizontal(|ui| {
                 let note = self.workspace.as_ref().and_then(|w| w.note.as_ref());
                 if let Some(error) = &self.error {
-                    ui.label(egui::RichText::new(error.message(lang)).color(DANGER));
+                    ui.label(egui::RichText::new(error.message(lang)).color(ui_danger()));
+                } else if let Some(text) = self.win.error_text(lang) {
+                    ui.label(egui::RichText::new(text).color(ui_danger()));
                 } else if let Some(note) = note {
-                    let colour = if note.is_error() { DANGER } else { ACCENT };
+                    let colour = if note.is_error() {
+                        ui_danger()
+                    } else {
+                        ui_accent()
+                    };
                     ui.label(egui::RichText::new(note.text(lang)).color(colour));
                 } else if let Some(w) = &self.workspace {
-                    ui.label(egui::RichText::new(w.viewer.status(lang)).color(OK));
+                    ui.label(egui::RichText::new(w.viewer.status(lang)).color(ui_ok()));
                 }
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    ui.label(egui::RichText::new(Msg::Prototype.tr(lang)).color(ACCENT));
+                    ui.label(egui::RichText::new(Msg::Prototype.tr(lang)).color(ui_accent()));
                     ui.label(dim(Msg::ZoomHint.tr(lang)));
                 });
             });
@@ -657,8 +649,10 @@ impl App {
                     workspace.click(sx, sy);
                 }
             }
-            for shortcut in shortcuts(ui.ctx()) {
-                workspace.shortcut(shortcut);
+            for action in &self.actions {
+                if let Some(shortcut) = action.workspace_shortcut() {
+                    workspace.shortcut(shortcut);
+                }
             }
             if workspace.want_save {
                 workspace.want_save = false;
@@ -690,11 +684,11 @@ fn board_panel(ui: &mut egui::Ui, workspace: &mut Workspace, rules_text: &mut St
                 EditMsg::Added.tr(lang),
                 session.last_diff.added.len()
             ))
-            .color(DANGER),
+            .color(ui_danger()),
         );
         for (i, finding) in session.last_diff.added.iter().take(shown).enumerate() {
             ui.push_id(("added", i), |ui| {
-                finding_row(ui, &finding_line(finding, lang), DANGER, lang, || {
+                finding_row(ui, &finding_line(finding, lang), ui_danger(), lang, || {
                     jump = Some(finding.at_nm);
                 });
             });
@@ -705,11 +699,11 @@ fn board_panel(ui: &mut egui::Ui, workspace: &mut Workspace, rules_text: &mut St
                 EditMsg::Removed.tr(lang),
                 session.last_diff.removed.len()
             ))
-            .color(OK),
+            .color(ui_ok()),
         );
         for (i, finding) in session.last_diff.removed.iter().take(shown).enumerate() {
             ui.push_id(("removed", i), |ui| {
-                finding_row(ui, &finding_line(finding, lang), OK, lang, || {
+                finding_row(ui, &finding_line(finding, lang), ui_ok(), lang, || {
                     jump = Some(finding.at_nm);
                 });
             });
@@ -725,7 +719,7 @@ fn board_panel(ui: &mut egui::Ui, workspace: &mut Workspace, rules_text: &mut St
         }
         for (i, finding) in session.findings.iter().take(shown).enumerate() {
             ui.push_id(("finding", i), |ui| {
-                finding_row(ui, &finding_line(finding, lang), TEXT, lang, || {
+                finding_row(ui, &finding_line(finding, lang), ui_text(), lang, || {
                     jump = Some(finding.at_nm);
                 });
             });
@@ -794,9 +788,9 @@ fn schematic_panel(
         for (i, finding) in session.erc.confirmed.iter().take(shown).enumerate() {
             ui.push_id(("erc", i), |ui| {
                 let colour = match finding.severity {
-                    eh3d_phoenix_rules::Severity::Error => DANGER,
-                    eh3d_phoenix_rules::Severity::Warning => ACCENT,
-                    eh3d_phoenix_rules::Severity::Info => TEXT,
+                    eh3d_phoenix_rules::Severity::Error => ui_danger(),
+                    eh3d_phoenix_rules::Severity::Warning => ui_accent(),
+                    eh3d_phoenix_rules::Severity::Info => ui_text(),
                 };
                 finding_row(ui, &erc_line(finding, lang), colour, lang, || {
                     jump = Some(finding.location.clone());
@@ -807,7 +801,7 @@ fn schematic_panel(
             ui.collapsing(format!("… {}", session.erc.inconclusive.len()), |ui| {
                 for (i, finding) in session.erc.inconclusive.iter().take(shown).enumerate() {
                     ui.push_id(("unjudged", i), |ui| {
-                        finding_row(ui, &erc_line(finding, lang), DIM, lang, || {
+                        finding_row(ui, &erc_line(finding, lang), ui_dim(), lang, || {
                             jump = Some(finding.location.clone());
                         });
                     });
@@ -1025,28 +1019,57 @@ fn paint(workspace: &Workspace, painter: &egui::Painter, rect: Rect) {
             Stroke::new(2.0, highlight),
         );
     }
-    // the measure, over everything
-    if let Some(a) = viewer.measure.a {
-        painter.circle_filled(at(a), 4.0, measure_colour);
-        if let Some(b) = viewer.measure.b {
-            painter.line_segment([at(a), at(b)], Stroke::new(1.5, measure_colour));
-            painter.circle_filled(at(b), 4.0, measure_colour);
-            if let Some(d) = viewer.measure.distance() {
-                let middle = P::new((a.x + b.x) / 2.0, (a.y + b.y) / 2.0);
-                painter.text(
-                    at(middle),
-                    egui::Align2::CENTER_BOTTOM,
-                    format!("{d:.3} mm"),
-                    egui::FontId::proportional(14.0),
-                    measure_colour,
-                );
+    // the measures, over everything
+    window_gui::paint_measures(&painter, viewer, &at, measure_colour);
+}
+
+impl App {
+    /// Which mode of the window is shown, for the help and for the preferences.
+    fn help_mode(&self) -> HelpMode {
+        if self.lib.is_open() {
+            HelpMode::Library
+        } else if self.gerber.is_some() {
+            HelpMode::Gerber
+        } else if self.view3d.is_some() {
+            HelpMode::View3d
+        } else if self.panel.is_some() {
+            HelpMode::Panel
+        } else {
+            match &self.workspace {
+                Some(w) if w.is_board() => HelpMode::Board,
+                Some(_) => HelpMode::Schematic,
+                None => HelpMode::Start,
             }
         }
     }
-}
 
-impl eframe::App for App {
-    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+    /// True while a window of its own (library, Gerber, 3D or panel) takes the place of the drawing.
+    fn overlay(&self) -> bool {
+        self.lib.is_open() || self.gerber.is_some() || self.view3d.is_some() || self.panel.is_some()
+    }
+
+    /// The search, the measures, the layers, the history, the appearance, the shortcuts and the help,
+    /// and the preferences, after the rest of the window is drawn.
+    fn common(&mut self, ctx: &egui::Context) {
+        let mode = self.help_mode();
+        let overlay = self.overlay();
+        let actions = std::mem::take(&mut self.actions);
+        let frame = FrameContext {
+            lang: self.lang,
+            mode,
+            fit_pending: self.fit_pending,
+            editing: self.sch.is_some() || self.brd.is_some(),
+            workspace: if overlay {
+                None
+            } else {
+                self.workspace.as_mut()
+            },
+            view3d: self.view3d.as_mut(),
+        };
+        self.win.frame(ctx, &mut self.settings, &actions, frame);
+    }
+
+    fn body(&mut self, ui: &mut egui::Ui) {
         let ctx = ui.ctx().clone();
         // a file dropped on the window is opened
         let dropped: Vec<PathBuf> = ctx.input(|i| {
@@ -1065,6 +1088,8 @@ impl eframe::App for App {
                 Err(note) => self.launch_note = Some(note),
             }
         }
+        let has_document = self.workspace.is_some() && !self.overlay();
+        self.win.toolbar(ui, self.lang, has_document);
         if self.lib.is_open() {
             self.top_bar(ui);
             self.lib.show(ui, self.lang);
@@ -1093,6 +1118,15 @@ impl eframe::App for App {
         self.side_panel(ui);
         self.right_panel(ui);
         self.canvas(ui);
+    }
+}
+
+impl eframe::App for App {
+    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        self.actions = window_gui::pressed_actions(ui.ctx(), &self.settings.keymap);
+        self.body(ui);
+        let ctx = ui.ctx().clone();
+        self.common(&ctx);
     }
 }
 
@@ -1143,27 +1177,6 @@ fn install_fonts(ctx: &egui::Context) {
     }
 }
 
-/// The colours of the theme Forge for the controls of egui.
-fn apply_theme(ctx: &egui::Context) {
-    let mut v = egui::Visuals::dark();
-    v.panel_fill = PANEL;
-    v.window_fill = RAISED;
-    v.extreme_bg_color = Color32::from_rgb(0x14, 0x11, 0x0e);
-    v.override_text_color = Some(TEXT);
-    v.selection.bg_fill = Color32::from_rgba_unmultiplied(0xff, 0xb0, 0x00, 110);
-    v.selection.stroke = Stroke::new(1.5, ACCENT);
-    v.widgets.inactive.bg_stroke =
-        Stroke::new(1.0, Color32::from_rgba_unmultiplied(0xff, 0xb0, 0x00, 110));
-    v.widgets.inactive.weak_bg_fill = RAISED;
-    v.widgets.hovered.bg_stroke = Stroke::new(1.5, ACCENT);
-    v.widgets.hovered.weak_bg_fill = Color32::from_rgb(0x33, 0x28, 0x1c);
-    v.widgets.active.bg_stroke = Stroke::new(2.0, ACCENT);
-    v.widgets.inactive.corner_radius = 6.0.into();
-    v.widgets.hovered.corner_radius = 6.0.into();
-    v.widgets.active.corner_radius = 6.0.into();
-    ctx.set_visuals(v);
-}
-
 /// Opens the window. A file given here is opened at once.
 pub fn run(
     initial: Option<PathBuf>,
@@ -1190,8 +1203,11 @@ fn run_with(
     lang: Lang,
     settings: ViewerSettings,
 ) -> Result<(), ViewError> {
+    let mut settings = settings;
+    let win = WindowUi::load(&settings);
+    win.adopt(&mut settings);
     let mut viewport = egui::ViewportBuilder::default()
-        .with_inner_size([1480.0, 800.0])
+        .with_inner_size(win.window_size().unwrap_or([1480.0, 800.0]))
         .with_min_inner_size([900.0, 480.0])
         .with_title("EH3D-PHOENIX-PCB");
     if let Some(icon) = window_icon() {
@@ -1206,8 +1222,10 @@ fn run_with(
         options,
         Box::new(move |cc| {
             install_fonts(&cc.egui_ctx);
-            apply_theme(&cc.egui_ctx);
-            let mut app = App::new(lang, settings, initial);
+            // the window draws its own colours for every theme, so the toolkit keeps one
+            cc.egui_ctx.set_theme(egui::ThemePreference::Dark);
+            window_gui::apply_look(&cc.egui_ctx, &settings);
+            let mut app = App::new(lang, settings, win, initial);
             if let Some((files, config)) = panel {
                 app.panel = Some(PanelUi::new(&files, config.as_deref(), &app.settings));
             }

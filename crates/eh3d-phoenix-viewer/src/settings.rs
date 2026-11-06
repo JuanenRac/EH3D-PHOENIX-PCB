@@ -4,10 +4,14 @@
 
 use std::collections::BTreeMap;
 
+use crate::appearance::{Theme, FONT_MAX, FONT_MIN, SCALE_MAX, SCALE_MIN};
 use crate::codes::{ViewError, SETTINGS_INVALID};
+use crate::keymap::Keymap;
+use crate::measure_set::{format_length, Unit};
 
-/// The colours that a settings text may name, with their defaults (red, green, blue, alpha).
-pub const DEFAULT_COLOURS: [(&str, [u8; 4]); 34] = [
+/// The colours that a settings text may name, with their defaults in the dark theme (red, green, blue,
+/// alpha): the colours of the drawing and, after them, the colours of the controls of the window.
+pub const DEFAULT_COLOURS: [(&str, [u8; 4]); 41] = [
     ("background", [0x0f, 0x0d, 0x0b, 0xff]),
     ("top_copper", [0xc8, 0xa3, 0x3c, 0xff]),
     ("bottom_copper", [0x3c, 0x78, 0xc8, 0xff]),
@@ -42,6 +46,103 @@ pub const DEFAULT_COLOURS: [(&str, [u8; 4]); 34] = [
     ("view3d_too_tall", [0xff, 0xb0, 0x00, 0xff]),
     ("view3d_outside", [0xb4, 0x3c, 0xc8, 0xff]),
     ("view3d_selected", [0xf4, 0xec, 0xe0, 0xff]),
+    ("ui_panel", [0x17, 0x13, 0x10, 0xff]),
+    ("ui_raised", [0x22, 0x1c, 0x17, 0xff]),
+    ("ui_text", [0xf4, 0xec, 0xe0, 0xff]),
+    ("ui_dim", [0x9c, 0x8d, 0x7a, 0xff]),
+    ("ui_accent", [0xff, 0xb0, 0x00, 0xff]),
+    ("ui_ok", [0x9b, 0xe3, 0x4a, 0xff]),
+    ("ui_danger", [0xff, 0x54, 0x70, 0xff]),
+];
+
+/// The colours of the light theme, with the colours of the controls.
+pub const LIGHT_COLOURS: [(&str, [u8; 4]); 41] = [
+    ("background", [0xf4, 0xf1, 0xea, 0xff]),
+    ("top_copper", [0xa8, 0x74, 0x1a, 0xff]),
+    ("bottom_copper", [0x1f, 0x5f, 0xa8, 0xff]),
+    ("inner_copper_1", [0x1f, 0x8f, 0x4e, 0xff]),
+    ("inner_copper_2", [0x8f, 0x2f, 0xa8, 0xff]),
+    ("inner_copper_3", [0xa8, 0x54, 0x1f, 0xff]),
+    ("inner_copper_4", [0x1f, 0x8f, 0x8f, 0xff]),
+    ("mask", [0x2c, 0xa0, 0x2c, 0x46]),
+    ("paste", [0x70, 0x70, 0x70, 0x78]),
+    ("silk_top", [0x2b, 0x2b, 0x2b, 0xff]),
+    ("silk_bottom", [0x6b, 0x6b, 0x6b, 0xff]),
+    ("outline", [0x0a, 0x7f, 0x95, 0xff]),
+    ("drill", [0x20, 0x20, 0x20, 0xff]),
+    ("documentation", [0x6b, 0x6b, 0x6b, 0xff]),
+    ("designator", [0x2b, 0x2b, 0x2b, 0xff]),
+    ("sheet", [0x6b, 0x6b, 0x6b, 0xff]),
+    ("symbol", [0x8a, 0x5a, 0x00, 0xff]),
+    ("wire", [0x2f, 0x7d, 0x1a, 0xff]),
+    ("pin", [0x30, 0x30, 0x40, 0xff]),
+    ("label", [0x2b, 0x2b, 0x2b, 0xff]),
+    ("highlight", [0xd0, 0x1a, 0x40, 0xff]),
+    ("measure", [0xc4, 0x6a, 0x00, 0xff]),
+    ("ratsnest", [0x30, 0x30, 0x40, 0xb4]),
+    ("gerber_drill_plated", [0x30, 0x30, 0x40, 0xff]),
+    ("gerber_drill_unplated", [0xd0, 0x60, 0x1a, 0xff]),
+    ("gerber_only_files", [0xd0, 0x1a, 0x40, 0xe6]),
+    ("gerber_only_board", [0x0a, 0x7f, 0x95, 0xe6]),
+    ("view3d_board", [0x2f, 0x8f, 0x5a, 0xff]),
+    ("view3d_top_part", [0x5a, 0x6f, 0x85, 0xff]),
+    ("view3d_bottom_part", [0x85, 0x5a, 0x6f, 0xff]),
+    ("view3d_collision", [0xd0, 0x1a, 0x40, 0xff]),
+    ("view3d_too_tall", [0xc4, 0x6a, 0x00, 0xff]),
+    ("view3d_outside", [0x8f, 0x2f, 0xa8, 0xff]),
+    ("view3d_selected", [0x10, 0x10, 0x10, 0xff]),
+    ("ui_panel", [0xec, 0xe8, 0xde, 0xff]),
+    ("ui_raised", [0xfb, 0xf9, 0xf4, 0xff]),
+    ("ui_text", [0x1c, 0x1a, 0x17, 0xff]),
+    ("ui_dim", [0x5c, 0x56, 0x4c, 0xff]),
+    ("ui_accent", [0x8a, 0x4a, 0x00, 0xff]),
+    ("ui_ok", [0x1f, 0x6e, 0x12, 0xff]),
+    ("ui_danger", [0xb0, 0x10, 0x2f, 0xff]),
+];
+
+/// The colours of the theme of high contrast, with the colours of the controls.
+pub const CONTRAST_COLOURS: [(&str, [u8; 4]); 41] = [
+    ("background", [0x00, 0x00, 0x00, 0xff]),
+    ("top_copper", [0xff, 0xd4, 0x00, 0xff]),
+    ("bottom_copper", [0x4d, 0xa6, 0xff, 0xff]),
+    ("inner_copper_1", [0x00, 0xff, 0x80, 0xff]),
+    ("inner_copper_2", [0xff, 0x4d, 0xff, 0xff]),
+    ("inner_copper_3", [0xff, 0x8a, 0x3c, 0xff]),
+    ("inner_copper_4", [0x00, 0xff, 0xff, 0xff]),
+    ("mask", [0x00, 0xff, 0x00, 0x50]),
+    ("paste", [0xff, 0xff, 0xff, 0x70]),
+    ("silk_top", [0xff, 0xff, 0xff, 0xff]),
+    ("silk_bottom", [0xc8, 0xc8, 0xc8, 0xff]),
+    ("outline", [0x00, 0xff, 0xff, 0xff]),
+    ("drill", [0x30, 0x30, 0x30, 0xff]),
+    ("documentation", [0xc8, 0xc8, 0xc8, 0xff]),
+    ("designator", [0xff, 0xff, 0xff, 0xff]),
+    ("sheet", [0xc8, 0xc8, 0xc8, 0xff]),
+    ("symbol", [0xff, 0xd4, 0x00, 0xff]),
+    ("wire", [0x00, 0xff, 0x00, 0xff]),
+    ("pin", [0xff, 0xff, 0xff, 0xff]),
+    ("label", [0xff, 0xff, 0xff, 0xff]),
+    ("highlight", [0xff, 0x2a, 0x2a, 0xff]),
+    ("measure", [0xff, 0xff, 0x00, 0xff]),
+    ("ratsnest", [0xff, 0xff, 0xff, 0xc8]),
+    ("gerber_drill_plated", [0xff, 0xff, 0xff, 0xff]),
+    ("gerber_drill_unplated", [0xff, 0x8a, 0x3c, 0xff]),
+    ("gerber_only_files", [0xff, 0x2a, 0x2a, 0xf0]),
+    ("gerber_only_board", [0x00, 0xff, 0xff, 0xff]),
+    ("view3d_board", [0x00, 0xa0, 0x50, 0xff]),
+    ("view3d_top_part", [0x80, 0xb0, 0xff, 0xff]),
+    ("view3d_bottom_part", [0xff, 0x80, 0xb0, 0xff]),
+    ("view3d_collision", [0xff, 0x2a, 0x2a, 0xff]),
+    ("view3d_too_tall", [0xff, 0xff, 0x00, 0xff]),
+    ("view3d_outside", [0xff, 0x4d, 0xff, 0xff]),
+    ("view3d_selected", [0xff, 0xff, 0xff, 0xff]),
+    ("ui_panel", [0x00, 0x00, 0x00, 0xff]),
+    ("ui_raised", [0x14, 0x14, 0x14, 0xff]),
+    ("ui_text", [0xff, 0xff, 0xff, 0xff]),
+    ("ui_dim", [0xd0, 0xd0, 0xd0, 0xff]),
+    ("ui_accent", [0xff, 0xff, 0x00, 0xff]),
+    ("ui_ok", [0x00, 0xff, 0x00, 0xff]),
+    ("ui_danger", [0xff, 0x5c, 0x5c, 0xff]),
 ];
 
 /// The limits, tolerances, sizes and colours of the viewer.
@@ -168,8 +269,58 @@ pub struct ViewerSettings {
     pub view3d_height_scale: f64,
     /// How much room the first view leaves around the scene (1 touches the edges).
     pub view3d_fit_factor: f64,
-    /// The colours by name, each red, green, blue and alpha.
+    /// The look of the window: dark, light or high contrast.
+    pub theme: Theme,
+    /// The scale of the interface, in percent.
+    pub ui_scale_percent: u32,
+    /// The size of the letters of the body text, in points.
+    pub font_size_pt: f64,
+    /// The unit of the readings of the measures.
+    pub measure_unit: Unit,
+    /// The decimals of the readings of the measures.
+    pub measure_decimals: usize,
+    /// Whether a click of the measure tool goes to the notable point near it.
+    pub measure_snap: bool,
+    /// How far from a notable point a click of the measure tool still snaps to it, in pixels.
+    pub measure_snap_px: f64,
+    /// The most measures that are kept besides the one in progress.
+    pub measure_max_kept: usize,
+    /// The most results that the search lists.
+    pub search_max_results: usize,
+    /// The least stretch of the drawing that the view shows around a result, in millimetres.
+    pub search_context_mm: f64,
+    /// The most steps of the history that the list shows.
+    pub history_shown: usize,
+    /// The most layer presets that are kept (never fewer than nine, one for each number key).
+    pub preset_max: usize,
+    /// The name of the file of the preferences, in the settings folder of the user.
+    pub prefs_file: String,
+    /// The largest file of preferences that is read, in bytes.
+    pub prefs_max_bytes: u64,
+    /// How many times the rename that completes the writing of the preferences is tried again.
+    pub prefs_write_retries: usize,
+    /// How long to wait between those tries, in milliseconds.
+    pub prefs_write_retry_ms: u64,
+    /// The least time between two writings of the preferences, in seconds.
+    pub prefs_save_interval_s: f64,
+    /// How much a zoom must change, as a fraction of itself, to be remembered.
+    pub zoom_note_step: f64,
+    /// The keys of the actions of the window.
+    pub keymap: Keymap,
+    /// The colours of the dark theme by name, each red, green, blue and alpha.
+    pub dark_colours: BTreeMap<String, [u8; 4]>,
+    /// The colours of the light theme.
+    pub light_colours: BTreeMap<String, [u8; 4]>,
+    /// The colours of the theme of high contrast.
+    pub contrast_colours: BTreeMap<String, [u8; 4]>,
+    /// The colours by name in use: the ones of the theme.
     pub colours: BTreeMap<String, [u8; 4]>,
+}
+
+fn table(list: &[(&str, [u8; 4])]) -> BTreeMap<String, [u8; 4]> {
+    list.iter()
+        .map(|(name, rgba)| ((*name).to_string(), *rgba))
+        .collect()
 }
 
 impl Default for ViewerSettings {
@@ -235,10 +386,29 @@ impl Default for ViewerSettings {
             view3d_max_pitch_deg: 89.0,
             view3d_height_scale: 1.0,
             view3d_fit_factor: 1.15,
-            colours: DEFAULT_COLOURS
-                .iter()
-                .map(|(name, rgba)| ((*name).to_string(), *rgba))
-                .collect(),
+            theme: Theme::Dark,
+            ui_scale_percent: 100,
+            font_size_pt: 14.0,
+            measure_unit: Unit::Mm,
+            measure_decimals: 3,
+            measure_snap: true,
+            measure_snap_px: 10.0,
+            measure_max_kept: 20,
+            search_max_results: 200,
+            search_context_mm: 10.0,
+            history_shown: 200,
+            preset_max: 30,
+            prefs_file: "prefs.cfg".to_string(),
+            prefs_max_bytes: 1_048_576,
+            prefs_write_retries: 5,
+            prefs_write_retry_ms: 50,
+            prefs_save_interval_s: 1.0,
+            zoom_note_step: 0.05,
+            keymap: Keymap::default(),
+            dark_colours: table(&DEFAULT_COLOURS),
+            light_colours: table(&LIGHT_COLOURS),
+            contrast_colours: table(&CONTRAST_COLOURS),
+            colours: table(&DEFAULT_COLOURS),
         }
     }
 }
@@ -285,6 +455,24 @@ fn signed(value: &str, line: usize, key: &str) -> Result<f64, ViewError> {
     Ok(parsed)
 }
 
+fn flag(value: &str, line: usize, key: &str) -> Result<bool, ViewError> {
+    match value {
+        "true" => Ok(true),
+        "false" => Ok(false),
+        _ => Err(invalid(line, format!("{key}: expected true or false"))),
+    }
+}
+
+fn file_name(value: &str, line: usize, key: &str) -> Result<String, ViewError> {
+    if value.is_empty() || value.contains(['/', '\\']) {
+        return Err(invalid(
+            line,
+            format!("{key}: must be a non-empty file name without a slash"),
+        ));
+    }
+    Ok(value.to_string())
+}
+
 /// Reads `#rrggbb` or `#rrggbbaa`.
 pub fn parse_colour(text: &str) -> Option<[u8; 4]> {
     let hex = text.trim().strip_prefix('#')?;
@@ -306,11 +494,32 @@ impl ViewerSettings {
             .unwrap_or([0x80, 0x80, 0x80, 0xff])
     }
 
+    /// The colours of a theme by name.
+    pub fn palette(&self, theme: Theme) -> &BTreeMap<String, [u8; 4]> {
+        match theme {
+            Theme::Dark => &self.dark_colours,
+            Theme::Light => &self.light_colours,
+            Theme::Contrast => &self.contrast_colours,
+        }
+    }
+
+    /// Changes the theme: the colours in use become the ones of the theme.
+    pub fn set_theme(&mut self, theme: Theme) {
+        self.theme = theme;
+        self.colours = self.palette(theme).clone();
+    }
+
+    /// A length in millimetres written in the unit and with the decimals of the settings.
+    pub fn format_length(&self, mm: f64) -> String {
+        format_length(mm, self.measure_unit, self.measure_decimals)
+    }
+
     /// Parse a settings text of `key = value` lines. Blank lines and lines starting with `#` are
     /// ignored; a missing key keeps its default; an unknown key is an error. Colours are
     /// `colour.<name> = #rrggbb` or `#rrggbbaa`.
     pub fn parse(text: &str) -> Result<ViewerSettings, ViewError> {
         let mut s = ViewerSettings::default();
+        let mut key_changes: Vec<(usize, String, String)> = Vec::new();
         for (index, raw) in text.lines().enumerate() {
             let line = index + 1;
             let trimmed = raw.trim();
@@ -321,17 +530,82 @@ impl ViewerSettings {
                 .split_once('=')
                 .ok_or_else(|| invalid(line, "expected key = value".to_string()))?;
             let (key, value) = (key.trim(), value.trim());
-            if let Some(name) = key.strip_prefix("colour.") {
+            if let Some(rest) = key.strip_prefix("colour.") {
+                let (palette, name) = if let Some(name) = rest.strip_prefix("light.") {
+                    (&mut s.light_colours, name)
+                } else if let Some(name) = rest.strip_prefix("contrast.") {
+                    (&mut s.contrast_colours, name)
+                } else {
+                    (&mut s.dark_colours, rest)
+                };
                 if !DEFAULT_COLOURS.iter().any(|(n, _)| *n == name) {
                     return Err(invalid(line, format!("unknown colour {name}")));
                 }
                 let rgba = parse_colour(value).ok_or_else(|| {
                     invalid(line, format!("{key}: expected #rrggbb or #rrggbbaa"))
                 })?;
-                s.colours.insert(name.to_string(), rgba);
+                palette.insert(name.to_string(), rgba);
+                continue;
+            }
+            if let Some(action) = key.strip_prefix("key.") {
+                key_changes.push((line, action.to_string(), value.to_string()));
                 continue;
             }
             match key {
+                "theme" => {
+                    s.theme = Theme::parse(value)
+                        .ok_or_else(|| invalid(line, format!("{key}: dark, light or contrast")))?;
+                }
+                "ui_scale_percent" => {
+                    let percent = u32::try_from(whole(value, line, key)?).unwrap_or(u32::MAX);
+                    if !(SCALE_MIN..=SCALE_MAX).contains(&percent) {
+                        return Err(invalid(
+                            line,
+                            format!("{key}: must be from {SCALE_MIN} to {SCALE_MAX}"),
+                        ));
+                    }
+                    s.ui_scale_percent = percent;
+                }
+                "font_size_pt" => {
+                    let points = number(value, line, key)?;
+                    if !(FONT_MIN..=FONT_MAX).contains(&points) {
+                        return Err(invalid(
+                            line,
+                            format!("{key}: must be from {FONT_MIN} to {FONT_MAX}"),
+                        ));
+                    }
+                    s.font_size_pt = points;
+                }
+                "measure_unit" => {
+                    s.measure_unit = Unit::parse(value)
+                        .ok_or_else(|| invalid(line, format!("{key}: mm or mil")))?;
+                }
+                "measure_decimals" => {
+                    let decimals = count(value, line, key)?;
+                    if decimals > 6 {
+                        return Err(invalid(line, format!("{key}: must not exceed 6")));
+                    }
+                    s.measure_decimals = decimals;
+                }
+                "measure_snap" => s.measure_snap = flag(value, line, key)?,
+                "measure_snap_px" => s.measure_snap_px = number(value, line, key)?,
+                "measure_max_kept" => s.measure_max_kept = count(value, line, key)?,
+                "search_max_results" => s.search_max_results = count(value, line, key)?,
+                "search_context_mm" => s.search_context_mm = number(value, line, key)?,
+                "history_shown" => s.history_shown = count(value, line, key)?,
+                "preset_max" => {
+                    let most = count(value, line, key)?;
+                    if most < 9 {
+                        return Err(invalid(line, format!("{key}: must be at least 9")));
+                    }
+                    s.preset_max = most;
+                }
+                "prefs_file" => s.prefs_file = file_name(value, line, key)?,
+                "prefs_max_bytes" => s.prefs_max_bytes = whole(value, line, key)?,
+                "prefs_write_retries" => s.prefs_write_retries = count(value, line, key)?,
+                "prefs_write_retry_ms" => s.prefs_write_retry_ms = whole(value, line, key)?,
+                "prefs_save_interval_s" => s.prefs_save_interval_s = number(value, line, key)?,
+                "zoom_note_step" => s.zoom_note_step = number(value, line, key)?,
                 "max_file_bytes" => s.max_file_bytes = whole(value, line, key)?,
                 "max_primitives" => s.max_primitives = count(value, line, key)?,
                 "zoom_min_px_per_mm" => s.zoom_min_px_per_mm = number(value, line, key)?,
@@ -471,6 +745,8 @@ impl ViewerSettings {
                 "view3d_start_pitch_deg must lie within view3d_max_pitch_deg",
             ));
         }
+        s.keymap = Keymap::with_changes(&key_changes).map_err(|(line, why)| invalid(line, why))?;
+        s.colours = s.palette(s.theme).clone();
         Ok(s)
     }
 }
@@ -478,6 +754,7 @@ impl ViewerSettings {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::keymap::{Action, Binding, KeyName};
 
     #[test]
     fn the_file_of_the_repository_holds_the_defaults() {
@@ -585,6 +862,148 @@ mod tests {
                     .any(|l| l.trim_start().starts_with(&format!("colour.{name} "))),
                 "{name}"
             );
+        }
+    }
+
+    #[test]
+    fn the_settings_of_the_window_are_read_and_checked() {
+        let s = ViewerSettings::parse(
+            "theme = light\nui_scale_percent = 150\nfont_size_pt = 16\nmeasure_unit = MIL\nmeasure_decimals = 2\nmeasure_snap = false\nmeasure_snap_px = 12\nmeasure_max_kept = 5\nsearch_max_results = 50\nsearch_context_mm = 4\nhistory_shown = 30\npreset_max = 12\nprefs_file = mine.cfg\nprefs_max_bytes = 2048\nprefs_write_retries = 2\nprefs_write_retry_ms = 10\nprefs_save_interval_s = 2.5\nzoom_note_step = 0.1\n",
+        )
+        .unwrap();
+        assert_eq!(s.theme, Theme::Light);
+        assert_eq!(s.ui_scale_percent, 150);
+        assert_eq!(s.font_size_pt, 16.0_f64);
+        assert_eq!(s.measure_unit, Unit::Mil);
+        assert_eq!(s.measure_decimals, 2);
+        assert!(!s.measure_snap);
+        assert_eq!(s.measure_snap_px, 12.0_f64);
+        assert_eq!(s.measure_max_kept, 5);
+        assert_eq!(s.search_max_results, 50);
+        assert_eq!(s.search_context_mm, 4.0_f64);
+        assert_eq!(s.history_shown, 30);
+        assert_eq!(s.preset_max, 12);
+        assert_eq!(s.prefs_file, "mine.cfg");
+        assert_eq!(s.prefs_max_bytes, 2048);
+        assert_eq!(s.prefs_write_retries, 2);
+        assert_eq!(s.prefs_write_retry_ms, 10);
+        assert_eq!(s.prefs_save_interval_s, 2.5_f64);
+        assert_eq!(s.zoom_note_step, 0.1_f64);
+        assert_eq!(s.format_length(2.54), "100.00 mil");
+        let d = ViewerSettings::default();
+        assert_eq!(d.theme, Theme::Dark);
+        assert_eq!(d.ui_scale_percent, 100);
+        assert_eq!(d.format_length(1.5), "1.500 mm");
+    }
+
+    #[test]
+    fn a_bad_value_of_the_window_settings_is_an_error_with_its_line() {
+        for text in [
+            "theme = blue",
+            "ui_scale_percent = 49",
+            "ui_scale_percent = 301",
+            "ui_scale_percent = 1.5",
+            "font_size_pt = 5",
+            "font_size_pt = 49",
+            "measure_unit = inch",
+            "measure_decimals = 0",
+            "measure_decimals = 7",
+            "measure_snap = yes",
+            "measure_snap_px = 0",
+            "search_max_results = 0",
+            "preset_max = 8",
+            "prefs_file = ",
+            "prefs_file = a/b",
+            "prefs_save_interval_s = -1",
+            "zoom_note_step = 0",
+            "key.nothing = z",
+            "key.undo = alt+z",
+            "key.fit = v",
+        ] {
+            let error = ViewerSettings::parse(&format!("\n{text}")).unwrap_err();
+            assert_eq!(error.code, SETTINGS_INVALID, "{text}");
+            assert!(
+                error.detail.starts_with("line 2"),
+                "{text}: {}",
+                error.detail
+            );
+        }
+    }
+
+    #[test]
+    fn the_keys_come_from_the_settings_and_a_clash_names_the_line() {
+        let s = ViewerSettings::parse("# keys\nkey.undo = ctrl+u\nkey.help = none\n").unwrap();
+        assert_eq!(
+            s.keymap.keys(Action::Undo),
+            [Binding {
+                key: KeyName::U,
+                ctrl: true,
+                shift: false
+            }]
+        );
+        assert!(s.keymap.keys(Action::Help).is_empty());
+        assert_eq!(ViewerSettings::default().keymap, Keymap::default());
+        let error = ViewerSettings::parse("a = 1").unwrap_err();
+        assert!(error.detail.starts_with("line 1"));
+        let clash = ViewerSettings::parse("\n\nkey.redo = ctrl+z\n").unwrap_err();
+        assert!(clash.detail.starts_with("line 3"), "{}", clash.detail);
+        assert!(clash.detail.contains("undo"), "{}", clash.detail);
+    }
+
+    #[test]
+    fn each_theme_has_its_own_colours_and_the_theme_chooses_the_ones_in_use() {
+        let dark = ViewerSettings::default();
+        let light = ViewerSettings::parse("theme = light\n").unwrap();
+        let contrast = ViewerSettings::parse("theme = contrast\n").unwrap();
+        assert_eq!(dark.theme, Theme::Dark);
+        assert_ne!(light.colour("background"), dark.colour("background"));
+        assert_eq!(contrast.colour("background"), [0, 0, 0, 255]);
+        // the three palettes are always there
+        assert_eq!(light.palette(Theme::Dark), dark.palette(Theme::Dark));
+        assert_eq!(light.palette(Theme::Light), &light.colours);
+        // a colour of a theme can be changed without being in use
+        let s = ViewerSettings::parse("colour.light.wire = #010203\n").unwrap();
+        assert_eq!(s.colour("wire"), dark.colour("wire"));
+        assert_eq!(s.palette(Theme::Light)["wire"], [1, 2, 3, 255]);
+        let s = ViewerSettings::parse("theme = light\ncolour.light.wire = #010203\n").unwrap();
+        assert_eq!(s.colour("wire"), [1, 2, 3, 255]);
+        for text in [
+            "colour.light.nothing = #000000",
+            "colour.contrast.wire = red",
+        ] {
+            assert!(ViewerSettings::parse(text).is_err(), "{text}");
+        }
+        // a theme set later brings its colours
+        let mut s = ViewerSettings::default();
+        s.set_theme(Theme::Contrast);
+        assert_eq!(s.colour("background"), [0, 0, 0, 255]);
+    }
+
+    #[test]
+    fn every_colour_of_every_theme_and_every_key_is_in_the_settings_file() {
+        let text = include_str!("../../../config/viewer.cfg");
+        for (name, _) in DEFAULT_COLOURS {
+            for prefix in ["colour.light.", "colour.contrast."] {
+                assert!(
+                    text.lines()
+                        .any(|l| l.trim_start().starts_with(&format!("{prefix}{name} "))),
+                    "{prefix}{name}"
+                );
+            }
+        }
+        for action in Action::ALL {
+            assert!(
+                text.lines().any(|l| l
+                    .trim_start()
+                    .starts_with(&format!("key.{} = ", action.id()))),
+                "{action:?}"
+            );
+        }
+        assert_eq!(LIGHT_COLOURS.len(), DEFAULT_COLOURS.len());
+        assert_eq!(CONTRAST_COLOURS.len(), DEFAULT_COLOURS.len());
+        for (i, (name, _)) in DEFAULT_COLOURS.iter().enumerate() {
+            assert_eq!(LIGHT_COLOURS[i].0, *name);
+            assert_eq!(CONTRAST_COLOURS[i].0, *name);
         }
     }
 }

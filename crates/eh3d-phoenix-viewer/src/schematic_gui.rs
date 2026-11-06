@@ -14,6 +14,7 @@ use eh3d_phoenix_schedit::{SchEdit, SchEditSettings, Tool};
 use eh3d_phoenix_schematic::{Id, Item, Schematic};
 
 use crate::editmsg::EditMsg;
+use crate::gui::{ui_accent, ui_danger, ui_dim, ui_text};
 use crate::schematic_bus::{BusMode, BusUi};
 use crate::schematic_bus_gui;
 use crate::schematic_hier::{block_at, Navigation};
@@ -23,10 +24,6 @@ use crate::schematic_text::SchMsg;
 use crate::workspace::Workspace;
 
 // the colours of the theme Forge, as in the window of the viewer
-const TEXT: Color32 = Color32::from_rgb(0xf4, 0xec, 0xe0);
-const DIM: Color32 = Color32::from_rgb(0x9c, 0x8d, 0x7a);
-const ACCENT: Color32 = Color32::from_rgb(0xff, 0xb0, 0x00);
-const DANGER: Color32 = Color32::from_rgb(0xff, 0x54, 0x70);
 const WIRE: Color32 = Color32::from_rgb(0x9b, 0xe3, 0x4a);
 const PIN: Color32 = Color32::from_rgb(0xff, 0xb0, 0x00);
 const LABEL: Color32 = Color32::from_rgb(0x6e, 0xc8, 0xff);
@@ -108,11 +105,11 @@ fn point_at(x_mm: f64, y_mm: f64) -> Option<Point> {
 }
 
 fn heading(text: &str) -> egui::RichText {
-    egui::RichText::new(text).strong().color(ACCENT)
+    egui::RichText::new(text).strong().color(ui_accent())
 }
 
 fn dim(text: impl Into<String>) -> egui::RichText {
-    egui::RichText::new(text.into()).color(DIM)
+    egui::RichText::new(text.into()).color(ui_dim())
 }
 
 /// The settings of the editor: `config/schedit.cfg` when it is there and good, else the built-in
@@ -428,10 +425,10 @@ pub fn canvas(
         let path = st.edit.wire_preview(at);
         if path.len() >= 2 {
             let points: Vec<Pos2> = path.iter().map(|p| view.at(*p)).collect();
-            painter.add(egui::Shape::line(points, Stroke::new(1.5, ACCENT)));
+            painter.add(egui::Shape::line(points, Stroke::new(1.5, ui_accent())));
         }
         let target = st.edit.snap(at);
-        painter.circle_stroke(view.at(target), 5.0, Stroke::new(1.0, ACCENT));
+        painter.circle_stroke(view.at(target), 5.0, Stroke::new(1.0, ui_accent()));
         if st.edit.tool == Tool::Place {
             draw_ghost(&painter, &view, st, target);
         }
@@ -443,7 +440,10 @@ pub fn canvas(
             view.xy(mm(b.x_nm.get()), mm(b.y_nm.get())),
             view.xy(mm(a.x_nm.get()), mm(b.y_nm.get())),
         ];
-        painter.add(egui::Shape::closed_line(corners, Stroke::new(1.0, ACCENT)));
+        painter.add(egui::Shape::closed_line(
+            corners,
+            Stroke::new(1.0, ui_accent()),
+        ));
     }
     let hint = match st.edit.tool {
         Tool::Select => SchMsg::HintSelect,
@@ -461,7 +461,7 @@ pub fn canvas(
         egui::Align2::LEFT_BOTTOM,
         hint_text,
         egui::FontId::proportional(13.0),
-        DIM,
+        ui_dim(),
     );
 }
 
@@ -476,7 +476,7 @@ fn draw_ghost(painter: &egui::Painter, view: &View, st: &SchematicEditUi, at: Po
     for pin in &entry.def.pins {
         let x = at.x_nm.get().saturating_add(pin.at.x_nm.get());
         let y = at.y_nm.get().saturating_add(pin.at.y_nm.get());
-        painter.circle_stroke(view.xy(mm(x), mm(y)), 3.0, Stroke::new(1.0, DIM));
+        painter.circle_stroke(view.xy(mm(x), mm(y)), 3.0, Stroke::new(1.0, ui_dim()));
     }
 }
 
@@ -497,7 +497,10 @@ fn draw_schematic(
             view.xy(w, h),
             view.xy(0.0, h),
         ];
-        painter.add(egui::Shape::closed_line(corners, Stroke::new(1.0, DIM)));
+        painter.add(egui::Shape::closed_line(
+            corners,
+            Stroke::new(1.0, ui_dim()),
+        ));
     }
     let step = mm(grid_nm);
     if step > 0.0 && step * view.scale >= 6.0 {
@@ -522,7 +525,10 @@ fn draw_schematic(
     for (id, wire) in s.wires.iter().filter(|(_, w)| w.sheet == sheet) {
         let lit = selection.contains(&Item::Wire(*id));
         let points: Vec<Pos2> = wire.path.iter().map(|p| view.at(*p)).collect();
-        let stroke = Stroke::new(if lit { 2.5 } else { 1.5 }, if lit { ACCENT } else { WIRE });
+        let stroke = Stroke::new(
+            if lit { 2.5 } else { 1.5 },
+            if lit { ui_accent() } else { WIRE },
+        );
         painter.add(egui::Shape::line(points, stroke));
     }
     for junction in s.junctions.values().filter(|j| j.sheet == sheet) {
@@ -549,7 +555,7 @@ fn draw_schematic(
     let pad = 1.27;
     for (id, (x0, y0, x1, y1)) in &boxes {
         let lit = selection.contains(&Item::Part(*id));
-        let colour = if lit { ACCENT } else { TEXT };
+        let colour = if lit { ui_accent() } else { ui_text() };
         let corners = vec![
             view.xy(x0 - pad, y0 - pad),
             view.xy(x1 + pad, y0 - pad),
@@ -588,14 +594,14 @@ fn draw_schematic(
                     egui::Align2::LEFT_BOTTOM,
                     number,
                     egui::FontId::proportional(10.0),
-                    DIM,
+                    ui_dim(),
                 );
             }
         }
     }
     for (id, label) in s.labels.iter().filter(|(_, l)| l.sheet == sheet) {
         let lit = selection.contains(&Item::Label(*id));
-        let colour = if lit { ACCENT } else { LABEL };
+        let colour = if lit { ui_accent() } else { LABEL };
         let at = view.at(label.at);
         painter.circle_filled(at, 2.5, colour);
         if text_shown {
@@ -610,7 +616,7 @@ fn draw_schematic(
     }
     for (id, port) in s.power_ports.iter().filter(|(_, p)| p.sheet == sheet) {
         let lit = selection.contains(&Item::PowerPort(*id));
-        let colour = if lit { ACCENT } else { POWER };
+        let colour = if lit { ui_accent() } else { POWER };
         let at = view.at(port.at);
         painter.line_segment(
             [at + egui::vec2(-6.0, -8.0), at + egui::vec2(6.0, -8.0)],
@@ -681,7 +687,8 @@ pub fn tools_panel(ui: &mut egui::Ui, st: &mut SchematicEditUi, lang: Lang) -> b
     }
     if let Some(error) = &st.edit.error {
         ui.label(
-            egui::RichText::new(format!("{}: {error}", SchMsg::Refused.tr(lang))).color(DANGER),
+            egui::RichText::new(format!("{}: {error}", SchMsg::Refused.tr(lang)))
+                .color(ui_danger()),
         );
     }
     ui.label(dim(SchMsg::KeysHint.tr(lang)));
@@ -795,7 +802,7 @@ pub fn tools_panel(ui: &mut egui::Ui, st: &mut SchematicEditUi, lang: Lang) -> b
             ui.label(dim(format!("{n} {}", SchMsg::LibraryAdded.tr(lang))));
         }
         Some(LibraryNote::Failed) => {
-            ui.label(egui::RichText::new(SchMsg::LibraryFailed.tr(lang)).color(DANGER));
+            ui.label(egui::RichText::new(SchMsg::LibraryFailed.tr(lang)).color(ui_danger()));
         }
         None => {}
     }

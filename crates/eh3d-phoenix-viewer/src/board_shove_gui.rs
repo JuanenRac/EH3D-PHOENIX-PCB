@@ -12,9 +12,8 @@ use eh3d_phoenix_rules::Lang;
 
 use crate::board_shove::ShoveTool;
 use crate::board_shove_text::ShoveMsg;
+use crate::gui::{ui_accent, ui_dim};
 
-const ACCENT: Color32 = Color32::from_rgb(0xff, 0xb0, 0x00);
-const DIM: Color32 = Color32::from_rgb(0x9c, 0x8d, 0x7a);
 const MOVED: Color32 = Color32::from_rgb(0x5f, 0xd0, 0xb0);
 
 /// Draws the points of the new track, the line through them and the preview: the tracks that
@@ -28,7 +27,7 @@ pub fn draw(painter: &egui::Painter, tool: &ShoveTool, to_screen: &dyn Fn(Point)
             for piece in &moved.before {
                 painter.line_segment(
                     [to_screen(piece.start()), to_screen(piece.end())],
-                    Stroke::new(1.0, DIM),
+                    Stroke::new(1.0, ui_dim()),
                 );
             }
             for piece in &moved.after {
@@ -44,10 +43,10 @@ pub fn draw(painter: &egui::Painter, tool: &ShoveTool, to_screen: &dyn Fn(Point)
     }
     let points: Vec<Pos2> = tool.points.iter().map(|p| to_screen(*p)).collect();
     for p in &points {
-        painter.circle_stroke(*p, 4.0, Stroke::new(1.0, ACCENT));
+        painter.circle_stroke(*p, 4.0, Stroke::new(1.0, ui_accent()));
     }
     if points.len() >= 2 {
-        painter.add(egui::Shape::line(points, Stroke::new(1.5, ACCENT)));
+        painter.add(egui::Shape::line(points, Stroke::new(1.5, ui_accent())));
     }
 }
 
@@ -60,13 +59,13 @@ pub fn panel(ui: &mut egui::Ui, tool: &mut ShoveTool, state: &mut EditState, lan
     }
     let nets = ShoveTool::nets(state);
     if nets.is_empty() {
-        ui.label(egui::RichText::new(ShoveMsg::NoNets.tr(lang)).color(DIM));
+        ui.label(egui::RichText::new(ShoveMsg::NoNets.tr(lang)).color(ui_dim()));
         return;
     }
     let before = tool.selected.min(nets.len() - 1);
     let mut chosen = before;
     ui.horizontal(|ui| {
-        ui.label(egui::RichText::new(ShoveMsg::NetLabel.tr(lang)).color(DIM));
+        ui.label(egui::RichText::new(ShoveMsg::NetLabel.tr(lang)).color(ui_dim()));
         egui::ComboBox::from_id_salt("board-shove")
             .selected_text(nets[chosen].1.clone())
             .show_ui(ui, |ui| {
@@ -86,7 +85,7 @@ pub fn panel(ui: &mut egui::Ui, tool: &mut ShoveTool, state: &mut EditState, lan
             ShoveMsg::Points.tr(lang),
             ShoveMsg::Hint.tr(lang)
         ))
-        .color(DIM),
+        .color(ui_dim()),
     );
     if tool.preview.is_some() {
         let text = if tool.moved() == 0 {

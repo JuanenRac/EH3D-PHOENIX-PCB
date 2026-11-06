@@ -14,7 +14,7 @@ use eh3d_phoenix_board::Board;
 use eh3d_phoenix_rules::Lang;
 
 use crate::codes::ViewError;
-use crate::gui::{ACCENT, DANGER, DIM};
+use crate::gui::{ui_accent, ui_danger, ui_dim};
 use crate::msg::Msg;
 use crate::settings::ViewerSettings;
 use crate::view3d::{
@@ -27,11 +27,11 @@ fn rgba(c: [u8; 4]) -> Color32 {
 }
 
 fn heading(text: &str) -> egui::RichText {
-    egui::RichText::new(text).strong().color(ACCENT)
+    egui::RichText::new(text).strong().color(ui_accent())
 }
 
 fn dim(text: impl Into<String>) -> egui::RichText {
-    egui::RichText::new(text.into()).color(DIM)
+    egui::RichText::new(text.into()).color(ui_dim())
 }
 
 /// The 3D window of an assembly.
@@ -59,6 +59,27 @@ impl View3dUi {
         })
     }
 
+    /// The reference and the footprint of every component, in the order of the scene, for the
+    /// search of the window.
+    pub fn part_labels(&self) -> Vec<(String, String)> {
+        self.assembly
+            .scene
+            .parts
+            .iter()
+            .map(|p| (p.reference.clone(), p.footprint.clone()))
+            .collect()
+    }
+
+    /// Selects the component at a place of the scene; the answer is false when there is none.
+    pub fn select_part(&mut self, index: usize) -> bool {
+        if index < self.assembly.scene.parts.len() {
+            self.selection = Some(Selection::Part(index));
+            true
+        } else {
+            false
+        }
+    }
+
     /// Draws the window in the whole of the central area. The answer is true when the person
     /// closes it.
     pub fn show(&mut self, ui: &mut egui::Ui, lang: Lang, settings: &ViewerSettings) -> bool {
@@ -69,7 +90,7 @@ impl View3dUi {
                     egui::RichText::new(View3dText::Title.tr(lang))
                         .strong()
                         .size(18.0)
-                        .color(ACCENT),
+                        .color(ui_accent()),
                 );
                 ui.separator();
                 ui.label(dim(self.assembly.scene.name.as_str()));
@@ -85,7 +106,7 @@ impl View3dUi {
             ui.horizontal(|ui| {
                 ui.label(dim(View3dText::Controls.tr(lang)));
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    ui.label(egui::RichText::new(Msg::Prototype.tr(lang)).color(ACCENT));
+                    ui.label(egui::RichText::new(Msg::Prototype.tr(lang)).color(ui_accent()));
                 });
             });
         });
@@ -175,14 +196,18 @@ impl View3dUi {
                                 View3dText::CollidesWith.tr(lang),
                                 info.collides_with.join(", ")
                             ))
-                            .color(DANGER),
+                            .color(ui_danger()),
                         );
                     }
                     if info.too_tall {
-                        ui.label(egui::RichText::new(View3dText::TooTall.tr(lang)).color(DANGER));
+                        ui.label(
+                            egui::RichText::new(View3dText::TooTall.tr(lang)).color(ui_danger()),
+                        );
                     }
                     if info.outside {
-                        ui.label(egui::RichText::new(View3dText::Outside.tr(lang)).color(DANGER));
+                        ui.label(
+                            egui::RichText::new(View3dText::Outside.tr(lang)).color(ui_danger()),
+                        );
                     }
                 }
             }

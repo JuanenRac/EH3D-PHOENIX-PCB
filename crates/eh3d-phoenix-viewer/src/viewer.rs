@@ -8,6 +8,7 @@ use eh3d_phoenix_rules::Lang;
 
 use crate::grid::Grid;
 use crate::measure::Measure;
+use crate::measure_set::MeasureSet;
 use crate::msg::Msg;
 use crate::prim::{Bounds, Shape, P};
 use crate::scene::{DocRef, Item, Scene, SceneKind};
@@ -62,6 +63,8 @@ pub struct Viewer {
     pub selected: Option<u32>,
     /// The measure.
     pub measure: Measure,
+    /// The measures that were made before the one in progress (kept by [`Viewer::measure_click`]).
+    pub measures: MeasureSet,
     /// The point of the drawing under the pointer, when the pointer is over the drawing.
     pub cursor: Option<P>,
     grid: Grid,
@@ -102,6 +105,7 @@ impl Viewer {
     /// A viewer of a scene, with the drawing fitted to the window.
     pub fn new(scene: Scene, settings: ViewerSettings) -> Viewer {
         let grid = Grid::build(&scene.prims, scene.bounds, &settings);
+        let measures = MeasureSet::new(settings.measure_max_kept);
         let mut viewer = Viewer {
             scene,
             view: View::default(),
@@ -110,6 +114,7 @@ impl Viewer {
             highlight: None,
             selected: None,
             measure: Measure::default(),
+            measures,
             cursor: None,
             grid,
         };

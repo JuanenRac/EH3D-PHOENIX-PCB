@@ -9,7 +9,7 @@ use eframe::egui;
 use eh3d_phoenix_print::{Format, PrintConfig};
 use eh3d_phoenix_rules::Lang;
 
-use crate::gui::{DANGER, DIM};
+use crate::gui::{ui_danger, ui_dim};
 use crate::print_export::{default_config, export, suggested_path};
 use crate::print_text::PrintMsg;
 use crate::workspace::Workspace;
@@ -74,7 +74,7 @@ impl PrintUi {
     /// Draws the controls and exports when the button is pressed.
     pub fn show(&mut self, ui: &mut egui::Ui, w: &Workspace, lang: Lang) {
         self.propose(w.input.as_deref());
-        ui.label(egui::RichText::new(PrintMsg::Target.tr(lang)).color(DIM));
+        ui.label(egui::RichText::new(PrintMsg::Target.tr(lang)).color(ui_dim()));
         ui.add(egui::TextEdit::singleline(&mut self.target).desired_width(200.0));
         ui.radio_value(&mut self.pdf, true, "PDF");
         ui.radio_value(&mut self.pdf, false, "SVG");
@@ -82,7 +82,7 @@ impl PrintUi {
             self.run(w, lang);
         }
         if let Some((ok, text)) = &self.note {
-            let colour = if *ok { DIM } else { DANGER };
+            let colour = if *ok { ui_dim() } else { ui_danger() };
             ui.label(egui::RichText::new(text.as_str()).color(colour));
         }
     }

@@ -4,17 +4,16 @@
 //! for an entry. What a click does is decided in [`crate::schematic_bus`], in code that is tested.
 //! This file has not been seen on a screen.
 
-use eframe::egui::{self, Color32};
+use eframe::egui;
 use eh3d_phoenix_rules::Lang;
 use eh3d_phoenix_schedit::SchEdit;
 
+use crate::gui::ui_dim;
 use crate::schematic_bus::{buses_on, members_of, BusMode, BusUi};
 use crate::schematic_hier_text::HierMsg;
 
-const DIM: Color32 = Color32::from_rgb(0x9c, 0x8d, 0x7a);
-
 fn dim(text: &str) -> egui::RichText {
-    egui::RichText::new(text).color(DIM)
+    egui::RichText::new(text).color(ui_dim())
 }
 
 /// The section of the panel with the two tools of the buses.

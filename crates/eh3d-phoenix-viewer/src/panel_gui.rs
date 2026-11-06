@@ -12,7 +12,7 @@ use eh3d_phoenix_panel::Joint;
 use eh3d_phoenix_rules::Lang;
 
 use crate::codes::ViewError;
-use crate::gui::{ACCENT, DANGER, DIM};
+use crate::gui::{ui_accent, ui_danger, ui_dim};
 use crate::msg::Msg;
 use crate::panel_scene::{parse_files, PanelLayerKind, PanelSession, PanelShape};
 use crate::panel_text::PanelText;
@@ -25,11 +25,11 @@ fn rgba(c: [u8; 4]) -> Color32 {
 }
 
 fn heading(text: &str) -> egui::RichText {
-    egui::RichText::new(text).strong().color(ACCENT)
+    egui::RichText::new(text).strong().color(ui_accent())
 }
 
 fn dim(text: impl Into<String>) -> egui::RichText {
-    egui::RichText::new(text.into()).color(DIM)
+    egui::RichText::new(text.into()).color(ui_dim())
 }
 
 /// The window of a panel.
@@ -132,7 +132,7 @@ impl PanelUi {
                     egui::RichText::new(PanelText::Title.tr(lang))
                         .strong()
                         .size(18.0)
-                        .color(ACCENT),
+                        .color(ui_accent()),
                 );
                 ui.separator();
                 if ui.button(Msg::Fit.tr(lang)).clicked() {
@@ -146,12 +146,12 @@ impl PanelUi {
         egui::Panel::bottom("panel_status").show(ui, |ui| {
             ui.horizontal(|ui| {
                 if let Some(error) = &self.error {
-                    ui.label(egui::RichText::new(error.message(lang)).color(DANGER));
+                    ui.label(egui::RichText::new(error.message(lang)).color(ui_danger()));
                 } else {
                     ui.label(dim(PanelText::ReadOnly.tr(lang)));
                 }
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    ui.label(egui::RichText::new(Msg::Prototype.tr(lang)).color(ACCENT));
+                    ui.label(egui::RichText::new(Msg::Prototype.tr(lang)).color(ui_accent()));
                 });
             });
         });
@@ -359,7 +359,7 @@ impl PanelUi {
                                 egui::Align2::CENTER_CENTER,
                                 text.as_str(),
                                 egui::FontId::proportional(16.0),
-                                DIM,
+                                ui_dim(),
                             );
                         }
                     }
@@ -374,7 +374,10 @@ impl PanelUi {
                 r.right_bottom(),
                 r.left_bottom(),
             ];
-            painter.add(egui::Shape::closed_line(corners, Stroke::new(2.0, ACCENT)));
+            painter.add(egui::Shape::closed_line(
+                corners,
+                Stroke::new(2.0, ui_accent()),
+            ));
         }
         if let Some(p) = self.cursor {
             painter.text(
@@ -382,7 +385,7 @@ impl PanelUi {
                 egui::Align2::LEFT_BOTTOM,
                 format!("x {:.3}  y {:.3} mm", p.x, p.y),
                 egui::FontId::proportional(13.0),
-                DIM,
+                ui_dim(),
             );
         }
     }
