@@ -255,8 +255,9 @@ fn write_new(path: &Path, text: &str) -> Result<(), String> {
 }
 
 fn refuse(err: &mut dyn Write, language: Language, reason: &str) -> i32 {
-    let title = export_title(REFUSED, language).unwrap_or("");
-    let _ = writeln!(err, "error {REFUSED}: {title}: {reason}");
+    let code = REFUSED;
+    let title = export_title(code, language).unwrap_or("");
+    let _ = writeln!(err, "error {code}: {title}: {reason}");
     2
 }
 
