@@ -542,7 +542,15 @@ phoenix --help [--lang xx]
 ";
 
 /// The options whose value is a path that a command writes to (or a folder it writes in).
-pub const OUTPUT_OPTIONS: [&str; 5] = ["--out", "--dir", "--into", "--svg", "--csv"];
+pub const OUTPUT_OPTIONS: [&str; 7] = [
+    "--out",
+    "--dir",
+    "--into",
+    "--svg",
+    "--csv",
+    "--html",
+    "--parts-out",
+];
 
 /// The message for the first value of an output option that is not an acceptable path to write
 /// (see `output_path_problem` of the model), or none when every value is acceptable.
