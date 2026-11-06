@@ -83,6 +83,11 @@ pub fn board_measures(board: &Board) -> BTreeMap<String, Value> {
     put("zones", board.zones.len());
     put("silkscreen", board.silkscreen.len());
     put("outline_points", board.outline.len());
+    put("outline_cutouts", board.outline_cutouts.len());
+    put(
+        "zone_cutouts",
+        board.zones.values().map(|z| z.cutouts.len()).sum::<usize>(),
+    );
     m
 }
 
@@ -338,6 +343,8 @@ mod tests {
         assert_eq!(m["pad_nets"], Value::from(3));
         assert_eq!(m["tracks"], Value::from(0));
         assert_eq!(m["outline_points"], Value::from(0));
+        assert_eq!(m["outline_cutouts"], Value::from(0));
+        assert_eq!(m["zone_cutouts"], Value::from(0));
     }
 
     #[test]

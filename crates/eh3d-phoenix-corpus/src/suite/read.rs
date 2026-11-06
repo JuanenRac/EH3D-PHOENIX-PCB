@@ -261,6 +261,8 @@ fn eagle_schematic(entry: &Entry, bytes: &[u8], settings: &CorpusSettings) -> Ou
             o.put("nets", s.nets.len());
             o.put("sheets", s.sheets.len());
             o.put("wires", s.wires.len());
+            o.put("buses", s.buses.len());
+            o.put("bus_entries", s.bus_entries.len());
             if entry.erc {
                 let report = erc_check(s, &ErcConfig::default());
                 erc_measures(&mut o, &report);
@@ -576,6 +578,7 @@ fn dsn_counts(o: &mut Outcome, prefix: &str, board: &Board) -> bool {
             o.put(&format!("{prefix}padstacks"), d.padstacks);
             o.put(&format!("{prefix}tracks"), d.tracks);
             o.put(&format!("{prefix}vias"), d.vias);
+            o.put(&format!("{prefix}zone_cutouts"), d.zone_cutouts);
             true
         }
         Err(e) => {
