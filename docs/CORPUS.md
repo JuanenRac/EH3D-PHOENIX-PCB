@@ -8,14 +8,14 @@ The corpus is the test material of this repository for the readers and the write
 
 | Folder | Pieces | Formats |
 |---|---|---|
-| `eagle/` | a board of two resistors and a header, a divider (schematic), a library with a missing symbol, a missing package and a pad that does not exist, and the adversarial files below | EAGLE XML `.brd`, `.sch`, `.lbr` |
+| `eagle/` | a board of two resistors and a header, a divider (schematic), a library with a missing symbol, a missing package and a pad that does not exist, a board and a schematic with part attributes, assembly variants and a module, boards with user layers, with polygons of several pours, holes and a dimension, with net classes, design rules and an autorouter, and with odd attributes (`docs/EAGLE_DEEP.md`), and the adversarial files below | EAGLE XML `.brd`, `.sch`, `.lbr` |
 | `kicad/` | a board of two resistors and a header, a divider with labels and a ground symbol, a footprint, a symbol library, a project with two net classes, and the adversarial files below | `.kicad_pcb`, `.kicad_sch`, `.kicad_mod`, `.kicad_sym`, `.kicad_pro` |
 | `gerber/` | a top copper layer with the attributes of Gerber X2, a layer in inches without attributes, an Excellon file of plated holes with a slot, and the adversarial files below | RS-274X with and without X2, Excellon |
 | `model/` | a small board with a track, vias and a zone, a board for the rule check, a board for the connectivity, a board for the round trips, and the adversarial files below | the board as JSON (`design/board.json` of a project) |
 | `route/` | the same small board and three sessions of an autorouter | the file for the autorouter (DSN, written from the board), the session (SES, read) |
 | `spice/` | a divider, a netlist with a byte order mark, mixed line ends and a continuation, and the netlists that must be refused | SPICE-style netlists |
 
-There are 96 expectations (55 files that must be read and 41 that must be refused) over 69 data files. `tests/corpus/.gitattributes` marks the folder as `-text`, so that git never changes a byte order mark or a line end.
+There are 102 expectations (61 files that must be read and 41 that must be refused) over 75 data files. `tests/corpus/.gitattributes` marks the folder as `-text`, so that git never changes a byte order mark or a line end.
 
 ### The adversarial files
 

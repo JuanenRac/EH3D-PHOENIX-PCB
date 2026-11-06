@@ -51,6 +51,7 @@
         "crates/eh3d-phoenix-export/src/package.rs", "crates/eh3d-phoenix-export/src/x2.rs", "crates/eh3d-phoenix-gerber/src/x2check.rs",
         "crates/eh3d-phoenix-cli/src/lib.rs",
         "crates/eh3d-phoenix-eagle-board/src/writer.rs",
+        "crates/eh3d-phoenix-eagle-deep/src/dru.rs",
         "crates/eh3d-phoenix-rules/src/engine.rs",
         "crates/eh3d-phoenix-rules/src/advanced/checks.rs",
         "crates/eh3d-phoenix-stackup/src/models.rs",

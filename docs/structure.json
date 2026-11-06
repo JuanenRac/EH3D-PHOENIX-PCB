@@ -521,6 +521,19 @@
           }
         },
         {
+          "name": "EAGLE_DEEP.md",
+          "desc": {
+            "en": "EAGLE in depth: rules, CAM jobs, variants, layers, loss report",
+            "es": "EAGLE a fondo: reglas, trabajos CAM, variantes, capas, informe de pérdida",
+            "de": "EAGLE im Detail: Regeln, CAM-Aufträge, Varianten, Lagen, Verlustbericht",
+            "fr": "EAGLE en profondeur : règles, travaux CAM, variantes, couches, rapport de perte",
+            "it": "EAGLE in profondità: regole, lavori CAM, varianti, livelli, rapporto di perdita",
+            "ja": "EAGLEの詳細：ルール、CAMジョブ、バリアント、レイヤー、損失レポート",
+            "zh": "深入 EAGLE：规则、CAM 作业、变体、层、损失报告",
+            "pt": "EAGLE em profundidade: regras, trabalhos CAM, variantes, camadas, relatório de perdas"
+          }
+        },
+        {
           "name": "GERBER_IMPORT.md",
           "desc": {
             "en": "import of Gerber and Excellon files for review, and the round trip",
