@@ -138,6 +138,14 @@ fn the_output_options_are_the_ones_the_commands_use() {
     // `OUTPUT_OPTIONS` and to this list on purpose
     assert_eq!(
         OUTPUT_OPTIONS,
-        ["--out", "--dir", "--into", "--svg", "--csv", "--html", "--parts-out"]
+        [
+            "--out",
+            "--dir",
+            "--into",
+            "--svg",
+            "--csv",
+            "--html",
+            "--parts-out"
+        ]
     );
 }
