@@ -205,8 +205,17 @@ pub fn read_netlist_file(
         let at = lines.len().min(1);
         lines.splice(at..at, extra.lines);
     }
+    parse_expanded(&lines, &shown, settings)
+}
+
+/// Reads the expanded lines as one netlist; an error names the line of the file it comes from.
+fn parse_expanded(
+    lines: &[(String, Origin)],
+    shown: &str,
+    settings: &SimSettings,
+) -> Result<Netlist, SimError> {
     let mut text = String::new();
-    for (line, _) in &lines {
+    for (line, _) in lines {
         text.push_str(line);
         text.push('\n');
     }
@@ -221,6 +230,46 @@ pub fn read_netlist_file(
         }
         error
     })
+}
+
+/// Reads a netlist that is held in memory (the first line is the title). With a `folder`, an
+/// `.include` is replaced by the file it names in that folder, under the rules of
+/// [`read_netlist_file`]; without one, an `.include` is refused.
+pub fn read_netlist_text(
+    text: &str,
+    folder: Option<&Path>,
+    settings: &SimSettings,
+) -> Result<Netlist, SimError> {
+    let Some(dir) = folder else {
+        return parse(text, settings);
+    };
+    let shown = "netlist";
+    let mut main = Expansion {
+        lines: Vec::new(),
+        files: 0,
+    };
+    for (index, raw) in text.lines().enumerate() {
+        let origin = Origin {
+            file: shown.to_string(),
+            line: index + 1,
+        };
+        if index > 0 {
+            if let Some(name) = include_name(raw) {
+                let target = resolve(dir, &name, &origin)?;
+                expand(&target, &name, false, 1, settings, &mut main)?;
+                continue;
+            }
+        }
+        if main.lines.len() >= settings.max_lines {
+            return Err(SimError::at(
+                crate::codes::LIMIT_EXCEEDED,
+                origin.line,
+                format!("more than max_lines ({}) lines", settings.max_lines),
+            ));
+        }
+        main.lines.push((raw.to_string(), origin));
+    }
+    parse_expanded(&main.lines, shown, settings)
 }
 
 #[cfg(test)]
@@ -365,6 +414,29 @@ mod tests {
         // an unreadable model file is an input error
         let e = read_netlist_file(&main, Some(&dir.join("nothing.lib")), &s).unwrap_err();
         assert_eq!(e.code, INPUT_UNREADABLE);
+        fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn a_netlist_held_in_memory_includes_the_files_of_its_folder() {
+        let dir = folder("memory");
+        put(&dir, "parts.lib", "* models\n.model dm D(IS=1e-14)\n.end\n");
+        let s = SimSettings::default();
+        let text = "t\n.include parts.lib\nV1 a 0 5\nR1 a d 1k\nD1 d 0 dm\n.end\n";
+        let nl = read_netlist_text(text, Some(&dir), &s).unwrap();
+        assert!(nl.models.contains_key("dm"));
+        assert_eq!(nl.elements.len(), 3);
+        // without a folder an include is refused, and so is a file outside the folder
+        assert!(read_netlist_text(text, None, &s).is_err());
+        let outside = "t\n.include ../parts.lib\nV1 a 0 5\nR1 a 0 1k\n";
+        let e = read_netlist_text(outside, Some(&dir), &s).unwrap_err();
+        assert_eq!(e.code, INCLUDE_REFUSED);
+        assert_eq!(e.line, Some(2));
+        // a line of the text that is wrong is named by its own number
+        let wrong = "t\n.include parts.lib\nR1 a\n";
+        let e = read_netlist_text(wrong, Some(&dir), &s).unwrap_err();
+        assert_eq!(e.code, NETLIST_SYNTAX);
+        assert_eq!(e.line, Some(3));
         fs::remove_dir_all(&dir).unwrap();
     }
 }

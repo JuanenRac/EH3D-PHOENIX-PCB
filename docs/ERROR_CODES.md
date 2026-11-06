@@ -446,6 +446,25 @@ The titles of these codes also exist in the eight languages of the suite (`TITLE
 | PHOENIX-SIM-023 | Include file is not allowed | an `.include` or a file of models (`--model`) that is refused: a name with a folder, `..`, a drive or an absolute path, a file that is not in the same folder, a file that cannot be found, nesting deeper than `max_include_depth` (a file that includes itself), more than `max_include_files` files, or an `.include` read from text and not from a file; the message names the line and the file |
 | PHOENIX-SIM-024 | Analysis directive is not valid | a `.op`, `.dc`, `.tran` or `.ac` line of a netlist with the wrong number of fields, a step of zero or going away from the stop value, a step or a stop time that is not above zero, a start time or a largest step on `.tran`, a number of points that is not a whole number above zero, or a frequency range that is not ordered; the message names the line |
 
+## Netlist made from a schematic (`eh3d-phoenix-sim`, `src/netcodes.rs`)
+
+The titles of these codes also exist in the eight languages of the suite (`TITLES` in `src/netcodes.rs`); the detail of a message is in English and names the part, the pin or the net. Each message has a severity: an error stops a simulation, a warning and information do not.
+
+| Code | Title | Raised by |
+|---|---|---|
+| PHOENIX-NETLIST-001 | Table of simulation models is not valid | a line of the table of models (`config/sim_models.cfg` or the file of `--models`) that is not a rule, an `attr` line, a `.model` line or `upper_m_is_mega`, an unknown device or option, a file name with a folder, `..` or a drive, a pattern that appears twice or a model defined twice; the message names the line |
+| PHOENIX-NETLIST-002 | Part has no simulation model | a part that no rule of the table matches (warning, the part is left out), or a part whose value names no model of the table so that the generic model of the settings is used (information) |
+| PHOENIX-NETLIST-003 | Pin is on no net | a pin that the device of the part uses and that no net lists (warning); it gets a node of its own |
+| PHOENIX-NETLIST-004 | Net has a single connection | a net, other than ground, that only one pin of the translated elements is joined to (warning) |
+| PHOENIX-NETLIST-005 | Source is short-circuited | a voltage source or ammeter whose two pins are on one net, or two voltage sources between the same two nets (error) |
+| PHOENIX-NETLIST-006 | Value or attribute is not valid | a value that is empty or not a number, a source value that is not a source value, an attribute `SIM.DEVICE`, `SPICE_MODEL` or `SIM.FILE` that is not valid, or an element line that the netlist reader refuses (error, the part is left out) |
+| PHOENIX-NETLIST-007 | Pins do not fit the device | a symbol whose pins cannot be given to the roles of the device by their names or their order, or a `pins=` list that names a pin the symbol does not have, repeats one or has the wrong length, or a part whose symbol does not exist (error, the part is left out) |
+| PHOENIX-NETLIST-008 | Reference designator is used twice | two parts that give the same element name (error, the second is left out) |
+| PHOENIX-NETLIST-009 | Circuit has no ground net | no translated element is joined to a net named `0`, `GND`, `AGND`, `DGND` or `PGND` (the setting `schematic_ground`) (error) |
+| PHOENIX-NETLIST-010 | Electrical rule check found errors | `phoenix netlist` and `phoenix sim --schematic` run the electrical rule check first and list its errors under this code (error); `--no-erc` skips the check |
+| PHOENIX-NETLIST-011 | Model is not defined | a model that a rule or an attribute names and that neither a `.model` line of the table nor a file defines, a Zener diode with no model (it needs the breakdown voltage), or one model name used for two types (error, the part is left out) |
+| PHOENIX-NETLIST-012 | Output file is not allowed | `phoenix netlist --out` names an input file, a file that exists, or a file whose extension is one of the schematic formats |
+
 ## Editing and routing (`eh3d-phoenix-route`, `src/codes.rs`)
 
 The titles of these codes also exist in the eight languages of the suite (`TITLES` in `src/codes.rs`); the detail of a message is in English.

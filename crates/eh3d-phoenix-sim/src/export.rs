@@ -65,7 +65,7 @@ impl ExportReport {
 }
 
 /// A node or model name: letters and digits in lower case, anything else as an underscore.
-fn clean(raw: &str) -> String {
+pub(crate) fn clean(raw: &str) -> String {
     raw.trim()
         .chars()
         .map(|c| {
@@ -79,7 +79,7 @@ fn clean(raw: &str) -> String {
 }
 
 /// The sort key of a pin number: whole numbers first, in numeric order, then the others.
-fn pin_key(number: &str) -> (u8, u64, String) {
+pub(crate) fn pin_key(number: &str) -> (u8, u64, String) {
     match number.trim().parse::<u64>() {
         Ok(v) => (0, v, String::new()),
         Err(_) => (1, 0, number.trim().to_lowercase()),
