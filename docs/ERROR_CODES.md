@@ -1045,6 +1045,53 @@ The titles of these codes also exist in the eight languages of the suite (`TITLE
 | PHOENIX-3D-017 | A limit of the assembly was exceeded | more components than `max_components`, more entities in a STEP file than `max_step_entities`, or more findings of one kind than `max_findings` (the rest are counted, not listed) |
 | PHOENIX-3D-018 | The export is a simplified model | information: the OBJ and STEP files hold boxes and the prism of the board, not the copper, the pads, the holes or the real shape of the parts |
 
+## DXF (`eh3d-phoenix-dxf`, `src/codes.rs`)
+
+The titles of these codes also exist in the eight languages of the suite (`TITLES` in `src/codes.rs`); the detail of a message is in English. A finding is information, a warning or an error; the reader and the chaining list what they leave out and never drop it silently.
+
+| Code | Title | Raised by |
+|---|---|---|
+| PHOENIX-DXF-001 | DXF settings are not valid | a line of `config/dxf.cfg` that is not `key = value`, an unknown key, a layer name with a character DXF forbids, two layers with the same name or a value out of range |
+| PHOENIX-DXF-002 | A limit of the DXF reader was exceeded | a file with more bytes than `max_file_bytes`, more entities (once the blocks are expanded) than `max_entities`, more blocks than `max_blocks` or blocks nested deeper than `max_block_depth`; the file is refused |
+| PHOENIX-DXF-003 | DXF file is not valid | an empty file, an odd number of lines, a group code that is not a number, a coordinate that is not a number, a section with no name, a file with no section or with no `ENTITIES` section; the message names the line |
+| PHOENIX-DXF-004 | DXF entity is not understood and was left out | warning: an entity of a type the reader does not know (ellipse, text, hatch, dimension, mesh and so on), a spline that cannot be evaluated, a polyline with fewer than two vertices or a coordinate out of the range of the design; the detail counts them and lists their layers |
+| PHOENIX-DXF-005 | Drawing unit is not known, the default unit is used | information: a file with no `$INSUNITS` or with 0; warning: a number of units the reader does not know; the unit of `default_unit` is used |
+| PHOENIX-DXF-006 | Spline was approximated by straight pieces | warning: a spline cut into pieces within `spline_tolerance_nm`, or only joined through its fit points (then the curve between the points is not the spline) |
+| PHOENIX-DXF-007 | Block or insert cannot be used | warning: an insert of a block that is not defined or that holds itself, with a scale of 0 or in an array of rows and columns, and an arc or a circle in a block scaled differently along x and y |
+| PHOENIX-DXF-008 | A command option is not valid | an option of `phoenix dxf-import` or `phoenix dxf-export` that the command does not know or needs a value for, an unknown language code, a tolerance out of its range, no board or no drawing |
+| PHOENIX-DXF-009 | Output file exists or cannot be written | a file named by `--out` that exists, is an input, has not the extension the command writes or cannot be created; nothing is written |
+| PHOENIX-DXF-010 | Input file cannot be read | the drawing, the board or a settings file that cannot be opened or read |
+| PHOENIX-DXF-011 | Chain of lines and arcs is not closed | warning: pieces that join end to end (within `join_tolerance_nm`) and do not return to their start; they are not part of the outline |
+| PHOENIX-DXF-012 | Duplicate entity was dropped | information: a piece that repeats another in either direction, a piece with no length or a contour that repeats another |
+| PHOENIX-DXF-013 | Contour crosses itself or another contour | error: an edge of the outline crosses another edge of it or an edge of a cutout, or two cutouts cross; information when the check was skipped because the contour has more edges than `max_check_edges` |
+| PHOENIX-DXF-014 | No closed contour was found | error: no chain of pieces, closed polyline or circle on the layer asked for (or in the whole drawing) closes |
+| PHOENIX-DXF-015 | Cutout is not kept by the board | warning: a contour inside the outline; the board model holds its outline only, so the cutouts are listed and not kept |
+| PHOENIX-DXF-016 | More than one outer contour, the largest is used | warning: outer contours that are not inside another, besides the largest; they are left out with the cutouts of theirs |
+| PHOENIX-DXF-017 | Contour is degenerate | warning: a closed chain with fewer than three corners or with no area; it is left out |
+| PHOENIX-DXF-018 | Arcs were approximated by straight pieces | information: arcs and circles of the outline replaced by straight pieces within `arc_tolerance_nm` |
+| PHOENIX-DXF-019 | The DXF holds outlines and marks only | information: the export writes the outlines of the pads, holes, lines and marks; copper, mask, paste, widths and the rotation of texts are not in the file |
+
+## Enclosure check (`eh3d-phoenix-assembly3d`, `src/enclosure_codes.rs`)
+
+The titles of these codes also exist in the eight languages of the suite (`TITLES` in `src/enclosure_codes.rs`); the detail of a message is in English. They come with the findings of the assembly (`PHOENIX-3D-NNN`) in the same report.
+
+| Code | Title | Raised by |
+|---|---|---|
+| PHOENIX-ENCL-001 | Enclosure file is not valid | a line of the file of the enclosure that is not `key = value`, an unknown key, a box or a number that cannot be read or is out of range, a contour that is an absolute path or has `..`, both a box and a contour or neither, a contour with no height, more than 64 posts |
+| PHOENIX-ENCL-002 | Input file of the enclosure check cannot be read | the board, the file of the enclosure, the table of models or the stack-up that cannot be opened or read |
+| PHOENIX-ENCL-003 | An option of the enclosure command is not valid | an option of `phoenix enclosure` that the command does not know or needs a value for, an unknown language code, no `--enclosure` or a number of board files other than one |
+| PHOENIX-ENCL-004 | Output file of the enclosure check exists or cannot be written | the file named by `--step` exists or cannot be created; nothing is written |
+| PHOENIX-ENCL-005 | Board or component is outside the walls or too close to them | error: the board or the box of a component is outside the walls or crosses one; warning: it is nearer to a wall than `min_clearance_mm` |
+| PHOENIX-ENCL-006 | Board or component is through the lid or too close to it | error: the top of the board or of a component on the top side is higher than the lid; warning: it is nearer to it than `min_clearance_mm` |
+| PHOENIX-ENCL-007 | Board or component is through the floor or too close to it | error: the board or a component on the bottom side is lower than the floor; warning: it is nearer to it than `min_clearance_mm` |
+| PHOENIX-ENCL-008 | Component collides with a screw post | error: the box of a component enters the cylinder of a post by more than `min_overlap_nm` in the board plane and in height |
+| PHOENIX-ENCL-009 | Screw post has no hole in the board | warning: no hole of the board (a via or the drill of a pad) has its centre within `post_hole_tolerance_mm` of the post, or the hole is smaller than the one the screw needs |
+| PHOENIX-ENCL-010 | Screw post is outside the board outline | warning: the centre of a post is not under the board |
+| PHOENIX-ENCL-011 | Least clearances to the enclosure | information: the least clearance to the walls, the lid, the floor and the posts, always reported (a negative number is through) |
+| PHOENIX-ENCL-012 | Hole left out of the STEP solid | warning: a hole of the board whose centre is outside the outline, that touches an edge or that overlaps a hole before it |
+| PHOENIX-ENCL-013 | The STEP solid of the board is simplified | information: the solid is the prism of the outline with the holes through it; copper, pads, components and the real shape of the edges are not in it |
+| PHOENIX-ENCL-014 | Inner contour of the enclosure cannot be used | the drawing named by `contour` that cannot be read, has no closed contour on the layer or has a contour that crosses itself; the detail gives the code of the drawing |
+
 ## Printing (`eh3d-phoenix-print`, `src/codes.rs`)
 
 The titles of these codes also exist in the eight languages of the suite (`TITLES` in `src/codes.rs`); the detail of a message is in English. Every code is an error except PHOENIX-PRINT-007, a warning.

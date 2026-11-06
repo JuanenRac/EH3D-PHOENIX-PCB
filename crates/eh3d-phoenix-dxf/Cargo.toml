@@ -1,0 +1,11 @@
+[package]
+name = "eh3d-phoenix-dxf"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "DXF R12 ASCII for boards and panels (prototype): a writer that gives the same text every time, a reader with limits that understands lines, arcs, circles, polylines with bulges, splines, blocks and units and lists whatever it does not understand, and the chaining of loose entities into the closed contours of a board outline, with their holes found by containment"
+
+[dependencies]
+eh3d-phoenix-rules = { path = "../eh3d-phoenix-rules" }

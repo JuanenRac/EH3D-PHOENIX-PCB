@@ -1,0 +1,88 @@
+  0
+SECTION
+  2
+HEADER
+  9
+$ACADVER
+  1
+AC1009
+  0
+ENDSEC
+  0
+SECTION
+  2
+ENTITIES
+  0
+LINE
+  8
+EDGE
+ 10
+0.0
+ 20
+0.0
+ 11
+50.0
+ 21
+0.0
+  0
+LINE
+  8
+EDGE
+ 10
+50.0
+ 20
+0.0
+ 11
+50.0
+ 21
+30.0
+  0
+LINE
+  8
+EDGE
+ 10
+50.0
+ 20
+30.0
+ 11
+0.0
+ 21
+30.0
+  0
+LINE
+  8
+EDGE
+ 10
+0.0
+ 20
+30.0
+ 11
+0.004
+ 21
+0.0
+  0
+CIRCLE
+  8
+EDGE
+ 10
+5.0
+ 20
+5.0
+ 40
+1.6
+  0
+TEXT
+  8
+NOTES
+ 10
+1.0
+ 20
+1.0
+ 40
+2.5
+  1
+PLATE A
+  0
+ENDSEC
+  0
+EOF
