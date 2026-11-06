@@ -223,7 +223,9 @@ fn simplified(kind: Kind, parent: &str, e: &Element) -> Option<String> {
                 parts.push("spacing");
             }
         }
-        (Kind::Schematic, "module") if e.child("parts").is_some() || e.child("sheets").is_some() => {
+        (Kind::Schematic, "module")
+            if e.child("parts").is_some() || e.child("sheets").is_some() =>
+        {
             parts.push("contents");
         }
         _ => {}
