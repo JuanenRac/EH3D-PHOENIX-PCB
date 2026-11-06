@@ -16,7 +16,7 @@ use eh3d_phoenix_board::{Board, Side};
 use crate::codes;
 use crate::profile::{BomProfile, BottomRotation, Origin, PlacementProfile};
 
-const FULL_TURN: i64 = 360_000_000;
+pub(crate) const FULL_TURN: i64 = 360_000_000;
 const HALF_TURN: i64 = 180_000_000;
 
 /// A value in millionths of a unit (nanometres as millimetres, micro-degrees as degrees) with
@@ -41,7 +41,7 @@ pub fn format_micro(value: i64, decimals: u32) -> String {
 }
 
 /// The key of the natural order of a designator: the letters, the number, the rest.
-fn natural_key(text: &str) -> (String, u64, String) {
+pub(crate) fn natural_key(text: &str) -> (String, u64, String) {
     let split = text
         .find(|c: char| c.is_ascii_digit())
         .unwrap_or(text.len());
@@ -59,7 +59,7 @@ fn natural_key(text: &str) -> (String, u64, String) {
 }
 
 /// A field of a CSV line. A line break inside a field would split the line, so it becomes a space.
-fn csv_field(field: &str, delimiter: char) -> String {
+pub(crate) fn csv_field(field: &str, delimiter: char) -> String {
     let field = field.replace(['\n', '\r'], " ");
     let needs_quotes = field.contains(delimiter)
         || field.contains('"')
@@ -109,7 +109,7 @@ pub fn parse_csv(text: &str, delimiter: char) -> Vec<Vec<String>> {
     rows
 }
 
-fn csv_line(fields: &[String], delimiter: char) -> String {
+pub(crate) fn csv_line(fields: &[String], delimiter: char) -> String {
     let mut line = fields
         .iter()
         .map(|f| csv_field(f, delimiter))
@@ -120,7 +120,7 @@ fn csv_line(fields: &[String], delimiter: char) -> String {
 }
 
 /// The rotation written for a part, in micro-degrees from 0 up to a full turn (not included).
-fn written_rotation(rotation: i64, side: Side, rule: BottomRotation) -> i64 {
+pub(crate) fn written_rotation(rotation: i64, side: Side, rule: BottomRotation) -> i64 {
     let r = rotation.rem_euclid(FULL_TURN);
     if side == Side::Top {
         return r;

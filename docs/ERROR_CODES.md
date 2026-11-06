@@ -2,7 +2,7 @@
 
 Codes have the form `PHOENIX-<AREA>-<NNN>`. A code is stable: it never changes its meaning and is never reused. Programs show the text through the key `diag.<code>`; the codes themselves are never translated. The object identity (UUID v7) is the one of the shared container, with its own codes `EH3D-ID-001` and `EH3D-ID-002`. The container codes `EH3D-PKG-001` to `EH3D-PKG-014` belong to the shared container and are listed in the registry of the documentation repository.
 
-Each table repeats the `REGISTRY` of a crate (`eh3d-phoenix-model` in `src/diagnostic.rs`, `eh3d-phoenix-project` and `eh3d-phoenix-eagle` in `src/codes.rs`, `eh3d-phoenix-hub` in `src/lib.rs`, `eh3d-phoenix-export` in `src/codes.rs`, `eh3d-phoenix-schematic` in `src/model.rs`, `src/draw.rs`, `src/edit.rs` and `src/link.rs`, `eh3d-phoenix-board` in `src/validate.rs`, `src/connectivity.rs` and `src/rules.rs`, `eh3d-phoenix-rules` in `src/codes.rs`, `eh3d-phoenix-stackup` and `eh3d-phoenix-rf` in `src/error.rs`, `eh3d-phoenix-viewer`, `eh3d-phoenix-sanitizer`, `eh3d-phoenix-erc`, `eh3d-phoenix-sync`, `eh3d-phoenix-schedit`, `eh3d-phoenix-boardedit`, `eh3d-phoenix-libedit`, `eh3d-phoenix-zones`, `eh3d-phoenix-lengths`, `eh3d-phoenix-gerber`, `eh3d-phoenix-panel`, `eh3d-phoenix-bom`, `eh3d-phoenix-assembly3d` and `eh3d-phoenix-oracle` in `src/codes.rs`); a test of each crate checks that every code of its registry is in the table with the same title.
+Each table repeats the `REGISTRY` of a crate (`eh3d-phoenix-model` in `src/diagnostic.rs`, `eh3d-phoenix-project` and `eh3d-phoenix-eagle` in `src/codes.rs`, `eh3d-phoenix-hub` in `src/lib.rs`, `eh3d-phoenix-export` in `src/codes.rs` and `src/fabcodes.rs`, `eh3d-phoenix-schematic` in `src/model.rs`, `src/draw.rs`, `src/edit.rs` and `src/link.rs`, `eh3d-phoenix-board` in `src/validate.rs`, `src/connectivity.rs` and `src/rules.rs`, `eh3d-phoenix-rules` in `src/codes.rs`, `eh3d-phoenix-stackup` and `eh3d-phoenix-rf` in `src/error.rs`, `eh3d-phoenix-viewer`, `eh3d-phoenix-sanitizer`, `eh3d-phoenix-erc`, `eh3d-phoenix-sync`, `eh3d-phoenix-schedit`, `eh3d-phoenix-boardedit`, `eh3d-phoenix-libedit`, `eh3d-phoenix-zones`, `eh3d-phoenix-lengths`, `eh3d-phoenix-gerber`, `eh3d-phoenix-panel`, `eh3d-phoenix-bom`, `eh3d-phoenix-assembly3d` and `eh3d-phoenix-oracle` in `src/codes.rs`); a test of each crate checks that every code of its registry is in the table with the same title.
 
 ## Model foundations
 
@@ -827,6 +827,53 @@ The titles of these codes also exist in the eight languages of the suite (`TITLE
 | PHOENIX-BOM-016 | An input file cannot be read | the board, a price file, a file of part data, a schematic, a stack-up or a settings file that cannot be opened or read |
 | PHOENIX-BOM-017 | A limit of the bill of materials was exceeded | more components than `max_items` |
 | PHOENIX-BOM-018 | The PCB cost is an estimate from the tariffs of the settings | information, always given with a PCB cost: the tariffs are an example and not the prices of any maker |
+
+## Pick and place files (`eh3d-phoenix-export`, `src/fabcodes.rs`)
+
+| Code | Title | Raised by |
+|---|---|---|
+| PHOENIX-PNP-001 | Pick and place settings are not valid | a line of `config/pnp_rotations.cfg` that is not `key = value`, an unknown key, a section given twice, a value that cannot be read or is out of range, a maker that is not a section |
+| PHOENIX-PNP-002 | Component has no footprint on the board | warning: a component that names a footprint the board does not have; its origin is used as its centre |
+| PHOENIX-PNP-003 | Footprint has no pads, the origin is the centre | information: a footprint without pads |
+| PHOENIX-PNP-004 | Reference designator is used twice | warning: two components with the same designator (one finding for each designator) |
+| PHOENIX-PNP-005 | Component has no reference designator | warning: a component whose designator is empty |
+| PHOENIX-PNP-006 | Part is not fitted | information: a part that the file of part data or `--dnp` says is not fitted, left out of the lines or marked |
+| PHOENIX-PNP-007 | Part is outside the board outline | warning: the centre of a part is outside the box of the outline |
+| PHOENIX-PNP-008 | Option is not valid | an option of `phoenix pnp` that is unknown, has no value or a value out of its set |
+| PHOENIX-PNP-009 | Output file exists or cannot be written | the folder named by `--out` exists or cannot be created (nothing is written then) |
+| PHOENIX-PNP-010 | Rotation corrected for the machine | information: the number of parts whose footprint matched a `rotate` line with an extra rotation |
+| PHOENIX-PNP-011 | Board has no components | warning: a board with no placed component |
+
+## Solder paste stencil (`eh3d-phoenix-export`, `src/fabcodes.rs`)
+
+| Code | Title | Raised by |
+|---|---|---|
+| PHOENIX-STENCIL-001 | Stencil settings are not valid | a line of `config/stencil.cfg` that is not `key = value`, an unknown key, a reduction that is neither a per cent nor a length, a value that cannot be read or is out of range |
+| PHOENIX-STENCIL-002 | Paste layer has no side | warning: a paste layer that does not say its face; its pads are left out |
+| PHOENIX-STENCIL-003 | Opening is below the minimum aspect ratio | warning: the smaller side of an opening over the thickness of the plate is below `min_aspect` (one finding for each pad) |
+| PHOENIX-STENCIL-004 | Opening is below the minimum area ratio | warning: the area of an opening over the area of its walls is below `min_area_ratio` (one finding for each pad) |
+| PHOENIX-STENCIL-005 | Large pad split into windows | information: a pad larger than `window_min_area_mm2` written as a grid of windows with bridges |
+| PHOENIX-STENCIL-006 | Rotated pad written as a region | information: an opening turned by an angle that is not a right angle, written as a region and not as a flash |
+| PHOENIX-STENCIL-007 | Board has no paste openings | warning: no pad is on a paste layer, so no file is made |
+| PHOENIX-STENCIL-008 | Option is not valid | an option of `phoenix stencil` that is unknown, has no value or a value out of its set |
+| PHOENIX-STENCIL-009 | Output file exists or cannot be written | the folder named by `--out` exists or cannot be created (nothing is written then) |
+| PHOENIX-STENCIL-010 | Reduction took an opening away | warning: after the reduction a side of the opening is smaller than `min_feature_mm`; the opening is in the report and not in the file |
+| PHOENIX-STENCIL-011 | Pad is too small to be split into windows | information: a pad over the area limit whose windows would be smaller than `min_feature_mm`; it stays whole |
+
+## Fabrication package (`eh3d-phoenix-export`, `src/fabcodes.rs`)
+
+| Code | Title | Raised by |
+|---|---|---|
+| PHOENIX-FABPACK-001 | Export profile is not valid or not found | the profile asked for with `--profile` that is not in the profile file, or a profile file that is not valid |
+| PHOENIX-FABPACK-002 | Package could not be assembled | a file name that is not a plain relative path, a name given twice, a name that is the manifest, or an export that failed |
+| PHOENIX-FABPACK-003 | Manifest read back differs from the files | the package read back has a file whose size or SHA-256 differs from the manifest, a file the manifest does not list, a listed file that is missing, or a zip file that cannot be read |
+| PHOENIX-FABPACK-004 | Output exists or cannot be written | the destination named by `--out` exists or cannot be created (nothing is written then) |
+| PHOENIX-FABPACK-005 | Option is not valid | an option of `phoenix fabpack` that is unknown, has no value or a value out of its set |
+| PHOENIX-FABPACK-006 | File or package is too large for the package format | more than 65535 files, or a file or the package of 4 GiB or more |
+| PHOENIX-FABPACK-007 | What the files of the package cannot say | information, always given: the number of notes that the manifest carries (the standing notes and the warnings of the run) |
+| PHOENIX-FABPACK-008 | Input file cannot be read | the board, a settings file, a file of part data or prices or the profile file that cannot be opened or read |
+
+The titles of these codes also exist in the eight languages of the suite (`TITLES` in `src/fabcodes.rs`); the detail of a message is in English.
 
 ## 3D assembly (`eh3d-phoenix-assembly3d`, `src/codes.rs`)
 

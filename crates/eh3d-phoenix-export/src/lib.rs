@@ -13,6 +13,12 @@
 //! * [`verify`]: the check that reads the files back and compares them with the model;
 //! * [`x2`]: the Gerber X2 attributes of the files (file, aperture and object attributes, their
 //!   twins in the drill files, the escapes of the text fields), chosen by the profile;
+//! * [`pnp`]: the pick and place file of each face (CSV and JSON `phoenix-pnp/1`) with the centre of
+//!   every part worked out from its pads, the origin, the unit and the table of extra rotations of
+//!   `config/pnp_rotations.cfg`;
+//! * [`fabcodes`] and [`fabutil`]: the codes `PHOENIX-PNP-<NNN>`, `PHOENIX-STENCIL-<NNN>` and
+//!   `PHOENIX-FABPACK-<NNN>` with their titles in the eight languages, and the small helpers of those
+//!   modules;
 //! * [`codes`] and [`messages`]: the stable codes `PHOENIX-EXPORT-<NNN>` for what the files cannot
 //!   say, with their titles in the eight languages.
 //!
@@ -27,9 +33,12 @@ pub mod assembly;
 pub mod codes;
 pub mod excellon;
 pub mod fab;
+pub mod fabcodes;
+pub mod fabutil;
 pub mod gerber;
 pub mod messages;
 pub mod package;
+pub mod pnp;
 pub mod profile;
 pub mod verify;
 pub mod x2;
