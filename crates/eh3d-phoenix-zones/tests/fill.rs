@@ -8,7 +8,8 @@ use eh3d_phoenix_board::{
 };
 use eh3d_phoenix_model::{Nm, Point, Udeg};
 use eh3d_phoenix_zones::codes::{
-    CLEARANCE_VIOLATED, FILL_EMPTY, OUTSIDE_OUTLINE, PRIORITY_TIE, ZONE_NOT_FOUND,
+    CLEARANCE_VIOLATED, FILL_EMPTY, OUTSIDE_OUTLINE, PRIORITY_TIE, RELIEF_IMPOSSIBLE,
+    ZONE_FILE_INVALID, ZONE_NOT_FOUND,
 };
 use eh3d_phoenix_zones::{
     check_fill, fill_board, fill_file_json, fill_json, has_errors, FillReport, ZoneFile, ZoneRules,
@@ -456,4 +457,76 @@ fn an_island_with_no_copper_of_the_net_is_dropped_unless_asked_to_keep() {
     assert!(report.fill.zones[0].polygons.is_empty());
     assert_eq!(report.stats[0].islands_removed, 1);
     assert!(report.findings.iter().any(|f| f.code == FILL_EMPTY));
+}
+
+#[test]
+fn a_cutout_of_the_zone_file_is_kept_away_from() {
+    let mut board = base_board();
+    let zone = add_zone(&mut board, 10, NET_A, square(MM, MM, 19 * MM, 19 * MM));
+    let text = format!(
+        "{{\"format\":\"phoenix-zones/1\",\"zones\":[{{\"zone\":\"{zone}\",\"cutouts\":[[[8000000,8000000],[12000000,8000000],[12000000,12000000],[8000000,12000000]]]}}]}}"
+    );
+    let file = ZoneFile::from_json(&text).unwrap();
+    let report = fill_board(&board, &rules(), &settings(), Some(&file)).unwrap();
+    assert!(!covered(&report, 10 * MM, 10 * MM));
+    assert!(covered(&report, 6 * MM, 10 * MM));
+    assert!(covered(&report, 14 * MM, 10 * MM));
+    // 18 mm by 18 mm less the hole of 4 mm by 4 mm
+    assert_eq!(report.fill.zones[0].area_nm2, 308_000_000_000_000);
+    assert!(report.findings.is_empty(), "{:?}", report.findings);
+    let findings = check_fill(&board, &rules(), &settings(), &report.fill).unwrap();
+    assert!(!has_errors(&findings), "{findings:?}");
+}
+
+#[test]
+fn a_cutout_that_is_not_a_polygon_stops_the_fill_of_that_zone() {
+    let mut board = base_board();
+    let zone = add_zone(&mut board, 10, NET_A, square(MM, MM, 19 * MM, 19 * MM));
+    let text = format!(
+        "{{\"format\":\"phoenix-zones/1\",\"zones\":[{{\"zone\":\"{zone}\",\"cutouts\":[[[8000000,8000000],[12000000,8000000],[16000000,8000000]]]}}]}}"
+    );
+    let file = ZoneFile::from_json(&text).unwrap();
+    let report = fill_board(&board, &rules(), &settings(), Some(&file)).unwrap();
+    assert!(report.fill.zones.is_empty());
+    assert!(has_errors(&report.findings));
+    let two = format!(
+        "{{\"format\":\"phoenix-zones/1\",\"zones\":[{{\"zone\":\"{zone}\",\"cutouts\":[[[1,1],[2,2]]]}}]}}"
+    );
+    assert_eq!(
+        ZoneFile::from_json(&two).unwrap_err().code,
+        ZONE_FILE_INVALID
+    );
+    let spokes = format!(
+        "{{\"format\":\"phoenix-zones/1\",\"zones\":[{{\"zone\":\"{zone}\",\"thermal_spokes\":3}}]}}"
+    );
+    assert_eq!(
+        ZoneFile::from_json(&spokes).unwrap_err().code,
+        ZONE_FILE_INVALID
+    );
+}
+
+#[test]
+fn a_zone_of_the_file_has_its_own_thermal_relief() {
+    let mut board = base_board();
+    add_zone(&mut board, 10, NET_A, square(MM, MM, 19 * MM, 19 * MM));
+    add_pad_of_a(&mut board, 10 * MM, 10 * MM);
+    let text = format!(
+        "{{\"format\":\"phoenix-zones/1\",\"zones\":[{{\"zone\":\"{}\",\"thermal_spokes\":2}}]}}",
+        id(10)
+    );
+    let file = ZoneFile::from_json(&text).unwrap();
+    let strict = ZoneSettings::default();
+    let report = fill_board(&board, &rules(), &strict, Some(&file)).unwrap();
+    // two spokes along x: the copper runs up to the pad along x and not along y
+    assert!(covered(&report, 10 * MM + 600_000, 10 * MM));
+    assert!(!covered(&report, 10 * MM, 10 * MM - 600_000));
+    // spokes wider than the ring: the relief cannot be made and the pad is joined solid
+    let wide = format!(
+        "{{\"format\":\"phoenix-zones/1\",\"zones\":[{{\"zone\":\"{}\",\"thermal_spoke_width_nm\":10000000}}]}}",
+        id(10)
+    );
+    let file = ZoneFile::from_json(&wide).unwrap();
+    let report = fill_board(&board, &rules(), &strict, Some(&file)).unwrap();
+    assert!(report.findings.iter().any(|f| f.code == RELIEF_IMPOSSIBLE));
+    assert!(covered(&report, 10 * MM + 400_000, 10 * MM + 400_000));
 }

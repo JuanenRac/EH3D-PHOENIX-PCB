@@ -80,6 +80,18 @@ pub struct ZoneEntry {
     /// How its pads are joined.
     #[serde(default)]
     pub connection: Option<Connection>,
+    /// The gap of the thermal reliefs of its pads, in nanometres.
+    #[serde(default)]
+    pub thermal_gap_nm: Option<i64>,
+    /// The width of the spokes of the thermal reliefs of its pads, in nanometres.
+    #[serde(default)]
+    pub thermal_spoke_width_nm: Option<i64>,
+    /// The number of spokes of the thermal reliefs (2 or 4).
+    #[serde(default)]
+    pub thermal_spokes: Option<u32>,
+    /// Holes in the zone, each a polygon of `[x, y]` in nanometres; the fill keeps away from them.
+    #[serde(default)]
+    pub cutouts: Vec<Vec<[i64; 2]>>,
 }
 
 /// The file with the priority and the limits of single zones.
@@ -116,6 +128,8 @@ impl ZoneFile {
                 ("clearance_nm", entry.clearance_nm),
                 ("min_width_nm", entry.min_width_nm),
                 ("min_island_area_nm2", entry.min_island_area_nm2),
+                ("thermal_gap_nm", entry.thermal_gap_nm),
+                ("thermal_spoke_width_nm", entry.thermal_spoke_width_nm),
             ] {
                 if value.is_some_and(|v| v < 0) {
                     return Err(ZoneError::new(
@@ -123,6 +137,18 @@ impl ZoneFile {
                         format!("{name} must not be negative"),
                     ));
                 }
+            }
+            if entry.thermal_spokes.is_some_and(|n| n != 2 && n != 4) {
+                return Err(ZoneError::new(
+                    ZONE_FILE_INVALID,
+                    "thermal_spokes must be 2 or 4",
+                ));
+            }
+            if entry.cutouts.iter().any(|c| c.len() < 3) {
+                return Err(ZoneError::new(
+                    ZONE_FILE_INVALID,
+                    "a cutout needs at least three points",
+                ));
             }
         }
         Ok(file)

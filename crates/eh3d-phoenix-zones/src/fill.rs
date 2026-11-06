@@ -121,6 +121,28 @@ struct Resolved {
     connection: Connection,
     outline: Vec<P>,
     pieces: Vec<Vec<P>>,
+    thermal_gap: Option<i64>,
+    thermal_spoke_width: Option<i64>,
+    thermal_spokes: Option<u32>,
+    /// The convex pieces of the cutouts, which the fill keeps away from.
+    cutouts: Vec<Vec<P>>,
+}
+
+impl Resolved {
+    /// The settings with the thermal relief of this zone, when it has one of its own.
+    fn relief_settings(&self, base: &ZoneSettings) -> ZoneSettings {
+        let mut s = base.clone();
+        if let Some(v) = self.thermal_gap {
+            s.thermal_gap_nm = v;
+        }
+        if let Some(v) = self.thermal_spoke_width {
+            s.thermal_spoke_width_nm = v;
+        }
+        if let Some(v) = self.thermal_spokes {
+            s.thermal_spokes = v;
+        }
+        s
+    }
 }
 
 /// What a zone of a higher priority leaves to the ones below it.
@@ -221,6 +243,40 @@ fn prepare(
             }
         }
     };
+    let mut cutouts: Vec<Vec<P>> = Vec::new();
+    for raw in entry.map_or(&[][..], |e| e.cutouts.as_slice()) {
+        let mut hole: Vec<P> = raw.iter().map(|p| (p[0], p[1])).collect();
+        crate::geom::dedupe(&mut hole);
+        if hole.len() < 3 {
+            return Err(failure(
+                OUTLINE_UNUSABLE,
+                id,
+                "a cutout has fewer than three points",
+            ));
+        }
+        make_ccw(&mut hole);
+        if area2(&hole) == 0 || !is_simple(&hole) {
+            return Err(failure(
+                OUTLINE_UNUSABLE,
+                id,
+                "a cutout has no area or two of its sides touch",
+            ));
+        }
+        if is_convex(&hole) {
+            cutouts.push(hole);
+        } else {
+            match triangulate(&hole) {
+                Some(t) if !t.is_empty() => cutouts.extend(t),
+                _ => {
+                    return Err(failure(
+                        OUTLINE_UNUSABLE,
+                        id,
+                        "a cutout could not be cut into convex pieces",
+                    ))
+                }
+            }
+        }
+    }
     Ok(Resolved {
         id,
         net: zone.net,
@@ -240,6 +296,10 @@ fn prepare(
             .unwrap_or(settings.pad_connection),
         outline,
         pieces,
+        thermal_gap: entry.and_then(|e| e.thermal_gap_nm),
+        thermal_spoke_width: entry.and_then(|e| e.thermal_spoke_width_nm),
+        thermal_spokes: entry.and_then(|e| e.thermal_spokes),
+        cutouts,
     })
 }
 
@@ -316,6 +376,7 @@ fn obstacles(
     let zone_box = bbox(&z.outline);
     let mut out: Vec<Hull> = Vec::new();
     let mut arcs = false;
+    let relief = z.relief_settings(ctx.settings);
     let edge = ctx.rules.min_edge_clearance_nm;
     let n = ctx.board_outline.len();
     if n >= 3 && edge > 0 {
@@ -334,7 +395,7 @@ fn obstacles(
                     Kind::Track => Connection::Solid,
                 };
                 if join == Connection::Thermal {
-                    match relief_blocks(item, ctx.settings) {
+                    match relief_blocks(item, &relief) {
                         Some(blocks) => {
                             for block in blocks {
                                 add_hull(&mut out, zone_box, block);
@@ -376,6 +437,9 @@ fn obstacles(
         for piece in &prior.pieces {
             add_hull(&mut out, zone_box, grown_hull(piece, need, sides));
         }
+    }
+    for piece in &z.cutouts {
+        add_hull(&mut out, zone_box, piece.clone());
     }
     (out, arcs)
 }
