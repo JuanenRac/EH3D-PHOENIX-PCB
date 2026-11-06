@@ -129,7 +129,6 @@ pub(crate) fn run(check: &str, i: &Inputs) -> Result<Option<f64>, OracleError> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::case::{Case, Status, Tolerance};
 
     fn case(check: &str, inputs: &str) -> Case {

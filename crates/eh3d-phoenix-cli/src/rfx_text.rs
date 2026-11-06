@@ -585,7 +585,7 @@ pub(crate) fn lines_text(report: &LinesReport, language: Language) -> String {
     }
     for (index, item) in eq.double.iter().enumerate() {
         out.push_str(&format!(
-            "\n{} [{}], {}\n  {}: {}\n  {}: {}\n  {} 1: {}\n  {} 2: {}\n",
+            "\n{} [{}], {}\n  {}: {}\n  {} 1: {}\n  {} 2: {}\n",
             word(L::DoubleStub, language),
             index + 1,
             termination_word(item.stubs.termination, language),

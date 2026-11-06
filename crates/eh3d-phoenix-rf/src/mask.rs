@@ -160,7 +160,7 @@ impl Mask {
             let stop_hz = number(words[3])?;
             let start_db = number(words[4])?;
             let stop_db = match words.get(5) {
-                Some(word) => number(*word)?,
+                Some(word) => number(word)?,
                 None => start_db,
             };
             if start_hz < 0.0 || stop_hz < start_hz {
