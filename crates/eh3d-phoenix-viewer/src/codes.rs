@@ -30,6 +30,8 @@ pub const SAVE_REFUSED: &str = "PHOENIX-VIEW-011";
 pub const SAVE_FAILED: &str = "PHOENIX-VIEW-012";
 /// A rule file or a settings file of a check that cannot be used.
 pub const CHECK_FILE_UNUSABLE: &str = "PHOENIX-VIEW-013";
+/// A panel that cannot be laid out from the boards and the settings that were given.
+pub const PANEL_UNUSABLE: &str = "PHOENIX-VIEW-014";
 
 /// Every code with its English title, in order.
 pub const REGISTRY: &[(&str, &str)] = &[
@@ -49,11 +51,12 @@ pub const REGISTRY: &[(&str, &str)] = &[
     (SAVE_REFUSED, "The file may not be written there"),
     (SAVE_FAILED, "The file could not be written"),
     (CHECK_FILE_UNUSABLE, "The rule file cannot be used"),
+    (PANEL_UNUSABLE, "The panel cannot be laid out"),
 ];
 
 /// Code, then the title in English, Spanish, German, French, Italian, Japanese, Chinese and
 /// European Portuguese.
-pub const TITLES: [(&str, [&str; 8]); 13] = [
+pub const TITLES: [(&str, [&str; 8]); 14] = [
     (
         FILE_UNUSABLE,
         [
@@ -221,6 +224,19 @@ pub const TITLES: [(&str, [&str; 8]); 13] = [
             "ルールファイルを使用できません",
             "无法使用规则文件",
             "Não é possível usar o ficheiro de regras",
+        ],
+    ),
+    (
+        PANEL_UNUSABLE,
+        [
+            "The panel cannot be laid out",
+            "No se puede componer el panel",
+            "Der Nutzen kann nicht angelegt werden",
+            "Le panneau ne peut pas être composé",
+            "Il pannello non può essere composto",
+            "パネルを構成できません",
+            "无法生成拼板",
+            "Não é possível compor o painel",
         ],
     ),
 ];

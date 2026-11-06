@@ -21,6 +21,8 @@ use crate::launcher_text::LauncherText;
 use crate::library_gui::LibraryUi;
 use crate::library_text::LibText;
 use crate::msg::Msg;
+use crate::panel_gui::PanelUi;
+use crate::panel_scene::parse_files;
 use crate::prim::{arc_points, triangulate, Shape, P};
 use crate::scene::SceneKind;
 use crate::schematic_gui::{self, SchematicEditUi};
@@ -135,6 +137,8 @@ struct App {
     gerber: Option<GerberUi>,
     /// The 3D window of the assembled board, while it is shown.
     view3d: Option<View3dUi>,
+    /// The window of the panel of boards, while it is shown.
+    panel: Option<PanelUi>,
     /// The table of models that the 3D window reads.
     models_text: String,
 }
@@ -162,6 +166,7 @@ impl App {
             launch_note: None,
             gerber: None,
             view3d: None,
+            panel: None,
             models_text: String::new(),
         };
         if let Some(path) = initial {
@@ -211,6 +216,7 @@ impl App {
             Launch::Open(path) => {
                 self.gerber = None;
                 self.view3d = None;
+                self.panel = None;
                 self.path_text = path.to_string_lossy().into_owned();
                 self.open(&path);
             }
@@ -218,13 +224,21 @@ impl App {
                 Ok(window) => {
                     self.gerber = Some(window);
                     self.view3d = None;
+                    self.panel = None;
                     self.error = None;
                 }
                 Err(error) => self.error = Some(error),
             },
+            Launch::OpenPanel(text) => {
+                self.gerber = None;
+                self.view3d = None;
+                self.panel = Some(PanelUi::new(&parse_files(&text), None, &self.settings));
+                self.error = None;
+            }
             Launch::NewLibrary => {
                 self.gerber = None;
                 self.view3d = None;
+                self.panel = None;
                 self.lib.new_library();
                 self.workspace = None;
                 self.sch = None;
@@ -1062,6 +1076,12 @@ impl eframe::App for App {
             }
             return;
         }
+        if let Some(window) = self.panel.as_mut() {
+            if window.show(ui, self.lang, &self.settings) {
+                self.panel = None;
+            }
+            return;
+        }
         self.top_bar(ui);
         self.status_bar(ui);
         self.side_panel(ui);
@@ -1144,6 +1164,26 @@ pub fn run(
     lang: Lang,
     settings: ViewerSettings,
 ) -> Result<(), ViewError> {
+    run_with(initial, None, lang, settings)
+}
+
+/// Opens the window with a panel of boards laid out: the board files and, when given, the settings
+/// file of the panel.
+pub fn run_panel(
+    files: Vec<PathBuf>,
+    config: Option<PathBuf>,
+    lang: Lang,
+    settings: ViewerSettings,
+) -> Result<(), ViewError> {
+    run_with(None, Some((files, config)), lang, settings)
+}
+
+fn run_with(
+    initial: Option<PathBuf>,
+    panel: Option<(Vec<PathBuf>, Option<PathBuf>)>,
+    lang: Lang,
+    settings: ViewerSettings,
+) -> Result<(), ViewError> {
     let mut viewport = egui::ViewportBuilder::default()
         .with_inner_size([1480.0, 800.0])
         .with_min_inner_size([900.0, 480.0])
@@ -1161,7 +1201,11 @@ pub fn run(
         Box::new(move |cc| {
             install_fonts(&cc.egui_ctx);
             apply_theme(&cc.egui_ctx);
-            Ok(Box::new(App::new(lang, settings, initial)))
+            let mut app = App::new(lang, settings, initial);
+            if let Some((files, config)) = panel {
+                app.panel = Some(PanelUi::new(&files, config.as_deref(), &app.settings));
+            }
+            Ok(Box::new(app))
         }),
     )
     .map_err(|e| ViewError::new(WINDOW_FAILED, e.to_string()))

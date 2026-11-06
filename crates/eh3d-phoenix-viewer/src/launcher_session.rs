@@ -19,6 +19,8 @@ pub enum Launch {
     Open(PathBuf),
     /// Show the Gerber and Excellon files of a folder, read-only.
     OpenGerber(PathBuf),
+    /// Lay the typed board files (separated by commas) out as a panel of boards.
+    OpenPanel(String),
     /// Start an empty library.
     NewLibrary,
 }
@@ -175,6 +177,17 @@ impl Launcher {
         }
     }
 
+    /// What the button of the panel asks for: the typed text as the board files of a panel, or the
+    /// note to show when nothing is typed.
+    pub fn panel_launch(&self) -> Result<Launch, LauncherText> {
+        let text = self.typed.trim();
+        if text.is_empty() {
+            Err(LauncherText::EnterPath)
+        } else {
+            Ok(Launch::OpenPanel(text.to_owned()))
+        }
+    }
+
     /// What the files dropped on the window ask for: the first one that is a folder (Gerber and
     /// Excellon files), a board, a schematic, a library or a JSON file, or the note to show when
     /// there is none.
@@ -283,6 +296,17 @@ mod tests {
         );
         launcher.typed.clear();
         assert_eq!(launcher.gerber_launch(), Err(LauncherText::EnterPath));
+    }
+
+    #[test]
+    fn the_panel_button_takes_the_typed_text_as_the_board_files() {
+        let mut launcher = Launcher::new(&settings(5), None);
+        assert_eq!(launcher.panel_launch(), Err(LauncherText::EnterPath));
+        launcher.typed = "  a.brd, b.json  ".to_string();
+        assert_eq!(
+            launcher.panel_launch(),
+            Ok(Launch::OpenPanel("a.brd, b.json".to_string()))
+        );
     }
 
     #[test]

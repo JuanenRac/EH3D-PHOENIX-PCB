@@ -56,6 +56,12 @@
 //!   projection worked out by hand, the faces sorted from far to near, the selection under a
 //!   click and the marks of the collisions and of the heights, and the texts of the 3D window in
 //!   the eight languages (the window is in `view3d_gui`, behind the `gui` feature);
+//! * [`panel_scene`] and [`panel_text`]: the panel of boards of `eh3d-phoenix-panel` as shapes on
+//!   layers that can be hidden (the copies, the frame, the tabs, the V-score lines, the fiducials
+//!   and the holes), its measures and the part of its area that the boards take, the session that
+//!   reads the boards and lays the panel out again when the matrix or the joint changes, and the
+//!   texts of the window in the eight languages (the window is in `panel_gui`, behind the `gui`
+//!   feature);
 //! * [`settings`], [`codes`], [`msg`] and [`editmsg`]: the settings file, the codes
 //!   `PHOENIX-VIEW-<NNN>` and the texts in the eight languages.
 //!
@@ -100,6 +106,10 @@ pub mod library_text;
 pub mod load;
 pub mod measure;
 pub mod msg;
+#[cfg(feature = "gui")]
+pub mod panel_gui;
+pub mod panel_scene;
+pub mod panel_text;
 pub mod prim;
 #[cfg(test)]
 pub(crate) mod sample;

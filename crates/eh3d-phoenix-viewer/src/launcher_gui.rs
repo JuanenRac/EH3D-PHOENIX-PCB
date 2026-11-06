@@ -11,6 +11,7 @@ use crate::gui::{ACCENT, DANGER, DIM};
 use crate::launcher_session::{kind_text, Launch, Launcher};
 use crate::launcher_text::LauncherText;
 use crate::msg::Msg;
+use crate::panel_text::PanelText;
 
 /// Draws the start screen in the space left by the panels. The note is the last thing that
 /// could not be done (an empty path, dropped files that cannot be opened). The answer is what
@@ -56,6 +57,15 @@ pub fn show(
                     Err(text) => *note = Some(text),
                 }
             }
+            if ui.button(PanelText::Open.tr(lang)).clicked() {
+                match launcher.panel_launch() {
+                    Ok(asked) => {
+                        *note = None;
+                        launch = Some(asked);
+                    }
+                    Err(text) => *note = Some(text),
+                }
+            }
             if ui.button(LauncherText::NewLibrary.tr(lang)).clicked() {
                 *note = None;
                 launch = Some(Launch::NewLibrary);
@@ -63,6 +73,7 @@ pub fn show(
         });
         ui.label(egui::RichText::new(LauncherText::DropHere.tr(lang)).color(DIM));
         ui.label(egui::RichText::new(LauncherText::GerberHint.tr(lang)).color(DIM));
+        ui.label(egui::RichText::new(PanelText::Hint.tr(lang)).color(DIM));
         if let Some(text) = *note {
             ui.label(egui::RichText::new(text.tr(lang)).color(DANGER));
         }
