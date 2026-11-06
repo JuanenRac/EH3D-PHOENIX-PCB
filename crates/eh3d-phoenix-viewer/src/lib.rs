@@ -36,6 +36,10 @@
 //!   chosen, the points of its centre line, the drawing of the pair, the matching of its lengths, the
 //!   correction of its gap and the report of the checks of the pairs) and its texts in the eight
 //!   languages (the section of the panel is in `board_pair_gui`, behind the `gui` feature);
+//! * [`board_select`] and [`board_select_text`]: the selection of several objects in the window of the
+//!   board editor (the picked set joined with the zones and silkscreen items, the keys that move, line up,
+//!   select a net or everything and drop the selection, and the gesture of the rectangle) and its texts in
+//!   the eight languages (the use is in `board_gui`, behind the `gui` feature);
 //! * [`board_zone`] and [`board_zone_text`]: the zone tool of the board editor (the polygon drawn by
 //!   clicks with snapping, its vertices that can be picked and moved, the preview of the fill, the zones
 //!   in the order of their priority and the operations that fill, raise, lower and remove them) and its
@@ -121,6 +125,8 @@ pub mod board_pair;
 #[cfg(feature = "gui")]
 pub mod board_pair_gui;
 pub mod board_pair_text;
+pub mod board_select;
+pub mod board_select_text;
 pub mod board_shove;
 #[cfg(feature = "gui")]
 pub mod board_shove_gui;

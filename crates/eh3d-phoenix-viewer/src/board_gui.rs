@@ -8,13 +8,18 @@
 use eframe::egui::{self, Color32, Pos2, Rect, Stroke};
 use eh3d_phoenix_board::connectivity::pad_position;
 use eh3d_phoenix_board::{Board, Id, PadRef, PadShape, StackFunction};
-use eh3d_phoenix_boardedit::{BoardEdit, BoardEditSettings, EditState, Picked, Tool};
+use eh3d_phoenix_boardedit::selection::all_items;
+use eh3d_phoenix_boardedit::{
+    item_bounds, BoardEdit, BoardEditSettings, EditOp, EditState, Picked, RectMode, Selection, Tool,
+};
 use eh3d_phoenix_model::Point;
 use eh3d_phoenix_route::copper_layers;
 use eh3d_phoenix_rules::{Lang, Severity};
 
 use crate::board_autoroute::AutorouteTool;
 use crate::board_pair::PairTool;
+use crate::board_select::{self, Group, GroupCommand, GroupKeys};
+use crate::board_select_text::SelectMsg;
 use crate::board_shove::ShoveTool;
 use crate::board_text::BoardMsg;
 use crate::board_zone::ZoneTool;
@@ -51,6 +56,11 @@ pub struct BoardEditUi {
     shove: ShoveTool,
     zone: ZoneTool,
     autoroute: AutorouteTool,
+    /// The zones and silkscreen items that are selected besides what `state.selection` holds.
+    group: Group,
+    /// The rectangle of a drag with a modifier: its corners and whether it also takes what it
+    /// touches.
+    rect: Option<(Point, Point, bool)>,
 }
 
 /// Where a point of the drawing is on the screen, and back.
@@ -140,6 +150,8 @@ pub fn start(workspace: &Workspace) -> Option<BoardEditUi> {
         shove: ShoveTool::default(),
         zone: ZoneTool::default(),
         autoroute: AutorouteTool::with_config(crate::board_autoroute::load_config()),
+        group: Group::new(),
+        rect: None,
     })
 }
 
@@ -236,6 +248,14 @@ struct Keys {
     enter: bool,
     command: bool,
     shift: bool,
+    alt: bool,
+    left: bool,
+    right: bool,
+    up: bool,
+    down: bool,
+    c: bool,
+    m: bool,
+    n: bool,
 }
 
 fn read_keys(ctx: &egui::Context) -> Keys {
@@ -261,10 +281,97 @@ fn read_keys(ctx: &egui::Context) -> Keys {
         enter: i.key_pressed(egui::Key::Enter),
         command: i.modifiers.command,
         shift: i.modifiers.shift,
+        alt: i.modifiers.alt,
+        left: i.key_pressed(egui::Key::ArrowLeft),
+        right: i.key_pressed(egui::Key::ArrowRight),
+        up: i.key_pressed(egui::Key::ArrowUp),
+        down: i.key_pressed(egui::Key::ArrowDown),
+        c: i.key_pressed(egui::Key::C),
+        m: i.key_pressed(egui::Key::M),
+        n: i.key_pressed(egui::Key::N),
     })
 }
 
-fn apply_keys(st: &mut BoardEditUi, keys: &Keys) {
+/// The keys of the selection of several objects, from the keys of the frame.
+fn group_keys(keys: &Keys) -> GroupKeys {
+    GroupKeys {
+        left: keys.left,
+        right: keys.right,
+        up: keys.up,
+        down: keys.down,
+        a: keys.a,
+        c: keys.c,
+        m: keys.m,
+        n: keys.n,
+        escape: keys.escape,
+        shift: keys.shift,
+        command: keys.command,
+        alt: keys.alt,
+    }
+}
+
+/// Runs an operation on the selection as one step of the history: the objects of the picked set
+/// and of the group are handed to the editor, which plans the whole operation or refuses it.
+fn run_group_op(st: &mut BoardEditUi, op: &EditOp) {
+    let selection = st.group.selection(&st.state.selection);
+    st.state.edit.set_selection(selection);
+    st.state.run(op);
+    st.group.prune(st.state.board());
+}
+
+/// Deletes the selection: the usual way when only components, tracks and vias are selected, else
+/// the operation on the group.
+fn delete_group(st: &mut BoardEditUi) {
+    if st.group.extra().is_empty() {
+        st.state.delete_selection();
+    } else {
+        run_group_op(st, &EditOp::DeleteSelection);
+    }
+}
+
+/// Selects every object of the net under the pointer, else of the net that is lit, and lights it.
+fn select_net_at(st: &mut BoardEditUi, pointer: Option<Point>) {
+    let net = pointer
+        .and_then(|at| st.state.net_at(at))
+        .or(st.state.highlight_net);
+    if let Some(net) = net {
+        let items = Selection::net_items(st.state.board(), net);
+        st.group.add_items(&mut st.state.selection, &items);
+        st.state.set_highlight(Some(net));
+    }
+}
+
+/// Does what a command of the group asks for.
+fn run_group_command(st: &mut BoardEditUi, command: GroupCommand, pointer: Option<Point>) {
+    match command {
+        GroupCommand::Clear => {
+            st.group.clear(&mut st.state.selection);
+            st.rect = None;
+        }
+        GroupCommand::SelectAll => {
+            let items = all_items(st.state.board());
+            st.group.add_items(&mut st.state.selection, &items);
+        }
+        GroupCommand::SelectNet => select_net_at(st, pointer),
+        GroupCommand::Move { .. } | GroupCommand::Align(_) => {
+            if let Some(op) = board_select::op_of(command, st.state.edit.settings.grid_nm) {
+                run_group_op(st, &op);
+            }
+        }
+    }
+}
+
+fn apply_keys(st: &mut BoardEditUi, keys: &Keys, pointer: Option<Point>) {
+    let has_selection = !st.group.is_empty(&st.state.selection);
+    if let Some(command) = board_select::command_of(&group_keys(keys), has_selection) {
+        let usable = st.state.tool == Tool::Select || matches!(command, GroupCommand::Clear);
+        if usable {
+            run_group_command(st, command, pointer);
+            if command != GroupCommand::Clear {
+                return;
+            }
+        }
+    }
     if keys.command {
         if keys.z {
             if keys.shift {
@@ -312,7 +419,7 @@ fn apply_keys(st: &mut BoardEditUi, keys: &Keys) {
         st.state.toggle_lock_selection();
     }
     if keys.delete {
-        st.state.delete_selection();
+        delete_group(st);
     }
 }
 
@@ -322,6 +429,8 @@ struct Frame {
     released: bool,
     latest: Option<Pos2>,
     shift: bool,
+    command: bool,
+    alt: bool,
     scroll: f32,
     pinch: f32,
 }
@@ -357,6 +466,8 @@ pub fn canvas(
         released: i.pointer.primary_released(),
         latest: i.pointer.latest_pos(),
         shift: i.modifiers.shift,
+        command: i.modifiers.command,
+        alt: i.modifiers.alt,
         scroll: i.smooth_scroll_delta.y,
         pinch: i.zoom_delta(),
     });
@@ -392,17 +503,56 @@ pub fn canvas(
         }
     }
     if let Some(at) = pointer.filter(|_| !st.pair.on && !st.shove.on && !st.zone.on) {
+        let select = st.state.tool == Tool::Select;
         if frame.pressed && inside.is_some() {
-            st.state.pointer_pressed(at, frame.shift);
+            let hit = st.state.pick_at(at);
+            let toggle = board_select::toggles(frame.shift, frame.command);
+            if select
+                && board_select::starts_rectangle(
+                    frame.shift,
+                    frame.command,
+                    frame.alt,
+                    hit.is_some(),
+                )
+            {
+                st.rect = Some((
+                    at,
+                    at,
+                    board_select::rect_mode(frame.alt) == RectMode::Crossed,
+                ));
+            } else {
+                // a plain click on something that is not selected starts a new selection
+                if select && !toggle && hit.is_none_or(|p| !st.state.selection.contains(&p)) {
+                    st.group.drop_extra();
+                }
+                st.state.pointer_pressed(at, toggle);
+            }
         } else {
             st.state.pointer_moved(at);
+            if let Some((_, to, _)) = st.rect.as_mut() {
+                *to = at;
+            }
         }
         if frame.released {
             st.state.pointer_released(at);
+            if let Some((a, b, crossed)) = st.rect.take() {
+                let mode = if crossed {
+                    RectMode::Crossed
+                } else {
+                    RectMode::Contained
+                };
+                let items = Selection::rect_items(st.state.board(), a, b, mode);
+                st.group.add_items(&mut st.state.selection, &items);
+                st.state.highlight_selected_net();
+            }
         }
     }
+    if frame.released {
+        st.rect = None;
+    }
     let keys = read_keys(ui.ctx());
-    apply_keys(st, &keys);
+    apply_keys(st, &keys, pointer);
+    st.group.prune(st.state.board());
     finish(st, workspace);
     st.refresh();
 
@@ -442,6 +592,40 @@ pub fn canvas(
             corners,
             Stroke::new(1.0, ui_accent()),
         ));
+    }
+    for item in st.group.extra() {
+        if let Some(b) = item_bounds(shown, *item) {
+            let corners = vec![
+                view.xy(mm(b.min_x), mm(b.min_y)),
+                view.xy(mm(b.max_x), mm(b.min_y)),
+                view.xy(mm(b.max_x), mm(b.max_y)),
+                view.xy(mm(b.min_x), mm(b.max_y)),
+            ];
+            painter.add(egui::Shape::closed_line(
+                corners,
+                Stroke::new(1.5, ui_accent()),
+            ));
+        }
+    }
+    if let Some((a, b, crossed)) = st.rect {
+        let corners = vec![
+            view.xy(mm(a.x_nm.get()), mm(a.y_nm.get())),
+            view.xy(mm(b.x_nm.get()), mm(a.y_nm.get())),
+            view.xy(mm(b.x_nm.get()), mm(b.y_nm.get())),
+            view.xy(mm(a.x_nm.get()), mm(b.y_nm.get())),
+        ];
+        let colour = if crossed { ui_text() } else { ui_accent() };
+        painter.add(egui::Shape::closed_line(corners, Stroke::new(1.0, colour)));
+    }
+    let count = st.group.len(&st.state.selection);
+    if count > 0 {
+        painter.text(
+            rect.right_bottom() + egui::vec2(-8.0, -8.0),
+            egui::Align2::RIGHT_BOTTOM,
+            format!("{count} {}", SelectMsg::StatusSelected.tr(lang)),
+            egui::FontId::proportional(13.0),
+            ui_accent(),
+        );
     }
     let hint = match st.state.tool {
         Tool::Select => BoardMsg::HintSelect,
@@ -605,6 +789,58 @@ fn draw_board(
     }
 }
 
+/// The buttons of the selection of several objects: select all, the net, drop the selection and
+/// the alignments.
+fn selection_panel(ui: &mut egui::Ui, st: &mut BoardEditUi, lang: Lang) {
+    let count = st.group.len(&st.state.selection);
+    let mut command: Option<GroupCommand> = None;
+    ui.horizontal_wrapped(|ui| {
+        if ui.button(SelectMsg::SelectAll.tr(lang)).clicked() {
+            command = Some(GroupCommand::SelectAll);
+        }
+        if ui.button(SelectMsg::SelectNet.tr(lang)).clicked() {
+            command = Some(GroupCommand::SelectNet);
+        }
+        if ui
+            .add_enabled(
+                count > 0,
+                egui::Button::new(SelectMsg::ClearSelection.tr(lang)),
+            )
+            .clicked()
+        {
+            command = Some(GroupCommand::Clear);
+        }
+    });
+    ui.label(dim(SelectMsg::AlignTitle.tr(lang)));
+    ui.horizontal_wrapped(|ui| {
+        for (mode, key) in board_select::ALIGN_ENTRIES {
+            let needed = if matches!(
+                mode,
+                eh3d_phoenix_boardedit::AlignMode::DistributeX
+                    | eh3d_phoenix_boardedit::AlignMode::DistributeY
+            ) {
+                3
+            } else {
+                2
+            };
+            let mut response = ui.add_enabled(
+                count >= needed,
+                egui::Button::new(SelectMsg::of_align(mode).tr(lang)),
+            );
+            if !key.is_empty() {
+                response = response.on_hover_text(key);
+            }
+            if response.clicked() {
+                command = Some(GroupCommand::Align(mode));
+            }
+        }
+    });
+    ui.label(dim(SelectMsg::KeysHint.tr(lang)));
+    if let Some(command) = command {
+        run_group_command(st, command, None);
+    }
+}
+
 /// The panel of the tools. Returns true when the person asked to stop editing.
 pub fn tools_panel(ui: &mut egui::Ui, st: &mut BoardEditUi, lang: Lang) -> bool {
     let mut leave = false;
@@ -760,7 +996,7 @@ pub fn tools_panel(ui: &mut egui::Ui, st: &mut BoardEditUi, lang: Lang) -> bool 
     ui.separator();
     ui.label(dim(format!(
         "{} {} · {} {}",
-        st.state.selection.len(),
+        st.group.len(&st.state.selection),
         BoardMsg::SelectedCount.tr(lang),
         st.state.edit.locked().len(),
         BoardMsg::LockedCount.tr(lang)
@@ -776,9 +1012,10 @@ pub fn tools_panel(ui: &mut egui::Ui, st: &mut BoardEditUi, lang: Lang) -> bool 
             st.state.toggle_lock_selection();
         }
         if ui.button(BoardMsg::Delete.tr(lang)).clicked() {
-            st.state.delete_selection();
+            delete_group(st);
         }
     });
+    selection_panel(ui, st, lang);
     let errors = st
         .state
         .edit
