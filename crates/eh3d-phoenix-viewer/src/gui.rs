@@ -1418,5 +1418,7 @@ fn save_shot_png(image: &egui::ColorImage, path: &Path, replace: bool) -> Result
     encoder.set_depth(png::BitDepth::Eight);
     let mut writer = encoder.write_header().map_err(|e| e.to_string())?;
     let data: Vec<u8> = image.pixels.iter().flat_map(|c| c.to_array()).collect();
-    writer.write_image_data(&data).map_err(|e| e.to_string())
+    writer.write_image_data(&data).map_err(|e| e.to_string())?;
+    // the end of the file is written here, so that a failure is reported and not lost in a drop
+    writer.finish().map_err(|e| e.to_string())
 }
