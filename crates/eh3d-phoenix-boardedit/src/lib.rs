@@ -39,6 +39,9 @@
 //!   copy and paste of a net or a group with an offset, a turn and a mirror (`paste_group`), the
 //!   board with its zones poured for the writers of files and what each format cannot say, with the
 //!   codes `PHOENIX-BZONE-<NNN>`;
+//! * `outline`: the operation `outline_from_dxf`, which replaces the outline of the board with the
+//!   outer contour of a DXF drawing (`eh3d-phoenix-dxf`), all or nothing, with the design rules
+//!   checked before and after and the cutouts of the drawing listed in the notes;
 //! * [`codes`]: the codes `PHOENIX-BEDIT-<NNN>`.
 //!
 //! **State: prototype.** It has been tried through the tests only, on boards made by hand; the
@@ -65,6 +68,9 @@ pub mod hit;
 pub mod ids;
 pub mod ops;
 pub mod ops_file;
+mod outline;
+#[cfg(test)]
+mod outline_tests;
 pub mod pair_check;
 pub mod pair_codes;
 mod pair_geom;

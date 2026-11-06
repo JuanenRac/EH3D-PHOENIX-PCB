@@ -9,6 +9,7 @@ description = "The state of the board editor without a screen (prototype): rever
 
 [dependencies]
 eh3d-phoenix-board = { path = "../eh3d-phoenix-board" }
+eh3d-phoenix-dxf = { path = "../eh3d-phoenix-dxf" }
 eh3d-phoenix-lengths = { path = "../eh3d-phoenix-lengths" }
 eh3d-phoenix-model = { path = "../eh3d-phoenix-model" }
 eh3d-phoenix-route = { path = "../eh3d-phoenix-route" }

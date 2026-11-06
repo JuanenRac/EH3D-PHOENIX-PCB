@@ -141,6 +141,11 @@ pub enum Operation {
         /// The item.
         id: Id,
     },
+    /// Replaces the board outline, a closed polygon (the last corner joins the first).
+    SetOutline {
+        /// The corners.
+        outline: Vec<Point>,
+    },
     /// Several operations that are applied and undone as one.
     Batch {
         /// The operations, in order.
@@ -403,6 +408,12 @@ impl Board {
             Operation::RemoveSilk { id } => {
                 let item = self.silkscreen.remove(id).ok_or(OpError::Missing(*id))?;
                 Ok(Operation::AddSilk { id: *id, item })
+            }
+            Operation::SetOutline { outline } => {
+                // the inverse of a change from a board without an outline sets that back, so the
+                // number of corners is not checked here; the planner of the editor checks it
+                let before = std::mem::replace(&mut self.outline, outline.clone());
+                Ok(Operation::SetOutline { outline: before })
             }
             Operation::Batch { ops } => {
                 // All or nothing: on a failure everything applied so far is undone.

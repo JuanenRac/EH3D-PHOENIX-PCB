@@ -22,6 +22,7 @@ use crate::codes::{
 };
 use crate::ids::IdSupply;
 use crate::ops::EditOp;
+use crate::outline;
 use crate::pair_plan;
 use crate::pairs::PairConfig;
 use crate::settings::BoardEditSettings;
@@ -340,6 +341,18 @@ pub fn plan(
         ),
         EditOp::TunePair { pair, side } => pair_plan::tune_pair(board, env, pair, *side),
         EditOp::FixPairGap { pair } => pair_plan::fix_pair_gap(board, env, pair),
+        EditOp::OutlineFromDxf {
+            dxf,
+            layer,
+            join_tolerance_nm,
+            settings,
+        } => outline::plan_outline(
+            board,
+            dxf,
+            layer.as_deref(),
+            *join_tolerance_nm,
+            settings.as_deref(),
+        ),
         EditOp::Lock { .. }
         | EditOp::Unlock { .. }
         | EditOp::Group { .. }

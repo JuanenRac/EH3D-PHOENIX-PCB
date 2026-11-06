@@ -282,6 +282,27 @@ pub enum EditOp {
         /// The name of the pair.
         pair: String,
     },
+    /// Replaces the outline of the board with the outer contour of a DXF drawing (`docs/DXF.md`):
+    /// the lines and arcs on the layer are joined into closed contours, the largest outer one
+    /// becomes the outline and its cutouts are listed in the notes and not kept. All or nothing:
+    /// a drawing with no closed contour or with a contour that crosses itself is refused, and the
+    /// design rules are checked before and after like for any other operation.
+    OutlineFromDxf {
+        /// The text of the DXF file.
+        dxf: String,
+        /// The layer to take the contours from, without regard to case; every layer when left
+        /// out.
+        #[serde(default)]
+        layer: Option<String>,
+        /// How far apart two ends may be and still be joined, in nanometres; the setting
+        /// `join_tolerance_nm` of `config/dxf.cfg` when left out.
+        #[serde(default)]
+        join_tolerance_nm: Option<i64>,
+        /// The text of a settings file `config/dxf.cfg` (the tolerances of the arcs and the
+        /// splines and the limits of the reader); the defaults when left out.
+        #[serde(default)]
+        settings: Option<String>,
+    },
     /// Adds a copper zone: a closed polygon of copper of one net on one copper layer, with its
     /// properties (`docs/BOARD_ZONES.md`). The fill is made by `zone_fill`.
     ZoneAdd {
