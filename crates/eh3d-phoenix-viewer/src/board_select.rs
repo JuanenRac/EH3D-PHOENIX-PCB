@@ -14,7 +14,13 @@
 use std::collections::BTreeSet;
 
 use eh3d_phoenix_board::Board;
-use eh3d_phoenix_boardedit::{AlignMode, EditOp, Item, Picked, RectMode, Selection};
+use eh3d_phoenix_boardedit::group::snap_to_grid;
+use eh3d_phoenix_boardedit::hit::distance_squared;
+use eh3d_phoenix_boardedit::selection::all_items;
+use eh3d_phoenix_boardedit::{
+    item_bounds, AlignMode, Bounds, EditOp, Item, Picked, RectMode, Selection,
+};
+use eh3d_phoenix_model::Point;
 
 /// The step of an arrow key held with shift, in steps of the grid.
 pub const FAST_STEPS: i64 = 10;
@@ -133,6 +139,13 @@ impl Group {
         selection
     }
 
+    /// Selects what is not selected and drops what is, over every object of the board.
+    pub fn invert(&mut self, picked: &mut BTreeSet<Picked>, board: &Board) {
+        let next = inverted(&all_items(board), &self.items(picked));
+        self.clear(picked);
+        self.add_items(picked, &next);
+    }
+
     /// Takes the objects of a selection as they are: the picked ones go to the set, the rest stay
     /// here.
     pub fn set_from(&mut self, picked: &mut BTreeSet<Picked>, selection: &Selection) {
@@ -140,6 +153,131 @@ impl Group {
         self.extra.clear();
         self.add_items(picked, selection.items());
     }
+}
+
+/// The objects of `all` that are not in `selected`, in the order of `all`.
+pub fn inverted(all: &[Item], selected: &[Item]) -> Vec<Item> {
+    all.iter()
+        .filter(|item| !selected.contains(item))
+        .copied()
+        .collect()
+}
+
+/// The zone or the silkscreen item under a point, for the click that a plain pick leaves
+/// unanswered. A silkscreen item is hit within half of its width plus the tolerance of its
+/// pieces (the nearest wins); a zone is hit only on its border, within the tolerance, so that a
+/// click inside a pour still begins a rectangle.
+pub fn pick_extra(board: &Board, at: Point, tolerance_nm: i64) -> Option<Item> {
+    let tolerance = i128::from(tolerance_nm.max(0));
+    let mut best: Option<(i128, Item)> = None;
+    for (id, silk) in &board.silkscreen {
+        let Ok(drawn) = silk.drawn() else {
+            continue;
+        };
+        let reach = i128::from(drawn.width.get().max(0) / 2) + tolerance;
+        for piece in &drawn.pieces {
+            let d = distance_squared(at, piece.start(), piece.end());
+            if d <= reach * reach && best.is_none_or(|(b, _)| d < b) {
+                best = Some((d, Item::Silk(*id)));
+            }
+        }
+    }
+    if best.is_some() {
+        return best.map(|(_, item)| item);
+    }
+    for (id, zone) in &board.zones {
+        let count = zone.outline.len();
+        for i in 0..count {
+            let (a, b) = (zone.outline[i], zone.outline[(i + 1) % count]);
+            let d = distance_squared(at, a, b);
+            if d <= tolerance * tolerance && best.is_none_or(|(near, _)| d < near) {
+                best = Some((d, Item::Zone(*id)));
+            }
+        }
+    }
+    best.map(|(_, item)| item)
+}
+
+/// True when a press on `pressed` starts the drag of the whole selection: the object is selected
+/// and the selection holds something besides components (a lone component, or components only,
+/// keep the drag of components, whose tracks follow them as the settings say).
+pub fn uses_group_drag(selected: &[Item], pressed: Item) -> bool {
+    selected.contains(&pressed)
+        && selected
+            .iter()
+            .any(|item| !matches!(item, Item::Component(_)))
+}
+
+/// The offset of a drag from where it began to where the pointer is, rounded to the grid, in
+/// nanometres.
+pub fn drag_offset(from: (i64, i64), to: (i64, i64), grid_nm: i64) -> (i64, i64) {
+    (
+        snap_to_grid(to.0.saturating_sub(from.0), grid_nm),
+        snap_to_grid(to.1.saturating_sub(from.1), grid_nm),
+    )
+}
+
+/// The operation that a finished drag of the selection is; none when it did not move.
+pub fn drag_op(from: (i64, i64), to: (i64, i64), grid_nm: i64) -> Option<EditOp> {
+    let (dx_nm, dy_nm) = drag_offset(from, to, grid_nm);
+    if dx_nm == 0 && dy_nm == 0 {
+        return None;
+    }
+    Some(EditOp::MoveSelection {
+        dx_nm,
+        dy_nm,
+        snap: Some(false),
+    })
+}
+
+/// The box that holds every object of the selection; none when it holds nothing.
+pub fn selection_box(board: &Board, items: &[Item]) -> Option<Bounds> {
+    items
+        .iter()
+        .filter_map(|item| item_bounds(board, *item))
+        .reduce(|a, b| a.union(&b))
+}
+
+/// A length in nanometres as millimetres, rounded to a micrometre, without trailing zeros.
+pub fn mm_text(nm: i64) -> String {
+    let micro = (i128::from(nm).abs() + 500) / 1000;
+    let sign = if nm < 0 && micro != 0 { "-" } else { "" };
+    let (whole, frac) = (micro / 1000, micro % 1000);
+    if frac == 0 {
+        return format!("{sign}{whole}");
+    }
+    let digits = format!("{frac:03}");
+    format!("{sign}{whole}.{}", digits.trim_end_matches('0'))
+}
+
+/// The words of the status line, in the language of the window.
+#[derive(Debug, Clone, Copy)]
+pub struct StatusWords<'a> {
+    /// What follows the number of objects.
+    pub selected: &'a str,
+    /// The word before the corners of the box.
+    pub extent: &'a str,
+    /// The word before the width and the height.
+    pub size: &'a str,
+}
+
+/// The status line of a selection: the number of objects, the box and its size in millimetres.
+pub fn status_line(count: usize, bounds: Option<&Bounds>, words: &StatusWords<'_>) -> String {
+    let head = format!("{count} {}", words.selected);
+    let Some(b) = bounds else {
+        return head;
+    };
+    format!(
+        "{head} | {} ({}, {}) - ({}, {}) mm | {} {} x {} mm",
+        words.extent,
+        mm_text(b.min_x),
+        mm_text(b.min_y),
+        mm_text(b.max_x),
+        mm_text(b.max_y),
+        words.size,
+        mm_text(b.max_x.saturating_sub(b.min_x)),
+        mm_text(b.max_y.saturating_sub(b.min_y)),
+    )
 }
 
 /// The rectangle of a drag: what lies wholly inside, or with alt also what it touches.
@@ -181,6 +319,12 @@ pub struct GroupKeys {
     pub m: bool,
     /// The key N.
     pub n: bool,
+    /// The key I.
+    pub i: bool,
+    /// The key H.
+    pub h: bool,
+    /// The key V.
+    pub v: bool,
     /// The escape key.
     pub escape: bool,
     /// Shift is held.
@@ -209,17 +353,23 @@ pub enum GroupCommand {
     SelectNet,
     /// Selects every object of the board.
     SelectAll,
+    /// Selects what is not selected and drops what is.
+    Invert,
     /// Drops the selection.
     Clear,
 }
 
 /// The command that the keys of a frame ask for, when there is one. Arrows move the selection and,
 /// with alt, line it up (left, right, top, bottom); alt+C and alt+M centre it along x and along
-/// y; N selects the net under the pointer; ctrl+A selects all; escape drops the selection. The
-/// moves and the alignments need a selection.
+/// y; alt+H and alt+V spread it with equal gaps along x and along y; N selects the net under the
+/// pointer; ctrl+A selects all; ctrl+I inverts the selection; escape drops the selection. The
+/// moves, the alignments and the distributions need a selection.
 pub fn command_of(keys: &GroupKeys, has_selection: bool) -> Option<GroupCommand> {
     if keys.command {
-        return keys.a.then_some(GroupCommand::SelectAll);
+        if keys.a {
+            return Some(GroupCommand::SelectAll);
+        }
+        return keys.i.then_some(GroupCommand::Invert);
     }
     if keys.escape {
         return Some(GroupCommand::Clear);
@@ -243,6 +393,10 @@ pub fn command_of(keys: &GroupKeys, has_selection: bool) -> Option<GroupCommand>
             Some(AlignMode::CenterX)
         } else if keys.m {
             Some(AlignMode::CenterY)
+        } else if keys.h {
+            Some(AlignMode::DistributeX)
+        } else if keys.v {
+            Some(AlignMode::DistributeY)
         } else {
             None
         };
@@ -275,7 +429,23 @@ pub fn op_of(command: GroupCommand, grid_nm: i64) -> Option<EditOp> {
             })
         }
         GroupCommand::Align(mode) => Some(EditOp::AlignSelection { mode }),
-        GroupCommand::SelectNet | GroupCommand::SelectAll | GroupCommand::Clear => None,
+        GroupCommand::SelectNet
+        | GroupCommand::SelectAll
+        | GroupCommand::Invert
+        | GroupCommand::Clear => None,
+    }
+}
+
+/// How many objects a command needs to do anything: three to spread them, two to line them up.
+pub fn min_objects(command: GroupCommand) -> usize {
+    match command {
+        GroupCommand::Align(AlignMode::DistributeX | AlignMode::DistributeY) => 3,
+        GroupCommand::Align(_) => 2,
+        GroupCommand::Move { .. } => 1,
+        GroupCommand::SelectNet
+        | GroupCommand::SelectAll
+        | GroupCommand::Invert
+        | GroupCommand::Clear => 0,
     }
 }
 
@@ -287,8 +457,8 @@ pub const ALIGN_ENTRIES: [(AlignMode, &str); 8] = [
     (AlignMode::Bottom, "Alt+Down"),
     (AlignMode::CenterX, "Alt+C"),
     (AlignMode::CenterY, "Alt+M"),
-    (AlignMode::DistributeX, ""),
-    (AlignMode::DistributeY, ""),
+    (AlignMode::DistributeX, "Alt+H"),
+    (AlignMode::DistributeY, "Alt+V"),
 ];
 
 #[cfg(test)]
@@ -575,6 +745,7 @@ mod tests {
         for command in [
             GroupCommand::SelectAll,
             GroupCommand::SelectNet,
+            GroupCommand::Invert,
             GroupCommand::Clear,
         ] {
             assert_eq!(op_of(command, 1_000_000), None);
@@ -615,5 +786,255 @@ mod tests {
             assert!(seen.insert(format!("{mode:?}")));
         }
         assert_eq!(seen.len(), 8);
+    }
+
+    fn silk_and_zone_board() -> Board {
+        crate::sample::board()
+    }
+
+    fn at_mm(x: f64, y: f64) -> Point {
+        crate::sample::point(x, y)
+    }
+
+    #[test]
+    fn inverting_gives_the_rest_in_the_order_of_the_board() {
+        let all = [
+            Item::Component(id(1)),
+            Item::Track(id(2)),
+            Item::Via(id(3)),
+            Item::Zone(id(4)),
+        ];
+        let selected = [Item::Via(id(3)), Item::Component(id(1))];
+        assert_eq!(
+            inverted(&all, &selected),
+            vec![Item::Track(id(2)), Item::Zone(id(4))]
+        );
+        assert_eq!(inverted(&all, &all), Vec::<Item>::new());
+        assert_eq!(inverted(&all, &[]), all.to_vec());
+    }
+
+    #[test]
+    fn the_group_inverts_over_the_whole_board_and_twice_is_the_same() {
+        let board = silk_and_zone_board();
+        let mut picked = BTreeSet::new();
+        let mut group = Group::new();
+        let start = [Item::Component(id(30)), Item::Zone(id(43))];
+        group.add_items(&mut picked, &start);
+        group.invert(&mut picked, &board);
+        // the sample has six objects: one component, two tracks, a via, a zone and a silkscreen line
+        assert_eq!(group.len(&picked), 4);
+        let items = group.items(&picked);
+        assert!(!items.contains(&Item::Component(id(30))));
+        assert!(!items.contains(&Item::Zone(id(43))));
+        assert!(items.contains(&Item::Silk(id(44))));
+        assert!(items.contains(&Item::Via(id(42))));
+        group.invert(&mut picked, &board);
+        let mut again = group.items(&picked);
+        again.sort();
+        let mut first = start.to_vec();
+        first.sort();
+        assert_eq!(again, first);
+        // inverting nothing selects everything
+        group.clear(&mut picked);
+        group.invert(&mut picked, &board);
+        assert_eq!(group.len(&picked), 6);
+    }
+
+    #[test]
+    fn a_silkscreen_line_is_picked_near_its_pieces() {
+        let board = silk_and_zone_board();
+        // the line runs from (12, 3) to (18, 3) and is 0.15 mm wide: it reaches 0.075 mm plus the
+        // tolerance of 0.1 mm
+        let tolerance = 100_000;
+        assert_eq!(
+            pick_extra(&board, at_mm(15.0, 3.1), tolerance),
+            Some(Item::Silk(id(44)))
+        );
+        assert_eq!(
+            pick_extra(&board, at_mm(15.0, 2.83), tolerance),
+            Some(Item::Silk(id(44)))
+        );
+        assert_eq!(pick_extra(&board, at_mm(15.0, 3.5), tolerance), None);
+        assert_eq!(pick_extra(&board, at_mm(18.3, 3.0), tolerance), None);
+    }
+
+    #[test]
+    fn a_zone_is_picked_on_its_border_and_not_inside() {
+        let board = silk_and_zone_board();
+        let tolerance = 100_000;
+        // the zone is the square (2, 12) - (8, 18)
+        assert_eq!(
+            pick_extra(&board, at_mm(5.0, 12.05), tolerance),
+            Some(Item::Zone(id(43)))
+        );
+        assert_eq!(
+            pick_extra(&board, at_mm(2.0, 15.0), tolerance),
+            Some(Item::Zone(id(43)))
+        );
+        // the closing edge from (2, 18) to (2, 12) is the one at x = 2; the one at the top is y = 18
+        assert_eq!(
+            pick_extra(&board, at_mm(5.0, 18.0), tolerance),
+            Some(Item::Zone(id(43)))
+        );
+        assert_eq!(pick_extra(&board, at_mm(5.0, 15.0), tolerance), None);
+        assert_eq!(pick_extra(&board, at_mm(5.0, 11.8), tolerance), None);
+        assert_eq!(pick_extra(&board, at_mm(25.0, 15.0), tolerance), None);
+    }
+
+    #[test]
+    fn a_group_drag_needs_a_selected_object_and_something_besides_components() {
+        let comp = Item::Component(id(1));
+        let track = Item::Track(id(2));
+        assert!(uses_group_drag(&[comp, track], comp));
+        assert!(uses_group_drag(&[track], track));
+        assert!(uses_group_drag(&[Item::Zone(id(3))], Item::Zone(id(3))));
+        assert!(!uses_group_drag(&[comp], comp));
+        assert!(!uses_group_drag(&[comp, Item::Component(id(5))], comp));
+        assert!(!uses_group_drag(&[comp, track], Item::Via(id(9))));
+        assert!(!uses_group_drag(&[], comp));
+    }
+
+    #[test]
+    fn a_drag_is_rounded_to_the_grid() {
+        let grid = 250_000;
+        // 610 000 is 2.44 steps and -130 000 is -0.52 of a step
+        assert_eq!(
+            drag_offset((1_000_000, 1_000_000), (1_610_000, 870_000), grid),
+            (500_000, -250_000)
+        );
+        // half a step rounds up
+        assert_eq!(drag_offset((0, 0), (125_000, -125_000), grid), (250_000, 0));
+        assert_eq!(drag_offset((0, 0), (124_999, 0), grid), (0, 0));
+        assert_eq!(
+            drag_op((1_000_000, 1_000_000), (1_610_000, 870_000), grid),
+            Some(EditOp::MoveSelection {
+                dx_nm: 500_000,
+                dy_nm: -250_000,
+                snap: Some(false)
+            })
+        );
+        assert_eq!(drag_op((0, 0), (100_000, 100_000), grid), None);
+        // a grid of zero does not divide by zero
+        assert_eq!(drag_offset((0, 0), (7, -3), 0), (7, -3));
+    }
+
+    #[test]
+    fn the_box_of_a_selection_is_the_union_of_its_extents() {
+        let board = silk_and_zone_board();
+        // the via at (15, 15) of 0.6 mm and the line (12, 3) - (18, 3) of 0.15 mm
+        let items = [Item::Via(id(42)), Item::Silk(id(44))];
+        let b = selection_box(&board, &items).unwrap();
+        assert_eq!(
+            (b.min_x, b.min_y, b.max_x, b.max_y),
+            (11_925_000, 2_925_000, 18_075_000, 15_300_000)
+        );
+        let zone = selection_box(&board, &[Item::Zone(id(43))]).unwrap();
+        assert_eq!(
+            (zone.min_x, zone.min_y, zone.max_x, zone.max_y),
+            (2_000_000, 12_000_000, 8_000_000, 18_000_000)
+        );
+        assert_eq!(selection_box(&board, &[]), None);
+        assert_eq!(selection_box(&board, &[Item::Via(id(99))]), None);
+    }
+
+    #[test]
+    fn lengths_are_written_in_millimetres_without_trailing_zeros() {
+        assert_eq!(mm_text(0), "0");
+        assert_eq!(mm_text(11_925_000), "11.925");
+        assert_eq!(mm_text(15_300_000), "15.3");
+        assert_eq!(mm_text(6_150_000), "6.15");
+        assert_eq!(mm_text(12_000_000), "12");
+        assert_eq!(mm_text(-1_500_000), "-1.5");
+        assert_eq!(mm_text(1_000_400), "1");
+        assert_eq!(mm_text(1_000_500), "1.001");
+        assert_eq!(mm_text(-400), "0");
+        assert_eq!(mm_text(999_600), "1");
+    }
+
+    #[test]
+    fn the_status_line_gives_the_count_the_box_and_the_size() {
+        let board = silk_and_zone_board();
+        let items = [Item::Via(id(42)), Item::Silk(id(44))];
+        let bounds = selection_box(&board, &items);
+        let words = StatusWords {
+            selected: "selected",
+            extent: "box",
+            size: "size",
+        };
+        assert_eq!(
+            status_line(2, bounds.as_ref(), &words),
+            "2 selected | box (11.925, 2.925) - (18.075, 15.3) mm | size 6.15 x 12.375 mm"
+        );
+        assert_eq!(status_line(0, None, &words), "0 selected");
+    }
+
+    #[test]
+    fn ctrl_i_inverts_and_alt_h_and_alt_v_spread() {
+        let invert = GroupKeys {
+            i: true,
+            command: true,
+            ..GroupKeys::default()
+        };
+        assert_eq!(command_of(&invert, false), Some(GroupCommand::Invert));
+        assert_eq!(command_of(&invert, true), Some(GroupCommand::Invert));
+        // the key I alone is the tool of the vias and not a command of the group
+        let plain = GroupKeys {
+            i: true,
+            ..GroupKeys::default()
+        };
+        assert_eq!(command_of(&plain, true), None);
+        let spread_x = GroupKeys {
+            h: true,
+            alt: true,
+            ..GroupKeys::default()
+        };
+        assert_eq!(
+            command_of(&spread_x, true),
+            Some(GroupCommand::Align(AlignMode::DistributeX))
+        );
+        assert_eq!(command_of(&spread_x, false), None);
+        let spread_y = GroupKeys {
+            v: true,
+            alt: true,
+            ..GroupKeys::default()
+        };
+        assert_eq!(
+            command_of(&spread_y, true),
+            Some(GroupCommand::Align(AlignMode::DistributeY))
+        );
+        let no_alt = GroupKeys {
+            v: true,
+            ..GroupKeys::default()
+        };
+        assert_eq!(command_of(&no_alt, true), None);
+        assert_eq!(
+            op_of(GroupCommand::Align(AlignMode::DistributeX), 1_000_000),
+            Some(EditOp::AlignSelection {
+                mode: AlignMode::DistributeX
+            })
+        );
+    }
+
+    #[test]
+    fn the_commands_say_how_many_objects_they_need() {
+        assert_eq!(min_objects(GroupCommand::Align(AlignMode::DistributeX)), 3);
+        assert_eq!(min_objects(GroupCommand::Align(AlignMode::DistributeY)), 3);
+        assert_eq!(min_objects(GroupCommand::Align(AlignMode::Left)), 2);
+        assert_eq!(
+            min_objects(GroupCommand::Move {
+                dx: 1,
+                dy: 0,
+                fast: false
+            }),
+            1
+        );
+        assert_eq!(min_objects(GroupCommand::Invert), 0);
+        assert_eq!(min_objects(GroupCommand::SelectAll), 0);
+    }
+
+    #[test]
+    fn the_distribution_keys_are_shown_in_the_menu() {
+        assert_eq!(ALIGN_ENTRIES[6], (AlignMode::DistributeX, "Alt+H"));
+        assert_eq!(ALIGN_ENTRIES[7], (AlignMode::DistributeY, "Alt+V"));
     }
 }
