@@ -533,3 +533,152 @@ fn a_thermal_relief_asks_for_a_valid_profile() {
     profile.gerber.zone_thermal_spoke_width_nm = 6_000_000;
     assert!(profile.validate().is_err());
 }
+
+/// The pour with its pad changed to a rectangle of 1 by 0.6 mm, the component turned by `turn`
+/// micro-degrees.
+fn with_a_rectangular_pad(turn: i64) -> Board {
+    let mut b = with_pour_and_a_pad_of_its_net();
+    b.footprints
+        .get_mut(&id(40))
+        .unwrap()
+        .pads
+        .get_mut(&id(41))
+        .unwrap()
+        .shape = PadShape::Rect {
+        width: nm(1_000_000),
+        height: nm(600_000),
+    };
+    b.components.get_mut(&id(42)).unwrap().rotation = Udeg::new(turn).unwrap();
+    b
+}
+
+fn thermal_profile(spokes: u32, non_round: bool) -> Profile {
+    let mut profile = Profile::default();
+    profile.gerber.zone_thermal_spokes = spokes;
+    profile.gerber.zone_thermal_non_round = non_round;
+    profile.validate().unwrap();
+    profile
+}
+
+fn codes_of(set: &FabSet) -> Vec<String> {
+    set.diagnostics
+        .iter()
+        .filter_map(|d| d.code.as_ref().map(|c| c.to_string()))
+        .collect()
+}
+
+#[test]
+fn a_rectangular_pad_stays_solid_unless_the_profile_asks_for_its_relief() {
+    let b = with_a_rectangular_pad(0);
+    let solid = build(&b, &Profile::default()).unwrap();
+    // the pour and its cutout only
+    assert_eq!(regions(layer_text(&solid, id(1))), 2);
+    // four spokes without the switch for the pads that are not round: as before
+    let same = build(&b, &thermal_profile(4, false)).unwrap();
+    assert_eq!(layer_text(&same, id(1)), layer_text(&solid, id(1)));
+    // with it: four L shaped gaps
+    let profile = thermal_profile(4, true);
+    let set = build(&b, &profile).unwrap();
+    let text = layer_text(&set, id(1));
+    assert_eq!(regions(text), 6);
+    assert!(eh3d_parser_gerber::parse(text).is_clean());
+    assert!(verify(&b, &profile, &set).is_empty());
+    // two spokes: a gap above and a gap below
+    let profile = thermal_profile(2, true);
+    let set = build(&b, &profile).unwrap();
+    assert_eq!(regions(layer_text(&set, id(1))), 4);
+    assert!(verify(&b, &profile, &set).is_empty());
+}
+
+#[test]
+fn two_spokes_also_reach_a_round_pad() {
+    let b = with_pour_and_a_pad_of_its_net();
+    let set = build(&b, &thermal_profile(2, false)).unwrap();
+    assert_eq!(regions(layer_text(&set, id(1))), 4);
+}
+
+/// The largest distances from the pad at (16, 7) mm of the corners of the regions near it.
+fn reach(text: &str) -> (f64, f64) {
+    let read = eh3d_parser_gerber::parse(text);
+    let (mut rx, mut ry) = (0.0_f64, 0.0_f64);
+    let mut in_region = false;
+    for command in &read.commands {
+        match &command.op {
+            Operation::RegionStart => in_region = true,
+            Operation::RegionEnd => in_region = false,
+            Operation::Line { to, .. } if in_region => {
+                let (dx, dy) = ((to.x - 16.0).abs(), (to.y - 7.0).abs());
+                if dx < 1.0 && dy < 1.0 {
+                    rx = rx.max(dx);
+                    ry = ry.max(dy);
+                }
+            }
+            _ => {}
+        }
+    }
+    (rx, ry)
+}
+
+#[test]
+fn the_gaps_of_a_rectangular_pad_follow_the_turn_of_its_component() {
+    // 1 by 0.6 mm and a gap of 0.25 mm: the gaps reach 0.75 mm along x and 0.55 mm along y
+    let profile = thermal_profile(4, true);
+    let flat = build(&with_a_rectangular_pad(0), &profile).unwrap();
+    let (rx, ry) = reach(layer_text(&flat, id(1)));
+    assert!((rx - 0.75).abs() < 1e-6 && (ry - 0.55).abs() < 1e-6, "{rx} {ry}");
+    // a quarter turn swaps them
+    let upright = build(&with_a_rectangular_pad(90_000_000), &profile).unwrap();
+    let (rx, ry) = reach(layer_text(&upright, id(1)));
+    assert!((rx - 0.55).abs() < 1e-6 && (ry - 0.75).abs() < 1e-6, "{rx} {ry}");
+}
+
+#[test]
+fn a_rectangular_pad_at_another_angle_stays_solid_and_is_reported() {
+    let b = with_a_rectangular_pad(45_000_000);
+    let set = build(&b, &thermal_profile(4, true)).unwrap();
+    assert_eq!(regions(layer_text(&set, id(1))), 2);
+    assert!(codes_of(&set).contains(&"PHOENIX-EXPORT-022".to_owned()));
+    // nothing is reported when the relief is not asked for
+    let set = build(&b, &Profile::default()).unwrap();
+    assert!(!codes_of(&set).contains(&"PHOENIX-EXPORT-022".to_owned()));
+}
+
+#[test]
+fn an_island_smaller_than_the_minimum_is_left_out_of_the_file() {
+    // the pour is 18 by 8 mm = 144 mm2, less a cutout of 2 by 2 mm = 140 mm2
+    let b = with_pour();
+    let mut profile = Profile::default();
+    profile.gerber.zone_island_min_area_nm2 = 140_000_000_000_000;
+    profile.validate().unwrap();
+    let set = build(&b, &profile).unwrap();
+    assert_eq!(regions(layer_text(&set, id(1))), 2);
+    assert!(!codes_of(&set).contains(&"PHOENIX-EXPORT-021".to_owned()));
+    assert!(verify(&b, &profile, &set).is_empty());
+    // one square nanometre more and the whole pour goes, with the clearing that belongs to it
+    profile.gerber.zone_island_min_area_nm2 = 140_000_000_000_001;
+    let set = build(&b, &profile).unwrap();
+    let text = layer_text(&set, id(1));
+    assert_eq!(regions(text), 0);
+    assert!(!text.contains("LPC"));
+    assert!(codes_of(&set).contains(&"PHOENIX-EXPORT-021".to_owned()));
+    assert!(verify(&b, &profile, &set).is_empty());
+    // the default writes it as before
+    let before = build(&b, &Profile::default()).unwrap();
+    assert_eq!(regions(layer_text(&before, id(1))), 2);
+}
+
+#[test]
+fn the_new_options_of_the_pour_ask_for_a_valid_profile() {
+    let mut profile = Profile::default();
+    profile.gerber.zone_thermal_spokes = 2;
+    assert!(profile.validate().is_ok());
+    profile.gerber.zone_thermal_spokes = 1;
+    assert!(profile.validate().is_err());
+    profile.gerber.zone_thermal_spokes = 0;
+    profile.gerber.zone_island_min_area_nm2 = -1;
+    assert!(profile.validate().is_err());
+    profile.gerber.zone_island_min_area_nm2 = 1_000_000_000_000_001;
+    assert!(profile.validate().is_err());
+    profile.gerber.zone_island_min_area_nm2 = 0;
+    assert!(profile.validate().is_ok());
+}

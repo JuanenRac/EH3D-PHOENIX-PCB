@@ -180,10 +180,17 @@ fn check_layer(
                 .count();
             let (pad_flashes, pad_regions) = pads_on(board, layer);
             compare(out, file, "flashes", pad_flashes + vias, flashes);
+            let small = crate::islands::dropped_zones(
+                board,
+                layer,
+                profile.gerber.zone_island_min_area_nm2,
+            );
             let zones = board
                 .zones
-                .values()
-                .filter(|z| z.layer == layer && z.outline.len() >= 3)
+                .iter()
+                .filter(|(id, z)| {
+                    z.layer == layer && z.outline.len() >= 3 && !small.zones.contains(*id)
+                })
                 .count();
             compare(out, file, "regions", zones + pad_regions, regions);
             let (mut model_lines, mut model_arcs) = (0usize, 0usize);

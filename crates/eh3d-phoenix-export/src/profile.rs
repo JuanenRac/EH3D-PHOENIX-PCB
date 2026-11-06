@@ -246,14 +246,22 @@ pub struct GerberProfile {
     /// The width of the line that draws the board outline, in nanometres.
     pub outline_width_nm: i64,
     /// The spokes of the thermal relief that the pads of the net of a pour get: 0 leaves them
-    /// solid (the default), 4 clears four gaps around each round pad and leaves four spokes
-    /// along the axes. They are the `thermal_spokes`, `thermal_gap_nm` and
-    /// `thermal_spoke_width_nm` of `config/zones.cfg`.
+    /// solid (the default), 4 clears four gaps around each pad and leaves four spokes along the
+    /// axes, 2 clears a gap above and a gap below and leaves a spoke on each side. They are the
+    /// `thermal_spokes`, `thermal_gap_nm` and `thermal_spoke_width_nm` of `config/zones.cfg`.
     pub zone_thermal_spokes: u32,
+    /// Whether the rectangular and oblong pads get the relief too (false, the default, leaves
+    /// them solid and gives it to the round pads only).
+    pub zone_thermal_non_round: bool,
     /// The width of the gap of a thermal relief, in nanometres.
     pub zone_thermal_gap_nm: i64,
     /// The width of each spoke of a thermal relief, in nanometres.
     pub zone_thermal_spoke_width_nm: i64,
+    /// The smallest island of copper of a pour that is written, in square nanometres (the
+    /// `min_island_area_nm2` of `config/zones.cfg`): the zones that touch along a border and
+    /// share a net make one island, and a smaller one is left out. 0 (the default) writes every
+    /// zone.
+    pub zone_island_min_area_nm2: i64,
     /// The Gerber X2 attributes.
     pub x2: X2Profile,
 }
@@ -267,8 +275,10 @@ impl Default for GerberProfile {
             paste_shrink_nm: 0,
             outline_width_nm: 100_000,
             zone_thermal_spokes: 0,
+            zone_thermal_non_round: false,
             zone_thermal_gap_nm: 250_000,
             zone_thermal_spoke_width_nm: 250_000,
+            zone_island_min_area_nm2: 0,
             x2: X2Profile::default(),
         }
     }
@@ -487,9 +497,14 @@ impl Profile {
                 "{name}: gerber.outline_width_nm is not 1 to 10000000"
             )));
         }
-        if !matches!(g.zone_thermal_spokes, 0 | 4) {
+        if !matches!(g.zone_thermal_spokes, 0 | 2 | 4) {
             return Err(bad(format!(
-                "{name}: gerber.zone_thermal_spokes is not 0 or 4"
+                "{name}: gerber.zone_thermal_spokes is not 0, 2 or 4"
+            )));
+        }
+        if !(0..=1_000_000_000_000_000).contains(&g.zone_island_min_area_nm2) {
+            return Err(bad(format!(
+                "{name}: gerber.zone_island_min_area_nm2 is not 0 to 1000000000000000"
             )));
         }
         for (field, value) in [

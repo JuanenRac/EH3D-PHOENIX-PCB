@@ -18,7 +18,9 @@ use eh3d_phoenix_model::{Point, Udeg};
 use eh3d_writer_gerber::{GerberOptions, GerberOutput, WriteError};
 
 use crate::codes;
+use crate::islands;
 use crate::profile::{ObjectAttribute, X2Level, X2Profile};
+use crate::relief::{relief_gaps, ReliefShape};
 use crate::x2::{self, ApFunction, FieldError, Fields, FileInput, ObjectSet, NO_NET};
 
 /// The coordinate format of the files unless a profile says otherwise: 4 digits before and 6 after
@@ -227,11 +229,15 @@ fn pad_function(pad: &Pad, footprint_name: &str, x2: &X2Profile) -> ApFunction {
     }
 }
 
-/// The thermal relief that the round pads of the net of a pour get.
+/// The thermal relief that the pads of the net of a pour get.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct ZoneThermal {
-    /// 0 leaves the pads solid; 4 clears four gaps and leaves four spokes.
+    /// 0 leaves the pads solid; 4 clears four gaps and leaves four spokes along the axes; 2
+    /// clears two gaps (above and below) and leaves a spoke on each side.
     pub spokes: u32,
+    /// Whether the pads that are not round (rectangles and oblongs at a right angle) get the
+    /// relief too. Without it only the round pads do.
+    pub non_round: bool,
     /// The width of each gap, in nanometres.
     pub gap_nm: i64,
     /// The width of each spoke, in nanometres.
@@ -293,6 +299,7 @@ fn zone_clearing(
     layer: Id,
     x2: &X2Profile,
     thermal: &ZoneThermal,
+    turned: &mut usize,
 ) -> Vec<Drawn> {
     let named = x2.level.has_aperture_attributes();
     let ap = |key: ApKey, function: ApFunction| Ap {
@@ -390,7 +397,7 @@ fn zone_clearing(
             }
         }
     }
-    if thermal.spokes == 4 {
+    if matches!(thermal.spokes, 2 | 4) {
         for (cid, component) in &board.components {
             let Some(footprint) = board.footprints.get(&component.footprint) else {
                 continue;
@@ -403,20 +410,44 @@ fn zone_clearing(
                     component: *cid,
                     pad: *pid,
                 };
-                let PadShape::Circle { diameter } = pad.shape else {
-                    continue;
-                };
                 if board.net_of(pad_ref) != Some(zone.net) {
                     continue;
                 }
+                let shape = match pad.shape {
+                    PadShape::Circle { diameter } => ReliefShape::Circle(diameter.get()),
+                    PadShape::Rect { .. } | PadShape::Oblong { .. } if !thermal.non_round => {
+                        continue;
+                    }
+                    PadShape::Rect { .. } | PadShape::Oblong { .. } => {
+                        let total =
+                            (pad.rotation.get() + component.rotation.get()).rem_euclid(360_000_000);
+                        if total % 90_000_000 != 0 {
+                            // the pad is written unrotated, so its relief would not fit it
+                            *turned += 1;
+                            continue;
+                        }
+                        match pad_key(pad.shape, (total / 90_000_000) % 2 == 1) {
+                            ApKey::Rect(w, h) => ReliefShape::Rect(w, h),
+                            ApKey::Obround(w, h) => ReliefShape::Obround(w, h),
+                            ApKey::Circle(d) => ReliefShape::Circle(d),
+                        }
+                    }
+                };
                 let Some(at) = pad_position(board, pad_ref) else {
                     continue;
                 };
                 if !point_in_polygon(at, &zone.outline) {
                     continue;
                 }
-                for gap in thermal_gaps(at, diameter.get(), thermal.gap_nm, thermal.spoke_width_nm)
-                {
+                let gaps = match (shape, thermal.spokes) {
+                    (ReliefShape::Circle(d), 4) => {
+                        thermal_gaps(at, d, thermal.gap_nm, thermal.spoke_width_nm)
+                    }
+                    (other, spokes) => {
+                        relief_gaps(other, at, thermal.gap_nm, thermal.spoke_width_nm, spokes)
+                    }
+                };
+                for gap in gaps {
                     clear.push((Draw::Region(gap), none()));
                 }
             }
@@ -471,13 +502,25 @@ fn collect(
     let mut draws: Vec<Drawn> = Vec::new();
     if is_copper {
         let mut zones = 0usize;
-        for z in board.zones.values().filter(|z| z.layer == layer) {
+        let mut turned = 0usize;
+        let small = islands::dropped_zones(board, layer, spec.zone_island_min_area_nm2);
+        for (zone_id, z) in board.zones.iter().filter(|(_, z)| z.layer == layer) {
+            if small.zones.contains(zone_id) {
+                continue;
+            }
             if z.outline.len() >= 3 {
                 draws.push((Draw::Region(z.outline.clone()), net_set(z.net)));
                 zones += 1;
                 // the openings of the pour and the keep-away of other copper are cleared out of
                 // it, before the copper of the board is drawn on top
-                draws.extend(zone_clearing(board, z, layer, x2, &spec.zone_thermal));
+                draws.extend(zone_clearing(
+                    board,
+                    z,
+                    layer,
+                    x2,
+                    &spec.zone_thermal,
+                    &mut turned,
+                ));
             }
         }
         if zones > 0 {
@@ -485,6 +528,24 @@ fn collect(
                 codes::ZONE_NOT_POURED,
                 Severity::Info,
                 &format!("{zones} zone(s) on one layer"),
+            ));
+        }
+        if small.islands > 0 {
+            diagnostics.push(codes::diagnostic(
+                codes::ISLAND_LEFT_OUT,
+                Severity::Info,
+                &format!(
+                    "{} island(s) of {} zone(s) on one layer",
+                    small.islands,
+                    small.zones.len()
+                ),
+            ));
+        }
+        if turned > 0 {
+            diagnostics.push(codes::diagnostic(
+                codes::RELIEF_NOT_MADE,
+                Severity::Info,
+                &format!("{turned} pad(s) on one layer"),
             ));
         }
         for t in board.tracks.values().filter(|t| t.layer == layer) {
@@ -666,8 +727,10 @@ pub struct LayerFileSpec {
     pub mask_expansion: i64,
     /// How far, per side, a paste opening is smaller than its pad, in nanometres.
     pub paste_shrink: i64,
-    /// The thermal relief of the round pads of the net of a pour.
+    /// The thermal relief of the pads of the net of a pour.
     pub zone_thermal: ZoneThermal,
+    /// The smallest island of a pour that is written, in square nanometres; 0 writes every zone.
+    pub zone_island_min_area_nm2: i64,
     /// The Gerber X2 attributes to write.
     pub x2: X2Profile,
 }

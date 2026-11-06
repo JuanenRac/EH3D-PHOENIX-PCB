@@ -134,6 +134,8 @@ Each table repeats the `REGISTRY` of a crate (`eh3d-phoenix-model` in `src/diagn
 | PHOENIX-EXPORT-018 | Written file could not be read back | the check could not read a Gerber or Excellon file it has just made (an error) |
 | PHOENIX-EXPORT-019 | Attribute text written with escapes | a net name, a reference designator, a pin number or a project name with a comma, an asterisk, a percent sign, a backslash or a character outside printable ASCII, written as `\uXXXX` in a Gerber X2 attribute (information; the strict mode refuses it instead) |
 | PHOENIX-EXPORT-020 | Attribute text not allowed | the same kind of text in the strict mode of `gerber.x2`, or a character beyond the first plane of Unicode, which has no escape; the export stops (an error) |
+| PHOENIX-EXPORT-021 | Small copper island left out | zones of one net and one layer that share a stretch of border and have less area than `gerber.zone_island_min_area_nm2`, not written with their clearing (information) |
+| PHOENIX-EXPORT-022 | Thermal relief not made for a turned pad | a rectangular or oblong pad of the net of a pour that is turned by an angle that is not a right angle, left solid when `gerber.zone_thermal_non_round` asks for a relief (information) |
 
 ## Schematic and its link to the board (`eh3d-phoenix-schematic`)
 

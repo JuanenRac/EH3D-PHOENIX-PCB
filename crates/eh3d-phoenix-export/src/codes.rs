@@ -51,6 +51,11 @@ pub const ATTRIBUTE_ESCAPED: &str = "PHOENIX-EXPORT-019";
 /// (strict mode, or a character without an escape).
 pub const ATTRIBUTE_REJECTED: &str = "PHOENIX-EXPORT-020";
 
+/// The zones of an island smaller than the minimum of the profile were left out of a layer file.
+pub const ISLAND_LEFT_OUT: &str = "PHOENIX-EXPORT-021";
+/// A pad that is not round and not at a right angle got no thermal relief (it stays solid).
+pub const RELIEF_NOT_MADE: &str = "PHOENIX-EXPORT-022";
+
 /// The codes of this crate with their titles.
 pub const REGISTRY: &[(&str, &str)] = &[
     (PAD_ROTATION, "Pad rotation is not a right angle"),
@@ -73,6 +78,8 @@ pub const REGISTRY: &[(&str, &str)] = &[
     (VERIFY_UNREADABLE, "Written file could not be read back"),
     (ATTRIBUTE_ESCAPED, "Attribute text written with escapes"),
     (ATTRIBUTE_REJECTED, "Attribute text not allowed"),
+    (ISLAND_LEFT_OUT, "Small copper island left out"),
+    (RELIEF_NOT_MADE, "Thermal relief not made for a turned pad"),
 ];
 
 /// Builds the diagnostic of `code` (which must be in [`REGISTRY`]) with a detail.

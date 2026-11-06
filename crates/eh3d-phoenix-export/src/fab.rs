@@ -231,9 +231,11 @@ pub fn build(board: &Board, profile: &Profile) -> Result<FabSet, ExportError> {
             paste_shrink: profile.gerber.paste_shrink_nm,
             zone_thermal: ZoneThermal {
                 spokes: profile.gerber.zone_thermal_spokes,
+                non_round: profile.gerber.zone_thermal_non_round,
                 gap_nm: profile.gerber.zone_thermal_gap_nm,
                 spoke_width_nm: profile.gerber.zone_thermal_spoke_width_nm,
             },
+            zone_island_min_area_nm2: profile.gerber.zone_island_min_area_nm2,
             x2: profile.gerber.x2.clone(),
         };
         let (output, mut found) = write_layer(board, &spec, profile.gerber.outline_width_nm)

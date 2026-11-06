@@ -68,7 +68,7 @@ impl Lang {
 
 /// Code, then the title in English, Spanish, German, French, Italian, Japanese, Chinese and
 /// European Portuguese.
-pub const TITLES: [(&str, [&str; 8]); 20] = [
+pub const TITLES: [(&str, [&str; 8]); 22] = [
     (
         "PHOENIX-EXPORT-001",
         [
@@ -327,6 +327,32 @@ pub const TITLES: [(&str, [&str; 8]); 20] = [
             "属性テキストは使用できません",
             "属性文本不被允许",
             "Texto de atributo não permitido",
+        ],
+    ),
+    (
+        "PHOENIX-EXPORT-021",
+        [
+            "Small copper island left out",
+            "Isla de cobre pequeña omitida",
+            "Kleine Kupferinsel ausgelassen",
+            "Petit îlot de cuivre omis",
+            "Piccola isola di rame omessa",
+            "小さな銅の島は省略されました",
+            "较小的铜岛已省略",
+            "Pequena ilha de cobre omitida",
+        ],
+    ),
+    (
+        "PHOENIX-EXPORT-022",
+        [
+            "Thermal relief not made for a turned pad",
+            "Alivio térmico no hecho para un pad girado",
+            "Thermische Entlastung für gedrehtes Pad nicht erzeugt",
+            "Dégagement thermique non créé pour un pad tourné",
+            "Rilievo termico non creato per un pad ruotato",
+            "回転したパッドにはサーマルリリーフを作成しませんでした",
+            "未为旋转的焊盘生成热焊盘",
+            "Alívio térmico não criado para uma pastilha rodada",
         ],
     ),
 ];
