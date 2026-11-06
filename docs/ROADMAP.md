@@ -82,6 +82,8 @@ Writing of KiCad schematics, boards and libraries.
 
 Gate: KiCad opens them and its checks agree.
 
+Progress: the writers exist as a prototype (`eh3d-phoenix-kicad`, `docs/KICAD_EXPORT.md`): a board, a schematic with its sheets, the footprints of a board and the symbols of a schematic as KiCad 8 files, with a report of what the model cannot say and the command `phoenix kicad-export`; the files are read back by the readers of the crate and have never been opened in KiCad.
+
 ## F11. Component base and first satellites
 
 The component database (EH3D-COMPONENT-INTELLIGENCE), then the verifier, the manufacturing profiles, the history, the passport and the full validation lab, each a library with a command line and a task kind.

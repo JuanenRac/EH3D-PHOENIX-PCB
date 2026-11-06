@@ -182,6 +182,19 @@
           }
         },
         {
+          "name": "KICAD_EXPORT.md",
+          "desc": {
+            "en": "writing KiCad files: what is written, the report, the command",
+            "es": "escribir archivos de KiCad: qué se escribe, el informe, el comando",
+            "de": "KiCad-Dateien schreiben: was geschrieben wird, Bericht, Befehl",
+            "fr": "écrire des fichiers KiCad : ce qui est écrit, le rapport, la commande",
+            "it": "scrivere file KiCad: cosa si scrive, il rapporto, il comando",
+            "ja": "KiCad ファイルの書き出し：書き出す内容、レポート、コマンド",
+            "zh": "写出 KiCad 文件：写出的内容、报告与命令",
+            "pt": "escrever ficheiros KiCad: o que se escreve, o relatório, o comando"
+          }
+        },
+        {
           "name": "VIEWER.md",
           "desc": {
             "en": "the viewer and editor prototype and its benchmark",

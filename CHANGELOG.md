@@ -4,6 +4,11 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- Add the writers of KiCad 8 files to `eh3d-phoenix-kicad`: a board (`.kicad_pcb`: layers named from the stack, nets, footprints with pads, tracks with arcs, vias, zones, outline and silkscreen), a schematic (`.kicad_sch`, one file for each sheet, with symbols, parts, wires, junctions, labels and power ports), the footprints of a board (`.kicad_mod`) and the symbols of a schematic (`.kicad_sym`), with the same bytes every time (numbers written from integers with the fewest exact decimals, escaped text and UUIDs derived from the ids of the model)
+- Add the report of an export, which counts what the model cannot say (left out, written in a simpler form, written as a default, reference to something missing) and never drops it in silence, the check that reads each file back and compares the counts, and the codes `PHOENIX-KICADX-001` to `007` in the eight languages
+- Add the command `phoenix kicad-export <board|schematic|library> <input> [--out PATH]`: a dry run unless `--out` names a folder or the one file to write; it never writes over an input or over a file that exists; with the options `--settings`, `--lang`, `--json` and `--board`
+- Add the settings `config/kicad_export.cfg` (versions, names, text sizes, line widths, grid and pin sizes), document the writers in `docs/KICAD_EXPORT.md`, the state of requirement PPCB-013 and what is left out in `docs/NOT_YET.md`, and bring the test counters up to date.
+
 ## [0.0.4] - Editors for schematics, libraries and boards, KiCad reading, autorouter files, zones, lengths, Gerber import, panels, BOM, 3D, reference cases and a non-linear simulator
 
 - Add the crate `eh3d-phoenix-bom` and the command `phoenix bom`: the bill of materials of a board (and of the parts of a schematic that are not placed) grouped by value, footprint, maker and part number with the references of each line, prices by quantity break read from a local CSV or JSON file (nothing is fetched from a network), the cheapest supplier for the quantity of the batch with the waste, the cost per board and per batch, the parts without a price or a footprint listed, and an estimate of the cost of the boards from the area, the layers, the thickness and the holes with the example tariffs of `config/costs.cfg`.

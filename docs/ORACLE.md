@@ -72,7 +72,7 @@ Nothing in this section has been run. It says what will be exported, what will b
 | Simulator | the netlists of the tests, written with `phoenix sim` | the operating point, AC and transient results of a SPICE program (ngspice) | node voltages, gain and phase, the waveform at sample points | linear circuits within 1e-9 relative; transient within 1e-3 of the final value; circuits with devices within 1 %, with the model parameters written equal on both sides |
 | Gerber and Excellon export | the files written for a generated board | two independent viewers, and the import of `phoenix gerber-import` | apertures, coordinates, bounding box, drill count | coordinates exact in the format of the file; no warning in the viewers |
 | EAGLE round trip | the XML written for a generated board | EAGLE opens it | warnings of the import, the signature of the board after saving | no warning; signature equal |
-| KiCad write | a board written for KiCad (not written yet, PPCB-013) | KiCad opens it and runs its checks | as for the EAGLE round trip | waits for the writer |
+| KiCad write | a board written for KiCad (written as a prototype, never opened in KiCad, PPCB-013) | KiCad opens it and runs its checks | as for the EAGLE round trip | waits for KiCad on a computer |
 | Touchstone and RF figures | the files and figures of the tests | a network analyser or a published file | S parameters, VSWR, group delay | to be settled with the measurement |
 
 **Steps for each row**

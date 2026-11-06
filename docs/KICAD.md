@@ -77,4 +77,4 @@ It prints the format, the kind, the version, whether the file was usable, the fi
 
 ## What is next
 
-The command for a whole project is in `docs/KICAD_IMPORT.md`. The comparison with the oracle: the same connectivity as KiCad on a public corpus of open hardware with reviewed licences, a classification of every difference, and the check of the points marked above (the nets of a schematic, the mirroring of the pads of the bottom side, the arcs). Writing KiCad files (requirement PPCB-013) and the items the readers leave out are in `docs/NOT_YET.md`.
+The command for a whole project is in `docs/KICAD_IMPORT.md`. The comparison with the oracle: the same connectivity as KiCad on a public corpus of open hardware with reviewed licences, a classification of every difference, and the check of the points marked above (the nets of a schematic, the mirroring of the pads of the bottom side, the arcs). The writers are in `docs/KICAD_EXPORT.md`, and the items the readers leave out are in `docs/NOT_YET.md`.
