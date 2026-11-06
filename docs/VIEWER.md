@@ -74,6 +74,22 @@ A `.lbr` file given to the window, or the button *Library editor*, starts the li
 
 The program `phoenix-gui` opens the window with no arguments, and the release archive holds it beside `phoenix`. It is built with the `gui` feature (`cargo build --release -p eh3d-phoenix-cli --features gui` makes both programs) and accepts `phoenix-gui [--settings FILE] [--lang xx] [<file>]`; with a file it opens it at once, without one it shows the start screen. On Windows it is a program of the graphical subsystem, so no console window opens behind it and it prints nothing; an error that keeps the window from opening is written to `last_error.txt` in the settings folder of the user. If no `--settings` is given it reads `config/viewer.cfg` beside the program when that file is there, and the language comes from `--lang` or from the environment (`LC_ALL`, `LC_MESSAGES` or `LANG`), with English when none names one of the eight.
 
+### The picture mode
+
+`phoenix-gui --shot FILE.png` opens the window, waits, saves a picture of it as a PNG file and closes by itself; it is how the pictures of the README are made. The other options of the mode:
+
+| Option | Meaning |
+|---|---|
+| `--size WxH` | the size of the window in pixels, each side from 320 to 8192 (default 1480x800) |
+| `--theme dark\|light\|contrast` | the theme of the picture (default: the one of the settings) |
+| `--lang xx` | the language of the window (as everywhere) |
+| `--wait N` | the frames drawn before the picture is taken, 0 to 3600 (default 6), for a drawing that takes longer to be complete |
+| `--open FILE` | the board, schematic or library to open (also the bare file argument); for `gerber` a folder |
+| `--window NAME` | the window shown: `start` (nothing open, the default without a file), `document` (the default with a file; `board`, `schematic` and `library` are other names for it), `3d`, `panel`, `gerber`, `search`, `measures`, `layers`, `history`, `appearance`, `shortcuts` or `help` |
+| `--replace` | allow a file that exists to be written over; without it the run stops before opening the window |
+
+The windows `document`, `3d`, `panel` and `gerber` need `--open`, and `start` cannot have one; the others can be shown with or without a document. In this mode the window reads no file of preferences and writes none, keeps the recent files in memory only and, on a failure, writes the reason to the error stream and not to `last_error.txt`, so a run leaves the settings of the person as they were. The exit code is 0 when the picture was written, 1 when it was not and 2 for a mistake in the arguments. The picture is what the window drew, in physical pixels, so on a screen with scaling it can be larger than `--size`. The options are read and checked in `eh3d_phoenix_cli::window_args` and `eh3d_phoenix_viewer::shot`, which are tested without a window; the taking of the picture itself has never been run on a screen.
+
 The recent files are a plain text file, one path per line, the newest first, in the settings folder of the user: `%APPDATA%\EH3D-PHOENIX-PCB` on Windows, `$XDG_CONFIG_HOME/eh3d-phoenix-pcb` or `~/.config/eh3d-phoenix-pcb` on the other systems. A file is added when it has been opened (by the start screen, the path box or a drop), a path that repeats moves to the front, and a file that is no longer there is shown as not found and cannot be opened from the list; each entry can be forgotten, or the whole list cleared. The name of the file (`recent_file`) and the number of entries (`recent_max`) are settings of `config/viewer.cfg`. When the list cannot be written the window says so and goes on.
 
 What the start screen decides (a typed path with or without the quotes that Windows adds when it copies a path, which of several dropped files is opened, the list, its limit and its file) is in the modules `launcher_session`, `launcher_recent` and `launcher_text` of the crate `eh3d-phoenix-viewer`, with tests and without a screen; `launcher_gui` only draws it. The arguments of `phoenix-gui` are read by `window_args` in the crate `eh3d-phoenix-cli`. Like the rest of the window, the start screen is a prototype that has not been seen on a screen or tried with a mouse.
