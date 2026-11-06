@@ -197,7 +197,11 @@ fn a_cutout_that_crosses_itself_or_a_pad_without_a_drill_that_is_not_plated_is_r
     let mut b = board(plain_pad());
     // a bow tie
     b.outline_cutouts = vec![vec![pt(5, 3), pt(8, 6), pt(8, 3), pt(5, 6)]];
-    let codes: Vec<String> = b.validate().iter().filter_map(|d| d.code.clone()).collect();
+    let codes: Vec<String> = b
+        .validate()
+        .iter()
+        .filter_map(|d| d.code.as_ref().map(|c| c.to_string()))
+        .collect();
     assert_eq!(codes, vec![BAD_OUTLINE.to_owned()]);
     // a pad that is not plated has to have a hole
     let mut c = board(pad(

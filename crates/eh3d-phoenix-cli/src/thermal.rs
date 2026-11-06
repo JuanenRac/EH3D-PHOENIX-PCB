@@ -51,6 +51,7 @@ side. A prototype of quasi-static estimates, never compared with a measurement. 
 written without --out.
 ";
 
+#[derive(Debug)]
 struct Options {
     json: bool,
     lang: Language,
