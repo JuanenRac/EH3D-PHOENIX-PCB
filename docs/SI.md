@@ -56,3 +56,5 @@ A via stub is the part of the barrel beyond the last layer that has the end of a
 ## What is not in it
 
 Pieces on different layers (broadside coupling), arcs, branches and the pads of the parts are not looked at in the crosstalk; the lines are lossless in the reflections and have a loss that is a single pole in the rise time and the eye; skin effect and dielectric loss are taken at one frequency; the driver is a resistance and the receiver a resistance and a capacitor; there are no packages, no vias in the reflections, no power or ground noise, no jitter other than the interference between bits, and no statistical eye. See `NOT_YET.md`.
+
+The impedance, the delay and the coupling used here come from the closed formulas of the stack-up crate. `phoenix stackup --field2d` and `phoenix field2d` (`docs/FIELD2D.md`) solve the same sections with a field solver and show the difference in percent; `phoenix si` does not use that solver yet (`docs/NOT_YET.md`).

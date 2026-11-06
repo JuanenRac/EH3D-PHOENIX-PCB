@@ -59,6 +59,15 @@ phoenix zones check [--config FILE] [--rules FILE] [--zones FILE] [--fill FILE] 
 
 The file written by `--out` has the format `phoenix-zone-fill/1`: the name of the board, the tolerance, and for each zone its id, net, layer, priority, rules, area and polygons as lists of `[x, y]` in nanometres.
 
+## Rounded corners
+
+With `corner_radius_nm` above zero (`config/zones.cfg`; zero leaves every corner sharp) the fill rounds two kinds of corner with arcs of that radius, made of chords that are at most `corner_tolerance_nm` from the arc:
+
+* **The corners of the fill that face outwards**, such as the corners of the outline of the zone. The pieces of a fill touch along their sides, so a vertex is on the edge of the copper only when no other piece has it, it lies on no side of another piece, and the corner that the arc would cut off holds no vertex of another piece; those are rounded and the others are left as they are. An arc takes at most half of each side next to the corner, so a radius that does not fit is made smaller.
+* **The corners of the gaps of a thermal relief.** The gap is taken out of the fill as blocks; a block loses its corners, which gives the spokes a fillet at their root.
+
+The arcs are found with integer arithmetic (a square root of integers, no floating point), so the fill is the same on every machine. Rounding the first kind only takes copper away from the piece itself, and rounding the second adds copper only inside the gap around a pad of the same net, so the rounded fill never comes closer to the copper of another net than the fill it was made from, apart from the rounding of an arc point to the nanometre, which the tolerance `snap_tolerance_nm` of the check allows for. `phoenix zones check` measures it like any other fill. The corners at the holes that the keep-away of a pad, a via or a track of another net leaves are not rounded: the keep-away of a circle is already a polygon around it, and rounding a corner of a hole would bring the copper closer.
+
 ## Settings
 
 Every radius, width, limit and default is in `config/zones.cfg`, which is also the built-in default; no value is written in the code. A line that is not `key = value`, an unknown key or a value out of range is refused with `PHOENIX-ZONE-001`.
@@ -76,4 +85,5 @@ Every radius, width, limit and default is in `config/zones.cfg`, which is also t
 * A via joins the copper layers between its first and its last layer when the board gives the stack, else only those two.
 * Keep-out areas are not read; the board model has none. A hole that is not plated has no copper, so the fill does not look at it as a pad.
 * The export writes a zone as its outline; the board editor makes a board whose zones are the polygons of the fill for the Gerber files (`docs/BOARD_ZONES.md`). The rule check of the board still judges a zone by its outline.
+* The rounded corners use one radius for the whole board, they are not rounded at the holes of the fill, and the arcs are chords, so the copper that is taken is a little more than a true arc takes (by 0.2 percent of the corner for a tolerance of a micrometre on a radius of a millimetre).
 * Nothing has been compared with the fill of the reference tool, and the speed on a large board has not been measured.

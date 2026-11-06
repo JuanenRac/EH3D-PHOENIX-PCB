@@ -152,10 +152,12 @@ Every error and warning has a code `PHOENIX-STACK-<NNN>` (see `ERROR_CODES.md`) 
 ## The command
 
 ```text
-phoenix stackup <job.json> --freq-ghz <GHz> [--material ID ...] [--settings FILE] [--lang xx] [--json]
+phoenix stackup <job.json> --freq-ghz <GHz> [--material ID ...] [--settings FILE] [--field2d] [--lang xx] [--json]
 ```
 
 `--material ID` adds a material of the database of the suite (see below); it may be repeated and the job file may then leave out its `materials` list.
+
+`--field2d` solves the same lines with the two-dimensional field solver (`docs/FIELD2D.md`) and adds its result after the report, with the difference in percent from the closed formulas (a key `field2d` in the JSON). It is the second opinion on the formulas of this page: the even and odd modes, the common impedance and the mutual capacitance and inductance of a pair are in that report and not here.
 
 Exit code 0 when every line was computed, 1 when at least one line could not be (the others are still printed) and 2 when the arguments, the settings or the job file cannot be used. The report holds no date, host name or user name, and the same job gives the same bytes.
 

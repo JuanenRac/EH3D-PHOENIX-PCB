@@ -576,6 +576,32 @@
           }
         },
         {
+          "name": "FIELD2D.md",
+          "desc": {
+            "en": "two-dimensional field solver of a line: impedance, modes, coupling",
+            "es": "solucionador de campo bidimensional de una línea: impedancia, modos, acoplamiento",
+            "de": "zweidimensionaler Feldlöser einer Leitung: Impedanz, Moden, Kopplung",
+            "fr": "solveur de champ bidimensionnel d'une ligne : impédance, modes, couplage",
+            "it": "risolutore di campo bidimensionale di una linea: impedenza, modi, accoppiamento",
+            "ja": "線路の二次元電界ソルバー：インピーダンス、モード、結合",
+            "zh": "线路的二维场求解器：阻抗、模式、耦合",
+            "pt": "resolvedor de campo bidimensional de uma linha: impedância, modos, acoplamento"
+          }
+        },
+        {
+          "name": "THERMAL.md",
+          "desc": {
+            "en": "heating of tracks and vias from the current of a net",
+            "es": "calentamiento de pistas y vías según la corriente de una red",
+            "de": "Erwärmung von Leiterbahnen und Durchkontaktierungen durch den Netzstrom",
+            "fr": "échauffement des pistes et des vias selon le courant d'un réseau",
+            "it": "riscaldamento di piste e via in base alla corrente di una rete",
+            "ja": "ネットの電流による配線とビアの発熱",
+            "zh": "按网络电流估算走线和过孔的发热",
+            "pt": "aquecimento de pistas e vias a partir da corrente de uma rede"
+          }
+        },
+        {
           "name": "LENGTHS.md",
           "desc": {
             "en": "lengths, matching groups and differential pairs",

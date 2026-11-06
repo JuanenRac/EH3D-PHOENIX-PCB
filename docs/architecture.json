@@ -41,8 +41,9 @@
       "lines": [
         "inventory, model, project file, board, schematic, ERC, sync,",
         "EAGLE, KiCad, rules, export, Gerber import, panels, RF, zones,",
-        "stack-up, RF structures, simulator, router, autorouter, lengths,",
-        "sanitizer, scripts, editors, footprints, BOM, 3D, oracle, viewer, CLI"
+        "stack-up, field solver, RF structures, simulator, router,",
+        "autorouter, lengths, sanitizer, scripts, editors, footprints,",
+        "BOM, 3D, oracle, viewer, CLI"
       ],
       "code": [
         "crates/eh3d-phoenix-corpus/src/inventory.rs",
@@ -83,6 +84,7 @@
         "crates/eh3d-phoenix-route/src/dsn.rs",
         "crates/eh3d-phoenix-autoroute/src/search.rs",
         "crates/eh3d-phoenix-zones/src/fill.rs",
+        "crates/eh3d-phoenix-field2d/src/grid.rs",
         "crates/eh3d-phoenix-lengths/src/analyse.rs",
         "crates/eh3d-phoenix-si/src/crosstalk.rs",
         "crates/eh3d-phoenix-gerber/src/parse.rs",

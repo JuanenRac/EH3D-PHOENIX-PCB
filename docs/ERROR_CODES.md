@@ -259,6 +259,25 @@ The titles of these codes also exist in the eight languages of the suite (`title
 | PHOENIX-STACK-015 | Solder mask over the line is not modelled | solder mask over the open side of a microstrip or coplanar line (a warning) |
 | PHOENIX-STACK-016 | Approximate model | an offset stripline, a coupled pair, or a coplanar line whose plane under the substrate is left out (a warning) |
 
+## Heating of tracks and vias (`eh3d-phoenix-stackup`, `src/heating.rs`)
+
+The titles of these codes also exist in the eight languages of the suite (`heat_title` in `src/heating.rs`); the detail of a message is in English. The codes 004 to 008 and 012 go with a result and do not stop it.
+
+| Code | Title | Raised by |
+|---|---|---|
+| PHOENIX-HEAT-001 | Heating settings are not valid | a line of `config/heating.cfg` that is not `key = value`, an unknown key, a number that cannot be read or a value out of range |
+| PHOENIX-HEAT-002 | A number given to the heating calculation is not valid | a width, a thickness or a drill that is not above zero, or a current that is not between 0 and 100000 ampere |
+| PHOENIX-HEAT-003 | The file of currents is not valid | a line that is not `net = amps`, an empty name, a current out of range, a net given twice, more nets than `max_nets` or a file with no net |
+| PHOENIX-HEAT-004 | The temperature rise of a track is above the limit | warning: a track or a via whose rise, by the estimate chosen with `limit_basis`, is above `max_rise_k`; the exit code of `phoenix thermal` is 1 |
+| PHOENIX-HEAT-005 | The convection model has no number for the track | information: the heating grows faster than the cooling, or the track would pass `max_temperature_c` |
+| PHOENIX-HEAT-006 | The chart of IPC-2221 does not reach this track | information: the rise by the fit is outside `ipc_min_rise_k` to `ipc_max_rise_k` or the current is above `ipc_max_current_a` |
+| PHOENIX-HEAT-007 | A net of the file of currents is not on the board | warning: a net with a current that the board does not have |
+| PHOENIX-HEAT-008 | The layer is not in the stack-up: the defaults of the settings are used | warning: the copper thickness and the placement come from `default_copper_um` and `default_placement` |
+| PHOENIX-HEAT-009 | A command option is not valid | an option that `phoenix thermal` does not know, an option without its value, a language that is not one of the eight, a missing `--currents` or the wrong number of boards |
+| PHOENIX-HEAT-010 | The output file exists or cannot be written | `--out` names a file that exists or cannot be created |
+| PHOENIX-HEAT-011 | An input file cannot be read | a board, a stack-up, a file of currents or a settings file that is missing, too large or not of the expected shape |
+| PHOENIX-HEAT-012 | IPC-2152, with its modifiers for the plane and the board, is not applied | information in every report: only the fit of IPC-2221 and the convection model are used |
+
 ## RF tools (`eh3d-phoenix-rf`, `src/error.rs`)
 
 The titles of these codes also exist in the eight languages of the suite (`title` in `src/error.rs`); the detail of a message is in English. Every code is an error.
@@ -906,6 +925,26 @@ The titles of these codes also exist in the eight languages of the suite (`TITLE
 | PHOENIX-SI-018 | Line loss slows the rise time by more than the limit | warning: the loss of the line at the bandwidth of the edge makes the rise time at the end grow by `rise_degradation_warn_pct` or more |
 | PHOENIX-SI-019 | No reference plane found next to a layer | information: the board has no order of copper layers, or no zone on the layers next to a signal layer, so its tracks are not looked at over a plane |
 | PHOENIX-SI-020 | Simulation was cut at the limit of steps | warning: a simulation of reflections needed more than `max_steps` steps and its result covers a shorter time |
+
+## Field solver (`eh3d-phoenix-field2d`, `src/codes.rs`)
+
+The titles of these codes also exist in the eight languages of the suite (`title` in `src/codes.rs`); the detail of a message is in English. The codes 009 to 013 that say "warning" go with a result; the others stop the line they belong to.
+
+| Code | Title | Raised by |
+|---|---|---|
+| PHOENIX-FIELD-001 | Field solver settings are not valid | a line of `config/field2d.cfg` that is not `key = value`, an unknown key, a number that cannot be read or a value out of range |
+| PHOENIX-FIELD-002 | The geometry of the cross section is not valid | a box or a rectangle with sides out of order or outside the box, a permittivity below one, a conductor with no electrode, lines of the mesh that do not increase, or a conductor number above the count |
+| PHOENIX-FIELD-003 | The mesh has more cells than the limit | a section that needs more than `max_cells` cells |
+| PHOENIX-FIELD-004 | The solver did not reach its tolerance | a solution that has not reached `tolerance` within `max_iterations`; no number is given |
+| PHOENIX-FIELD-005 | The line cannot be taken from the stack-up | a layer that does not exist or is not copper, a missing material, no plane under a microstrip, a stripline without a plane on both sides, a missing gap, a width out of range, or a frequency outside the published points |
+| PHOENIX-FIELD-006 | A command option is not valid | an option that `phoenix field2d` does not know, an option without its value, a language that is not one of the eight, or the wrong number of files |
+| PHOENIX-FIELD-007 | The output file exists or cannot be written | `--out` names a file that exists or cannot be created |
+| PHOENIX-FIELD-008 | An input file cannot be read | a job, a board or a settings file that is missing, too large or not of the expected shape |
+| PHOENIX-FIELD-009 | The field solver and the closed formula differ by more than the limit | warning: the impedance differs from the closed formula of `phoenix stackup` by more than `compare_warn_percent` |
+| PHOENIX-FIELD-010 | The net has no track on the board | `--net` names a net with no track |
+| PHOENIX-FIELD-011 | The solder mask over the line is left out of the model | warning: solder mask lies over the open side of a microstrip or a coplanar line |
+| PHOENIX-FIELD-012 | The model is an approximation of the real structure | warning: a coplanar line without a plane, whose substrate is followed by air down to a wall at zero potential |
+| PHOENIX-FIELD-013 | Two conductors are closer than one cell of the mesh | two conductors, or a conductor and a wall at zero potential, that share a node of the mesh |
 
 ## Gerber and Excellon import (`eh3d-phoenix-gerber`, `src/codes.rs`)
 
