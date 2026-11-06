@@ -265,7 +265,7 @@ pub const TITLES: &[(&str, [&str; 8])] = &[
             "Un livello ha un nome diverso da quello della tabella standard",
             "レイヤー名が標準の表と異なります",
             "层名与标准表不同",
-            "Uma camada tem outro nome que não o da tabela padrão",
+            "Uma camada tem outro nome que não o da tabela normalizada",
         ],
     ),
     (

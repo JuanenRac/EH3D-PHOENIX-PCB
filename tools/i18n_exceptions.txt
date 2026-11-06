@@ -1,0 +1,4 @@
+# English texts that are the same in every language on purpose (a name, an abbreviation); one per line.
+Hash
+Pad / pin
+Monte Carlo
