@@ -12,7 +12,7 @@ use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
 use crate::codes::{
     Finding, Report, Severity, ARCS_APPROXIMATED, CHAIN_OPEN, CONTOUR_CROSSES, CONTOUR_DEGENERATE,
-    CUTOUT_NOT_KEPT, DUPLICATE_DROPPED, NO_CONTOUR, SEVERAL_OUTER,
+    CUTOUT_NOT_KEPT, DUPLICATE_DROPPED, LIMIT_EXCEEDED, NO_CONTOUR, SEVERAL_OUTER,
 };
 use crate::geom::{
     bounds, circle_points, distance, locate, properly_cross, tessellate, twice_area, Loc, Seg, P,
@@ -411,6 +411,24 @@ pub fn extract_outline(
             format!("{degenerate} closed chains without area were left out"),
         ));
     }
+    if contours.len() > settings.max_contours {
+        report.push(Finding::new(
+            LIMIT_EXCEEDED,
+            Severity::Error,
+            None,
+            format!(
+                "{} closed contours are more than the limit max_contours = {}; the outline was not looked for",
+                contours.len(),
+                settings.max_contours
+            ),
+        ));
+        return Outline {
+            exterior: None,
+            holes: Vec::new(),
+            report,
+            stats,
+        };
+    }
     contours.sort_by_key(|c| (std::cmp::Reverse(c.area2), c.points[0]));
 
     if contours.is_empty() {
@@ -580,6 +598,48 @@ mod tests {
 
     fn run(d: &Drawing, layer: Option<&str>, tolerance: i64) -> Outline {
         extract_outline(d, layer, tolerance, &DxfSettings::default())
+    }
+
+    #[test]
+    fn more_contours_than_the_limit_are_refused_with_the_limit_code() {
+        // n squares of 1 mm side apart from each other, drawn with closed chains of 4 lines
+        let squares = |n: i64| {
+            let mut d = Drawing::new();
+            for k in 0..n {
+                let x = 3 * k;
+                lines(
+                    &mut d,
+                    "EDGE",
+                    &[p(x, 0), p(x + 1, 0), p(x + 1, 1), p(x, 1), p(x, 0)],
+                );
+            }
+            d
+        };
+        let settings = DxfSettings {
+            max_contours: 4,
+            ..DxfSettings::default()
+        };
+        let at_limit = extract_outline(&squares(4), Some("edge"), 10_000, &settings);
+        assert!(at_limit.exterior.is_some());
+        assert_eq!(at_limit.stats.contours, 4);
+        assert!(at_limit
+            .report
+            .findings
+            .iter()
+            .all(|f| f.code != LIMIT_EXCEEDED));
+        let over = extract_outline(&squares(5), Some("edge"), 10_000, &settings);
+        assert!(over.exterior.is_none());
+        assert!(over.holes.is_empty());
+        assert_eq!(over.stats.contours, 5);
+        let finding = over
+            .report
+            .findings
+            .iter()
+            .find(|f| f.code == LIMIT_EXCEEDED)
+            .expect("the finding of the limit");
+        assert_eq!(finding.severity, Severity::Error);
+        assert!(finding.detail.contains("5 closed contours"));
+        assert!(finding.detail.contains("max_contours = 4"));
     }
 
     #[test]

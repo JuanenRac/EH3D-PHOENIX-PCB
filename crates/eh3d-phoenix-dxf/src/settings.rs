@@ -78,6 +78,9 @@ pub struct DxfSettings {
     pub max_findings: usize,
     /// The most edges of a contour that are checked for crossings.
     pub max_check_edges: usize,
+    /// The most closed contours that are put in order by containment; with more the outline is
+    /// refused (the work grows with the square of the number).
+    pub max_contours: usize,
 }
 
 impl Default for DxfSettings {
@@ -107,6 +110,7 @@ impl Default for DxfSettings {
             max_spline_points: 10_000,
             max_findings: 1_000,
             max_check_edges: 4_000,
+            max_contours: 5_000,
         }
     }
 }
@@ -170,6 +174,7 @@ impl DxfSettings {
                 "max_spline_points" => s.max_spline_points = value.parse().map_err(|_| bad())?,
                 "max_findings" => s.max_findings = value.parse().map_err(|_| bad())?,
                 "max_check_edges" => s.max_check_edges = value.parse().map_err(|_| bad())?,
+                "max_contours" => s.max_contours = value.parse().map_err(|_| bad())?,
                 _ => {
                     return Err(DxfError::new(
                         SETTINGS_INVALID,
@@ -204,6 +209,7 @@ impl DxfSettings {
             || self.max_spline_points < 2
             || self.max_findings == 0
             || self.max_check_edges < 3
+            || self.max_contours == 0
         {
             return fail("a limit is below its least value");
         }
@@ -246,6 +252,20 @@ mod tests {
         assert!(d.validate().is_ok());
         let shipped = include_str!("../../../config/dxf.cfg");
         assert_eq!(DxfSettings::parse(shipped).unwrap(), d);
+    }
+
+    #[test]
+    fn the_limit_of_contours_is_read_and_must_be_above_zero() {
+        assert_eq!(DxfSettings::default().max_contours, 5_000);
+        assert_eq!(
+            DxfSettings::parse("max_contours = 12\n")
+                .unwrap()
+                .max_contours,
+            12
+        );
+        assert!(DxfSettings::parse("max_contours = 0\n").is_err());
+        assert!(DxfSettings::parse("max_contours = -1\n").is_err());
+        assert!(DxfSettings::parse("max_contours = many\n").is_err());
     }
 
     #[test]
