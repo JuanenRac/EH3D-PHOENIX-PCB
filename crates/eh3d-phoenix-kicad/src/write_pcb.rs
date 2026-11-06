@@ -655,6 +655,7 @@ fn via_nodes(board: &Board, ctx: &Ctx, report: &mut ExportReport) -> Vec<Sx> {
 
 fn zone_nodes(board: &Board, ctx: &Ctx, report: &mut ExportReport) -> Vec<Sx> {
     let mut out = Vec::new();
+    let mut poured = 0usize;
     for (zone_id, zone) in &board.zones {
         let (Some(layer), Some(net), Some(net_name)) = (
             ctx.names.names.get(&zone.layer),
@@ -680,15 +681,53 @@ fn zone_nodes(board: &Board, ctx: &Ctx, report: &mut ExportReport) -> Vec<Sx> {
             );
             continue;
         }
-        if !zone.cutouts.is_empty() {
-            report.note_many(
-                LEFT_OUT,
-                "cutouts of zones",
-                "the file carries the outline of the zone only",
-                zone.cutouts.len(),
+        let settings = ctx.settings;
+        // KiCad has no hole in the outline of a zone as such: each cutout is a rule area on the
+        // same layer that keeps the pour out and allows tracks, vias and pads
+        for (index, cutout) in zone.cutouts.iter().enumerate() {
+            let ring = closed_ring(cutout);
+            if ring.len() < 3 {
+                report.note(
+                    LEFT_OUT,
+                    "cutouts of zones with fewer than three points",
+                    "the cutout is left out",
+                );
+                continue;
+            }
+            out.push(list(
+                "zone",
+                vec![
+                    list("net", vec![int(0)]),
+                    list("net_name", vec![string("")]),
+                    list("layer", vec![string(layer)]),
+                    uuid_node(zone_id, &format!("zone cutout {index}")),
+                    list("hatch", vec![atom("edge"), num(settings.zone_hatch_nm)]),
+                    list("connect_pads", vec![list("clearance", vec![num(0)])]),
+                    list("min_thickness", vec![num(settings.zone_min_thickness_nm)]),
+                    list(
+                        "keepout",
+                        vec![
+                            list("tracks", vec![atom("allowed")]),
+                            list("vias", vec![atom("allowed")]),
+                            list("pads", vec![atom("allowed")]),
+                            list("copperpour", vec![atom("not_allowed")]),
+                            list("footprints", vec![atom("allowed")]),
+                        ],
+                    ),
+                    list(
+                        "polygon",
+                        vec![list("pts", ring.iter().map(|p| xy_node(*p)).collect())],
+                    ),
+                ],
+            ));
+            report.wrote("zone cutouts", 1);
+            report.note(
+                CHANGED,
+                "cutouts of zones written as rule areas that keep the pour out",
+                "tracks, vias and pads are allowed in them, and KiCad reads them as keep-out areas",
             );
         }
-        let settings = ctx.settings;
+        poured += 1;
         out.push(list(
             "zone",
             vec![
@@ -710,13 +749,13 @@ fn zone_nodes(board: &Board, ctx: &Ctx, report: &mut ExportReport) -> Vec<Sx> {
             ],
         ));
     }
-    report.wrote("zones", out.len());
-    if !out.is_empty() {
+    report.wrote("zones", poured);
+    if poured > 0 {
         report.note_many(
             DEFAULTED,
             "zones written without their filled copper",
             "the copper is filled again in KiCad",
-            out.len(),
+            poured,
         );
     }
     out
@@ -1612,5 +1651,73 @@ mod tests {
             .collect();
         assert!(pads.iter().any(|p| p.roundness == 500 && p.plated));
         assert!(pads.iter().any(|p| p.is_npth()));
+    }
+
+    #[test]
+    fn the_cutouts_of_a_zone_are_rule_areas_that_keep_the_pour_out_and_are_read_back() {
+        let mut board = sample_board();
+        let square = vec![
+            pt(5_000_000, 5_000_000),
+            pt(10_000_000, 5_000_000),
+            pt(10_000_000, 10_000_000),
+            pt(5_000_000, 10_000_000),
+        ];
+        let short = vec![pt(1_000_000, 1_000_000), pt(2_000_000, 1_000_000)];
+        board.zones.values_mut().next().unwrap().cutouts = vec![square.clone(), short];
+        let out = write_pcb(&board, &WriteSettings::default());
+        let text = &out.files[0].text;
+        let tree = parse(text).unwrap();
+        // the pour and one rule area; the cutout of two points is reported and not written
+        assert_eq!(children(&tree, "zone").len(), 2);
+        assert_eq!(out.report.written_count("zones"), 1);
+        assert_eq!(out.report.written_count("zone cutouts"), 1);
+        assert!(text.contains("(copperpour not_allowed)"), "{text}");
+        let notes = out.report.notes();
+        assert!(notes
+            .iter()
+            .any(|n| n.code == LEFT_OUT && n.category.contains("fewer than three points")));
+        assert!(notes.iter().any(|n| n.code == CHANGED
+            && n.category == "cutouts of zones written as rule areas that keep the pour out"));
+        // the same board gives the same bytes
+        assert_eq!(
+            write_pcb(&board, &WriteSettings::default()).files[0].text,
+            *text
+        );
+        // read back: one zone with the cutout, at the same points
+        let mut ids = crate::sequential_ids().unwrap();
+        let read =
+            crate::pcb::read_pcb(text.as_bytes(), &KicadSettings::default(), &mut ids).unwrap();
+        assert_eq!(read.board.zones.len(), 1);
+        let zone = read.board.zones.values().next().unwrap();
+        assert_eq!(zone.cutouts.len(), 1);
+        let mut found: Vec<(i64, i64)> = zone.cutouts[0]
+            .iter()
+            .map(|p| (p.x_nm.get(), p.y_nm.get()))
+            .collect();
+        let mut wanted: Vec<(i64, i64)> = square
+            .iter()
+            .map(|p| (p.x_nm.get(), p.y_nm.get()))
+            .collect();
+        found.sort_unstable();
+        wanted.sort_unstable();
+        assert_eq!(found, wanted);
+        let kept = read
+            .quality
+            .kept
+            .iter()
+            .find(|i| i.category == "zone cutouts");
+        assert_eq!(kept.map(|i| i.count), Some(1));
+        // a rule area that also keeps tracks out is not a cutout and is counted as lost
+        let strict = text.replace("(tracks allowed)", "(tracks not_allowed)");
+        let mut ids = crate::sequential_ids().unwrap();
+        let read =
+            crate::pcb::read_pcb(strict.as_bytes(), &KicadSettings::default(), &mut ids).unwrap();
+        assert!(read.board.zones.values().all(|z| z.cutouts.is_empty()));
+        let lost = read
+            .quality
+            .dropped
+            .iter()
+            .find(|i| i.category == "keep-out zones");
+        assert_eq!(lost.map(|i| i.count), Some(1));
     }
 }

@@ -126,6 +126,10 @@ pub fn read_board(text: &str, new_id: &mut dyn FnMut() -> Id) -> Result<ReadBoar
                 note("layer", &mut notes);
                 continue;
             };
+            if matches!(number, 41 | 42) {
+                // the restrict layers are read from the areas drawn on them
+                continue;
+            }
             let Some((kind, side)) = meaning(number) else {
                 note("layer", &mut notes);
                 continue;
@@ -458,7 +462,23 @@ pub fn read_board(text: &str, new_id: &mut dyn FnMut() -> Id) -> Result<ReadBoar
     if let Some(plain) = board_element.child("plain") {
         let mut outline_wires = Vec::new();
         let mut silk_wires = Vec::new();
+        let mut restricts: Vec<(u32, Vec<Point>)> = Vec::new();
         for item in &plain.children {
+            let restrict = item
+                .attr("layer")
+                .and_then(|n| n.trim().parse::<u32>().ok())
+                .filter(|n| matches!(n, 41 | 42));
+            if let (true, Some(number)) = (item.name == "polygon", restrict) {
+                let ring: Option<Vec<Point>> = item
+                    .children_named("vertex")
+                    .map(|v| point(v, "x", "y"))
+                    .collect();
+                match ring.filter(|r| r.len() >= 3) {
+                    Some(ring) => restricts.push((number, ring)),
+                    None => note("polygon", &mut notes),
+                }
+                continue;
+            }
             if item.name != "wire" {
                 note(&item.name, &mut notes);
                 continue;
@@ -469,6 +489,21 @@ pub fn read_board(text: &str, new_id: &mut dyn FnMut() -> Id) -> Result<ReadBoar
                     silk_wires.push(w)
                 }
                 _ => note("wire", &mut notes),
+            }
+        }
+        // a restrict area inside a pour of its layer is a cutout of that pour
+        for (number, ring) in restricts {
+            let target = layer_ids.get(&if number == 41 { 1 } else { 16 }).copied();
+            let mut attached = false;
+            for zone in board.zones.values_mut() {
+                let inside = ring.iter().all(|p| point_in_polygon(*p, &zone.outline));
+                if Some(zone.layer) == target && inside {
+                    zone.cutouts.push(ring.clone());
+                    attached = true;
+                }
+            }
+            if !attached {
+                note("polygon", &mut notes);
             }
         }
         // the wires of the outline layer that follow each other and close are one ring; the

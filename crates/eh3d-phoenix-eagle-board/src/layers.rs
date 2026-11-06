@@ -78,6 +78,8 @@ pub(crate) fn name_of(number: u32) -> String {
         22 => "bPlace".to_owned(),
         29 => "tStop".to_owned(),
         30 => "bStop".to_owned(),
+        41 => "tRestrict".to_owned(),
+        42 => "bRestrict".to_owned(),
         31 => "tCream".to_owned(),
         32 => "bCream".to_owned(),
         51 => "tDocu".to_owned(),

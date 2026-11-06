@@ -8,7 +8,7 @@
 //! lengths become integer nanometres and the y axis is turned to point up.
 //!
 //! Not kept: the setup (stack-up, rules, plot settings), the filled copper of zones (it is
-//! computed again by the tool), keep-out zones, zones and tracks without a net, graphics on layers
+//! computed again by the tool), keep-out zones other than the ones that keep the pour out (those become cutouts of the zones they lie in), zones and tracks without a net, graphics on layers
 //! other than the outline and the silkscreen, dimensions, groups, images and the 3D models.
 
 use std::collections::BTreeMap;
@@ -133,6 +133,36 @@ struct Reader {
     edge: Vec<Shape>,
     pads: usize,
     footprint_extras: usize,
+    /// The rule areas that keep the pour out (layers and ring), until the zones are all read.
+    pour_keepouts: Vec<(Vec<Id>, Vec<Point>)>,
+}
+
+/// Whether `p` is inside the ring or on its edge.
+fn inside_or_on(ring: &[Point], p: Point) -> bool {
+    let (px, py) = (i128::from(p.x_nm.get()), i128::from(p.y_nm.get()));
+    let mut inside = false;
+    for (i, a) in ring.iter().enumerate() {
+        let b = &ring[(i + 1) % ring.len()];
+        let (ax, ay) = (i128::from(a.x_nm.get()), i128::from(a.y_nm.get()));
+        let (bx, by) = (i128::from(b.x_nm.get()), i128::from(b.y_nm.get()));
+        let cross = (bx - ax) * (py - ay) - (by - ay) * (px - ax);
+        if cross == 0
+            && px >= ax.min(bx)
+            && px <= ax.max(bx)
+            && py >= ay.min(by)
+            && py <= ay.max(by)
+        {
+            return true;
+        }
+        if (ay > py) != (by > py) {
+            // the edge crosses the horizontal line of the point: is the crossing to its right?
+            let left = (px - ax) * (by - ay) < (bx - ax) * (py - ay);
+            if (by > ay) == left {
+                inside = !inside;
+            }
+        }
+    }
+    inside
 }
 
 fn model_points(points: &[P]) -> Option<Vec<Point>> {
@@ -320,9 +350,66 @@ impl Reader {
         );
     }
 
+    /// The layers a zone names, by `layer` or `layers`.
+    fn zone_layers(&mut self, node: &Node, ctx: &mut Ctx) -> Vec<Id> {
+        let mut layer_ids: Vec<Id> = Vec::new();
+        if let Some(l) = node.child("layer").and_then(|l| l.arg_text(0)) {
+            layer_ids.extend(self.layers.expand(l, ctx));
+        }
+        if let Some(list) = node.child("layers") {
+            for l in list.args() {
+                if let Some(name) = l.text() {
+                    layer_ids.extend(self.layers.expand(name, ctx));
+                }
+            }
+        }
+        layer_ids
+    }
+
+    /// A rule area that keeps the pour out and allows tracks, vias and pads is a cutout of the
+    /// pours it lies in; any other kind of keep-out area is counted as lost.
+    fn keepout(&mut self, node: &Node, keepout: &Node, ctx: &mut Ctx) {
+        let word = |name: &str| keepout.child(name).and_then(|n| n.arg_text(0));
+        let keeps_pour_only = word("copperpour") == Some("not_allowed")
+            && word("tracks") == Some("allowed")
+            && word("vias") == Some("allowed")
+            && word("pads") == Some("allowed");
+        let ring: Option<Vec<Point>> = node
+            .child("polygon")
+            .map(xy_list)
+            .and_then(|points| model_points(&points))
+            .filter(|r| r.len() >= 3);
+        let layers = self.zone_layers(node, ctx);
+        match ring {
+            Some(ring) if keeps_pour_only && !layers.is_empty() => {
+                self.pour_keepouts.push((layers, ring));
+            }
+            _ => ctx.lose("keep-out zones", 1),
+        }
+    }
+
+    /// Gives each rule area that keeps the pour out to the zones of its layers that it lies in.
+    fn attach_pour_keepouts(&mut self, ctx: &mut Ctx) {
+        for (layers, ring) in std::mem::take(&mut self.pour_keepouts) {
+            let mut attached = false;
+            for zone in self.board.zones.values_mut() {
+                let inside = ring.iter().all(|p| inside_or_on(&zone.outline, *p));
+                if layers.contains(&zone.layer) && inside {
+                    zone.cutouts.push(ring.clone());
+                    attached = true;
+                }
+            }
+            if attached {
+                ctx.keep("zone cutouts", 1);
+            } else {
+                ctx.lose("keep-out zones", 1);
+            }
+        }
+    }
+
     fn zone(&mut self, node: &Node, ctx: &mut Ctx) {
-        if node.child("keepout").is_some() {
-            ctx.lose("keep-out zones", 1);
+        if let Some(keepout) = node.child("keepout") {
+            self.keepout(node, keepout, ctx);
             return;
         }
         ctx.lose(
@@ -370,17 +457,7 @@ impl Reader {
                 Nm::ZERO
             }
         };
-        let mut layer_ids: Vec<Id> = Vec::new();
-        if let Some(l) = node.child("layer").and_then(|l| l.arg_text(0)) {
-            layer_ids.extend(self.layers.expand(l, ctx));
-        }
-        if let Some(list) = node.child("layers") {
-            for l in list.args() {
-                if let Some(name) = l.text() {
-                    layer_ids.extend(self.layers.expand(name, ctx));
-                }
-            }
-        }
+        let layer_ids = self.zone_layers(node, ctx);
         if layer_ids.is_empty() {
             ctx.invalid(node, "zone", "it names no layer");
             return;
@@ -755,6 +832,7 @@ pub fn read_pcb(
         edge: Vec::new(),
         pads: 0,
         footprint_extras: 0,
+        pour_keepouts: Vec::new(),
     };
     if let Some(table) = root.child("layers") {
         for item in table.args() {
@@ -837,6 +915,7 @@ pub fn read_pcb(
     }
     r.flush(&mut ctx);
     r.outline(&mut ctx);
+    r.attach_pour_keepouts(&mut ctx);
     r.board.pad_nets.sort_by_key(|p| p.pad_ref());
     r.board.copper_stack = r.layers.copper_stack();
     r.board.layers = std::mem::take(&mut r.layers.layers);

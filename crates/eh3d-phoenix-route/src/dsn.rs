@@ -15,6 +15,10 @@
 //! * the tracks, the vias and the copper zones that already exist, as fixed obstacles of their
 //!   nets (a zone as a plane of its net).
 //!
+//! A cutout of a zone is written as a keep-out area on the layer of the zone: Specctra has no hole
+//! in a plane, so the autorouter also keeps tracks and vias out of it, and the file says so in
+//! its notes. A cutout of fewer than three points is left out and reported.
+//!
 //! Not written yet: tracks with arc pieces and vias that do not join the first and the last copper
 //! layer; a board that has them is refused with a code.
 
@@ -48,6 +52,10 @@ pub struct Dsn {
     pub tracks: usize,
     /// The existing vias written as fixed vias.
     pub vias: usize,
+    /// The cutouts of zones, written as keep-out areas of the layer of their zone.
+    pub zone_cutouts: usize,
+    /// What the file cannot say or says in a simpler form, in English.
+    pub notes: Vec<String>,
 }
 
 fn fail(what: impl Into<String>) -> RouteError {
@@ -469,6 +477,8 @@ pub fn export(
             clearance_of("")
         ),
     );
+    let mut zone_cutouts = 0usize;
+    let mut left_out = 0usize;
     for zone in board.zones.values() {
         let layer = stack
             .index(zone.layer)
@@ -486,6 +496,23 @@ pub fn export(
                 polygon(&zone.outline)
             ),
         );
+        for cutout in &zone.cutouts {
+            if cutout.len() < 3 {
+                left_out += 1;
+                continue;
+            }
+            zone_cutouts += 1;
+            push(
+                &mut out,
+                2,
+                &format!(
+                    "(keepout \"zone_cutout{}\" (polygon {} 0{}))",
+                    zone_cutouts,
+                    word(&stack.names[layer]),
+                    polygon(cutout)
+                ),
+            );
+        }
     }
     push(&mut out, 1, ")");
 
@@ -655,6 +682,17 @@ pub fn export(
     push(&mut out, 1, ")");
     push(&mut out, 0, ")");
 
+    let mut notes = Vec::new();
+    if zone_cutouts > 0 {
+        notes.push(format!(
+            "{zone_cutouts} cutout(s) of zones written as keep-out areas of their layer: Specctra has no hole in a plane, so tracks and vias are kept out of them too"
+        ));
+    }
+    if left_out > 0 {
+        notes.push(format!(
+            "{left_out} cutout(s) of zones with fewer than three points left out"
+        ));
+    }
     Ok(Dsn {
         text: out,
         layers: stack.ids.len(),
@@ -664,6 +702,8 @@ pub fn export(
         padstacks: padstacks.len() + vias.len(),
         tracks: board.tracks.len(),
         vias: board.vias.len(),
+        zone_cutouts,
+        notes,
     })
 }
 

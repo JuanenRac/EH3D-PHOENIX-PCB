@@ -141,6 +141,53 @@ fn ids() -> impl FnMut() -> Id {
 }
 
 #[test]
+fn the_cutouts_of_a_zone_are_keep_out_areas_of_its_layer_and_the_file_says_so() {
+    let mut b = board(false);
+    b.zones.insert(
+        id(60),
+        eh3d_phoenix_board::Zone {
+            net: id(10),
+            layer: id(2),
+            outline: vec![
+                pt(1_000_000, 1_000_000),
+                pt(15_000_000, 1_000_000),
+                pt(15_000_000, 15_000_000),
+                pt(1_000_000, 15_000_000),
+            ],
+            clearance: nm(200_000),
+            cutouts: vec![
+                vec![
+                    pt(8_000_000, 8_000_000),
+                    pt(10_000_000, 8_000_000),
+                    pt(10_000_000, 10_000_000),
+                ],
+                vec![pt(3_000_000, 3_000_000), pt(4_000_000, 3_000_000)],
+            ],
+        },
+    );
+    let dsn = export_dsn(&b, &rules(), &RouteSettings::default()).unwrap();
+    assert_eq!(dsn.zone_cutouts, 1);
+    // on the layer of the zone, closed back to its first point
+    assert!(
+        dsn.text.contains(
+            "(keepout \"zone_cutout1\" (polygon Bottom 0 8000000 8000000 10000000 8000000 10000000 10000000 8000000 8000000))"
+        ),
+        "{}",
+        dsn.text
+    );
+    assert_eq!(dsn.text.matches("zone_cutout").count(), 1);
+    assert_eq!(dsn.text.matches('(').count(), dsn.text.matches(')').count());
+    // nothing is dropped without a word: the keep-out is a simplification and the short ring is left out
+    assert_eq!(dsn.notes.len(), 2);
+    assert!(dsn.notes[0].contains("keep-out areas"));
+    assert!(dsn.notes[1].contains("fewer than three points"));
+    // a board without cutouts has no notes and no keep-out of a zone
+    let plain = export_dsn(&board(false), &rules(), &RouteSettings::default()).unwrap();
+    assert!(plain.notes.is_empty());
+    assert_eq!(plain.zone_cutouts, 0);
+}
+
+#[test]
 fn the_export_is_the_same_every_time_and_describes_the_board() {
     let b = board(false);
     let first = export_dsn(&b, &rules(), &RouteSettings::default()).unwrap();

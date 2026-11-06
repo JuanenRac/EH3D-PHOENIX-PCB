@@ -243,6 +243,9 @@ pub fn write_board(board: &Board) -> Written {
     }
 
     let mut signals = Vec::new();
+    // the cutouts of zones: EAGLE has no hole in a pour, only restrict areas on the layers
+    // 41 (top) and 42 (bottom) that every pour of that layer keeps out of
+    let mut restricts: Vec<(u32, Vec<Point>)> = Vec::new();
     for (nid, net) in &board.nets {
         let mut children = Vec::new();
         for pn in board.pad_nets.iter().filter(|p| p.net == *nid) {
@@ -311,11 +314,35 @@ pub fn write_board(board: &Board) -> Written {
                 ));
                 continue;
             };
-            if !z.cutouts.is_empty() {
+            for cutout in z.cutouts.iter().filter(|c| c.len() >= 3) {
+                let restrict = match *layer {
+                    1 => 41,
+                    16 => 42,
+                    _ => {
+                        diagnostics.push(codes::diagnostic(
+                            ITEM_LEFT_OUT,
+                            Severity::Warning,
+                            &format!(
+                                "zone {zid}: a cutout on an inner layer is not written, EAGLE has restrict areas for the top and the bottom layer only"
+                            ),
+                        ));
+                        continue;
+                    }
+                };
                 diagnostics.push(codes::diagnostic(
                     ITEM_SIMPLIFIED,
                     Severity::Info,
-                    &format!("zone {zid}: its cutouts are not written"),
+                    &format!(
+                        "zone {zid}: a cutout is written as a restrict area, which every pour of the layer keeps out of"
+                    ),
+                ));
+                restricts.push((restrict, cutout.clone()));
+            }
+            if z.cutouts.iter().any(|c| c.len() < 3) {
+                diagnostics.push(codes::diagnostic(
+                    ITEM_LEFT_OUT,
+                    Severity::Warning,
+                    &format!("zone {zid}: a cutout with fewer than three points is not written"),
                 ));
             }
             let vertices = z
@@ -356,6 +383,24 @@ pub fn write_board(board: &Board) -> Written {
         for i in 0..n {
             plain.push(wire(ring[i], ring[(i + 1) % n], 0, 20, None));
         }
+    }
+    for (restrict, ring) in &restricts {
+        used.insert(*restrict);
+        let vertices = ring
+            .iter()
+            .map(|p| {
+                el(
+                    "vertex",
+                    vec![("x", decimal(p.x_nm.get())), ("y", decimal(p.y_nm.get()))],
+                    Vec::new(),
+                )
+            })
+            .collect();
+        plain.push(el(
+            "polygon",
+            vec![("width", "0".to_owned()), ("layer", restrict.to_string())],
+            vertices,
+        ));
     }
     for (sid, item) in &board.silkscreen {
         let Some(layer) = numbers.get(&item.layer()) else {

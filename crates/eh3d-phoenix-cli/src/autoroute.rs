@@ -231,6 +231,9 @@ fn export_command(
     };
     let inputs = load_inputs(options, board_path, err)?;
     let dsn = export_dsn(&inputs.board, &inputs.ctx, &inputs.settings)?;
+    for note in &dsn.notes {
+        let _ = writeln!(err, "note: {note}");
+    }
     if let Some(path) = &options.out {
         write_new(path, dsn.text.as_bytes())?;
     } else {

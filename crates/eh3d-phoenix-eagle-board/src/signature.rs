@@ -154,8 +154,15 @@ pub fn signature(board: &Board) -> Vec<String> {
         ));
     }
     for z in board.zones.values() {
+        let mut cutouts: Vec<String> = z
+            .cutouts
+            .iter()
+            .map(|c| c.iter().map(|p| pt(*p)).collect::<Vec<_>>().join(" "))
+            .collect();
+        cutouts.sort();
+        let cutouts: String = cutouts.iter().map(|c| format!(" cutout {c}")).collect();
         lines.push(format!(
-            "zone {} {} clearance {} {}",
+            "zone {} {} clearance {} {}{}",
             net_name(&z.net),
             key(&z.layer),
             z.clearance.get(),
@@ -163,7 +170,8 @@ pub fn signature(board: &Board) -> Vec<String> {
                 .iter()
                 .map(|p| pt(*p))
                 .collect::<Vec<_>>()
-                .join(" ")
+                .join(" "),
+            cutouts
         ));
     }
     for item in board.silkscreen.values() {
@@ -576,6 +584,68 @@ mod tests {
         assert!(sig.contains("outline cutout "), "{sig}");
         assert!(sig.contains(" round 50"), "{sig}");
         assert!(sig.contains(" npth"), "{sig}");
+    }
+
+    #[test]
+    fn the_cutouts_of_a_zone_are_restrict_areas_and_come_back_as_cutouts_of_the_zone() {
+        let mut b = board(0, 0);
+        // the zone of the board is the triangle (1,1) (9,1) (9,5) mm on the bottom layer
+        let zone = b.zones.values_mut().next().unwrap();
+        zone.cutouts = vec![vec![
+            p(6_123_000, 2_000_000),
+            p(8_000_000, 2_000_000),
+            p(8_000_000, 3_000_000),
+        ]];
+        let written = write_board(&b);
+        assert!(written.text.contains("layer=\"42\""), "{}", written.text);
+        assert!(written.text.contains("bRestrict"));
+        assert!(written
+            .diagnostics
+            .iter()
+            .any(|d| d.severity == eh3d_diagnostic::Severity::Info
+                && d.message.contains("restrict area")));
+        let r = round_trip(&b, &mut ids()).unwrap();
+        assert!(
+            r.identical,
+            "only in the original: {:#?}\nonly in the copy: {:#?}",
+            r.only_in_original, r.only_in_copy
+        );
+        let read = crate::reader::read_board(&r.text, &mut ids()).unwrap();
+        let zone = read.board.zones.values().next().unwrap();
+        assert_eq!(zone.cutouts.len(), 1);
+        assert_eq!(zone.cutouts[0].len(), 3);
+        // the restrict layer is not a layer of the board and nothing was left out in the reading
+        assert!(read.board.layers.values().all(|l| l.name != "bRestrict"));
+        assert!(
+            read.diagnostics
+                .iter()
+                .all(|d| !d.message.contains("polygon") && !d.message.contains("layer")),
+            "{:?}",
+            read.diagnostics
+        );
+        // a cutout that is outside every pour of the layer is counted, not dropped silently
+        let outside = r.text.replace("x=\"6.123\"", "x=\"60.123\"");
+        assert_ne!(outside, r.text);
+        let read = crate::reader::read_board(&outside, &mut ids()).unwrap();
+        assert!(read.board.zones.values().all(|z| z.cutouts.is_empty()));
+        assert!(read
+            .diagnostics
+            .iter()
+            .any(|d| d.message.contains("polygon")));
+    }
+
+    #[test]
+    fn a_cutout_with_fewer_than_three_points_is_reported_as_not_written() {
+        let mut b = board(0, 0);
+        let zone = b.zones.values_mut().next().unwrap();
+        zone.cutouts = vec![vec![p(6_000_000, 2_000_000), p(8_000_000, 2_000_000)]];
+        let written = write_board(&b);
+        assert!(written
+            .diagnostics
+            .iter()
+            .any(|d| d.severity == eh3d_diagnostic::Severity::Warning
+                && d.message.contains("fewer than three points")));
+        assert!(!written.text.contains("Restrict"));
     }
 
     #[test]
