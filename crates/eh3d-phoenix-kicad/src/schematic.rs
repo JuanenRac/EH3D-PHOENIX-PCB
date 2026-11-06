@@ -14,8 +14,13 @@
 //! symbol, otherwise that of a local label with the path of its sheet (`/NAME`, `/Sub/NAME`),
 //! otherwise `Net-(R1-Pad1)` after its first pin. A net with one pin and no name is not stored.
 //!
-//! Not kept: the drawing of symbols and texts, graphic lines, rectangles, images, buses, no-connect
-//! flags, the fields other than the reference, the value and the footprint, and the sheet
+//! Buses: a label that names a bus (`D[0..7]`, `USB{DP DM}`) becomes a bus of the sheet, expanded to
+//! its members, and a bus entry whose far end meets a net label (or a wire that ends at one) with
+//! the name of a member becomes an entry of that bus. The drawing of the bus itself (its wires) is
+//! not kept, and an entry with no member label at its end is reported.
+//!
+//! Not kept: the drawing of symbols and texts, graphic lines, rectangles, images, the wires of
+//! buses, no-connect flags, the fields other than the reference, the value and the footprint, and the sheet
 //! properties other than the name, the file and the paper size. A part that is drawn as several
 //! units becomes one part whose symbol holds the pins of all its units, placed relative to the
 //! first unit. A symbol that is mirrored gets a mirrored copy of its symbol. A rotation that is not
@@ -28,6 +33,7 @@ use eh3d_phoenix_board::Id;
 use eh3d_phoenix_hub::QualityReport;
 use eh3d_phoenix_model::{Nm, Point, Udeg};
 use eh3d_phoenix_schematic::model::{NetPin, Part, Pin, Schematic, SchematicNet, Symbol};
+use eh3d_phoenix_schematic::{expand_spec, Bus, BusEntry};
 use eh3d_phoenix_schematic::{HierPin, Placement, PortDir, Sheet, SheetBlock, SheetPort, Wire};
 
 use crate::conv::{
@@ -110,6 +116,10 @@ struct Parsed {
     wires: Vec<(P, P)>,
     junctions: Vec<P>,
     labels: Vec<RawLabel>,
+    /// The labels that name a bus.
+    bus_labels: Vec<RawLabel>,
+    /// The two ends of each bus entry: where it is placed and where it ends.
+    bus_entries: Vec<(P, P)>,
     sheets: Vec<RawSheetRef>,
     references: BTreeMap<String, String>,
 }
@@ -327,7 +337,7 @@ fn parse_sheet(root: &Node, ctx: &mut Ctx) -> Parsed {
                 None => ctx.invalid(child, "junction", "not two numbers"),
             },
             "label" | "global_label" | "hierarchical_label" => {
-                if p.labels.len() >= max {
+                if p.labels.len() + p.bus_labels.len() >= max {
                     ctx.ignore("label (over max_items)");
                     continue;
                 }
@@ -338,7 +348,7 @@ fn parse_sheet(root: &Node, ctx: &mut Ctx) -> Parsed {
                 };
                 if let Some(label) = parse_label(child, kind, ctx) {
                     if is_bus_name(&label.text) {
-                        ctx.lose("bus labels (the members are not expanded)", 1);
+                        p.bus_labels.push(label);
                     } else {
                         p.labels.push(label);
                     }
@@ -356,6 +366,21 @@ fn parse_sheet(root: &Node, ctx: &mut Ctx) -> Parsed {
                     if let Some(r) = path.child("reference").and_then(|r| r.arg_text(0)) {
                         p.references.insert(last.to_owned(), r.to_owned());
                     }
+                }
+            }
+            "bus_entry" => {
+                match (
+                    child.child("at").and_then(at_args),
+                    child.child("size").and_then(xy_args),
+                ) {
+                    (Some((at, _)), Some(size)) => {
+                        if p.bus_entries.len() >= max {
+                            ctx.ignore("bus_entry (over max_items)");
+                        } else {
+                            p.bus_entries.push((at, (at.0 + size.0, at.1 + size.1)));
+                        }
+                    }
+                    _ => ctx.invalid(child, "bus entry", "position or size is not two numbers"),
                 }
             }
             "no_connect" => ctx.lose("no-connect flags", 1),
@@ -708,6 +733,86 @@ impl State {
     }
 }
 
+/// The text of a label at `p`, or of a label at the other end of a wire that ends at `p`.
+fn member_label(parsed: &Parsed, p: P) -> Option<&str> {
+    let at = |q: P| {
+        parsed
+            .labels
+            .iter()
+            .find(|l| l.at == q)
+            .map(|l| l.text.as_str())
+    };
+    at(p).or_else(|| {
+        parsed.wires.iter().find_map(|&(a, b)| {
+            if a == p {
+                at(b)
+            } else if b == p {
+                at(a)
+            } else {
+                None
+            }
+        })
+    })
+}
+
+/// The buses of a sheet: a bus for each label that names one and can be expanded, and an entry
+/// for each bus entry whose end has the label of a member of one of them.
+fn add_buses(st: &mut State, ctx: &mut Ctx, parsed: &Parsed, sheet: Id) {
+    let mut buses: Vec<(Id, Vec<String>)> = Vec::new();
+    for label in &parsed.bus_labels {
+        match (
+            to_model(label.at),
+            expand_spec(&label.text, &BTreeMap::new()),
+        ) {
+            (Some(at), Ok(members)) => {
+                let id = ctx.id();
+                st.schematic.buses.insert(
+                    id,
+                    Bus {
+                        sheet,
+                        at,
+                        spec: label.text.clone(),
+                    },
+                );
+                buses.push((id, members));
+                ctx.keep("buses", 1);
+            }
+            _ => ctx.lose("bus labels that cannot be expanded", 1),
+        }
+    }
+    for (start, end) in &parsed.bus_entries {
+        let found = [*end, *start]
+            .into_iter()
+            .find_map(|p| member_label(parsed, p).map(|name| (p, name)));
+        let Some((place, member)) = found else {
+            ctx.lose("bus entries with no net label at their end", 1);
+            continue;
+        };
+        let Some((bus, _)) = buses
+            .iter()
+            .find(|(_, members)| members.iter().any(|m| m == member))
+        else {
+            ctx.lose("bus entries whose member is in no bus of the sheet", 1);
+            continue;
+        };
+        match to_model(place) {
+            Some(at) => {
+                let id = ctx.id();
+                st.schematic.bus_entries.insert(
+                    id,
+                    BusEntry {
+                        bus: *bus,
+                        at,
+                        member: member.to_owned(),
+                    },
+                );
+                ctx.keep("bus entries", 1);
+            }
+            None => ctx.lose("bus entries outside the range of the model", 1),
+        }
+    }
+}
+
 fn sheet_of(parsed: &Parsed, name: &str) -> Sheet {
     let (w, h) = parsed.paper.unwrap_or((297_000_000, 210_000_000));
     Sheet {
@@ -816,6 +921,7 @@ fn instantiate(
         "labels and power symbols (turned into net names)",
         parsed.labels.len(),
     );
+    add_buses(st, ctx, parsed, sheet_id);
 
     // sheet symbols
     let mut children: Vec<(&RawSheetRef, BTreeMap<String, usize>)> = Vec::new();
@@ -1651,13 +1757,76 @@ pub(crate) mod tests {
             r.schematic.nets.values().next().unwrap().name,
             "Net-(R1-Pad1)"
         );
-        let counted = r
+        // the label is a bus of the sheet now, with its members
+        assert_eq!(r.schematic.buses.len(), 1);
+        let bus = r.schematic.buses.values().next().unwrap();
+        assert_eq!(bus.spec, "D[0..3]");
+        let id = *r.schematic.buses.keys().next().unwrap();
+        assert_eq!(
+            r.schematic.bus_member_names(id).unwrap(),
+            vec!["D0", "D1", "D2", "D3"]
+        );
+        let kept = r
             .quality
-            .dropped
+            .kept
             .iter()
-            .find(|i| i.category == "bus labels (the members are not expanded)")
+            .find(|i| i.category == "buses")
             .map(|i| i.count);
-        assert_eq!(counted, Some(1));
+        assert_eq!(kept, Some(1));
+    }
+
+    #[test]
+    fn bus_entries_become_entries_of_the_bus_whose_member_they_carry() {
+        // the bus D[0..3] and USB{DP DM}; an entry ending on the label D2, an entry ending on a
+        // wire whose far end has the label USB.DM, an entry with no label, and an entry for a
+        // member that no bus has
+        let text = format!(
+            r#"(kicad_sch (version 20230121) (generator eeschema) (paper "A4")
+  {LIBS}
+  (bus (pts (xy 50 20) (xy 50 60)) (stroke (width 0) (type default)) (uuid "b"))
+  (label "D[0..3]" (at 50 20 0) (effects (font (size 1.27 1.27))) (uuid "l1"))
+  (label "USB{{DP DM}}" (at 50 70 0) (effects (font (size 1.27 1.27))) (uuid "l2"))
+  (bus_entry (at 50 30) (size 2.54 2.54) (stroke (width 0) (type default)) (uuid "e1"))
+  (label "D2" (at 52.54 32.54 0) (effects (font (size 1.27 1.27))) (uuid "l3"))
+  (bus_entry (at 50 40) (size 2.54 2.54) (stroke (width 0) (type default)) (uuid "e2"))
+  (wire (pts (xy 52.54 42.54) (xy 60 42.54)) (stroke (width 0) (type default)) (uuid "w"))
+  (label "USB.DM" (at 60 42.54 0) (effects (font (size 1.27 1.27))) (uuid "l4"))
+  (bus_entry (at 50 50) (size 2.54 2.54) (stroke (width 0) (type default)) (uuid "e3"))
+  (bus_entry (at 50 56) (size 2.54 2.54) (stroke (width 0) (type default)) (uuid "e4"))
+  (label "ZZ" (at 52.54 58.54 0) (effects (font (size 1.27 1.27))) (uuid "l5"))
+  {a}
+  {b})"#,
+            a = placed_symbol("Device:R", "R1", "1k", "100 50 0", ""),
+            b = placed_symbol("Device:R", "R2", "1k", "120 50 0", ""),
+        );
+        let r = read(&text);
+        let s = &r.schematic;
+        assert_eq!(s.buses.len(), 2);
+        assert_eq!(s.bus_entries.len(), 2);
+        let mut members: Vec<(&str, &str)> = s
+            .bus_entries
+            .values()
+            .map(|e| (s.buses[&e.bus].spec.as_str(), e.member.as_str()))
+            .collect();
+        members.sort_unstable();
+        assert_eq!(members, vec![("D[0..3]", "D2"), ("USB{DP DM}", "USB.DM")]);
+        // the buses and their entries are consistent with the checks of the schematic
+        assert!(s
+            .bus_problems()
+            .iter()
+            .all(|d| d.code.as_deref() != Some("PHOENIX-BUS-006")));
+        let count = |name: &str| {
+            r.quality
+                .dropped
+                .iter()
+                .find(|i| i.category == name)
+                .map(|i| i.count)
+        };
+        assert_eq!(count("bus entries with no net label at their end"), Some(1));
+        assert_eq!(
+            count("bus entries whose member is in no bus of the sheet"),
+            Some(1)
+        );
     }
 
     #[test]

@@ -12,7 +12,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use eh3d_phoenix_model::Point;
-use eh3d_phoenix_schematic::{Id, Part, Schematic, Sheet};
+use eh3d_phoenix_schematic::{Bus, BusEntry, Id, Part, Schematic, Sheet};
 
 use crate::settings::KicadSettings;
 use crate::write_codes::{
@@ -61,6 +61,8 @@ struct Bucket<'a> {
     labels: Vec<(&'a Id, Point, &'a str)>,
     junctions: Vec<(&'a Id, Point)>,
     ports: Vec<(&'a Id, Point, &'a str)>,
+    buses: Vec<(&'a Id, &'a Bus)>,
+    bus_entries: Vec<(&'a Id, &'a BusEntry)>,
 }
 
 struct Env<'a> {
@@ -356,6 +358,14 @@ pub fn write_schematic(
         let index = slot(&port.sheet);
         buckets[index].ports.push((id, port.at, port.name.as_str()));
     }
+    for (id, bus) in &schematic.buses {
+        buckets[slot(&bus.sheet)].buses.push((id, bus));
+    }
+    for (id, entry) in &schematic.bus_entries {
+        if let Some(bus) = schematic.buses.get(&entry.bus) {
+            buckets[slot(&bus.sheet)].bus_entries.push((id, entry));
+        }
+    }
     if stray > 0 {
         report.note_many(
             CHANGED,
@@ -508,6 +518,54 @@ pub fn write_schematic(
                 settings,
             ));
             report.wrote("labels", 1);
+        }
+        for (bus_id, bus) in &bucket.buses {
+            // the bus is written as its label and, when it has entries, as a line from its anchor
+            // through the end of each entry that touches it (the drawing of the model keeps the
+            // anchor only)
+            let step = settings.pin_pitch_nm;
+            let mut points = vec![xy(bus.at)];
+            for (_, entry) in bucket.bus_entries.iter().filter(|(_, e)| e.bus == **bus_id) {
+                points.push(pair("xy", sx(entry.at) - step, sy(entry.at) - step));
+            }
+            if points.len() > 1 {
+                body.push(list(
+                    "bus",
+                    vec![
+                        list("pts", points),
+                        stroke_node(0),
+                        uuid_node(bus_id, "bus"),
+                    ],
+                ));
+            }
+            body.push(label_node(
+                &bus.spec,
+                sx(bus.at),
+                sy(bus.at),
+                uuid_node(bus_id, "bus-label"),
+                settings,
+            ));
+            report.wrote("buses", 1);
+        }
+        for (entry_id, entry) in &bucket.bus_entries {
+            let step = settings.pin_pitch_nm;
+            body.push(list(
+                "bus_entry",
+                vec![
+                    pair("at", sx(entry.at) - step, sy(entry.at) - step),
+                    pair("size", step, step),
+                    stroke_node(0),
+                    uuid_node(entry_id, "bus-entry"),
+                ],
+            ));
+            body.push(label_node(
+                &entry.member,
+                sx(entry.at),
+                sy(entry.at),
+                uuid_node(entry_id, "bus-member"),
+                settings,
+            ));
+            report.wrote("bus entries", 1);
         }
         let mut power_names: BTreeMap<String, String> = BTreeMap::new();
         for (_, _, name) in &bucket.ports {
@@ -1050,5 +1108,67 @@ mod tests {
             .notes()
             .iter()
             .any(|n| n.category.contains("right angle")));
+    }
+
+    #[test]
+    fn a_bus_and_its_entry_are_written_and_read_back() {
+        let mut s = sample_schematic();
+        s.buses.insert(
+            sid(70),
+            Bus {
+                sheet: sid(10),
+                at: spt(10_000_000, 20_000_000),
+                spec: "D[0..3]".into(),
+            },
+        );
+        s.bus_entries.insert(
+            sid(71),
+            BusEntry {
+                bus: sid(70),
+                at: spt(20_000_000, 10_000_000),
+                member: "D2".into(),
+            },
+        );
+        let out = write(&s);
+        assert_eq!(out.report.written_count("buses"), 1);
+        assert_eq!(out.report.written_count("bus entries"), 1);
+        let tree = parse(&out.files[0].text).unwrap();
+        let names: Vec<&str> = children(&tree, "label")
+            .iter()
+            .filter_map(|l| arg(l, 0))
+            .collect();
+        assert!(
+            names.contains(&"D[0..3]") && names.contains(&"D2"),
+            "{names:?}"
+        );
+        // the entry is 2.54 mm to the upper left of its far end, which is the member label
+        let entries = children(&tree, "bus_entry");
+        assert_eq!(entries.len(), 1);
+        let at = child(entries[0], "at").unwrap();
+        let x: f64 = arg(at, 0).unwrap().parse().unwrap();
+        let y: f64 = arg(at, 1).unwrap().parse().unwrap();
+        assert!(
+            (x - 17.46).abs() < 1e-9 && (y + 12.54).abs() < 1e-9,
+            "{x} {y}"
+        );
+        assert_eq!(children(&tree, "bus").len(), 1);
+        // read back: the same bus and the same entry
+        let mut ids = crate::sequential_ids().unwrap();
+        let read = crate::schematic::read_schematic(
+            out.files[0].text.as_bytes(),
+            &KicadSettings::default(),
+            &mut ids,
+        )
+        .unwrap();
+        assert_eq!(read.schematic.buses.len(), 1);
+        assert_eq!(read.schematic.bus_entries.len(), 1);
+        let entry = read.schematic.bus_entries.values().next().unwrap();
+        assert_eq!(entry.member, "D2");
+        assert_eq!(entry.at, spt(20_000_000, 10_000_000));
+        let bus = read.schematic.buses.values().next().unwrap();
+        assert_eq!(
+            (bus.spec.as_str(), bus.at),
+            ("D[0..3]", spt(10_000_000, 20_000_000))
+        );
     }
 }
