@@ -103,4 +103,4 @@ pub use zone::{
     export_issues, poured_board, validate_props, zone_issues, Target, ZoneChanges, ZoneData,
     ZoneIssue, ZoneProps,
 };
-pub use zone_clip::{Clipboard, ClipTrack, ClipVia, ClipZone, CLIP_FORMAT};
+pub use zone_clip::{ClipTrack, ClipVia, ClipZone, Clipboard, CLIP_FORMAT};

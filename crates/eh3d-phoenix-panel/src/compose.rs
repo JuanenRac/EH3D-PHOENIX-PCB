@@ -848,7 +848,14 @@ mod tests {
     fn a_matrix_holds_n_copies_of_every_part_with_new_ids() {
         let board = sample("one");
         let (settings, plan) = panel_of(&board, "columns = 3\nrows = 2\n");
-        let panel = compose(std::slice::from_ref(&board), &plan, &settings, 50_000, false).unwrap();
+        let panel = compose(
+            std::slice::from_ref(&board),
+            &plan,
+            &settings,
+            50_000,
+            false,
+        )
+        .unwrap();
         assert_eq!(panel.name, "one_panel");
         assert_eq!(panel.components.len(), 6 * 2);
         assert_eq!(panel.tracks.len(), 6);
@@ -969,7 +976,14 @@ mod tests {
         let board = sample("one");
         let (settings, plan) =
             panel_of(&board, "columns = 2\nrows = 1\nlocal_fiducial_count = 2\n");
-        let bare = compose(std::slice::from_ref(&board), &plan, &settings, 50_000, false).unwrap();
+        let bare = compose(
+            std::slice::from_ref(&board),
+            &plan,
+            &settings,
+            50_000,
+            false,
+        )
+        .unwrap();
         let full = compose(&[board], &plan, &settings, 50_000, true).unwrap();
         // 3 global fiducials, 4 tooling holes, 4 local fiducials on 2 boards, and the mouse bites
         let bites = plan
