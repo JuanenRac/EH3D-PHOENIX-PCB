@@ -215,6 +215,12 @@ The checks of `phoenix check --advanced`, with the limits and the levels of `con
 | PHOENIX-DRC-013 | Part outside the board outline | A component with a pad whose centre is outside the outline of the board |
 | PHOENIX-DRC-014 | Advanced check could not be judged | An item the advanced checks cannot judge: a shape too coarse to tell, numbers too large, a board without an outline (information, never a failure) |
 | PHOENIX-DRC-015 | Advanced check settings are not valid | A settings file that is too large, has a key it does not know or written twice, or a value out of range |
+| PHOENIX-DFM-001 | More copper layers than the profile offers | `phoenix check --dfm`: the board has more copper layers than `max_copper_layers` of the capability profile |
+| PHOENIX-DFM-002 | Board smaller than the profile accepts | `phoenix check --dfm`: the short or the long side of the outline is below `min_board_short_nm` or `min_board_long_nm` |
+| PHOENIX-DFM-003 | Board larger than the profile accepts | `phoenix check --dfm`: the short or the long side of the outline is above `max_board_short_nm` or `max_board_long_nm` |
+| PHOENIX-DFM-004 | Drill larger than the profile accepts | `phoenix check --dfm`: the largest drill of the vias and the drilled pads is above `max_drill_nm` |
+| PHOENIX-DFM-005 | More holes than the profile accepts | `phoenix check --dfm`: the vias and the drilled pads are more than `max_holes` |
+| PHOENIX-DFM-006 | The capability profile is not verified against the maker | `phoenix check --dfm`: information, given while the profile says `verified = false`; the profile that comes with the program is an example with invented figures |
 
 Titles of the same codes in the other seven languages (Portuguese is the Portuguese of Portugal):
 

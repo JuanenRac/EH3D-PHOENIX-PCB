@@ -12,15 +12,16 @@ use std::time::Instant;
 use eh3d_phoenix_eagle_board::{read_board, read_schematic};
 use eh3d_phoenix_model::{DeterministicRandom, IdGenerator, Nm, ObjectId, StepClock};
 use eh3d_phoenix_rules::{
-    check_advanced, check_board, check_classes, check_connectivity, report_csv, report_html,
-    to_sarif, AdvancedConfig, Lang, NetClasses, Report, RuleFile, RuleValues,
+    check_advanced, check_board, check_classes, check_connectivity, dfm_findings, report_csv,
+    report_html, to_sarif, AdvancedConfig, DfmProfile, Lang, NetClasses, Report, RuleFile,
+    RuleValues,
 };
 
 /// The largest input file that is read, in bytes.
 const MAX_INPUT_BYTES: u64 = 256 * 1024 * 1024;
 
 pub(crate) const USAGE: &str = "\
-phoenix check [--rules FILE | --rules-dru FILE] [--advanced] [--drc-config FILE] [--json | --sarif] [--csv FILE] [--html FILE] [--time] [--lang CODE] <board.brd>
+phoenix check [--rules FILE | --rules-dru FILE | --dfm FILE] [--advanced] [--drc-config FILE] [--json | --sarif] [--csv FILE] [--html FILE] [--time] [--lang CODE] <board.brd>
 
   check         run the design rules on an EAGLE board. The limits come from FILE (a JSON rule
                 file, format phoenix-rules/1 or phoenix-rules/2, which adds net classes with
@@ -41,6 +42,10 @@ phoenix connectivity [--rules FILE] [--json] [--csv FILE] [--html FILE] [--time]
 
   --json        print the report as JSON (--sarif: the layout phoenix-drc/1). --lang CODE writes the text in en, es, de, fr, it, ja,
                 zh or pt. Exit code 0: nothing proven wrong; 1: an error is proven; 2: unusable input
+  --dfm FILE    check the board against the capability profile of a board maker (a text file, see
+                docs/DFM.md and config/dfm/example.cfg): its limits replace the rules of the board
+                and it also judges the copper layers, the size of the board, the largest drill and
+                the number of holes. The example profile is not verified against any maker
   --csv FILE    also write the findings as a table of CSV, one row for each, with the stable keys of
                 the category and the severity and the title in the language of --lang
   --html FILE   also write the report as a page of HTML, grouped by category, with the headings in
@@ -55,6 +60,7 @@ struct Options {
     time: bool,
     advanced: bool,
     drc_config: Option<String>,
+    dfm: Option<String>,
     csv: Option<String>,
     html: Option<String>,
     lang: Lang,
@@ -70,6 +76,7 @@ fn parse_options(args: &[&str]) -> Result<Options, String> {
         time: false,
         advanced: false,
         drc_config: None,
+        dfm: None,
         csv: None,
         html: None,
         lang: Lang::En,
@@ -88,6 +95,10 @@ fn parse_options(args: &[&str]) -> Result<Options, String> {
                 let path = iter.next().ok_or("--drc-config needs a file")?;
                 options.drc_config = Some((*path).to_owned());
                 options.advanced = true;
+            }
+            "--dfm" => {
+                let path = iter.next().ok_or("--dfm needs a profile file")?;
+                options.dfm = Some((*path).to_owned());
             }
             "--csv" => {
                 let path = iter.next().ok_or("--csv needs a file to write")?;
@@ -235,7 +246,27 @@ pub(crate) fn check(args: &[&str], out: &mut dyn Write, err: &mut dyn Write) -> 
             Err(message) => return fail(err, &message),
         }
     };
-    let (rules, classes) = match (&options.rules, &options.rules_dru) {
+    let dfm = match &options.dfm {
+        Some(path) => {
+            if options.rules.is_some() || options.rules_dru.is_some() {
+                return fail(
+                    err,
+                    "give --dfm or --rules or --rules-dru, only one of them",
+                );
+            }
+            match read_text(path)
+                .and_then(|t| DfmProfile::parse(&t).map_err(|e| format!("{path}: {e}")))
+            {
+                Ok(profile) => Some(profile),
+                Err(message) => return fail(err, &message),
+            }
+        }
+        None => None,
+    };
+    let (rules, classes) = if let Some(profile) = &dfm {
+        (profile.rules, NetClasses::default())
+    } else {
+        match (&options.rules, &options.rules_dru) {
         (Some(_), Some(_)) => return fail(err, "give --rules or --rules-dru, not both"),
         (Some(path), None) => {
             match read_text(path).and_then(|t| RuleFile::from_json(&t).map_err(|e| e.to_string())) {
@@ -272,6 +303,7 @@ pub(crate) fn check(args: &[&str], out: &mut dyn Write, err: &mut dyn Write) -> 
                 )
             }
         },
+    }
     };
     let mut new_id = match id_source() {
         Ok(source) => source,
@@ -300,6 +332,9 @@ pub(crate) fn check(args: &[&str], out: &mut dyn Write, err: &mut dyn Write) -> 
     if !classes.is_empty() {
         report.merge(check_classes(&board, &classes));
     }
+    if let Some(profile) = &dfm {
+        report.merge(dfm_findings(&board, profile));
+    }
     if options.advanced {
         let config = match &options.drc_config {
             Some(path) => match read_text(path)
@@ -324,6 +359,9 @@ pub(crate) fn connectivity(args: &[&str], out: &mut dyn Write, err: &mut dyn Wri
         }
     };
     let started = Instant::now();
+    if options.dfm.is_some() {
+        return fail(err, "--dfm belongs to the command check, not to connectivity");
+    }
     if options.advanced {
         return fail(
             err,

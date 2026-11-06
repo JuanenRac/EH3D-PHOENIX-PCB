@@ -145,6 +145,7 @@ EH3D-PHOENIX-PCB/
 │   ├── NETLIST.md                               die Netzliste eines Schaltplans: Modelltabelle, Bericht
 │   ├── ROUTE.md                                 Bearbeiten und Routen: Luftlinien, Router, umkehrbare Änderungen
 │   ├── DRC_ADVANCED.md                          erweiterte Entwurfsregelprüfungen und ihre Einstellungen
+│   ├── DFM.md                                   eine Platine gegen das Fähigkeitsprofil eines Herstellers prüfen
 │   ├── AUTOROUTE.md                             Routing mit externem Autorouter: DSN, Sitzung, Adapter
 │   ├── ZONES.md                                 Füllen von Kupferzonen: Beschneiden, Entlastungen, Inseln, Prüfung
 │   ├── FIELD2D.md                               zweidimensionaler Feldlöser einer Leitung: Impedanz, Moden, Kopplung

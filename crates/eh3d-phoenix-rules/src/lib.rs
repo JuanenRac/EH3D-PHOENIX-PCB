@@ -14,6 +14,8 @@
 //!   `PHOENIX-DRC-<NNN>`;
 //! * [`classes`]: net classes of a rule file of the second format, with limits of their own for
 //!   the width of the tracks and the size of the vias of their nets;
+//! * [`dfm`]: a capability profile of a board maker read from a text file, its limits for the rule
+//!   check and the checks of the layers, the size of the board and the holes (`PHOENIX-DFM-<NNN>`);
 //! * [`report`]: the report as text and as JSON, with proven (`confirmed`) and unjudged
 //!   (`inconclusive`) findings in two lists;
 //! * [`report_export`]: the report as CSV and as a page of HTML, grouped by category;
@@ -32,6 +34,7 @@ pub mod advanced;
 pub mod classes;
 pub mod codes;
 pub mod connectivity;
+pub mod dfm;
 pub mod engine;
 mod geometry;
 mod items;
@@ -46,6 +49,7 @@ pub use advanced::{
 pub use classes::{check_classes, NetClass, NetClasses};
 pub use codes::{title, Lang, REGISTRY};
 pub use connectivity::{analyse_board, check_connectivity, compare_schematic};
+pub use dfm::{dfm_findings, DfmError, DfmProfile};
 pub use engine::{check_board, check_board_with, clearance_work, ClearanceWork, Rule};
 pub use report::{Finding, Report, Severity};
 pub use report_export::{category, category_counts, report_csv, report_html};

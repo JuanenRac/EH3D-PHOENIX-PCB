@@ -550,6 +550,19 @@
           }
         },
         {
+          "name": "DFM.md",
+          "desc": {
+            "en": "checking a board against the capability profile of a maker",
+            "es": "comprobar una placa contra el perfil de capacidades de un fabricante",
+            "de": "eine Platine gegen das Fähigkeitsprofil eines Herstellers prüfen",
+            "fr": "contrôler une carte selon le profil de capacités d'un fabricant",
+            "it": "verificare una scheda con il profilo delle capacità di un produttore",
+            "ja": "メーカーの能力プロファイルに対して基板を検査する",
+            "zh": "按制造商的能力配置文件检查电路板",
+            "pt": "verificar uma placa com o perfil de capacidades de um fabricante"
+          }
+        },
+        {
           "name": "AUTOROUTE.md",
           "desc": {
             "en": "routing by an external autorouter: DSN, session, adapter",

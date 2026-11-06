@@ -145,6 +145,7 @@ EH3D-PHOENIX-PCB/
 │   ├── NETLIST.md                               原理图的网表：模型表、报告
 │   ├── ROUTE.md                                 编辑与布线：飞线、布线器、可撤销编辑
 │   ├── DRC_ADVANCED.md                          高级设计规则检查及其设置
+│   ├── DFM.md                                   按制造商的能力配置文件检查电路板
 │   ├── AUTOROUTE.md                             外部自动布线器布线：DSN、会话、适配器
 │   ├── ZONES.md                                 铜区填充：裁剪、热焊盘、孤岛、检查
 │   ├── FIELD2D.md                               线路的二维场求解器：阻抗、模式、耦合

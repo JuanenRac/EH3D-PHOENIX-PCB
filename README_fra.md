@@ -145,6 +145,7 @@ EH3D-PHOENIX-PCB/
 │   ├── NETLIST.md                               la netlist d'un schéma : table de modèles, rapport
 │   ├── ROUTE.md                                 édition et routage : chevelu, routeur, modifications réversibles
 │   ├── DRC_ADVANCED.md                          contrôles avancés des règles et leurs réglages
+│   ├── DFM.md                                   contrôler une carte selon le profil de capacités d'un fabricant
 │   ├── AUTOROUTE.md                             routage avec un autorouteur externe : DSN, session, adaptateur
 │   ├── ZONES.md                                 remplissage des zones de cuivre : découpe, reliefs, îlots, vérification
 │   ├── FIELD2D.md                               solveur de champ bidimensionnel d'une ligne : impédance, modes, couplage

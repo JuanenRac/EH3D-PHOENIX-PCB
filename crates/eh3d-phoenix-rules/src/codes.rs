@@ -890,6 +890,19 @@ const WORDS: &[(&str, [&str; 8])] = &[
             "Outros",
         ],
     ),
+    (
+        "cat_capability",
+        [
+            "Manufacturer capability",
+            "Capacidad del fabricante",
+            "Fertigungsmöglichkeiten",
+            "Capacités du fabricant",
+            "Capacità del produttore",
+            "メーカーの対応範囲",
+            "制造商能力",
+            "Capacidade do fabricante",
+        ],
+    ),
 ];
 
 /// The title of a code in a language, or `None` when the code is not in the registry.
@@ -899,6 +912,7 @@ pub fn title(code: &str, lang: Lang) -> Option<&'static str> {
         .find(|(c, _)| *c == code)
         .map(|(_, texts)| texts[lang.column()])
         .or_else(|| crate::advanced::codes::title(code, lang))
+        .or_else(|| crate::dfm::title(code, lang))
 }
 
 /// A word of the text report in a language; an unknown key gives an empty text.

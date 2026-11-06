@@ -15,7 +15,7 @@ use crate::codes::{title, word, Lang};
 use crate::report::{Finding, Report, Severity};
 
 /// The categories, in the order they are listed.
-pub const CATEGORIES: [&str; 8] = [
+pub const CATEGORIES: [&str; 9] = [
     "size",
     "clearance",
     "edge",
@@ -23,6 +23,7 @@ pub const CATEGORIES: [&str; 8] = [
     "zones",
     "connectivity",
     "advanced",
+    "capability",
     "other",
 ];
 
@@ -45,6 +46,7 @@ pub fn category(code: &str) -> &'static str {
         "PHOENIX-DRC-014" | "PHOENIX-DRC-015" | "PHOENIX-CHECK-013" => "other",
         _ if code.starts_with("PHOENIX-CONN-") => "connectivity",
         _ if code.starts_with("PHOENIX-DRC-") => "advanced",
+        _ if code.starts_with("PHOENIX-DFM-") => "capability",
         _ => "other",
     }
 }
@@ -263,6 +265,7 @@ mod tests {
         assert_eq!(category(NET_OPEN), "connectivity");
         assert_eq!(category("PHOENIX-DRC-009"), "advanced");
         assert_eq!(category("PHOENIX-DRC-001"), "size");
+        assert_eq!(category("PHOENIX-DFM-003"), "capability");
         assert_eq!(category(NOT_JUDGED), "other");
         assert_eq!(category("PHOENIX-NOPE-001"), "other");
     }

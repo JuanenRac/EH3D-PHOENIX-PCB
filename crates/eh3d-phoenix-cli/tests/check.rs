@@ -369,3 +369,45 @@ fn check_writes_the_findings_as_csv_and_html_and_never_replaces_a_file() {
     assert!(err.contains("two outputs"), "{err}");
     assert!(!std::path::Path::new(both).exists());
 }
+
+#[test]
+fn check_against_a_capability_profile_judges_the_limits_and_the_layers() {
+    let f = Files::new();
+    let brd = f.write("b.brd", &write_board(&board()).text);
+    // the track of 0.10 mm is below 0.15 mm and the two copper layers are above one
+    let profile = f.write(
+        "maker.cfg",
+        "verified = true\nmin_track_width_nm = 150000\nmax_copper_layers = 1\n",
+    );
+    let (code, out, err) = call(&["check", "--dfm", profile.as_str(), brd.as_str()]);
+    assert_eq!(code, 1, "{out}{err}");
+    assert!(out.contains("PHOENIX-CHECK-001"), "{out}");
+    assert!(out.contains("PHOENIX-DFM-001"), "{out}");
+    assert!(
+        out.contains("2 copper layers, the profile (unnamed) offers 1"),
+        "{out}"
+    );
+    assert!(!out.contains("PHOENIX-DFM-006"), "{out}");
+    // a profile that is not verified says so, and a board that fits it passes
+    let open = f.write("open.cfg", "name = example\nmin_track_width_nm = 50000\n");
+    let (code, out, _) = call(&["check", "--dfm", open.as_str(), brd.as_str()]);
+    assert_eq!(code, 0, "{out}");
+    assert!(out.contains("PHOENIX-DFM-006"), "{out}");
+    // the rules of the board are replaced by the profile, not added to another file of rules
+    let rules = f.write("r.json", RULES);
+    let (code, _, err) = call(&[
+        "check",
+        "--dfm",
+        open.as_str(),
+        "--rules",
+        rules.as_str(),
+        brd.as_str(),
+    ]);
+    assert_eq!(code, 2);
+    assert!(err.contains("only one of them"), "{err}");
+    // a profile with a bad line is refused with its line
+    let bad = f.write("bad.cfg", "\nmax_holes = many\n");
+    let (code, _, err) = call(&["check", "--dfm", bad.as_str(), brd.as_str()]);
+    assert_eq!(code, 2);
+    assert!(err.contains("line 2"), "{err}");
+}
