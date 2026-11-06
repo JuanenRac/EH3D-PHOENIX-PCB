@@ -18,6 +18,7 @@ use crate::ops::EditOp;
 use crate::pairs::PairConfig;
 use crate::plan::{plan, Env};
 use crate::settings::BoardEditSettings;
+use crate::shove::{plan_shove, ShovePreview, ShoveRequest};
 
 fn error_count(list: &[Finding]) -> usize {
     list.iter()
@@ -342,6 +343,48 @@ impl BoardEdit {
         self.done.push(step);
         self.recheck();
         true
+    }
+
+    /// What a `route_shove` would do, without doing it: the new track and the tracks that move,
+    /// to be shown before the push is accepted. Any other operation is refused.
+    pub fn preview_shove(&self, op: &EditOp) -> Result<ShovePreview, BoardEditError> {
+        let EditOp::RouteShove {
+            net,
+            layer,
+            points,
+            shape,
+            width_nm,
+            horizontal_first,
+        } = op
+        else {
+            return Err(BoardEditError::new(
+                OPERATION_REFUSED,
+                "only a route_shove can be previewed",
+            ));
+        };
+        let route = self.settings.route_settings();
+        let env = Env {
+            ctx: &self.ctx,
+            route: &route,
+            settings: &self.settings,
+            locked: &self.locked,
+            pairs: &self.pairs,
+        };
+        let mut ids = self.ids.clone();
+        plan_shove(
+            &self.board,
+            &env,
+            &mut ids,
+            &ShoveRequest {
+                net: *net,
+                layer: *layer,
+                points,
+                shape: *shape,
+                width_nm: *width_nm,
+                horizontal_first: *horizontal_first,
+            },
+        )
+        .map(|(_, preview)| preview)
     }
 
     /// Applies an operation. On an error nothing changes.

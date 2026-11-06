@@ -26,18 +26,28 @@
 //!   rest, with the design rules checked before and after), the checks of the gap, the symmetry, the
 //!   uncoupled stretch, the lengths, the vias, the width and the impedance, and the codes
 //!   `PHOENIX-PAIR-<NNN>`;
+//! * [`shove`] and [`arc`]: the push of neighbour tracks when a track is routed (`route_shove`:
+//!   tracks of other nets that the clearance would invade are moved in parallel, within a depth and
+//!   a number of tracks of the settings, all or nothing) and the arcs in tracks (`route_arc`,
+//!   `round_corners`, the arc checked against the clearance of the rules), with the codes
+//!   `PHOENIX-SHOVE-<NNN>` and `PHOENIX-ARC-<NNN>` in [`shove_codes`];
 //! * [`codes`]: the codes `PHOENIX-BEDIT-<NNN>`.
 //!
 //! **State: prototype.** It has been tried through the tests only, on boards made by hand; the
 //! window of the board mode has not been seen on a screen or used with a mouse. A route is made of
 //! the pieces it is given (there is no autorouter here: `phoenix autoroute` is a separate
-//! command); a meander adds length to a straight piece only; the locks live in the editor and are
-//! not saved in the board.
+//! command); a meander adds length to a straight piece (horizontal, vertical or at 45 degrees)
+//! only; a push moves only straight pieces that are horizontal, vertical or at 45 degrees; the locks
+//! live in the editor and are not saved in the board.
 
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
+mod arc;
+#[cfg(test)]
+mod arc_tests;
 pub mod codes;
+mod copper;
 pub mod edit;
 #[cfg(test)]
 mod edit_tests;
@@ -55,6 +65,10 @@ pub mod pairs;
 pub mod plan;
 pub mod settings;
 pub mod shape;
+pub mod shove;
+pub mod shove_codes;
+#[cfg(test)]
+mod shove_tests;
 #[cfg(test)]
 mod testutil;
 pub mod tool;
@@ -70,4 +84,5 @@ pub use pair_check::{check_pairs, PairFinding, PairMeasure, PairReport};
 pub use pairs::{PairConfig, PairDef, PairSettings, ResolvedPair};
 pub use settings::BoardEditSettings;
 pub use shape::{MeanderSide, Shape};
+pub use shove::{ShoveMove, ShovePreview};
 pub use tool::{Drag, EditState, Tool};

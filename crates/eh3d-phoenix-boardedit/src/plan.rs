@@ -16,6 +16,7 @@ use eh3d_phoenix_route::edit as route_edit;
 use eh3d_phoenix_route::{copper_layers, track_width, RouteSettings, RuleContext};
 use eh3d_phoenix_rules::Lang;
 
+use crate::arc;
 use crate::codes::{
     BoardEditError, COMPONENT_LOCKED, GEOMETRY_INVALID, OPERATION_REFUSED, TUNE_IMPOSSIBLE,
 };
@@ -25,8 +26,9 @@ use crate::pair_plan;
 use crate::pairs::PairConfig;
 use crate::settings::BoardEditSettings;
 use crate::shape::{
-    axis_length, legs, lines_through, route_pieces, serpentine, MeanderSide, Shape, Tuning,
+    legs, lines_through, piece_length, route_pieces, serpentine, MeanderSide, Shape, Tuning,
 };
+use crate::shove;
 
 /// What the planner reads besides the board.
 pub struct Env<'a> {
@@ -103,7 +105,7 @@ pub(crate) fn copper_layer(board: &Board, layer: Id) -> Result<(), BoardEditErro
     }
 }
 
-fn net_name(board: &Board, net: Id) -> Result<String, BoardEditError> {
+pub(crate) fn net_name(board: &Board, net: Id) -> Result<String, BoardEditError> {
     board
         .nets
         .get(&net)
@@ -227,6 +229,37 @@ pub fn plan(
             *width_nm,
             *horizontal_first,
         ),
+        EditOp::RouteShove {
+            net,
+            layer,
+            points,
+            shape,
+            width_nm,
+            horizontal_first,
+        } => shove::plan_shove(
+            board,
+            env,
+            ids,
+            &shove::ShoveRequest {
+                net: *net,
+                layer: *layer,
+                points,
+                shape: *shape,
+                width_nm: *width_nm,
+                horizontal_first: *horizontal_first,
+            },
+        )
+        .map(|(plan, _)| plan),
+        EditOp::RouteArc {
+            track,
+            vertex,
+            radius_nm,
+        } => arc::plan_route_arc(board, env, *track, *vertex, *radius_nm),
+        EditOp::RoundCorners {
+            track,
+            net,
+            radius_nm,
+        } => arc::plan_round_corners(board, env, *track, *net, *radius_nm),
         EditOp::Via {
             net,
             at,
@@ -952,7 +985,7 @@ pub(crate) fn tune_request(
         }
         for (index, segment) in track.path.iter().enumerate() {
             if let Segment::Line { start, end } = *segment {
-                if let Some(len) = axis_length(start, end) {
+                if let Some(len) = piece_length(start, end) {
                     pieces.push(Piece {
                         track: *track_id,
                         index,
@@ -973,7 +1006,7 @@ pub(crate) fn tune_request(
     pieces.truncate(env.settings.meander_candidates);
     if pieces.is_empty() {
         return Err(impossible(
-            "the net has no horizontal or vertical piece to put meanders on".to_owned(),
+            "the net has no horizontal, vertical or 45-degree piece to put meanders on".to_owned(),
         ));
     }
     let fixed_sides: &[i64] = match side {

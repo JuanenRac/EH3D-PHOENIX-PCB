@@ -111,6 +111,49 @@ pub enum EditOp {
         #[serde(default)]
         horizontal_first: Option<bool>,
     },
+    /// Draws a track like `route` and pushes aside, in parallel, the tracks of other nets that its
+    /// clearance would invade (only horizontal, vertical and 45-degree pieces are pushed; pads,
+    /// vias and the edge of the board are fixed). All or nothing: it is refused, with a
+    /// `PHOENIX-SHOVE-<NNN>` code, when the push cannot be done within the depth and the number of
+    /// tracks of the settings, or would leave a rule error.
+    RouteShove {
+        /// The net.
+        net: Id,
+        /// The copper layer.
+        layer: Id,
+        /// The points, at least two.
+        points: Vec<Point>,
+        /// The shape; the setting `diagonal_routes` decides when left out.
+        #[serde(default)]
+        shape: Option<Shape>,
+        /// The width in nanometres; the width of the net class when left out.
+        #[serde(default)]
+        width_nm: Option<i64>,
+        /// Whether a corner goes first along x; when left out both orders are tried.
+        #[serde(default)]
+        horizontal_first: Option<bool>,
+    },
+    /// Puts an arc of a given radius, tangent to both pieces, at a vertex of a track.
+    RouteArc {
+        /// The track.
+        track: Id,
+        /// The vertex, from 1 (the end of the first piece).
+        vertex: usize,
+        /// The radius in nanometres, not below `arc_min_radius_nm`.
+        radius_nm: i64,
+    },
+    /// Rounds the corners of a track, or of every track of a net, with the largest radius that
+    /// fits up to the one given (a corner that has no room for the smallest radius stays).
+    RoundCorners {
+        /// The track; every track of the net when left out.
+        #[serde(default)]
+        track: Option<Id>,
+        /// The net; the net of the track when only the track is given.
+        #[serde(default)]
+        net: Option<Id>,
+        /// The radius in nanometres, not below `arc_min_radius_nm`.
+        radius_nm: i64,
+    },
     /// Adds a via, sized by the rules and the net class.
     Via {
         /// The net.
@@ -258,6 +301,42 @@ mod tests {
         let back = serde_json::to_string(&op).unwrap();
         assert_eq!(serde_json::from_str::<EditOp>(&back).unwrap(), op);
         assert!(matches!(op, EditOp::Forced { .. }));
+    }
+
+    #[test]
+    fn the_push_and_the_arcs_are_read_with_their_defaults() {
+        let text = r#"{"op":"route_shove","net":"01000000-0000-7000-8000-000000000001","layer":"01000000-0000-7000-8000-000000000002","points":[{"x_nm":0,"y_nm":0},{"x_nm":5,"y_nm":0}]}"#;
+        match serde_json::from_str::<EditOp>(text).unwrap() {
+            EditOp::RouteShove {
+                shape,
+                width_nm,
+                horizontal_first,
+                points,
+                ..
+            } => {
+                assert_eq!((shape, width_nm, horizontal_first), (None, None, None));
+                assert_eq!(points.len(), 2);
+            }
+            other => panic!("{other:?}"),
+        }
+        let text = r#"{"op":"round_corners","net":"01000000-0000-7000-8000-000000000001","radius_nm":800000}"#;
+        match serde_json::from_str::<EditOp>(text).unwrap() {
+            EditOp::RoundCorners {
+                track, radius_nm, ..
+            } => {
+                assert_eq!(track, None);
+                assert_eq!(radius_nm, 800_000);
+            }
+            other => panic!("{other:?}"),
+        }
+        let text = r#"{"op":"route_arc","track":"01000000-0000-7000-8000-000000000003","vertex":1,"radius_nm":500000}"#;
+        let op: EditOp = serde_json::from_str(text).unwrap();
+        let back = serde_json::to_string(&op).unwrap();
+        assert_eq!(serde_json::from_str::<EditOp>(&back).unwrap(), op);
+        assert!(serde_json::from_str::<EditOp>(
+            r#"{"op":"route_arc","track":"01000000-0000-7000-8000-000000000003","vertex":1}"#
+        )
+        .is_err());
     }
 
     #[test]

@@ -473,6 +473,22 @@ The titles of these codes also exist in the eight languages of the suite (`TITLE
 | PHOENIX-PAIR-010 | Pair has no coupled stretch | warning: no piece of either net runs within `coupling_range_nm` of the other net, so the gap and the symmetry are not judged |
 | PHOENIX-PAIR-011 | Operation on a pair cannot be done | `route_pair`, `tune_pair` or `fix_pair_gap` on a pair that is not defined, or `fix_pair_gap` when pieces with a wrong gap exist and none of them can be moved |
 
+## Push of neighbour tracks and arcs (`eh3d-phoenix-boardedit`, `src/shove_codes.rs`)
+
+The titles of these codes also exist in the eight languages of the suite (`TITLES` in `src/shove_codes.rs`); the detail of a message is in English. They are the errors of the operations `route_shove`, `route_arc` and `round_corners` of `phoenix boardedit` and of the window, and each one leaves the board as it was.
+
+| Code | Title | Raised by |
+|---|---|---|
+| PHOENIX-SHOVE-001 | Push is blocked by fixed copper | a track that would have to be pushed against a pad, a via or the edge of the board (they are never moved), or that cannot be pushed far enough |
+| PHOENIX-SHOVE-002 | Push goes deeper than allowed | a pushed track that would have to push a track that pushes another, past `shove_max_depth` levels |
+| PHOENIX-SHOVE-003 | Push would move too many tracks | a push that would move more tracks than `shove_max_moved` |
+| PHOENIX-SHOVE-004 | Track in the way cannot be pushed | a track in the way that is an arc or has a piece that is neither horizontal, vertical nor at 45 degrees, or that has a via, a pad or a branch of its net along the piece |
+| PHOENIX-SHOVE-005 | Route crosses a track of another net | a route that crosses or touches a track of another net: no parallel push can solve it |
+| PHOENIX-SHOVE-006 | Push would leave a rule error | a result (the new track and the tracks pushed) that the design rules judge to add an error, also when `reject_new_errors` is off and also for a forced operation |
+| PHOENIX-ARC-001 | Radius of the arc is not valid | a radius below `arc_min_radius_nm` or above 2^29 nm |
+| PHOENIX-ARC-002 | Corner cannot be rounded | a vertex that does not exist, that is not between two straight pieces, whose pieces run on one line or turn back, or whose pieces are shorter than the arc needs; `round_corners` when no corner of the track or the net could be rounded |
+| PHOENIX-ARC-003 | Arc is too close to other copper or to the edge | an arc that, cut into short chords, comes nearer than the clearance of the rules (plus `arc_margin_nm`) to the copper of another net, a pad, a via or the edge of the board |
+
 ## Circuit simulator (`eh3d-phoenix-sim`, `src/codes.rs`)
 
 The titles of these codes also exist in the eight languages of the suite (`TITLES` in `src/codes.rs`); the detail of a message is in English. A message about a netlist names the line.
