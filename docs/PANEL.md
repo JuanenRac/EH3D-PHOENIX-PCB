@@ -56,6 +56,10 @@ It reads the board (an EAGLE `.brd`, a KiCad board or a JSON board) or the list 
 
 `phoenix view --panel [--panel-config FILE] [BOARD[,BOARD...]]` (or the button *Panel* of the start screen, which takes the board files typed in the box) opens a window that draws the panel: the copies with their numbers, the frame, the routed outline, the tabs, the V-score lines, the mouse bites, the fiducials, the tooling holes and the holes of the boards, each on a layer that can be hidden, with the measures of the panel, the part of its area that the boards take, the notes of the layout and the columns, the rows and the joint to change. A click on a board marks it. `phoenix view --panel --summary BOARD[,BOARD...]` prints the measures without a window. The window only draws the panel; the files are written by `phoenix panel`. See `docs/VIEWER.md`.
 
+## Printing
+
+`phoenix print panel` writes the panel as an SVG or PDF page, with the copies numbered, the tabs, the V-score lines, the mouse bites, the tooling holes, the fiducials and the width and the height (`docs/PRINT.md`). The panel window has no button for it yet.
+
 ## What is not here
 
 See `docs/NOT_YET.md`: routing slots as an outline with the width of the router bit, break-away rails with their own tabs, the layers of a panel of boards with different layers, and a check by a manufacturer. A zone is written as its outline, as in the export of a board, and the window has never been seen on a screen.

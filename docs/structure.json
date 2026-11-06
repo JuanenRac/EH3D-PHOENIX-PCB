@@ -521,6 +521,19 @@
           }
         },
         {
+          "name": "PRINT.md",
+          "desc": {
+            "en": "printing: SVG and PDF pages with a title block",
+            "es": "impresión: páginas SVG y PDF con rótulo",
+            "de": "Druck: SVG- und PDF-Seiten mit Schriftfeld",
+            "fr": "impression : pages SVG et PDF avec cartouche",
+            "it": "stampa: pagine SVG e PDF con cartiglio",
+            "ja": "印刷：表題欄付きの SVG と PDF のページ",
+            "zh": "打印：带标题栏的 SVG 与 PDF 页面",
+            "pt": "impressão: páginas SVG e PDF com legenda"
+          }
+        },
+        {
           "name": "BOM.md",
           "desc": {
             "en": "bill of materials with costs, CSV, JSON, HTML",
