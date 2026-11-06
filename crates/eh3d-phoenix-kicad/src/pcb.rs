@@ -485,7 +485,6 @@ impl Reader {
         if !self.footprints.contains_key(&key) {
             let built = build_footprint(&def, &mut self.layers, ctx);
             let id = ctx.id();
-            self.pads += built.pad_ids.len();
             self.board.footprints.insert(id, built.footprint);
             self.footprints.insert(key.clone(), (id, built.pad_ids));
         }
@@ -493,6 +492,8 @@ impl Reader {
         let Some((footprint, pad_ids)) = self.footprints.get(&key).cloned() else {
             return;
         };
+        // the pads of every placed part are counted, also when its footprint was built for an earlier one
+        self.pads += pad_ids.len();
         let Some(at) = to_model(def.at) else {
             ctx.invalid(node, "footprint position", "outside the range of the model");
             return;

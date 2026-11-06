@@ -17,7 +17,7 @@
       "nets": 3,
       "wires": 3,
       "sheets": 1,
-      "sheets_read": 0,
+      "sheets_read": 1,
       "version": "20211123",
       "generator": "eeschema",
       "kept.nets": 3,
