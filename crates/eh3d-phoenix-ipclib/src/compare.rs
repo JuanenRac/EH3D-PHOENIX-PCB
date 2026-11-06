@@ -383,7 +383,7 @@ mod tests {
 
     #[test]
     fn a_package_drawn_the_other_way_round_is_matched_by_a_turn() {
-        let owner = vec![
+        let owner = [
             pad("1", 0, 800_000, 900_000, 800_000),
             pad("2", 0, -800_000, 900_000, 800_000),
         ];
