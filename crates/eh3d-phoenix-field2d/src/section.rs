@@ -382,7 +382,7 @@ mod tests {
 
     #[test]
     fn a_microstrip_has_the_substrate_under_the_track_and_air_over_it() {
-        let materials = vec![flat("fr4", 4.3, 0.02)];
+        let materials = [flat("fr4", 4.3, 0.02)];
         let spec = spec(LineKind::Microstrip, "top", None);
         let section =
             section_from_stackup(&two_layer(), &materials, &spec, 300_000, 1.0, &settings())
@@ -405,7 +405,7 @@ mod tests {
 
     #[test]
     fn a_microstrip_on_the_bottom_layer_is_the_same_section_upside_down() {
-        let materials = vec![flat("fr4", 4.3, 0.02)];
+        let materials = [flat("fr4", 4.3, 0.02)];
         let top = section_from_stackup(
             &two_layer(),
             &materials,
@@ -429,7 +429,7 @@ mod tests {
 
     #[test]
     fn a_stripline_has_a_dielectric_on_each_side_and_the_track_between() {
-        let materials = vec![flat("fr4", 4.3, 0.02)];
+        let materials = [flat("fr4", 4.3, 0.02)];
         let spec = spec(LineKind::Stripline, "inner-1", None);
         let section =
             section_from_stackup(&four_layer(), &materials, &spec, 300_000, 1.0, &settings())
@@ -446,7 +446,7 @@ mod tests {
 
     #[test]
     fn a_pair_has_two_electrodes_a_gap_apart() {
-        let materials = vec![flat("fr4", 4.3, 0.02)];
+        let materials = [flat("fr4", 4.3, 0.02)];
         let spec = spec(LineKind::DifferentialMicrostrip, "top", Some(200_000));
         let section =
             section_from_stackup(&two_layer(), &materials, &spec, 300_000, 1.0, &settings())
@@ -462,7 +462,7 @@ mod tests {
 
     #[test]
     fn a_coplanar_line_has_grounded_copper_on_both_sides() {
-        let materials = vec![flat("fr4", 4.3, 0.02)];
+        let materials = [flat("fr4", 4.3, 0.02)];
         let spec = spec(LineKind::CoplanarGrounded, "top", Some(150_000));
         let section =
             section_from_stackup(&two_layer(), &materials, &spec, 300_000, 1.0, &settings())
@@ -487,7 +487,7 @@ mod tests {
 
     #[test]
     fn a_line_that_cannot_be_taken_from_the_stackup_is_refused() {
-        let materials = vec![flat("fr4", 4.3, 0.02)];
+        let materials = [flat("fr4", 4.3, 0.02)];
         // a stripline on an outer layer, a layer that does not exist, a material that is missing,
         // a gap that is not given, a width out of range
         let cases: Vec<(LineSpec, i64)> = vec![
@@ -517,7 +517,7 @@ mod tests {
 
     #[test]
     fn the_solder_mask_is_noted_and_left_out() {
-        let materials = vec![flat("fr4", 4.3, 0.02), flat("mask", 3.5, 0.03)];
+        let materials = [flat("fr4", 4.3, 0.02), flat("mask", 3.5, 0.03)];
         let mut stackup = two_layer();
         stackup.layers.insert(
             0,
