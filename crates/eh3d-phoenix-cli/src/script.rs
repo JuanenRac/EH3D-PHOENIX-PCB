@@ -505,7 +505,8 @@ fn list_command(args: &[&str], out: &mut dyn Write, err: &mut dyn Write) -> i32 
     if let Some(name) = &options.show {
         return match templates::find(name) {
             Some(t) => {
-                let _ = out.write_all(t.source.as_bytes());
+                // the example may be checked out with CRLF line ends; the program writes LF
+                let _ = out.write_all(t.source.replace("\r\n", "\n").as_bytes());
                 0
             }
             None => {
