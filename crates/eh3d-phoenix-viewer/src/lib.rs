@@ -71,6 +71,10 @@
 //!   reads the boards and lays the panel out again when the matrix or the joint changes, and the
 //!   texts of the window in the eight languages (the window is in `panel_gui`, behind the `gui`
 //!   feature);
+//! * [`print_scene`], [`print_export`] and [`print_text`]: the sheets of a schematic, the assembly
+//!   plan and the layers of a board and a panel as pages for `eh3d-phoenix-print`, the export of the
+//!   open document to SVG and PDF in a place that is new, and the texts of the button in the eight
+//!   languages (the controls are in `print_gui`, behind the `gui` feature);
 //! * [`settings`], [`codes`], [`msg`] and [`editmsg`]: the settings file, the codes
 //!   `PHOENIX-VIEW-<NNN>` and the texts in the eight languages.
 //!
@@ -124,6 +128,11 @@ pub mod panel_gui;
 pub mod panel_scene;
 pub mod panel_text;
 pub mod prim;
+pub mod print_export;
+#[cfg(feature = "gui")]
+pub mod print_gui;
+pub mod print_scene;
+pub mod print_text;
 #[cfg(test)]
 pub(crate) mod sample;
 pub mod scene;

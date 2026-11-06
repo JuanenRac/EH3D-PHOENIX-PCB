@@ -24,6 +24,7 @@ use crate::msg::Msg;
 use crate::panel_gui::PanelUi;
 use crate::panel_scene::parse_files;
 use crate::prim::{arc_points, triangulate, Shape, P};
+use crate::print_gui::PrintUi;
 use crate::scene::SceneKind;
 use crate::schematic_gui::{self, SchematicEditUi};
 use crate::schematic_text::SchMsg;
@@ -141,6 +142,8 @@ struct App {
     panel: Option<PanelUi>,
     /// The table of models that the 3D window reads.
     models_text: String,
+    /// The controls that export the open document as SVG or PDF.
+    print: PrintUi,
 }
 
 impl App {
@@ -168,6 +171,7 @@ impl App {
             view3d: None,
             panel: None,
             models_text: String::new(),
+            print: PrintUi::new(),
         };
         if let Some(path) = initial {
             app.path_text = path.to_string_lossy().into_owned();
@@ -341,6 +345,8 @@ impl App {
                     if w.dirty() {
                         ui.label(egui::RichText::new(EditMsg::Unsaved.tr(lang)).color(DANGER));
                     }
+                    ui.separator();
+                    self.print.show(ui, w, lang);
                 }
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     egui::ComboBox::from_id_salt("language")
