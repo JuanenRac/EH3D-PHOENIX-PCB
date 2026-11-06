@@ -13,7 +13,7 @@ use eh3d_parser_gerber::{
     QuadrantMode, Units, ZeroOmission,
 };
 use eh3d_phoenix_board::connectivity::pad_position;
-use eh3d_phoenix_board::{Board, Id, LayerKind, Pad, PadRef, PadShape, Segment};
+use eh3d_phoenix_board::{Board, Id, LayerKind, Pad, PadRef, PadShape, Segment, Via};
 use eh3d_phoenix_model::Point;
 use eh3d_writer_gerber::{GerberOptions, GerberOutput, WriteError};
 
@@ -244,7 +244,7 @@ fn collect(
         for v in board
             .vias
             .values()
-            .filter(|v| v.from_layer == layer || v.to_layer == layer)
+            .filter(|v| via_on_layer(board, v, layer))
         {
             draws.push((
                 Draw::Flash(
@@ -574,6 +574,25 @@ pub fn write_layer(
     Ok((output, diagnostics))
 }
 
+/// True when the via has a pad on the copper layer: the layer is one of its two ends, or lies
+/// between them in the stack-up of the board (a through via has a pad on every inner layer and a
+/// blind or buried via on the layers it spans). A board without a stack-up, or a via whose ends
+/// are not in it, gets a pad on its two ends only.
+pub fn via_on_layer(board: &Board, via: &Via, layer: Id) -> bool {
+    if via.from_layer == layer || via.to_layer == layer {
+        return true;
+    }
+    let position = |id: Id| board.copper_stack.iter().position(|l| *l == id);
+    match (
+        position(via.from_layer),
+        position(via.to_layer),
+        position(layer),
+    ) {
+        (Some(a), Some(b), Some(l)) => l > a.min(b) && l < a.max(b),
+        _ => false,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -599,6 +618,42 @@ mod tests {
         // no sweep and no length give no centre
         assert!(arc_centre(pt(0, 0), pt(1, 0), 0).is_none());
         assert!(arc_centre(pt(5, 5), pt(5, 5), 90_000_000).is_none());
+    }
+
+    #[test]
+    fn a_via_has_a_pad_on_every_layer_it_spans_and_on_no_other() {
+        use eh3d_phoenix_model::{Nm, ObjectId};
+        let layer = |n: u16| ObjectId::from_parts(1_700_000_000_000, n, u64::from(n)).unwrap();
+        // four copper layers, top to bottom: 1 (top), 2, 3, 4 (bottom)
+        let mut board = Board {
+            copper_stack: (1..=4).map(layer).collect(),
+            ..Board::default()
+        };
+        let via = |from: u16, to: u16| Via {
+            net: layer(10),
+            at: pt(0, 0),
+            drill: Nm::new(300_000).unwrap(),
+            diameter: Nm::new(600_000).unwrap(),
+            from_layer: layer(from),
+            to_layer: layer(to),
+        };
+        let spans = |board: &Board, v: &Via| -> Vec<bool> {
+            (1..=4).map(|n| via_on_layer(board, v, layer(n))).collect()
+        };
+        // a through via: a pad on all four layers
+        assert_eq!(spans(&board, &via(1, 4)), [true, true, true, true]);
+        // the ends in the other order give the same answer
+        assert_eq!(spans(&board, &via(4, 1)), [true, true, true, true]);
+        // a blind via from the top to the second inner layer: 1, 2 and 3 but not 4
+        assert_eq!(spans(&board, &via(1, 3)), [true, true, true, false]);
+        // a buried via between the two inner layers: 2 and 3 only
+        assert_eq!(spans(&board, &via(2, 3)), [false, true, true, false]);
+        // a via on a layer that the stack-up does not list keeps the old rule: its two ends
+        assert!(via_on_layer(&board, &via(1, 9), layer(9)));
+        assert!(!via_on_layer(&board, &via(1, 9), layer(2)));
+        // a board without a stack-up: the two ends only
+        board.copper_stack.clear();
+        assert_eq!(spans(&board, &via(1, 4)), [true, false, false, true]);
     }
 
     #[test]

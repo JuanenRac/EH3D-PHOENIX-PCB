@@ -26,7 +26,7 @@ use eh3d_phoenix_board::{Board, Id, LayerKind, PadRef, Segment};
 use crate::assembly::parse_csv;
 use crate::codes;
 use crate::fab::{FabFile, FabSet, FileRole};
-use crate::gerber::arc_centre;
+use crate::gerber::{arc_centre, via_on_layer};
 use crate::profile::Profile;
 
 fn unreadable(out: &mut Vec<Diagnostic>, file: &FabFile, detail: &str) {
@@ -157,7 +157,7 @@ fn check_layer(
             let vias = board
                 .vias
                 .values()
-                .filter(|v| v.from_layer == layer || v.to_layer == layer)
+                .filter(|v| via_on_layer(board, v, layer))
                 .count();
             compare(out, file, "flashes", pads_on(board, layer) + vias, flashes);
             let zones = board

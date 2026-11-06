@@ -9,6 +9,7 @@ use std::collections::BTreeMap;
 use eh3d_phoenix_board::connectivity::pad_position;
 use eh3d_phoenix_board::{Board, Id, LayerKind, PadRef, Segment};
 use eh3d_phoenix_export::fab::{FabFile, FileRole};
+use eh3d_phoenix_export::gerber::via_on_layer;
 use eh3d_phoenix_export::profile::{ObjectAttribute, X2Level, X2Profile};
 use eh3d_phoenix_export::x2::{unescape_field, NO_NET};
 use eh3d_phoenix_export::{build, Profile};
@@ -251,7 +252,7 @@ impl Checker<'_> {
             LayerKind::Copper => {
                 let mut expected = pads_on(self.board, layer);
                 for via in self.board.vias.values() {
-                    if via.from_layer == layer || via.to_layer == layer {
+                    if via_on_layer(self.board, via, layer) {
                         expected.push((via.at.x_nm.get(), via.at.y_nm.get()));
                     }
                 }
@@ -508,7 +509,7 @@ impl Checker<'_> {
                 .board
                 .vias
                 .values()
-                .filter(|v| v.from_layer == layer || v.to_layer == layer)
+                .filter(|v| via_on_layer(self.board, v, layer))
                 .map(|v| net_label(self.board, Some(v.net)))
                 .collect();
             vias.sort_unstable();
