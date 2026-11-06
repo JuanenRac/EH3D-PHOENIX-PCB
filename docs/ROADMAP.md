@@ -124,6 +124,6 @@ Gate: A small real project made entirely inside the tool, from schematic to meas
 
 ## Later
 
-Extended power (resonant, phase-shifted, power-factor correction, inverters), RF by levels with an external electromagnetic solver, progressive thermal analysis, high-speed digital, analog, full parametric mechanical CAD, further levels for other formats, and co-simulation of firmware for one processor family at a time.
+Extended power (resonant, phase-shifted, power-factor correction, inverters), RF by levels with an external electromagnetic solver, progressive thermal analysis, high-speed digital beyond the quasi-static estimates of `docs/SI.md`, analog, full parametric mechanical CAD, further levels for other formats, and co-simulation of firmware for one processor family at a time.
 
 See REQUIREMENTS.md for the state of each capability (all planned today) and DEPENDENCIES.md for the repositories that must exist before a phase can start.

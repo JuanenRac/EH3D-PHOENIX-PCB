@@ -508,6 +508,19 @@
           }
         },
         {
+          "name": "SI.md",
+          "desc": {
+            "en": "signal integrity: crosstalk, terminations, eye, return path",
+            "es": "integridad de señal: diafonía, terminaciones, ojo, camino de retorno",
+            "de": "Signalintegrität: Übersprechen, Abschlüsse, Auge, Rückstrompfad",
+            "fr": "intégrité du signal : diaphonie, terminaisons, œil, chemin de retour",
+            "it": "integrità del segnale: diafonia, terminazioni, occhio, percorso di ritorno",
+            "ja": "シグナルインテグリティ：クロストーク、終端、アイ、リターン経路",
+            "zh": "信号完整性：串扰、端接、眼图、回流路径",
+            "pt": "integridade do sinal: diafonia, terminações, olho, caminho de retorno"
+          }
+        },
+        {
           "name": "GERBER_IMPORT.md",
           "desc": {
             "en": "import of Gerber and Excellon files for review, and the round trip",
