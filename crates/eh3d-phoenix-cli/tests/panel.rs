@@ -299,3 +299,36 @@ fn arguments_and_boards_that_cannot_be_used_exit_2() {
     assert_eq!(code, 2);
     assert!(err.contains("PHOENIX-PANEL-014"), "{err}");
 }
+
+#[test]
+fn a_named_template_of_the_settings_is_applied_and_an_unknown_one_is_refused() {
+    let f = Files::new();
+    let json = f.board();
+    let cfg = f.write(
+        "panel.cfg",
+        b"columns = 1\nrows = 1\n[template strip]\ncolumns = 3\n",
+    );
+    let (code, out, err) = call(&["panel", "--config", cfg.as_str(), json.as_str()]);
+    assert_eq!(code, 0, "{err}");
+    assert!(out.contains(", 1 x 1 boards\n"), "{out}");
+    let (code, out, err) = call(&[
+        "panel",
+        "--config",
+        cfg.as_str(),
+        "--template",
+        "strip",
+        json.as_str(),
+    ]);
+    assert_eq!(code, 0, "{err}");
+    assert!(out.contains(", 3 x 1 boards\n"), "{out}");
+    let (code, _, err) = call(&[
+        "panel",
+        "--config",
+        cfg.as_str(),
+        "--template",
+        "nope",
+        json.as_str(),
+    ]);
+    assert_eq!(code, 2);
+    assert!(err.contains("no template nope"), "{err}");
+}

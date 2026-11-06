@@ -48,10 +48,14 @@ A difference is `PHOENIX-PANEL-019` and nothing is written. A refusal of the exp
 ## The command
 
 ```
-phoenix panel [--config FILE] [--columns N] [--rows N] [--boards A,B,...] [--profile NAME] [--profiles FILE] [--json] [--lang CODE] [--out FOLDER] [<board>]
+phoenix panel [--config FILE] [--template NAME] [--columns N] [--rows N] [--boards A,B,...] [--profile NAME] [--profiles FILE] [--json] [--lang CODE] [--out FOLDER] [<board>]
 ```
 
 It reads the board (an EAGLE `.brd`, a KiCad board or a JSON board) or the list of boards and prints a summary; it is a dry run unless `--out` names a folder. The folder must not exist (`PHOENIX-PANEL-008` otherwise), the files are never written over and the boards are never written. `--columns` and `--rows` apply to a matrix of one board. Exit code 0 is done and 2 is any refusal. The codes `PHOENIX-PANEL-001` to `021` are in `docs/ERROR_CODES.md` with their titles in the eight languages.
+
+### Named templates
+
+A settings file can hold several named templates. The lines before the first `[template NAME]` line are the base; the lines under a `[template NAME]` line (a name of 1 to 32 letters, digits, `_` or `-`) are applied after the base only when `--template NAME` is given, and change only the lines they name. Without `--template` the lines under a section are not read. A section line written in any other way, or a name the file does not have, is refused with `PHOENIX-PANEL-001` and the number of the line. `--columns` and `--rows` still win over the template. The file `config/panel.cfg` carries two commented examples of the shape (a strip and a V-score grid); they are examples and not settings of any board maker.
 
 ## The window
 

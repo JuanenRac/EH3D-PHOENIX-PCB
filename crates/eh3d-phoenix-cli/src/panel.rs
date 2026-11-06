@@ -32,7 +32,7 @@ const DEFAULT_CONFIG: &str = "config/panel.cfg";
 const MAX_SETTINGS_BYTES: u64 = 1024 * 1024;
 
 pub(crate) const USAGE: &str = "\
-phoenix panel [--config FILE] [--columns N] [--rows N] [--boards A,B,...] [--profile NAME] [--profiles FILE] [--json] [--lang CODE] [--out FOLDER] [<board>]
+phoenix panel [--config FILE] [--template NAME] [--columns N] [--rows N] [--boards A,B,...] [--profile NAME] [--profiles FILE] [--json] [--lang CODE] [--out FOLDER] [<board>]
 
   panel         lay a board out in a matrix of columns and rows, or a list of different boards
                 packed by rows or placed with the `place` lines of the settings, with a routed gap
@@ -44,6 +44,8 @@ phoenix panel [--config FILE] [--columns N] [--rows N] [--boards A,B,...] [--pro
                 unless --out names a folder that does not exist yet (a file is never replaced); a
                 prototype, not checked by a manufacturer
   --config      the settings (default: config/panel.cfg when it exists)
+  --template NAME  apply the lines under `[template NAME]` of the settings file after the
+                lines that come before the first template (several templates can live in one file)
   --columns N   the boards across, instead of the settings (a matrix of one board)
   --rows N      the boards up, instead of the settings (a matrix of one board)
   --boards LIST the board files of a panel of different boards, separated by commas; a board that
@@ -59,6 +61,7 @@ struct Options {
     json: bool,
     lang: Option<Lang>,
     config: Option<String>,
+    template: Option<String>,
     columns: Option<u32>,
     rows: Option<u32>,
     boards: Option<Vec<String>>,
@@ -73,6 +76,7 @@ fn parse_options(args: &[&str]) -> Result<Options, PanelError> {
         json: false,
         lang: None,
         config: None,
+        template: None,
         columns: None,
         rows: None,
         boards: None,
@@ -96,6 +100,7 @@ fn parse_options(args: &[&str]) -> Result<Options, PanelError> {
                 o.lang = Some(Lang::from_tag(&tag).ok_or_else(|| bad("unknown language code"))?);
             }
             "--config" => o.config = Some(value("--config")?),
+            "--template" => o.template = Some(value("--template")?),
             "--out" => o.out = Some(value("--out")?),
             "--profile" => o.profile = value("--profile")?,
             "--profiles" => o.profiles = Some(value("--profiles")?),
@@ -150,7 +155,16 @@ fn load_settings(options: &Options) -> Result<PanelSettings, PanelError> {
                 ));
             }
             let text = std::fs::read_to_string(path).map_err(bad)?;
-            PanelSettings::parse(&text)?
+            match &options.template {
+                Some(name) => PanelSettings::parse_template(&text, name)?,
+                None => PanelSettings::parse(&text)?,
+            }
+        }
+        None if options.template.is_some() => {
+            return Err(PanelError::new(
+                SETTINGS_INVALID,
+                "--template needs a settings file that has templates",
+            ))
         }
         None => PanelSettings::default(),
     };

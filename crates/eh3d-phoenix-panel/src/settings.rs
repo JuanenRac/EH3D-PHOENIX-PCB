@@ -187,14 +187,68 @@ fn parse_bool(value: &str) -> Option<bool> {
     }
 }
 
+/// The name in a section line `[template NAME]`: 1 to 32 letters, digits, `_` or `-`.
+fn section_name(line: &str) -> Option<&str> {
+    let inner = line.strip_prefix('[')?.strip_suffix(']')?;
+    let name = inner.trim().strip_prefix("template")?;
+    if !name.starts_with(char::is_whitespace) {
+        return None;
+    }
+    let name = name.trim();
+    let ok = !name.is_empty()
+        && name.len() <= 32
+        && name
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-');
+    ok.then_some(name)
+}
+
+/// The names of the templates of a settings text, in the order they are written.
+pub fn template_names(text: &str) -> Vec<String> {
+    text.lines()
+        .filter_map(|l| section_name(l.trim()))
+        .map(str::to_owned)
+        .collect()
+}
+
 impl PanelSettings {
-    /// Parses a settings text. Blank lines and lines starting with `#` are ignored.
+    /// Parses a settings text. Blank lines and lines starting with `#` are ignored. The lines
+    /// under a `[template NAME]` line belong to that template and are not read here.
     pub fn parse(text: &str) -> Result<PanelSettings, PanelError> {
+        PanelSettings::parse_with(text, None)
+    }
+
+    /// Parses a settings text with the lines of one template applied after the lines that come
+    /// before the first `[template NAME]` line. A name the text does not have is refused.
+    pub fn parse_template(text: &str, name: &str) -> Result<PanelSettings, PanelError> {
+        if !template_names(text).iter().any(|n| n == name) {
+            return Err(PanelError::new(
+                SETTINGS_INVALID,
+                format!("the settings have no template {name}"),
+            ));
+        }
+        PanelSettings::parse_with(text, Some(name))
+    }
+
+    fn parse_with(text: &str, template: Option<&str>) -> Result<PanelSettings, PanelError> {
         let mut s = PanelSettings::default();
+        let mut section: Option<&str> = None;
         for (index, raw) in text.lines().enumerate() {
             let line = index + 1;
             let trimmed = raw.trim();
             if trimmed.is_empty() || trimmed.starts_with('#') {
+                continue;
+            }
+            if trimmed.starts_with('[') {
+                section = Some(section_name(trimmed).ok_or_else(|| {
+                    PanelError::new(
+                        SETTINGS_INVALID,
+                        format!("line {line}: a section is written [template NAME]"),
+                    )
+                })?);
+                continue;
+            }
+            if section.is_some() && section != template {
                 continue;
             }
             let (key, value) = trimmed.split_once('=').ok_or_else(|| {
@@ -400,6 +454,44 @@ mod tests {
         assert_eq!(s.gap_nm, PanelSettings::default().gap_nm);
         assert!(Frame::All.has_left_right() && Frame::All.has_top_bottom());
         assert!(!Frame::None.has_left_right() && Frame::LeftRight.has_left_right());
+    }
+
+    #[test]
+    fn a_template_changes_the_lines_it_names_and_the_rest_keep_the_base() {
+        let text = "columns = 2\nrows = 2\n[template strip]\ncolumns = 5\nrows = 1\n\
+                    [template tall]\nrows = 4\njoint = v_score\n";
+        assert_eq!(template_names(text), ["strip", "tall"]);
+        // without a template the lines under a section are not read
+        let base = PanelSettings::parse(text).unwrap();
+        assert_eq!((base.columns, base.rows), (2, 2));
+        let strip = PanelSettings::parse_template(text, "strip").unwrap();
+        assert_eq!((strip.columns, strip.rows), (5, 1));
+        assert_eq!(strip.joint, Joint::MouseBites);
+        let tall = PanelSettings::parse_template(text, "tall").unwrap();
+        assert_eq!((tall.columns, tall.rows), (2, 4));
+        assert_eq!(tall.joint, Joint::VScore);
+    }
+
+    #[test]
+    fn a_missing_template_or_a_bad_section_is_refused() {
+        let e = PanelSettings::parse_template("columns = 2\n", "x").unwrap_err();
+        assert!(e.detail.contains("no template x"), "{}", e.detail);
+        for text in [
+            "[strip]\n",
+            "[template]\n",
+            "[template a b]\n",
+            "[template a\n",
+        ] {
+            let e = PanelSettings::parse(text).unwrap_err();
+            assert_eq!(e.code, SETTINGS_INVALID, "{text}");
+            assert!(e.detail.starts_with("line 1"), "{text}: {}", e.detail);
+        }
+        // a line of a template that is not chosen is not judged; the chosen one is, with its line
+        let text = "[template a]\ncolumns = x\n[template b]\ncolumns = 3\n";
+        assert_eq!(PanelSettings::parse(text).unwrap().columns, 2);
+        let e = PanelSettings::parse_template(text, "a").unwrap_err();
+        assert!(e.detail.starts_with("line 2"), "{}", e.detail);
+        assert_eq!(PanelSettings::parse_template(text, "b").unwrap().columns, 3);
     }
 
     #[test]
