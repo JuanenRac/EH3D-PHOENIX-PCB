@@ -25,6 +25,7 @@ use crate::prefs::{self, Prefs, Saver};
 use crate::prim::P;
 use crate::search_index::{self, footprint_pairs, Hit, HitKind, SearchIndex, SearchState};
 use crate::settings::ViewerSettings;
+use crate::shot::ShotWindow;
 use crate::view3d_gui::View3dUi;
 use crate::viewer::Viewer;
 use crate::window_text::WinText;
@@ -302,6 +303,38 @@ impl WindowUi {
             },
             None => empty_prefs(settings),
         };
+        WindowUi::with(prefs, path, error)
+    }
+
+    /// The preferences of a window that reads and writes none: the picture mode starts from the
+    /// defaults of the settings and leaves the file of the person as it is.
+    pub fn ephemeral(settings: &ViewerSettings) -> WindowUi {
+        WindowUi::with(empty_prefs(settings), None, None)
+    }
+
+    /// Opens the window of the toolbox that a picture asks for. The windows that show a
+    /// document are not toolbox windows and are left to the caller.
+    pub fn show_window(&mut self, window: ShotWindow) {
+        match window {
+            ShotWindow::Search => {
+                self.search_open = true;
+                self.search_focus = true;
+            }
+            ShotWindow::Measures => self.measures_open = true,
+            ShotWindow::Layers => self.layers_open = true,
+            ShotWindow::History => self.history_open = true,
+            ShotWindow::Appearance => self.appearance_open = true,
+            ShotWindow::Shortcuts => self.shortcuts_open = true,
+            ShotWindow::Help => self.help_open = true,
+            ShotWindow::Start
+            | ShotWindow::Document
+            | ShotWindow::View3d
+            | ShotWindow::Panel
+            | ShotWindow::Gerber => {}
+        }
+    }
+
+    fn with(prefs: Prefs, path: Option<PathBuf>, error: Option<(WinText, ViewError)>) -> WindowUi {
         WindowUi {
             prefs,
             path,

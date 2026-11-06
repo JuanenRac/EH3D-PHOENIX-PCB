@@ -5,6 +5,10 @@
 //! an error that keeps the window from opening is written to `last_error.txt` in the settings
 //! folder of the user. The command line (`phoenix`) keeps its console, so its output and its
 //! exit codes work in a terminal and in a script.
+//!
+//! With `--shot FILE.png` the program only takes a picture of the window and closes: it reads no
+//! file of preferences, writes none and leaves no `last_error.txt`, so a reason for a failure is
+//! written to the error stream.
 #![forbid(unsafe_code)]
 #![cfg_attr(windows, windows_subsystem = "windows")]
 
@@ -21,8 +25,13 @@ fn env(name: &str) -> Option<String> {
     std::env::var(name).ok()
 }
 
-/// Writes the reason the window did not open where the owner of the computer can find it.
-fn report_error(message: &str) {
+/// Writes the reason the window did not open where the owner of the computer can find it. In the
+/// picture mode nothing is written to the settings folder.
+fn report_error(message: &str, picture_mode: bool) {
+    if picture_mode {
+        eprintln!("error: {message}");
+        return;
+    }
     #[cfg(not(windows))]
     eprintln!("error: {message}");
     if let Some(dir) = config_dir(&env) {
@@ -57,14 +66,15 @@ fn main() -> ExitCode {
     let parsed = match parse_window_args(&args) {
         Ok(parsed) => parsed,
         Err(message) => {
-            report_error(&message);
+            report_error(&message, args.iter().any(|a| a == "--shot"));
             return ExitCode::from(2);
         }
     };
+    let picture_mode = parsed.shot.is_some();
     let settings = match load_settings(parsed.settings.as_deref()) {
         Ok(settings) => settings,
         Err(message) => {
-            report_error(&message);
+            report_error(&message, picture_mode);
             return ExitCode::from(2);
         }
     };
@@ -72,10 +82,14 @@ fn main() -> ExitCode {
         .lang
         .or_else(|| lang_from_env(&env))
         .unwrap_or(Lang::En);
-    match gui::run(parsed.file, lang, settings) {
+    let outcome = match parsed.shot {
+        Some(request) => gui::run_shot(parsed.file, lang, settings, request),
+        None => gui::run(parsed.file, lang, settings),
+    };
+    match outcome {
         Ok(()) => ExitCode::SUCCESS,
         Err(error) => {
-            report_error(&error.message(lang));
+            report_error(&error.message(lang), picture_mode);
             ExitCode::from(1)
         }
     }

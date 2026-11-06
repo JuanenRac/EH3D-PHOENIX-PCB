@@ -186,6 +186,7 @@ pub mod schematic_text;
 pub mod search_index;
 pub mod session;
 pub mod settings;
+pub mod shot;
 pub mod snapshot;
 pub mod view;
 pub mod view3d;

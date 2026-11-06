@@ -4,7 +4,7 @@
 //! decided in the workspace, in code that is tested. This file has not been seen on a screen.
 
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use eframe::egui::{self, Color32, FontData, FontDefinitions, FontFamily, Pos2, Rect, Stroke};
 use eh3d_phoenix_route::{Mode, RouteSettings};
@@ -32,6 +32,7 @@ use crate::scene::SceneKind;
 use crate::schematic_gui::{self, SchematicEditUi};
 use crate::schematic_text::SchMsg;
 use crate::settings::ViewerSettings;
+use crate::shot::{ShotRequest, ShotWindow};
 use crate::view3d_gui::View3dUi;
 use crate::view3d_text::View3dText;
 use crate::viewer::Tool;
@@ -125,10 +126,37 @@ struct App {
     win: WindowUi,
     /// The actions whose keys were pressed in this frame.
     actions: Vec<Action>,
+    /// The picture mode, while the window is there only to be photographed.
+    shot: Option<ShotState>,
+}
+
+/// How the picture mode ended: nothing yet, the file was written, or the reason it was not.
+type ShotOutcome = Arc<Mutex<Option<Result<(), String>>>>;
+
+/// The frames after the last one asked for in which the picture may still come back.
+const SHOT_PATIENCE_FRAMES: u32 = 600;
+
+/// The picture being taken.
+struct ShotState {
+    request: ShotRequest,
+    frame: u32,
+    outcome: ShotOutcome,
 }
 
 impl App {
-    fn new(lang: Lang, settings: ViewerSettings, win: WindowUi, initial: Option<PathBuf>) -> App {
+    /// With `persist` false the start screen keeps its list of recent files in memory only.
+    fn new(
+        lang: Lang,
+        settings: ViewerSettings,
+        win: WindowUi,
+        initial: Option<PathBuf>,
+        persist: bool,
+    ) -> App {
+        let launcher = if persist {
+            Launcher::from_env(&settings, &|name: &str| std::env::var(name).ok())
+        } else {
+            Launcher::new(&settings, None)
+        };
         let mut app = App {
             lang,
             settings: settings.clone(),
@@ -146,7 +174,7 @@ impl App {
             sch: None,
             brd: None,
             lib: LibraryUi::new(eh3d_phoenix_libedit::LibSettings::default()),
-            launcher: Launcher::from_env(&settings, &|name: &str| std::env::var(name).ok()),
+            launcher,
             launch_note: None,
             gerber: None,
             view3d: None,
@@ -155,6 +183,7 @@ impl App {
             print: PrintUi::new(),
             win,
             actions: Vec::new(),
+            shot: None,
         };
         if let Some(path) = initial {
             app.path_text = path.to_string_lossy().into_owned();
@@ -233,6 +262,62 @@ impl App {
                 self.workspace = None;
                 self.sch = None;
                 self.brd = None;
+            }
+        }
+    }
+
+    /// Starts the picture mode: shows the window asked for (`file` is what the document windows
+    /// open) and keeps what is needed to take the picture and close.
+    fn begin_shot(&mut self, request: ShotRequest, file: Option<&Path>, outcome: ShotOutcome) {
+        match (request.window, file) {
+            (ShotWindow::View3d, _) => self.open_3d(),
+            (ShotWindow::Panel, Some(path)) => {
+                self.launch(Launch::OpenPanel(path.to_string_lossy().into_owned()));
+            }
+            (ShotWindow::Gerber, Some(path)) => {
+                self.launch(Launch::OpenGerber(path.to_path_buf()));
+            }
+            _ => self.win.show_window(request.window),
+        }
+        self.shot = Some(ShotState {
+            request,
+            frame: 0,
+            outcome,
+        });
+    }
+
+    /// Counts the frames, asks for the picture after the frames waited, writes it and closes the
+    /// window when it is written or when it does not come.
+    fn shot_tick(&mut self, ctx: &egui::Context) {
+        let Some(shot) = self.shot.as_mut() else {
+            return;
+        };
+        shot.frame += 1;
+        ctx.request_repaint();
+        let due = 3 + shot.request.wait;
+        let finished = match shot.outcome.lock() {
+            Ok(slot) => slot.is_some(),
+            Err(_) => true,
+        };
+        if finished {
+            ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+        } else if shot.frame == due {
+            let (output, replace) = (shot.request.output.clone(), shot.request.replace);
+            let (outcome, repaint) = (shot.outcome.clone(), ctx.clone());
+            ctx.send_viewport_cmd(egui::ViewportCommand::Screenshot(
+                egui::ScreenshotCallback::new(move |image| {
+                    let result = save_shot_png(&image, &output, replace);
+                    if let Ok(mut slot) = outcome.lock() {
+                        *slot = Some(result);
+                    }
+                    repaint.request_repaint();
+                }),
+            ));
+        } else if shot.frame > due + SHOT_PATIENCE_FRAMES {
+            if let Ok(mut slot) = shot.outcome.lock() {
+                *slot = Some(Err(
+                    "the picture did not come back from the window".to_owned()
+                ));
             }
         }
     }
@@ -1051,6 +1136,7 @@ impl App {
     /// The search, the measures, the layers, the history, the appearance, the shortcuts and the help,
     /// and the preferences, after the rest of the window is drawn.
     fn common(&mut self, ctx: &egui::Context) {
+        self.shot_tick(ctx);
         let mode = self.help_mode();
         let overlay = self.overlay();
         let actions = std::mem::take(&mut self.actions);
@@ -1183,7 +1269,38 @@ pub fn run(
     lang: Lang,
     settings: ViewerSettings,
 ) -> Result<(), ViewError> {
-    run_with(initial, None, lang, settings)
+    run_with(initial, None, None, lang, settings)
+}
+
+/// Opens the window only to photograph it: the file `initial` is opened, the window asked for is
+/// shown, the picture is written as the request says and the window closes by itself. No file of
+/// preferences and no list of recent files is read or written. The answer is an error when the
+/// picture could not be written.
+pub fn run_shot(
+    initial: Option<PathBuf>,
+    lang: Lang,
+    settings: ViewerSettings,
+    request: ShotRequest,
+) -> Result<(), ViewError> {
+    let failed = |what: String| ViewError::new(WINDOW_FAILED, what);
+    if !request.replace && request.output.exists() {
+        return Err(failed(format!(
+            "{} exists; give --replace to write over it",
+            request.output.display()
+        )));
+    }
+    let folder = request
+        .output
+        .parent()
+        .filter(|p| !p.as_os_str().is_empty())
+        .map(Path::to_path_buf);
+    if folder.is_some_and(|dir| !dir.is_dir()) {
+        return Err(failed(format!(
+            "the folder of {} does not exist",
+            request.output.display()
+        )));
+    }
+    run_with(initial, None, Some(request), lang, settings)
 }
 
 /// Opens the window with a panel of boards laid out: the board files and, when given, the settings
@@ -1194,22 +1311,38 @@ pub fn run_panel(
     lang: Lang,
     settings: ViewerSettings,
 ) -> Result<(), ViewError> {
-    run_with(None, Some((files, config)), lang, settings)
+    run_with(None, Some((files, config)), None, lang, settings)
 }
 
 fn run_with(
     initial: Option<PathBuf>,
     panel: Option<(Vec<PathBuf>, Option<PathBuf>)>,
+    shot: Option<ShotRequest>,
     lang: Lang,
     settings: ViewerSettings,
 ) -> Result<(), ViewError> {
     let mut settings = settings;
-    let win = WindowUi::load(&settings);
+    // in the picture mode the preferences of the person are neither read nor written
+    let win = if shot.is_some() {
+        WindowUi::ephemeral(&settings)
+    } else {
+        WindowUi::load(&settings)
+    };
     win.adopt(&mut settings);
-    let mut viewport = egui::ViewportBuilder::default()
-        .with_inner_size(win.window_size().unwrap_or([1480.0, 800.0]))
-        .with_min_inner_size([900.0, 480.0])
-        .with_title("EH3D-PHOENIX-PCB");
+    let mut viewport = egui::ViewportBuilder::default().with_title("EH3D-PHOENIX-PCB");
+    viewport = match &shot {
+        Some(request) => {
+            if let Some(theme) = request.theme {
+                settings.set_theme(theme);
+            }
+            viewport.with_inner_size([request.size.0 as f32, request.size.1 as f32])
+        }
+        None => viewport
+            .with_inner_size(win.window_size().unwrap_or([1480.0, 800.0]))
+            .with_min_inner_size([900.0, 480.0]),
+    };
+    let outcome: ShotOutcome = Arc::new(Mutex::new(None));
+    let outcome_for_app = outcome.clone();
     if let Some(icon) = window_icon() {
         viewport = viewport.with_icon(icon);
     }
@@ -1217,6 +1350,7 @@ fn run_with(
         viewport,
         ..Default::default()
     };
+    let taking_picture = shot.is_some();
     eframe::run_native(
         "EH3D-PHOENIX-PCB",
         options,
@@ -1225,12 +1359,64 @@ fn run_with(
             // the window draws its own colours for every theme, so the toolkit keeps one
             cc.egui_ctx.set_theme(egui::ThemePreference::Dark);
             window_gui::apply_look(&cc.egui_ctx, &settings);
-            let mut app = App::new(lang, settings, win, initial);
+            // the windows that open a folder or a panel of boards do not open the file as a board
+            let opens_as_board = !matches!(
+                shot.as_ref().map(|r| r.window),
+                Some(ShotWindow::Gerber | ShotWindow::Panel)
+            );
+            let (first, window_file) = if opens_as_board {
+                (initial, None)
+            } else {
+                (None, initial)
+            };
+            let mut app = App::new(lang, settings, win, first, !taking_picture);
             if let Some((files, config)) = panel {
                 app.panel = Some(PanelUi::new(&files, config.as_deref(), &app.settings));
+            }
+            if let Some(request) = shot {
+                app.begin_shot(request, window_file.as_deref(), outcome_for_app);
             }
             Ok(Box::new(app))
         }),
     )
-    .map_err(|e| ViewError::new(WINDOW_FAILED, e.to_string()))
+    .map_err(|e| ViewError::new(WINDOW_FAILED, e.to_string()))?;
+    if !taking_picture {
+        return Ok(());
+    }
+    let taken = outcome
+        .lock()
+        .map_err(|e| ViewError::new(WINDOW_FAILED, e.to_string()))?
+        .take();
+    match taken {
+        Some(Ok(())) => Ok(()),
+        Some(Err(reason)) => Err(ViewError::new(WINDOW_FAILED, reason)),
+        None => Err(ViewError::new(
+            WINDOW_FAILED,
+            "the window closed before the picture was taken".to_owned(),
+        )),
+    }
+}
+
+/// Writes the picture the window gave back as a PNG file, a new file unless `replace` is true.
+fn save_shot_png(image: &egui::ColorImage, path: &Path, replace: bool) -> Result<(), String> {
+    let mut open = std::fs::OpenOptions::new();
+    open.write(true);
+    if replace {
+        open.create(true).truncate(true);
+    } else {
+        open.create_new(true);
+    }
+    let file = open
+        .open(path)
+        .map_err(|e| format!("{}: {e}", path.display()))?;
+    let mut encoder = png::Encoder::new(
+        std::io::BufWriter::new(file),
+        image.size[0] as u32,
+        image.size[1] as u32,
+    );
+    encoder.set_color(png::ColorType::Rgba);
+    encoder.set_depth(png::BitDepth::Eight);
+    let mut writer = encoder.write_header().map_err(|e| e.to_string())?;
+    let data: Vec<u8> = image.pixels.iter().flat_map(|c| c.to_array()).collect();
+    writer.write_image_data(&data).map_err(|e| e.to_string())
 }
