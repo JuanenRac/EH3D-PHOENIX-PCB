@@ -103,6 +103,20 @@
           }
         },
         {
+          "name": "TESTING.md  I18N_AUDIT.md",
+          "tree_name": "TESTING.md I18N_AUDIT.md",
+          "desc": {
+            "en": "how things are tested, and the check of the eight languages",
+            "es": "cómo se prueba, y la comprobación de los ocho idiomas",
+            "de": "wie getestet wird, und die Prüfung der acht Sprachen",
+            "fr": "comment on teste, et la vérification des huit langues",
+            "it": "come si prova, e il controllo delle otto lingue",
+            "ja": "テストの方法と、8 言語の検査",
+            "zh": "如何测试，以及八种语言的检查",
+            "pt": "como se testa, e a verificação dos oito idiomas"
+          }
+        },
+        {
           "name": "ROADMAP.md",
           "tree_name": "ROADMAP.md",
           "desc": {

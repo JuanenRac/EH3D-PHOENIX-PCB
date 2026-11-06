@@ -6,7 +6,7 @@ EH3D-PHOENIX-PCB is early code. Beside the base that every repository of the sui
 
 ## Capabilities
 
-The official state of each capability is in REQUIREMENTS.md: 30 requirements: 18 `prototype` (PPCB-001, PPCB-002, PPCB-003, PPCB-007, PPCB-008, PPCB-009, PPCB-011, PPCB-012, PPCB-014, PPCB-015, PPCB-016, PPCB-017, PPCB-019, PPCB-021, PPCB-022, PPCB-024, PPCB-029, PPCB-030) and 12 `planned`. This page never states a state that REQUIREMENTS.md does not.
+The official state of each capability is in REQUIREMENTS.md: 31 requirements: 21 `prototype` (PPCB-001, PPCB-002, PPCB-003, PPCB-007, PPCB-008, PPCB-009, PPCB-011, PPCB-012, PPCB-013, PPCB-014, PPCB-015, PPCB-016, PPCB-017, PPCB-019, PPCB-021, PPCB-022, PPCB-024, PPCB-028, PPCB-029, PPCB-030, PPCB-031) and 10 `planned`. This page never states a state that REQUIREMENTS.md does not.
 
 ## Open questions
 
@@ -23,7 +23,7 @@ The official state of each capability is in REQUIREMENTS.md: 30 requirements: 18
 
 ## Known technical debt and omitted tests
 
-* 3489 tests of the Rust code and 3 of the base; the inventory tests build their own folders and never touch a real project.
+* 3598 tests of the Rust code and 33 of the base; the inventory tests build their own folders and never touch a real project.
 * The review of security (`docs/SECURITY_REVIEW.md`) was made by the project itself and no one else has read the code for it: it finds what a search of the source and the changes of a fixed generator find, it bounds the size of the input and not the memory, and it says what it does not cover.
 * The tutorials (`docs/tutorials/`) are run by a test that compares the beginning of each output with the documented text, on small files written for them; several steps whose output was not worked out (the rule check of the schematic, the synchronisation, the fabrication package, the connectivity of the EAGLE pair, the Gerber check, the DXF of the panel, the comparison of footprints, the list of RF structures and three of the signal integrity analyses) are shown without being run, and none of the files has been opened in EAGLE, KiCad or a manufacturer's tool. The help in the eight languages is one paragraph for each topic and one line for each command: the lines of usage with every option stay in English.
 * The advanced analyses of the simulator (`docs/SIM_ADVANCED.md`) have been tried on circuits written by the tests and on closed-form cases only: the poles and zeros come from a fit of the AC response that is refused when no model of up to `max_pole_order` poles fits, the crossings are interpolated between the points of the sweep, the Monte Carlo study has uncorrelated tolerances of resistors, capacitors and inductors only, and nothing has been compared with SPICE or with a measurement.
