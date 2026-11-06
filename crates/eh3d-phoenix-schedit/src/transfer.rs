@@ -164,7 +164,8 @@ mod tests {
         assert_eq!(plan.items.len(), 2);
         assert!(plan.is_empty());
         let report = compare_documents(&f.schematic, &board);
-        assert_eq!(report.differences(), 2);
+        // the two parts and what goes with them (the net of the parts)
+        assert_eq!(report.differences(), 3);
         assert_eq!(report.conflicts(), 0);
         assert_eq!(f.schematic, before);
     }
