@@ -58,7 +58,7 @@ So deleting the wire that made a connection removes the connection, and a label 
 * **Palette:** the symbols of the schematic and of the libraries that were loaded (a JSON list of symbol definitions, or any schematic file), with a search that ranks an exact name, then a name that starts with the words, then a name that contains them, then a library that does. A symbol with the name of another one but other pins is defined as `library:name`.
 * **Copy, cut, paste, turn, mirror, delete, values and references** of the selection.
 * **The rule check** (`docs/ERC.md`) after every change, when `live_erc` is on.
-* **The transfer to the board** as a dry run with a preview of the package (`docs/ERC.md`, synchronisation), applied as one step of the history of the board, and **the net list for the simulator** (`docs/SIM.md`).
+* **The transfer to the board** as a dry run with a preview of the package (`docs/ERC.md`, synchronisation), applied as one step of the history of the board, and **the net list for the simulator** (`docs/NETLIST.md`: made from a table of models, with the operating point net by net as data).
 
 ### Settings
 

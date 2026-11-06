@@ -63,6 +63,8 @@ Nodes that only a gate, an op-amp input or a comparator input touch have no DC p
 
 ## The netlist of a schematic
 
+The netlist of a schematic is made without a netlist written by hand by the generator of `docs/NETLIST.md`: a table of models gives each part its model, values such as `4k7` and `1u5` are read, the nets get names that do not change, the subcircuits come from files of one folder and a report with the codes `PHOENIX-NETLIST-001` to `012` lists what cannot be simulated (`phoenix netlist`, and `phoenix sim --schematic` which chains it to the solver). What follows is the earlier translation by the letter of the designator, which `phoenix sim schematic.json` still uses.
+
 `netlist_from_schematic` (and `phoenix sim schematic.json ...`, for the `design/schematic.json` of a project) turns the pins of each part into nodes through the nets, and the value of the part into the value of the element. The nets whose names are in `schematic_ground` (`0`, `gnd`, `agnd`, `dgnd`, `pgnd`) become node 0; nets with the same name are one node; a name is cleaned to letters, digits and underscores in lower case.
 
 The kind of an element comes from the reference designator, which must be one letter followed by digits (the letters `Q M U` are read in a netlist but are not yet made from a schematic, because the schematic has no model for them): `R C L` (two pins, the value is the number), `V I` (two pins, the first is the positive one; the value is what follows the nodes in a netlist: `5`, `DC 5`, `SIN(0 1 1k)`), `D` (two pins; the anode is the pin `A` when the pins are named `A` and `K`, otherwise the first; the value is the name of the model, and a model with the default parameters of the settings is made for it), `E G` (four pins; the value is the gain), `F H` (two pins; the value is the controlling source and the gain, `V1 2`) and `K` (no pins; the value is `L1 L2 k`). Pins are taken in the order of their numbers.
@@ -85,6 +87,7 @@ phoenix sim [--config FILE] [--lang xx] --check-filter FAMILY ORDER BAND F1 [F2]
 ```
 
 * `<input>` is a netlist, or a `.json` file with the schematic of a project.
+* `--schematic FILE` takes a schematic (EAGLE, KiCad or the design model) instead of `<input>`, makes its netlist in memory from a table of models (`--models FILE`, `config/sim_models.cfg` by default) after the electrical rule check (`--no-erc` skips it) and runs the analysis; an error of the report stops the run (`docs/NETLIST.md`).
 * The analysis is `--op`, `--dc SRC START STOP STEP`, `--ac KIND N F1 F2`, `--tran STEP STOP [--uic] [--adaptive] [--method be|trap]` or `--netlist` (prints the netlist and stops); without one, the first `.op`, `.dc`, `.ac` or `.tran` line of the netlist is run.
 * `--model FILE` reads a file of `.model` and `.subckt` lines before the netlist; the file is only read.
 * Numbers take the suffixes of SPICE (`1k`, `10meg`, `4.7u`).

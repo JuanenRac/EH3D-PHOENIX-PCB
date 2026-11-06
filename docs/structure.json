@@ -312,6 +312,19 @@
           }
         },
         {
+          "name": "NETLIST.md",
+          "desc": {
+            "en": "the netlist of a schematic: table of models, report",
+            "es": "la netlist de un esquema: tabla de modelos, informe",
+            "de": "die Netzliste eines Schaltplans: Modelltabelle, Bericht",
+            "fr": "la netlist d'un schéma : table de modèles, rapport",
+            "it": "la netlist di uno schema: tabella dei modelli, rapporto",
+            "ja": "回路図のネットリスト：モデル表、レポート",
+            "zh": "原理图的网表：模型表、报告",
+            "pt": "a netlist de um esquema: tabela de modelos, relatório"
+          }
+        },
+        {
           "name": "ROUTE.md",
           "desc": {
             "en": "editing and routing: ratsnest, router, reversible edits",
