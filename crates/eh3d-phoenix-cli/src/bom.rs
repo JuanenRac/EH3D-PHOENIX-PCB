@@ -17,6 +17,7 @@ use eh3d_phoenix_bom::{
     bom_csv, bom_html, bom_json, bom_text, build_bom, BomError, BomInputs, CostSettings, PartsFile,
     PriceBook,
 };
+use eh3d_phoenix_parts::{entries_of, link_bom, load as load_parts, PartsSettings};
 use eh3d_phoenix_rules::Lang;
 use eh3d_phoenix_schematic::Schematic;
 use eh3d_phoenix_stackup::StackupJob;
@@ -27,8 +28,8 @@ use crate::export::read_board_file;
 const DEFAULT_CONFIG: &str = "config/costs.cfg";
 
 pub(crate) const USAGE: &str = "\
-phoenix bom [--config FILE] [--prices FILE] [--parts FILE] [--schematic FILE] [--stackup FILE]
-            [--boards N] [--csv FILE] [--json-file FILE] [--html FILE] [--json] [--lang CODE]
+phoenix bom [--config FILE] [--prices FILE] [--parts FILE] [--parts-db PATH] [--schematic FILE]
+            [--stackup FILE] [--boards N] [--csv FILE] [--json-file FILE] [--html FILE] [--json] [--lang CODE]
             <board>
 
   bom           the bill of materials of a board: the parts grouped by value, footprint, maker and
@@ -43,6 +44,11 @@ phoenix bom [--config FILE] [--prices FILE] [--parts FILE] [--schematic FILE] [-
   --config      the rates, percentages and limits (default: config/costs.cfg when it exists)
   --prices      the file of prices by quantity break
   --parts       a CSV with the maker, the part number and the parts that are not fitted
+  --parts-db    the local parts base (a file or a folder, see `phoenix parts`): the maker, the part
+                number and the prices of each part are completed from it by value and footprint,
+                or by the part number that --parts gives; what --parts and --prices say wins. The
+                text ends with the parts without a match or with several, and with the
+                alternatives proposed for the parts that are obsolete (nothing is changed)
   --schematic   a JSON schematic: its parts that are not on the board are added
   --stackup     a stack-up job file (the file of `phoenix stackup`) for the thickness of the board
   --boards N    the number of boards of the batch (default: the settings)
@@ -55,6 +61,7 @@ struct Options {
     config: Option<String>,
     prices: Option<String>,
     parts: Option<String>,
+    parts_db: Option<String>,
     schematic: Option<String>,
     stackup: Option<String>,
     boards: Option<u64>,
@@ -71,6 +78,7 @@ fn parse_options(args: &[&str]) -> Result<Options, BomError> {
         config: None,
         prices: None,
         parts: None,
+        parts_db: None,
         schematic: None,
         stackup: None,
         boards: None,
@@ -96,6 +104,7 @@ fn parse_options(args: &[&str]) -> Result<Options, BomError> {
             "--config" => options.config = Some(value("--config needs a file")?),
             "--prices" => options.prices = Some(value("--prices needs a file")?),
             "--parts" => options.parts = Some(value("--parts needs a file")?),
+            "--parts-db" => options.parts_db = Some(value("--parts-db needs a path")?),
             "--schematic" => options.schematic = Some(value("--schematic needs a file")?),
             "--stackup" => options.stackup = Some(value("--stackup needs a file")?),
             "--boards" => {
@@ -235,6 +244,16 @@ fn bom(options: &Options, out: &mut dyn Write) -> Result<i32, BomError> {
         }
         None => None,
     };
+    let (parts, prices, link) = match &options.parts_db {
+        Some(path) => {
+            let db = load_parts(Path::new(path), &PartsSettings::default())
+                .map_err(|e| unreadable(e.to_string()))?;
+            let entries = entries_of(&board, schematic.as_ref());
+            let linked = link_bom(&db, &entries, &parts, &prices);
+            (linked.parts, linked.prices, Some(linked.report))
+        }
+        None => (parts, prices, None),
+    };
     let bom = build_bom(&BomInputs {
         board: &board,
         schematic: schematic.as_ref(),
@@ -262,6 +281,9 @@ fn bom(options: &Options, out: &mut dyn Write) -> Result<i32, BomError> {
         let mut text = bom_text(&bom, options.lang);
         for (path, _) in &files {
             text.push_str(&format!("written: {path}\n"));
+        }
+        if let Some(link) = &link {
+            text.push_str(&link.to_text(options.lang));
         }
         text
     };

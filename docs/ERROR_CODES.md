@@ -846,6 +846,31 @@ The titles of these codes also exist in the eight languages of the suite (`TITLE
 | PHOENIX-BOM-017 | A limit of the bill of materials was exceeded | more components than `max_items` |
 | PHOENIX-BOM-018 | The PCB cost is an estimate from the tariffs of the settings | information, always given with a PCB cost: the tariffs are an example and not the prices of any maker |
 
+## Parts base (`eh3d-phoenix-parts`, `src/codes.rs`)
+
+The titles of these codes also exist in the eight languages of the suite (`TITLES` in `src/codes.rs`); the detail of a message is in English and gives the file and the line (CSV) or the part (JSON) where the fault is.
+
+| Code | Title | Raised by |
+|---|---|---|
+| PHOENIX-PARTS-001 | Parts settings are not valid | a line of `config/parts.cfg` that is not `key = value`, an unknown key or a value out of range |
+| PHOENIX-PARTS-002 | File of the parts base cannot be read | a file or folder that cannot be opened, a file larger than `max_file_bytes` or a file that is not UTF-8 text |
+| PHOENIX-PARTS-003 | File of the parts base is not valid | JSON that does not parse, a key that is not known, a part without an id, a state that is not active, not-recommended or obsolete, a price or a quantity that is not a number, a CSV column that is not known, or a row whose cells disagree with the first row of the same part; also an imported base that has an error, which is not written |
+| PHOENIX-PARTS-004 | A limit of the parts base was exceeded | more files, parts, offers or price breaks than the limits of `config/parts.cfg` |
+| PHOENIX-PARTS-005 | Command option is not valid | a subcommand or an option of `phoenix parts` that is not known or lacks its value, or an output file of the wrong kind |
+| PHOENIX-PARTS-006 | Output file exists or cannot be written | the file given with `--out` exists (it is never replaced), is an input file, or cannot be created |
+| PHOENIX-PARTS-007 | Part id used twice | error: two parts of the base have the same id; the message gives the place of the first |
+| PHOENIX-PARTS-008 | Footprint is not in the IPC or own library | warning: the footprint of a part is not a footprint of the IPC library or of the libraries given with `--lib` |
+| PHOENIX-PARTS-009 | Same part number with different data | error: two parts have the same part number (without case) and another value, footprint, maker, tolerance, power or voltage |
+| PHOENIX-PARTS-010 | Price has no currency | warning: a price break without a currency |
+| PHOENIX-PARTS-011 | Price breaks are not in ascending order | warning: the quantities of the price breaks of an offer do not rise |
+| PHOENIX-PARTS-012 | Simulation model is not in the table of models | warning: the model of a part is not a `.model` line of the table of models |
+| PHOENIX-PARTS-013 | Alternative names a part that is not in the base | warning: an alternative that is neither an id nor a part number of the base |
+| PHOENIX-PARTS-014 | Part has no match in the parts base | warning: a part of the design for which `phoenix bom --parts-db` found no part, or whose given part number is not in the base |
+| PHOENIX-PARTS-015 | Part matches several parts of the base | warning: several parts of the base fit the value and footprint; none is taken |
+| PHOENIX-PARTS-016 | Part is obsolete or not recommended | warning: the part found in the base is obsolete or not recommended; the report proposes alternatives and changes nothing |
+| PHOENIX-PARTS-017 | Part is not in the parts base | `phoenix parts show` was given an id that is not in the base |
+| PHOENIX-PARTS-018 | The part cannot be assigned to the symbol | the plan of the schematic editor refuses to assign a part of the base: the symbol is not a part of the schematic, the selection is empty or the part has no value |
+
 ## Pick and place files (`eh3d-phoenix-export`, `src/fabcodes.rs`)
 
 | Code | Title | Raised by |

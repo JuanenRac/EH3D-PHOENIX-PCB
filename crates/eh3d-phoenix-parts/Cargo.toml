@@ -1,0 +1,19 @@
+[package]
+name = "eh3d-phoenix-parts"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Local parts base (prototype): components in JSON and CSV files of the user, with value, tolerance, power and voltage, footprint, symbol, maker, part number, free parameters, simulation model, suppliers with prices by quantity break, state and alternatives; a deterministic index with search and filters, a checker of the base, the completion of the bill of materials from the base by value and footprint or by part number, proposals of alternatives for obsolete parts, and the codes PHOENIX-PARTS-001 to 018"
+
+[dependencies]
+eh3d-phoenix-board = { path = "../eh3d-phoenix-board" }
+eh3d-phoenix-bom = { path = "../eh3d-phoenix-bom" }
+eh3d-phoenix-rules = { path = "../eh3d-phoenix-rules" }
+eh3d-phoenix-schematic = { path = "../eh3d-phoenix-schematic" }
+serde_json.workspace = true
+
+[dev-dependencies]
+eh3d-phoenix-model = { path = "../eh3d-phoenix-model" }
+tempfile.workspace = true

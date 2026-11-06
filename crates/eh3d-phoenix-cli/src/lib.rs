@@ -17,6 +17,7 @@
 //! EAGLE and KiCad libraries into an index adds `libindex`.
 //! The pick and place files, the solder paste stencil and the fabrication package add `pnp`,
 //! `stencil` and `fabpack`.
+//! The local parts base adds `parts`, and the bill of materials takes its data from it.
 //!
 //! Exit codes: 0 done, 1 `stackup` could not compute one or more of the lines it was asked for,
 //! `check`, `connectivity` and `erc` proved an error, or `sync` or `annotate` found changes to
@@ -46,6 +47,7 @@ mod netlist;
 mod oracle;
 mod pairs;
 mod panel;
+mod parts;
 mod pnp;
 mod rf;
 mod rfgen;
@@ -339,6 +341,16 @@ phoenix assembly3d [--config FILE] --models FILE [--stackup FILE] [--obj FILE] [
                 simplified OBJ and STEP export written only to new files, a prototype, run
                 `phoenix assembly3d` alone for its options
 
+phoenix parts search|show|check|import|export [--base PATH] [options] (run `phoenix parts` alone)
+
+  parts         the local parts base: components kept in JSON and CSV files of your own (value,
+                tolerance, power, voltage, footprint, symbol, maker, part number, parameters,
+                simulation model, suppliers with prices by quantity break, state and
+                alternatives), searched by text, value, footprint and part number, checked
+                (footprints that do not exist, part numbers with other data, prices without a
+                currency, price breaks out of order), imported from CSV into a new base and
+                exported to a new file; nothing is fetched from a network, a prototype
+
 phoenix pnp [--config FILE] [--maker NAME] [--parts FILE] [--dnp R1,R2,...] [--origin WORD]
             [--units mm|mil] [--lang xx] [--out FOLDER] <board>
 phoenix stencil [--config FILE] [--profile NAME] [--profiles FILE] [--lang xx] [--out FOLDER]
@@ -500,6 +512,9 @@ pub fn run(args: &[String], out: &mut dyn Write, err: &mut dyn Write) -> i32 {
     }
     if let Some((&"bom", tail)) = rest.split_first() {
         return bom::bom_command(tail, out, err);
+    }
+    if let Some((&"parts", tail)) = rest.split_first() {
+        return parts::parts_command(tail, out, err);
     }
     if let Some((&"pnp", tail)) = rest.split_first() {
         return pnp::pnp_command(tail, out, err);
