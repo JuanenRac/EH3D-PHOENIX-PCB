@@ -1,0 +1,19 @@
+[package]
+name = "eh3d-phoenix-si"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Signal integrity estimates of a board (prototype, quasi-static): crosstalk between parallel tracks, reflections and terminations by the method of Bergeron, rise time and bandwidth with the loss of the line, a simplified eye diagram and the return path of the tracks, in a report that is the same every time"
+
+[dependencies]
+eh3d-phoenix-board = { path = "../eh3d-phoenix-board" }
+eh3d-phoenix-lengths = { path = "../eh3d-phoenix-lengths" }
+eh3d-phoenix-rules = { path = "../eh3d-phoenix-rules" }
+eh3d-phoenix-stackup = { path = "../eh3d-phoenix-stackup" }
+serde.workspace = true
+serde_json = { workspace = true, features = ["float_roundtrip"] }
+
+[dev-dependencies]
+eh3d-phoenix-model = { path = "../eh3d-phoenix-model" }

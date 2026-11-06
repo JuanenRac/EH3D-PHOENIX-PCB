@@ -2,7 +2,7 @@
 
 Codes have the form `PHOENIX-<AREA>-<NNN>`. A code is stable: it never changes its meaning and is never reused. Programs show the text through the key `diag.<code>`; the codes themselves are never translated. The object identity (UUID v7) is the one of the shared container, with its own codes `EH3D-ID-001` and `EH3D-ID-002`. The container codes `EH3D-PKG-001` to `EH3D-PKG-014` belong to the shared container and are listed in the registry of the documentation repository.
 
-Each table repeats the `REGISTRY` of a crate (`eh3d-phoenix-model` in `src/diagnostic.rs`, `eh3d-phoenix-project` and `eh3d-phoenix-eagle` in `src/codes.rs`, `eh3d-phoenix-hub` in `src/lib.rs`, `eh3d-phoenix-export` in `src/codes.rs` and `src/fabcodes.rs`, `eh3d-phoenix-schematic` in `src/model.rs`, `src/draw.rs`, `src/edit.rs`, `src/link.rs`, `src/hier.rs` and `src/bus.rs`, `eh3d-phoenix-board` in `src/validate.rs`, `src/connectivity.rs` and `src/rules.rs`, `eh3d-phoenix-rules` in `src/codes.rs` and `src/advanced/codes.rs`, `eh3d-phoenix-stackup` and `eh3d-phoenix-rf` in `src/error.rs`, `eh3d-phoenix-viewer`, `eh3d-phoenix-sanitizer`, `eh3d-phoenix-erc`, `eh3d-phoenix-sync`, `eh3d-phoenix-schedit`, `eh3d-phoenix-boardedit` (also in `src/pair_codes.rs`, `src/shove_codes.rs` and `src/zone_codes.rs`), `eh3d-phoenix-libedit`, `eh3d-phoenix-zones`, `eh3d-phoenix-lengths`, `eh3d-phoenix-gerber`, `eh3d-phoenix-panel`, `eh3d-phoenix-bom`, `eh3d-phoenix-assembly3d` and `eh3d-phoenix-oracle` in `src/codes.rs`, `eh3d-phoenix-corpus` in `src/suite/codes.rs`); a test of each crate checks that every code of its registry is in the table with the same title.
+Each table repeats the `REGISTRY` of a crate (`eh3d-phoenix-model` in `src/diagnostic.rs`, `eh3d-phoenix-project` and `eh3d-phoenix-eagle` in `src/codes.rs`, `eh3d-phoenix-hub` in `src/lib.rs`, `eh3d-phoenix-export` in `src/codes.rs` and `src/fabcodes.rs`, `eh3d-phoenix-schematic` in `src/model.rs`, `src/draw.rs`, `src/edit.rs`, `src/link.rs`, `src/hier.rs` and `src/bus.rs`, `eh3d-phoenix-board` in `src/validate.rs`, `src/connectivity.rs` and `src/rules.rs`, `eh3d-phoenix-rules` in `src/codes.rs` and `src/advanced/codes.rs`, `eh3d-phoenix-stackup` and `eh3d-phoenix-rf` in `src/error.rs`, `eh3d-phoenix-viewer`, `eh3d-phoenix-sanitizer`, `eh3d-phoenix-erc`, `eh3d-phoenix-sync`, `eh3d-phoenix-schedit`, `eh3d-phoenix-boardedit` (also in `src/pair_codes.rs`, `src/shove_codes.rs` and `src/zone_codes.rs`), `eh3d-phoenix-libedit`, `eh3d-phoenix-zones`, `eh3d-phoenix-lengths`, `eh3d-phoenix-gerber`, `eh3d-phoenix-panel`, `eh3d-phoenix-bom`, `eh3d-phoenix-assembly3d`, `eh3d-phoenix-si` and `eh3d-phoenix-oracle` in `src/codes.rs`, `eh3d-phoenix-corpus` in `src/suite/codes.rs`); a test of each crate checks that every code of its registry is in the table with the same title.
 
 ## Model foundations
 
@@ -851,6 +851,31 @@ The titles of these codes also exist in the eight languages of the suite (`TITLE
 | PHOENIX-LEN-017 | A limit of the length report was exceeded | more tracks and vias, or more groups and pairs, than `max_items` |
 | PHOENIX-LEN-018 | Net is not the target length | error: a net of a group with a target whose length is farther from the target than the tolerance |
 | PHOENIX-LEN-019 | Pair has no coupled stretch | warning: no straight piece of the positive net runs within the coupling range of the negative net, so the separation is not judged |
+
+## Signal integrity (`eh3d-phoenix-si`, `src/codes.rs`)
+
+| Code | Title | Raised by |
+|---|---|---|
+| PHOENIX-SI-001 | Signal integrity settings are not valid | a line of `config/si.cfg` that is not `key = value`, an unknown key, a number that cannot be read or a value out of range, a warning limit above its error limit |
+| PHOENIX-SI-002 | Net is not on the board | a net named with `--net` that the board does not have (error of the command); warning: the net has no copper |
+| PHOENIX-SI-003 | Near-end crosstalk is above the limit | warning from `next_warn_pct`, error from `next_error_pct`: the estimate of the near-end crosstalk of an aggressor on a victim |
+| PHOENIX-SI-004 | Far-end crosstalk is above the limit | warning from `fext_warn_pct`, error from `fext_error_pct`: the estimate of the far-end crosstalk, judged by its absolute value |
+| PHOENIX-SI-005 | Coupling is too strong for the weak-coupling estimate | warning: the mutual inductance reaches more than `weak_coupling_limit` of the self inductance, so the crosstalk of the pair is not reliable |
+| PHOENIX-SI-006 | Line is electrically long, so its reflections matter | information: the rise time of the driver is under twice the delay of the net |
+| PHOENIX-SI-007 | Overshoot at the load is above the limit | warning from `overshoot_warn_pct`, error from `overshoot_error_pct`: the line as it is, with the best termination named |
+| PHOENIX-SI-008 | Ringback below the final level is above the limit | warning from `ringback_warn_pct`: the voltage at the load falls below the final level after reaching it |
+| PHOENIX-SI-009 | Stack-up cannot be used, the defaults of the settings are used | information: no stack-up was given; warning: a layer that the stack-up does not name, a stripline without planes on both sides, a width the model refuses or a dielectric without a known permittivity |
+| PHOENIX-SI-010 | Eye height is below the limit | warning below `eye_height_warn`, error below half of it |
+| PHOENIX-SI-011 | Eye width is below the limit | warning below `eye_width_warn`, error below half of it |
+| PHOENIX-SI-012 | Track crosses the edge or a split of its reference plane | warning: the zones of the copper layers next to the track change along it (the edge of a plane or a split between two nets), or it runs over no copper of them |
+| PHOENIX-SI-013 | Via stub is too long for the rise time | warning: a stub longer than `max_stub_nm` or whose round trip takes more than `stub_tr_fraction` of the rise time; error when its quarter-wave resonance is inside the bandwidth of the edge |
+| PHOENIX-SI-014 | A command option is not valid | an option the command does not know or needs a value for, an unknown subcommand or language code, a number of board files other than one |
+| PHOENIX-SI-015 | The output file exists or cannot be written | an output file that already exists (an input file is never replaced) or cannot be created |
+| PHOENIX-SI-016 | Board, stack-up or settings file cannot be read | a board, stack-up job or settings file that cannot be opened, is too large or is not valid |
+| PHOENIX-SI-017 | A limit of the analysis was exceeded | more tracks, vias or pieces of track than `max_items`, or more nets than `max_nets` |
+| PHOENIX-SI-018 | Line loss slows the rise time by more than the limit | warning: the loss of the line at the bandwidth of the edge makes the rise time at the end grow by `rise_degradation_warn_pct` or more |
+| PHOENIX-SI-019 | No reference plane found next to a layer | information: the board has no order of copper layers, or no zone on the layers next to a signal layer, so its tracks are not looked at over a plane |
+| PHOENIX-SI-020 | Simulation was cut at the limit of steps | warning: a simulation of reflections needed more than `max_steps` steps and its result covers a shorter time |
 
 ## Gerber and Excellon import (`eh3d-phoenix-gerber`, `src/codes.rs`)
 
