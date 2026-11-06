@@ -441,3 +441,205 @@ fn cam_import_reports_what_was_translated_and_writes_the_profile_once() {
     assert_eq!(code, 2);
     assert!(err.contains("PHOENIX-SCRIPT-023"), "{err}");
 }
+
+const SECOND: &str = "phoenix-script/2 board\nlet t = route(\"GND\", \"Top\", 0.2mm, [0mm, 0mm, 5mm, 0mm])\nprint(t.length)\n";
+
+#[test]
+fn a_script_of_the_second_version_is_a_dry_run_by_default() {
+    let dir = tempfile::tempdir().unwrap();
+    let board_path = write_board(dir.path());
+    let script = write_script(dir.path(), "s.phs", SECOND);
+    let before = fs::read(&board_path).unwrap();
+    let (code, out, err) = command(&["script", "run", &script, "--board", &board_path]);
+    assert_eq!(code, 0, "{err}");
+    assert!(out.contains("result: carried out"), "{out}");
+    assert!(out.contains("\n5000000\n"), "{out}");
+    assert!(out.contains("history steps: 1"), "{out}");
+    assert!(out.contains("dry run: nothing was written"), "{out}");
+    assert!(err.contains("dry run"), "{err}");
+    assert_eq!(fs::read(&board_path).unwrap(), before);
+    assert_eq!(fs::read_dir(dir.path()).unwrap().count(), 2);
+}
+
+#[test]
+fn out_writes_the_result_of_a_second_version_script_once() {
+    let dir = tempfile::tempdir().unwrap();
+    let board_path = write_board(dir.path());
+    let script = write_script(dir.path(), "s.phs", SECOND);
+    let target = dir.path().join("result.json");
+    let target_text = target.to_str().unwrap();
+    let (code, out, err) = command(&[
+        "script",
+        "run",
+        "--json",
+        "--out",
+        target_text,
+        &script,
+        "--board",
+        &board_path,
+    ]);
+    assert_eq!(code, 0, "{err}");
+    let json: serde_json::Value = serde_json::from_str(&out).unwrap();
+    assert_eq!(json["schema"], "phoenix-script-run/2");
+    assert_eq!(json["ok"], true);
+    assert_eq!(json["written"][0], target_text);
+    let result = Board::from_bytes(&fs::read(&target).unwrap()).unwrap();
+    assert_eq!(result.tracks.len(), 1);
+    let written = fs::read(&target).unwrap();
+    let (code, _, err) = command(&[
+        "script",
+        "run",
+        "--out",
+        target_text,
+        &script,
+        "--board",
+        &board_path,
+    ]);
+    assert_eq!(code, 2);
+    assert!(err.contains("never replaced"), "{err}");
+    assert_eq!(fs::read(&target).unwrap(), written);
+}
+
+#[test]
+fn a_second_version_script_that_fails_exits_1_with_line_and_column() {
+    let dir = tempfile::tempdir().unwrap();
+    let board_path = write_board(dir.path());
+    let syntax = write_script(dir.path(), "a.phs", "phoenix-script/2\nlet = 1\n");
+    let (code, out, _) = command(&["script", "run", &syntax, "--board", &board_path]);
+    assert_eq!(code, 1);
+    assert!(
+        out.contains("PHOENIX-SCRIPT-043") && out.contains("[2:5]"),
+        "{out}"
+    );
+    let runtime = write_script(
+        dir.path(),
+        "b.phs",
+        "phoenix-script/2\nprint(1)\nprint(zzz)\n",
+    );
+    let (code, out, _) = command(&[
+        "script",
+        "run",
+        "--lang",
+        "pt",
+        &runtime,
+        "--board",
+        &board_path,
+    ]);
+    assert_eq!(code, 1);
+    assert!(
+        out.contains("A variável não está definida [3:7]: zzz"),
+        "{out}"
+    );
+    assert!(out.contains("result: stopped, nothing changed"), "{out}");
+    let target = write_script(dir.path(), "c.phs", "phoenix-script/2 library\nprint(1)\n");
+    let (code, out, _) = command(&["script", "run", &target, "--board", &board_path]);
+    assert_eq!(code, 1);
+    assert!(out.contains("PHOENIX-SCRIPT-058"), "{out}");
+}
+
+#[test]
+fn the_data_folder_is_the_only_place_a_script_can_write_and_only_when_applied() {
+    let dir = tempfile::tempdir().unwrap();
+    let board_path = write_board(dir.path());
+    let config = write_script(dir.path(), "script.cfg", "data_dir = data\n");
+    let script = write_script(
+        dir.path(),
+        "w.phs",
+        "phoenix-script/2\nwrite_text(\"a.txt\", \"hi\")\n",
+    );
+    let file = dir.path().join("data").join("a.txt");
+    let (code, out, _) = command(&[
+        "script",
+        "run",
+        "--config",
+        &config,
+        &script,
+        "--board",
+        &board_path,
+    ]);
+    assert_eq!(code, 0);
+    assert!(out.contains("file: a.txt (2 bytes)"), "{out}");
+    assert!(!file.exists());
+    let target = dir.path().join("out.json");
+    let (code, _, err) = command(&[
+        "script",
+        "run",
+        "--config",
+        &config,
+        "--out",
+        target.to_str().unwrap(),
+        &script,
+        "--board",
+        &board_path,
+    ]);
+    assert_eq!(code, 0, "{err}");
+    assert_eq!(fs::read_to_string(&file).unwrap(), "hi");
+    let escape = write_script(
+        dir.path(),
+        "e.phs",
+        "phoenix-script/2\nprint(read_text(\"../script.cfg\"))\n",
+    );
+    let (code, out, _) = command(&[
+        "script",
+        "run",
+        "--config",
+        &config,
+        &escape,
+        "--board",
+        &board_path,
+    ]);
+    assert_eq!(code, 1);
+    assert!(out.contains("PHOENIX-SCRIPT-056"), "{out}");
+}
+
+#[test]
+fn check_list_and_help_work_without_a_document() {
+    let dir = tempfile::tempdir().unwrap();
+    let good = write_script(dir.path(), "g.phs", SECOND);
+    let (code, out, _) = command(&["script", "check", &good]);
+    assert_eq!(code, 0);
+    assert!(out.starts_with("check: ok\n"), "{out}");
+    assert!(out.contains("functions: print x1, route x1"), "{out}");
+    let bad = write_script(
+        dir.path(),
+        "b.phs",
+        "phoenix-script/2\nprint(zzz)\nnothing(1)\n",
+    );
+    let (code, out, _) = command(&["script", "check", "--json", &bad]);
+    assert_eq!(code, 1);
+    let json: serde_json::Value = serde_json::from_str(&out).unwrap();
+    assert_eq!(json["schema"], "phoenix-script-check/2");
+    assert_eq!(json["errors"].as_array().unwrap().len(), 2);
+    let (code, out, _) = command(&["script", "list"]);
+    assert_eq!(code, 0);
+    assert!(
+        out.contains("led_matrix") && out.contains("panelize_matrix"),
+        "{out}"
+    );
+    let (code, out, _) = command(&["script", "list", "--show", "led_matrix"]);
+    assert_eq!(code, 0);
+    assert!(out.starts_with("phoenix-script/2 board\n"), "{out}");
+    let (code, _, err) = command(&["script", "list", "--show", "nothing"]);
+    assert_eq!(code, 2);
+    assert!(err.contains("no example"), "{err}");
+    let (code, out, _) = command(&["script", "list", "--json"]);
+    assert_eq!(code, 0);
+    let json: serde_json::Value = serde_json::from_str(&out).unwrap();
+    assert!(json["examples"].as_array().unwrap().len() >= 7);
+    let (code, out, _) = command(&["script", "help"]);
+    assert_eq!(code, 0);
+    assert!(out.starts_with("phoenix-script/2 - the language"), "{out}");
+    assert!(out.contains("move_to(target, x, y)"), "{out}");
+}
+
+#[test]
+fn the_first_version_still_runs_with_the_document_given_by_a_flag() {
+    let dir = tempfile::tempdir().unwrap();
+    let board_path = write_board(dir.path());
+    let script = write_script(dir.path(), "s.scr", WIRE);
+    let (code, out, err) = command(&["script", "run", &script, "--board", &board_path]);
+    assert_eq!(code, 0, "{err}");
+    assert!(out.contains("operations: 1"), "{out}");
+    let (code, _, _) = command(&["script", "run", &script]);
+    assert_eq!(code, 2);
+}

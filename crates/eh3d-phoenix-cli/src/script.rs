@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! The commands `script` and `cam-import`: scripts of the old command language run on a board or a
-//! schematic, the compatibility report of scripts, and output jobs read into an export profile.
+//! schematic, the compatibility report of scripts, output jobs read into an export profile, and the
+//! scripts of the second version (`phoenix-script/2`) that are run, checked, listed and explained.
 //!
 //! A run is a dry run unless `--out` is given and `--dry-run` is not: the result is then written to
 //! a new file (an existing file is never replaced, and an input is never overwritten), together with
@@ -15,13 +16,16 @@ use std::path::Path;
 
 use eh3d_phoenix_board::Board;
 use eh3d_phoenix_eagle_board::read_schematic;
+use eh3d_phoenix_libedit::{read_library, to_text as library_text, LibSettings, Library};
+use eh3d_phoenix_parts::{PartsDb, PartsSettings};
 use eh3d_phoenix_rules::{Lang, RuleFile, RuleValues};
 use eh3d_phoenix_schematic::Schematic;
 use eh3d_phoenix_script::codes::{Diag, FILE_FAILED, INPUT_UNREADABLE, OPTION_INVALID};
 use eh3d_phoenix_script::files::write_new;
+use eh3d_phoenix_script::v2::{help, templates};
 use eh3d_phoenix_script::{
-    analyse_path, commit_writes, import_cam, parse_script, run_board, run_schematic, Run,
-    RunContext, ScriptSettings,
+    analyse_path, check_text, commit_writes, import_cam, parse_program, parse_script, run_board,
+    run_schematic, run_v2, Doc, Outcome, Plan, Run, RunContext, ScriptSettings, Version,
 };
 use serde_json::json;
 
@@ -32,8 +36,12 @@ use crate::export::read_board_file;
 const DEFAULT_SETTINGS: &str = "config/script.cfg";
 
 pub(crate) const USAGE: &str = "\
-phoenix script run [--config FILE] [--rules FILE] [--dry-run] [--out FILE] [--json] [--lang CODE]
-                   <script> <board or schematic>
+phoenix script run [--config FILE] [--rules FILE] [--parts FILE] [--dry-run] [--out FILE] [--json]
+                   [--lang CODE] <script> [<board or schematic>]
+phoenix script run [...] <script> --board FILE | --schematic FILE | --library FILE
+phoenix script check [--config FILE] [--json] [--lang CODE] <script>
+phoenix script list [--json] [--show NAME]
+phoenix script help
 phoenix script report [--config FILE] [--json] [--html FILE] [--lang CODE] <folder or script>
 phoenix cam-import [--config FILE] [--json] [--out FILE] [--lang CODE] <job.cam>
 
@@ -45,6 +53,18 @@ phoenix cam-import [--config FILE] [--json] [--out FILE] [--lang CODE] <job.cam>
                 the input is never overwritten. All or nothing: an error stops the whole run. The
                 file commands of a script (SCRIPT, OPEN, WRITE) need the permissions and folders
                 of the settings (config/script.cfg) and only use paths below the script's folder
+  script run    (second version) a script that starts with the line phoenix-script/2 works on a
+                board, a schematic or a library, given by --board, --schematic or --library, with
+                variables, bounded loops and conditions on measures; the whole script is one step
+                of the history and all or nothing, in a sandbox with limits of steps, memory and
+                output (config/script.cfg) and no access to the network, to a program or to a file
+                but the data folder of the settings. The result is written only with --out, to a
+                new file (.json for a board or a schematic, .lbr for a library); --parts names the
+                parts base that assign_part reads
+  script check  read a script of the second version without running it: syntax, names, number of
+                arguments, the document each function applies to and an estimate of the steps
+  script list   the example scripts (--show NAME prints one); script help prints the reference of
+                the language, written from the table of functions
   script report the compatibility of scripts, computed without running them: every command is
                 equivalent, adapted (with the difference) or pending (with the cause); one line per
                 script and the totals of a folder; --html FILE writes one self-contained page to a
@@ -64,6 +84,11 @@ struct Options {
     dry_run: bool,
     json: bool,
     lang: Lang,
+    board: Option<String>,
+    schematic: Option<String>,
+    library: Option<String>,
+    parts: Option<String>,
+    show: Option<String>,
     files: Vec<String>,
 }
 
@@ -80,6 +105,11 @@ fn parse_options(args: &[&str]) -> Result<Options, Diag> {
         dry_run: false,
         json: false,
         lang: Lang::En,
+        board: None,
+        schematic: None,
+        library: None,
+        parts: None,
+        show: None,
         files: Vec::new(),
     };
     let mut iter = args.iter();
@@ -107,6 +137,26 @@ fn parse_options(args: &[&str]) -> Result<Options, Diag> {
             "--html" => {
                 options.html =
                     Some((*iter.next().ok_or_else(|| bad("--html needs a file"))?).to_owned());
+            }
+            "--board" => {
+                options.board =
+                    Some((*iter.next().ok_or_else(|| bad("--board needs a file"))?).to_owned());
+            }
+            "--schematic" => {
+                options.schematic =
+                    Some((*iter.next().ok_or_else(|| bad("--schematic needs a file"))?).to_owned());
+            }
+            "--library" => {
+                options.library =
+                    Some((*iter.next().ok_or_else(|| bad("--library needs a file"))?).to_owned());
+            }
+            "--parts" => {
+                options.parts =
+                    Some((*iter.next().ok_or_else(|| bad("--parts needs a file"))?).to_owned());
+            }
+            "--show" => {
+                options.show =
+                    Some((*iter.next().ok_or_else(|| bad("--show needs a name"))?).to_owned());
             }
             other if other.starts_with("--") => {
                 return Err(bad(format!("unknown option {other}")));
@@ -200,6 +250,297 @@ fn load_rules(options: &Options, document_path: &str) -> Result<RuleValues, Diag
     Ok(RuleValues::default())
 }
 
+fn version_of_text(text: &str) -> Version {
+    eh3d_phoenix_script::version_of(text)
+}
+
+fn load_library(path: &str) -> Result<Library, Diag> {
+    let unreadable = |m: String| Diag::plain(INPUT_UNREADABLE, format!("{path}: {m}"));
+    let settings = LibSettings::default();
+    let length = std::fs::metadata(path)
+        .map_err(|e| unreadable(e.to_string()))?
+        .len();
+    if length > settings.max_file_bytes {
+        return Err(unreadable(format!(
+            "larger than {} bytes",
+            settings.max_file_bytes
+        )));
+    }
+    let bytes = std::fs::read(path).map_err(|e| unreadable(e.to_string()))?;
+    read_library(&bytes, &settings.limits()).map_err(|e| unreadable(e.to_string()))
+}
+
+enum Loaded {
+    Nothing,
+    Board(Board),
+    Schematic(Schematic),
+    Library(Library),
+}
+
+fn load_for_second(options: &Options, positional: Option<&String>) -> Result<Loaded, Diag> {
+    if let Some(path) = &options.library {
+        return load_library(path).map(Loaded::Library);
+    }
+    if let Some(path) = &options.board {
+        return match load_document(path)? {
+            Document::Board(b) => Ok(Loaded::Board(b)),
+            Document::Schematic(_) => Err(Diag::plain(
+                INPUT_UNREADABLE,
+                format!("{path} is a schematic, not a board"),
+            )),
+        };
+    }
+    if let Some(path) = &options.schematic {
+        return match load_document(path)? {
+            Document::Schematic(s) => Ok(Loaded::Schematic(s)),
+            Document::Board(_) => Err(Diag::plain(
+                INPUT_UNREADABLE,
+                format!("{path} is a board, not a schematic"),
+            )),
+        };
+    }
+    let Some(path) = positional else {
+        return Ok(Loaded::Nothing);
+    };
+    if has_extension(path, "lbr") {
+        return load_library(path).map(Loaded::Library);
+    }
+    Ok(match load_document(path)? {
+        Document::Board(b) => Loaded::Board(b),
+        Document::Schematic(s) => Loaded::Schematic(s),
+    })
+}
+
+fn stopped(d: Diag) -> Outcome {
+    Outcome {
+        ok: false,
+        diagnostics: vec![d],
+        output: Vec::new(),
+        steps: 0,
+        operations: 0,
+        board: None,
+        schematic: None,
+        library: None,
+        plan: Plan::None,
+        writes: Vec::new(),
+    }
+}
+
+fn print_second(outcome: &Outcome, options: &Options, written: &[String], out: &mut dyn Write) {
+    if options.json {
+        let mut value: serde_json::Value =
+            serde_json::from_str(&outcome.to_json()).unwrap_or_default();
+        value["written"] = json!(written);
+        let text = serde_json::to_string_pretty(&value).unwrap_or_default();
+        let _ = writeln!(out, "{text}");
+        return;
+    }
+    let _ = out.write_all(outcome.to_text(options.lang).as_bytes());
+    if written.is_empty() {
+        let _ = writeln!(out, "dry run: nothing was written");
+    }
+    for path in written {
+        let _ = writeln!(out, "written: {path}");
+    }
+}
+
+fn run_second(
+    options: &Options,
+    settings: &ScriptSettings,
+    script_path: &str,
+    script_text: &str,
+    document_path: Option<&String>,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+) -> i32 {
+    let lang = options.lang;
+    let apply = options.out.is_some() && !options.dry_run;
+    let program = match parse_program(script_text, settings) {
+        Ok(p) => p,
+        Err(d) => {
+            print_second(&stopped(d), options, &[], out);
+            return 1;
+        }
+    };
+    let loaded = match load_for_second(options, document_path) {
+        Ok(l) => l,
+        Err(d) => return fail(err, &d, lang),
+    };
+    let rules_path = document_path
+        .map(String::as_str)
+        .or(options.board.as_deref())
+        .unwrap_or("");
+    let rules = match load_rules(options, rules_path) {
+        Ok(r) => r,
+        Err(d) => return fail(err, &d, lang),
+    };
+    let parts: Option<PartsDb> = match &options.parts {
+        None => None,
+        Some(path) => match eh3d_phoenix_parts::load(Path::new(path), &PartsSettings::default()) {
+            Ok(db) => Some(db),
+            Err(e) => {
+                let _ = writeln!(err, "error: {}", e.message(lang));
+                return 2;
+            }
+        },
+    };
+    let base = Path::new(script_path)
+        .parent()
+        .filter(|p| !p.as_os_str().is_empty())
+        .unwrap_or_else(|| Path::new("."));
+    let mut ctx = RunContext::new(settings);
+    ctx.rules = rules;
+    ctx.lang = lang;
+    ctx.base_dir = Some(base);
+    ctx.parts = parts.as_ref();
+    let doc = match &loaded {
+        Loaded::Nothing => Doc::None,
+        Loaded::Board(b) => Doc::Board(b),
+        Loaded::Schematic(s) => Doc::Schematic(s),
+        Loaded::Library(l) => Doc::Library(l),
+    };
+    let outcome = run_v2(&program, doc, &ctx);
+    if !apply {
+        let _ = writeln!(
+            err,
+            "note: dry run, nothing is written (give --out FILE to write the result)"
+        );
+    }
+    let mut written: Vec<String> = Vec::new();
+    if apply && outcome.ok {
+        if let Some(target) = &options.out {
+            let bytes: Option<Vec<u8>> =
+                match (&outcome.board, &outcome.schematic, &outcome.library) {
+                    (Some(b), _, _) => b.to_bytes().ok(),
+                    (_, Some(s), _) => s.to_bytes().ok(),
+                    (_, _, Some(l)) => Some(library_text(l).into_bytes()),
+                    _ => None,
+                };
+            let Some(bytes) = bytes else {
+                return fail(
+                    err,
+                    &bad("there is no document to write: give --board, --schematic or --library"),
+                    lang,
+                );
+            };
+            match write_new(Path::new(target), &bytes) {
+                Ok(()) => written.push(target.clone()),
+                Err(d) => return fail(err, &d, lang),
+            }
+        }
+        for file in &outcome.writes {
+            match write_new(&file.path, &file.bytes) {
+                Ok(()) => written.push(file.path.to_string_lossy().into_owned()),
+                Err(d) => return fail(err, &d, lang),
+            }
+        }
+    }
+    print_second(&outcome, options, &written, out);
+    if outcome.ok {
+        0
+    } else {
+        1
+    }
+}
+
+fn check_command(args: &[&str], out: &mut dyn Write, err: &mut dyn Write) -> i32 {
+    let options = match parse_options(args) {
+        Ok(options) => options,
+        Err(d) => {
+            let _ = writeln!(err, "error: {}", d.message(Lang::En));
+            return usage(err);
+        }
+    };
+    let lang = options.lang;
+    let [script_path] = options.files.as_slice() else {
+        return usage(err);
+    };
+    let settings = match load_settings(options.config.as_deref()) {
+        Ok(s) => s,
+        Err(d) => return fail(err, &d, lang),
+    };
+    let text = match read_script(script_path, &settings) {
+        Ok(t) => t,
+        Err(d) => return fail(err, &d, lang),
+    };
+    let report = check_text(&text, &settings);
+    let printed = if options.json {
+        report.to_json()
+    } else {
+        report.to_text(lang)
+    };
+    let _ = out.write_all(printed.as_bytes());
+    if report.ok() {
+        0
+    } else {
+        1
+    }
+}
+
+fn read_script(path: &str, settings: &ScriptSettings) -> Result<String, Diag> {
+    let unreadable = |m: String| Diag::plain(INPUT_UNREADABLE, format!("{path}: {m}"));
+    let length = std::fs::metadata(path)
+        .map_err(|e| unreadable(e.to_string()))?
+        .len();
+    if length > settings.max_script_bytes as u64 {
+        return Err(unreadable(format!(
+            "larger than {} bytes",
+            settings.max_script_bytes
+        )));
+    }
+    std::fs::read_to_string(path).map_err(|e| unreadable(e.to_string()))
+}
+
+fn list_command(args: &[&str], out: &mut dyn Write, err: &mut dyn Write) -> i32 {
+    let options = match parse_options(args) {
+        Ok(options) => options,
+        Err(d) => {
+            let _ = writeln!(err, "error: {}", d.message(Lang::En));
+            return usage(err);
+        }
+    };
+    if !options.files.is_empty() {
+        return usage(err);
+    }
+    if let Some(name) = &options.show {
+        return match templates::find(name) {
+            Some(t) => {
+                let _ = out.write_all(t.source.as_bytes());
+                0
+            }
+            None => {
+                let _ = writeln!(err, "error: there is no example called {name}");
+                2
+            }
+        };
+    }
+    if options.json {
+        let list: Vec<serde_json::Value> = templates::TEMPLATES
+            .iter()
+            .map(|t| {
+                json!({
+                    "name": t.name,
+                    "target": t.target.word(),
+                    "summary": t.summary,
+                })
+            })
+            .collect();
+        let value = json!({ "schema": "phoenix-script-list/2", "examples": list });
+        let text = serde_json::to_string_pretty(&value).unwrap_or_default();
+        let _ = writeln!(out, "{text}");
+        return 0;
+    }
+    for t in templates::TEMPLATES {
+        let _ = writeln!(out, "{:<22} {:<10} {}", t.name, t.target.word(), t.summary);
+    }
+    0
+}
+
+fn help_command(out: &mut dyn Write) -> i32 {
+    let _ = out.write_all(help::reference().as_bytes());
+    0
+}
+
 fn run_summary(run: &Run, options: &Options, written: &[String], out: &mut dyn Write) {
     if options.json {
         let diagnostics: Vec<serde_json::Value> = run
@@ -272,9 +613,17 @@ fn run_command(args: &[&str], out: &mut dyn Write, err: &mut dyn Write) -> i32 {
         }
     };
     let lang = options.lang;
-    let [script_path, document_path] = options.files.as_slice() else {
-        return usage(err);
-    };
+    let flagged: Vec<&String> = [&options.board, &options.schematic, &options.library]
+        .into_iter()
+        .flatten()
+        .collect();
+    let (script_path, document_path): (&String, Option<&String>) =
+        match (options.files.as_slice(), flagged.as_slice()) {
+            ([script, document], []) => (script, Some(document)),
+            ([script], [document]) => (script, Some(*document)),
+            ([script], []) => (script, None),
+            _ => return usage(err),
+        };
     let settings = match load_settings(options.config.as_deref()) {
         Ok(s) => s,
         Err(d) => return fail(err, &d, lang),
@@ -323,6 +672,33 @@ fn run_command(args: &[&str], out: &mut dyn Write, err: &mut dyn Write) -> i32 {
                 lang,
             )
         }
+    };
+    match version_of_text(&script_text) {
+        Version::Second => {
+            return run_second(
+                &options,
+                &settings,
+                script_path,
+                &script_text,
+                document_path,
+                out,
+                err,
+            )
+        }
+        Version::Other(word) => {
+            return fail(
+                err,
+                &Diag::plain(
+                    OPTION_INVALID,
+                    format!("{word} is not a version of the script language this program knows"),
+                ),
+                lang,
+            )
+        }
+        Version::First => {}
+    }
+    let Some(document_path) = document_path else {
+        return usage(err);
     };
     let document = match load_document(document_path) {
         Ok(d) => d,
@@ -424,6 +800,9 @@ fn report_command(args: &[&str], out: &mut dyn Write, err: &mut dyn Write) -> i3
 pub(crate) fn script_command(args: &[&str], out: &mut dyn Write, err: &mut dyn Write) -> i32 {
     match args.split_first() {
         Some((&"run", tail)) => run_command(tail, out, err),
+        Some((&"check", tail)) => check_command(tail, out, err),
+        Some((&"list", tail)) => list_command(tail, out, err),
+        Some((&"help", _)) => help_command(out),
         Some((&"report", tail)) => report_command(tail, out, err),
         _ => usage(err),
     }

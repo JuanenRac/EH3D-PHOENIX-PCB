@@ -61,8 +61,8 @@ mod netlist;
 mod oracle;
 mod pairs;
 mod panel;
-mod perf;
 mod parts;
+mod perf;
 mod pnp;
 mod print;
 mod rf;
@@ -267,15 +267,24 @@ phoenix panel [--config FILE] [--columns N] [--rows N] [--boards A,B,...] [--pro
                 every copy and the outline of the panel; a dry run unless --out names a new
                 folder, a prototype, run `phoenix panel` alone for its options
 
-phoenix script run [--config FILE] [--rules FILE] [--dry-run] [--out FILE] [--json] [--lang xx]
-                   <script> <board or schematic>
+phoenix script run [--config FILE] [--rules FILE] [--parts FILE] [--dry-run] [--out FILE] [--json]
+                   [--lang xx] <script> [<board or schematic> | --board FILE | --schematic FILE
+                   | --library FILE]
+phoenix script check [--config FILE] [--json] [--lang xx] <script>
+phoenix script list [--json] [--show NAME]
+phoenix script help
 phoenix script report [--config FILE] [--json] [--html FILE] [--lang xx] <folder or script>
 phoenix cam-import [--config FILE] [--json] [--out FILE] [--lang xx] <job.cam>
 
-  script        run a script of the old command language on a board (a dry run unless --out is
-                given; all or nothing, never replaces a file), or report for each command of
-                each script whether it is equivalent, adapted or pending, without running it;
-                a prototype, run `phoenix script` alone for its options
+  script        run a script of the old command language, or of the second version (its first
+                line is phoenix-script/2: variables, bounded loops and conditions on measures,
+                queries and the operations of the editors on a board, a schematic or a library,
+                all of them one step, in a sandbox with limits), on a copy of a document (a dry
+                run unless --out is given; all or nothing, never replaces a file); check one of
+                the second version without running it; list the example scripts; print the
+                reference of the language; or report for each command of each script of the old
+                language whether it is equivalent, adapted or pending, without running it; a
+                prototype, run `phoenix script` alone for its options
   cam-import    read an output job into an export profile and report what could be translated
 
 phoenix schedit [--erc-config FILE] [--json] [--lang xx] --apply OPERATIONS.json [--out FILE]
