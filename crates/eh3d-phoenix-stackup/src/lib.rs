@@ -12,6 +12,9 @@
 //! * [`line`]: a line taken from a stack-up, its impedance, effective permittivity, conductor and
 //!   dielectric loss in dB/cm, delay and guided wavelength at a frequency, and the synthesis of a
 //!   track width from a target impedance;
+//! * [`heating`]: the temperature rise of a track or a via that carries a current, by the fit of
+//!   IPC-2221 and by the convection model of EH3D-THERMAL-LAB, with the codes `PHOENIX-HEAT-001`
+//!   to `PHOENIX-HEAT-012`;
 //! * [`job`]: the job file and the reports of `phoenix stackup`;
 //! * [`settings`]: the tuned values, read from `config/stackup.cfg`;
 //! * [`error`]: typed errors and warnings with the codes `PHOENIX-STACK-001` to
@@ -28,6 +31,7 @@
 
 pub mod elliptic;
 pub mod error;
+pub mod heating;
 pub mod job;
 pub mod line;
 pub mod material;
