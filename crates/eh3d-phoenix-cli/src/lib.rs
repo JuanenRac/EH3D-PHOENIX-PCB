@@ -73,6 +73,8 @@ mod pnp;
 mod print;
 mod rf;
 mod rfgen;
+mod rfx;
+mod rfx_text;
 mod route;
 mod sanitize;
 mod schedit;

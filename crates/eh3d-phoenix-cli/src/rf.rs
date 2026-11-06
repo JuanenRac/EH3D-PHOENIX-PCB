@@ -13,6 +13,8 @@ use eh3d_phoenix_rf::touchstone::ports_from_name;
 use eh3d_phoenix_rf::{Complex, Language, RfError, RfSettings, Touchstone};
 use std::io::Write;
 
+use crate::rfx;
+
 /// The usage text of the command.
 pub const RF_USAGE: &str = "\
 phoenix rf touchstone <file.sNp> [--freq-ghz X] [--settings FILE] [--lang xx]
@@ -33,14 +35,40 @@ phoenix rf match qw   --load Z [--z0 R] --freq-ghz F [--eps-eff E] [--settings F
 phoenix rf filter <butterworth|chebyshev|bessel> <order> <lowpass|highpass|bandpass|bandstop>
                   (--fc-ghz F | --f1-ghz F --f2-ghz F) [--ripple-db R] [--z0 R]
                   [--first shunt|series] [--sweep-ghz START,STOP,POINTS] [--log]
+                  [--snap E12|E24|E96|default] [--simulate] [--netlist] [--json] [--out FILE]
                   [--settings FILE] [--lang xx]
 
   filter      ladder filter from the prototype tables: g values, the inductors and capacitors,
-              and optionally the insertion and return loss over a sweep; ideal components
+              and optionally the insertion and return loss over a sweep; ideal components;
+              --snap takes the components to a series of standard values and says how far
+              the band edges move, --simulate adds the response of the AC simulator, --netlist
+              adds the SPICE text; the result is an estimate
+
+phoenix rf match l|pi|t --load Z [--source Z] --freq-ghz F [--q Q] [--pass low|high]
+                  [--svg FILE] [--pick N] [--json] [--out FILE] [--settings FILE] [--lang xx]
+phoenix rf match lines --load Z --freq-ghz F [--z0 R --eps-eff E | --stackup FILE --line NAME]
+                  [--spacing-deg D] [--json] [--out FILE] [--settings FILE] [--lang xx]
+
+  match pi|t  matching networks with a chosen loaded Q, the bandwidth, the path on the Smith
+              chart (as data, and as a picture with --svg); match lines gives the single
+              stub, the double stub and the quarter-wave transformer with lengths in metres
+
+phoenix rf sparams (--net FILE --sweep-ghz START,STOP,POINTS [--log] | --s2p FILE)
+                  [--mask FILE] [--s2p-out FILE] [--format ri|ma|db] [--json] [--out FILE]
+phoenix rf stability (--s2p FILE [--freq-ghz F] | --s11 X --s12 X --s21 X --s22 X)
+                  [--json] [--out FILE]
+
+  sparams     S parameters, return and insertion loss and VSWR of a network of lumped
+              elements and lines, written as text, or of a Touchstone file; a mask gives a
+              pass or fail (exit code 1 on fail)
+  stability   K, delta, mu, stability circles and the simultaneous conjugate match of an
+              amplifier from its S parameters
+
+  --out, --svg and --s2p-out write to a file that does not exist yet and never overwrite one.
 ";
 
-struct Args<'a> {
-    positional: Vec<&'a str>,
+pub(crate) struct Args<'a> {
+    pub(crate) positional: Vec<&'a str>,
     options: Vec<(&'a str, &'a str)>,
     flags: Vec<&'a str>,
 }
@@ -67,7 +95,7 @@ impl<'a> Args<'a> {
         Some(parsed)
     }
 
-    fn get(&self, key: &str) -> Option<&'a str> {
+    pub(crate) fn get(&self, key: &str) -> Option<&'a str> {
         self.options
             .iter()
             .rev()
@@ -75,12 +103,12 @@ impl<'a> Args<'a> {
             .map(|(_, v)| *v)
     }
 
-    fn has(&self, flag: &str) -> bool {
+    pub(crate) fn has(&self, flag: &str) -> bool {
         self.flags.contains(&flag)
     }
 
     /// A number option: `Ok(None)` when absent, `Err` when it is not a finite number.
-    fn number(&self, key: &str) -> Result<Option<f64>, String> {
+    pub(crate) fn number(&self, key: &str) -> Result<Option<f64>, String> {
         match self.get(key) {
             None => Ok(None),
             Some(text) => match text.parse::<f64>() {
@@ -90,12 +118,12 @@ impl<'a> Args<'a> {
         }
     }
 
-    fn required_number(&self, key: &str) -> Result<f64, String> {
+    pub(crate) fn required_number(&self, key: &str) -> Result<f64, String> {
         self.number(key)?.ok_or_else(|| format!("{key} is needed"))
     }
 
     /// An impedance option: `Ok(None)` when absent.
-    fn impedance(&self, key: &str) -> Result<Option<Complex>, String> {
+    pub(crate) fn impedance(&self, key: &str) -> Result<Option<Complex>, String> {
         match self.get(key) {
             None => Ok(None),
             Some(text) => Complex::parse(text)
@@ -105,7 +133,7 @@ impl<'a> Args<'a> {
     }
 }
 
-const VALUED: [&str; 15] = [
+const VALUED: [&str; 33] = [
     "--freq-ghz",
     "--settings",
     "--lang",
@@ -121,8 +149,26 @@ const VALUED: [&str; 15] = [
     "--ripple-db",
     "--first",
     "--sweep-ghz",
+    "--q",
+    "--pass",
+    "--pick",
+    "--svg",
+    "--out",
+    "--snap",
+    "--net",
+    "--s2p",
+    "--s2p-out",
+    "--mask",
+    "--format",
+    "--stackup",
+    "--line",
+    "--spacing-deg",
+    "--s11",
+    "--s12",
+    "--s21",
+    "--s22",
 ];
-const FLAGS: [&str; 1] = ["--log"];
+const FLAGS: [&str; 4] = ["--log", "--json", "--simulate", "--netlist"];
 
 /// The largest settings file that is read, in bytes.
 const MAX_SETTINGS_BYTES: u64 = 1024 * 1024;
@@ -179,6 +225,8 @@ pub fn rf(args: &[&str], out: &mut dyn Write, err: &mut dyn Write) -> i32 {
         "touchstone" => touchstone(&parsed, &settings, language, out, err),
         "match" => matching(&parsed, &settings, language, out, err),
         "filter" => filter(&parsed, &settings, language, out, err),
+        "sparams" => rfx::sparams_command(&parsed, &settings, language, out, err),
+        "stability" => rfx::stability_command(&parsed, &settings, language, out, err),
         _ => usage(err),
     }
 }
@@ -241,6 +289,9 @@ fn matching(
     let [kind] = args.positional.as_slice() else {
         return usage(err);
     };
+    if matches!(*kind, "pi" | "t" | "lines") || (*kind == "l" && rfx::wants_extended_match(args)) {
+        return rfx::match_command(kind, args, settings, language, out, err);
+    }
     let (load, freq_hz, eps_eff) = match match_inputs(args) {
         Ok(found) => found,
         Err(message) => return fail(err, &message),
@@ -308,7 +359,18 @@ fn filter(
         "butterworth" => Approximation::Butterworth,
         "chebyshev" => Approximation::Chebyshev,
         "bessel" => Approximation::Bessel,
+        "legendre" | "elliptic" => {
+            return fail(
+                err,
+                "this approximation is not implemented: it needs a published table that is not in the tool yet",
+            )
+        }
         _ => return usage(err),
+    };
+    let family_name: &'static str = match approximation {
+        Approximation::Butterworth => "Butterworth",
+        Approximation::Chebyshev => "Chebyshev",
+        Approximation::Bessel => "Bessel",
     };
     let Ok(order) = order.parse::<usize>() else {
         return fail(err, "the order is not a whole number");
@@ -364,6 +426,19 @@ fn filter(
         Ok(ladder) => ladder,
         Err(error) => return rf_error(err, &error, language, 1),
     };
+    if rfx::wants_extended_filter(args) {
+        let input = rfx::FilterInput {
+            ladder: &ladder,
+            family: family_name,
+            ripple_db: if approximation == Approximation::Chebyshev {
+                ripple
+            } else {
+                None
+            },
+            sweep,
+        };
+        return rfx::filter_extended(args, &input, settings, language, out, err);
+    }
     let points = match sweep {
         None => None,
         Some((start, stop, count)) => {
@@ -406,7 +481,7 @@ fn filter_numbers(args: &Args, settings: &RfSettings) -> Result<FilterNumbers, S
     })
 }
 
-fn parse_sweep(text: &str) -> Option<(f64, f64, usize)> {
+pub(crate) fn parse_sweep(text: &str) -> Option<(f64, f64, usize)> {
     let mut parts = text.split(',');
     let start = parts.next()?.trim().parse::<f64>().ok()?;
     let stop = parts.next()?.trim().parse::<f64>().ok()?;
