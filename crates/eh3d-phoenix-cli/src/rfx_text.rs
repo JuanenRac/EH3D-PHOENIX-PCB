@@ -436,7 +436,7 @@ fn trace_json(trace: &SmithTrace) -> Value {
         })).collect::<Vec<Value>>(),
         "paths": trace.paths.iter().map(|path| {
             path.iter().map(|g| complex_json(*g)).collect::<Vec<Value>>()
-        }).collect::<Vec<Value>>(),
+        }).collect::<Vec<Vec<Value>>>(),
     })
 }
 
