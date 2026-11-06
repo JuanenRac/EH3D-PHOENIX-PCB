@@ -962,7 +962,7 @@ fn the_new_keys_of_the_settings_are_read_and_checked() {
 fn every_new_code_is_written_in_the_eight_languages() {
     for (code, _) in c::REGISTRY {
         for lang in Lang::ALL {
-            let d = crate::codes::Diag::new(*code, 1, 1, "x");
+            let d = crate::codes::Diag::new(code, 1, 1, "x");
             let m = d.message(lang);
             assert!(m.starts_with(*code), "{m}");
             assert!(m.len() > code.len() + 8, "{lang:?} {m}");
