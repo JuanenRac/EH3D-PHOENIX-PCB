@@ -28,7 +28,7 @@ $ phoenix field2d examples/tutorials/tut.brd --stackup examples/guides/stackup_j
 $ phoenix stackup examples/guides/stackup_job.json --freq-ghz 1 --field2d
 ```
 
-5. Stimate il riscaldamento della rete `MID` con 0,5 A. Il rapporto elenca la pista per strato, larghezza e spessore del rame, e dà l'aumento secondo l'adattamento di IPC-2221 e secondo il modello di convezione. L'aumento è sotto il limite delle impostazioni e il codice di uscita è 0.
+5. Stimate il riscaldamento della rete `MID` con 0,5 A. Il rapporto elenca la pista per strato, larghezza e spessore del rame, e dà l'aumento secondo l'adattamento di IPC-2221 (circa 4 K per una pista di 0,2 mm per 35 µm). Il modello di convezione non dà un numero, perché con il raffreddamento delle impostazioni una pista così stretta supererebbe i 125 C (`PHOENIX-HEAT-005`, informazione). L'aumento è sotto il limite delle impostazioni e il codice di uscita è 0.
 
 ```console
 $ phoenix thermal --currents examples/guides/currents_low.cfg --stackup examples/guides/stackup_job.json examples/tutorials/tut.brd

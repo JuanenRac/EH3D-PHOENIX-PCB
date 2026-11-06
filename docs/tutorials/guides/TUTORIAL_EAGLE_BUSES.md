@@ -10,7 +10,7 @@ Run the commands from the root of the repository; see [how to run the guides](RE
 $ phoenix hier --json examples/guides/bus.sch
 ```
 
-2. The same as text: the nets `D0` and `D1` are listed by name next to `MID` and `GND`, and the last line says whether there are problems.
+2. The same as text: the list of nets holds only the nets that join at least two pins, here `MID`, so the members `D0` and `D1` of the bus, which have no pin, are not in it, and the last line says whether there are problems.
 
 ```console
 $ phoenix hier examples/guides/bus.sch

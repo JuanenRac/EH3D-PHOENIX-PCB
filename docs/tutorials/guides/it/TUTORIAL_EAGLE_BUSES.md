@@ -10,7 +10,7 @@ Eseguite i comandi dalla radice del repository; vedere [come eseguire le guide](
 $ phoenix hier --json examples/guides/bus.sch
 ```
 
-2. Lo stesso come testo: le reti `D0` e `D1` compaiono per nome accanto a `MID` e `GND`, e l'ultima riga dice se ci sono problemi.
+2. Lo stesso come testo: l'elenco delle reti contiene solo le reti che uniscono almeno due piedini, qui `MID`, quindi i membri `D0` e `D1` del bus, che non hanno piedini, non vi compaiono, e l'ultima riga dice se ci sono problemi.
 
 ```console
 $ phoenix hier examples/guides/bus.sch

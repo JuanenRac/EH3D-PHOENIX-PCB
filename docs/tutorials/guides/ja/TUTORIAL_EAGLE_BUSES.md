@@ -10,7 +10,7 @@
 $ phoenix hier --json examples/guides/bus.sch
 ```
 
-2. 同じ内容をテキストで見ます。ネット `D0` と `D1` が `MID`、`GND` と並んで名前で表示され、最後の行に問題の有無が出ます。
+2. 同じ内容をテキストで見ます。ネットの一覧には 2 本以上のピンをつなぐネットだけが載るので、ここでは `MID` だけです。ピンを持たないバスのメンバー `D0` と `D1` は載りません。最後の行に問題の有無が出ます。
 
 ```console
 $ phoenix hier examples/guides/bus.sch

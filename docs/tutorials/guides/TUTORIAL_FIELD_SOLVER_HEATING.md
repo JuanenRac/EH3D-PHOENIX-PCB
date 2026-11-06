@@ -28,7 +28,7 @@ $ phoenix field2d examples/tutorials/tut.brd --stackup examples/guides/stackup_j
 $ phoenix stackup examples/guides/stackup_job.json --freq-ghz 1 --field2d
 ```
 
-5. Estimate the heating of the net `MID` with 0.5 A. The report lists the track by layer, width and copper thickness, and gives the rise by the fit of IPC-2221 and by the convection model. The rise is below the limit of the settings and the exit code is 0.
+5. Estimate the heating of the net `MID` with 0.5 A. The report lists the track by layer, width and copper thickness, and gives the rise by the fit of IPC-2221 (about 4 K for a track of 0.2 mm by 35 um). The convection model gives no number, because with the cooling of the settings a track so thin would pass 125 C (`PHOENIX-HEAT-005`, information). The rise is below the limit of the settings and the exit code is 0.
 
 ```console
 $ phoenix thermal --currents examples/guides/currents_low.cfg --stackup examples/guides/stackup_job.json examples/tutorials/tut.brd

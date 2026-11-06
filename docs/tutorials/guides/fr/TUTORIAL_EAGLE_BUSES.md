@@ -10,7 +10,7 @@ Exécutez les commandes depuis la racine du dépôt ; voir [comment exécuter le
 $ phoenix hier --json examples/guides/bus.sch
 ```
 
-2. La même chose en texte : les réseaux `D0` et `D1` sont listés par nom à côté de `MID` et `GND`, et la dernière ligne dit s'il y a des problèmes.
+2. La même chose en texte : la liste des réseaux ne contient que les réseaux qui relient au moins deux broches, ici `MID`, donc les membres `D0` et `D1` du bus, qui n'ont pas de broche, n'y figurent pas, et la dernière ligne dit s'il y a des problèmes.
 
 ```console
 $ phoenix hier examples/guides/bus.sch

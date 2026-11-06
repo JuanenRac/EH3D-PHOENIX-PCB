@@ -28,7 +28,7 @@ $ phoenix field2d examples/tutorials/tut.brd --stackup examples/guides/stackup_j
 $ phoenix stackup examples/guides/stackup_job.json --freq-ghz 1 --field2d
 ```
 
-5. Estimez l'échauffement du réseau `MID` avec 0,5 A. Le rapport liste la piste par couche, largeur et épaisseur de cuivre, et donne l'élévation selon l'ajustement d'IPC-2221 et selon le modèle de convection. L'élévation est sous la limite des réglages et le code de sortie est 0.
+5. Estimez l'échauffement du réseau `MID` avec 0,5 A. Le rapport liste la piste par couche, largeur et épaisseur de cuivre, et donne l'élévation selon l'ajustement d'IPC-2221 (environ 4 K pour une piste de 0,2 mm sur 35 µm). Le modèle de convection ne donne pas de nombre, car avec le refroidissement des réglages une piste si étroite dépasserait 125 C (`PHOENIX-HEAT-005`, information). L'élévation est sous la limite des réglages et le code de sortie est 0.
 
 ```console
 $ phoenix thermal --currents examples/guides/currents_low.cfg --stackup examples/guides/stackup_job.json examples/tutorials/tut.brd

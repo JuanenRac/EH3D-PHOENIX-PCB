@@ -10,7 +10,7 @@ Execute os comandos a partir da raiz do repositório; veja [como executar os gui
 $ phoenix hier --json examples/guides/bus.sch
 ```
 
-2. O mesmo em texto: as redes `D0` e `D1` aparecem por nome ao lado de `MID` e `GND`, e a última linha diz se há problemas.
+2. O mesmo em texto: a lista de redes só tem as redes que ligam pelo menos dois pinos, aqui `MID`, pelo que os membros `D0` e `D1` do barramento, que não têm pino, não aparecem nela, e a última linha diz se há problemas.
 
 ```console
 $ phoenix hier examples/guides/bus.sch

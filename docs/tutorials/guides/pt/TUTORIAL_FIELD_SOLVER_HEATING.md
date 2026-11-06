@@ -28,7 +28,7 @@ $ phoenix field2d examples/tutorials/tut.brd --stackup examples/guides/stackup_j
 $ phoenix stackup examples/guides/stackup_job.json --freq-ghz 1 --field2d
 ```
 
-5. Estime o aquecimento da rede `MID` com 0,5 A. O relatório lista a pista por camada, largura e espessura de cobre, e dá a subida pelo ajuste de IPC-2221 e pelo modelo de convecção. A subida fica abaixo do limite das definições e o código de saída é 0.
+5. Estime o aquecimento da rede `MID` com 0,5 A. O relatório lista a pista por camada, largura e espessura de cobre, e dá a subida pelo ajuste de IPC-2221 (cerca de 4 K para uma pista de 0,2 mm por 35 µm). O modelo de convecção não dá número, porque com o arrefecimento das definições uma pista tão estreita passaria os 125 C (`PHOENIX-HEAT-005`, informação). A subida fica abaixo do limite das definições e o código de saída é 0.
 
 ```console
 $ phoenix thermal --currents examples/guides/currents_low.cfg --stackup examples/guides/stackup_job.json examples/tutorials/tut.brd

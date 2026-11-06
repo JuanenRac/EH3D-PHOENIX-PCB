@@ -10,7 +10,7 @@ Führen Sie die Befehle im Hauptordner des Repositorys aus; siehe [so führen Si
 $ phoenix hier --json examples/guides/bus.sch
 ```
 
-2. Dasselbe als Text: Die Netze `D0` und `D1` stehen mit Namen neben `MID` und `GND`, und die letzte Zeile sagt, ob es Probleme gibt.
+2. Dasselbe als Text: Die Netzliste enthält nur Netze, die mindestens zwei Pins verbinden, hier `MID`; die Mitglieder `D0` und `D1` des Busses haben keinen Pin und stehen nicht darin. Die letzte Zeile sagt, ob es Probleme gibt.
 
 ```console
 $ phoenix hier examples/guides/bus.sch

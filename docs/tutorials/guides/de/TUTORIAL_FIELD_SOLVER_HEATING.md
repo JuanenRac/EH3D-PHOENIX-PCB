@@ -28,7 +28,7 @@ $ phoenix field2d examples/tutorials/tut.brd --stackup examples/guides/stackup_j
 $ phoenix stackup examples/guides/stackup_job.json --freq-ghz 1 --field2d
 ```
 
-5. Schätzen Sie die Erwärmung des Netzes `MID` bei 0,5 A ab. Der Bericht führt die Bahn nach Lage, Breite und Kupferdicke auf und nennt den Anstieg nach der Anpassung von IPC-2221 und nach dem Konvektionsmodell. Der Anstieg liegt unter der Grenze der Einstellungen, der Exitcode ist 0.
+5. Schätzen Sie die Erwärmung des Netzes `MID` bei 0,5 A ab. Der Bericht führt die Bahn nach Lage, Breite und Kupferdicke auf und nennt den Anstieg nach der Anpassung von IPC-2221 (etwa 4 K für eine Bahn von 0,2 mm mal 35 µm). Das Konvektionsmodell liefert keine Zahl, weil eine so schmale Bahn bei der Kühlung der Einstellungen über 125 C käme (`PHOENIX-HEAT-005`, Information). Der Anstieg liegt unter der Grenze der Einstellungen, der Exitcode ist 0.
 
 ```console
 $ phoenix thermal --currents examples/guides/currents_low.cfg --stackup examples/guides/stackup_job.json examples/tutorials/tut.brd

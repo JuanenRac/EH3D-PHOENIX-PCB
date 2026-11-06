@@ -28,7 +28,7 @@ $ phoenix field2d examples/tutorials/tut.brd --stackup examples/guides/stackup_j
 $ phoenix stackup examples/guides/stackup_job.json --freq-ghz 1 --field2d
 ```
 
-5. ネット `MID` に 0.5 A を流したときの発熱を見積もります。レポートはパターンを層・幅・銅厚ごとに列挙し、IPC-2221 の近似式と対流モデルによる上昇温度を示します。上昇は設定の上限より低く、終了コードは 0 です。
+5. ネット `MID` に 0.5 A を流したときの発熱を見積もります。レポートはパターンを層・幅・銅厚ごとに列挙し、IPC-2221 の近似式による上昇温度（幅 0.2 mm、厚さ 35 µm のパターンで約 4 K）を示します。対流モデルは数値を出しません。設定の冷却条件では、これほど細いパターンは 125 C を超えるためです（`PHOENIX-HEAT-005`、情報）。上昇は設定の上限より低く、終了コードは 0 です。
 
 ```console
 $ phoenix thermal --currents examples/guides/currents_low.cfg --stackup examples/guides/stackup_job.json examples/tutorials/tut.brd

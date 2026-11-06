@@ -28,7 +28,7 @@ $ phoenix field2d examples/tutorials/tut.brd --stackup examples/guides/stackup_j
 $ phoenix stackup examples/guides/stackup_job.json --freq-ghz 1 --field2d
 ```
 
-5. 估算网络 `MID` 通过 0.5 A 时的发热。报告按层、宽度和铜厚列出走线，并给出按 IPC-2221 拟合和按对流模型得到的温升。温升低于设置中的限值，退出码为 0。
+5. 估算网络 `MID` 通过 0.5 A 时的发热。报告按层、宽度和铜厚列出走线，并给出按 IPC-2221 拟合得到的温升（宽 0.2 mm、厚 35 µm 的走线约 4 K）。对流模型不给出数值，因为按设置中的散热条件，这么窄的走线会超过 125 C（`PHOENIX-HEAT-005`，信息）。温升低于设置中的限值，退出码为 0。
 
 ```console
 $ phoenix thermal --currents examples/guides/currents_low.cfg --stackup examples/guides/stackup_job.json examples/tutorials/tut.brd

@@ -10,7 +10,7 @@
 $ phoenix hier --json examples/guides/bus.sch
 ```
 
-2. 以文本形式查看同样的内容：网络 `D0` 和 `D1` 与 `MID`、`GND` 一起按名称列出，最后一行说明是否有问题。
+2. 以文本形式查看同样的内容：网络列表只包含连接至少两个引脚的网络，这里只有 `MID`，所以没有引脚的总线成员 `D0` 和 `D1` 不在其中；最后一行说明是否有问题。
 
 ```console
 $ phoenix hier examples/guides/bus.sch
