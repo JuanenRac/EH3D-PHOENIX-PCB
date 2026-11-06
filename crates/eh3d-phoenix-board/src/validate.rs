@@ -438,6 +438,38 @@ impl Board {
         out
     }
 
+    /// The polygons whose edges [`Board::validate_with`] did not test for crossing because they
+    /// have more points than the limit: the place of each (`the board`, `cutout 2`, `cutout 1 of
+    /// zone ...`) and its number of points, in the order of the checks. A polygon with a repeated
+    /// point is not listed, as the check reports that problem instead.
+    pub fn polygons_not_cross_checked(&self, limits: &BoardLimits) -> Vec<(String, usize)> {
+        let max_points = limits.max_polygon_points;
+        let mut found = Vec::new();
+        let mut look = |what: String, points: &[Point]| {
+            // the test of crossing edges only runs at or under the limit, so this is cheap
+            if points.len() > max_points
+                && matches!(
+                    polygon_problem(points, max_points),
+                    PolygonCheck::NotCrossChecked
+                )
+            {
+                found.push((what, points.len()));
+            }
+        };
+        if !self.outline.is_empty() {
+            look("the board".to_owned(), &self.outline);
+        }
+        for (zone_id, zone) in &self.zones {
+            for (i, cutout) in zone.cutouts.iter().enumerate() {
+                look(format!("cutout {} of zone {zone_id}", i + 1), cutout);
+            }
+        }
+        for (i, cutout) in self.outline_cutouts.iter().enumerate() {
+            look(format!("cutout {}", i + 1), cutout);
+        }
+        found
+    }
+
     /// True when [`Board::validate`] finds no error (warnings do not count).
     pub fn is_consistent(&self) -> bool {
         self.is_consistent_with(&BoardLimits::default())
@@ -588,6 +620,36 @@ mod tests {
         assert_eq!(warned[0].severity, Severity::Warning);
         assert!(warned[0].message.contains("4 points"));
         assert!(warned[0].message.contains("max_polygon_points = 3"));
+    }
+
+    #[test]
+    fn the_polygons_not_cross_checked_are_listed_with_their_place_and_size() {
+        let mut board = Board {
+            outline: vec![pt(0, 0), pt(10, 0), pt(10, 10), pt(0, 10)],
+            outline_cutouts: vec![
+                vec![pt(2, 2), pt(3, 2), pt(3, 3)],
+                vec![pt(5, 5), pt(6, 5), pt(6, 6), pt(5, 6), pt(5, 7)],
+            ],
+            ..Board::default()
+        };
+        let at = |max: usize| BoardLimits {
+            max_polygon_points: max,
+        };
+        assert!(board.polygons_not_cross_checked(&at(5)).is_empty());
+        assert_eq!(
+            board.polygons_not_cross_checked(&at(4)),
+            vec![("cutout 2".to_owned(), 5)]
+        );
+        assert_eq!(
+            board.polygons_not_cross_checked(&at(3)),
+            vec![("the board".to_owned(), 4), ("cutout 2".to_owned(), 5)]
+        );
+        // a repeated point is reported as an error and the polygon is not listed
+        board.outline[2] = board.outline[1];
+        assert_eq!(
+            board.polygons_not_cross_checked(&at(3)),
+            vec![("cutout 2".to_owned(), 5)]
+        );
     }
 
     #[test]

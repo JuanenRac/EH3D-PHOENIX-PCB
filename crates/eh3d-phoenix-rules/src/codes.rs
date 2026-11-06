@@ -905,7 +905,9 @@ const WORDS: &[(&str, [&str; 8])] = &[
     ),
 ];
 
-/// The title of a code in a language, or `None` when the code is not in the registry.
+/// The title of a code in a language, or `None` when the code is not known. The codes of this
+/// crate, of the further checks, of the profile of a board maker and the code `PHOENIX-BOARD-017`
+/// (a polygon over the limit, which a report carries as information) have one.
 pub fn title(code: &str, lang: Lang) -> Option<&'static str> {
     TITLES
         .iter()
@@ -913,6 +915,7 @@ pub fn title(code: &str, lang: Lang) -> Option<&'static str> {
         .map(|(_, texts)| texts[lang.column()])
         .or_else(|| crate::advanced::codes::title(code, lang))
         .or_else(|| crate::dfm::title(code, lang))
+        .or_else(|| eh3d_phoenix_board::validate::title(code, lang.tag()))
 }
 
 /// A word of the text report in a language; an unknown key gives an empty text.

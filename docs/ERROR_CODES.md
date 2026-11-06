@@ -54,7 +54,7 @@ Each table repeats the `REGISTRY` of a crate (`eh3d-phoenix-model` in `src/diagn
 | PHOENIX-BOARD-014 | Silkscreen text rotation is not a right angle | no longer raised: a silkscreen text may have any rotation; the code stays so that its number is not reused (in `src/silk.rs`) |
 | PHOENIX-BOARD-015 | Silkscreen text does not fit the coordinate range | a silkscreen text whose characters reach outside the checked coordinate range (in `src/silk.rs`) |
 | PHOENIX-BOARD-016 | Silkscreen text has characters without a glyph | a silkscreen text with characters that the built-in font does not have, drawn as boxes (a warning, in `src/silk.rs`) |
-| PHOENIX-BOARD-017 | Polygon has more points than the limit, its edges were not tested for crossing | a warning for an outline, a cutout or a zone with more points than `max_polygon_points` of `config/board.cfg` (`BoardLimits`, `Board::validate_with`; 10000 by default): the test of repeated points is made, the test of crossing edges, which takes time with the square of the number of points, is not |
+| PHOENIX-BOARD-017 | Polygon has more points than the limit, its edges were not tested for crossing | a warning for an outline, a cutout or a zone with more points than `max_polygon_points` of `config/board.cfg` (`BoardLimits`, `Board::validate_with`; 10000 by default): the test of repeated points is made, the test of crossing edges, which takes time with the square of the number of points, is not; `phoenix check` lists each such polygon as information, which never changes its exit code (`board_notes`) |
 
 The same titles in the eight languages of the suite (English, Spanish, German, French, Italian, Japanese, Chinese and European Portuguese), as the program prints them:
 

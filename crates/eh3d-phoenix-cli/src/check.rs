@@ -12,9 +12,9 @@ use std::time::Instant;
 use eh3d_phoenix_eagle_board::{read_board_with_limits, read_schematic_with_limits};
 use eh3d_phoenix_model::{DeterministicRandom, IdGenerator, Nm, ObjectId, StepClock};
 use eh3d_phoenix_rules::{
-    check_advanced, check_board, check_classes, check_connectivity, dfm_findings, report_csv,
-    report_html, to_sarif, AdvancedConfig, DfmProfile, Lang, NetClasses, Report, RuleFile,
-    RuleValues,
+    board_notes, check_advanced, check_board, check_classes, check_connectivity, dfm_findings,
+    report_csv, report_html, to_sarif, AdvancedConfig, DfmProfile, Lang, NetClasses, Report,
+    RuleFile, RuleValues,
 };
 
 /// Said when a KiCad board is checked without a file of limits.
@@ -50,8 +50,11 @@ phoenix connectivity [--rules FILE] [--limits FILE] [--json] [--csv FILE] [--htm
                 docs/DFM.md and config/dfm/example.cfg): its limits replace the rules of the board
                 and it also judges the copper layers, the size of the board, the largest drill and
                 the number of holes. The example profile is not verified against any maker
-  --limits FILE the limits of the reader of the EAGLE files (config/eagle_board.cfg), as for every
-                command; without it the defaults are used and the report is the same
+  --limits FILE the limits of the reader of the EAGLE files (config/eagle_board.cfg) and of the
+                checks of a board (config/board.cfg), as for every command; without it the defaults
+                are used and the report is the same. check tells, as information that never
+                changes the exit code, each polygon of the board with more points than
+                max_polygon_points (code PHOENIX-BOARD-017): its edges are not tested for crossing
   --csv FILE    also write the findings as a table of CSV, one row for each, with the stable keys of
                 the category and the severity and the title in the language of --lang
   --html FILE   also write the report as a page of HTML, grouped by category, with the headings in
@@ -351,6 +354,8 @@ pub(crate) fn check(args: &[&str], out: &mut dyn Write, err: &mut dyn Write) -> 
         };
         report.merge(check_advanced(&board, &config));
     }
+    // a polygon over max_polygon_points is told as information; nothing else changes
+    report.merge(board_notes(&board, &crate::limits::active().board));
     finish(&report, &options, started, out, err)
 }
 

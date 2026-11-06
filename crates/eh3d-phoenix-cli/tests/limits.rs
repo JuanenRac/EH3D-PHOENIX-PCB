@@ -127,3 +127,122 @@ fn an_unusable_limits_file_exits_2_and_names_the_problem() {
     assert_eq!(code, 2);
     assert!(err.contains("--limits needs a file"), "{err}");
 }
+
+#[test]
+fn check_tells_a_polygon_over_the_limit_as_information_and_changes_nothing_else() {
+    let dir = tempfile::tempdir().unwrap();
+    let brd = write(&dir, "b.brd", &board_with_three_openings());
+    let rules = write(&dir, "r.json", RULES);
+    let plain = call(&["check", "--rules", &rules, &brd]);
+    assert!(plain.0 < 2, "{}", plain.2);
+    assert!(!plain.1.contains("PHOENIX-BOARD-017"), "{}", plain.1);
+    // the outline and the three openings have four points each: at a limit of 4 nothing is told
+    let at = write(
+        &dir,
+        "at.cfg",
+        "max_polygon_points = 4
+",
+    );
+    assert_eq!(
+        call(&["check", "--limits", &at, "--rules", &rules, &brd]),
+        plain
+    );
+    // at a limit of 3 each of the four is told, in the order of their places, and the exit code
+    // is the one without the option
+    let low = write(
+        &dir,
+        "low.cfg",
+        "max_polygon_points = 3
+",
+    );
+    let (code, out, err) = call(&["check", "--limits", &low, "--rules", &rules, &brd]);
+    assert_eq!(
+        code, plain.0,
+        "{out}
+{err}"
+    );
+    let told: Vec<&str> = out
+        .lines()
+        .filter(|l| l.contains("PHOENIX-BOARD-017"))
+        .collect();
+    assert_eq!(told.len(), 4, "{out}");
+    for (line, place) in told
+        .iter()
+        .zip(["cutout 1", "cutout 2", "cutout 3", "the board"])
+    {
+        assert!(
+            line.starts_with("  [info] PHOENIX-BOARD-017 Polygon has more points"),
+            "{line}"
+        );
+        assert!(
+            line.ends_with(&format!(
+                ": {place} | 4 points are more than the limit max_polygon_points = 3"
+            )),
+            "{line}"
+        );
+    }
+    // the rest of the report is the same lines as without the option
+    let rest: Vec<&str> = out
+        .lines()
+        .filter(|l| {
+            !l.contains("PHOENIX-BOARD-017")
+                && !l.starts_with("Confirmed:")
+                && *l != "nothing found"
+        })
+        .collect();
+    let before: Vec<&str> = plain
+        .1
+        .lines()
+        .filter(|l| !l.starts_with("Confirmed:") && *l != "nothing found")
+        .collect();
+    assert_eq!(rest, before);
+    // the title is in the language asked
+    let (_, pt, _) = call(&[
+        "check", "--limits", &low, "--rules", &rules, "--lang", "pt", &brd,
+    ]);
+    assert!(
+        pt.contains("O polígono tem mais pontos do que o limite"),
+        "{pt}"
+    );
+    // JSON and SARIF carry the code with the severity information
+    let (_, json, _) = call(&["check", "--limits", &low, "--rules", &rules, "--json", &brd]);
+    assert_eq!(
+        json.matches("\"code\": \"PHOENIX-BOARD-017\"").count(),
+        4,
+        "{json}"
+    );
+    let (_, sarif, _) = call(&[
+        "check", "--limits", &low, "--rules", &rules, "--sarif", &brd,
+    ]);
+    assert_eq!(
+        sarif.matches("\"id\": \"PHOENIX-BOARD-017\"").count(),
+        1,
+        "{sarif}"
+    );
+    // CSV and HTML put it under the category other
+    let csv = dir.path().join("o.csv");
+    let html = dir.path().join("o.html");
+    let (code, _, err) = call(&[
+        "check",
+        "--limits",
+        &low,
+        "--rules",
+        &rules,
+        "--csv",
+        csv.to_str().unwrap(),
+        "--html",
+        html.to_str().unwrap(),
+        &brd,
+    ]);
+    assert_eq!(code, plain.0, "{err}");
+    let csv = std::fs::read_to_string(csv).unwrap();
+    assert_eq!(
+        csv.matches("confirmed,other,info,PHOENIX-BOARD-017,")
+            .count(),
+        4,
+        "{csv}"
+    );
+    assert!(std::fs::read_to_string(html)
+        .unwrap()
+        .contains("PHOENIX-BOARD-017"));
+}
