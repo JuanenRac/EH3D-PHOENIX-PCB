@@ -284,7 +284,7 @@ pub enum EditOp {
     },
     /// Replaces the outline of the board with the outer contour of a DXF drawing (`docs/DXF.md`):
     /// the lines and arcs on the layer are joined into closed contours, the largest outer one
-    /// becomes the outline and its cutouts are listed in the notes and not kept. All or nothing:
+    /// becomes the outline and the contours inside it become the cutouts of the outline. All or nothing:
     /// a drawing with no closed contour or with a contour that crosses itself is refused, and the
     /// design rules are checked before and after like for any other operation.
     OutlineFromDxf {

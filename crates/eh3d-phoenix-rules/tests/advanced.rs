@@ -134,6 +134,8 @@ fn component(b: &mut Board, at: (i64, i64), pads: Vec<PadSpec>) {
                 rotation: Udeg::ZERO,
                 drill: drill.map(nm),
                 layers: layers.into_iter().map(id).collect(),
+                roundness: 0,
+                plated: true,
             },
         );
         if let Some(net) = net {
@@ -910,4 +912,46 @@ fn the_text_is_in_eight_languages_and_the_sarif_layout_is_stable() {
     assert_eq!(value["results"][0]["location"]["at_nm"][0], 12 * MM);
     let json: Value = serde_json::from_str(&report.to_json()).unwrap();
     assert_eq!(json["schema"], "phoenix-drc-advanced/1");
+}
+
+#[test]
+fn the_edge_of_a_cutout_is_an_edge_of_the_board() {
+    let mut b = base();
+    let na = net(&mut b, 10, "A");
+    // a track 0.2 mm wide from x = 2 mm to x = 8 mm, so its end reaches x = 8.1 mm
+    track(
+        &mut b,
+        21,
+        na,
+        200_000,
+        vec![line((2 * MM, 10 * MM), (8 * MM, 10 * MM))],
+    );
+    let cfg = only(|c| {
+        c.copper_edge_level = Some(Severity::Error);
+        c.copper_edge_min_nm = 500_000;
+        c.outside_outline_level = Some(Severity::Error);
+    });
+    assert!(by_rule(&check_advanced(&b, &cfg), "copper_edge").is_empty());
+    // an opening from x = 8.5 mm to 12 mm: its edge is 8.5 - 8.1 = 0.4 mm from the copper
+    b.outline_cutouts = vec![vec![
+        pt(8_500_000, 8 * MM),
+        pt(12 * MM, 8 * MM),
+        pt(12 * MM, 12 * MM),
+        pt(8_500_000, 12 * MM),
+    ]];
+    let report = check_advanced(&b, &cfg);
+    let copper = by_rule(&report, "copper_edge");
+    assert_eq!(copper.len(), 1);
+    assert_eq!(copper[0].measured_nm, Some(400_000));
+    assert_eq!(copper[0].limit_nm, Some(500_000));
+    // a part with a pad in the opening is outside the board
+    component(
+        &mut b,
+        (10 * MM, 10 * MM),
+        vec![("1", (0, 0), round(500_000), None, vec![TOP], Some(na))],
+    );
+    let report = check_advanced(&b, &cfg);
+    let outside = by_rule(&report, "outside_outline");
+    assert_eq!(outside.len(), 1);
+    assert_eq!(outside[0].detail, "1 of 1 pads outside");
 }

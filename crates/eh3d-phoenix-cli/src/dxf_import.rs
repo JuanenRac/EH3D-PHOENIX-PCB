@@ -33,8 +33,8 @@ phoenix dxf-import <drawing.dxf> --board BOARD [--layer LAYER] [--join-tolerance
                 ASCII): lines, arcs, circles, polylines with bulges, splines (cut into straight
                 pieces, with a finding), blocks and units are read, the pieces are joined end to
                 end into closed contours, the largest outer contour becomes the outline of the
-                board and its cutouts are listed and not kept (the board holds its outline
-                only). What is not understood is listed, never dropped without a word. The
+                board and the contours inside it are kept as its cutouts (the outline and
+                the cutouts are replaced as one step). What is not understood is listed, never dropped without a word. The
                 operation is all or nothing and checked by the design rules before and after:
                 one that adds a rule error is refused unless --force. A dry run: nothing is
                 written unless --out names a new .json file (the board is never written over). A
@@ -327,6 +327,7 @@ pub(crate) fn dxf_import_command(args: &[&str], out: &mut dyn Write, err: &mut d
             "findings_omitted": omitted,
             "outline_before": before,
             "outline_after": after,
+            "outline_cutouts_after": edit.board().outline_cutouts.len(),
             "changed": outcome.changed,
             "drc": outcome.drc.to_value(),
             "rule_errors": rule_errors,

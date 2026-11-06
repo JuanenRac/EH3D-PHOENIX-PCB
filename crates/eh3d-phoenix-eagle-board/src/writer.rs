@@ -112,6 +112,13 @@ pub(crate) fn package(
             .filter(|(_, l)| pad.layers.contains(l) && numbers.contains_key(*l))
             .map(|(i, _)| i)
             .collect();
+        if let (true, Some(drill)) = (pad.is_npth(), pad.drill) {
+            // a hole that is not plated is a hole of the package, with no copper and no name
+            let mut attrs = at.clone();
+            attrs.push(("drill", decimal(drill.get())));
+            children.push(el("hole", attrs, Vec::new()));
+            continue;
+        }
         if let Some(drill) = pad.drill {
             let (shape, diameter) = match pad.shape {
                 PadShape::Circle { diameter } => ("round", diameter.get()),
@@ -167,7 +174,12 @@ pub(crate) fn package(
             }
             let layer = numbers[&copper[*first]];
             let (dx, dy, roundness) = match pad.shape {
-                PadShape::Rect { width, height } => (width.get(), height.get(), 0),
+                PadShape::Rect { width, height } => (
+                    width.get(),
+                    height.get(),
+                    // the roundness of EAGLE is a whole percent (100 is a pad with round ends)
+                    (u32::from(pad.roundness.min(1000)) + 5) / 10,
+                ),
                 PadShape::Circle { diameter } => (diameter.get(), diameter.get(), 100),
                 PadShape::Oblong { width, height } => (width.get(), height.get(), 100),
             };
@@ -299,6 +311,13 @@ pub fn write_board(board: &Board) -> Written {
                 ));
                 continue;
             };
+            if !z.cutouts.is_empty() {
+                diagnostics.push(codes::diagnostic(
+                    ITEM_SIMPLIFIED,
+                    Severity::Info,
+                    &format!("zone {zid}: its cutouts are not written"),
+                ));
+            }
             let vertices = z
                 .outline
                 .iter()
@@ -328,16 +347,14 @@ pub fn write_board(board: &Board) -> Written {
     }
 
     let mut plain = Vec::new();
-    let n = board.outline.len();
-    if n >= 3 {
+    // the outline and then each opening inside it, each a closed ring of wires on layer 20
+    for ring in std::iter::once(&board.outline).chain(board.outline_cutouts.iter()) {
+        let n = ring.len();
+        if n < 3 {
+            continue;
+        }
         for i in 0..n {
-            plain.push(wire(
-                board.outline[i],
-                board.outline[(i + 1) % n],
-                0,
-                20,
-                None,
-            ));
+            plain.push(wire(ring[i], ring[(i + 1) % n], 0, 20, None));
         }
     }
     for (sid, item) in &board.silkscreen {

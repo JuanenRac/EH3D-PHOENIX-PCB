@@ -167,12 +167,12 @@ pub fn fixed_items(board: &Board, layer: Id) -> Vec<Item> {
             edge: false,
         });
     }
-    if board.outline.len() >= 3 {
-        for (a, b) in board
-            .outline
-            .iter()
-            .zip(board.outline.iter().cycle().skip(1))
-        {
+    // the edge of the board: the outline and the cutouts inside it, each a closed ring
+    for ring in std::iter::once(&board.outline).chain(board.outline_cutouts.iter()) {
+        if ring.len() < 3 {
+            continue;
+        }
+        for (a, b) in ring.iter().zip(ring.iter().cycle().skip(1)) {
             out.push(Item {
                 a: vp(*a),
                 b: vp(*b),

@@ -146,6 +146,11 @@ pub enum Operation {
         /// The corners.
         outline: Vec<Point>,
     },
+    /// Replaces the interior cutouts of the board outline, each a closed polygon.
+    SetOutlineCutouts {
+        /// The cutouts.
+        cutouts: Vec<Vec<Point>>,
+    },
     /// Several operations that are applied and undone as one.
     Batch {
         /// The operations, in order.
@@ -414,6 +419,10 @@ impl Board {
                 // number of corners is not checked here; the planner of the editor checks it
                 let before = std::mem::replace(&mut self.outline, outline.clone());
                 Ok(Operation::SetOutline { outline: before })
+            }
+            Operation::SetOutlineCutouts { cutouts } => {
+                let before = std::mem::replace(&mut self.outline_cutouts, cutouts.clone());
+                Ok(Operation::SetOutlineCutouts { cutouts: before })
             }
             Operation::Batch { ops } => {
                 // All or nothing: on a failure everything applied so far is undone.

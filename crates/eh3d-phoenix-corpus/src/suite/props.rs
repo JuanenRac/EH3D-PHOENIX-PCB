@@ -141,6 +141,8 @@ pub fn random_board(seed: u64, max_components: u32) -> Board {
                 rotation: Udeg::ZERO,
                 drill: None,
                 layers: vec![top],
+                roundness: 0,
+                plated: true,
             },
         );
     }
@@ -164,6 +166,8 @@ pub fn random_board(seed: u64, max_components: u32) -> Board {
                 rotation: Udeg::ZERO,
                 drill: Some(nm(800_000)),
                 layers: vec![top, bottom],
+                roundness: 0,
+                plated: true,
             },
         );
     }

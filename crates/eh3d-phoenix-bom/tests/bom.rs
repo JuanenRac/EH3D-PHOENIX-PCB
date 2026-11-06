@@ -36,6 +36,11 @@ fn pad(drill: Option<i64>) -> Pad {
         rotation: Udeg::new(0).unwrap(),
         drill: drill.map(|d| Nm::new(d).unwrap()),
         layers: vec![id(1)],
+        roundn,
+        roundness: 0,
+        plated: true,
+        ess: 0,
+        plated: true,
     }
 }
 

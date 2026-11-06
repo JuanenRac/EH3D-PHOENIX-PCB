@@ -107,6 +107,21 @@ impl Board {
                 error(BAD_OUTLINE, format!("the board: {why}"));
             }
         }
+        for (zone_id, zone) in &self.zones {
+            for (i, cutout) in zone.cutouts.iter().enumerate() {
+                if let Some(why) = polygon_problem(cutout) {
+                    error(
+                        BAD_OUTLINE,
+                        format!("cutout {} of zone {zone_id}: {why}", i + 1),
+                    );
+                }
+            }
+        }
+        for (i, cutout) in self.outline_cutouts.iter().enumerate() {
+            if let Some(why) = polygon_problem(cutout) {
+                error(BAD_OUTLINE, format!("cutout {}: {why}", i + 1));
+            }
+        }
         let layer_check =
             |id: &Id, what: &str, error: &mut dyn FnMut(&'static str, String)| match self
                 .layers
@@ -147,6 +162,15 @@ impl Board {
                 };
                 if sizes.iter().any(|s| !positive(*s)) {
                     error(BAD_SIZE, format!("shape of pad {pad_id}"));
+                }
+                if pad.roundness > crate::model::ROUNDNESS_MAX {
+                    error(BAD_SIZE, format!("roundness of pad {pad_id}"));
+                }
+                if !pad.plated && pad.drill.is_none() {
+                    error(
+                        BAD_SIZE,
+                        format!("pad {pad_id} is not plated and has no drill"),
+                    );
                 }
             }
         }

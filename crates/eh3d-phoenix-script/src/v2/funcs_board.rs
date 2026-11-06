@@ -400,6 +400,7 @@ fn f_zone(i: &mut Interp<'_>, a: &[Value]) -> R {
             layer: layer_id,
             outline,
             clearance,
+            cutouts: Vec::new(),
         },
     })?;
     Ok(obj(ObjKind::Zone, id))

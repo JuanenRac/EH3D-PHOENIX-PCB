@@ -79,6 +79,10 @@ fn pads(board: &Board) -> Vec<PadInfo> {
             continue;
         };
         for (pid, pad) in &footprint.pads {
+            if pad.is_npth() {
+                // a hole that is not plated has no copper to keep apart from other copper
+                continue;
+            }
             let pad_ref = PadRef {
                 component: *cid,
                 pad: *pid,
@@ -408,15 +412,26 @@ impl Board {
         }
     }
 
+    /// The pieces of the board edge: the outline and the interior cutouts, each closed. A ring of
+    /// fewer than three points is not an edge.
+    fn edge_pieces(&self) -> Vec<(Point, Point)> {
+        let mut edges: Vec<(Point, Point)> = Vec::new();
+        for ring in std::iter::once(&self.outline).chain(self.outline_cutouts.iter()) {
+            let n = ring.len();
+            if n < 3 {
+                continue;
+            }
+            edges.extend((0..n).map(|i| (ring[i], ring[(i + 1) % n])));
+        }
+        edges
+    }
+
     fn edge_clearances(&self, clearance: Nm, all_pads: &[PadInfo], report: &mut RuleReport) {
-        let n = self.outline.len();
-        if n < 3 {
+        let c2 = 2 * i128::from(clearance.get());
+        let edges = self.edge_pieces();
+        if edges.is_empty() {
             return;
         }
-        let c2 = 2 * i128::from(clearance.get());
-        let edges: Vec<(Point, Point)> = (0..n)
-            .map(|i| (self.outline[i], self.outline[(i + 1) % n]))
-            .collect();
         for (tid, t) in &self.tracks {
             let reach = c2 + i128::from(t.width.get());
             let mut broken = false;
@@ -602,6 +617,8 @@ mod tests {
                     rotation: Udeg::ZERO,
                     drill: None,
                     layers: vec![top, mask],
+                    roundness: 0,
+                    plated: true,
                 },
             );
             pad_nets.push(PadNet {
@@ -808,6 +825,7 @@ mod tests {
                 layer: top,
                 outline: square(0, 0, 10_000_000),
                 clearance: nm(150_000),
+                cutouts: Vec::new(),
             },
         );
         b.zones.insert(
@@ -817,6 +835,7 @@ mod tests {
                 layer: top,
                 outline: square(20_000_000, 0, 5_000_000),
                 clearance: nm(300_000),
+                cutouts: Vec::new(),
             },
         );
         let r = b.check_rules(&rules("min_clearance = 0.2\n"));
@@ -1043,5 +1062,71 @@ mod tests {
         let n: i128 = 10_000_000_000_000_000_000;
         let r = isqrt_ceil(n);
         assert!(r * r >= n && (r - 1) * (r - 1) < n);
+    }
+
+    #[test]
+    fn copper_too_near_a_cutout_of_the_outline_is_found() {
+        // a pad 1 mm wide centred at (5, 5) mm in a board of 10 by 10 mm
+        let (mut b, ..) = board_with_pads(&[(5_000_000, 5_000_000, round(1_000_000))]);
+        b.outline = vec![
+            pt(0, 0),
+            pt(10_000_000, 0),
+            pt(10_000_000, 10_000_000),
+            pt(0, 10_000_000),
+        ];
+        assert_eq!(
+            counts(&b.check_rules(&rules("min_edge_clearance = 0.51\n"))),
+            (0, 0)
+        );
+        // a cutout from x = 6 mm to x = 8 mm: its edge is 0.5 mm from the edge of the pad
+        b.outline_cutouts = vec![vec![
+            pt(6_000_000, 4_000_000),
+            pt(8_000_000, 4_000_000),
+            pt(8_000_000, 6_000_000),
+            pt(6_000_000, 6_000_000),
+        ]];
+        assert_eq!(
+            counts(&b.check_rules(&rules("min_edge_clearance = 0.5\n"))),
+            (0, 0)
+        );
+        let r = b.check_rules(&rules("min_edge_clearance = 0.51\n"));
+        assert_eq!(counts(&r), (1, 0));
+        assert_eq!(r.confirmed[0].code.as_deref(), Some(EDGE_TOO_CLOSE));
+    }
+
+    #[test]
+    fn a_hole_that_is_not_plated_has_no_copper_and_no_ring() {
+        // two 1 mm pads 1.2 mm apart break a clearance of 0.21 mm
+        let (mut b, ..) =
+            board_with_pads(&[(0, 0, round(1_000_000)), (1_200_000, 0, round(1_000_000))]);
+        assert_eq!(
+            counts(&b.check_rules(&rules("min_clearance = 0.21\n"))),
+            (1, 0)
+        );
+        // the second one is a mounting hole of 0.8 mm: no copper, so nothing to keep apart
+        for pad in b.footprints.values_mut().flat_map(|f| f.pads.values_mut()) {
+            if pad.number == "2" {
+                pad.drill = Some(nm(800_000));
+                pad.plated = false;
+                assert!(pad.is_npth());
+            }
+        }
+        assert_eq!(
+            counts(&b.check_rules(&rules("min_clearance = 0.21\n"))),
+            (0, 0)
+        );
+        // a ring of 0.1 mm around a 0.8 mm drill in a 1 mm pad is too thin for 0.15 mm when the
+        // hole is plated and is not looked at when it is not
+        for pad in b.footprints.values_mut().flat_map(|f| f.pads.values_mut()) {
+            if pad.number == "1" {
+                pad.drill = Some(nm(800_000));
+            }
+        }
+        let ring = rules("min_annular_ring = 0.15\n");
+        assert_eq!(counts(&b.check_rules(&ring)), (1, 0));
+        for pad in b.footprints.values_mut().flat_map(|f| f.pads.values_mut()) {
+            pad.plated = false;
+        }
+        assert_eq!(counts(&b.check_rules(&ring)), (0, 0));
     }
 }

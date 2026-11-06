@@ -306,22 +306,19 @@ pub(crate) fn contact(a: &Prim, b: &Prim, tolerance: i128) -> Contact {
     }
 }
 
-/// The pieces of the outline of the board as items of no width.
+/// The pieces of the outline of the board, and of the openings inside it, as items of no width.
 pub(crate) fn outline_edges(board: &Board) -> Vec<Prim> {
-    let n = board.outline.len();
-    if n < 3 {
-        return Vec::new();
+    let mut out = Vec::new();
+    for ring in std::iter::once(&board.outline).chain(board.outline_cutouts.iter()) {
+        let n = ring.len();
+        if n < 3 {
+            continue;
+        }
+        out.extend(
+            (0..n).filter_map(|i| Prim::new(vec![(ring[i], ring[(i + 1) % n])], 0, 0, false)),
+        );
     }
-    (0..n)
-        .filter_map(|i| {
-            Prim::new(
-                vec![(board.outline[i], board.outline[(i + 1) % n])],
-                0,
-                0,
-                false,
-            )
-        })
-        .collect()
+    out
 }
 
 #[cfg(test)]

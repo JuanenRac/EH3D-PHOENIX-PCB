@@ -61,6 +61,8 @@ fn board() -> Board {
             rotation: Udeg::ZERO,
             drill: Some(Nm::new(800_000).unwrap()),
             layers: vec![top],
+            roundness: 0,
+            plated: true,
         },
     );
     b.footprints.insert(

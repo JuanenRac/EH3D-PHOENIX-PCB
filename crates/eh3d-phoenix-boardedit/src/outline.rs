@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! The operation `outline_from_dxf`: the outline of the board from the contours of a DXF drawing.
 //! The drawing is read and its lines and arcs are joined into closed contours (`eh3d-phoenix-dxf`),
-//! the largest outer contour becomes the outline and the cutouts are listed in the notes, since the
-//! board holds its outline only. The plan is one reversible operation of the board; the editor
+//! the largest outer contour becomes the outline and the cutouts inside it are kept as the cutouts
+//! of the board outline. The plan is one reversible operation of the board; the editor
 //! tries it on a copy and keeps it only if the design rules add no error, so it is all or nothing
 //! and one undo takes it back.
 
@@ -77,20 +77,41 @@ pub(crate) fn plan_outline(
         .map(|&(x, y)| Point::from_nm(x, y))
         .collect::<Result<Vec<Point>, _>>()
         .map_err(|e| geometry(e.to_string()))?;
+    let cutouts = found
+        .holes
+        .iter()
+        .map(|hole| {
+            hole.iter()
+                .map(|&(x, y)| Point::from_nm(x, y))
+                .collect::<Result<Vec<Point>, _>>()
+        })
+        .collect::<Result<Vec<Vec<Point>>, _>>()
+        .map_err(|e| geometry(e.to_string()))?;
+    let mut ops: Vec<Operation> = Vec::new();
     if outline == board.outline {
         notes.push("the outline is the one the board has".to_owned());
-        let mut plan = single(Operation::Batch { ops: Vec::new() });
-        plan.notes = notes;
-        return Ok(plan);
+    } else {
+        notes.push(format!(
+            "outline: {} corners, {} (it was {} corners, {})",
+            outline.len(),
+            size_text(&outline),
+            board.outline.len(),
+            size_text(&board.outline)
+        ));
+        ops.push(Operation::SetOutline { outline });
     }
-    notes.push(format!(
-        "outline: {} corners, {} (it was {} corners, {})",
-        outline.len(),
-        size_text(&outline),
-        board.outline.len(),
-        size_text(&board.outline)
-    ));
-    let mut plan = single(Operation::SetOutline { outline });
+    if cutouts != board.outline_cutouts {
+        notes.push(format!(
+            "cutouts: {} kept inside the outline (there were {})",
+            cutouts.len(),
+            board.outline_cutouts.len()
+        ));
+        ops.push(Operation::SetOutlineCutouts { cutouts });
+    }
+    let mut plan = match ops.len() {
+        1 => single(ops.remove(0)),
+        _ => single(Operation::Batch { ops }),
+    };
     plan.notes = notes;
     Ok(plan)
 }

@@ -123,6 +123,8 @@ fn component(b: &mut Board, at: (i64, i64), pads: Vec<PadSpec>) {
                 rotation: Udeg::ZERO,
                 drill: drill.map(nm),
                 layers: layers.into_iter().map(id).collect(),
+                roundness: 0,
+                plated: true,
             },
         );
         if let Some(net) = net {
@@ -493,6 +495,7 @@ fn silkscreen_over_a_pad_and_zone_rules_are_reported_by_their_own_rule() {
             layer: id(TOP),
             outline: square(1_000_000, 1_000_000, 4_000_000),
             clearance: nm(100_000),
+            cutouts: Vec::new(),
         },
     );
     b.zones.insert(
@@ -502,6 +505,7 @@ fn silkscreen_over_a_pad_and_zone_rules_are_reported_by_their_own_rule() {
             layer: id(TOP),
             outline: square(3_000_000, 3_000_000, 4_000_000),
             clearance: nm(300_000),
+            cutouts: Vec::new(),
         },
     );
     let wanted = RuleValues {
@@ -666,6 +670,7 @@ fn a_zone_joins_the_copper_of_its_own_net_and_not_that_of_other_nets() {
             layer: id(TOP),
             outline: outline.clone(),
             clearance: nm(200_000),
+            cutouts: Vec::new(),
         },
     );
     // a pour of net B does not join the tracks of net A
@@ -677,6 +682,7 @@ fn a_zone_joins_the_copper_of_its_own_net_and_not_that_of_other_nets() {
             layer: id(TOP),
             outline,
             clearance: nm(200_000),
+            cutouts: Vec::new(),
         },
     );
     assert!(opens(&b).is_empty());
@@ -791,6 +797,8 @@ fn board_for(parts: &[&str], assign: &[(&str, &str)]) -> Board {
                 rotation: Udeg::ZERO,
                 drill: None,
                 layers: vec![id(TOP)],
+                roundness: 0,
+                plated: true,
             },
         );
     }

@@ -197,7 +197,9 @@ pub(crate) fn near_segment_exact(
     Some(cmp(lhs, rhs))
 }
 
-pub(crate) fn point_in_polygon(p: Point, polygon: &[Point]) -> bool {
+/// Whether `p` is inside `polygon` by the even-odd rule, in exact integer arithmetic. A polygon
+/// of fewer than three points holds nothing.
+pub fn point_in_polygon(p: Point, polygon: &[Point]) -> bool {
     if polygon.len() < 3 {
         return false;
     }
@@ -575,6 +577,8 @@ mod tests {
                     rotation: Udeg::ZERO,
                     drill: None,
                     layers: vec![top],
+                    roundness: 0,
+                    plated: true,
                 },
             );
         }
@@ -750,6 +754,7 @@ mod tests {
                     pt(-2_000_000, 2_000_000),
                 ],
                 clearance: nm(200_000),
+                cutouts: Vec::new(),
             },
         );
         assert!(b.connectivity().is_fully_connected());

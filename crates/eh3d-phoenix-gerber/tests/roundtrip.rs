@@ -70,6 +70,8 @@ fn board() -> Board {
         rotation: Udeg::ZERO,
         drill: drill.map(nm),
         layers,
+        roundness: 0,
+        plated: true,
     };
     let mut pads = BTreeMap::new();
     pads.insert(
@@ -179,6 +181,7 @@ fn board() -> Board {
                 pt(29_000_000, 19_000_000),
             ],
             clearance: nm(200_000),
+            cutouts: Vec::new(),
         },
     );
     b

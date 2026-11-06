@@ -91,6 +91,8 @@ fn board() -> Board {
                 rotation: Udeg::ZERO,
                 drill: None,
                 layers: vec![],
+                roundness: 0,
+                plated: true,
             },
         );
     }

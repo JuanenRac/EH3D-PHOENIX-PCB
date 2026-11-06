@@ -644,6 +644,7 @@ pub fn poured_board(
                     layer: zone.layer,
                     outline,
                     clearance: zone.clearance,
+                    cutouts: Vec::new(),
                 },
             );
         }
@@ -868,6 +869,7 @@ fn add(
                 layer,
                 outline: outline.to_vec(),
                 clearance,
+                cutouts: Vec::new(),
             },
         },
         data,

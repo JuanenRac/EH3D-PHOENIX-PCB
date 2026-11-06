@@ -280,7 +280,7 @@ impl Board {
                         format!("pad {pid} of footprint {fid}: drill {} nm", drill.get()),
                     ));
                 }
-                if !is_off(rules.min_annular_ring) {
+                if !is_off(rules.min_annular_ring) && pad.plated {
                     let size = match pad.shape {
                         PadShape::Circle { diameter } => diameter.get(),
                         PadShape::Rect { width, height } | PadShape::Oblong { width, height } => {

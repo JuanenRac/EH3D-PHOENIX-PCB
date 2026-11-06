@@ -112,6 +112,8 @@ fn add_pads(b: &mut Board, pads: &[PadSpec]) {
                 rotation: Udeg::ZERO,
                 drill: None,
                 layers: p.layers.iter().map(|l| id(*l)).collect(),
+                roundness: 0,
+                plated: true,
             },
         );
         if let Some(net) = p.net {

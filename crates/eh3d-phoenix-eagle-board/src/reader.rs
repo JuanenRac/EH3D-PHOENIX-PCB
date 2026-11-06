@@ -7,6 +7,7 @@
 use std::collections::BTreeMap;
 
 use eh3d_diagnostic::{Diagnostic, Severity};
+use eh3d_phoenix_board::connectivity::point_in_polygon;
 use eh3d_phoenix_board::{
     Board, Component, Footprint, Id, Layer, LayerKind, Net, Pad, PadNet, PadShape, Segment, Side,
     SilkItem, Track, Via, Zone,
@@ -199,6 +200,8 @@ pub fn read_board(text: &str, new_id: &mut dyn FnMut() -> Id) -> Result<ReadBoar
                                     rotation: rot,
                                     drill: Some(drill),
                                     layers: copper_ids.clone(),
+                                    roundness: 0,
+                                    plated: true,
                                 },
                             );
                         }
@@ -208,6 +211,7 @@ pub fn read_board(text: &str, new_id: &mut dyn FnMut() -> Id) -> Result<ReadBoar
                                 continue;
                             };
                             let roundness = item.attr("roundness").unwrap_or("0").trim();
+                            let mut corner_roundness: u16 = 0;
                             let shape = match roundness {
                                 "0" => PadShape::Rect {
                                     width: dx,
@@ -219,11 +223,20 @@ pub fn read_board(text: &str, new_id: &mut dyn FnMut() -> Id) -> Result<ReadBoar
                                     height: dy,
                                 },
                                 other => {
-                                    diagnostics.push(codes::diagnostic(
-                                        ITEM_SIMPLIFIED,
-                                        Severity::Info,
-                                        &format!("pad {number}: the roundness {other} is read as a rectangle"),
-                                    ));
+                                    if let Some(per_mille) = other
+                                        .parse::<u16>()
+                                        .ok()
+                                        .filter(|p| (1..100).contains(p))
+                                        .map(|p| p * 10)
+                                    {
+                                        corner_roundness = per_mille;
+                                    } else {
+                                        diagnostics.push(codes::diagnostic(
+                                            ITEM_SIMPLIFIED,
+                                            Severity::Info,
+                                            &format!("pad {number}: the roundness {other} is read as a rectangle"),
+                                        ));
+                                    }
                                     PadShape::Rect {
                                         width: dx,
                                         height: dy,
@@ -245,6 +258,28 @@ pub fn read_board(text: &str, new_id: &mut dyn FnMut() -> Id) -> Result<ReadBoar
                                     rotation: rot,
                                     drill: None,
                                     layers,
+                                    roundness: corner_roundness,
+                                    plated: true,
+                                },
+                            );
+                        }
+                        "hole" => {
+                            // a hole of the package that is not plated: no copper, no pad number
+                            let Some(drill) = nm(item, "drill") else {
+                                note("hole", &mut notes);
+                                continue;
+                            };
+                            pads.insert(
+                                new_id(),
+                                Pad {
+                                    number: String::new(),
+                                    shape: PadShape::Circle { diameter: drill },
+                                    at,
+                                    rotation: rot,
+                                    drill: Some(drill),
+                                    layers: Vec::new(),
+                                    roundness: 0,
+                                    plated: false,
                                 },
                             );
                         }
@@ -389,6 +424,7 @@ pub fn read_board(text: &str, new_id: &mut dyn FnMut() -> Id) -> Result<ReadBoar
                                         layer: *layer,
                                         outline,
                                         clearance: nm(item, "isolate").unwrap_or(Nm::ZERO),
+                                        cutouts: Vec::new(),
                                     },
                                 );
                             }
@@ -435,18 +471,67 @@ pub fn read_board(text: &str, new_id: &mut dyn FnMut() -> Id) -> Result<ReadBoar
                 _ => note("wire", &mut notes),
             }
         }
-        let ring = !outline_wires.is_empty()
-            && outline_wires.iter().enumerate().all(|(i, w)| {
-                matches!(w.segment, Segment::Line { .. })
-                    && w.segment.end()
-                        == outline_wires[(i + 1) % outline_wires.len()].segment.start()
-            });
-        if ring {
-            board.outline = outline_wires.iter().map(|w| w.segment.start()).collect();
-        } else if !outline_wires.is_empty() {
-            for _ in &outline_wires {
-                note("wire", &mut notes);
+        // the wires of the outline layer that follow each other and close are one ring; the
+        // largest ring is the outline and the rings inside it are openings of the board
+        let mut groups: Vec<Vec<usize>> = Vec::new();
+        let mut current: Vec<usize> = Vec::new();
+        for (i, wire) in outline_wires.iter().enumerate() {
+            if let Some(&last) = current.last() {
+                if outline_wires[last].segment.end() != wire.segment.start() {
+                    groups.push(std::mem::take(&mut current));
+                }
             }
+            current.push(i);
+            if wire.segment.end() == outline_wires[current[0]].segment.start() {
+                groups.push(std::mem::take(&mut current));
+            }
+        }
+        if !current.is_empty() {
+            groups.push(current);
+        }
+        let mut rings: Vec<Vec<Point>> = Vec::new();
+        for group in &groups {
+            let closed = group
+                .iter()
+                .all(|&i| matches!(outline_wires[i].segment, Segment::Line { .. }))
+                && outline_wires[group[group.len() - 1]].segment.end()
+                    == outline_wires[group[0]].segment.start();
+            if closed {
+                rings.push(
+                    group
+                        .iter()
+                        .map(|&i| outline_wires[i].segment.start())
+                        .collect(),
+                );
+            } else {
+                for _ in group {
+                    note("wire", &mut notes);
+                }
+            }
+        }
+        let doubled_area = |ring: &[Point]| -> i128 {
+            let mut sum: i128 = 0;
+            for (i, a) in ring.iter().enumerate() {
+                let b = ring[(i + 1) % ring.len()];
+                sum += i128::from(a.x_nm.get()) * i128::from(b.y_nm.get())
+                    - i128::from(b.x_nm.get()) * i128::from(a.y_nm.get());
+            }
+            sum.abs()
+        };
+        if let Some(largest) =
+            (0..rings.len()).max_by_key(|&i| (doubled_area(&rings[i]), usize::MAX - i))
+        {
+            let outline = rings.remove(largest);
+            for ring in rings {
+                if ring.len() >= 3 && ring.iter().all(|p| point_in_polygon(*p, &outline)) {
+                    board.outline_cutouts.push(ring);
+                } else {
+                    for _ in &ring {
+                        note("wire", &mut notes);
+                    }
+                }
+            }
+            board.outline = outline;
         }
         for (layer, width, path) in runs(silk_wires) {
             if let Some(layer) = layer_ids.get(&layer) {

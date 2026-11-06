@@ -78,6 +78,8 @@ fn fixture(second_rotation: i64) -> Fixture {
             rotation: Udeg::ZERO,
             drill: Some(nm(800_000)),
             layers: vec![top, bottom, mask],
+            roundness: 0,
+            plated: true,
         },
     );
     pads.insert(
@@ -92,6 +94,8 @@ fn fixture(second_rotation: i64) -> Fixture {
             rotation: Udeg::ZERO,
             drill: None,
             layers: vec![top, mask],
+            roundness: 0,
+            plated: true,
         },
     );
     b.footprints.insert(
@@ -167,6 +171,7 @@ fn fixture(second_rotation: i64) -> Fixture {
                 pt(29_000_000, 19_000_000),
             ],
             clearance: nm(200_000),
+            cutouts: Vec::new(),
         },
     );
     Fixture {

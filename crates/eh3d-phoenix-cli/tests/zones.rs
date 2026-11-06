@@ -64,6 +64,7 @@ fn board() -> Board {
                 pt(MM, 19 * MM),
             ],
             clearance: Nm::new(200_000).unwrap(),
+            cutouts: Vec::new(),
         },
     );
     b.vias.insert(

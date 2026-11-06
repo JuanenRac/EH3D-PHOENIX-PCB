@@ -517,6 +517,8 @@ pub fn to_operation(
                         rotation: Udeg::ZERO,
                         drill: None,
                         layers: vec![signal_layer],
+                        roundness: 0,
+                        plated: true,
                     },
                 );
             }
@@ -574,6 +576,7 @@ pub fn to_operation(
                 layer: layer_of(poly.level),
                 outline,
                 clearance,
+                cutouts: Vec::new(),
             },
         });
     }

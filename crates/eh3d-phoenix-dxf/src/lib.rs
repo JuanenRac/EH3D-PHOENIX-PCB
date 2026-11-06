@@ -19,8 +19,8 @@
 //!
 //! **State: prototype.** It has been tried on files written by the tests and by this crate, and
 //! no CAD program has opened a file it writes. An ellipse, a hatch, a dimension, a text of the
-//! drawing, a mesh and an array of inserts are not understood and are listed; the board holds
-//! its outline only, so the cutouts of a drawing are listed and not kept.
+//! drawing, a mesh and an array of inserts are not understood and are listed; the cutouts of a
+//! drawing are kept by the board as the cutouts of its outline.
 
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]

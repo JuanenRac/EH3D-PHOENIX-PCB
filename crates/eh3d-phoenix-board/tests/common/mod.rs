@@ -166,6 +166,8 @@ impl Gen {
                         rotation: Udeg::new(self.rng.range(0, 359) * 1_000_000).unwrap(),
                         drill,
                         layers: vec![top, bottom],
+                        roundness: 0,
+                        plated: true,
                     },
                 );
             }
@@ -255,6 +257,7 @@ impl Gen {
                     Point::from_nm(1_000_000, 1_000_000).unwrap(),
                 ],
                 clearance: self.nm(100_000, 300_000),
+                cutouts: Vec::new(),
             },
         );
         for i in 0..parts / 2 + 1 {

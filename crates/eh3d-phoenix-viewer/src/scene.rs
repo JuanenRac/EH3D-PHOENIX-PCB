@@ -508,18 +508,23 @@ impl Scene {
         // the outline
         if board.outline.len() >= 2 {
             let item = b.item(ItemKind::Outline, "outline", None);
-            b.push(
-                Shape::Polygon {
-                    points: board.outline.iter().map(|p| pt(*p)).collect(),
-                },
-                Paint {
-                    width: settings.outline_width_mm,
-                    filled: false,
-                    layer: outline_layer,
-                    net: None,
-                    item,
-                },
-            );
+            // the outline, and then every opening inside it with the same look
+            for ring in std::iter::once(&board.outline)
+                .chain(board.outline_cutouts.iter().filter(|c| c.len() >= 3))
+            {
+                b.push(
+                    Shape::Polygon {
+                        points: ring.iter().map(|p| pt(*p)).collect(),
+                    },
+                    Paint {
+                        width: settings.outline_width_mm,
+                        filled: false,
+                        layer: outline_layer,
+                        net: None,
+                        item,
+                    },
+                );
+            }
         }
 
         // zones

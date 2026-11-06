@@ -36,6 +36,11 @@ fn pad(number: &str, shape: PadShape, at: Point, drill: Option<i64>, layers: Vec
         rotation: Udeg::ZERO,
         drill: drill.map(nm),
         layers,
+        roundn,
+        roundness: 0,
+        plated: true,
+        ess: 0,
+        plated: true,
     }
 }
 
@@ -250,6 +255,7 @@ fn fixture() -> Board {
                 pt(29_000_000, 19_000_000),
             ],
             clearance: nm(200_000),
+            cutouts: Vec::new(),
         },
     );
     b

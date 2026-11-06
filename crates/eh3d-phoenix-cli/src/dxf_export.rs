@@ -194,7 +194,7 @@ fn pad_outline(drawing: &mut Drawing, layer: &str, shape: &PadShape, centre: P, 
     }
 }
 
-/// The drawing of a board: the outline, the drilled holes, the outlines of the pads and, if asked,
+/// The drawing of a board: the outline and its interior cutouts, the drilled holes, the outlines of the pads and, if asked,
 /// the silkscreen.
 pub(crate) fn board_drawing(board: &Board, settings: &DxfSettings, silk: bool) -> Drawing {
     let mut d = Drawing::new();
@@ -204,6 +204,13 @@ pub(crate) fn board_drawing(board: &Board, settings: &DxfSettings, silk: bool) -
         .map(|p| (p.x_nm.get(), p.y_nm.get()))
         .collect();
     d.polygon(&settings.layer_outline, &outline);
+    for cutout in board.outline_cutouts.iter().filter(|c| c.len() >= 3) {
+        let ring: Vec<P> = cutout
+            .iter()
+            .map(|p| (p.x_nm.get(), p.y_nm.get()))
+            .collect();
+        d.polygon(&settings.layer_outline, &ring);
+    }
     for via in board.vias.values() {
         let radius = via.drill.get() / 2;
         if radius > 0 {
@@ -558,6 +565,8 @@ mod tests {
                     rotation: Udeg::ZERO,
                     drill: drill.map(|d| Nm::new(d).unwrap()),
                     layers: vec![top],
+                    roundness: 0,
+                    plated: true,
                 },
             );
         };

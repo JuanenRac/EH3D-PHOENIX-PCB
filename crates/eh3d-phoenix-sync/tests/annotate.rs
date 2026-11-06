@@ -85,6 +85,8 @@ impl Fx {
                     rotation: Udeg::ZERO,
                     drill: None,
                     layers: vec![],
+                    roundness: 0,
+                    plated: true,
                 },
             );
             ids.push(pid);

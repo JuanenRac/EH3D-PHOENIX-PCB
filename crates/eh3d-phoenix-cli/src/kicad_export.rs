@@ -386,6 +386,8 @@ mod tests {
                 rotation: Udeg::ZERO,
                 drill: None,
                 layers: vec![id(1)],
+                roundness: 0,
+                plated: true,
             },
         );
         b.footprints.insert(

@@ -34,7 +34,7 @@ pub const DUPLICATE_DROPPED: &str = "PHOENIX-DXF-012";
 pub const CONTOUR_CROSSES: &str = "PHOENIX-DXF-013";
 /// No closed contour was found.
 pub const NO_CONTOUR: &str = "PHOENIX-DXF-014";
-/// A cutout is not kept by the board.
+/// Cutouts inside the outline (kept by the board).
 pub const CUTOUT_NOT_KEPT: &str = "PHOENIX-DXF-015";
 /// There is more than one outer contour.
 pub const SEVERAL_OUTER: &str = "PHOENIX-DXF-016";
@@ -233,14 +233,14 @@ pub const TITLES: &[(&str, [&str; 8])] = &[
     (
         CUTOUT_NOT_KEPT,
         [
-            "Cutout is not kept by the board",
-            "La placa no conserva el recorte",
-            "Die Platine behält den Ausschnitt nicht",
-            "La carte ne conserve pas la découpe",
-            "La scheda non conserva il ritaglio",
-            "切り欠きは基板に保持されません",
-            "电路板不保留该开孔",
-            "A placa não guarda o recorte",
+            "Cutouts inside the outline",
+            "Recortes dentro del contorno",
+            "Ausschnitte innerhalb des Umrisses",
+            "Découpes à l'intérieur du contour",
+            "Ritagli all'interno del contorno",
+            "外形の内側の切り欠き",
+            "轮廓内部的开孔",
+            "Recortes dentro do contorno",
         ],
     ),
     (

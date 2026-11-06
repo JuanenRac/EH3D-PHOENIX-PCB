@@ -58,6 +58,12 @@ pub fn signature(board: &Board) -> Vec<String> {
                 .join(" ")
         ));
     }
+    for cutout in &board.outline_cutouts {
+        lines.push(format!(
+            "outline cutout {}",
+            cutout.iter().map(|p| pt(*p)).collect::<Vec<_>>().join(" ")
+        ));
+    }
     for fp in board.footprints.values() {
         lines.push(format!("footprint {}", fp.name));
         for pad in fp.pads.values() {
@@ -69,15 +75,23 @@ pub fn signature(board: &Board) -> Vec<String> {
                     .find(|l| pad.layers.contains(l))
                     .map_or("none".to_owned(), key)
             };
+            let mut extra = String::new();
+            if pad.roundness > 0 {
+                extra.push_str(&format!(" round {}", (u32::from(pad.roundness) + 5) / 10));
+            }
+            if !pad.plated {
+                extra.push_str(" npth");
+            }
             lines.push(format!(
-                "pad {} {} {} at {} rot {} drill {} on {}",
+                "pad {} {} {} at {} rot {} drill {} on {}{}",
                 fp.name,
                 pad.number,
                 shape(pad.shape),
                 pt(pad.at),
                 pad.rotation.normalised().get(),
                 pad.drill.map_or(-1, |d| d.get()),
-                layers
+                layers,
+                extra
             ));
         }
     }
@@ -301,6 +315,8 @@ mod tests {
                 rotation: Udeg::ZERO,
                 drill: None,
                 layers: vec![top],
+                roundness: 0,
+                plated: true,
             },
         );
         pads.insert(
@@ -315,6 +331,8 @@ mod tests {
                 rotation: Udeg::new(45_500_000).unwrap(),
                 drill: None,
                 layers: vec![bottom],
+                roundness: 0,
+                plated: true,
             },
         );
         b.footprints.insert(
@@ -336,6 +354,8 @@ mod tests {
                 rotation: Udeg::ZERO,
                 drill: Some(nm(800_000)),
                 layers: vec![top, inner, bottom],
+                roundness: 0,
+                plated: true,
             },
         );
         pads.insert(
@@ -350,6 +370,8 @@ mod tests {
                 rotation: Udeg::ZERO,
                 drill: Some(nm(900_000)),
                 layers: vec![top, inner, bottom],
+                roundness: 0,
+                plated: true,
             },
         );
         b.footprints.insert(
@@ -437,6 +459,7 @@ mod tests {
                     p(shift + 9_000_000, 5_000_000),
                 ],
                 clearance: nm(300_000),
+                cutouts: Vec::new(),
             },
         );
         b.silkscreen.insert(
@@ -489,6 +512,70 @@ mod tests {
             .any(|d| d.code.as_deref() == Some(crate::ITEM_SIMPLIFIED)));
         // a second writing of the same board is the same text
         assert_eq!(write_board(&b).text, r.text);
+    }
+
+    #[test]
+    fn cutouts_rounded_pads_and_holes_that_are_not_plated_come_back_identical() {
+        let mut b = board(0, 0);
+        // an opening inside the outline of 30 by 20 mm
+        b.outline_cutouts = vec![vec![
+            p(20_000_000, 5_000_000),
+            p(26_000_000, 5_000_000),
+            p(26_000_000, 9_000_000),
+            p(20_000_000, 9_000_000),
+        ]];
+        // a surface pad with corners rounded by a quarter of the shorter side (EAGLE: 50 %) and a
+        // hole of the package that is not plated (no name, no copper)
+        let footprint = b.footprints.get_mut(&id(20)).unwrap();
+        footprint.pads.insert(
+            id(900),
+            Pad {
+                number: "3".into(),
+                shape: PadShape::Rect {
+                    width: nm(900_000),
+                    height: nm(1_300_000),
+                },
+                at: p(0, 2_000_000),
+                rotation: Udeg::ZERO,
+                drill: None,
+                layers: vec![id(1)],
+                roundness: 500,
+                plated: true,
+            },
+        );
+        footprint.pads.insert(
+            id(901),
+            Pad {
+                number: String::new(),
+                shape: PadShape::Circle {
+                    diameter: nm(2_000_000),
+                },
+                at: p(0, -2_000_000),
+                rotation: Udeg::ZERO,
+                drill: Some(nm(2_000_000)),
+                layers: Vec::new(),
+                roundness: 0,
+                plated: false,
+            },
+        );
+        assert!(b.is_consistent(), "{:?}", b.validate());
+        let r = round_trip(&b, &mut ids()).unwrap();
+        assert!(
+            r.identical,
+            "only in the original: {:#?}\nonly in the copy: {:#?}",
+            r.only_in_original, r.only_in_copy
+        );
+        assert!(r.text.contains("<hole"), "{}", r.text);
+        assert!(r.text.contains("roundness=\"50\""), "{}", r.text);
+        // what was read has the opening
+        let read = crate::reader::read_board(&r.text, &mut ids()).unwrap();
+        assert_eq!(read.board.outline_cutouts.len(), 1);
+        assert_eq!(read.board.outline.len(), 4);
+        // and the signature tells the openings, the roundness and the hole apart
+        let sig = signature(&b).join("\n");
+        assert!(sig.contains("outline cutout "), "{sig}");
+        assert!(sig.contains(" round 50"), "{sig}");
+        assert!(sig.contains(" npth"), "{sig}");
     }
 
     #[test]

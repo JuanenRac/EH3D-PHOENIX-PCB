@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! Tests of the operation `outline_from_dxf`: the outline from the contour of a drawing, the cutouts
-//! listed and not kept, a drawing that is refused, the rules checked, undo and redo.
+//! kept inside it, a drawing that is refused, the rules checked, undo and redo.
 
 use eh3d_phoenix_dxf::{write_dxf, Drawing};
 use eh3d_phoenix_model::Point;
@@ -76,16 +76,55 @@ fn the_outline_is_taken_from_the_layer_and_one_undo_gives_the_old_one_back() {
 }
 
 #[test]
-fn a_drawing_with_cutouts_gives_the_outline_and_lists_the_cutouts() {
+fn a_drawing_with_cutouts_gives_the_outline_and_keeps_the_cutouts() {
     let mut e = editor();
+    let before = e.board().to_bytes().unwrap();
     let mut drawing = rectangle("EDGE", 40, 30);
     drawing.circle("EDGE", (20 * MM, 20 * MM), 2 * MM);
+    drawing.polygon(
+        "EDGE",
+        &[
+            (30 * MM, 5 * MM),
+            (36 * MM, 5 * MM),
+            (36 * MM, 8 * MM),
+            (30 * MM, 8 * MM),
+        ],
+    );
     let outcome = e.apply(&from(&drawing, None)).unwrap();
     assert_eq!(e.board().outline.len(), 4);
     assert!(outcome
         .notes
         .iter()
-        .any(|n| n.contains("PHOENIX-DXF-015") && n.contains("1 cutouts")));
+        .any(|n| n.contains("PHOENIX-DXF-015") && n.contains("2 cutouts")));
+    assert!(outcome
+        .notes
+        .iter()
+        .any(|n| n == "cutouts: 2 kept inside the outline (there were 0)"));
+    // two cutouts, the circle (largest first, about 12.57 mm2) and the rectangle (18 mm2)
+    // the rectangle is larger: 6 by 3 mm
+    let cutouts = &e.board().outline_cutouts;
+    assert_eq!(cutouts.len(), 2);
+    assert_eq!(cutouts[0].len(), 4);
+    let xs: Vec<i64> = cutouts[0].iter().map(|p| p.x_nm.get()).collect();
+    assert_eq!(
+        (xs.iter().min(), xs.iter().max()),
+        (Some(&(30 * MM)), Some(&(36 * MM)))
+    );
+    // the circle is cut into straight pieces, all of them inside the box of the circle
+    assert!(cutouts[1].len() >= 8);
+    assert!(cutouts[1].iter().all(|p| {
+        (p.x_nm.get() - 20 * MM).abs() <= 2 * MM && (p.y_nm.get() - 20 * MM).abs() <= 2 * MM
+    }));
+    assert!(
+        e.board().validate().is_empty(),
+        "{:?}",
+        e.board().validate()
+    );
+    // one undo gives the board back as it was, the outline and the cutouts together
+    assert!(e.undo());
+    assert_eq!(e.board().to_bytes().unwrap(), before);
+    assert!(e.redo());
+    assert_eq!(e.board().outline_cutouts.len(), 2);
 }
 
 #[test]

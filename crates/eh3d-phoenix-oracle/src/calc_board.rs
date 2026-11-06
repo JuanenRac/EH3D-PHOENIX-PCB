@@ -160,6 +160,7 @@ fn zone_area(i: &Inputs) -> Result<f64, OracleError> {
                 point(low, high)?,
             ],
             clearance: Nm::new(clearance).map_err(model)?,
+            cutouts: Vec::new(),
         },
     );
     if track_width > 0.0 {

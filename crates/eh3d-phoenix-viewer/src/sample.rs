@@ -91,6 +91,8 @@ pub fn board() -> Board {
             rotation: Udeg::ZERO,
             drill: None,
             layers: vec![top, mask],
+            roundness: 0,
+            plated: true,
         },
     );
     pads.insert(
@@ -102,6 +104,8 @@ pub fn board() -> Board {
             rotation: Udeg::ZERO,
             drill: Some(nm(0.8)),
             layers: vec![top, bottom, mask],
+            roundness: 0,
+            plated: true,
         },
     );
     board.footprints.insert(
@@ -183,6 +187,7 @@ pub fn board() -> Board {
                 point(2.0, 18.0),
             ],
             clearance: nm(0.3),
+            cutouts: Vec::new(),
         },
     );
     board.silkscreen.insert(

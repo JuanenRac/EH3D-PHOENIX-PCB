@@ -440,6 +440,23 @@ pub fn export(
         2,
         &format!("(boundary (path pcb 0{}))", polygon(&board.outline)),
     );
+    // an opening inside the board is a keep-out on every layer
+    for (i, cutout) in board
+        .outline_cutouts
+        .iter()
+        .filter(|c| c.len() >= 3)
+        .enumerate()
+    {
+        push(
+            &mut out,
+            2,
+            &format!(
+                "(keepout \"cutout{}\" (polygon pcb 0{}))",
+                i + 1,
+                polygon(cutout)
+            ),
+        );
+    }
     for name in vias.keys() {
         push(&mut out, 2, &format!("(via {})", word(name)));
     }

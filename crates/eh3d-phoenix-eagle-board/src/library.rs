@@ -296,6 +296,8 @@ mod tests {
                     rotation: Udeg::ZERO,
                     drill: None,
                     layers: vec![top],
+                    roundness: 0,
+                    plated: true,
                 },
             );
         }

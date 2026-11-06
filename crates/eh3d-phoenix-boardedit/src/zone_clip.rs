@@ -454,6 +454,7 @@ pub(crate) fn plan_paste(
                 layer,
                 outline,
                 clearance: nm(z.clearance_nm)?,
+                cutouts: Vec::new(),
             },
         });
     }

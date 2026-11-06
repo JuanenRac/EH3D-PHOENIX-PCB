@@ -96,6 +96,56 @@ pub struct Pad {
     pub drill: Option<Nm>,
     /// The layers it appears on.
     pub layers: Vec<Id>,
+    /// How round the corners of a rectangular pad are: the radius of a corner is this many
+    /// two-thousandths of the shorter side, so 0 is square and 1000 is a pad with fully round
+    /// ends (a radius of half the shorter side). Only a rectangle uses it. Not written when 0; a
+    /// board made before it existed reads as before.
+    #[serde(default, skip_serializing_if = "is_zero_u16")]
+    pub roundness: u16,
+    /// Whether the hole of the pad is plated. A hole that is not plated (a mounting hole) has no
+    /// copper and no annular ring. Not written when true; a board made before it existed reads
+    /// as before, with every hole plated.
+    #[serde(default = "plated_default", skip_serializing_if = "is_true")]
+    pub plated: bool,
+}
+
+fn is_zero_u16(v: &u16) -> bool {
+    *v == 0
+}
+
+fn plated_default() -> bool {
+    true
+}
+
+fn is_true(v: &bool) -> bool {
+    *v
+}
+
+/// The largest value of [`Pad::roundness`].
+pub const ROUNDNESS_MAX: u16 = 1000;
+
+impl Pad {
+    /// The radius of the round corners of the pad in nanometres, `None` for a pad that is not a
+    /// rectangle or has square corners.
+    pub fn corner_radius_nm(&self) -> Option<i64> {
+        if self.roundness == 0 {
+            return None;
+        }
+        match self.shape {
+            PadShape::Rect { width, height } => {
+                let shorter = i128::from(width.get().min(height.get()));
+                let r = shorter * i128::from(self.roundness.min(ROUNDNESS_MAX)) / 2000;
+                i64::try_from(r).ok().filter(|r| *r > 0)
+            }
+            _ => None,
+        }
+    }
+
+    /// Whether the pad is a hole that is not plated (a mounting hole): it has a drill and is not
+    /// plated. It has no copper and no annular ring, whatever its shape and layers say.
+    pub fn is_npth(&self) -> bool {
+        self.drill.is_some() && !self.plated
+    }
 }
 
 /// A footprint: a named set of pads.
@@ -262,6 +312,11 @@ pub struct Zone {
     pub outline: Vec<Point>,
     /// Clearance to other copper.
     pub clearance: Nm,
+    /// Holes in the pour: closed polygons inside the outline that the copper keeps away from.
+    /// The Gerber files write each as a region of clear polarity. Not written when empty; a board
+    /// made before it existed reads as before.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub cutouts: Vec<Vec<Point>>,
 }
 
 /// The whole board.
@@ -272,6 +327,10 @@ pub struct Board {
     pub name: String,
     /// The board outline, a closed polygon.
     pub outline: Vec<Point>,
+    /// The openings inside the outline (cutouts and interior slots), each a closed polygon. Not
+    /// written when empty; a board made before it existed reads as before.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub outline_cutouts: Vec<Vec<Point>>,
     /// The layers, by id.
     pub layers: BTreeMap<Id, Layer>,
     /// The copper layers from the top of the board to the bottom. Empty when the order is not

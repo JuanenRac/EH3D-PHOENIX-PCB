@@ -90,6 +90,8 @@ fn board() -> (Board, Ids) {
                 rotation: Udeg::ZERO,
                 drill: None,
                 layers: vec![ids.top],
+                roundness: 0,
+                plated: true,
             },
         );
     }

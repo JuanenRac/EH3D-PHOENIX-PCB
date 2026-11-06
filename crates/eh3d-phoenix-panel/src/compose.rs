@@ -230,6 +230,8 @@ fn plain_pad(
         rotation: Udeg::ZERO,
         drill: drill.map(nm).transpose()?,
         layers,
+        roundness: 0,
+        plated: true,
     };
     Ok((ids.make()?, pad))
 }
@@ -473,6 +475,8 @@ pub fn compose(
                                 rotation: xf.pad_angle(pad.rotation)?,
                                 drill: pad.drill,
                                 layers: on,
+                                roundness: 0,
+                                plated: true,
                             },
                         );
                     }
@@ -561,6 +565,7 @@ pub fn compose(
                     layer: layers.need(copy.board, copy.mirror, zone.layer)?,
                     outline,
                     clearance: zone.clearance,
+                    cutouts: Vec::new(),
                 },
             );
         }
@@ -727,6 +732,8 @@ mod tests {
             rotation: Udeg::ZERO,
             drill: drill.map(|d| Nm::new(d).unwrap()),
             layers,
+            roundness: 0,
+            plated: true,
         };
         b.footprints.insert(
             smd,
@@ -820,6 +827,7 @@ mod tests {
                 layer: bottom,
                 outline: vec![pt(1, 1), pt(9, 1), pt(9, 9), pt(1, 9)],
                 clearance: Nm::new(200_000).unwrap(),
+                cutouts: Vec::new(),
             },
         );
         b.silkscreen.insert(

@@ -178,6 +178,7 @@ pub fn synthetic_board(target: usize, settings: &ViewerSettings) -> Result<Board
                         point(x - r, y + r),
                     ],
                     clearance: nm(0.2),
+                    cutouts: Vec::new(),
                 },
             );
             made += 1;

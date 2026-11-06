@@ -518,7 +518,14 @@ fn outside_outline(ctx: &Ctx<'_>, out: &mut Report) {
         }
         let outside: Vec<&Point> = centres
             .iter()
-            .filter(|p| !inside_polygon(**p, &board.outline))
+            .filter(|p| {
+                // outside the outline, or inside an opening of the board
+                !inside_polygon(**p, &board.outline)
+                    || board
+                        .outline_cutouts
+                        .iter()
+                        .any(|cutout| inside_polygon(**p, cutout))
+            })
             .collect();
         if let Some(first) = outside.first() {
             out.confirmed.push(

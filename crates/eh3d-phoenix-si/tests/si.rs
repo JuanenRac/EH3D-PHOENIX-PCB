@@ -311,6 +311,7 @@ fn a_track_that_leaves_the_plane_under_it_is_found() {
                 pt(0, 5 * MM),
             ],
             clearance: Nm::new(200_000).unwrap(),
+            cutouts: Vec::new(),
         },
     );
     // A leaves the zone, B stays over it

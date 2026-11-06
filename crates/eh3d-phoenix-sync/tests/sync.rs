@@ -54,6 +54,8 @@ fn footprint(name: &str, pads: &[(Id, &str)]) -> Footprint {
                 rotation: Udeg::ZERO,
                 drill: None,
                 layers: vec![],
+                roundness: 0,
+                plated: true,
             },
         );
     }

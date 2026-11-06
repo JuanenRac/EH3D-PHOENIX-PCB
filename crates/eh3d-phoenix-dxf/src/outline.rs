@@ -4,7 +4,7 @@
 //! a closed contour, as is a closed polyline or a circle. The contours are put in order by
 //! containment: one inside no other is an outer contour, one inside one is a cutout, one inside
 //! two is an outer contour again, and so on. The largest outer contour is the outline of the
-//! board; its cutouts are listed (the board model holds the outline only). The report says what
+//! board; its cutouts are reported (the board keeps them as the cutouts of its outline). The report says what
 //! was found: chains that are open, duplicates dropped, contours that cross, several outer
 //! contours. Nothing is done silently.
 
@@ -473,10 +473,10 @@ pub fn extract_outline(
         let corners: Vec<String> = holes.iter().take(5).map(|&k| at(contours[k].low)).collect();
         report.push(Finding::new(
             CUTOUT_NOT_KEPT,
-            Severity::Warning,
+            Severity::Info,
             None,
             format!(
-                "{} cutouts inside the outline are listed and not kept: the board holds its outline only (lower left corners: {}{})",
+                "{} cutouts inside the outline are kept as cutouts of the board outline (lower left corners: {}{})",
                 holes.len(),
                 corners.join(", "),
                 if holes.len() > corners.len() { ", ..." } else { "" }

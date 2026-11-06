@@ -880,6 +880,10 @@ mod tests {
             rotation: Udeg::new(0).unwrap(),
             drill: None,
             layers: vec![id(2)],
+            roundness: 0,
+            roundness: 0,
+            plated: true,
+            plated: true,
         }
     }
 

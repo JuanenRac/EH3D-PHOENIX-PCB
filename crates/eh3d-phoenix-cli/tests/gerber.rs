@@ -72,6 +72,8 @@ fn board() -> Board {
             rotation: Udeg::ZERO,
             drill: Some(Nm::new(800_000).unwrap()),
             layers: vec![top, bottom],
+            roundness: 0,
+            plated: true,
         },
     );
     pads.insert(
@@ -86,6 +88,8 @@ fn board() -> Board {
             rotation: Udeg::ZERO,
             drill: None,
             layers: vec![top],
+            roundness: 0,
+            plated: true,
         },
     );
     let fp = id(20);

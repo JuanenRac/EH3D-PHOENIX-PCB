@@ -14,6 +14,7 @@
 use std::collections::BTreeMap;
 
 use eh3d_diagnostic::Diagnostic;
+use eh3d_phoenix_board::connectivity::point_in_polygon;
 use eh3d_phoenix_board::{
     Board, Component, Id, LayerKind, Net, PadNet, Segment, Side, SilkItem, Track, Via, Zone,
 };
@@ -161,8 +162,16 @@ fn signature(def: &FootprintDef) -> String {
     for pad in &def.pads {
         let relative = (pad.angle_udeg - def.angle_udeg) % 360_000_000;
         text.push_str(&format!(
-            "{}/{}/{}/{:?}/{}/{:?}/{:?}/{:?};",
-            pad.number, pad.kind, pad.shape, pad.at, relative, pad.size, pad.drill, pad.layers
+            "{}/{}/{}/{:?}/{}/{:?}/{:?}/{}/{:?};",
+            pad.number,
+            pad.kind,
+            pad.shape,
+            pad.at,
+            relative,
+            pad.size,
+            pad.drill,
+            pad.roundness,
+            pad.layers
         ));
     }
     text
@@ -385,6 +394,7 @@ impl Reader {
                     layer,
                     outline: outline.clone(),
                     clearance,
+                    cutouts: Vec::new(),
                 },
             );
         }
@@ -638,28 +648,41 @@ impl Reader {
             }
         }
         let mut best: Option<Vec<Point>> = None;
+        let mut others: Vec<Vec<Point>> = Vec::new();
         for ring in candidates {
             let larger = match &best {
                 Some(current) => area2(&ring) > area2(current),
                 None => true,
             };
             if larger {
-                if best.is_some() {
-                    unused += 1;
+                if let Some(previous) = best.replace(ring) {
+                    others.push(previous);
                 }
-                best = Some(ring);
             } else {
-                unused += 1;
+                others.push(ring);
             }
         }
         match best {
             Some(ring) => {
+                // a closed ring inside the largest one is an opening of the board
+                let mut cutouts: Vec<Vec<Point>> = Vec::new();
+                for other in others {
+                    if other.len() >= 3 && other.iter().all(|p| point_in_polygon(*p, &ring)) {
+                        cutouts.push(other);
+                    } else {
+                        unused += 1;
+                    }
+                }
                 ctx.lose(
                     "outline pieces not used (cut-outs and pieces that do not close)",
                     unused,
                 );
                 ctx.keep("outline points", ring.len());
+                if !cutouts.is_empty() {
+                    ctx.keep("outline cutouts", cutouts.len());
+                }
                 self.board.outline = ring;
+                self.board.outline_cutouts = cutouts;
             }
             None => {
                 if total > 0 {
@@ -1061,7 +1084,8 @@ pub(crate) mod tests {
             ),
             Some(1)
         );
-        assert_eq!(count(&q.transformed, "pads with a simpler shape"), Some(4));
+        // the rounded rectangles are in the model
+        assert_eq!(count(&q.transformed, "pads with a simpler shape"), None);
         // R1 has one line and one text kept as fields: only the line is dropped
         assert_eq!(
             count(&q.dropped, "footprint graphics, texts and 3D models"),
@@ -1087,14 +1111,16 @@ pub(crate) mod tests {
 )"#;
         let r = read(v7);
         let b = &r.board;
-        // the largest ring is the rectangle; the circle is a cut-out that is not kept
+        // the largest ring is the rectangle; the circle inside it is a cutout and is kept
         assert_eq!(b.outline.len(), 4);
+        assert_eq!(b.outline_cutouts.len(), 1);
+        assert_eq!(count(&r.quality.kept, "outline cutouts"), Some(1));
         assert_eq!(
             count(
                 &r.quality.dropped,
                 "outline pieces not used (cut-outs and pieces that do not close)"
             ),
-            Some(1)
+            None
         );
         assert_eq!(b.silkscreen.len(), 2);
         assert_eq!(b.tracks.len(), 1);

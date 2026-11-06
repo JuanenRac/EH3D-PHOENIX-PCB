@@ -79,6 +79,7 @@ fn add_zone(board: &mut Board, n: u8, net: u8, outline: Vec<Point>) -> Id {
             layer: id(LAYER),
             outline,
             clearance: nm(200_000),
+            cutouts: Vec::new(),
         },
     );
     zone
@@ -367,6 +368,8 @@ fn add_pad_of_a(board: &mut Board, x: i64, y: i64) {
             rotation: Udeg::ZERO,
             drill: None,
             layers: vec![id(LAYER)],
+            roundness: 0,
+            plated: true,
         },
     );
     board.footprints.insert(

@@ -41,6 +41,8 @@ pub(crate) struct PadDef {
     pub angle_udeg: i64,
     pub size: P,
     pub drill: Option<i64>,
+    /// The roundness of a `roundrect` pad in the units of the model (see `Pad::roundness`).
+    pub roundness: u16,
     pub layers: Vec<String>,
     pub net: Option<NetRef>,
 }
@@ -90,10 +92,26 @@ fn drill_of(pad: &Node) -> Option<i64> {
     (size > 0).then_some(size)
 }
 
+/// The roundness of a `roundrect` pad from its `roundrect_rratio` (0.25 when the file does not
+/// say), in the units of `Pad::roundness`: the ratio of KiCad times two thousand, at most 1000.
+fn roundness_of(pad: &Node, shape: &str) -> u16 {
+    if shape != "roundrect" {
+        return 0;
+    }
+    let ratio = pad
+        .child("roundrect_rratio")
+        .and_then(|r| r.arg_text(0))
+        .and_then(|t| t.parse::<f64>().ok())
+        .filter(|r| r.is_finite())
+        .unwrap_or(0.25);
+    (ratio * 2000.0).round().clamp(0.0, 1000.0) as u16
+}
+
 fn parse_pad(node: &Node, ctx: &mut Ctx) -> Option<PadDef> {
     let number = node.arg_text(0).unwrap_or("").to_owned();
     let kind = node.arg_text(1).unwrap_or("").to_owned();
     let shape = node.arg_text(2).unwrap_or("").to_owned();
+    let shape_name = shape.clone();
     let Some(at_node) = node.child("at") else {
         ctx.invalid(node, "pad", "it has no position");
         return None;
@@ -140,6 +158,7 @@ fn parse_pad(node: &Node, ctx: &mut Ctx) -> Option<PadDef> {
         angle_udeg,
         size,
         drill,
+        roundness: roundness_of(node, &shape_name),
         layers,
         net: node.child("net").and_then(net_ref),
     })
@@ -214,7 +233,7 @@ fn shape_of(pad: &PadDef, ctx: &mut Ctx) -> PadShape {
     let height = Nm::new(pad.size.1).unwrap_or(Nm::ZERO);
     match pad.shape.as_str() {
         "circle" => PadShape::Circle { diameter: width },
-        "rect" => PadShape::Rect { width, height },
+        "rect" | "roundrect" => PadShape::Rect { width, height },
         "oval" if pad.size.0 == pad.size.1 => PadShape::Circle { diameter: width },
         "oval" => PadShape::Oblong { width, height },
         other => {
@@ -245,9 +264,6 @@ pub(crate) fn build_footprint(def: &FootprintDef, layers: &mut LayerMap, ctx: &m
                 }
             }
         }
-        if pad.kind == "np_thru_hole" {
-            ctx.transform("non-plated pads (the plating is not in the model)", 1);
-        }
         let relative = (pad.angle_udeg - def.angle_udeg) % 360_000_000;
         let id = ctx.id();
         let shape = shape_of(pad, ctx);
@@ -260,6 +276,8 @@ pub(crate) fn build_footprint(def: &FootprintDef, layers: &mut LayerMap, ctx: &m
                 rotation: Udeg::new(relative).unwrap_or(Udeg::ZERO),
                 drill: pad.drill.and_then(|d| Nm::new(d).ok()),
                 layers: layer_ids,
+                roundness: pad.roundness,
+                plated: pad.kind != "np_thru_hole",
             },
         );
         pad_ids.push(id);
@@ -392,7 +410,16 @@ pub(crate) mod tests {
         assert_eq!(one.drill, None);
         assert_eq!(one.layers.len(), 3);
         assert!(matches!(one.shape, PadShape::Rect { .. }));
+        // a ratio of 0.25 is a roundness of 500 (a radius of a quarter of the shorter side)
+        assert_eq!(one.roundness, 500);
+        assert!(one.plated);
+        assert_eq!(one.corner_radius_nm(), Some(200_000));
+        let hole = pad("");
+        assert!(!hole.plated && hole.is_npth());
+        assert_eq!(hole.roundness, 0);
         let three = pad("3");
+        assert_eq!(three.roundness, 0);
+        assert!(three.plated);
         assert_eq!(three.drill.map(|d| d.get()), Some(800_000));
         assert!(matches!(three.shape, PadShape::Circle { .. }));
         // the two outer copper layers and both masks
@@ -413,16 +440,17 @@ pub(crate) mod tests {
             list.iter().find(|i| i.category == name).map(|i| i.count)
         };
         assert_eq!(find(&fp.quality.kept, "pads"), Some(5));
+        // the rounded pads and the pad that is not plated are in the model
         assert_eq!(
             find(&fp.quality.transformed, "pads with a simpler shape"),
-            Some(2)
+            None
         );
         assert_eq!(
             find(
                 &fp.quality.transformed,
                 "non-plated pads (the plating is not in the model)"
             ),
-            Some(1)
+            None
         );
         // one line, one circle, one 3D model (the reference and the value are kept as fields)
         assert_eq!(
@@ -432,7 +460,7 @@ pub(crate) mod tests {
             ),
             Some(3)
         );
-        assert!(fp
+        assert!(!fp
             .diagnostics
             .iter()
             .any(|d| d.code.as_deref() == Some("PHOENIX-KICAD-007")

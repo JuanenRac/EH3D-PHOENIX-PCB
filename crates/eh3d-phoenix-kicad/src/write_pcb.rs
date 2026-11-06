@@ -388,14 +388,19 @@ fn pad_node(
     let has_copper = layers.iter().any(|n| n.ends_with(".Cu"));
     let kind = if !through {
         "smd"
-    } else if has_copper {
+    } else if has_copper && pad.plated {
         "thru_hole"
     } else {
         "np_thru_hole"
     };
+    let rounded = pad.roundness > 0 && matches!(pad.shape, PadShape::Rect { .. });
     let (shape, w, h) = match pad.shape {
         PadShape::Circle { diameter } => ("circle", diameter.get(), diameter.get()),
-        PadShape::Rect { width, height } => ("rect", width.get(), height.get()),
+        PadShape::Rect { width, height } => (
+            if rounded { "roundrect" } else { "rect" },
+            width.get(),
+            height.get(),
+        ),
         PadShape::Oblong { width, height } => ("oval", width.get(), height.get()),
     };
     let mut items = vec![
@@ -409,6 +414,11 @@ fn pad_node(
         items.push(list("drill", vec![num(drill.get())]));
     }
     items.push(list("layers", layers.iter().map(|n| string(n)).collect()));
+    if rounded {
+        // the radius ratio of KiCad is the roundness over two thousand
+        let ratio = f64::from(pad.roundness.min(1000)) / 2000.0;
+        items.push(list("roundrect_rratio", vec![atom(&format!("{ratio}"))]));
+    }
     if let Some((component_id, _)) = owner {
         if kind != "np_thru_hole" {
             if let Some(net_id) = ctx.pad_net.get(&(*component_id, *pad_id)) {
@@ -670,6 +680,14 @@ fn zone_nodes(board: &Board, ctx: &Ctx, report: &mut ExportReport) -> Vec<Sx> {
             );
             continue;
         }
+        if !zone.cutouts.is_empty() {
+            report.note_many(
+                LEFT_OUT,
+                "cutouts of zones",
+                "the file carries the outline of the zone only",
+                zone.cutouts.len(),
+            );
+        }
         let settings = ctx.settings;
         out.push(list(
             "zone",
@@ -704,29 +722,20 @@ fn zone_nodes(board: &Board, ctx: &Ctx, report: &mut ExportReport) -> Vec<Sx> {
     out
 }
 
-fn outline_nodes(board: &Board, ctx: &Ctx, report: &mut ExportReport) -> Vec<Sx> {
+/// The lines of one closed ring on `Edge.Cuts`. `ring` is the number of the ring (0 for the
+/// outline, 1 and up for the cutouts) and goes into the identity of the lines.
+fn ring_lines(board: &Board, ctx: &Ctx, ring: usize, points: &[Point]) -> Vec<Sx> {
     let mut out = Vec::new();
-    let mut points = board.outline.clone();
-    if points.len() > 1 && points.first() == points.last() {
-        points.pop();
-    }
-    if points.is_empty() {
-        return out;
-    }
-    if points.len() < 3 {
-        report.note(
-            LEFT_OUT,
-            "outline with fewer than three points",
-            "the outline is left out",
-        );
-        return out;
-    }
     for (index, a) in points.iter().enumerate() {
         let b = &points[(index + 1) % points.len()];
         if a == b {
             continue;
         }
         let mut key = format!("{}:", board.name).into_bytes();
+        if ring > 0 {
+            key.extend_from_slice(b"cutout:");
+            key.extend_from_slice(&(ring as u64).to_be_bytes());
+        }
         key.extend_from_slice(&(index as u64).to_be_bytes());
         out.push(list(
             "gr_line",
@@ -739,7 +748,51 @@ fn outline_nodes(board: &Board, ctx: &Ctx, report: &mut ExportReport) -> Vec<Sx>
             ],
         ));
     }
+    out
+}
+
+fn closed_ring(points: &[Point]) -> Vec<Point> {
+    let mut ring = points.to_vec();
+    if ring.len() > 1 && ring.first() == ring.last() {
+        ring.pop();
+    }
+    ring
+}
+
+fn outline_nodes(board: &Board, ctx: &Ctx, report: &mut ExportReport) -> Vec<Sx> {
+    let mut out = Vec::new();
+    let points = closed_ring(&board.outline);
+    if points.is_empty() {
+        return out;
+    }
+    if points.len() < 3 {
+        report.note(
+            LEFT_OUT,
+            "outline with fewer than three points",
+            "the outline is left out",
+        );
+        return out;
+    }
+    out.extend(ring_lines(board, ctx, 0, &points));
     report.wrote("outline lines", out.len());
+    // the openings inside the outline are closed rings on the same layer
+    let mut cutouts = 0usize;
+    for (index, cutout) in board.outline_cutouts.iter().enumerate() {
+        let ring = closed_ring(cutout);
+        if ring.len() < 3 {
+            report.note(
+                LEFT_OUT,
+                "cutouts with fewer than three points",
+                "the cutout is left out",
+            );
+            continue;
+        }
+        out.extend(ring_lines(board, ctx, index + 1, &ring));
+        cutouts += 1;
+    }
+    if cutouts > 0 {
+        report.wrote("outline cutouts", cutouts);
+    }
     out
 }
 
@@ -1136,6 +1189,8 @@ pub(crate) mod sample {
                     rotation: Udeg::ZERO,
                     drill: None,
                     layers: vec![top, mask],
+                    roundness: 0,
+                    plated: true,
                 },
             );
         }
@@ -1221,6 +1276,7 @@ pub(crate) mod sample {
                     pt(0, 20_000_000),
                 ],
                 clearance: nm(300_000),
+                cutouts: Vec::new(),
             },
         );
         b.outline = vec![
@@ -1490,5 +1546,71 @@ mod tests {
         let layers = child(pad, "layers").unwrap();
         assert_eq!(arg(layers, 0), Some("*.Cu"));
         assert_eq!(arg(child(first, "attr").unwrap(), 0), Some("through_hole"));
+    }
+
+    #[test]
+    fn cutouts_and_rounded_and_unplated_pads_are_written_and_read_back() {
+        let mut board = sample_board();
+        // the sample outline is a rectangle; an opening inside it, 5 by 3 mm
+        let xs: Vec<i64> = board.outline.iter().map(|p| p.x_nm.get()).collect();
+        let ys: Vec<i64> = board.outline.iter().map(|p| p.y_nm.get()).collect();
+        let (x0, y0) = (
+            xs.iter().min().copied().unwrap(),
+            ys.iter().min().copied().unwrap(),
+        );
+        board.outline_cutouts = vec![vec![
+            pt(x0 + 2_000_000, y0 + 2_000_000),
+            pt(x0 + 7_000_000, y0 + 2_000_000),
+            pt(x0 + 7_000_000, y0 + 5_000_000),
+            pt(x0 + 2_000_000, y0 + 5_000_000),
+        ]];
+        // the first pad is rounded by a quarter of its shorter side, the second one is a drilled
+        // hole that is not plated
+        for footprint in board.footprints.values_mut() {
+            for pad in footprint.pads.values_mut() {
+                if pad.number == "1" {
+                    pad.roundness = 500;
+                } else {
+                    pad.drill = Some(nm(800_000));
+                    pad.plated = false;
+                }
+            }
+        }
+        let out = write_pcb(&board, &WriteSettings::default());
+        let tree = parse(&out.files[0].text).unwrap();
+        // four lines of the outline and four of the opening
+        assert_eq!(children(&tree, "gr_line").len(), 8);
+        assert_eq!(out.report.written_count("outline cutouts"), 1);
+        let text = &out.files[0].text;
+        assert!(text.contains("roundrect"), "{text}");
+        assert!(text.contains("roundrect_rratio"), "{text}");
+        assert!(text.contains("np_thru_hole"), "{text}");
+        // read back: the opening, the roundness of the first pad and the hole
+        let mut ids = crate::sequential_ids().unwrap();
+        let read =
+            crate::pcb::read_pcb(text.as_bytes(), &KicadSettings::default(), &mut ids).unwrap();
+        assert_eq!(read.board.outline_cutouts.len(), 1);
+        let mut found: Vec<(i64, i64)> = read.board.outline_cutouts[0]
+            .iter()
+            .map(|p| (p.x_nm.get() - x0, p.y_nm.get() - y0))
+            .collect();
+        found.sort_unstable();
+        assert_eq!(
+            found,
+            vec![
+                (2_000_000, 2_000_000),
+                (2_000_000, 5_000_000),
+                (7_000_000, 2_000_000),
+                (7_000_000, 5_000_000)
+            ]
+        );
+        let pads: Vec<_> = read
+            .board
+            .footprints
+            .values()
+            .flat_map(|f| f.pads.values())
+            .collect();
+        assert!(pads.iter().any(|p| p.roundness == 500 && p.plated));
+        assert!(pads.iter().any(|p| p.is_npth()));
     }
 }

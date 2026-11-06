@@ -71,6 +71,8 @@ fn board(obstacle: bool) -> Board {
                 rotation: Udeg::ZERO,
                 drill: None,
                 layers: vec![id(1)],
+                roundness: 0,
+                plated: true,
             },
         );
         pad_nets.push(PadNet {
