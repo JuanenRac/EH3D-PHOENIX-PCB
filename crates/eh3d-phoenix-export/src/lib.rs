@@ -16,6 +16,9 @@
 //! * [`pnp`]: the pick and place file of each face (CSV and JSON `phoenix-pnp/1`) with the centre of
 //!   every part worked out from its pads, the origin, the unit and the table of extra rotations of
 //!   `config/pnp_rotations.cfg`;
+//! * [`stencil`]: the openings of the solder paste stencil of each face as Gerber files, reduced and
+//!   split into windows by `config/stencil.cfg`, with the checks of the aspect and area ratios and a
+//!   report of every opening;
 //! * [`fabcodes`] and [`fabutil`]: the codes `PHOENIX-PNP-<NNN>`, `PHOENIX-STENCIL-<NNN>` and
 //!   `PHOENIX-FABPACK-<NNN>` with their titles in the eight languages, and the small helpers of those
 //!   modules;
@@ -40,6 +43,7 @@ pub mod messages;
 pub mod package;
 pub mod pnp;
 pub mod profile;
+pub mod stencil;
 pub mod verify;
 pub mod x2;
 
