@@ -132,19 +132,23 @@ The selection of several objects in the window, with the tool *Select*:
 
 | Gesture or key | What it does |
 |---|---|
-| Click | Selects the object under the pointer and drops the rest, as before; a click on an object that is selected keeps the selection, so a drag moves all the selected components |
+| Click | Selects the object under the pointer and drops the rest, as before; a click on an object that is selected keeps the selection |
+| Click on a silkscreen item or on the border of a zone | Picks it, where no via, track or component is under the pointer (within the pick tolerance; half of the width of a silkscreen line is added); a click inside a pour still begins a rectangle |
+| Drag a selected object | A selected component alone (or components only) is dragged as before, its tracks following as the settings say; any other drag of a selected object moves the whole selection, zones and silkscreen items included, by the offset of the pointer rounded to the grid, as one step of the history (`move_selection`), with the box of the selection shown at the place it would take |
 | Shift+click or Ctrl+click | Toggles the object under the pointer |
 | Drag on an empty place | The rectangle of the tool, as before (what lies inside is added) |
 | Shift+drag or Ctrl+drag on an empty place | Adds what lies wholly inside the rectangle, zones and silkscreen items included |
 | Alt+drag on an empty place | Adds what lies inside and what the rectangle touches (a track by its centre line) |
 | N | Selects every object of the net under the pointer (else of the lit net) and lights it |
 | Ctrl+A | Selects every object of the board |
+| Ctrl+I | Inverts the selection: what was not selected is, and what was is not |
 | Escape | Drops the selection and the rectangle (and what the tool had in progress) |
 | Arrows | Move the selection one step of the grid (Shift: ten steps), as one step of the history |
 | Delete | Deletes the selection as one step |
 | Alt+Left, Right, Up, Down, Alt+C, Alt+M | Line the selection up on the left, right, top or bottom edge, or centre it along x or along y |
+| Alt+H, Alt+V | Spread the selection with equal gaps along x or along y (three objects at least) |
 
-The panel has the buttons *Select all*, *Select the net* and *Clear the selection*, the eight alignments (the two that spread the objects with equal gaps need three objects, the others two) and a line with these keys. The moves, the deletion of zones or silkscreen items and the alignments are made with `BoardEdit::apply` (`move_selection`, `delete_selection`, `align_selection`), so each is one step: undo and redo give the same bytes, a locked component refuses the whole operation and the reason is shown with its code. A move by the arrows is exactly the step of the grid even when snapping is off. The status bar of the drawing shows the number of selected objects. Turning, putting on the other side and locking work on the selected components as before. Zones and silkscreen items are shown as a box around their extent and cannot be picked by a click, only by a rectangle, by a net or with *Select all*.
+The panel has the buttons *Select all*, *Select the net*, *Invert the selection* and *Clear the selection*, the six alignments (two objects at least), the two distributions in a group of their own (three objects at least) and a line with these keys; the keys are also shown when the pointer rests on a button. The moves, the deletion of zones or silkscreen items and the alignments are made with `BoardEdit::apply` (`move_selection`, `delete_selection`, `align_selection`), so each is one step: undo and redo give the same bytes, a locked component refuses the whole operation and the reason is shown with its code. A move by the arrows is exactly the step of the grid even when snapping is off. The status bar of the drawing shows the number of selected objects, the box that holds them (the corners in millimetres) and its width and height; the conversion of gestures into operations, the rounding of a drag to the grid, the pick of a zone border or a silkscreen line, the inversion and the text of the status bar are in `board_select` and are tested without a window. Turning, putting on the other side and locking work on the selected components as before. Zones and silkscreen items are shown as a box around their extent.
 
 ## Codes
 

@@ -26,7 +26,7 @@ $ phoenix boardedit --rules examples/tutorials/rules_relaxed.json --apply exampl
 
 * `select` 的步骤有：`add`、`remove` 和 `toggle`（`items` 中的对象，写成 `{"kind": "component", "id": "..."}`）、`net`（某个网络的所有对象，按其 id）、`rect`（`from` 与 `to` 之间的矩形，坐标为以纳米计的 `x_nm` 和 `y_nm`；`mode` 为 `contained`，或同时包含矩形触及对象的 `crossed`）、`all`、`invert` 和 `clear`。这些步骤按顺序、要么全部成功要么全部不生效地应用，选择不属于历史记录。
 * `move_selection` 按 `dx_nm` 和 `dy_nm` 移动（向上为正），除非 `snap` 为 false，否则取整到网格；未被选中的走线不会跟随元件，所以要带着铜一起移动就要先选中网络。`delete_selection` 删除所选对象。`align_selection` 支持 `left`、`right`、`top`、`bottom`、`center_x`、`center_y`（至少两个对象）以及 `distribute_x`、`distribute_y`（至少三个）。被锁定的元件会使整个操作被拒绝（`PHOENIX-BEDIT-006`），空选择是 `PHOENIX-BEDIT-009`。
-* 在窗口中使用选择工具：Shift 或 Ctrl+点击切换一个对象；在空白处按 Shift 或 Ctrl 拖动，加入完全位于矩形内的对象（包括区域和丝印项）；Alt+拖动还会加入矩形触及的对象；`N` 选中指针下的网络；Ctrl+A 全选；Esc 取消选择；方向键把选择移动一格网格（Shift：十格）；Delete 删除；Alt+左、右、上、下以及 Alt+C、Alt+M 进行对齐。每一项都是历史记录的一步，Ctrl+Z 会还原成相同的字节。该窗口从未在屏幕上看过，也没有用鼠标试过。
+* 在窗口中使用选择工具：Shift 或 Ctrl+点击切换一个对象；在空白处按 Shift 或 Ctrl 拖动，加入完全位于矩形内的对象（包括区域和丝印项）；Alt+拖动还会加入矩形触及的对象；`N` 选中指针下的网络；Ctrl+A 全选；Esc 取消选择；方向键把选择移动一格网格（Shift：十格）；Delete 删除；Alt+左、右、上、下以及 Alt+C、Alt+M 进行对齐；Alt+H、Alt+V 以相等间距分布（至少三个对象）；Ctrl+I 反选；单击丝印项或区域边缘即可选中；拖动已选对象按网格移动整个选择；状态栏显示对象数量及其范围和尺寸。每一项都是历史记录的一步，Ctrl+Z 会还原成相同的字节。该窗口从未在屏幕上看过，也没有用鼠标试过。
 
 ## 另见
 
