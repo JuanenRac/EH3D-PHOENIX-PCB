@@ -636,7 +636,13 @@ pub fn poured_board(
             let outline: Result<Vec<Point>, _> =
                 polygon.iter().map(|p| Point::from_nm(p[0], p[1])).collect();
             let outline = outline.map_err(|e| error(ZONE_DATA_INVALID, e.to_string()))?;
-            let new_id = ids.next_for(&out);
+            // an id of a zone of the board is never given again, even though the zone itself was taken out
+            let new_id = loop {
+                let candidate = ids.next_for(&out);
+                if !board.zones.contains_key(&candidate) {
+                    break candidate;
+                }
+            };
             out.zones.insert(
                 new_id,
                 Zone {

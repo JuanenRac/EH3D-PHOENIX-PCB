@@ -677,7 +677,6 @@ fn the_data_of_zones_is_written_and_read_back_and_bad_files_are_refused() {
         "{}",
         "{\"format\":\"other/1\"}",
         "{\"format\":\"phoenix-zone-data/1\",\"extra\":1}",
-        "{\"format\":\"phoenix-zone-data/1\",\"props\":{\"01890a5d-ac96-7ab2-80e2-4536629c1301\":{\"thermal_spokes\":3}}}",
     ] {
         assert_eq!(
             ZoneData::from_json(bad).unwrap_err().code,
@@ -685,6 +684,12 @@ fn the_data_of_zones_is_written_and_read_back_and_bad_files_are_refused() {
             "{bad}"
         );
     }
+    // a number of spokes the fill cannot make is a bad property, not a bad file
+    let spokes = "{\"format\":\"phoenix-zone-data/1\",\"props\":{\"01890a5d-ac96-7ab2-80e2-4536629c1301\":{\"thermal_spokes\":3}}}";
+    assert_eq!(
+        ZoneData::from_json(spokes).unwrap_err().code,
+        crate::zone_codes::ZONE_PROPERTY
+    );
 }
 
 #[test]

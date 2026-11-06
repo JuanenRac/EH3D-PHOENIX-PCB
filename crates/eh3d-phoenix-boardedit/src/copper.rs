@@ -287,7 +287,9 @@ mod tests {
         for p in &points {
             assert!((p.0.hypot(p.1) - 10_000_000.0).abs() < 2.0, "{p:?}");
         }
-        assert!(sagitta > 0.0 && sagitta < 20_000.0);
+        // 8 chords of a quarter of a circle of 10 mm radius: each one takes 11.25 degrees, and the arc goes
+        // r (1 - cos(5.625 degrees)) = 48 152 nm past its chord
+        assert!(sagitta > 47_000.0 && sagitta < 49_500.0, "{sagitta}");
         // the other way round: clockwise from the top to the right
         let (cw, _) = arc_points(end, start, -90_000_000, 8).unwrap();
         for p in &cw {
