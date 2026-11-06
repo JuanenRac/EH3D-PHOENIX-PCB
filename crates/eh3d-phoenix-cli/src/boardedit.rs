@@ -19,20 +19,25 @@ use serde_json::json;
 
 use crate::check::read_text;
 use crate::design::{has_extension, same_file};
+use crate::pairs::load_pair_config;
 use crate::route::{load_board, load_context, write_new};
 
 /// The settings file that is read when `--settings` is not given and the file exists.
 const DEFAULT_SETTINGS: &str = "config/boardedit.cfg";
 
 pub(crate) const USAGE: &str = "\
-phoenix boardedit [--rules FILE] [--settings FILE] [--json] [--lang CODE] --apply OPERATIONS.json
-                  [--out FILE] <board>
+phoenix boardedit [--rules FILE] [--settings FILE] [--pair-config FILE] [--pairs FILE] [--json]
+                  [--lang CODE] --apply OPERATIONS.json [--out FILE] <board>
 
   boardedit     apply a file of editing operations to a board (an EAGLE .brd file or the JSON of
                 the design model): place, move, turn, mirror, lock and remove components; draw
                 orthogonal and 45-degree tracks with the width of the net class; add vias; change
                 layer; delete a stretch, a track, a via or a net; paste a net with the shortest
-                route between two pads; tune a net to a length with meanders. Each operation is
+                route between two pads; tune a net to a length with meanders; draw the two tracks
+                of a differential pair side by side (route_pair, with a via for each net where
+                the pair changes layer), make the shorter net of a pair as long as the other
+                with meanders (tune_pair) and move the pieces whose gap is out of tolerance
+                (fix_pair_gap). Each operation is
                 checked by the design rules and refused if it adds a rule error (an operation can
                 be forced), and the first one that is refused ends the run and names its number.
                 It is a dry run: nothing is written unless --out names a new file (.json for the
@@ -43,6 +48,9 @@ phoenix boardedit [--rules FILE] [--settings FILE] [--json] [--lang CODE] --appl
                 design rules when the option is left out
   --settings    the grid, the width of a track and the meanders (default: config/boardedit.cfg
                 when it exists)
+  --pair-config the settings and the pairs of the pair operations (default:
+                config/diffpairs.cfg when it exists)
+  --pairs       a JSON file of pairs (format phoenix-diffpairs/1) for the pair operations
   --json        print the report as JSON. --lang CODE writes the rule titles in en, es, de, fr, it,
                 ja, zh or pt. Exit code: 0 no error proven on the result, 1 an error is proven by
                 the rules, 2 unusable input
@@ -53,6 +61,8 @@ struct Options {
     out: Option<String>,
     rules: Option<String>,
     settings: Option<String>,
+    pair_config: Option<String>,
+    pairs: Option<String>,
     json: bool,
     lang: Lang,
     file: Option<String>,
@@ -64,6 +74,8 @@ fn parse_options(args: &[&str]) -> Result<Options, String> {
         out: None,
         rules: None,
         settings: None,
+        pair_config: None,
+        pairs: None,
         json: false,
         lang: Lang::En,
         file: None,
@@ -87,6 +99,14 @@ fn parse_options(args: &[&str]) -> Result<Options, String> {
             "--settings" => {
                 let value = iter.next().ok_or("--settings needs a file")?;
                 options.settings = Some((*value).to_owned());
+            }
+            "--pair-config" => {
+                let value = iter.next().ok_or("--pair-config needs a file")?;
+                options.pair_config = Some((*value).to_owned());
+            }
+            "--pairs" => {
+                let value = iter.next().ok_or("--pairs needs a file")?;
+                options.pairs = Some((*value).to_owned());
             }
             "--lang" => {
                 let tag = iter.next().ok_or("--lang needs a language code")?;
@@ -159,6 +179,8 @@ pub(crate) fn boardedit_command(args: &[&str], out: &mut dyn Write, err: &mut dy
         let mut inputs = vec![file, ops_path];
         inputs.extend(options.rules.as_deref());
         inputs.extend(options.settings.as_deref());
+        inputs.extend(options.pair_config.as_deref());
+        inputs.extend(options.pairs.as_deref());
         if let Err(e) = check_output(path, &inputs) {
             return fail(err, &e.to_string());
         }
@@ -182,8 +204,13 @@ pub(crate) fn boardedit_command(args: &[&str], out: &mut dyn Write, err: &mut dy
         Ok(ops) => ops,
         Err(e) => return fail(err, &e.to_string()),
     };
+    let pair_config =
+        match load_pair_config(options.pair_config.as_deref(), options.pairs.as_deref()) {
+            Ok(config) => config,
+            Err(e) => return fail(err, &e.to_string()),
+        };
     let mut edit = match BoardEdit::new(board, ctx, settings) {
-        Ok(edit) => edit,
+        Ok(edit) => edit.with_pairs(pair_config),
         Err(e) => return fail(err, &e.to_string()),
     };
     let report = match apply_operations(&mut edit, &ops) {

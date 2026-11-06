@@ -32,6 +32,7 @@ mod lengths;
 mod libedit;
 mod materials;
 mod oracle;
+mod pairs;
 mod panel;
 mod rf;
 mod rfgen;
@@ -226,6 +227,15 @@ phoenix boardedit [--rules FILE] [--settings FILE] [--json] [--lang xx] --apply 
                 each one: an operation that adds a rule error is refused unless it is forced; a
                 dry run unless --out names a new file (.json or .brd), and an input file is never
                 written over (run `phoenix boardedit` alone for its options); a prototype
+                that also draws, tunes and corrects differential pairs (route_pair, tune_pair and
+                fix_pair_gap)
+
+phoenix pairs [--config FILE] [--pairs FILE] [--stackup FILE] [--json] [--lang xx] <board>
+
+  pairs         check the differential pairs of a board: the gap, the symmetry, the uncoupled
+                stretch, the lengths, the vias, the width and the impedance, with codes
+                PHOENIX-PAIR-<NNN>; a dry run that writes nothing, a prototype, run `phoenix pairs`
+                alone for its options
 
 phoenix libedit [--apply OPERATIONS.json] [--plan SANITIZER.plan.json] [--out NEW.lbr]
                 [--config FILE] [--json] [--lang xx] <library.lbr>
@@ -378,6 +388,9 @@ pub fn run(args: &[String], out: &mut dyn Write, err: &mut dyn Write) -> i32 {
     }
     if let Some((&"boardedit", tail)) = rest.split_first() {
         return boardedit::boardedit_command(tail, out, err);
+    }
+    if let Some((&"pairs", tail)) = rest.split_first() {
+        return pairs::pairs_command(tail, out, err);
     }
     if let Some((&"libedit", tail)) = rest.split_first() {
         return libedit::libedit_command(tail, out, err);
