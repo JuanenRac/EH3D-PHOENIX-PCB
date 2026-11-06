@@ -155,7 +155,7 @@ fn json_offers(
                     };
                     let tier =
                         make_tier(&cell("min_qty")?, &cell("unit_price")?, cell("currency")?)
-                            .map_err(&fail)?;
+                            .map_err(fail)?;
                     tiers.push(tier);
                 }
             }
@@ -357,7 +357,7 @@ pub fn parse_csv(text: &str, file: &str, s: &PartsSettings) -> Result<Vec<Part>,
             ("notes", &mut part.notes),
         ];
         for (name, slot) in fields {
-            merge_text(slot, get(name), name).map_err(&fail)?;
+            merge_text(slot, get(name), name).map_err(fail)?;
         }
         let status = get("status");
         if !status.is_empty() {
@@ -427,7 +427,7 @@ pub fn parse_csv(text: &str, file: &str, s: &PartsSettings) -> Result<Vec<Part>,
             }
         };
         if !price.is_empty() {
-            let tier = make_tier(&get("min_qty"), &price, get("currency")).map_err(&fail)?;
+            let tier = make_tier(&get("min_qty"), &price, get("currency")).map_err(fail)?;
             let offer = &mut part.offers[at];
             if offer.tiers.len() >= s.max_tiers {
                 return Err(limit(format!(
