@@ -21,6 +21,8 @@ use crate::codes::{
 };
 use crate::ids::IdSupply;
 use crate::ops::EditOp;
+use crate::pair_plan;
+use crate::pairs::PairConfig;
 use crate::settings::BoardEditSettings;
 use crate::shape::{
     axis_length, legs, lines_through, route_pieces, serpentine, MeanderSide, Shape, Tuning,
@@ -36,6 +38,8 @@ pub struct Env<'a> {
     pub settings: &'a BoardEditSettings,
     /// The components that are locked.
     pub locked: &'a BTreeSet<Id>,
+    /// The differential pairs and their settings.
+    pub pairs: &'a PairConfig,
 }
 
 /// The length that a tuning has to reach.
@@ -64,15 +68,15 @@ pub struct Plan {
     pub expect: Option<Expect>,
 }
 
-fn refused(what: impl Into<String>) -> BoardEditError {
+pub(crate) fn refused(what: impl Into<String>) -> BoardEditError {
     BoardEditError::new(OPERATION_REFUSED, what)
 }
 
-fn geometry(what: impl Into<String>) -> BoardEditError {
+pub(crate) fn geometry(what: impl Into<String>) -> BoardEditError {
     BoardEditError::new(GEOMETRY_INVALID, what)
 }
 
-fn single(op: Operation) -> Plan {
+pub(crate) fn single(op: Operation) -> Plan {
     Plan {
         alternatives: vec![op],
         created: Vec::new(),
@@ -91,7 +95,7 @@ fn check_unlocked(env: &Env, id: Id) -> Result<(), BoardEditError> {
     Ok(())
 }
 
-fn copper_layer(board: &Board, layer: Id) -> Result<(), BoardEditError> {
+pub(crate) fn copper_layer(board: &Board, layer: Id) -> Result<(), BoardEditError> {
     match board.layers.get(&layer) {
         Some(l) if l.kind == LayerKind::Copper => Ok(()),
         Some(_) => Err(refused(format!("the layer {layer} is not a copper layer"))),
@@ -107,7 +111,7 @@ fn net_name(board: &Board, net: Id) -> Result<String, BoardEditError> {
         .ok_or_else(|| refused(format!("no net {net}")))
 }
 
-fn replace_track(id: Id, track: Track) -> Operation {
+pub(crate) fn replace_track(id: Id, track: Track) -> Operation {
     Operation::Batch {
         ops: vec![
             Operation::RemoveTrack { id },
@@ -116,7 +120,7 @@ fn replace_track(id: Id, track: Track) -> Operation {
     }
 }
 
-fn shape_of(env: &Env, shape: Option<Shape>) -> Shape {
+pub(crate) fn shape_of(env: &Env, shape: Option<Shape>) -> Shape {
     shape.unwrap_or(if env.settings.diagonal_routes {
         Shape::Diagonal
     } else {
@@ -125,7 +129,7 @@ fn shape_of(env: &Env, shape: Option<Shape>) -> Shape {
 }
 
 /// The orders of the corner to try: the one asked for, or the setting and then the other.
-fn corner_orders(env: &Env, asked: Option<bool>) -> Vec<bool> {
+pub(crate) fn corner_orders(env: &Env, asked: Option<bool>) -> Vec<bool> {
     match asked {
         Some(h) => vec![h],
         None => {
@@ -265,7 +269,44 @@ pub fn plan(
             target_nm,
             track,
             side,
-        } => tune(board, env, *net, *target_nm, *track, *side),
+        } => tune_request(
+            board,
+            env,
+            &TuneRequest {
+                net: *net,
+                target_nm: *target_nm,
+                only: *track,
+                side: *side,
+                tolerance_nm: env.settings.length_tolerance_nm,
+                away_from: None,
+            },
+        ),
+        EditOp::RoutePair {
+            pair,
+            layer,
+            points,
+            shape,
+            width_nm,
+            gap_nm,
+            horizontal_first,
+            layer_changes,
+        } => pair_plan::route_pair(
+            board,
+            env,
+            ids,
+            &pair_plan::RoutePairRequest {
+                pair,
+                layer: *layer,
+                points,
+                shape: shape_of(env, *shape),
+                width_nm: *width_nm,
+                gap_nm: *gap_nm,
+                horizontal_first: *horizontal_first,
+                layer_changes,
+            },
+        ),
+        EditOp::TunePair { pair, side } => pair_plan::tune_pair(board, env, pair, *side),
+        EditOp::FixPairGap { pair } => pair_plan::fix_pair_gap(board, env, pair),
         EditOp::Lock { .. }
         | EditOp::Unlock { .. }
         | EditOp::Group { .. }
@@ -805,14 +846,70 @@ struct Piece {
     len: i64,
 }
 
-fn tune(
+/// What a tuning asks for.
+#[derive(Clone, Copy)]
+pub(crate) struct TuneRequest {
+    /// The net to make longer.
+    pub net: Id,
+    /// The length asked for, in nanometres.
+    pub target_nm: i64,
+    /// The only track to put meanders on.
+    pub only: Option<Id>,
+    /// The side of the meanders.
+    pub side: MeanderSide,
+    /// How far from the target the length may end, in nanometres.
+    pub tolerance_nm: i64,
+    /// A net that the meanders bend away from when the side is left to the editor.
+    pub away_from: Option<Id>,
+}
+
+/// The side (1 left, -1 right) of a straight piece that faces away from a net: the opposite of the
+/// side of the nearest piece of that net, to the middle of the piece.
+fn away_side(board: &Board, start: Point, end: Point, from: Id) -> i64 {
+    let mid = (
+        i128::from(start.x_nm.get() + end.x_nm.get()) / 2,
+        i128::from(start.y_nm.get() + end.y_nm.get()) / 2,
+    );
+    let mut best: Option<(i128, (i128, i128))> = None;
+    for track in board.tracks.values().filter(|t| t.net == from) {
+        for segment in &track.path {
+            let (a, b) = (segment.start(), segment.end());
+            let m = (
+                i128::from(a.x_nm.get() + b.x_nm.get()) / 2,
+                i128::from(a.y_nm.get() + b.y_nm.get()) / 2,
+            );
+            let d = (m.0 - mid.0) * (m.0 - mid.0) + (m.1 - mid.1) * (m.1 - mid.1);
+            if best.is_none_or(|(least, _)| d < least) {
+                best = Some((d, m));
+            }
+        }
+    }
+    let Some((_, m)) = best else {
+        return 1;
+    };
+    let ux = i128::from((end.x_nm.get() - start.x_nm.get()).signum());
+    let uy = i128::from((end.y_nm.get() - start.y_nm.get()).signum());
+    let cross = ux * (m.1 - mid.1) - uy * (m.0 - mid.0);
+    if cross > 0 {
+        -1
+    } else {
+        1
+    }
+}
+
+pub(crate) fn tune_request(
     board: &Board,
     env: &Env,
-    net: Id,
-    target_nm: i64,
-    only: Option<Id>,
-    side: MeanderSide,
+    request: &TuneRequest,
 ) -> Result<Plan, BoardEditError> {
+    let TuneRequest {
+        net,
+        target_nm,
+        only,
+        side,
+        tolerance_nm: tolerance,
+        away_from,
+    } = *request;
     let impossible = |what: String| BoardEditError::new(TUNE_IMPOSSIBLE, what);
     net_name(board, net)?;
     if target_nm <= 0 {
@@ -827,7 +924,6 @@ fn tune(
         .find(|n| n.net == net)
         .map(|n| n.total_nm)
         .ok_or_else(|| impossible("the net has no copper to measure".to_owned()))?;
-    let tolerance = env.settings.length_tolerance_nm;
     let extra = target_nm - current;
     if extra.abs() <= tolerance {
         let mut plan = single(Operation::Batch { ops: Vec::new() });
@@ -880,7 +976,7 @@ fn tune(
             "the net has no horizontal or vertical piece to put meanders on".to_owned(),
         ));
     }
-    let sides: &[i64] = match side {
+    let fixed_sides: &[i64] = match side {
         MeanderSide::Auto => &[1, -1],
         MeanderSide::Left => &[1],
         MeanderSide::Right => &[-1],
@@ -897,7 +993,14 @@ fn tune(
         let Some(track) = board.tracks.get(&piece.track) else {
             continue;
         };
-        for s in sides {
+        let sides: Vec<i64> = match (side, away_from) {
+            (MeanderSide::Auto, Some(other)) => {
+                let first = away_side(board, piece.start, piece.end, other);
+                vec![first, -first]
+            }
+            _ => fixed_sides.to_vec(),
+        };
+        for s in &sides {
             match serpentine(piece.start, piece.end, tuning, *s) {
                 Ok((segments, _)) => {
                     let mut changed = track.clone();
@@ -948,11 +1051,13 @@ mod tests {
     fn a_place_makes_a_component_with_a_new_id_and_refuses_a_second_refdes() {
         let f = fixture();
         let (ctx, route, settings, locked) = env_parts();
+        let pairs = PairConfig::default();
         let env = Env {
             ctx: &ctx,
             route: &route,
             settings: &settings,
             locked: &locked,
+            pairs: &pairs,
         };
         let mut ids = IdSupply::new().unwrap();
         let op = EditOp::Place {
@@ -984,11 +1089,13 @@ mod tests {
     fn a_route_has_both_orders_of_the_corner_unless_one_is_asked_for() {
         let f = fixture();
         let (ctx, route_settings, settings, locked) = env_parts();
+        let pairs = PairConfig::default();
         let env = Env {
             ctx: &ctx,
             route: &route_settings,
             settings: &settings,
             locked: &locked,
+            pairs: &pairs,
         };
         let mut ids = IdSupply::new().unwrap();
         let mut op = EditOp::Route {
@@ -1026,11 +1133,13 @@ mod tests {
         let f = fixture();
         let (ctx, route, settings, mut locked) = env_parts();
         locked.insert(f.r1);
+        let pairs = PairConfig::default();
         let env = Env {
             ctx: &ctx,
             route: &route,
             settings: &settings,
             locked: &locked,
+            pairs: &pairs,
         };
         let mut ids = IdSupply::new().unwrap();
         let op = EditOp::Move {

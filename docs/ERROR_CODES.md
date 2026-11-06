@@ -397,6 +397,24 @@ The titles of these codes also exist in the eight languages of the suite (`TITLE
 | PHOENIX-BEDIT-007 | Shape cannot be made | a route of fewer than two points or of no length, a width that is not above zero, a vertex or a piece that does not exist, a point out of the design range |
 | PHOENIX-BEDIT-008 | Net cannot be tuned to the length asked for | a target that is not above zero, a net with no copper, a net already longer than the target, no horizontal or vertical piece long enough for the meanders, an amplitude above the largest allowed, or a result that would end farther from the target than the tolerance |
 
+## Differential pairs (`eh3d-phoenix-boardedit`, `src/pair_codes.rs`)
+
+The titles of these codes also exist in the eight languages of the suite (`TITLES` in `src/pair_codes.rs`); the detail of a message is in English and names the pair. The codes 003 to 010 are the findings of `phoenix pairs`; the others are errors of the files and of the pair operations of `phoenix boardedit`.
+
+| Code | Title | Raised by |
+|---|---|---|
+| PHOENIX-PAIR-001 | Pair definitions are not valid | a line of `config/diffpairs.cfg` that is not `key = value` or `pair.NAME.field = value`, an unknown key or field, a value out of range, a pair without both nets or with the same net twice, or a JSON file of pairs (format `phoenix-diffpairs/1`) that cannot be read |
+| PHOENIX-PAIR-002 | Net of a pair is not on the board | a pair whose positive or negative net the board does not have |
+| PHOENIX-PAIR-003 | Separation of the pair is out of tolerance | the gap between the edges of the two tracks, where they run coupled, is smaller or larger than the gap of the pair by more than `gap_tolerance_nm` |
+| PHOENIX-PAIR-004 | Pair is not symmetric | the coupled length of the positive net and the one of the negative net differ by more than `symmetry_tolerance_nm` |
+| PHOENIX-PAIR-005 | Pair runs uncoupled for too long | more of either net than the maximum of the pair runs farther than `coupling_range_nm` from the other net |
+| PHOENIX-PAIR-006 | Lengths of the pair differ too much | the copper lengths of the two nets (tracks and vias) differ by more than the length tolerance of the pair |
+| PHOENIX-PAIR-007 | Vias of the pair are not paired | a via of one net with no via of the other net on the same layers within `via_pair_range_nm` |
+| PHOENIX-PAIR-008 | Tracks of the pair have the wrong width | a piece of either net that is not as wide as the pair asks for, to within `width_tolerance_nm` |
+| PHOENIX-PAIR-009 | Differential impedance is off the target | warning: the impedance worked out from the stack-up for the width and the gap of the pair is farther from the target of the pair than `impedance_tolerance_permille`, or cannot be worked out |
+| PHOENIX-PAIR-010 | Pair has no coupled stretch | warning: no piece of either net runs within `coupling_range_nm` of the other net, so the gap and the symmetry are not judged |
+| PHOENIX-PAIR-011 | Operation on a pair cannot be done | `route_pair`, `tune_pair` or `fix_pair_gap` on a pair that is not defined, or `fix_pair_gap` when pieces with a wrong gap exist and none of them can be moved |
+
 ## Circuit simulator (`eh3d-phoenix-sim`, `src/codes.rs`)
 
 The titles of these codes also exist in the eight languages of the suite (`TITLES` in `src/codes.rs`); the detail of a message is in English. A message about a netlist names the line.

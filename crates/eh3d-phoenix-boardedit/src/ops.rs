@@ -10,6 +10,17 @@ use serde::{Deserialize, Serialize};
 
 use crate::shape::{MeanderSide, Shape};
 
+/// A change of layer along a routed pair: the part of the pair after a vertex goes to another
+/// copper layer, with a via for each net.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct PairLayerChange {
+    /// The vertex of the centre line, from 1 (the end of the first piece).
+    pub vertex: usize,
+    /// The copper layer of the part that follows.
+    pub layer: Id,
+}
+
 /// One operation of the editor.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "op", rename_all = "snake_case")]
@@ -182,6 +193,47 @@ pub enum EditOp {
         /// The side of the meanders.
         #[serde(default)]
         side: MeanderSide,
+    },
+    /// Draws the two tracks of a differential pair side by side along a centre line, with the
+    /// width and the gap of the pair, and a via for each net where the pair changes layer.
+    RoutePair {
+        /// The name of the pair.
+        pair: String,
+        /// The copper layer of the first part.
+        layer: Id,
+        /// The points of the centre line, at least two.
+        points: Vec<Point>,
+        /// The shape; the setting `diagonal_routes` decides when left out.
+        #[serde(default)]
+        shape: Option<Shape>,
+        /// The width of the tracks in nanometres; the width of the pair when left out.
+        #[serde(default)]
+        width_nm: Option<i64>,
+        /// The gap between the edges of the two tracks in nanometres; the gap of the pair when
+        /// left out.
+        #[serde(default)]
+        gap_nm: Option<i64>,
+        /// Whether a corner goes first along x; when left out both orders are tried.
+        #[serde(default)]
+        horizontal_first: Option<bool>,
+        /// The changes of layer, in the order of their vertices.
+        #[serde(default)]
+        layer_changes: Vec<PairLayerChange>,
+    },
+    /// Makes the shorter net of a pair as long as the other with meanders, to within the
+    /// tolerance of the pair.
+    TunePair {
+        /// The name of the pair.
+        pair: String,
+        /// The side of the meanders; the side away from the other net first when left out.
+        #[serde(default)]
+        side: MeanderSide,
+    },
+    /// Moves the straight pieces of the negative net whose gap to the positive net is out of
+    /// tolerance so that the gap is the one of the pair.
+    FixPairGap {
+        /// The name of the pair.
+        pair: String,
     },
     /// Several operations that are kept or undone as one step.
     Group {

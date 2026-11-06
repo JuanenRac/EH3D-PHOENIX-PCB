@@ -19,6 +19,13 @@
 //!   active layer, the lit net and the ratsnest;
 //! * [`shape`]: the pieces of a route and the meanders, in integer nanometres;
 //! * [`ops_file`]: the file of operations that `phoenix boardedit` applies;
+//! * [`pairs`], [`pair_check`] and [`pair_codes`]: the differential pairs: their definition (two
+//!   nets, the width, the gap, an optional target for the differential impedance, the tolerance of
+//!   the lengths and the longest uncoupled stretch) read from `config/diffpairs.cfg` and from a JSON
+//!   file, the operations `route_pair`, `tune_pair` and `fix_pair_gap` (planned in this crate like the
+//!   rest, with the design rules checked before and after), the checks of the gap, the symmetry, the
+//!   uncoupled stretch, the lengths, the vias, the width and the impedance, and the codes
+//!   `PHOENIX-PAIR-<NNN>`;
 //! * [`codes`]: the codes `PHOENIX-BEDIT-<NNN>`.
 //!
 //! **State: prototype.** It has been tried through the tests only, on boards made by hand; the
@@ -38,6 +45,13 @@ pub mod hit;
 pub mod ids;
 pub mod ops;
 pub mod ops_file;
+pub mod pair_check;
+pub mod pair_codes;
+mod pair_geom;
+mod pair_plan;
+#[cfg(test)]
+mod pair_tests;
+pub mod pairs;
 pub mod plan;
 pub mod settings;
 pub mod shape;
@@ -50,8 +64,10 @@ mod tool_tests;
 pub use codes::{registry, BoardEditError, TITLES};
 pub use edit::{BoardEdit, DrcReport, Outcome};
 pub use hit::Picked;
-pub use ops::EditOp;
+pub use ops::{EditOp, PairLayerChange};
 pub use ops_file::{apply_operations, read_operations, ApplyReport};
+pub use pair_check::{check_pairs, PairFinding, PairMeasure, PairReport};
+pub use pairs::{PairConfig, PairDef, PairSettings, ResolvedPair};
 pub use settings::BoardEditSettings;
 pub use shape::{MeanderSide, Shape};
 pub use tool::{Drag, EditState, Tool};

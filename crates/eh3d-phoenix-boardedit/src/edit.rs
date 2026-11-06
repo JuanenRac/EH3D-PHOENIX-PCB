@@ -15,6 +15,7 @@ use serde_json::{json, Value};
 use crate::codes::{BoardEditError, OPERATION_REFUSED, REJECTED_BY_DRC, TUNE_IMPOSSIBLE};
 use crate::ids::IdSupply;
 use crate::ops::EditOp;
+use crate::pairs::PairConfig;
 use crate::plan::{plan, Env};
 use crate::settings::BoardEditSettings;
 
@@ -200,6 +201,7 @@ pub struct BoardEdit {
     undone: Vec<Step>,
     findings: Vec<Finding>,
     locked: BTreeSet<Id>,
+    pairs: PairConfig,
     revision: u64,
 }
 
@@ -224,8 +226,26 @@ impl BoardEdit {
             undone: Vec::new(),
             findings: found,
             locked: BTreeSet::new(),
+            pairs: PairConfig::default(),
             revision: 0,
         })
+    }
+
+    /// The editor with the differential pairs and the settings of the pairs that the pair
+    /// operations use.
+    pub fn with_pairs(mut self, pairs: PairConfig) -> BoardEdit {
+        self.pairs = pairs;
+        self
+    }
+
+    /// The differential pairs and their settings.
+    pub fn pair_config(&self) -> &PairConfig {
+        &self.pairs
+    }
+
+    /// Changes the differential pairs and their settings.
+    pub fn set_pair_config(&mut self, pairs: PairConfig) {
+        self.pairs = pairs;
     }
 
     /// The board as it is now.
@@ -415,6 +435,7 @@ impl BoardEdit {
                 route: &route,
                 settings: &self.settings,
                 locked: &self.locked,
+                pairs: &self.pairs,
             },
             &mut self.ids,
         )?;

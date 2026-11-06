@@ -167,7 +167,13 @@ impl BoardEditError {
 
     /// The error in a language: the code, the title and the detail.
     pub fn message(&self, lang: Lang) -> String {
-        format!("{} {}: {}", self.code, title(self.code, lang), self.detail)
+        let own = title(self.code, lang);
+        let shown = if own.is_empty() {
+            crate::pair_codes::title(self.code, lang)
+        } else {
+            own
+        };
+        format!("{} {}: {}", self.code, shown, self.detail)
     }
 }
 

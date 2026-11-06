@@ -5,7 +5,7 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "The state of the board editor without a screen (prototype): reversible all-or-nothing operations to place, move, turn, mirror and lock components, route orthogonal and 45-degree tracks with the width of the net class, add vias, change layer, delete a stretch or a net, paste a net with the shortest route between two pads and tune a net to a length with meanders, a design rule check after every operation, the tool, the grid and snapping, the selection, the drag with the tracks that follow, and the file of operations that the command line applies"
+description = "The state of the board editor without a screen (prototype): reversible all-or-nothing operations to place, move, turn, mirror and lock components, route orthogonal and 45-degree tracks with the width of the net class, add vias, change layer, delete a stretch or a net, paste a net with the shortest route between two pads and tune a net to a length with meanders, differential pairs (route two tracks side by side, tune their lengths, correct the gap, and check the gap, the symmetry, the uncoupled stretch, the lengths, the vias, the width and the impedance), a design rule check after every operation, the tool, the grid and snapping, the selection, the drag with the tracks that follow, and the file of operations that the command line applies"
 
 [dependencies]
 eh3d-phoenix-board = { path = "../eh3d-phoenix-board" }
@@ -13,5 +13,6 @@ eh3d-phoenix-lengths = { path = "../eh3d-phoenix-lengths" }
 eh3d-phoenix-model = { path = "../eh3d-phoenix-model" }
 eh3d-phoenix-route = { path = "../eh3d-phoenix-route" }
 eh3d-phoenix-rules = { path = "../eh3d-phoenix-rules" }
+eh3d-phoenix-stackup = { path = "../eh3d-phoenix-stackup" }
 serde.workspace = true
 serde_json = { workspace = true, features = ["float_roundtrip"] }
