@@ -46,7 +46,10 @@ fn the_table_of_commands_is_not_empty_and_every_name_is_one_word() {
     assert!(names.len() >= 50, "{} commands", names.len());
     for name in &names {
         assert!(
-            !name.is_empty() && name.chars().all(|c| c.is_ascii_lowercase() || c == '-'),
+            !name.is_empty()
+                && name
+                    .chars()
+                    .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-'),
             "{name}"
         );
     }

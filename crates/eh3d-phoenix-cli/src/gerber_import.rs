@@ -194,6 +194,13 @@ pub(crate) fn collect(
                 found.push((name, file));
             }
         } else {
+            // a file that is not there is an unusable input, as a folder that is not there is: nothing is read and nothing is written
+            if std::fs::metadata(&path).is_err() {
+                return Err(GbrError::new(
+                    INPUT_UNREADABLE,
+                    format!("{input}: it does not exist or cannot be read"),
+                ));
+            }
             let name = path
                 .file_name()
                 .map_or_else(|| input.clone(), |n| n.to_string_lossy().into_owned());
