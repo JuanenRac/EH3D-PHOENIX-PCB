@@ -14,6 +14,9 @@
 //! * [`set`]: the files of a whole project (project file, schematic with its sheets and board)
 //!   read together, with one report, one fidelity level and one JSON document;
 //! * [`settings`]: the limits, read from `config/kicad.cfg`;
+//! * [`mod@write_pcb`]: the design model written as KiCad 8 boards and footprints, with [`write_sexpr`] for the text,
+//!   [`write_settings`] for the values read from `config/kicad_export.cfg` and [`write_codes`] for
+//!   the report and the codes `PHOENIX-KICADX-001` to `PHOENIX-KICADX-007`;
 //! * [`error`]: typed errors with the codes `PHOENIX-KICAD-001` to `PHOENIX-KICAD-017` and their
 //!   titles in the eight languages of the suite.
 //!
@@ -42,6 +45,10 @@ pub mod set;
 pub mod settings;
 pub mod sexpr;
 pub mod symbols;
+pub mod write_codes;
+pub mod write_pcb;
+pub mod write_settings;
+pub mod write_sexpr;
 
 pub use conv::is_safe_relative_name;
 pub use eh3d_phoenix_hub::QualityItem;
@@ -54,6 +61,9 @@ pub use schematic::{read_schematic, read_schematic_with_sheets, ReadSchematic};
 pub use set::{read_design, DesignFiles, DesignImport};
 pub use settings::KicadSettings;
 pub use symbols::{read_symbol_library, ReadSymbols};
+pub use write_codes::{export_title, Export, ExportFile, ExportReport};
+pub use write_pcb::{write_footprints, write_pcb};
+pub use write_settings::WriteSettings;
 
 use eh3d_phoenix_board::Id;
 
