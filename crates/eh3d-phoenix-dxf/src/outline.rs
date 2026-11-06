@@ -654,10 +654,11 @@ mod tests {
         assert_eq!(codes, vec![CUTOUT_NOT_KEPT, ARCS_APPROXIMATED]);
         assert!(o.report.findings[0].detail.starts_with("2 cutouts"));
         assert_eq!(o.stats.arcs_approximated, 2);
-        // the area of the outline: 200 minus the corner (4*4 - pi*16/4 = 3.4336)
+        // the area of the outline: 200 minus the corner (4*4 - pi*16/4 = 3.4336); the straight pieces that replace the arc (0.01 mm from it at most)
+        // leave out a little more copper than the circle does, 0.02 mm2 for this corner
         let area = twice_area(&exterior) as f64 / 2.0 / (MM as f64 * MM as f64);
         assert!(
-            (area - (200.0 - (16.0 - std::f64::consts::PI * 4.0))).abs() < 0.01,
+            (area - (200.0 - (16.0 - std::f64::consts::PI * 4.0))).abs() < 0.05,
             "{area}"
         );
     }
