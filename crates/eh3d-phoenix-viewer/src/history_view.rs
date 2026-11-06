@@ -598,7 +598,7 @@ mod tests {
                 Operation::AddZone { id: id(43), zone },
             ],
         };
-        assert_eq!(named(&changed, Lang::En), "Change the zone of net GROUND");
+        assert_eq!(named(&changed, Lang::En), "Change the zone of net GND");
     }
 
     #[test]
