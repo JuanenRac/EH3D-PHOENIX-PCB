@@ -1,0 +1,78 @@
+{
+  "format": "phoenix-ipc-family/1",
+  "family": "header",
+  "title": "Pin headers in one row or two",
+  "standard": "IPC-7351B",
+  "verified": false,
+  "status": "not verified against a datasheet",
+  "layout": "tht_row",
+  "naming": "row",
+  "prefixes": [
+    "HDR"
+  ],
+  "tolerances": {
+    "fab": 0.05,
+    "place": 0.025
+  },
+  "density": {
+    "A": {
+      "drill_extra": 0.3,
+      "annular": 0.35,
+      "courtyard": 0.5
+    },
+    "B": {
+      "drill_extra": 0.2,
+      "annular": 0.3,
+      "courtyard": 0.25
+    },
+    "C": {
+      "drill_extra": 0.1,
+      "annular": 0.25,
+      "courtyard": 0.12
+    }
+  },
+  "variants": {
+    "p2_54": {
+      "code": "",
+      "values": {
+        "pitch": 2.54,
+        "drill": 1.0,
+        "pad_w": 1.7,
+        "pad_h": 1.7,
+        "body_w": 2.54,
+        "height": 8.5,
+        "pins_min": 1,
+        "pins_max": 40,
+        "rows_max": 2
+      }
+    },
+    "p2_0": {
+      "code": "",
+      "values": {
+        "pitch": 2.0,
+        "drill": 0.8,
+        "pad_w": 1.35,
+        "pad_h": 1.35,
+        "body_w": 2.0,
+        "height": 6.0,
+        "pins_min": 1,
+        "pins_max": 40,
+        "rows_max": 2
+      }
+    },
+    "p1_27": {
+      "code": "",
+      "values": {
+        "pitch": 1.27,
+        "drill": 0.55,
+        "pad_w": 0.95,
+        "pad_h": 0.95,
+        "body_w": 1.27,
+        "height": 5.0,
+        "pins_min": 1,
+        "pins_max": 40,
+        "rows_max": 2
+      }
+    }
+  }
+}

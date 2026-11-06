@@ -333,6 +333,62 @@ The titles of these codes also exist in the eight languages of the suite (`TITLE
 | PHOENIX-LIB-032 | Backup of the original cannot be made | the copy of the original next to the new file cannot be made (nothing is written) |
 | PHOENIX-LIB-033 | Item is still used by a device | deleting a footprint that a device uses or a symbol that a gate uses |
 
+## Library of footprints by IPC-7351B (`eh3d-phoenix-ipclib`, `src/codes.rs`)
+
+The titles of these codes also exist in the eight languages of the suite (`TITLES` in `src/codes.rs`); the detail of a message is in English. Codes 001 to 010 are the findings of the checker of the library (`phoenix ipc check`, and `phoenix ipc generate` on its own footprint); 020 and above are errors of the generator and of the commands; 040 to 042 are the differences that `phoenix ipc compare` reports.
+
+| Code | Title | Raised by |
+|---|---|---|
+| PHOENIX-IPC-001 | Family file is not valid | a family file that is not JSON, has another format than `phoenix-ipc-family/1`, an unknown layout or naming, a missing density level, a variant without a value its layout needs, a number that is negative or not finite, or a family that appears twice |
+| PHOENIX-IPC-002 | Two footprints have the same name | two footprints of the library with one name, compared without regard to case (error) |
+| PHOENIX-IPC-003 | Pads overlap | the boxes of two pads of one footprint overlap (error) |
+| PHOENIX-IPC-004 | Distance between pads is not the pitch of the family | the closest two pad centres are not at the pitch of the family, within `pitch_tol_mm` of `config/ipc.cfg` (or are closer than the pitch, in the layouts that skip places) (error) |
+| PHOENIX-IPC-005 | Origin is not at the centre of the pads | the middle of the box of the pads is farther from the origin than `origin_tol_mm` (error) |
+| PHOENIX-IPC-006 | Solder mask or paste openings are not coherent | a surface-mount pad without an open solder mask, without paste or with more than 100 per cent of paste, a reduced paste above `ep_paste_max_percent`, or a through-hole pad with paste or without a mask opening (error) |
+| PHOENIX-IPC-007 | Silkscreen is too close to a pad | a silkscreen line or dot closer to a pad than `silk_clearance_mm` (error) |
+| PHOENIX-IPC-008 | Courtyard does not follow the density level | a courtyard that is not the box of the pads and the body grown by the excess of the density level, or an excess smaller than the one the density level of the family asks for (error) |
+| PHOENIX-IPC-009 | Name does not follow the naming of IPC-7351B | a name with characters other than upper case letters, digits, `_` and `-`, that does not start with the prefix of the family or does not end with the letter of the density level (M, N or L) (error) |
+| PHOENIX-IPC-010 | Pad without a size, or a hole larger than the pad | a pad with no width or height, or a hole that is not smaller than the pad (error) |
+| PHOENIX-IPC-020 | Family does not exist | a family that the folder of families does not have; the detail lists the ones it has |
+| PHOENIX-IPC-021 | Variant does not exist | a variant that the family does not have; the detail lists the ones it has |
+| PHOENIX-IPC-022 | Parameter of the generator is not valid | a parameter that the family does not have, a number of pins out of range, odd where it must be even or not a whole number, rows that the family cannot have, or a prefix that is not one of the family |
+| PHOENIX-IPC-023 | Density level is not A, B or C | a density level that is not A, B or C (or M, N or L) |
+| PHOENIX-IPC-024 | The dimensions give lands that cannot be made | dimensions that give lands that touch, have no size or cross the axis, an exposed pad that touches the lands, a hole with too thin a ring of copper, or balls whose pads would touch |
+| PHOENIX-IPC-025 | Command option is not valid | an option that does not exist, lacks its value or does not apply to the command, a missing or extra argument, a language that is not one of the eight, an output file that is not `.lbr` or `.kicad_mod` |
+| PHOENIX-IPC-026 | File cannot be read | a settings, family, library or footprint file that cannot be read, is too large, is not an EAGLE library or a KiCad footprint, or a footprint that the library does not have |
+| PHOENIX-IPC-027 | File cannot be written, or it exists | the output file exists (it is never written over) or cannot be written, or the library written does not read back the same |
+| PHOENIX-IPC-028 | Settings file is not valid | a line of `config/ipc.cfg` that is not `key = value`, an unknown key or a value out of range; the message names the line |
+| PHOENIX-IPC-040 | Pad differs from the generated one | a pad of the footprint of the owner whose position, size or hole differs from the generated pad by more than `compare_tol_mm`; the report gives the differences |
+| PHOENIX-IPC-041 | Pad of the generated footprint is missing | a pad of the generated footprint that has no pad of the same name in the footprint of the owner |
+| PHOENIX-IPC-042 | Pad has no counterpart in the generated footprint | a pad of the footprint of the owner that has no pad of the same name in the generated footprint |
+
+## Bulk import of libraries (`eh3d-phoenix-ipclib`, `src/codes.rs`)
+
+Codes 001 to 010 are the findings of the quality report of an imported footprint or symbol, listed in the index `phoenix-libindex/1` (`phoenix libindex`); 020 and above are about the files, the folder and the command. A file that cannot be read does not stop the others.
+
+| Code | Title | Raised by |
+|---|---|---|
+| PHOENIX-LIBIDX-001 | Pads with the same name | two or more pads of an imported footprint with one name (empty names of mounting holes do not count) |
+| PHOENIX-LIBIDX-002 | Pad without copper | a pad with no size, with no copper layer or on no layer of copper |
+| PHOENIX-LIBIDX-003 | Hole larger than the pad | a pad whose hole is larger than its smaller side |
+| PHOENIX-LIBIDX-004 | Origin far from the pads | a footprint whose origin is farther than `origin_far_mm` of `config/import_bulk.cfg` from the box of the centres of its pads |
+| PHOENIX-LIBIDX-005 | Name is empty | a footprint or a symbol whose name is empty |
+| PHOENIX-LIBIDX-006 | Footprint without pads or symbol without pins | a footprint without pads or a symbol without pins |
+| PHOENIX-LIBIDX-007 | Pins of a symbol with the same name | two or more pins of a symbol with one name or number (the pins of every unit of a symbol of KiCad are counted together) |
+| PHOENIX-LIBIDX-008 | Same name used more than once | a footprint or a symbol whose name another item of the folder also has, in the same library or in another one; the detail lists the members |
+| PHOENIX-LIBIDX-009 | Same geometry under more than one name | a footprint with the same pads (positions, sizes and holes, rounded to `geometry_round_mm`) as one with another name, in either format; the detail lists the members |
+| PHOENIX-LIBIDX-010 | Pin of a symbol without a name | a pin of a symbol whose name (EAGLE) or number (KiCad) is empty |
+| PHOENIX-LIBIDX-020 | File cannot be read or is not a library | a file that cannot be read or is not a library of the kind its extension says; the file is listed with the code and nothing of it is indexed |
+| PHOENIX-LIBIDX-021 | File is larger than the limit and was skipped | a file larger than `max_file_bytes`; it is not read |
+| PHOENIX-LIBIDX-022 | Folder has more files than the limit | more library files than `max_files`; the first ones in the order of the paths are read |
+| PHOENIX-LIBIDX-023 | Folder is deeper than the limit | a folder more than `max_depth` levels below the one given; it is not entered |
+| PHOENIX-LIBIDX-024 | Link or path outside the folder was skipped | a link, or a path whose real path is outside the folder; it is never followed or read |
+| PHOENIX-LIBIDX-025 | More items than the limit | more footprints and symbols than `max_items`; the rest are not indexed |
+| PHOENIX-LIBIDX-026 | Command option is not valid | an option that does not exist, lacks its value or does not apply, no folder or two, a language that is not one of the eight, an `--out` that does not end in `.json` |
+| PHOENIX-LIBIDX-027 | Index cannot be written, or the file exists | the file named with `--out` exists (it is never written over) or cannot be written |
+| PHOENIX-LIBIDX-028 | Settings file of the import is not valid | a line of `config/import_bulk.cfg` that is not `key = value`, an unknown key or a value out of range; the message names the line |
+| PHOENIX-LIBIDX-029 | Folder cannot be read | a folder that does not exist, is not a folder or cannot be read |
+
 ## Electrical rule check (`eh3d-phoenix-erc`, `src/codes.rs`)
 
 The titles of these codes also exist in the eight languages of the suite (`TITLES` in `src/codes.rs`); the detail of a finding is in English. A rule can be turned off or given another level in `config/erc.cfg`.

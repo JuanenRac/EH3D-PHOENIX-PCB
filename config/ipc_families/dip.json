@@ -1,0 +1,62 @@
+{
+  "format": "phoenix-ipc-family/1",
+  "family": "dip",
+  "title": "DIP, through-hole in two rows",
+  "standard": "IPC-7351B",
+  "verified": false,
+  "status": "not verified against a datasheet",
+  "layout": "tht_dual",
+  "naming": "dip",
+  "prefixes": [
+    "DIP"
+  ],
+  "tolerances": {
+    "fab": 0.05,
+    "place": 0.025
+  },
+  "density": {
+    "A": {
+      "drill_extra": 0.3,
+      "annular": 0.35,
+      "courtyard": 0.5
+    },
+    "B": {
+      "drill_extra": 0.2,
+      "annular": 0.3,
+      "courtyard": 0.25
+    },
+    "C": {
+      "drill_extra": 0.1,
+      "annular": 0.25,
+      "courtyard": 0.12
+    }
+  },
+  "variants": {
+    "narrow": {
+      "values": {
+        "pitch": 2.54,
+        "row": 7.62,
+        "lead_w": 0.5,
+        "lead_t": 0.25,
+        "body_w": 6.35,
+        "body_trim": 0.89,
+        "height": 5.08,
+        "pins_min": 4,
+        "pins_max": 40
+      }
+    },
+    "wide": {
+      "values": {
+        "pitch": 2.54,
+        "row": 15.24,
+        "lead_w": 0.5,
+        "lead_t": 0.25,
+        "body_w": 14.0,
+        "body_trim": 0.89,
+        "height": 5.08,
+        "pins_min": 4,
+        "pins_max": 40
+      }
+    }
+  }
+}

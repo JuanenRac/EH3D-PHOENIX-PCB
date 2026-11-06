@@ -1,0 +1,71 @@
+{
+  "format": "phoenix-ipc-family/1",
+  "family": "ssop",
+  "title": "SSOP with gull-wing leads on two sides",
+  "standard": "IPC-7351B",
+  "verified": false,
+  "status": "not verified against a datasheet",
+  "layout": "dual",
+  "naming": "dual_span",
+  "prefixes": [
+    "SSOP"
+  ],
+  "tolerances": {
+    "fab": 0.05,
+    "place": 0.025
+  },
+  "density": {
+    "A": {
+      "toe": 0.55,
+      "heel": 0.45,
+      "side": 0.05,
+      "courtyard": 0.5
+    },
+    "B": {
+      "toe": 0.35,
+      "heel": 0.35,
+      "side": 0.03,
+      "courtyard": 0.25
+    },
+    "C": {
+      "toe": 0.15,
+      "heel": 0.25,
+      "side": 0.01,
+      "courtyard": 0.1
+    }
+  },
+  "variants": {
+    "p0_65": {
+      "values": {
+        "pitch": 0.65,
+        "span": 7.8,
+        "span_tol": 0.4,
+        "lead": 0.75,
+        "lead_tol": 0.25,
+        "lead_w": 0.32,
+        "lead_w_tol": 0.07,
+        "body_w": 5.3,
+        "body_trim": 0.2,
+        "height": 2.0,
+        "pins_min": 14,
+        "pins_max": 30
+      }
+    },
+    "p0_5": {
+      "values": {
+        "pitch": 0.5,
+        "span": 7.8,
+        "span_tol": 0.4,
+        "lead": 0.75,
+        "lead_tol": 0.25,
+        "lead_w": 0.22,
+        "lead_w_tol": 0.05,
+        "body_w": 5.3,
+        "body_trim": 0.2,
+        "height": 2.0,
+        "pins_min": 20,
+        "pins_max": 40
+      }
+    }
+  }
+}

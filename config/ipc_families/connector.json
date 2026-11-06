@@ -1,0 +1,92 @@
+{
+  "format": "phoenix-ipc-family/1",
+  "family": "connector",
+  "title": "Connectors of a fixed pitch in one row",
+  "standard": "IPC-7351B",
+  "verified": false,
+  "status": "not verified against a datasheet",
+  "layout": "tht_row",
+  "naming": "row",
+  "prefixes": [
+    "CONN"
+  ],
+  "tolerances": {
+    "fab": 0.05,
+    "place": 0.025
+  },
+  "density": {
+    "A": {
+      "drill_extra": 0.3,
+      "annular": 0.35,
+      "courtyard": 0.5
+    },
+    "B": {
+      "drill_extra": 0.2,
+      "annular": 0.3,
+      "courtyard": 0.25
+    },
+    "C": {
+      "drill_extra": 0.1,
+      "annular": 0.25,
+      "courtyard": 0.12
+    }
+  },
+  "variants": {
+    "screw_5p08": {
+      "code": "SCREW",
+      "values": {
+        "pitch": 5.08,
+        "drill": 1.3,
+        "pad_w": 2.6,
+        "pad_h": 2.6,
+        "body_w": 7.6,
+        "height": 10.0,
+        "pins_min": 1,
+        "pins_max": 12,
+        "rows_max": 1
+      }
+    },
+    "screw_3p5": {
+      "code": "SCREW",
+      "values": {
+        "pitch": 3.5,
+        "drill": 1.1,
+        "pad_w": 2.2,
+        "pad_h": 2.2,
+        "body_w": 7.0,
+        "height": 8.5,
+        "pins_min": 1,
+        "pins_max": 12,
+        "rows_max": 1
+      }
+    },
+    "xh_2p5": {
+      "code": "XH",
+      "values": {
+        "pitch": 2.5,
+        "drill": 0.95,
+        "pad_w": 1.7,
+        "pad_h": 2.0,
+        "body_w": 5.75,
+        "height": 7.0,
+        "pins_min": 1,
+        "pins_max": 16,
+        "rows_max": 1
+      }
+    },
+    "ph_2p0": {
+      "code": "PH",
+      "values": {
+        "pitch": 2.0,
+        "drill": 0.8,
+        "pad_w": 1.35,
+        "pad_h": 1.8,
+        "body_w": 4.5,
+        "height": 6.0,
+        "pins_min": 1,
+        "pins_max": 16,
+        "rows_max": 1
+      }
+    }
+  }
+}

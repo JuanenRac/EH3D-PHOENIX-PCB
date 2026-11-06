@@ -1,0 +1,66 @@
+{
+  "format": "phoenix-ipc-family/1",
+  "family": "bga",
+  "title": "BGA with a regular grid of round balls",
+  "standard": "IPC-7351B",
+  "verified": false,
+  "status": "not verified against a datasheet",
+  "layout": "grid",
+  "naming": "bga",
+  "prefixes": [
+    "BGA"
+  ],
+  "tolerances": {
+    "fab": 0.05,
+    "place": 0.025
+  },
+  "density": {
+    "A": {
+      "pad_ratio": 0.9,
+      "courtyard": 0.5
+    },
+    "B": {
+      "pad_ratio": 0.8,
+      "courtyard": 0.25
+    },
+    "C": {
+      "pad_ratio": 0.7,
+      "courtyard": 0.1
+    }
+  },
+  "variants": {
+    "p0_8_10x10": {
+      "values": {
+        "pitch": 0.8,
+        "cols": 10,
+        "rows": 10,
+        "ball": 0.45,
+        "body_l": 9.0,
+        "body_w": 9.0,
+        "height": 1.2
+      }
+    },
+    "p0_5_8x8": {
+      "values": {
+        "pitch": 0.5,
+        "cols": 8,
+        "rows": 8,
+        "ball": 0.3,
+        "body_l": 4.0,
+        "body_w": 4.0,
+        "height": 0.9
+      }
+    },
+    "p1_0_12x12": {
+      "values": {
+        "pitch": 1.0,
+        "cols": 12,
+        "rows": 12,
+        "ball": 0.6,
+        "body_l": 13.0,
+        "body_w": 13.0,
+        "height": 1.5
+      }
+    }
+  }
+}

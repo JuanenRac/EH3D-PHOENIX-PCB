@@ -1,0 +1,181 @@
+{
+  "format": "phoenix-ipc-family/1",
+  "family": "chip",
+  "title": "Chip resistors, capacitors, inductors and LEDs (0201 to 2512)",
+  "standard": "IPC-7351B",
+  "verified": false,
+  "status": "not verified against a datasheet",
+  "layout": "two_terminal",
+  "naming": "chip",
+  "prefixes": [
+    "RESC",
+    "CAPC",
+    "INDC",
+    "LEDC"
+  ],
+  "tolerances": {
+    "fab": 0.05,
+    "place": 0.025
+  },
+  "density": {
+    "A": {
+      "toe": 0.55,
+      "heel": 0.0,
+      "side": 0.05,
+      "courtyard": 0.5
+    },
+    "B": {
+      "toe": 0.35,
+      "heel": 0.0,
+      "side": 0.0,
+      "courtyard": 0.25
+    },
+    "C": {
+      "toe": 0.15,
+      "heel": 0.0,
+      "side": -0.05,
+      "courtyard": 0.1
+    }
+  },
+  "variants": {
+    "0201": {
+      "code": "0603",
+      "values": {
+        "length": 0.6,
+        "length_tol": 0.03,
+        "width": 0.3,
+        "width_tol": 0.03,
+        "term": 0.15,
+        "term_tol": 0.05,
+        "height": 0.26,
+        "silk": 0
+      },
+      "density": {
+        "A": {
+          "toe": 0.3
+        },
+        "B": {
+          "toe": 0.2
+        },
+        "C": {
+          "toe": 0.1
+        }
+      }
+    },
+    "0402": {
+      "code": "1005",
+      "values": {
+        "length": 1.0,
+        "length_tol": 0.05,
+        "width": 0.5,
+        "width_tol": 0.05,
+        "term": 0.25,
+        "term_tol": 0.1,
+        "height": 0.35,
+        "silk": 0
+      },
+      "density": {
+        "A": {
+          "toe": 0.4
+        },
+        "B": {
+          "toe": 0.25
+        },
+        "C": {
+          "toe": 0.15
+        }
+      }
+    },
+    "0603": {
+      "code": "1608",
+      "values": {
+        "length": 1.6,
+        "length_tol": 0.1,
+        "width": 0.8,
+        "width_tol": 0.05,
+        "term": 0.3,
+        "term_tol": 0.15,
+        "height": 0.55,
+        "silk": 1
+      }
+    },
+    "0805": {
+      "code": "2012",
+      "values": {
+        "length": 2.0,
+        "length_tol": 0.1,
+        "width": 1.25,
+        "width_tol": 0.1,
+        "term": 0.4,
+        "term_tol": 0.2,
+        "height": 0.6,
+        "silk": 1
+      }
+    },
+    "1206": {
+      "code": "3216",
+      "values": {
+        "length": 3.2,
+        "length_tol": 0.15,
+        "width": 1.6,
+        "width_tol": 0.15,
+        "term": 0.5,
+        "term_tol": 0.25,
+        "height": 0.55,
+        "silk": 1
+      }
+    },
+    "1210": {
+      "code": "3225",
+      "values": {
+        "length": 3.2,
+        "length_tol": 0.15,
+        "width": 2.5,
+        "width_tol": 0.2,
+        "term": 0.5,
+        "term_tol": 0.25,
+        "height": 0.55,
+        "silk": 1
+      }
+    },
+    "1812": {
+      "code": "4532",
+      "values": {
+        "length": 4.5,
+        "length_tol": 0.2,
+        "width": 3.2,
+        "width_tol": 0.2,
+        "term": 0.6,
+        "term_tol": 0.3,
+        "height": 0.55,
+        "silk": 1
+      }
+    },
+    "2010": {
+      "code": "5025",
+      "values": {
+        "length": 5.0,
+        "length_tol": 0.2,
+        "width": 2.5,
+        "width_tol": 0.2,
+        "term": 0.6,
+        "term_tol": 0.3,
+        "height": 0.55,
+        "silk": 1
+      }
+    },
+    "2512": {
+      "code": "6332",
+      "values": {
+        "length": 6.3,
+        "length_tol": 0.2,
+        "width": 3.2,
+        "width_tol": 0.2,
+        "term": 0.6,
+        "term_tol": 0.3,
+        "height": 0.55,
+        "silk": 1
+      }
+    }
+  }
+}

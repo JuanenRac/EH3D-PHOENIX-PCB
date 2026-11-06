@@ -1,0 +1,79 @@
+{
+  "format": "phoenix-ipc-family/1",
+  "family": "melf",
+  "title": "Cylindrical MELF resistors and diodes",
+  "standard": "IPC-7351B",
+  "verified": false,
+  "status": "not verified against a datasheet",
+  "layout": "two_terminal",
+  "naming": "chip",
+  "prefixes": [
+    "RESMELF",
+    "DIOMELF"
+  ],
+  "tolerances": {
+    "fab": 0.05,
+    "place": 0.025
+  },
+  "density": {
+    "A": {
+      "toe": 0.6,
+      "heel": 0.2,
+      "side": 0.1,
+      "courtyard": 0.5
+    },
+    "B": {
+      "toe": 0.4,
+      "heel": 0.1,
+      "side": 0.05,
+      "courtyard": 0.25
+    },
+    "C": {
+      "toe": 0.2,
+      "heel": 0.0,
+      "side": 0.0,
+      "courtyard": 0.1
+    }
+  },
+  "variants": {
+    "micromelf": {
+      "code": "2013",
+      "values": {
+        "length": 2.0,
+        "length_tol": 0.1,
+        "width": 1.25,
+        "width_tol": 0.05,
+        "term": 0.4,
+        "term_tol": 0.15,
+        "height": 1.25,
+        "silk": 1
+      }
+    },
+    "minimelf": {
+      "code": "3614",
+      "values": {
+        "length": 3.6,
+        "length_tol": 0.15,
+        "width": 1.4,
+        "width_tol": 0.1,
+        "term": 0.5,
+        "term_tol": 0.2,
+        "height": 1.4,
+        "silk": 1
+      }
+    },
+    "melf": {
+      "code": "5822",
+      "values": {
+        "length": 5.8,
+        "length_tol": 0.2,
+        "width": 2.2,
+        "width_tol": 0.1,
+        "term": 0.6,
+        "term_tol": 0.25,
+        "height": 2.2,
+        "silk": 1
+      }
+    }
+  }
+}

@@ -1,0 +1,71 @@
+{
+  "format": "phoenix-ipc-family/1",
+  "family": "soic",
+  "title": "SOIC with gull-wing leads on two sides",
+  "standard": "IPC-7351B",
+  "verified": false,
+  "status": "not verified against a datasheet",
+  "layout": "dual",
+  "naming": "dual_span",
+  "prefixes": [
+    "SOIC"
+  ],
+  "tolerances": {
+    "fab": 0.05,
+    "place": 0.025
+  },
+  "density": {
+    "A": {
+      "toe": 0.55,
+      "heel": 0.45,
+      "side": 0.05,
+      "courtyard": 0.5
+    },
+    "B": {
+      "toe": 0.35,
+      "heel": 0.35,
+      "side": 0.03,
+      "courtyard": 0.25
+    },
+    "C": {
+      "toe": 0.15,
+      "heel": 0.25,
+      "side": 0.01,
+      "courtyard": 0.1
+    }
+  },
+  "variants": {
+    "narrow": {
+      "values": {
+        "pitch": 1.27,
+        "span": 6.0,
+        "span_tol": 0.2,
+        "lead": 0.835,
+        "lead_tol": 0.435,
+        "lead_w": 0.41,
+        "lead_w_tol": 0.1,
+        "body_w": 3.9,
+        "body_trim": 0.2,
+        "height": 1.75,
+        "pins_min": 8,
+        "pins_max": 16
+      }
+    },
+    "wide": {
+      "values": {
+        "pitch": 1.27,
+        "span": 10.3,
+        "span_tol": 0.3,
+        "lead": 0.835,
+        "lead_tol": 0.435,
+        "lead_w": 0.41,
+        "lead_w_tol": 0.1,
+        "body_w": 7.5,
+        "body_trim": 0.2,
+        "height": 2.65,
+        "pins_min": 16,
+        "pins_max": 28
+      }
+    }
+  }
+}

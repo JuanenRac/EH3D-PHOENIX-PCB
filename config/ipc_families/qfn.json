@@ -1,0 +1,114 @@
+{
+  "format": "phoenix-ipc-family/1",
+  "family": "qfn",
+  "title": "QFN with flat terminals on four sides and an exposed pad",
+  "standard": "IPC-7351B",
+  "verified": false,
+  "status": "not verified against a datasheet",
+  "layout": "quad",
+  "naming": "quad_body",
+  "prefixes": [
+    "QFN"
+  ],
+  "tolerances": {
+    "fab": 0.05,
+    "place": 0.025
+  },
+  "density": {
+    "A": {
+      "toe": 0.4,
+      "heel": 0.0,
+      "side": 0.0,
+      "courtyard": 0.5
+    },
+    "B": {
+      "toe": 0.3,
+      "heel": 0.0,
+      "side": 0.0,
+      "courtyard": 0.25
+    },
+    "C": {
+      "toe": 0.2,
+      "heel": 0.0,
+      "side": 0.0,
+      "courtyard": 0.1
+    }
+  },
+  "variants": {
+    "qfn16_3x3_p0_5": {
+      "values": {
+        "pins": 16,
+        "pitch": 0.5,
+        "body": 3.0,
+        "span": 3.0,
+        "span_tol": 0.05,
+        "lead": 0.4,
+        "lead_tol": 0.05,
+        "lead_w": 0.25,
+        "lead_w_tol": 0.05,
+        "height": 0.8,
+        "ep": 1.7
+      }
+    },
+    "qfn20_4x4_p0_5": {
+      "values": {
+        "pins": 20,
+        "pitch": 0.5,
+        "body": 4.0,
+        "span": 4.0,
+        "span_tol": 0.05,
+        "lead": 0.4,
+        "lead_tol": 0.05,
+        "lead_w": 0.25,
+        "lead_w_tol": 0.05,
+        "height": 0.8,
+        "ep": 2.6
+      }
+    },
+    "qfn24_4x4_p0_5": {
+      "values": {
+        "pins": 24,
+        "pitch": 0.5,
+        "body": 4.0,
+        "span": 4.0,
+        "span_tol": 0.05,
+        "lead": 0.4,
+        "lead_tol": 0.05,
+        "lead_w": 0.25,
+        "lead_w_tol": 0.05,
+        "height": 0.8,
+        "ep": 2.6
+      }
+    },
+    "qfn32_5x5_p0_5": {
+      "values": {
+        "pins": 32,
+        "pitch": 0.5,
+        "body": 5.0,
+        "span": 5.0,
+        "span_tol": 0.05,
+        "lead": 0.4,
+        "lead_tol": 0.05,
+        "lead_w": 0.25,
+        "lead_w_tol": 0.05,
+        "height": 0.8,
+        "ep": 3.1
+      }
+    },
+    "qfn48_7x7_p0_5": {
+      "values": {
+        "pins": 48,
+        "pitch": 0.5,
+        "body": 7.0,
+        "span": 7.0,
+        "span_tol": 0.05,
+        "lead": 0.4,
+        "lead_tol": 0.05,
+        "lead_w": 0.25,
+        "lead_w_tol": 0.05,
+        "height": 0.8,
+        "ep": 5.3
+      }
+    }
+  }
+}

@@ -1,0 +1,93 @@
+{
+  "format": "phoenix-ipc-family/1",
+  "family": "dfn",
+  "title": "DFN with flat terminals on two sides and an exposed pad",
+  "standard": "IPC-7351B",
+  "verified": false,
+  "status": "not verified against a datasheet",
+  "layout": "dual",
+  "naming": "dual_body",
+  "prefixes": [
+    "DFN"
+  ],
+  "tolerances": {
+    "fab": 0.05,
+    "place": 0.025
+  },
+  "density": {
+    "A": {
+      "toe": 0.4,
+      "heel": 0.0,
+      "side": 0.0,
+      "courtyard": 0.5
+    },
+    "B": {
+      "toe": 0.3,
+      "heel": 0.0,
+      "side": 0.0,
+      "courtyard": 0.25
+    },
+    "C": {
+      "toe": 0.2,
+      "heel": 0.0,
+      "side": 0.0,
+      "courtyard": 0.1
+    }
+  },
+  "variants": {
+    "dfn8_3x3_p0_65": {
+      "values": {
+        "pitch": 0.65,
+        "span": 3.0,
+        "span_tol": 0.05,
+        "lead": 0.4,
+        "lead_tol": 0.05,
+        "lead_w": 0.3,
+        "lead_w_tol": 0.05,
+        "body_w": 3.0,
+        "body_l": 3.0,
+        "height": 0.8,
+        "pins_min": 8,
+        "pins_max": 8,
+        "ep_w": 1.9,
+        "ep_h": 1.5
+      }
+    },
+    "dfn6_2x2_p0_65": {
+      "values": {
+        "pitch": 0.65,
+        "span": 2.0,
+        "span_tol": 0.05,
+        "lead": 0.35,
+        "lead_tol": 0.05,
+        "lead_w": 0.3,
+        "lead_w_tol": 0.05,
+        "body_w": 2.0,
+        "body_l": 2.0,
+        "height": 0.8,
+        "pins_min": 6,
+        "pins_max": 6,
+        "ep_w": 1.0,
+        "ep_h": 1.4
+      }
+    },
+    "dfn10_3x3_p0_5": {
+      "values": {
+        "pitch": 0.5,
+        "span": 3.0,
+        "span_tol": 0.05,
+        "lead": 0.4,
+        "lead_tol": 0.05,
+        "lead_w": 0.25,
+        "lead_w_tol": 0.05,
+        "body_w": 3.0,
+        "body_l": 3.0,
+        "height": 0.8,
+        "pins_min": 10,
+        "pins_max": 10,
+        "ep_w": 1.9,
+        "ep_h": 1.65
+      }
+    }
+  }
+}

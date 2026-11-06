@@ -1,0 +1,78 @@
+{
+  "format": "phoenix-ipc-family/1",
+  "family": "sot89",
+  "title": "SOT-89 with a tab, pads written out",
+  "standard": "IPC-7351B",
+  "verified": false,
+  "status": "not verified against a datasheet",
+  "layout": "explicit",
+  "naming": "explicit",
+  "prefixes": [
+    "SOT"
+  ],
+  "tolerances": {
+    "fab": 0.05,
+    "place": 0.025
+  },
+  "density": {
+    "A": {
+      "toe": 0.55,
+      "heel": 0.45,
+      "side": 0.05,
+      "courtyard": 0.5
+    },
+    "B": {
+      "toe": 0.35,
+      "heel": 0.35,
+      "side": 0.03,
+      "courtyard": 0.25
+    },
+    "C": {
+      "toe": 0.15,
+      "heel": 0.25,
+      "side": 0.01,
+      "courtyard": 0.1
+    }
+  },
+  "variants": {
+    "sot89_3": {
+      "code": "SOT150P450X150-4",
+      "values": {
+        "pitch": 1.5,
+        "body_l": 4.5,
+        "body_w": 2.5,
+        "height": 1.5
+      },
+      "pads": [
+        {
+          "name": "1",
+          "x": -1.5,
+          "y": -1.9,
+          "w": 0.9,
+          "h": 1.4
+        },
+        {
+          "name": "2",
+          "x": 0.0,
+          "y": -1.9,
+          "w": 0.9,
+          "h": 1.4
+        },
+        {
+          "name": "3",
+          "x": 1.5,
+          "y": -1.9,
+          "w": 0.9,
+          "h": 1.4
+        },
+        {
+          "name": "4",
+          "x": 0.0,
+          "y": 1.3,
+          "w": 2.0,
+          "h": 2.6
+        }
+      ]
+    }
+  }
+}

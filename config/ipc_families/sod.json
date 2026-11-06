@@ -1,0 +1,78 @@
+{
+  "format": "phoenix-ipc-family/1",
+  "family": "sod",
+  "title": "Small-outline diodes with flat leads",
+  "standard": "IPC-7351B",
+  "verified": false,
+  "status": "not verified against a datasheet",
+  "layout": "two_terminal",
+  "naming": "chip",
+  "prefixes": [
+    "SODFL"
+  ],
+  "tolerances": {
+    "fab": 0.05,
+    "place": 0.025
+  },
+  "density": {
+    "A": {
+      "toe": 0.55,
+      "heel": 0.45,
+      "side": 0.05,
+      "courtyard": 0.5
+    },
+    "B": {
+      "toe": 0.35,
+      "heel": 0.35,
+      "side": 0.03,
+      "courtyard": 0.25
+    },
+    "C": {
+      "toe": 0.15,
+      "heel": 0.25,
+      "side": 0.01,
+      "courtyard": 0.1
+    }
+  },
+  "variants": {
+    "sod123": {
+      "code": "3716",
+      "values": {
+        "length": 3.7,
+        "length_tol": 0.15,
+        "width": 1.6,
+        "width_tol": 0.1,
+        "term": 0.85,
+        "term_tol": 0.25,
+        "height": 1.1,
+        "silk": 1
+      }
+    },
+    "sod323": {
+      "code": "2513",
+      "values": {
+        "length": 2.5,
+        "length_tol": 0.1,
+        "width": 1.25,
+        "width_tol": 0.1,
+        "term": 0.3,
+        "term_tol": 0.15,
+        "height": 0.95,
+        "silk": 1
+      }
+    },
+    "sod523": {
+      "code": "1608",
+      "values": {
+        "length": 1.6,
+        "length_tol": 0.1,
+        "width": 0.8,
+        "width_tol": 0.1,
+        "term": 0.25,
+        "term_tol": 0.1,
+        "height": 0.6,
+        "silk": 1
+      }
+    }
+  }
+}

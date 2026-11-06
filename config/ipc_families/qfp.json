@@ -1,0 +1,109 @@
+{
+  "format": "phoenix-ipc-family/1",
+  "family": "qfp",
+  "title": "LQFP and TQFP with gull-wing leads on four sides",
+  "standard": "IPC-7351B",
+  "verified": false,
+  "status": "not verified against a datasheet",
+  "layout": "quad",
+  "naming": "quad_span",
+  "prefixes": [
+    "QFP"
+  ],
+  "tolerances": {
+    "fab": 0.05,
+    "place": 0.025
+  },
+  "density": {
+    "A": {
+      "toe": 0.55,
+      "heel": 0.45,
+      "side": 0.05,
+      "courtyard": 0.5
+    },
+    "B": {
+      "toe": 0.35,
+      "heel": 0.35,
+      "side": 0.03,
+      "courtyard": 0.25
+    },
+    "C": {
+      "toe": 0.15,
+      "heel": 0.25,
+      "side": 0.01,
+      "courtyard": 0.1
+    }
+  },
+  "variants": {
+    "lqfp32_7x7": {
+      "values": {
+        "pins": 32,
+        "pitch": 0.8,
+        "body": 7.0,
+        "span": 9.0,
+        "span_tol": 0.2,
+        "lead": 0.6,
+        "lead_tol": 0.15,
+        "lead_w": 0.37,
+        "lead_w_tol": 0.07,
+        "height": 1.6
+      }
+    },
+    "lqfp48_7x7": {
+      "values": {
+        "pins": 48,
+        "pitch": 0.5,
+        "body": 7.0,
+        "span": 9.0,
+        "span_tol": 0.2,
+        "lead": 0.6,
+        "lead_tol": 0.15,
+        "lead_w": 0.22,
+        "lead_w_tol": 0.05,
+        "height": 1.6
+      }
+    },
+    "lqfp64_10x10": {
+      "values": {
+        "pins": 64,
+        "pitch": 0.5,
+        "body": 10.0,
+        "span": 12.0,
+        "span_tol": 0.2,
+        "lead": 0.6,
+        "lead_tol": 0.15,
+        "lead_w": 0.22,
+        "lead_w_tol": 0.05,
+        "height": 1.6
+      }
+    },
+    "lqfp100_14x14": {
+      "values": {
+        "pins": 100,
+        "pitch": 0.5,
+        "body": 14.0,
+        "span": 16.0,
+        "span_tol": 0.2,
+        "lead": 0.6,
+        "lead_tol": 0.15,
+        "lead_w": 0.22,
+        "lead_w_tol": 0.05,
+        "height": 1.6
+      }
+    },
+    "tqfp44_10x10": {
+      "values": {
+        "pins": 44,
+        "pitch": 0.8,
+        "body": 10.0,
+        "span": 12.0,
+        "span_tol": 0.2,
+        "lead": 0.6,
+        "lead_tol": 0.15,
+        "lead_w": 0.37,
+        "lead_w_tol": 0.07,
+        "height": 1.2
+      }
+    }
+  }
+}
