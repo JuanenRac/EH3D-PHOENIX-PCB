@@ -16,14 +16,16 @@
 //!
 //! After the device come options: `model=NAME`, `file=NAME.lib` (a file in the folder of the
 //! netlist that holds the model or the subcircuit), `subckt=NAME`, `pins=A,K` (the pins of the
-//! symbol in the order the device takes them) and, for a MOSFET, `w=` and `l=`. A value rule beats
+//! symbol in the order the device takes them), for a MOSFET `w=` and `l=`, and for a resistor, a
+//! capacitor or an inductor `tol=5%` (its tolerance in a Monte Carlo study). A value rule beats
 //! a symbol rule, which beats a prefix rule. The attributes a part can have are `SIM.DEVICE`,
-//! `SIM.VALUE`, `SPICE_MODEL`, `SIM.FILE` and `SIM.PINS`.
+//! `SIM.VALUE`, `SPICE_MODEL`, `SIM.FILE`, `SIM.PINS` and `SIM.TOL`.
 
 use std::collections::BTreeMap;
 
 use eh3d_phoenix_rules::Severity;
 
+use crate::montecarlo::parse_fraction;
 use crate::netcodes::{GenIssue, TABLE_INVALID};
 use crate::units::{format_number, parse_number};
 
@@ -35,12 +37,13 @@ const BUILT_IN: &str = include_str!("../../../config/sim_models.cfg");
 pub type PartProps = BTreeMap<String, BTreeMap<String, String>>;
 
 /// The attribute names a part can carry.
-pub const ATTRIBUTE_KEYS: [&str; 5] = [
+pub const ATTRIBUTE_KEYS: [&str; 6] = [
     "SIM.DEVICE",
     "SIM.VALUE",
     "SPICE_MODEL",
     "SIM.FILE",
     "SIM.PINS",
+    "SIM.TOL",
 ];
 
 /// The names a pin can have for a role of a device, in lower case.
@@ -259,6 +262,9 @@ pub struct Rule {
     pub width: Option<String>,
     /// The channel length of a MOSFET as a number in a netlist (`l=`).
     pub length: Option<String>,
+    /// The tolerance of a resistor, a capacitor or an inductor as a fraction in a netlist
+    /// (`tol=5%` is `5e-2`).
+    pub tolerance: Option<String>,
 }
 
 impl Rule {
@@ -272,6 +278,7 @@ impl Rule {
             pins: Vec::new(),
             width: None,
             length: None,
+            tolerance: None,
         }
     }
 }
@@ -501,6 +508,16 @@ fn parse_rule(text: &str) -> Result<Rule, String> {
                 } else {
                     rule.length = Some(format_number(number));
                 }
+            }
+            "tol" if matches!(
+                device,
+                Device::Resistor | Device::Capacitor | Device::Inductor
+            ) =>
+            {
+                let fraction = parse_fraction(value).ok_or_else(|| {
+                    format!("{word}: not a tolerance (such as 5% or 0.05, below 100%)")
+                })?;
+                rule.tolerance = Some(format_number(fraction));
             }
             "model" | "subckt" => return Err(format!("{word}: not a plain name")),
             "file" => {

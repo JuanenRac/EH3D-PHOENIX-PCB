@@ -54,6 +54,16 @@ pub const MODEL_MISMATCH: &str = "PHOENIX-SIM-022";
 pub const INCLUDE_REFUSED: &str = "PHOENIX-SIM-023";
 /// An analysis directive of the netlist (`.op`, `.dc`, `.tran`, `.ac`) that is not valid.
 pub const DIRECTIVE_INVALID: &str = "PHOENIX-SIM-024";
+/// A `.step` line or a step request that is not valid.
+pub const STEP_INVALID: &str = "PHOENIX-SIM-025";
+/// A `.measure` line or a measure request that is not valid.
+pub const MEASURE_INVALID: &str = "PHOENIX-SIM-026";
+/// A measure that cannot be computed from the results.
+pub const MEASURE_FAILED: &str = "PHOENIX-SIM-027";
+/// A Monte Carlo request or a tolerance that is not valid.
+pub const MC_INVALID: &str = "PHOENIX-SIM-028";
+/// The poles and zeros cannot be found reliably.
+pub const FIT_FAILED: &str = "PHOENIX-SIM-029";
 
 /// Code, then the title in English, Spanish, German, French, Italian, Japanese, Chinese and
 /// European Portuguese.
@@ -368,6 +378,71 @@ pub const TITLES: &[(&str, [&str; 8])] = &[
             "解析ディレクティブが無効です",
             "分析指令无效",
             "A diretiva de análise não é válida",
+        ],
+    ),
+    (
+        STEP_INVALID,
+        [
+            "Parameter step (.step) is not valid",
+            "El barrido de parámetro (.step) no es válido",
+            "Der Parameterlauf (.step) ist ungültig",
+            "Le balayage de paramètre (.step) n'est pas valide",
+            "Lo scorrimento del parametro (.step) non è valido",
+            ".step（パラメータ掃引）が無効です",
+            ".step（参数扫描）无效",
+            "O varrimento de parâmetro (.step) não é válido",
+        ],
+    ),
+    (
+        MEASURE_INVALID,
+        [
+            "Measurement (.measure) is not valid",
+            "La medida (.measure) no es válida",
+            "Die Messung (.measure) ist ungültig",
+            "La mesure (.measure) n'est pas valide",
+            "La misura (.measure) non è valida",
+            ".measure（測定）が無効です",
+            ".measure（测量）无效",
+            "A medição (.measure) não é válida",
+        ],
+    ),
+    (
+        MEASURE_FAILED,
+        [
+            "Measurement cannot be computed",
+            "No se puede calcular la medida",
+            "Die Messung kann nicht berechnet werden",
+            "La mesure ne peut pas être calculée",
+            "La misura non può essere calcolata",
+            "測定値を計算できません",
+            "无法计算测量值",
+            "Não é possível calcular a medição",
+        ],
+    ),
+    (
+        MC_INVALID,
+        [
+            "Monte Carlo request or tolerance is not valid",
+            "La petición Monte Carlo o la tolerancia no es válida",
+            "Die Monte-Carlo-Anforderung oder die Toleranz ist ungültig",
+            "La demande Monte Carlo ou la tolérance n'est pas valide",
+            "La richiesta Monte Carlo o la tolleranza non è valida",
+            "モンテカルロの指定または公差が無効です",
+            "蒙特卡罗请求或公差无效",
+            "O pedido de Monte Carlo ou a tolerância não é válido",
+        ],
+    ),
+    (
+        FIT_FAILED,
+        [
+            "Poles and zeros cannot be found reliably",
+            "No se pueden hallar los polos y ceros de forma fiable",
+            "Pole und Nullstellen lassen sich nicht zuverlässig bestimmen",
+            "Les pôles et les zéros ne peuvent pas être trouvés de façon fiable",
+            "Poli e zeri non possono essere trovati in modo affidabile",
+            "極と零点を確実には求められません",
+            "无法可靠地求出极点和零点",
+            "Não é possível encontrar os polos e os zeros de forma fiável",
         ],
     ),
 ];

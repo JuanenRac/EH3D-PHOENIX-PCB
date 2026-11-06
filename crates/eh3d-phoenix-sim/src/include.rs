@@ -9,12 +9,13 @@
 //! `.include` line and read as one netlist; an error then names the line of the file it comes
 //! from, and the file when it is not the main one.
 
+use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
 use crate::codes::{SimError, INCLUDE_REFUSED, INPUT_UNREADABLE};
 use crate::netlist::Netlist;
-use crate::parse::parse;
+use crate::parse::{parse, parse_with_params};
 use crate::settings::SimSettings;
 
 /// Where a line of the expanded text comes from.
@@ -182,6 +183,18 @@ pub fn read_netlist_file(
     models: Option<&Path>,
     settings: &SimSettings,
 ) -> Result<Netlist, SimError> {
+    read_netlist_file_with_params(path, models, settings, &BTreeMap::new())
+}
+
+/// Reads a netlist from a file like [`read_netlist_file`], with the `.param` lines named in
+/// `overrides` (lower case) taking the values given there; a `.step param` of a study reads the
+/// file again this way.
+pub fn read_netlist_file_with_params(
+    path: &Path,
+    models: Option<&Path>,
+    settings: &SimSettings,
+    overrides: &BTreeMap<String, f64>,
+) -> Result<Netlist, SimError> {
     let shown = path.display().to_string();
     let mut main = Expansion {
         lines: Vec::new(),
@@ -205,7 +218,7 @@ pub fn read_netlist_file(
         let at = lines.len().min(1);
         lines.splice(at..at, extra.lines);
     }
-    parse_expanded(&lines, &shown, settings)
+    parse_expanded(&lines, &shown, settings, overrides)
 }
 
 /// Reads the expanded lines as one netlist; an error names the line of the file it comes from.
@@ -213,13 +226,14 @@ fn parse_expanded(
     lines: &[(String, Origin)],
     shown: &str,
     settings: &SimSettings,
+    overrides: &BTreeMap<String, f64>,
 ) -> Result<Netlist, SimError> {
     let mut text = String::new();
     for (line, _) in lines {
         text.push_str(line);
         text.push('\n');
     }
-    parse(&text, settings).map_err(|mut error| {
+    parse_with_params(&text, settings, overrides).map_err(|mut error| {
         if let Some(number) = error.line {
             if let Some((_, origin)) = lines.get(number - 1) {
                 error.line = Some(origin.line);
@@ -269,7 +283,7 @@ pub fn read_netlist_text(
         }
         main.lines.push((raw.to_string(), origin));
     }
-    parse_expanded(&main.lines, shown, settings)
+    parse_expanded(&main.lines, shown, settings, &BTreeMap::new())
 }
 
 #[cfg(test)]

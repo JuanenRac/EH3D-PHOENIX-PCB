@@ -8,6 +8,9 @@ use std::f64::consts::PI;
 use eh3d_phoenix_rf::Complex;
 
 use crate::ac::SweepKind;
+use crate::measure::MeasureSpec;
+use crate::montecarlo::Tolerance;
+use crate::step::StepSpec;
 
 /// The time dependence of an independent source.
 #[derive(Debug, Clone, PartialEq)]
@@ -625,6 +628,13 @@ pub struct Netlist {
     pub analyses: Vec<Directive>,
     /// The directives that were read and left out (`.print`, `.options` ...).
     pub ignored: Vec<Ignored>,
+    /// The tolerances of the resistors, capacitors and inductors of the top level that have one
+    /// (`tol=5%` on the line), by element name in lower case.
+    pub tolerances: BTreeMap<String, Tolerance>,
+    /// The `.step` lines, the first the outermost.
+    pub steps: Vec<StepSpec>,
+    /// The `.measure` lines.
+    pub measures: Vec<MeasureSpec>,
 }
 
 #[cfg(test)]

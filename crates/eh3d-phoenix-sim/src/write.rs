@@ -4,6 +4,7 @@
 //! netlist.
 
 use crate::ac::SweepKind;
+use crate::montecarlo::Dist;
 use crate::netlist::{Directive, Element, Kind, Model, Netlist, Source, Wave};
 use crate::units::format_number;
 
@@ -250,11 +251,25 @@ pub fn to_spice(netlist: &Netlist) -> String {
     }
     for e in &netlist.elements {
         out.push_str(&element_line(e));
+        if let Some(tolerance) = netlist.tolerances.get(&e.name.to_lowercase()) {
+            out.push_str(&format!(" tol={}", n(tolerance.rel)));
+            match tolerance.dist {
+                Some(Dist::Uniform) => out.push_str(" dist=uniform"),
+                Some(Dist::Normal) => out.push_str(" dist=normal"),
+                None => {}
+            }
+        }
         out.push('\n');
     }
     for d in &netlist.analyses {
         out.push_str(&directive_line(d));
         out.push('\n');
+    }
+    for step in &netlist.steps {
+        out.push_str(&format!(".step {}\n", step.text));
+    }
+    for measure in &netlist.measures {
+        out.push_str(&format!(".measure {}\n", measure.text));
     }
     out.push_str(".end\n");
     out
@@ -277,6 +292,24 @@ mod tests {
         assert_eq!(first, second, "{text}");
         // and the text of the second is the text of the first
         assert_eq!(to_spice(&second), text);
+    }
+
+    #[test]
+    fn tolerances_steps_and_measures_survive_writing_and_reading() {
+        let s = SimSettings::default();
+        let text = "rc\nV1 in 0 DC 1 AC 1\nR1 in out 1k tol=5% dist=normal\nC1 out 0 1u tol=0.1\n.tran 1u 1m\n.step R1 list 1k 2k\n.step param x dec 5 1 100\n.measure tran out10 rise v(out) low=0.2\n.measure ac fc bw v(out)\n";
+        let first = parse(text, &s).unwrap();
+        assert_eq!(first.tolerances.len(), 2);
+        assert_eq!(first.steps.len(), 2);
+        assert_eq!(first.measures.len(), 2);
+        let written = to_spice(&first);
+        assert!(
+            written.contains("R1 in out 1e3 tol=5e-2 dist=normal\n"),
+            "{written}"
+        );
+        let second = parse(&written, &s).unwrap();
+        assert_eq!(first, second, "{written}");
+        assert_eq!(to_spice(&second), written);
     }
 
     #[test]

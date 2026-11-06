@@ -3,7 +3,7 @@
 //!
 //! Each part gets its model from the table of models ([`ModelTable`], `config/sim_models.cfg`):
 //! a rule by value, by symbol name or by the prefix of the reference designator, or the attributes
-//! of the part (`SIM.DEVICE`, `SIM.VALUE`, `SPICE_MODEL`, `SIM.FILE`, `SIM.PINS`), which win. The
+//! of the part (`SIM.DEVICE`, `SIM.VALUE`, `SPICE_MODEL`, `SIM.FILE`, `SIM.PINS`, `SIM.TOL`), which win. The
 //! pins of the symbol are given to the roles of the device by their names (`A` and `K`, `C B E`,
 //! `D G S`) or by their order, or by the `pins=` of the rule. Values are read with the notation
 //! of the markings of parts (`4k7`, `1u5`, `2M2`).
@@ -33,6 +33,7 @@ use crate::dc::operating_point;
 use crate::export::{clean, pin_key};
 use crate::include::read_netlist_text;
 use crate::modeltable::{is_plain_file, is_plain_name, Device, ModelTable, PartProps, Rule};
+use crate::montecarlo::parse_fraction;
 use crate::netcodes::{
     GenIssue, MODEL_UNDEFINED, NET_FLOATING, NO_GROUND_NET, NO_MODEL, PINS_MISMATCH, PIN_ON_NO_NET,
     REFDES_TWICE, SOURCE_SHORTED, VALUE_BAD,
@@ -450,7 +451,15 @@ impl Builder<'_> {
         match rule.device {
             Device::Resistor | Device::Capacitor | Device::Inductor => {
                 let number = self.number_value(refdes, value)?;
-                Some(format!("{name} {} {} {number}", node(0), node(1)))
+                let tolerance = rule
+                    .tolerance
+                    .as_ref()
+                    .map_or_else(String::new, |t| format!(" tol={t}"));
+                Some(format!(
+                    "{name} {} {} {number}{tolerance}",
+                    node(0),
+                    node(1)
+                ))
             }
             Device::VSource | Device::ISource => {
                 let Some(text) = source_text(value, self.table.upper_m_is_mega) else {
@@ -617,6 +626,29 @@ impl Builder<'_> {
                 .map(|p| p.trim().to_owned())
                 .filter(|p| !p.is_empty())
                 .collect();
+        }
+        if let Some(tolerance) = attrs.get("SIM.TOL") {
+            let applies = matches!(
+                rule.device,
+                Device::Resistor | Device::Capacitor | Device::Inductor
+            );
+            match parse_fraction(tolerance) {
+                Some(fraction) if applies => rule.tolerance = Some(format_number(fraction)),
+                Some(_) => {
+                    self.bad(
+                        &refdes,
+                        "SIM.TOL applies to a resistor, a capacitor or an inductor",
+                    );
+                    return;
+                }
+                None => {
+                    self.bad(
+                        &refdes,
+                        &format!("SIM.TOL {tolerance} is not a tolerance (such as 5% or 0.05)"),
+                    );
+                    return;
+                }
+            }
         }
         if rule.device == Device::Skip {
             return;
@@ -1264,6 +1296,33 @@ mod tests {
             .issues
             .iter()
             .any(|i| i.code == NET_FLOATING && i.detail.contains("DANGLING")));
+    }
+
+    #[test]
+    fn a_tolerance_in_the_table_or_in_an_attribute_goes_to_the_netlist() {
+        let s = divider(0, "10", "1k", "3k", "OUT");
+        let g = make(
+            &s,
+            "refdes R = resistor tol=5%\nrefdes V = vsource\nattr R2 SIM.TOL = 1%\n",
+        );
+        assert_eq!(g.text.matches(" tol=5e-2").count(), 1, "{}", g.text);
+        assert_eq!(g.text.matches(" tol=1e-2").count(), 1, "{}", g.text);
+        let netlist = crate::parse::parse(&g.text, &SimSettings::default()).unwrap();
+        assert_eq!(netlist.tolerances.len(), 2);
+        // a text that is not a tolerance, and a tolerance on a source, are refused
+        for table in [
+            "refdes R = resistor\nrefdes V = vsource\nattr R1 SIM.TOL = abc\n",
+            "refdes R = resistor\nrefdes V = vsource\nattr V1 SIM.TOL = 5%\n",
+        ] {
+            let g = make(&s, table);
+            assert!(
+                g.report.issues.iter().any(|i| i.code == VALUE_BAD),
+                "{table}"
+            );
+        }
+        // a rule that gives tol= to a part that is not a resistor, a capacitor or an inductor
+        assert!(ModelTable::parse("refdes V = vsource tol=5%\n").is_err());
+        assert!(ModelTable::parse("refdes R = resistor tol=200%\n").is_err());
     }
 
     #[test]

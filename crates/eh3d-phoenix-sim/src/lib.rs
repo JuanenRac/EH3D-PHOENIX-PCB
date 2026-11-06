@@ -31,8 +31,16 @@
 //! * [`sketch`]: a small schematic written as a few lines of text, for tests and reference cases;
 //! * [`filter`]: the coherence check of a ladder filter of the RF crate against its simulation;
 //! * [`output`]: deterministic CSV and JSON tables;
+//! * [`measure`], [`step`], [`montecarlo`], [`random`], [`study`], [`poles`] and [`report`]: the
+//!   advanced analyses, with no screen: `.measure` (value at an instant, extremes, mean, rms,
+//!   crossings, rise and fall times, gain and phase at a frequency, bandwidth, peak, quality
+//!   factor, unity-gain frequency and the phase and gain margins), `.step` of a parameter, an
+//!   element or a source, Monte Carlo over the tolerances of resistors, capacitors and inductors
+//!   with a generator of our own and a fixed seed, the sensitivity of a measure to a parameter,
+//!   the poles and zeros of a circuit from a rational fit of its AC response, and the tables of
+//!   all of them (`phoenix-sim-measure/1` and others);
 //! * [`settings`] and [`codes`]: every limit and tolerance, read from `config/sim.cfg`, and the
-//!   codes `PHOENIX-SIM-001` to `PHOENIX-SIM-024` with their titles in the eight languages.
+//!   codes `PHOENIX-SIM-001` to `PHOENIX-SIM-029` with their titles in the eight languages.
 //!
 //! **State: prototype.** The results are an own numerical approximation: the tests use values of
 //! the textbooks and properties, but nothing has been compared with SPICE or with a measurement.
@@ -50,17 +58,24 @@ pub mod expr;
 pub mod filter;
 pub mod include;
 pub mod linalg;
+pub mod measure;
 pub mod modeltable;
+pub mod montecarlo;
 pub mod netcodes;
 pub mod netlist;
 pub mod noise;
 pub mod output;
 pub mod parse;
 pub mod partvalue;
+pub mod poles;
+pub mod random;
 pub mod real;
+pub mod report;
 pub mod schgen;
 pub mod settings;
 pub mod sketch;
+pub mod step;
+pub mod study;
 pub mod tran;
 pub mod units;
 pub mod write;
@@ -71,12 +86,16 @@ pub use codes::SimError;
 pub use dc::{dc_sweep, operating_point, DcRequest, DcResult, OpResult};
 pub use export::{netlist_from_schematic, netlist_from_schematic_json, ExportReport};
 pub use filter::{compare_filter, Coherence};
-pub use include::{read_netlist_file, read_netlist_text};
+pub use include::{read_netlist_file, read_netlist_file_with_params, read_netlist_text};
+pub use measure::{parse_measure, MeasureKind, MeasureSpec};
 pub use modeltable::{Device, ModelTable, PartProps, Rule};
+pub use montecarlo::{summarize, Summary, Tolerance};
 pub use netcodes::GenIssue;
 pub use netlist::{Directive, Netlist};
 pub use noise::{noise_analysis, NoiseContribution, NoiseResult};
-pub use parse::parse;
+pub use parse::{parse, parse_with_params};
+pub use poles::{pole_zero, PoleZero};
+pub use random::Rng;
 pub use real::Method;
 pub use schgen::{
     generate_netlist, generate_netlist_hier, operating_table, read_generated, MeterReading,
@@ -84,5 +103,7 @@ pub use schgen::{
 };
 pub use settings::SimSettings;
 pub use sketch::schematic_from_sketch;
+pub use step::{parse_step, StepSpec, Target};
+pub use study::{run_study, McSpec, StudyPlan, StudyTable};
 pub use tran::{transient, TranRequest, TranResult};
 pub use write::to_spice;

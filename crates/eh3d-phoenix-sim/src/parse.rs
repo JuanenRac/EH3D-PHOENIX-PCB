@@ -6,23 +6,28 @@
 //! D Q M S U X`, `.param`, `.model` (diodes, LEDs, Zener diodes, bipolar and MOS transistors,
 //! switches, op-amps and comparators; a model inside a `.subckt` belongs to it), `.subckt` /
 //! `.ends` and `.end`. The analysis directives `.op`, `.dc`, `.tran` and `.ac` are read into
-//! [`Netlist::analyses`]; other directives (`.print`, `.options` ...) are noted in
-//! [`Netlist::ignored`]. An `.include` is refused here: it is read only from a file (see
+//! [`Netlist::analyses`], `.step` into [`Netlist::steps`] and `.measure` into
+//! [`Netlist::measures`]; `tol=5%` at the end of a resistor, capacitor or inductor line is its
+//! tolerance for a Monte Carlo study ([`Netlist::tolerances`]); other directives (`.print`,
+//! `.options` ...) are noted in [`Netlist::ignored`]. An `.include` is refused here: it is read only from a file (see
 //! [`mod@crate::include`]). Every error names its line.
 
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::ac::SweepKind;
 use crate::codes::{
-    SimError, DIRECTIVE_INVALID, DUPLICATE_NAME, INCLUDE_REFUSED, LIMIT_EXCEEDED, MODEL_MISMATCH,
-    NETLIST_SYNTAX, SUBCKT_INVALID, UNDEFINED, UNSUPPORTED, VALUE_INVALID,
+    SimError, DIRECTIVE_INVALID, DUPLICATE_NAME, INCLUDE_REFUSED, LIMIT_EXCEEDED, MC_INVALID,
+    MODEL_MISMATCH, NETLIST_SYNTAX, SUBCKT_INVALID, UNDEFINED, UNSUPPORTED, VALUE_INVALID,
 };
 use crate::expr::{eval, ExprError};
+use crate::measure::{parse_measure, MeasureSpec};
+use crate::montecarlo::{parse_dist, parse_fraction, Tolerance};
 use crate::netlist::{
     BjtModel, ComparatorModel, DiodeModel, Directive, Element, Ignored, Kind, Model, MosModel,
     Netlist, OpampModel, Source, Subckt, SwitchModel, Wave,
 };
 use crate::settings::SimSettings;
+use crate::step::{parse_step, StepSpec};
 use crate::units::parse_number;
 
 struct Env<'a> {
@@ -789,6 +794,14 @@ pub(crate) fn parse_element_line(
         params,
         max_depth: settings.max_expr_depth,
     };
+    let tokens = if matches!(
+        tokens[0].chars().next().map(|c| c.to_ascii_lowercase()),
+        Some('r' | 'c' | 'l')
+    ) {
+        split_tolerance(tokens, number)?.0
+    } else {
+        tokens
+    };
     parse_element(&tokens, number, &env)
 }
 
@@ -1010,8 +1023,79 @@ fn parse_directive(
     }
 }
 
+/// Takes `tol = X` and `dist = D` out of the tokens of a resistor, capacitor or inductor line
+/// (they follow the value) and gives the tolerance they make.
+fn split_tolerance(
+    tokens: Vec<String>,
+    number: usize,
+) -> Result<(Vec<String>, Option<Tolerance>), SimError> {
+    let mut out: Vec<String> = Vec::with_capacity(tokens.len());
+    let mut rel: Option<f64> = None;
+    let mut dist = None;
+    let mut i = 0;
+    while i < tokens.len() {
+        let lower = tokens[i].to_ascii_lowercase();
+        let is_option = i >= 4
+            && (lower == "tol" || lower == "dist")
+            && i + 2 < tokens.len()
+            && tokens[i + 1] == "=";
+        if !is_option {
+            out.push(tokens[i].clone());
+            i += 1;
+            continue;
+        }
+        let word = tokens[i + 2].as_str();
+        if lower == "tol" {
+            rel = Some(parse_fraction(word).ok_or_else(|| {
+                SimError::at(
+                    MC_INVALID,
+                    number,
+                    format!(
+                        "{}: tol={word} is not a tolerance (such as 5% or 0.05, below 100%)",
+                        tokens[0]
+                    ),
+                )
+            })?);
+        } else {
+            dist = Some(parse_dist(word).ok_or_else(|| {
+                SimError::at(
+                    MC_INVALID,
+                    number,
+                    format!("{}: dist={word} is not uniform or normal", tokens[0]),
+                )
+            })?);
+        }
+        i += 3;
+    }
+    let tolerance = match rel {
+        Some(rel) => Some(Tolerance { rel, dist }),
+        None => {
+            if dist.is_some() {
+                return Err(SimError::at(
+                    MC_INVALID,
+                    number,
+                    format!("{}: dist= needs a tol= too", tokens[0]),
+                ));
+            }
+            None
+        }
+    };
+    Ok((out, tolerance))
+}
+
 /// Reads a netlist.
 pub fn parse(text: &str, settings: &SimSettings) -> Result<Netlist, SimError> {
+    parse_with_params(text, settings, &BTreeMap::new())
+}
+
+/// Reads a netlist in which the `.param` lines named in `overrides` (lower case) take the value
+/// given there instead of the one they are written with; this is how a `.step param` runs the
+/// netlist again.
+pub fn parse_with_params(
+    text: &str,
+    settings: &SimSettings,
+    overrides: &BTreeMap<String, f64>,
+) -> Result<Netlist, SimError> {
     if text.len() as u64 > settings.max_file_bytes {
         return Err(SimError::new(
             LIMIT_EXCEEDED,
@@ -1070,9 +1154,38 @@ pub fn parse(text: &str, settings: &SimSettings) -> Result<Netlist, SimError> {
     let mut ignored: Vec<Ignored> = Vec::new();
     let mut analyses: Vec<(usize, Directive)> = Vec::new();
     let mut element_count = 0usize;
+    let mut tolerances: BTreeMap<String, Tolerance> = BTreeMap::new();
+    let mut steps: Vec<StepSpec> = Vec::new();
+    let mut measures: Vec<MeasureSpec> = Vec::new();
 
     for (number, line) in &logical {
         let number = *number;
+        let head = line
+            .split_whitespace()
+            .next()
+            .unwrap_or("")
+            .to_ascii_lowercase();
+        if head == ".measure" || head == ".meas" || head == ".step" {
+            // these lines are read as text: `v(out)` and `from=1m` are not split into tokens
+            let rest = line.trim_start()[head.len()..].trim();
+            if head == ".step" {
+                steps.push(parse_step(rest, Some(number))?);
+            } else {
+                let spec = parse_measure(rest, Some(number))?;
+                if measures
+                    .iter()
+                    .any(|m| m.name.eq_ignore_ascii_case(&spec.name))
+                {
+                    return Err(SimError::at(
+                        DUPLICATE_NAME,
+                        number,
+                        format!("the measure {} is defined twice", spec.name),
+                    ));
+                }
+                measures.push(spec);
+            }
+            continue;
+        }
         let tokens = tokenize(line, number)?;
         if tokens.is_empty() {
             continue;
@@ -1111,6 +1224,7 @@ pub fn parse(text: &str, settings: &SimSettings) -> Result<Netlist, SimError> {
                             max_depth: settings.max_expr_depth,
                         };
                         let v = value(&triple[2], number, &env)?;
+                        let v = overrides.get(&key).copied().unwrap_or(v);
                         params.insert(key, v);
                     }
                 }
@@ -1258,6 +1372,11 @@ pub fn parse(text: &str, settings: &SimSettings) -> Result<Netlist, SimError> {
             params: &params,
             max_depth: settings.max_expr_depth,
         };
+        let (tokens, tolerance) = if matches!(first.chars().next(), Some('r' | 'c' | 'l')) {
+            split_tolerance(tokens, number)?
+        } else {
+            (tokens, None)
+        };
         let element = parse_element(&tokens, number, &env)?;
         element_count += 1;
         if element_count > settings.max_elements {
@@ -1271,6 +1390,7 @@ pub fn parse(text: &str, settings: &SimSettings) -> Result<Netlist, SimError> {
             ));
         }
         let key = element.name.to_lowercase();
+        let own_key = key.clone();
         let (names, list) = match building.as_mut() {
             Some(b) => (&mut b.names, &mut b.elements),
             None => (&mut top_names, &mut top),
@@ -1283,6 +1403,16 @@ pub fn parse(text: &str, settings: &SimSettings) -> Result<Netlist, SimError> {
             ));
         }
         list.push((element, number));
+        if let Some(tolerance) = tolerance {
+            if building.is_some() {
+                return Err(SimError::at(
+                    UNSUPPORTED,
+                    number,
+                    "a tolerance inside a subcircuit is not supported (put tol= on an element of the top level)".to_string(),
+                ));
+            }
+            tolerances.insert(own_key, tolerance);
+        }
     }
 
     if let Some(open) = building {
@@ -1320,6 +1450,9 @@ pub fn parse(text: &str, settings: &SimSettings) -> Result<Netlist, SimError> {
         elements: top.into_iter().map(|(e, _)| e).collect(),
         analyses: analyses.into_iter().map(|(_, d)| d).collect(),
         ignored,
+        tolerances,
+        steps,
+        measures,
     })
 }
 

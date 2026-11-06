@@ -143,6 +143,48 @@ pub struct SimSettings {
     /// The largest difference of group delay accepted in the coherence check, as a fraction of
     /// one period.
     pub coherence_delay_tolerance: f64,
+    /// The most values of the grid of one `.step`.
+    pub max_step_points: usize,
+    /// The most combinations of all the `.step` lines of one study.
+    pub max_step_runs: usize,
+    /// The most runs of one Monte Carlo study (per combination of steps).
+    pub max_mc_runs: usize,
+    /// The number of Monte Carlo runs when the request does not give one.
+    pub mc_runs: usize,
+    /// The seed of the pseudo-random generator when the request does not give one.
+    pub mc_seed: u64,
+    /// How many standard deviations the tolerance band of a normal distribution is; the draws
+    /// are cut at the band.
+    pub mc_sigmas: f64,
+    /// True when a tolerance follows a normal distribution unless it says otherwise; false is a
+    /// uniform distribution over the band.
+    pub mc_normal: bool,
+    /// The percentiles (between 0 and 100) listed in the summary of a Monte Carlo study.
+    pub mc_percentiles: Vec<f64>,
+    /// The most measures of one study.
+    pub max_measures: usize,
+    /// The most values (runs times measures) of the table of one study.
+    pub max_study_cells: usize,
+    /// The fraction of the swing where a rise or fall time starts (10 % by default).
+    pub measure_low: f64,
+    /// The fraction of the swing where a rise or fall time ends (90 % by default).
+    pub measure_high: f64,
+    /// The relative change of a parameter for the numerical derivative of a sensitivity.
+    pub sens_rel_step: f64,
+    /// The highest order of the rational fit that looks for the poles and zeros.
+    pub max_pole_order: usize,
+    /// The reweighting passes of the rational fit.
+    pub pole_fit_iterations: usize,
+    /// The largest relative error of the fitted response that is accepted; above it the poles
+    /// are refused.
+    pub pole_fit_tolerance: f64,
+    /// The most iterations of the root finder of a polynomial.
+    pub pole_root_iterations: usize,
+    /// The relative change at which the root finder stops.
+    pub pole_root_tolerance: f64,
+    /// A term of the numerator of the fit of the highest degrees that adds less than this
+    /// fraction of the largest term at the top of the band is taken as zero.
+    pub pole_trim: f64,
 }
 
 impl Default for SimSettings {
@@ -215,6 +257,25 @@ impl Default for SimSettings {
             coherence_db_tolerance: 1e-6,
             coherence_phase_tolerance_deg: 1e-5,
             coherence_delay_tolerance: 1e-4,
+            max_step_points: 1_000,
+            max_step_runs: 5_000,
+            max_mc_runs: 100_000,
+            mc_runs: 100,
+            mc_seed: 1,
+            mc_sigmas: 3.0,
+            mc_normal: false,
+            mc_percentiles: vec![5.0, 50.0, 95.0],
+            max_measures: 200,
+            max_study_cells: 10_000_000,
+            measure_low: 0.1,
+            measure_high: 0.9,
+            sens_rel_step: 1e-3,
+            max_pole_order: 8,
+            pole_fit_iterations: 10,
+            pole_fit_tolerance: 1e-3,
+            pole_root_iterations: 1_000,
+            pole_root_tolerance: 1e-13,
+            pole_trim: 1e-6,
         }
     }
 }
@@ -224,6 +285,22 @@ fn parse_bool(value: &str) -> Option<bool> {
         "true" => Some(true),
         "false" => Some(false),
         _ => None,
+    }
+}
+
+fn parse_percentages(value: &str) -> Option<Vec<f64>> {
+    let mut out: Vec<f64> = Vec::new();
+    for part in value.split(',') {
+        let number: f64 = part.trim().parse().ok()?;
+        if !(number.is_finite() && number > 0.0 && number < 100.0) {
+            return None;
+        }
+        out.push(number);
+    }
+    if out.is_empty() {
+        None
+    } else {
+        Some(out)
     }
 }
 
@@ -336,6 +413,31 @@ impl SimSettings {
                 "coherence_delay_tolerance" => {
                     s.coherence_delay_tolerance = value.parse().map_err(|_| bad())?
                 }
+                "max_step_points" => s.max_step_points = value.parse().map_err(|_| bad())?,
+                "max_step_runs" => s.max_step_runs = value.parse().map_err(|_| bad())?,
+                "max_mc_runs" => s.max_mc_runs = value.parse().map_err(|_| bad())?,
+                "mc_runs" => s.mc_runs = value.parse().map_err(|_| bad())?,
+                "mc_seed" => s.mc_seed = value.parse().map_err(|_| bad())?,
+                "mc_sigmas" => s.mc_sigmas = value.parse().map_err(|_| bad())?,
+                "mc_normal" => s.mc_normal = parse_bool(value).ok_or_else(bad)?,
+                "mc_percentiles" => s.mc_percentiles = parse_percentages(value).ok_or_else(bad)?,
+                "max_measures" => s.max_measures = value.parse().map_err(|_| bad())?,
+                "max_study_cells" => s.max_study_cells = value.parse().map_err(|_| bad())?,
+                "measure_low" => s.measure_low = value.parse().map_err(|_| bad())?,
+                "measure_high" => s.measure_high = value.parse().map_err(|_| bad())?,
+                "sens_rel_step" => s.sens_rel_step = value.parse().map_err(|_| bad())?,
+                "max_pole_order" => s.max_pole_order = value.parse().map_err(|_| bad())?,
+                "pole_fit_iterations" => {
+                    s.pole_fit_iterations = value.parse().map_err(|_| bad())?
+                }
+                "pole_fit_tolerance" => s.pole_fit_tolerance = value.parse().map_err(|_| bad())?,
+                "pole_root_iterations" => {
+                    s.pole_root_iterations = value.parse().map_err(|_| bad())?
+                }
+                "pole_root_tolerance" => {
+                    s.pole_root_tolerance = value.parse().map_err(|_| bad())?
+                }
+                "pole_trim" => s.pole_trim = value.parse().map_err(|_| bad())?,
                 _ => {
                     return Err(SimError::at(
                         SETTINGS_INVALID,
@@ -467,6 +569,43 @@ impl SimSettings {
         {
             return fail("the coherence tolerances must be positive");
         }
+        if self.max_step_points < 1 || self.max_step_runs < 1 || self.max_mc_runs < 1 {
+            return fail("max_step_points, max_step_runs and max_mc_runs must be at least 1");
+        }
+        if self.mc_runs < 1 || self.mc_runs > self.max_mc_runs {
+            return fail("mc_runs must be between 1 and max_mc_runs");
+        }
+        if !self.mc_sigmas.is_finite() || self.mc_sigmas < 1.0 {
+            return fail("mc_sigmas must be at least 1");
+        }
+        if self.mc_percentiles.is_empty() {
+            return fail("mc_percentiles needs at least one value");
+        }
+        if self.max_measures < 1 || self.max_study_cells < 1 {
+            return fail("max_measures and max_study_cells must be at least 1");
+        }
+        if !(self.measure_low > 0.0
+            && self.measure_low < self.measure_high
+            && self.measure_high < 1.0)
+        {
+            return fail("measure_low and measure_high must satisfy 0 < low < high < 1");
+        }
+        if !positive(self.sens_rel_step) || self.sens_rel_step >= 0.5 {
+            return fail("sens_rel_step must be between 0 and 0.5");
+        }
+        if self.max_pole_order < 1 || self.max_pole_order > 20 {
+            return fail("max_pole_order must be between 1 and 20");
+        }
+        if self.pole_fit_iterations < 1 || self.pole_root_iterations < 1 {
+            return fail("pole_fit_iterations and pole_root_iterations must be at least 1");
+        }
+        if !positive(self.pole_fit_tolerance)
+            || !positive(self.pole_root_tolerance)
+            || !positive(self.pole_trim)
+            || self.pole_trim >= 1.0
+        {
+            return fail("pole_fit_tolerance and pole_root_tolerance must be positive and pole_trim between 0 and 1");
+        }
         Ok(())
     }
 
@@ -538,6 +677,14 @@ mod tests {
             ("sw_roff = 0.5", "sw_roff"),
             ("sw_vh = 0", "sw_vh"),
             ("led_n = 0", "led_n"),
+            ("mc_runs = 0", "mc_runs"),
+            ("mc_runs = 200000", "mc_runs"),
+            ("mc_sigmas = 0.5", "mc_sigmas"),
+            ("mc_percentiles = 120", "mc_percentiles"),
+            ("measure_low = 0.95", "measure_low"),
+            ("sens_rel_step = 0.9", "sens_rel_step"),
+            ("max_pole_order = 40", "max_pole_order"),
+            ("pole_trim = 2", "pole_trim"),
         ] {
             let e = SimSettings::parse(text).unwrap_err();
             assert_eq!(e.code, SETTINGS_INVALID, "{text}");
