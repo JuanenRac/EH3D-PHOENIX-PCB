@@ -64,6 +64,7 @@
         "crates/eh3d-phoenix-sim/src/schgen.rs",
         "crates/eh3d-phoenix-erc/src/checks.rs",
         "crates/eh3d-phoenix-sync/src/forward.rs",
+        "crates/eh3d-phoenix-sync/src/annotate.rs",
         "crates/eh3d-phoenix-viewer/src/viewer.rs",
         "crates/eh3d-phoenix-viewer/src/workspace.rs",
         "crates/eh3d-phoenix-viewer/src/launcher_session.rs",

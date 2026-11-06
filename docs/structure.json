@@ -247,6 +247,19 @@
           }
         },
         {
+          "name": "ANNOTATE.md",
+          "desc": {
+            "en": "annotation back into the schematic and comparison",
+            "es": "anotación de vuelta al esquema y comparación",
+            "de": "Rückannotation in den Schaltplan und Vergleich",
+            "fr": "annotation en retour dans le schéma et comparaison",
+            "it": "annotazione all'indietro nello schema e confronto",
+            "ja": "回路図への逆アノテーションと比較",
+            "zh": "反向标注回原理图与比较",
+            "pt": "anotação de retorno para o esquema e comparação"
+          }
+        },
+        {
           "name": "SCHEMATIC_EDIT.md",
           "desc": {
             "en": "the schematic editor: operations, nets, window",

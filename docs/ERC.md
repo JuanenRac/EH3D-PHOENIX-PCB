@@ -1,6 +1,6 @@
 # EH3D-PHOENIX-PCB: electrical rule check and synchronisation
 
-Phase F7 of the roadmap asks for a schematic editor, electrical rule checks, transfer to the board, forward and backward annotation by stable identity and net classes. This page describes the parts that need no window: the electrical rule check of a schematic (`eh3d-phoenix-erc`, command `phoenix erc`), the synchronisation between a schematic and a board (`eh3d-phoenix-sync`, command `phoenix sync`) and the net classes of the rule file (`eh3d-phoenix-rules`). The schematic editor (`docs/SCHEMATIC_EDIT.md`) runs the check after every change. All of it is a prototype: it has been tried on schematics and boards made by hand and by the tests and it has never been compared with the reference tool, so requirement PPCB-017 stays at `prototype`.
+Phase F7 of the roadmap asks for a schematic editor, electrical rule checks, transfer to the board, forward and backward annotation by stable identity and net classes. This page describes the parts that need no window: the electrical rule check of a schematic (`eh3d-phoenix-erc`, command `phoenix erc`), the synchronisation between a schematic and a board (`eh3d-phoenix-sync`, command `phoenix sync`) and the net classes of the rule file (`eh3d-phoenix-rules`). The schematic editor (`docs/SCHEMATIC_EDIT.md`) runs the check after every change. The annotation back into the schematic as a plan with a state for each change, and the comparison of the two documents, are in `docs/ANNOTATE.md`. All of it is a prototype: it has been tried on schematics and boards made by hand and by the tests and it has never been compared with the reference tool, so requirement PPCB-017 stays at `prototype`.
 
 ## Pin types
 
@@ -28,8 +28,25 @@ The EAGLE reader fills the types from the `direction` of the pins of the library
 | `duplicate_pin_number` | PHOENIX-ERC-012 | error | a symbol with one pin number on more than one pin |
 | `floating_wires` | PHOENIX-ERC-013 | warning | wires that are joined to each other but to no pin |
 | `junction_on_floating_wires` | PHOENIX-ERC-014 | warning | a point where three or more wire pieces meet, on wires that join no pin |
+| `net_without_driver` | PHOENIX-ERC-017 | off | a net of two pins or more with no pin of a type that really drives it (a passive pin does not) |
+| `missing_decoupling` | PHOENIX-ERC-018 | off | a power input of a chip with no capacitor to ground on its net, or none within the distance of the settings |
+| `net_name_typo` | PHOENIX-ERC-019 | warning | two net names one character apart (`SDA` and `SDL`, `VBUS` and `VBUSS`) that the rule of similar names does not name |
+| `orphan_label` | PHOENIX-ERC-020 | warning | a net label or a power port that lies on no wire and no pin of its sheet |
 
 What the net list says is the truth for the connections. The wires of the drawing are only looked at for loose ends, with the rules of the drawing (`draw.rs` of the schematic crate): wires and pins are connected where they share a point, and a point in the middle of a wire's piece is not a connection. A wire group is loose when no pin of a placed part with a given position lies on any of its points.
+
+### The advanced rules
+
+The rules below are written for the conventions of a design, so two of them are off in the file until a person turns them on (`phoenix erc --advanced`, or `severity.<rule> = warning`).
+
+* **Pin types and the matrix.** Nine types (`input`, `output`, `bidirectional`, `tri_state`, `passive`, `power_in`, `power_out`, `open_collector`, `not_connected`) and a symmetric matrix of the pairs in `config/erc.cfg`, every cell `ok`, `info`, `warning` or `error`. Two outputs on one net are an error by the default matrix; two open-collector pins may share a net (a wired-OR) unless the file says `matrix.open_collector.open_collector = warning`. The matrix is the same for every net: it is not decided by the name of the net.
+* **Nets with no driver.** `input_without_driver` finds a net with inputs and nothing that drives it, counting a passive pin as a driver (a pull-up resistor). `net_without_driver` is stricter: it asks for a pin of one of the `strong_drivers` types and so also finds the node between two resistors and a net of inputs held only by a passive pin. A net with a pin that has no type is not judged and is listed as inconclusive.
+* **Supplies with no source.** `power_without_source` finds power inputs on a net with no pin of a `power_sources` type. A net whose name is in `power_flags` (a connector that brings the supply in, for example; the work that a power flag symbol does in other tools, written as a name and not as a symbol) counts as supplied, without regard to case.
+* **Decoupling.** For each part whose reference starts with one of `decoupling_prefixes` (`U`, `IC`) and each of its `power_in` pins, the net must hold a pin of a part with a `capacitor_prefixes` prefix whose other pin is on a net named in `ground_nets`. When the pins of both are placed on one sheet the distance must not be more than `decoupling_max_distance_nm` (0 turns the distance off); a pair with a position that is not given is judged by the connections alone, and the report says "nearest capacitor to ground is N mm away" when the capacitor is too far.
+* **Pins left open.** A pin on no net is `pin_unconnected` unless its type is `not_connected`, which is the mark that it is meant to stay open (the matrix makes a wire on such a pin an error).
+* **Names and labels.** `net_name_typo` compares the lower-case names of at least `typo_min_length` characters that do not contain `$` (the names the editor makes): one character added, dropped or changed, or two neighbours swapped, is a possible mistake, but a change of one digit to another (`D0`, `D1`) is a bus and a name that differs only by case or by the number on the end is the business of `similar_net_names`. `orphan_label` finds a label or a power port that touches nothing; when a placed part has a pin without a position the label is listed as inconclusive instead.
+
+From the command line, `--severity RULE=LEVEL`, `--matrix KIND.KIND=LEVEL` and `--power-flag NET` change one line of the settings for one run and win over the file; all can be repeated. The severity of every rule is the one of the file, from `off` to `error`.
 
 ### The report: confirmed and inconclusive
 
@@ -37,7 +54,7 @@ Like the board checks, the report keeps two lists apart. `confirmed` holds what 
 
 ### Settings
 
-Everything that is tuned is in `config/erc.cfg`, which is also the default that is built into the program. A line `severity.<rule> = off | info | warning | error` sets the level of a rule; for `pin_type_conflict` it is only a switch and the matrix decides the level of each pair. A line `matrix.<type>.<type> = ok | info | warning | error` sets what two pins of those types mean on one net; the matrix is symmetric and a pair that is not listed is allowed. `drivers` lists the types that drive a net, `power_sources` the types that supply a power input, `similar_name_min_stem` the shortest stem of a name that is compared, and `max_findings` bounds the list. The default matrix is written by hand from the usual meaning of the types (two outputs, an output and a supply output, and any pin with a pin meant to stay open are errors; an output with a bidirectional pin is a warning) and has not been compared with the matrix of the reference tool.
+Everything that is tuned is in `config/erc.cfg`, which is also the default that is built into the program. A line `severity.<rule> = off | info | warning | error` sets the level of a rule; for `pin_type_conflict` it is only a switch and the matrix decides the level of each pair. A line `matrix.<type>.<type> = ok | info | warning | error` sets what two pins of those types mean on one net; the matrix is symmetric and a pair that is not listed is allowed. `drivers` lists the types that drive a net, `power_sources` the types that supply a power input, `similar_name_min_stem` the shortest stem of a name that is compared, and `max_findings` bounds the list. The default matrix is written by hand from the usual meaning of the types (two outputs, an output and a supply output, and any pin with a pin meant to stay open are errors; an output with a bidirectional pin is a warning) and has not been compared with the matrix of the reference tool. The keys of the advanced rules are `strong_drivers`, `power_flags`, `decoupling_prefixes`, `capacitor_prefixes`, `ground_nets`, `decoupling_max_distance_nm` and `typo_min_length`.
 
 ## Synchronisation by identity
 
@@ -56,6 +73,8 @@ A component of the board is made from a part of the schematic and holds its id (
 
 Backward, the reference designators, values and footprints of the board are written into the parts (the footprint also into a part that has none chosen, unless the settings say otherwise). The nets of the schematic are never changed by the annotation back.
 
+`phoenix sync --diff <schematic> <board>` compares the two documents in both directions at once and lists the differences and conflicts in a fixed order (`docs/ANNOTATE.md`); `phoenix annotate` plans the annotation back with a state for each change and writes only a new file, only with the confirmation code of the plan.
+
 What the plan cannot judge or do goes to the inconclusive list and is never guessed: a footprint that is not chosen or not in the board (009), a pin whose pad does not exist (010), a part made into two components (011), a reference designator that would be empty or used twice (012), two nets of the schematic with one name (013). The settings are in `config/sync.cfg`.
 
 ### The package
@@ -70,4 +89,4 @@ A rule file of the format `phoenix-rules/2` is a rule file of the first format w
 
 ## What is not done
 
-Buses as objects of their own, hierarchical sheets and labels, power flags, a type chosen per part instead of per pin, the pin types of the KiCad files, net ties, the assignment of a class to a net in the schematic, the clearance between nets of different classes and the comparison of any of this with the reference tool are listed in `NOT_YET.md`.
+Buses as objects of their own, hierarchical sheets and labels, power flags as symbols (a net name in the settings does the same work), a type chosen per part instead of per pin, the pin types of the KiCad files, net ties, the assignment of a class to a net in the schematic, the clearance between nets of different classes and the comparison of any of this with the reference tool are listed in `NOT_YET.md`.

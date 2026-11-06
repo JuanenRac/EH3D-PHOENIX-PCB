@@ -23,7 +23,7 @@ The official state of each capability is in REQUIREMENTS.md: 30 requirements: 18
 
 ## Known technical debt and omitted tests
 
-* 2363 tests of the Rust code and 3 of the base; the inventory tests build their own folders and never touch a real project.
+* 2395 tests of the Rust code and 3 of the base; the inventory tests build their own folders and never touch a real project.
 * The reference cases (`docs/ORACLE.md`) compare the calculations only with published formulas and closed-form solutions: the 15 pending cases and the whole plan of comparison with EAGLE, KiCad, a field solver and a SPICE program have not been run, and some tolerances are chosen in the case files and say so.
 * The differential pairs (`docs/DIFFPAIRS.md`) have been drawn, tuned, corrected and checked on boards made by the tests only: no pair has been routed on a real board, the impedance is a quasi-static estimate that has not been compared with a field solver or a measurement, and the pair tool of the window has never been seen on a screen.
 * Push and shove and the arcs of the board editor (`docs/SHOVE.md`) have been tried on boards made by the tests only: no real board has been routed with them, the planning of a push uses floating point and takes a pad as a disc, the design rules see an arc by its end points and the editor checks its chords itself, and the push tool of the window has never been seen on a screen.
