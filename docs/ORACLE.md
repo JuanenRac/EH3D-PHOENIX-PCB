@@ -2,6 +2,8 @@
 
 Everything that EH3D-PHOENIX-PCB calculates is a prototype until it is compared with a reference. This page has two parts: the reference cases that run today (`phoenix oracle`, crate `eh3d-phoenix-oracle`, files in `tests/oracle/`), and the plan to compare the results with EAGLE, KiCad and other tools, which has **not been run**.
 
+The reference cases check calculations. The readers and the writers of the formats have their own set of small hand-written pieces, `CORPUS.md` (`phoenix corpus`).
+
 ## What the cases are, and what they are not
 
 A case says: with these inputs, a check of this repository must give this number within this tolerance, and the number comes from this source. The number is one of three kinds:

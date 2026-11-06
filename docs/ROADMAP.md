@@ -22,6 +22,8 @@ XML reader (versions 6 to 9) for libraries, boards and schematics; writer and ro
 
 Gate: The measured rate of each level does not drop and every failure is classified (error of this project, limitation of the format, error of the file).
 
+Progress: the frame of reference cases (`eh3d-phoenix-oracle`, `docs/ORACLE.md`) and the own corpus (`eh3d-phoenix-corpus`, `docs/CORPUS.md`) exist as prototypes: small pieces written by hand in every format of the suite, with answers worked out by hand, files that must be refused, round trips between formats and properties on generated boards. Neither compares anything with EAGLE or KiCad, and the rate by level of the gate is not measured.
+
 ## F3. Connectivity and rule engine
 
 Connectivity of schematic and board, consistency between them, rule checks in a fixed order, reading of rule files, a report that separates confirmed from inconclusive results, comparison with the reference tool.

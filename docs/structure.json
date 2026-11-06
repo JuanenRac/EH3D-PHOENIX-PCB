@@ -587,6 +587,19 @@
           }
         },
         {
+          "name": "CORPUS.md",
+          "desc": {
+            "en": "the own corpus: hand-written pieces, round trips, properties",
+            "es": "el corpus propio: piezas escritas a mano, idas y vueltas, propiedades",
+            "de": "das eigene Korpus: handgeschriebene Stücke, Hin- und Rückwege, Eigenschaften",
+            "fr": "le corpus propre : pièces écrites à la main, allers-retours, propriétés",
+            "it": "il corpus proprio: pezzi scritti a mano, andate e ritorni, proprietà",
+            "ja": "独自のコーパス：手書きの例、往復変換、性質",
+            "zh": "自有语料库：手写样例、往返转换、性质",
+            "pt": "o corpus próprio: peças escritas à mão, idas e voltas, propriedades"
+          }
+        },
+        {
           "name": "GATE_F1.md",
           "desc": {
             "en": "what the gate of the first phase checks and what it does not",
@@ -731,14 +744,14 @@
         {
           "name": "tests/",
           "desc": {
-            "en": "the reference cases: published values with source and tolerance",
-            "es": "los casos de referencia: valores publicados con su fuente y tolerancia",
-            "de": "die Referenzfälle: veröffentlichte Werte mit Quelle und Toleranz",
-            "fr": "les cas de référence : valeurs publiées avec leur source et leur tolérance",
-            "it": "i casi di riferimento: valori pubblicati con fonte e tolleranza",
-            "ja": "基準ケース：公開値、出典、許容差",
-            "zh": "基准用例：已发布的数值、出处与容差",
-            "pt": "os casos de referência: valores publicados com fonte e tolerância"
+            "en": "reference cases and the own corpus of hand-written pieces",
+            "es": "casos de referencia y el corpus propio de piezas escritas a mano",
+            "de": "Referenzfälle und das eigene Korpus handgeschriebener Stücke",
+            "fr": "cas de référence et corpus propre de pièces écrites à la main",
+            "it": "casi di riferimento e corpus proprio di pezzi scritti a mano",
+            "ja": "基準ケースと手書きの例による独自のコーパス",
+            "zh": "基准用例以及手写样例的自有语料库",
+            "pt": "casos de referência e o corpus próprio de peças escritas à mão"
           }
         },
         {
