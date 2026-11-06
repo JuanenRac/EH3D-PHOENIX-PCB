@@ -114,10 +114,8 @@ pub fn block_at(s: &Schematic, sheet: Id, at: Point) -> Option<Id> {
         .filter(|(_, b)| b.sheet == sheet)
         .filter(|(_, b)| {
             let (x, y) = (b.at.x_nm.get(), b.at.y_nm.get());
-            px >= x
-                && py >= y
-                && px <= x.saturating_add(b.width.get())
-                && py <= y.saturating_add(b.height.get())
+            (x..=x.saturating_add(b.width.get())).contains(&px)
+                && (y..=y.saturating_add(b.height.get())).contains(&py)
         })
         .min_by_key(|(id, b)| (i128::from(b.width.get()) * i128::from(b.height.get()), **id))
         .map(|(id, _)| *id)
