@@ -10,11 +10,12 @@ use eh3d_phoenix_route::RouteSettings;
 
 use crate::codes::{
     BOARD_NOT_ROUTABLE, EXPANSION_LIMIT, INCOMPLETE, LAYER_UNKNOWN, NET_UNKNOWN, NO_PATH,
+    PAIR_UNCOUPLED,
 };
 use crate::config::AutorouteConfig;
 use crate::plan::AutoroutePlan;
 use crate::testboard::{cfg, ctx, mm, pt, Fix};
-use crate::{autoroute, Request};
+use crate::{autoroute, autoroute_with_pairs, PairSpec, Request};
 
 fn run(fix: &Fix, config: &AutorouteConfig, request: &Request) -> AutoroutePlan {
     autoroute(
@@ -283,4 +284,201 @@ fn the_plan_is_one_reversible_step_and_the_same_as_a_group_of_editor_operations(
     assert!(edit.ratsnest().is_empty());
     assert!(edit.undo());
     assert_eq!(edit.board(), &fix.board);
+}
+
+/// A board of 30 by 14 millimetres with the pair P and N: pads 1 mm apart at x = 4 and x = 26, and
+/// with `third_pad` a third pad of N at (26, 3), which gives N two connections.
+fn pair_board(third_pad: bool) -> Fix {
+    let mut fix = Fix::new(30, 14, false);
+    let p = fix.net("P");
+    let n = fix.net("N");
+    fix.pad(p, mm(4), mm(7), false);
+    fix.pad(n, mm(4), mm(6), false);
+    fix.pad(p, mm(26), mm(7), false);
+    fix.pad(n, mm(26), mm(6), false);
+    if third_pad {
+        fix.pad(n, mm(26), mm(3), false);
+    }
+    fix
+}
+
+fn the_pair() -> PairSpec {
+    PairSpec {
+        name: "PAIR".to_owned(),
+        positive: "P".to_owned(),
+        negative: "N".to_owned(),
+        gap_nm: 250_000,
+    }
+}
+
+fn run_pairs(fix: &Fix, pairs: &[PairSpec]) -> AutoroutePlan {
+    autoroute_with_pairs(
+        &fix.board,
+        &ctx(),
+        &RouteSettings::default(),
+        &cfg(),
+        &Request::default(),
+        pairs,
+    )
+    .unwrap()
+}
+
+/// The points of a track from the left pad to the right one.
+fn left_to_right(plan: &AutoroutePlan, net: &str, fix: &Fix) -> Vec<eh3d_phoenix_model::Point> {
+    let id = *fix
+        .board
+        .nets
+        .iter()
+        .find(|(_, n)| n.name == net)
+        .map(|(id, _)| id)
+        .unwrap();
+    let mut points = plan
+        .tracks
+        .iter()
+        .find(|t| t.net == id)
+        .unwrap()
+        .points
+        .clone();
+    if points[0].x_nm.get() > points[points.len() - 1].x_nm.get() {
+        points.reverse();
+    }
+    points
+}
+
+#[test]
+fn a_pair_with_room_is_routed_as_two_tracks_side_by_side() {
+    let fix = pair_board(false);
+    let plan = run_pairs(&fix, &[the_pair()]);
+    assert_eq!(plan.report.pairs_coupled, vec!["PAIR".to_owned()]);
+    assert!(plan.report.notes.is_empty(), "{:?}", plan.report.notes);
+    assert!(plan.vias.is_empty());
+    assert_eq!(plan.tracks.len(), 2);
+    assert_eq!(plan.report.connections_left, 0);
+    assert_eq!(plan.report.errors_after, 0);
+    // the fat track runs along y = 6.5 mm from x = 5 to x = 25; the two tracks are 0.5 mm from
+    // each other (0.25 mm wide and 0.25 mm apart), the positive one on the side of its pads
+    let p = left_to_right(&plan, "P", &fix);
+    let n = left_to_right(&plan, "N", &fix);
+    assert_eq!(
+        p,
+        vec![
+            pt(mm(4), mm(7)),
+            pt(mm(5), mm(7)),
+            pt(mm(5), 6_750_000),
+            pt(mm(25), 6_750_000),
+            pt(mm(25), mm(7)),
+            pt(mm(26), mm(7)),
+        ]
+    );
+    assert_eq!(
+        n,
+        vec![
+            pt(mm(4), mm(6)),
+            pt(mm(5), mm(6)),
+            pt(mm(5), 6_250_000),
+            pt(mm(25), 6_250_000),
+            pt(mm(25), mm(6)),
+            pt(mm(26), mm(6)),
+        ]
+    );
+    // the two tracks have the same length: 1 + 0.25 + 20 + 0.25 + 1 mm
+    let lengths: Vec<i64> = plan.tracks.iter().map(|t| t.length_nm()).collect();
+    assert_eq!(lengths, vec![22_500_000, 22_500_000]);
+    // the report says so, in text and in JSON
+    assert!(plan.to_text("en").contains("coupled pair: PAIR\n"));
+    assert!(plan.to_json().contains("\"pairs_coupled\":[\"PAIR\"]"));
+}
+
+#[test]
+fn a_pair_is_coupled_the_same_way_every_time_and_adds_no_rule_error() {
+    let fix = pair_board(false);
+    let first = run_pairs(&fix, &[the_pair()]);
+    let second = run_pairs(&fix, &[the_pair()]);
+    assert_eq!(first.to_json(), second.to_json());
+    assert_eq!(first.tracks, second.tracks);
+    assert!(first.report.errors_after <= first.report.errors_before);
+    // the plan is still one reversible step
+    let mut board = fix.board.clone();
+    first.apply(&mut board).unwrap();
+    assert_eq!(board, first.board_after);
+    // without the pair the nets are ordinary: straight, 1 mm apart, and nothing is coupled
+    let plain = run_pairs(&fix, &[]);
+    assert!(plain.report.pairs_coupled.is_empty());
+    assert_ne!(
+        left_to_right(&plain, "P", &fix),
+        left_to_right(&first, "P", &fix)
+    );
+}
+
+#[test]
+fn a_pair_that_cannot_be_coupled_is_routed_as_two_ordinary_nets_and_the_report_says_why() {
+    // N has two connections, so there is no single pair of tracks to couple
+    let fix = pair_board(true);
+    let plan = run_pairs(&fix, &[the_pair()]);
+    assert!(plan.report.pairs_coupled.is_empty());
+    assert_eq!(plan.report.notes.len(), 1);
+    let note = &plan.report.notes[0];
+    assert!(note.starts_with(PAIR_UNCOUPLED), "{note}");
+    assert!(note.contains("pair PAIR"), "{note}");
+    assert!(note.contains("exactly one open connection"), "{note}");
+    // both nets are routed all the same
+    assert_eq!(plan.report.connections_left, 0);
+    assert_eq!(plan.report.errors_after, 0);
+    assert!(plan.to_text("en").contains("note: PHOENIX-AROUTE-017"));
+}
+
+#[test]
+fn a_pair_that_names_a_net_the_board_does_not_have_is_refused() {
+    let fix = pair_board(false);
+    let mut pair = the_pair();
+    pair.negative = "NOPE".to_owned();
+    let e = autoroute_with_pairs(
+        &fix.board,
+        &ctx(),
+        &RouteSettings::default(),
+        &cfg(),
+        &Request::default(),
+        &[pair],
+    )
+    .unwrap_err();
+    assert_eq!(e.code, NET_UNKNOWN);
+}
+
+#[test]
+fn an_existing_via_of_the_net_on_a_node_of_the_grid_is_used_and_not_put_down_twice() {
+    use eh3d_phoenix_board::Via;
+    use eh3d_phoenix_model::Nm;
+    // two pads on the top layer, a wall of another net on top between them, and a via of the net
+    // at (6, 5) mm that joins the two layers and is on the track from the first pad
+    let mut fix = Fix::new(20, 10, true);
+    let sig = fix.net("SIG");
+    let wall = fix.net("W");
+    fix.pad(sig, mm(2), mm(5), false);
+    fix.pad(sig, mm(14), mm(5), false);
+    let top = fix.top;
+    let bottom = fix.bottom;
+    fix.wall(wall, top, (mm(10), mm(1) / 2), (mm(10), mm(19) / 2));
+    fix.wall(sig, top, (mm(2), mm(5)), (mm(6), mm(5)));
+    fix.board.vias.insert(
+        crate::testboard::id(900),
+        Via {
+            net: sig,
+            at: pt(mm(6), mm(5)),
+            drill: Nm::new(300_000).unwrap(),
+            diameter: Nm::new(600_000).unwrap(),
+            from_layer: top,
+            to_layer: bottom,
+        },
+    );
+    let plan = run(&fix, &cfg(), &Request::default());
+    // one new via to come back to the top layer after the wall; the one that was there is not
+    // put down again
+    assert_eq!(plan.vias.len(), 1, "{:?}", plan.vias);
+    assert!(plan
+        .vias
+        .iter()
+        .all(|v| (v.at.x_nm.get(), v.at.y_nm.get()) != (mm(6), mm(5))));
+    assert_eq!(plan.report.connections_left, 0);
+    assert_eq!(plan.report.errors_after, 0);
+    assert!(plan.tracks.iter().any(|t| t.layer == bottom));
 }

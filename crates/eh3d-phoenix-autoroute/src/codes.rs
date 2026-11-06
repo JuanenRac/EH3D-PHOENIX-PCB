@@ -36,6 +36,8 @@ pub const RIPUP_LIMIT: &str = "PHOENIX-AROUTE-014";
 pub const REJECTED_BY_RULES: &str = "PHOENIX-AROUTE-015";
 /// The plan leaves connections unrouted.
 pub const INCOMPLETE: &str = "PHOENIX-AROUTE-016";
+/// A differential pair was routed as two ordinary nets, not as two coupled tracks.
+pub const PAIR_UNCOUPLED: &str = "PHOENIX-AROUTE-017";
 
 /// The language tags, in the order of the columns of [`TITLES`].
 pub const LANGUAGES: [&str; 8] = ["en", "es", "de", "fr", "it", "ja", "zh", "pt"];
@@ -251,6 +253,19 @@ pub const TITLES: &[(&str, [&str; 8])] = &[
             "O plano deixa ligações por encaminhar",
         ],
     ),
+    (
+        PAIR_UNCOUPLED,
+        [
+            "A differential pair was routed as two ordinary nets",
+            "Un par diferencial se rutó como dos redes normales",
+            "Ein Differenzpaar wurde als zwei gewöhnliche Netze verlegt",
+            "Une paire différentielle a été routée comme deux réseaux ordinaires",
+            "Una coppia differenziale è stata instradata come due reti normali",
+            "差動ペアは通常の2本のネットとして配線されました",
+            "差分对被按两个普通网络布线",
+            "Um par diferencial foi encaminhado como duas redes normais",
+        ],
+    ),
 ];
 
 /// The codes of this crate with their titles in English.
@@ -320,7 +335,7 @@ mod tests {
                 assert_ne!(*text, row[0], "{code}");
             }
         }
-        assert_eq!(registry().len(), 16);
+        assert_eq!(registry().len(), 17);
     }
 
     #[test]

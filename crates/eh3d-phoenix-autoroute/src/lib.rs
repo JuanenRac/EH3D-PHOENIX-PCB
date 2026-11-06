@@ -15,12 +15,15 @@
 //! * [`plan`]: the result as one reversible operation of the board (also as a group of operations
 //!   of the editor), judged by the design rules before it is handed out, and a report that is the
 //!   same for the same input;
-//! * [`codes`]: the codes `PHOENIX-AROUTE-001` to `016` with their titles in the eight languages.
+//! * [`codes`]: the codes `PHOENIX-AROUTE-001` to `017` with their titles in the eight languages.
 //!
 //! All arithmetic is integer (nanometres, with 128 bits in the products). The same board, rules
 //! and settings always give the same plan, byte for byte. Tracks that are already on the board
-//! are never changed: the plan only adds. A differential pair is routed as two ordinary nets;
-//! whether the pair is kept together is for the pair check after the run.
+//! are never changed: the plan only adds. A via of the net that is already on the board and sits on
+//! a node of the grid is a free place to change layer. A differential pair that is asked for
+//! (`autoroute_with_pairs`) is routed as two tracks side by side on one layer when there is room
+//! for them; otherwise, and when it is not asked for, as two ordinary nets, with a note in the
+//! report, and the pair check of the board editor judges the result either way.
 //!
 //! **State: prototype.** It has been tried on small boards made by hand and by a generator of
 //! the tests, not on boards of real designs. It uses vias that join two copper layers of the
@@ -46,5 +49,5 @@ mod tests_props;
 
 pub use codes::{registry, title, AutorouteError, LANGUAGES};
 pub use config::{AutorouteConfig, NetOrder};
-pub use engine::{autoroute, Request};
+pub use engine::{autoroute, autoroute_with_pairs, PairSpec, Request};
 pub use plan::{AutoroutePlan, PlannedTrack, PlannedVia, Report, Unrouted};

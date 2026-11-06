@@ -1,0 +1,379 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+//! Differential pairs routed as two coupled tracks.
+//!
+//! The pair is searched as one fat track on the grid, with only horizontal and vertical steps, on
+//! a single layer: its width is the two tracks and the gap between them. The path of the fat
+//! track is its centre line; the positive track and the negative track are that line moved
+//! sideways by half the distance between the two tracks, one to each side, with the corners
+//! where the moved lines cross (all integer, as the pieces are at right angles). Each track then
+//! leaves its pad by a stub of two pieces, tried in both orders, and every piece of both tracks is
+//! checked against the copper of the board and of the run with the width and the clearance of its
+//! own net before anything is kept.
+//!
+//! When there is no room for that (the ends have no layer in common, the nets cross between their
+//! ends, a stub or a track is blocked) the pair is not coupled: both nets are routed as ordinary
+//! nets by the search of the run, and the report says why. A pair that needs a via is also routed
+//! as two ordinary nets: the pair has no change of layer yet.
+
+use std::collections::HashMap;
+
+use super::{simplify, Assembled, Engine, Run};
+use crate::geom::{half_up, seg_len, P};
+use crate::obstacles::{Edge, Spec};
+use crate::search::{search, Endpoint, Job, Miss, Terminal};
+
+/// A differential pair to route as two coupled tracks: the names of its two nets and the gap
+/// between the edges of the two tracks. The width of the tracks is the width of the nets, which
+/// must be the same for both.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PairSpec {
+    /// The name of the pair, for the report.
+    pub name: String,
+    /// The name of the positive net.
+    pub positive: String,
+    /// The name of the negative net.
+    pub negative: String,
+    /// The gap between the edges of the two tracks, in nanometres.
+    pub gap_nm: i64,
+}
+
+/// The distance between the centre lines of two tracks that run side by side, as the pair asks
+/// for it: rounded up to an even number of nanometres, so the gap may be larger by one.
+fn centre_distance(width: i64, gap: i64) -> i64 {
+    2 * half_up(width + gap)
+}
+
+fn dist2(a: P, b: P) -> i128 {
+    let dx = i128::from(a.0) - i128::from(b.0);
+    let dy = i128::from(a.1) - i128::from(b.1);
+    dx * dx + dy * dy
+}
+
+fn sign(v: i64) -> i64 {
+    v.signum()
+}
+
+/// The left normal of a piece that goes in the direction `d` (each component -1, 0 or 1).
+fn left(d: (i64, i64)) -> (i64, i64) {
+    (-d.1, d.0)
+}
+
+fn direction(a: P, b: P) -> (i64, i64) {
+    (sign(b.0 - a.0), sign(b.1 - a.1))
+}
+
+/// The line moved sideways by `h`, to the left for `side` = 1 and to the right for -1. The corners
+/// are where the moved lines cross.
+fn offset(lane: &[P], side: i64, h: i64) -> Vec<P> {
+    let n = lane.len();
+    (0..n)
+        .map(|i| {
+            let mut v = (0_i64, 0_i64);
+            if i > 0 {
+                let l = left(direction(lane[i - 1], lane[i]));
+                v = (v.0 + l.0, v.1 + l.1);
+            }
+            if i + 1 < n {
+                let l = left(direction(lane[i], lane[i + 1]));
+                v = (v.0 + l.0, v.1 + l.1);
+            }
+            (lane[i].0 + side * h * v.0, lane[i].1 + side * h * v.1)
+        })
+        .collect()
+}
+
+/// The ways from a pad to a point: straight when they share a coordinate, else two pieces in
+/// either order.
+fn stubs(at: P, to: P) -> Vec<Vec<P>> {
+    if at == to {
+        return vec![vec![at]];
+    }
+    if at.0 == to.0 || at.1 == to.1 {
+        return vec![vec![at, to]];
+    }
+    vec![vec![at, (to.0, at.1), to], vec![at, (at.0, to.1), to]]
+}
+
+/// A track: the stub from the first pad, the line and the stub to the second pad.
+fn track(first: &[P], line: &[P], last: &[P]) -> Vec<P> {
+    let mut pts: Vec<P> = first.to_vec();
+    pts.extend(line.iter().skip(1).copied());
+    pts.extend(last.iter().rev().skip(1).copied());
+    simplify(&pts)
+}
+
+impl Engine<'_> {
+    /// Every piece of a track is free of other copper for a net.
+    fn track_is_clear(&self, layer: usize, pts: &[P], spec: &Spec) -> bool {
+        pts.len() >= 2
+            && pts
+                .windows(2)
+                .all(|w| self.world.edge(layer, w[0], w[1], spec, false, false) == Edge::Free)
+    }
+
+    /// Takes a route away without remembering where it was.
+    fn uncommit(&mut self, c: usize) {
+        if let Some(routed) = self.routed[c].take() {
+            for (layer, id) in routed.handles {
+                self.world.take(layer, id);
+            }
+        }
+    }
+
+    /// The nodes of the grid near the middle of a pair of pads where the fat track may start or
+    /// end, nearest to the middle first.
+    fn pair_terminals(
+        &self,
+        cfg: &crate::config::AutorouteConfig,
+        layer: usize,
+        pads: (&Endpoint, &Endpoint),
+        fat: &Spec,
+    ) -> Vec<Terminal> {
+        let (p, n) = pads;
+        let mid = ((p.at.0 + n.at.0) / 2, (p.at.1 + n.at.1) / 2);
+        let apart = seg_len(p.at, n.at);
+        let ext = p.extent.max(n.extent);
+        let pitch = self.grid.pitch;
+        let reach =
+            cfg.terminal_radius_cells + (ext + fat.half + fat.gap + apart + pitch - 1) / pitch;
+        let cx = (mid.0 - self.grid.ox).div_euclid(pitch);
+        let cy = (mid.1 - self.grid.oy).div_euclid(pitch);
+        let mut cells: Vec<(i128, i64, i64)> = Vec::new();
+        for ix in (cx - reach).max(0)..=(cx + reach + 1).min(self.grid.nx - 1) {
+            for iy in (cy - reach).max(0)..=(cy + reach + 1).min(self.grid.ny - 1) {
+                cells.push((dist2(self.grid.point(ix, iy), mid), ix, iy));
+            }
+        }
+        cells.sort_unstable();
+        let keep_away = |e: &Endpoint| {
+            let r = i128::from(e.extent) + i128::from(fat.half) + i128::from(fat.gap);
+            r * r
+        };
+        let mut out: Vec<Terminal> = Vec::new();
+        for (_, ix, iy) in cells {
+            if out.len() >= cfg.terminal_candidates {
+                break;
+            }
+            let node = self.grid.point(ix, iy);
+            if dist2(node, p.at) < keep_away(p) || dist2(node, n.at) < keep_away(n) {
+                continue;
+            }
+            if self.world.edge(layer, node, node, fat, false, false) != Edge::Free {
+                continue;
+            }
+            let stub = if node == mid {
+                vec![node]
+            } else {
+                vec![mid, node]
+            };
+            out.push(Terminal {
+                slot: 0,
+                ix,
+                iy,
+                stub,
+            });
+        }
+        out
+    }
+
+    /// Tries to route the two connections of a pair as coupled tracks. On success both are
+    /// routed and put down; on failure nothing is changed (but the expanded nodes are counted)
+    /// and the reason comes back.
+    pub(super) fn couple(&mut self, cp: usize, cn: usize, gap: i64) -> Result<usize, String> {
+        let (np, nn) = (self.conns[cp].net, self.conns[cn].net);
+        if self.nets[np].width != self.nets[nn].width {
+            return Err("the two nets have tracks of different widths".to_owned());
+        }
+        let (pa, pb) = (self.conns[cp].a.clone(), self.conns[cp].b.clone());
+        let (mut na, mut nb) = (self.conns[cn].a.clone(), self.conns[cn].b.clone());
+        if dist2(pa.at, na.at) + dist2(pb.at, nb.at) > dist2(pa.at, nb.at) + dist2(pb.at, na.at) {
+            std::mem::swap(&mut na, &mut nb);
+        }
+        let common: Vec<usize> = (0..self.slots.len())
+            .filter(|k| [&pa, &pb, &na, &nb].iter().all(|e| e.slots.contains(k)))
+            .collect();
+        if common.is_empty() {
+            return Err("the four ends have no layer in common".to_owned());
+        }
+        let mut reason = String::new();
+        for k in common {
+            match self.couple_on(cp, cn, k, gap, [&pa, &pb, &na, &nb]) {
+                Ok(()) => return Ok(k),
+                Err(why) => reason = why,
+            }
+        }
+        Err(reason)
+    }
+
+    fn couple_on(
+        &mut self,
+        cp: usize,
+        cn: usize,
+        k: usize,
+        gap: i64,
+        ends: [&Endpoint; 4],
+    ) -> Result<(), String> {
+        let [pa, pb, na, nb] = ends;
+        let layer = self.slots[k];
+        let (np, nn) = (self.conns[cp].net, self.conns[cn].net);
+        let width = self.nets[np].width;
+        let apart = centre_distance(width, gap);
+        let h = apart / 2;
+        let fat = Spec {
+            net: self.nets[np].id,
+            half: half_up(apart + width),
+            gap: self.nets[np].gap.max(self.nets[nn].gap),
+        };
+        let mut flat = self.cfg.clone();
+        flat.diagonal = false;
+        let sources = self.pair_terminals(&flat, layer, (pa, na), &fat);
+        if sources.is_empty() {
+            return Err("no free place near the first pair of pads".to_owned());
+        }
+        let targets = self.pair_terminals(&flat, layer, (pb, nb), &fat);
+        if targets.is_empty() {
+            return Err("no free place near the second pair of pads".to_owned());
+        }
+        let remaining = self
+            .cfg
+            .max_expansions_total
+            .saturating_sub(self.expansions);
+        let one = [layer];
+        let history = HashMap::new();
+        let no_vias = HashMap::new();
+        let result = search(&Job {
+            world: &self.world,
+            grid: &self.grid,
+            cfg: &flat,
+            spec: fat,
+            via: self.via_spec(np),
+            slots: &one,
+            sources: &sources,
+            targets: &targets,
+            soft: false,
+            history: &history,
+            limit: self.cfg.max_expansions_per_search.min(remaining),
+            free_vias: &no_vias,
+        });
+        let found = match result {
+            Ok(found) => {
+                self.expansions += found.expansions;
+                found
+            }
+            Err(Miss::Exhausted(n)) | Err(Miss::Limit(n)) => {
+                self.expansions += n;
+                return Err(format!("no way for the pair after {n} expanded nodes"));
+            }
+        };
+        let points: Vec<P> = found
+            .nodes
+            .iter()
+            .map(|n| self.grid.point(n.ix, n.iy))
+            .collect();
+        let lane = simplify(&points);
+        if lane.len() < 2 {
+            return Err("the ends of the pair are too close for two tracks".to_owned());
+        }
+        // on which side of the line the negative net lies, at both ends
+        let first = left(direction(lane[0], lane[1]));
+        let last = left(direction(lane[lane.len() - 2], lane[lane.len() - 1]));
+        let on = |n: P, p: P, l: (i64, i64)| sign((n.0 - p.0) * l.0 + (n.1 - p.1) * l.1);
+        let (s_first, s_last) = (on(na.at, pa.at, first), on(nb.at, pb.at, last));
+        if s_first != 0 && s_last != 0 && s_first != s_last {
+            return Err("the two nets change sides between their ends".to_owned());
+        }
+        let side = if s_first != 0 {
+            s_first
+        } else if s_last != 0 {
+            s_last
+        } else {
+            1
+        };
+        let lane_p = offset(&lane, -side, h);
+        let lane_n = offset(&lane, side, h);
+        let spec_p = self.spec(np);
+        let spec_n = self.spec(nn);
+        let nodes: Vec<(usize, i64, i64)> = found.nodes.iter().map(|n| (k, n.ix, n.iy)).collect();
+        for first_p in stubs(pa.at, lane_p[0]) {
+            for last_p in stubs(pb.at, lane_p[lane_p.len() - 1]) {
+                let pts_p = track(&first_p, &lane_p, &last_p);
+                if !self.track_is_clear(layer, &pts_p, &spec_p) {
+                    continue;
+                }
+                self.commit(
+                    cp,
+                    Assembled {
+                        runs: vec![Run {
+                            layer,
+                            pts: pts_p.clone(),
+                        }],
+                        vias: Vec::new(),
+                        nodes: nodes.clone(),
+                    },
+                );
+                for first_n in stubs(na.at, lane_n[0]) {
+                    for last_n in stubs(nb.at, lane_n[lane_n.len() - 1]) {
+                        let pts_n = track(&first_n, &lane_n, &last_n);
+                        if !self.track_is_clear(layer, &pts_n, &spec_n) {
+                            continue;
+                        }
+                        self.commit(
+                            cn,
+                            Assembled {
+                                runs: vec![Run { layer, pts: pts_n }],
+                                vias: Vec::new(),
+                                nodes: Vec::new(),
+                            },
+                        );
+                        return Ok(());
+                    }
+                }
+                self.uncommit(cp);
+            }
+        }
+        Err("a track of the pair is blocked".to_owned())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_line_is_moved_sideways_and_the_corners_are_where_the_moved_lines_cross() {
+        // east, then north: the left side is north of the first piece and west of the second
+        let line = [(0, 0), (10, 0), (10, 10)];
+        assert_eq!(offset(&line, 1, 2), vec![(0, 2), (8, 2), (8, 10)]);
+        assert_eq!(offset(&line, -1, 2), vec![(0, -2), (12, -2), (12, 10)]);
+        // the moved lines keep the distance 2h from each other
+        let a = offset(&line, 1, 2);
+        let b = offset(&line, -1, 2);
+        assert_eq!(b[0].1 - a[0].1, -4);
+        assert_eq!(b[1].0 - a[1].0, 4);
+    }
+
+    #[test]
+    fn a_stub_goes_straight_or_in_two_pieces_in_either_order() {
+        assert_eq!(stubs((1, 1), (1, 1)), vec![vec![(1, 1)]]);
+        assert_eq!(stubs((1, 1), (5, 1)), vec![vec![(1, 1), (5, 1)]]);
+        assert_eq!(
+            stubs((1, 1), (5, 3)),
+            vec![vec![(1, 1), (5, 1), (5, 3)], vec![(1, 1), (1, 3), (5, 3)]]
+        );
+    }
+
+    #[test]
+    fn a_track_is_the_two_stubs_and_the_line_without_repeated_or_aligned_points() {
+        let line = [(3, 5), (17, 5)];
+        let t = track(&[(2, 5), (3, 5)], &line, &[(18, 5), (17, 5)]);
+        assert_eq!(t, vec![(2, 5), (18, 5)]);
+        let t = track(&[(2, 6), (3, 6), (3, 5)], &line, &[(18, 5), (17, 5)]);
+        assert_eq!(t, vec![(2, 6), (3, 6), (3, 5), (18, 5)]);
+    }
+
+    #[test]
+    fn the_distance_between_the_lines_is_even_and_never_less_than_asked() {
+        assert_eq!(centre_distance(250_000, 150_000), 400_000);
+        assert_eq!(centre_distance(250_001, 150_000), 400_002);
+    }
+}

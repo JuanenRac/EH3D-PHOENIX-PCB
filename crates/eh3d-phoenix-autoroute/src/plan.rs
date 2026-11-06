@@ -102,6 +102,11 @@ pub struct Report {
     pub errors_after: usize,
     /// The connections of the whole board that are still open after the plan.
     pub connections_left: usize,
+    /// The differential pairs that were routed as two coupled tracks, by name.
+    pub pairs_coupled: Vec<String>,
+    /// What the run has to say besides the connections it left unrouted: a pair that was routed
+    /// as two ordinary nets and why (`PHOENIX-AROUTE-017`).
+    pub notes: Vec<String>,
 }
 
 /// The routes of one net, as they leave the search.
@@ -119,6 +124,8 @@ pub(crate) struct NetOutcome {
 pub(crate) struct Totals {
     pub ripups: u32,
     pub expansions: u64,
+    pub notes: Vec<String>,
+    pub pairs_coupled: Vec<String>,
 }
 
 /// The plan.
@@ -217,6 +224,12 @@ impl AutoroutePlan {
         for name in &r.nets_completed {
             out.push_str(&format!("complete: {name}\n"));
         }
+        for name in &r.pairs_coupled {
+            out.push_str(&format!("coupled pair: {name}\n"));
+        }
+        for note in &r.notes {
+            out.push_str(&format!("note: {note}\n"));
+        }
         for u in &r.unrouted {
             out.push_str(&format!(
                 "unrouted: {}: {} -> {}: {}: {}: {}\n",
@@ -239,6 +252,16 @@ impl AutoroutePlan {
             .iter()
             .map(|n| format!("\"{}\"", json_text(n)))
             .collect();
+        let coupled: Vec<String> = r
+            .pairs_coupled
+            .iter()
+            .map(|n| format!("\"{}\"", json_text(n)))
+            .collect();
+        let notes: Vec<String> = r
+            .notes
+            .iter()
+            .map(|n| format!("\"{}\"", json_text(n)))
+            .collect();
         let missed: Vec<String> = r
             .unrouted
             .iter()
@@ -254,7 +277,7 @@ impl AutoroutePlan {
             })
             .collect();
         format!(
-            "{{\"nets_total\":{},\"nets_completed\":[{}],\"connections_total\":{},\"connections_routed\":{},\"tracks_added\":{},\"vias_added\":{},\"length_nm\":{},\"ripups\":{},\"expansions\":{},\"errors_before\":{},\"errors_after\":{},\"connections_left\":{},\"unrouted\":[{}]}}",
+            "{{\"nets_total\":{},\"nets_completed\":[{}],\"connections_total\":{},\"connections_routed\":{},\"tracks_added\":{},\"vias_added\":{},\"length_nm\":{},\"ripups\":{},\"expansions\":{},\"errors_before\":{},\"errors_after\":{},\"connections_left\":{},\"pairs_coupled\":[{}],\"notes\":[{}],\"unrouted\":[{}]}}",
             r.nets_total,
             names.join(","),
             r.connections_total,
@@ -267,6 +290,8 @@ impl AutoroutePlan {
             r.errors_before,
             r.errors_after,
             r.connections_left,
+            coupled.join(","),
+            notes.join(","),
             missed.join(",")
         )
     }
@@ -433,6 +458,8 @@ pub(crate) fn finish(
         errors_before: count_errors(&before),
         errors_after: count_errors(&after),
         connections_left: left,
+        pairs_coupled: totals.pairs_coupled.clone(),
+        notes: totals.notes.clone(),
     };
     Ok(AutoroutePlan {
         tracks,

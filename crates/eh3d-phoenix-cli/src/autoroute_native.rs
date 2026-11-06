@@ -12,11 +12,14 @@ use std::io::Write;
 use std::path::Path;
 
 use eh3d_phoenix_autoroute::codes::{INPUT_UNREADABLE, OPTION_INVALID, OUTPUT_FAILED};
-use eh3d_phoenix_autoroute::{autoroute, AutorouteConfig, AutorouteError, Request};
+use eh3d_phoenix_autoroute::{
+    autoroute_with_pairs, AutorouteConfig, AutorouteError, PairSpec, Request,
+};
 use eh3d_phoenix_route::RouteError;
 use eh3d_phoenix_rules::Lang;
 
 use crate::check::read_text;
+use crate::pairs::load_pair_config;
 use crate::route::{load_board, load_context, load_settings, write_new};
 
 /// The settings file that is read when `--config` is not given and the file exists.
@@ -24,8 +27,8 @@ const DEFAULT_CONFIG: &str = "config/autoroute_native.cfg";
 
 pub(crate) const USAGE: &str = "\
 phoenix autoroute native [--nets N1,N2] [--layers L1,L2] [--config FILE] [--settings FILE]
-                         [--rules FILE] [--json] [--lang CODE] [--require-complete]
-                         [--out FILE] <board>
+                         [--rules FILE] [--pairs FILE] [--pair-config FILE] [--json]
+                         [--lang CODE] [--require-complete] [--out FILE] <board>
 
   native        route the open connections with the autorouter that needs no outside program: a
                 grid from the rules, a search per layer with vias, rip-up and reroute within
@@ -38,6 +41,11 @@ phoenix autoroute native [--nets N1,N2] [--layers L1,L2] [--config FILE] [--sett
   --config      the settings of the search (default: config/autoroute_native.cfg when it exists)
   --settings    the width of the tracks and the size of the vias (default: config/route.cfg)
   --rules       the JSON rule file (format phoenix-rules/1 or 2)
+  --pairs       a JSON file of differential pairs (format phoenix-diffpairs/1): each pair is
+                routed as two tracks side by side on one layer when there is room, else as two
+                ordinary nets with a note in the report
+  --pair-config the settings and the pairs of config/diffpairs.cfg style (the pairs of the
+                settings file are routed like those of --pairs)
   --require-complete  refuse a plan that leaves connections unrouted (exit code 2)
   --lang CODE   the messages in en, es, de, fr, it, ja, zh or pt
 ";
@@ -51,6 +59,8 @@ struct Options {
     settings: Option<String>,
     rules: Option<String>,
     config: Option<String>,
+    pairs: Option<String>,
+    pair_config: Option<String>,
     out: Option<String>,
     require_complete: bool,
     files: Vec<String>,
@@ -106,6 +116,8 @@ fn parse_options(args: &[&str]) -> Result<Options, AutorouteError> {
             "--settings" => o.settings = Some(value("--settings")?),
             "--rules" => o.rules = Some(value("--rules")?),
             "--config" => o.config = Some(value("--config")?),
+            "--pairs" => o.pairs = Some(value("--pairs")?),
+            "--pair-config" => o.pair_config = Some(value("--pair-config")?),
             "--out" => o.out = Some(value("--out")?),
             other if other.starts_with("--") => {
                 return Err(bad(&format!("unknown option {other}")));
@@ -144,7 +156,23 @@ fn execute(options: &Options, out: &mut dyn Write, err: &mut dyn Write) -> Resul
         nets: options.nets.clone(),
         layers: options.layers.clone(),
     };
-    let plan = autoroute(&board, &ctx, &settings, &config, &request)?;
+    let specs: Vec<PairSpec> = if options.pairs.is_some() || options.pair_config.is_some() {
+        let loaded = load_pair_config(options.pair_config.as_deref(), options.pairs.as_deref())
+            .map_err(|e| AutorouteError::new(INPUT_UNREADABLE, e.to_string()))?;
+        loaded
+            .pairs
+            .iter()
+            .map(|def| PairSpec {
+                name: def.name.clone(),
+                positive: def.positive.clone(),
+                negative: def.negative.clone(),
+                gap_nm: def.gap_nm.unwrap_or(loaded.settings.default_gap_nm),
+            })
+            .collect()
+    } else {
+        Vec::new()
+    };
+    let plan = autoroute_with_pairs(&board, &ctx, &settings, &config, &request, &specs)?;
     if options.require_complete {
         plan.require_complete()?;
     }
@@ -216,11 +244,17 @@ mod tests {
             "--require-complete",
             "--lang",
             "pt",
+            "--pairs",
+            "pairs.json",
+            "--pair-config",
+            "pairs.cfg",
             "--out",
             "x.json",
             "board.json",
         ])
         .unwrap();
+        assert_eq!(o.pairs.as_deref(), Some("pairs.json"));
+        assert_eq!(o.pair_config.as_deref(), Some("pairs.cfg"));
         assert_eq!(o.nets, words(&["A", "B", "C"]));
         assert_eq!(o.layers, words(&["Top"]));
         assert!(o.json && o.require_complete);
@@ -236,6 +270,8 @@ mod tests {
             &["--nets"][..],
             &["--lang", "xx"][..],
             &["--out"][..],
+            &["--pairs"][..],
+            &["--pair-config"][..],
         ] {
             let e = parse_options(args).expect_err("refused");
             assert_eq!(e.code, OPTION_INVALID, "{args:?}");

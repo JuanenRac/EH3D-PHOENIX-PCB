@@ -79,8 +79,8 @@ Each table repeats the `REGISTRY` of a crate (`eh3d-phoenix-model` in `src/diagn
 | PHOENIX-EAGLE-018 | The two sides of a pair differ | a field of the summary of the binary side that differs from the summary of the XML side |
 | PHOENIX-EAGLE-019 | Pairs verified but not compared | the folder of pairs was checked without a reader for the binary side (information) |
 | PHOENIX-EAGLE-020 | Item written in a simpler form | an item of the board that the EAGLE file cannot say as it is, written in a simpler form: a drilled rectangle as a square, a drilled oblong pad as a round one, a surface pad on two layers on one, a silkscreen text as the strokes that are printed, a name used twice made unique (information, in `eh3d-phoenix-eagle-board`) |
-| PHOENIX-EAGLE-021 | Item left out of the EAGLE file | an item with no place in the file: a component without a footprint, a track, zone, via or silkscreen item on a layer that has no EAGLE number, a silkscreen item that cannot be drawn, a seventeenth copper layer (a warning) |
-| PHOENIX-EAGLE-022 | Part of the EAGLE file not read into the board | elements of a board file that the board reader does not interpret, counted by name (information) |
+| PHOENIX-EAGLE-021 | Item left out of the EAGLE file | an item with no place in the file: a component without a footprint, a track, zone, via or silkscreen item on a layer that has no EAGLE number, a silkscreen item that cannot be drawn, a seventeenth copper layer, a cutout of a zone with fewer than three points or on an inner layer, buses and bus entries of a schematic (a warning) |
+| PHOENIX-EAGLE-022 | Part of the EAGLE file not read into the board | elements of a board file that the board reader does not interpret, counted by name, and the wires and labels of a bus, the names of a bus that are not vectors and a restrict area that lies in no pour (information) |
 | PHOENIX-EAGLE-023 | EAGLE file cannot be read into a board | text that is not XML, whose root is not `eagle` or that has no board in its drawing (an error) |
 
 ## Rule check (`eh3d-phoenix-board`, `src/rules.rs`)
@@ -1220,6 +1220,7 @@ The titles of these codes also exist in the eight languages of the suite (`TITLE
 | PHOENIX-AROUTE-014 | Rip-up and reroute reached its limit | a connection that is not routed because `max_ripup_iterations` or `max_rips_per_connection` was reached |
 | PHOENIX-AROUTE-015 | The routes of a net were refused because they add a rule error | a net whose routes add an error of the design rules that the board did not have; the net is left out of the plan |
 | PHOENIX-AROUTE-016 | The plan leaves connections unrouted | `--require-complete` with a plan that leaves a connection of the nets asked for unrouted |
+| PHOENIX-AROUTE-017 | A differential pair was routed as two ordinary nets | a pair asked for with `--pairs` that could not be routed as two coupled tracks (a net with more than one open connection, tracks of different widths, no layer shared by the four pads, nets that change sides, no room or a blocked track), a note of the report with the reason |
 
 ## Printing (`eh3d-phoenix-print`, `src/codes.rs`)
 

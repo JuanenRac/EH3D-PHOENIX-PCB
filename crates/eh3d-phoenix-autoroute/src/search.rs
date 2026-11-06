@@ -83,6 +83,10 @@ pub(crate) struct Job<'a> {
     pub soft: bool,
     pub history: &'a HashMap<(usize, i64, i64), u32>,
     pub limit: u64,
+    /// The vias of this net that are already on the board and sit exactly on a node of the grid,
+    /// by node, with the first and the last place in the copper stack they join. A change of
+    /// layer there costs nothing and puts no new via.
+    pub free_vias: &'a HashMap<(i64, i64), (usize, usize)>,
 }
 
 const DIRS: [(i64, i64); 8] = [
@@ -242,6 +246,14 @@ pub(crate) fn search(job: &Job<'_>) -> Result<Found, Miss> {
         }
         for other in 0..job.slots.len() {
             if other == slot {
+                continue;
+            }
+            let reuse = job.free_vias.get(&(ix, iy)).is_some_and(|&(lo, hi)| {
+                (lo..=hi).contains(&job.slots[slot]) && (lo..=hi).contains(&job.slots[other])
+            });
+            if reuse {
+                let next = encode(g, other, ix, iy, AFTER_VIA);
+                relax(&mut best, &mut queue, next, cost, key, heuristic(ix, iy));
                 continue;
             }
             let (lo_slot, hi_slot) = (slot.min(other), slot.max(other));
@@ -490,6 +502,7 @@ mod tests {
             stub: vec![(9000, 5000)],
         }];
         let history = HashMap::new();
+        let free_vias = HashMap::new();
         let via = ViaSpec {
             half: 300,
             drill_half: 150,
@@ -508,6 +521,7 @@ mod tests {
             soft,
             history: &history,
             limit: 1_000_000,
+            free_vias: &free_vias,
         };
         let strict = search(&job(false));
         assert!(
@@ -545,6 +559,7 @@ mod tests {
             stub: vec![(4000, 5000)],
         }];
         let history = HashMap::new();
+        let free_vias = HashMap::new();
         let via = ViaSpec {
             half: 300,
             drill_half: 150,
@@ -563,11 +578,97 @@ mod tests {
             soft: false,
             history: &history,
             limit: 1_000_000,
+            free_vias: &free_vias,
         };
         let found = search(&job).unwrap();
         let ixs: Vec<i64> = found.nodes.iter().map(|n| n.ix).collect();
         assert_eq!(ixs, vec![1, 2, 3, 4]);
         assert!(found.nodes.iter().all(|n| n.iy == 5 && n.slot == 0));
         assert_eq!((found.src, found.dst), (0, 0));
+    }
+
+    /// Where the path changes layer: the node it leaves.
+    fn change_of_layer(found: &Found) -> Option<(i64, i64)> {
+        found
+            .nodes
+            .windows(2)
+            .find(|w| w[0].slot != w[1].slot)
+            .map(|w| (w[0].ix, w[0].iy))
+    }
+
+    #[test]
+    fn a_via_that_is_already_there_is_a_free_change_of_layer() {
+        use crate::obstacles::StaticLayer;
+        let outline = vec![(0, 0), (10_000, 0), (10_000, 10_000), (0, 10_000)];
+        let layers = vec![
+            StaticLayer::new(Vec::new()).unwrap(),
+            StaticLayer::new(Vec::new()).unwrap(),
+            StaticLayer::new(Vec::new()).unwrap(),
+        ];
+        let world = World::new(outline, layers, 4000);
+        let grid = Grid {
+            ox: 0,
+            oy: 0,
+            pitch: 1000,
+            nx: 11,
+            ny: 11,
+        };
+        let spec = Spec {
+            net: id(1),
+            half: 10,
+            gap: 10,
+        };
+        let cfg = AutorouteConfig::default();
+        let sources = [Terminal {
+            slot: 0,
+            ix: 1,
+            iy: 5,
+            stub: vec![(1000, 5000)],
+        }];
+        let targets = [Terminal {
+            slot: 1,
+            ix: 9,
+            iy: 5,
+            stub: vec![(9000, 5000)],
+        }];
+        let history = HashMap::new();
+        let via = ViaSpec {
+            half: 300,
+            drill_half: 150,
+            drill_gap: 0,
+            in_pad: false,
+        };
+        let none = HashMap::new();
+        let job = |free: &HashMap<(i64, i64), (usize, usize)>| {
+            search(&Job {
+                world: &world,
+                grid: &grid,
+                cfg: &cfg,
+                spec,
+                via,
+                slots: &[0, 1],
+                sources: &sources,
+                targets: &targets,
+                soft: false,
+                history: &history,
+                limit: 1_000_000,
+                free_vias: free,
+            })
+            .unwrap()
+        };
+        // with no via of the net on the board the change is made where it is cheapest to walk
+        let plain = job(&none);
+        assert_ne!(change_of_layer(&plain), Some((8, 2)));
+        // a via of the net at the node (8, 2) that joins the two layers: the walk to it costs far
+        // less than a new via, so the path goes there and changes layer for nothing
+        let free = HashMap::from([((8, 2), (0, 1))]);
+        let reused = job(&free);
+        assert_eq!(change_of_layer(&reused), Some((8, 2)));
+        assert_eq!(reused.nodes.last().map(|n| (n.ix, n.iy)), Some((9, 5)));
+        // the same input gives the same path
+        assert_eq!(job(&free).nodes, reused.nodes);
+        // a via that does not span the layer of the end is not used
+        let short = HashMap::from([((8, 2), (0, 0))]);
+        assert_ne!(change_of_layer(&job(&short)), Some((8, 2)));
     }
 }

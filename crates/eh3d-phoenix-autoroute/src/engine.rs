@@ -6,6 +6,10 @@
 
 use std::collections::{BTreeMap, BTreeSet, HashMap, VecDeque};
 
+mod couple;
+
+pub use couple::PairSpec;
+
 use eh3d_phoenix_board::connectivity::Item;
 use eh3d_phoenix_board::{Board, Id, PadShape};
 use eh3d_phoenix_model::Point;
@@ -14,7 +18,7 @@ use eh3d_phoenix_route::{RouteSettings, RuleContext};
 
 use crate::codes::{
     AutorouteError, BOARD_NOT_ROUTABLE, EXPANSION_LIMIT, GRID_TOO_LARGE, LAYER_UNKNOWN,
-    NET_UNKNOWN, NO_PATH, NO_TERMINAL, RIPUP_LIMIT, TOO_MANY_CONNECTIONS,
+    NET_UNKNOWN, NO_PATH, NO_TERMINAL, PAIR_UNCOUPLED, RIPUP_LIMIT, TOO_MANY_CONNECTIONS,
 };
 use crate::config::{AutorouteConfig, NetOrder};
 use crate::geom::{half_up, isqrt_ceil, pair, turn, P};
@@ -85,6 +89,8 @@ struct Engine<'a> {
     conns: Vec<Conn>,
     routed: Vec<Option<Routed>>,
     history: HashMap<(usize, i64, i64), u32>,
+    /// For each net, the vias of it that are on the board and sit on a node of the grid.
+    free_vias: Vec<HashMap<(i64, i64), (usize, usize)>>,
     drill_gap: i64,
     expansions: u64,
     ripups: u32,
@@ -111,6 +117,7 @@ fn assemble(
     targets: &[Terminal],
     slots: &[usize],
     grid: &Grid,
+    free_vias: &HashMap<(i64, i64), (usize, usize)>,
 ) -> Assembled {
     let first = found.nodes[0];
     let mut runs: Vec<Run> = Vec::new();
@@ -126,11 +133,17 @@ fn assemble(
             current.pts.push(at);
         } else {
             let (x, y) = (slots[a.slot], slots[b.slot]);
-            vias.push(ViaItem {
-                at: grid.point(a.ix, a.iy),
-                lo: x.min(y),
-                hi: x.max(y),
-            });
+            // a via of the net that is already there is not put down again
+            let there = free_vias
+                .get(&(a.ix, a.iy))
+                .is_some_and(|&(lo, hi)| (lo..=hi).contains(&x) && (lo..=hi).contains(&y));
+            if !there {
+                vias.push(ViaItem {
+                    at: grid.point(a.ix, a.iy),
+                    lo: x.min(y),
+                    hi: x.max(y),
+                });
+            }
             runs.push(current);
             current = Run {
                 layer: slots[b.slot],
@@ -238,6 +251,7 @@ impl Engine<'_> {
                 soft,
                 history: &self.history,
                 limit: self.cfg.max_expansions_per_search.min(remaining),
+                free_vias: &self.free_vias[net],
             };
             search(&job)
         };
@@ -414,6 +428,21 @@ pub fn autoroute(
     cfg: &AutorouteConfig,
     request: &Request,
 ) -> Result<AutoroutePlan, AutorouteError> {
+    autoroute_with_pairs(board, ctx, route, cfg, request, &[])
+}
+
+/// Routes the open connections of a board like [`autoroute`], and each differential pair of
+/// `pairs` as two coupled tracks side by side when there is room for them (one connection for
+/// each net, a layer that the four pads share, no change of layer); a pair that cannot be coupled
+/// is routed as two ordinary nets and the report says why (`PHOENIX-AROUTE-017`).
+pub fn autoroute_with_pairs(
+    board: &Board,
+    ctx: &RuleContext,
+    route: &RouteSettings,
+    cfg: &AutorouteConfig,
+    request: &Request,
+    pairs: &[PairSpec],
+) -> Result<AutoroutePlan, AutorouteError> {
     let copper = copper_layers(board);
     if board.outline.len() < 3 || copper.is_empty() {
         return Err(AutorouteError::new(
@@ -556,6 +585,26 @@ pub fn autoroute(
             name,
         });
     }
+    // the vias of each net that are already on the board and sit exactly on a node of the grid
+    let mut free_vias: Vec<HashMap<(i64, i64), (usize, usize)>> = vec![HashMap::new(); nets.len()];
+    for via in board.vias.values() {
+        let Ok(n) = ids.binary_search(&via.net) else {
+            continue;
+        };
+        let at = pair(via.at);
+        let (dx, dy) = (at.0 - ox, at.1 - oy);
+        if dx < 0 || dy < 0 || dx % pitch != 0 || dy % pitch != 0 {
+            continue;
+        }
+        let (ix, iy) = (dx / pitch, dy / pitch);
+        if ix >= grid.nx || iy >= grid.ny {
+            continue;
+        }
+        let ends = [via.from_layer, via.to_layer].map(|l| copper.iter().position(|c| *c == l));
+        if let [Some(a), Some(b)] = ends {
+            free_vias[n].entry((ix, iy)).or_insert((a.min(b), a.max(b)));
+        }
+    }
     let mut conns: Vec<Conn> = Vec::new();
     for line in &lines {
         let net = ids.binary_search(&line.net).unwrap_or(0);
@@ -598,10 +647,43 @@ pub fn autoroute(
         routed: (0..conns.len()).map(|_| None).collect(),
         conns,
         history: HashMap::new(),
+        free_vias,
         drill_gap: rules.min_drill_spacing.get(),
         expansions: 0,
         ripups: 0,
     };
+    // the differential pairs, coupled when there is room
+    let mut notes: Vec<String> = Vec::new();
+    let mut coupled: Vec<String> = Vec::new();
+    for spec in pairs {
+        let (Some(p), Some(n)) = (
+            find_net(board, &spec.positive),
+            find_net(board, &spec.negative),
+        ) else {
+            return Err(AutorouteError::new(
+                NET_UNKNOWN,
+                format!("a net of the pair {} does not exist", spec.name),
+            ));
+        };
+        let (Ok(np), Ok(nn)) = (ids.binary_search(&p), ids.binary_search(&n)) else {
+            continue;
+        };
+        let of = |net: usize| -> Vec<usize> {
+            (0..engine.conns.len())
+                .filter(|c| engine.conns[*c].net == net)
+                .collect()
+        };
+        let (cp, cn) = (of(np), of(nn));
+        let uncoupled = |why: &str| format!("{PAIR_UNCOUPLED}: pair {}: {why}", spec.name);
+        if cp.len() != 1 || cn.len() != 1 {
+            notes.push(uncoupled("each net needs exactly one open connection"));
+            continue;
+        }
+        match engine.couple(cp[0], cn[0], spec.gap_nm) {
+            Ok(_) => coupled.push(spec.name.clone()),
+            Err(why) => notes.push(uncoupled(&why)),
+        }
+    }
     let mut failures: BTreeMap<usize, (&'static str, String)> = BTreeMap::new();
     let mut rips: Vec<u32> = vec![0; engine.conns.len()];
     let mut queue: VecDeque<usize> = order.iter().copied().collect();
@@ -621,7 +703,14 @@ pub fn autoroute(
         }
         match engine.attempt(c, false) {
             Attempt::Found(found, sources, targets) => {
-                let assembled = assemble(&found, &sources, &targets, &engine.slots, &engine.grid);
+                let assembled = assemble(
+                    &found,
+                    &sources,
+                    &targets,
+                    &engine.slots,
+                    &engine.grid,
+                    &engine.free_vias[engine.conns[c].net],
+                );
                 engine.commit(c, assembled);
             }
             Attempt::Missed(code, detail) => {
@@ -643,8 +732,14 @@ pub fn autoroute(
                 rips[c] += 1;
                 match engine.attempt(c, true) {
                     Attempt::Found(found, sources, targets) => {
-                        let assembled =
-                            assemble(&found, &sources, &targets, &engine.slots, &engine.grid);
+                        let assembled = assemble(
+                            &found,
+                            &sources,
+                            &targets,
+                            &engine.slots,
+                            &engine.grid,
+                            &engine.free_vias[engine.conns[c].net],
+                        );
                         let crossed = engine.crossing(c, &assembled);
                         if !crossed.is_empty() {
                             engine.ripups += 1;
@@ -743,6 +838,8 @@ pub fn autoroute(
         &Totals {
             ripups: engine.ripups,
             expansions: engine.expansions,
+            notes,
+            pairs_coupled: coupled,
         },
     )
 }
