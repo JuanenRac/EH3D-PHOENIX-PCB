@@ -8,14 +8,14 @@ The corpus is the test material of this repository for the readers and the write
 
 | Folder | Pieces | Formats |
 |---|---|---|
-| `eagle/` | a board of two resistors and a header, a divider (schematic), a library with a missing symbol, a missing package and a pad that does not exist, a board and a schematic with part attributes, assembly variants and a module, boards with user layers, with polygons of several pours, holes and a dimension, with net classes, design rules and an autorouter, and with odd attributes (`docs/EAGLE_DEEP.md`), and the adversarial files below | EAGLE XML `.brd`, `.sch`, `.lbr` |
-| `kicad/` | a board of two resistors and a header, a divider with labels and a ground symbol, a footprint, a symbol library, a project with two net classes, and the adversarial files below | `.kicad_pcb`, `.kicad_sch`, `.kicad_mod`, `.kicad_sym`, `.kicad_pro` |
+| `eagle/` | a board of two resistors and a header, a divider (schematic), a library with a missing symbol, a missing package and a pad that does not exist, a board and a schematic with part attributes, assembly variants and a module, boards with user layers, with polygons of several pours, holes and a dimension, with net classes, design rules and an autorouter, and with odd attributes (`docs/EAGLE_DEEP.md`), a board with the restrict layers 41 and 42, pads of several shapes and a hole in the package, a schematic with buses, and the adversarial files below | EAGLE XML `.brd`, `.sch`, `.lbr` |
+| `kicad/` | a board of two resistors and a header, a divider with labels and a ground symbol, a footprint, a symbol library, a project with two net classes, outlines with openings drawn as rectangles, polygons and loose lines, a footprint with rounded rectangle, trapezoid and mounting-hole pads placed twice, zones with rule areas that keep the pour out, a bus with entries, a top sheet with sheet symbols, and the adversarial files below | `.kicad_pcb`, `.kicad_sch`, `.kicad_mod`, `.kicad_sym`, `.kicad_pro` |
 | `gerber/` | a top copper layer with the attributes of Gerber X2, a layer in inches without attributes, an Excellon file of plated holes with a slot, and the adversarial files below | RS-274X with and without X2, Excellon |
 | `model/` | a small board with a track, vias and a zone, a board for the rule check, a board for the connectivity, a board for the round trips, and the adversarial files below | the board as JSON (`design/board.json` of a project) |
-| `route/` | the same small board and three sessions of an autorouter | the file for the autorouter (DSN, written from the board), the session (SES, read) |
+| `route/` | the same small board and three sessions of an autorouter, and the same board with cutouts in its pour and an opening in its outline | the file for the autorouter (DSN, written from the board), the session (SES, read) |
 | `spice/` | a divider, a netlist with a byte order mark, mixed line ends and a continuation, and the netlists that must be refused | SPICE-style netlists |
 
-There are 102 expectations (61 files that must be read and 41 that must be refused) over 75 data files. `tests/corpus/.gitattributes` marks the folder as `-text`, so that git never changes a byte order mark or a line end.
+There are 112 expectations (71 files that must be read and 41 that must be refused) over 84 data files. `tests/corpus/.gitattributes` marks the folder as `-text`, so that git never changes a byte order mark or a line end.
 
 ### The adversarial files
 
@@ -59,11 +59,11 @@ An expectation is a file `NAME.expect.json` (or `NAME.TAG.expect.json` when one 
 |---|---|---|
 | `eagle` | the summary reader of EAGLE XML | kind, version, layers, packages with pads and smds, symbols with pins, device sets, parts, nets, routed items, sheets, embedded libraries, elements left uninterpreted |
 | `eagle-board` | the reader of boards into the model | the counts of a board (layers, copper layers, footprints, components, bottom components, placed pads, nets, pad nets, tracks and their pieces, vias, zones, silkscreen, outline points) |
-| `eagle-schematic` | the reader of schematics into the model (and with `erc` the electrical rule check) | symbols, parts, nets, sheets, wires; `erc.confirmed`, `erc.<code>` |
-| `kicad-board`, `kicad-schematic`, `kicad-footprint`, `kicad-symbols`, `kicad-project` | the KiCad readers with the limits of `config/kicad.cfg` | the counts of the model and the kept, changed and dropped data of the quality report (`kept.pads`, `dropped.setup (...)`) |
+| `eagle-schematic` | the reader of schematics into the model (and with `erc` the electrical rule check) | symbols, parts, nets, sheets, wires, buses, bus entries; `erc.confirmed`, `erc.<code>` |
+| `kicad-board`, `kicad-schematic`, `kicad-footprint`, `kicad-symbols`, `kicad-project` | the KiCad readers with the limits of `config/kicad.cfg` | the counts of the model, among them the cutouts of the zones (`zone_cutouts`) and the openings of the outline (`outline_cutouts`), and the kept, changed and dropped data of the quality report (`kept.pads`, `dropped.setup (...)`, `kept.zone cutouts`, `dropped.keep-out zones`) |
 | `gerber` | the import of one Gerber or Excellon file | content, units, objects, flashes, lines, arcs, apertures, holes, slots, tools, whether it ended |
 | `board-json` | the board as JSON, its consistency, its rule check with `rules` and its connectivity | the counts of a board, `consistent`, `validate.<code>`, `drc.<code>`, `connectivity.islands` |
-| `dsn` | the file for the autorouter | layers, components, pads, nets, padstacks, tracks, vias |
+| `dsn` | the file for the autorouter | layers, components, pads, nets, padstacks, tracks, vias, `zone_cutouts` (written as keep-out areas) |
 | `dsn-ses` | the session is read against the board, the plan is applied and the file is written again | tracks, vias, `already_there`, length, per net, the counts before and after |
 | `spice` | the netlist is read, compiled and solved at the operating point | the numbers of `expect.probes` |
 | `roundtrip` | a chain of writers and readers | `differences`, `declared_mismatches`, `eagle_left_out`, `eagle_signature_identical` |

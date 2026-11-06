@@ -12,7 +12,8 @@ This page is the policy for tests of EH3D-PHOENIX-PCB. A test here proves someth
 | Reference cases | `tests/oracle/*.json`, `docs/ORACLE.md` | calculations against published values, with the source and the tolerance written beside the number |
 | The own corpus | `tests/corpus/<format>/`, `docs/CORPUS.md` | readers and writers on small pieces written by hand, each with an expectation file |
 | Tutorials | `docs/tutorials/`, `examples/tutorials/` | the blocks of a tutorial marked `# test` are run and the beginning of each output is compared with the text |
-| Hostile input | `config/fuzz.cfg`, `docs/SECURITY_REVIEW.md` | every reader given files that are cut, repeated, changed byte by byte, nested too deep or extreme in their numbers, with a fixed seed |
+| Hostile input | `config/fuzz.cfg`, `docs/SECURITY_REVIEW.md` | every reader given files that are cut, repeated, changed byte by byte, nested too deep or extreme in their numbers, with a fixed seed, and every seed cut at fixed places and repeated |
+| Goldens | `tests/golden`, `crates/eh3d-phoenix-cli/tests/goldens.rs` | the exact text, JSON, CSV and HTML that a command gives, worked out by hand and compared on text with the line ends of Unix, with the identity of an object masked and no path or date in the file |
 | The base of the repository | `tools/test_*.py` | versions agree, the eight READMEs exist, the eight languages agree, the inventory of untested code works |
 | The repository check | `tools/ci_validate.py` | manifest, documentation, parity of the languages, the pictures |
 
@@ -36,6 +37,7 @@ This page is the policy for tests of EH3D-PHOENIX-PCB. A test here proves someth
 | `tests/corpus/{eagle,kicad,gerber,model,route,spice}/` | pieces written by hand, with a `NAME.expect.json` beside each |
 | `tests/oracle/` | the reference cases (`board`, `netlist`, `rf`, `si`, `sim`, `stackup`) and `pending.json`, the cases that are written but not yet run |
 | `tests/dxf/` | the small DXF files used by the DXF tests |
+| `tests/golden/` | the expected output of commands (`check` in text, JSON, CSV and HTML) and the rule file that gives it; `PHOENIX_BLESS_GOLDENS=1` writes them again when an output changes on purpose, and the difference is read before it is committed |
 | `examples/tutorials/` | the small files that the tutorials use |
 | `examples/scripts/` | the example scripts, each with the output it gives |
 | `config/*.cfg` | the settings of each tool; a value that is tuned lives here, not in the code |
