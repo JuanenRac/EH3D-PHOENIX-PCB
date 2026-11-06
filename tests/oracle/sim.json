@@ -399,6 +399,305 @@
       "tolerance_note": "chosen here: the control is 2.5 V below the threshold, so the conductance is within 1e-21 of its off value and the divider is exact up to rounding",
       "source": "voltage divider of the off resistance and the load (J. W. Nilsson and S. A. Riedel, Electric Circuits): Vout = 5 x 900/(900 + 1e9)",
       "status": "cited"
+    },
+    {
+      "id": "ORACLE-SIM-023",
+      "title": "RC step response: 10 % to 90 % rise time of a 1 kohm and 1 uF circuit",
+      "area": "sim",
+      "check": "sim_measure",
+      "inputs": {
+        "netlist": ["rc step", "V1 in 0 PULSE(0 1 0 1n 1n 1 0)", "R1 in out 1k", "C1 out 0 1u", ".tran 10u 10m", ".measure tran rise10 rise v(out)"],
+        "name": "rise10"
+      },
+      "expected": 0.0021972245773362194,
+      "unit": "s",
+      "tolerance": {"rel": 0.002},
+      "tolerance_note": "chosen here: the trapezoidal rule with a step of 10 us (a hundredth of the time constant) and a straight line between the points leave an error below 1e-4, and the swing is taken up to 10 time constants",
+      "source": "A. S. Sedra and K. C. Smith, Microelectronic Circuits, the response of an STC network to a step: the 10 % to 90 % rise time is ln(9) tau = 2.2 tau with tau = R C",
+      "status": "cited"
+    },
+    {
+      "id": "ORACLE-SIM-024",
+      "title": "RC step response with R1 stepped over 1, 2 and 4 kohm: rise time of the third run",
+      "area": "sim",
+      "check": "sim_measure",
+      "inputs": {
+        "netlist": ["rc step", "V1 in 0 PULSE(0 1 0 1n 1n 1 0)", "R1 in out 1k", "C1 out 0 1u", ".tran 20u 40m", ".step R1 list 1k 2k 4k", ".measure tran rise10 rise v(out)"],
+        "name": "rise10",
+        "row": 2
+      },
+      "expected": 0.008788898309344878,
+      "unit": "s",
+      "tolerance": {"rel": 0.003},
+      "tolerance_note": "chosen here: the rise time is proportional to R, so the third run (4 kohm, tau = 4 ms) takes ln(9) x 4 ms; the step of 20 us is a two-hundredth of tau",
+      "source": "A. S. Sedra and K. C. Smith, Microelectronic Circuits, the response of an STC network to a step: tr = ln(9) tau with tau = R C",
+      "status": "cited"
+    },
+    {
+      "id": "ORACLE-SIM-025",
+      "title": "First-order RC low-pass: -3 dB frequency from the AC sweep",
+      "area": "sim",
+      "check": "sim_measure",
+      "inputs": {
+        "netlist": ["rc low-pass", "V1 in 0 DC 0 AC 1", "R1 in out 1k", "C1 out 0 159.15494309189535n", ".ac dec 100 10 1meg", ".measure ac fc bw v(out)"],
+        "name": "fc"
+      },
+      "expected": 1000.0,
+      "unit": "Hz",
+      "tolerance": {"rel": 0.001},
+      "tolerance_note": "chosen here: the level is taken 3.01 dB below the gain at the first frequency of the sweep (10 Hz, 1e-4 below the gain at zero frequency) and the crossing is interpolated in the logarithm of the frequency with 100 points per decade, which leaves about 1e-4",
+      "source": "J. W. Nilsson and S. A. Riedel, Electric Circuits, frequency response of the first-order low-pass filter: the cutoff frequency is f_c = 1/(2 pi R C)",
+      "status": "cited"
+    },
+    {
+      "id": "ORACLE-SIM-026",
+      "title": "Series RLC (10 ohm, 1 mH, 1 uF) across the resistor: -3 dB bandwidth",
+      "area": "sim",
+      "check": "sim_measure",
+      "inputs": {
+        "netlist": ["series rlc across r", "V1 in 0 DC 0 AC 1", "L1 in a 1m", "C1 a out 1u", "R1 out 0 10", ".ac dec 100 10 1meg", ".measure ac width bw v(out) ref=max"],
+        "name": "width"
+      },
+      "expected": 1591.5494309189535,
+      "unit": "Hz",
+      "tolerance": {"rel": 0.001},
+      "tolerance_note": "chosen here: the two -3 dB frequencies are interpolated in the logarithm of the frequency with 100 points per decade, which leaves about 2e-5 on the width",
+      "source": "J. W. Nilsson and S. A. Riedel, Electric Circuits, series RLC band-pass filter: the half-power bandwidth is beta = R/L rad/s, that is R/(2 pi L) in hertz",
+      "status": "cited"
+    },
+    {
+      "id": "ORACLE-SIM-027",
+      "title": "Series RLC (10 ohm, 1 mH, 1 uF) across the resistor: quality factor of the band-pass response",
+      "area": "sim",
+      "check": "sim_measure",
+      "inputs": {
+        "netlist": ["series rlc across r", "V1 in 0 DC 0 AC 1", "L1 in a 1m", "C1 a out 1u", "R1 out 0 10", ".ac dec 100 10 1meg", ".measure ac q qband v(out)"],
+        "name": "q"
+      },
+      "expected": 3.1622776601683795,
+      "unit": "",
+      "tolerance": {"rel": 0.001},
+      "tolerance_note": "chosen here: the peak frequency is refined by a parabola through three points and the width by interpolation, 100 points per decade, which leaves about 2e-5",
+      "source": "J. W. Nilsson and S. A. Riedel, Electric Circuits, series RLC band-pass filter: Q = f0/B = (1/R) sqrt(L/C)",
+      "status": "cited"
+    },
+    {
+      "id": "ORACLE-SIM-028",
+      "title": "Second-order low-pass with Q = 1/sqrt(2) (44.72 ohm, 1 mH, 1 uF): quality factor from the phase",
+      "area": "sim",
+      "check": "sim_measure",
+      "inputs": {
+        "netlist": ["second-order low-pass", "V1 in 0 DC 0 AC 1", "L1 in a 1m", "R1 a out 44.721359549995796", "C1 out 0 1u", ".ac dec 100 10 1meg", ".measure ac q qlow v(out)"],
+        "name": "q"
+      },
+      "expected": 0.7071067811865476,
+      "unit": "",
+      "tolerance": {"rel": 0.001},
+      "tolerance_note": "chosen here: the gain at the frequency where the phase is -90 degrees over the gain at the first frequency (10 Hz), both interpolated in the logarithm of the frequency with 100 points per decade, which leaves about 1e-4",
+      "source": "A. S. Sedra and K. C. Smith, Microelectronic Circuits, second-order low-pass filters: the phase is -90 degrees at w0 where the gain is Q times the gain at DC, and Q = 1/sqrt(2) is the maximally flat (Butterworth) response; for the series RLC circuit across the capacitor Q = (1/R) sqrt(L/C) (J. W. Nilsson and S. A. Riedel, Electric Circuits)",
+      "status": "cited"
+    },
+    {
+      "id": "ORACLE-SIM-029",
+      "title": "Loop of two poles with the closed loop of a Butterworth response (zeta = 1/sqrt(2)): phase margin",
+      "area": "sim",
+      "check": "sim_measure",
+      "inputs": {
+        "netlist": ["butterworth loop", "V1 in 0 DC 0 AC 1", "G1 0 x in 0 6.283185307179586m", "Rb x 0 1g", "C1 x 0 1u", "G2 0 y x 0 6.283185307179586m", "R2 y 0 112.53953951963828", "C2 y 0 1u", ".ac dec 100 1 100k", ".measure ac pm phasemargin v(y)"],
+        "name": "pm"
+      },
+      "expected": 65.5301994792978,
+      "unit": "deg",
+      "tolerance": {"abs": 0.01},
+      "tolerance_note": "chosen here: the integrator is a transconductance into 1 uF with a leak of 1 Gohm, a pole at 1.6e-4 Hz that moves the margin by less than 1e-4 degrees; the interpolation at 100 points per decade leaves 3e-4 degrees",
+      "source": "K. Ogata, Modern Control Engineering, second-order system: for L(s) = wn^2/(s(s + 2 zeta wn)) the phase margin is atan(2 zeta/sqrt(sqrt(1 + 4 zeta^4) - 2 zeta^2)), 65.53 degrees for zeta = 1/sqrt(2)",
+      "status": "cited"
+    },
+    {
+      "id": "ORACLE-SIM-030",
+      "title": "Loop K/(1 + s/w0)^3 with K = 4: gain margin",
+      "area": "sim",
+      "check": "sim_measure",
+      "inputs": {
+        "netlist": ["three-pole loop", "V1 in 0 DC 0 AC 1", "G1 0 a in 0 1.5874010519681994m", "R1 a 0 1k", "C1 a 0 159.15494309189535n", "G2 0 b a 0 1.5874010519681994m", "R2 b 0 1k", "C2 b 0 159.15494309189535n", "G3 0 c b 0 1.5874010519681994m", "R3 c 0 1k", "C3 c 0 159.15494309189535n", ".ac dec 100 100 100k", ".measure ac gm gainmargin v(c)"],
+        "name": "gm"
+      },
+      "expected": 6.020599913279624,
+      "unit": "dB",
+      "tolerance": {"abs": 0.005},
+      "tolerance_note": "chosen here: the phase and the gain are interpolated in the logarithm of the frequency with 100 points per decade, which leaves 7e-4 dB",
+      "source": "K. Ogata, Modern Control Engineering, stability margins: L(s) = K/(1 + s/w0)^3 has phase -180 degrees at w = sqrt(3) w0 where |L| = K/8, so the gain margin is 20 log10(8/K) = 6.02 dB for K = 4",
+      "status": "cited"
+    },
+    {
+      "id": "ORACLE-SIM-031",
+      "title": "Loop K/(1 + s/w0)^3 with K = 4: phase margin",
+      "area": "sim",
+      "check": "sim_measure",
+      "inputs": {
+        "netlist": ["three-pole loop", "V1 in 0 DC 0 AC 1", "G1 0 a in 0 1.5874010519681994m", "R1 a 0 1k", "C1 a 0 159.15494309189535n", "G2 0 b a 0 1.5874010519681994m", "R2 b 0 1k", "C2 b 0 159.15494309189535n", "G3 0 c b 0 1.5874010519681994m", "R3 c 0 1k", "C3 c 0 159.15494309189535n", ".ac dec 100 100 100k", ".measure ac pm phasemargin v(c)"],
+        "name": "pm"
+      },
+      "expected": 27.141630595376228,
+      "unit": "deg",
+      "tolerance": {"abs": 0.02},
+      "tolerance_note": "chosen here: the unity-gain frequency and the phase are interpolated in the logarithm of the frequency with 100 points per decade, which leaves 2e-3 degrees",
+      "source": "K. Ogata, Modern Control Engineering, stability margins: |L| = 1 where (1 + x^2)^(3/2) = K, so the phase margin is 180 - 3 atan(sqrt(K^(2/3) - 1)) degrees (27.14 degrees for K = 4)",
+      "status": "cited"
+    },
+    {
+      "id": "ORACLE-SIM-032",
+      "title": "Thermal noise of a 1 kohm resistor at 27 degrees Celsius: voltage density",
+      "area": "sim",
+      "check": "sim_noise",
+      "inputs": {
+        "netlist": ["thermal noise of a resistor", "R1 out 0 1k"],
+        "probe": "v(out)",
+        "points_per_decade": 2,
+        "start_hz": 10.0,
+        "stop_hz": 1000000.0,
+        "quantity": "density_v_per_sqrt_hz"
+      },
+      "expected": 4.0713722372192895e-09,
+      "unit": "V/sqrt(Hz)",
+      "tolerance": {"rel": 1e-09},
+      "tolerance_note": "chosen here: the density is flat, sqrt(4 k T R) with k = 1.380649e-23 J/K (exact in the SI since 2019, CODATA 2018) and T = 300.15 K, the 27 degrees Celsius of config/sim.cfg, so only rounding is accepted",
+      "source": "J. B. Johnson, Phys. Rev. 32, 97 (1928) and H. Nyquist, Phys. Rev. 32, 110 (1928): the open-circuit noise voltage of a resistor is e_n^2 = 4 k T R per hertz; the Boltzmann constant is the one of the SI brochure (BIPM, 9th edition)",
+      "status": "cited"
+    },
+    {
+      "id": "ORACLE-SIM-033",
+      "title": "Thermal noise of a 1 kohm resistor across 1 uF: total noise voltage",
+      "area": "sim",
+      "check": "sim_noise",
+      "inputs": {
+        "netlist": ["kT/C noise", "R1 out 0 1k", "C1 out 0 1u"],
+        "probe": "v(out)",
+        "points_per_decade": 100,
+        "start_hz": 0.001,
+        "stop_hz": 1000000000.0,
+        "quantity": "rms_v"
+      },
+      "expected": 6.437404735994157e-08,
+      "unit": "V",
+      "tolerance": {"rel": 0.0005},
+      "tolerance_note": "chosen here: the density 4 k T R/(1 + (2 pi f R C)^2) is integrated by the trapezoidal rule over twelve decades with 100 points per decade, which leaves 4e-5; the bands below 1 mHz and above 1 GHz hold less than 1e-6 of the power",
+      "source": "H. Nyquist, Phys. Rev. 32, 110 (1928): integrating 4 k T R over the power gain 1/(1 + (2 pi f R C)^2) with the integral of df/(1 + (2 pi f R C)^2) = 1/(4 R C) gives a mean square of k T/C, whatever R is",
+      "status": "cited"
+    },
+    {
+      "id": "ORACLE-SIM-034",
+      "title": "Divider of two 1 kohm resistors with uniform tolerances of 1 %: deviation of the output over 4000 runs",
+      "area": "sim",
+      "check": "sim_mc",
+      "inputs": {
+        "netlist": ["divider with tolerances", "V1 a 0 DC 10", "R1 a b 1k tol=1% dist=uniform", "R2 b 0 1k tol=1% dist=uniform", ".dc V1 10 10 1", ".measure dc vb at v(b) 10"],
+        "name": "vb",
+        "runs": 4000,
+        "seed": 2024,
+        "quantity": "std"
+      },
+      "expected": 0.020412414523193156,
+      "unit": "V",
+      "tolerance": {"rel": 0.06},
+      "tolerance_note": "chosen here: the sample deviation of 4000 draws has a relative standard error near 1 %, and 6 % is six of them; the second-order terms of the propagation are below 1e-3",
+      "source": "JCGM 100:2008, Evaluation of measurement data - Guide to the expression of uncertainty in measurement, 5.1.2 equation (10): u(V)^2 = sum (dV/dRi)^2 u(Ri)^2, with dV/dR1 = -2.5e-3 V/ohm, dV/dR2 = +2.5e-3 V/ohm and, for a rectangular distribution of half width a, u = a/sqrt(3) (4.3.7), here 10/sqrt(3) ohm; the result is sqrt(2) x 2.5e-3 x 10/sqrt(3)",
+      "status": "cited"
+    },
+    {
+      "id": "ORACLE-SIM-035",
+      "title": "Divider of two 1 kohm resistors with uniform tolerances of 1 %: mean of the output over 4000 runs",
+      "area": "sim",
+      "check": "sim_mc",
+      "inputs": {
+        "netlist": ["divider with tolerances", "V1 a 0 DC 10", "R1 a b 1k tol=1% dist=uniform", "R2 b 0 1k tol=1% dist=uniform", ".dc V1 10 10 1", ".measure dc vb at v(b) 10"],
+        "name": "vb",
+        "runs": 4000,
+        "seed": 2024,
+        "quantity": "mean"
+      },
+      "expected": 5.0,
+      "unit": "V",
+      "tolerance": {"abs": 0.003},
+      "tolerance_note": "chosen here: the mean of 4000 draws has a standard error of 3.2e-4 V, and 3 mV is nine of them; the bias of the second order is 4e-5 V",
+      "source": "JCGM 100:2008, Evaluation of measurement data - Guide to the expression of uncertainty in measurement, 5.1.2: to first order the expected value of the output is its value at the expected values of the inputs, 10 x 1000/2000 = 5 V",
+      "status": "cited"
+    },
+    {
+      "id": "ORACLE-SIM-036",
+      "title": "Series RLC (10 ohm, 1 mH, 1 uF) step response: peak value",
+      "area": "sim",
+      "check": "sim_measure",
+      "inputs": {
+        "netlist": ["series rlc step", "V1 in 0 PULSE(0 1 0 1n 1n 1 0)", "R1 in a 10", "L1 a out 1m", "C1 out 0 1u", ".tran 1u 400u", ".measure tran peak max v(out)"],
+        "name": "peak"
+      },
+      "expected": 1.6046790656943384,
+      "unit": "V",
+      "tolerance": {"rel": 0.003},
+      "tolerance_note": "chosen here: zeta = (R/2) sqrt(C/L) = 0.158; the trapezoidal rule with a step of 1 us (a thirtieth of the period of oscillation) and the first step of backward Euler leave about 5e-4 on the peak",
+      "source": "K. Ogata, Modern Control Engineering, second-order system: the peak overshoot of the step response is Mp = exp(-pi zeta/sqrt(1 - zeta^2)), so the peak of a unit step is 1 + Mp",
+      "status": "cited"
+    },
+    {
+      "id": "ORACLE-SIM-037",
+      "title": "First-order RC low-pass (1 kohm, 1 uF): pole frequency from the rational fit",
+      "area": "sim",
+      "check": "sim_poles",
+      "inputs": {
+        "netlist": ["rc low-pass", "V1 in 0 DC 0 AC 1", "R1 in out 1k", "C1 out 0 1u"],
+        "probe": "v(out)",
+        "points_per_decade": 20,
+        "start_hz": 10.0,
+        "stop_hz": 100000.0,
+        "quantity": "pole_hz"
+      },
+      "expected": 159.15494309189535,
+      "unit": "Hz",
+      "tolerance": {"rel": 1e-06},
+      "tolerance_note": "chosen here: the response is exactly rational of order one, so the fit is exact up to rounding",
+      "source": "J. W. Nilsson and S. A. Riedel, Electric Circuits, first-order circuits: the natural response decays with s = -1/(R C)",
+      "status": "cited"
+    },
+    {
+      "id": "ORACLE-SIM-038",
+      "title": "Series RLC (10 ohm, 1 mH, 1 uF) across the capacitor: frequency of the poles from the rational fit",
+      "area": "sim",
+      "check": "sim_poles",
+      "inputs": {
+        "netlist": ["series rlc low-pass", "V1 in 0 DC 0 AC 1", "L1 in a 1m", "R1 a out 10", "C1 out 0 1u"],
+        "probe": "v(out)",
+        "points_per_decade": 20,
+        "start_hz": 10.0,
+        "stop_hz": 1000000.0,
+        "quantity": "pole_hz"
+      },
+      "expected": 5032.921210448703,
+      "unit": "Hz",
+      "tolerance": {"rel": 1e-05},
+      "tolerance_note": "chosen here: the response is exactly rational of order two, so the fit is exact up to rounding and the conditioning of the fit",
+      "source": "J. W. Nilsson and S. A. Riedel, Electric Circuits, natural response of the series RLC circuit: s = -alpha +- sqrt(alpha^2 - w0^2) with alpha = R/(2L) and w0 = 1/sqrt(L C), so the poles are at |s| = w0",
+      "status": "cited"
+    },
+    {
+      "id": "ORACLE-SIM-039",
+      "title": "Series RLC (10 ohm, 1 mH, 1 uF) across the capacitor: quality factor of the poles from the rational fit",
+      "area": "sim",
+      "check": "sim_poles",
+      "inputs": {
+        "netlist": ["series rlc low-pass", "V1 in 0 DC 0 AC 1", "L1 in a 1m", "R1 a out 10", "C1 out 0 1u"],
+        "probe": "v(out)",
+        "points_per_decade": 20,
+        "start_hz": 10.0,
+        "stop_hz": 1000000.0,
+        "quantity": "pole_q"
+      },
+      "expected": 3.1622776601683795,
+      "unit": "",
+      "tolerance": {"rel": 1e-05},
+      "tolerance_note": "chosen here: the response is exactly rational of order two, so the fit is exact up to rounding and the conditioning of the fit",
+      "source": "J. W. Nilsson and S. A. Riedel, Electric Circuits, natural response of the series RLC circuit: Q = w0/(2 alpha) = (1/R) sqrt(L/C)",
+      "status": "cited"
     }
   ]
 }

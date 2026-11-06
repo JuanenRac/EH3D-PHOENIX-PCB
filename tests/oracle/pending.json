@@ -122,6 +122,22 @@
       "source": "a Touchstone file published by a component maker, or a measurement with a network analyser",
       "status": "pending",
       "reason": "no published file is stored in this repository, and no measurement has been made"
+    },
+    {
+      "id": "ORACLE-PENDING-016",
+      "title": "Poles of a fifth-order Butterworth ladder against the handbook values",
+      "area": "sim",
+      "source": "the pole positions of the Butterworth filter and the element values of the ladder in the Electronic Filter Design Handbook (A. B. Williams and F. J. Taylor)",
+      "status": "pending",
+      "reason": "the handbook tables are not stored here, and the fit of the poles from an AC response has been shown only on first and second order cases; at order five the accuracy needs a case that someone else can repeat"
+    },
+    {
+      "id": "ORACLE-PENDING-017",
+      "title": "Percentiles of a Monte Carlo study against the normal distribution",
+      "area": "sim",
+      "source": "the percentiles of the standard normal distribution (a table of the normal distribution) for a resistor divider with normal tolerances",
+      "status": "pending",
+      "reason": "a percentile is a statistic of a sample, so its error depends on the number of runs and on the density at the percentile; the case format has one absolute or relative tolerance and cannot say it in standard errors yet"
     }
   ]
 }

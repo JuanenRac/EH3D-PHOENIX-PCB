@@ -41,6 +41,15 @@ impl<'a> Inputs<'a> {
             .ok_or_else(|| self.bad(key, "is not a finite number"))
     }
 
+    /// A finite number, or the default when the case does not give it.
+    pub(crate) fn num_or(&self, key: &str, default: f64) -> Result<f64, OracleError> {
+        if self.map.contains_key(key) {
+            self.num(key)
+        } else {
+            Ok(default)
+        }
+    }
+
     /// A text.
     pub(crate) fn text(&self, key: &str) -> Result<&'a str, OracleError> {
         let value = self
@@ -129,7 +138,11 @@ pub const CHECKS: &[&str] = &[
     "rules_clearance",
     "sim_ac",
     "sim_dc",
+    "sim_mc",
+    "sim_measure",
+    "sim_noise",
     "sim_op",
+    "sim_poles",
     "sim_schematic_ac",
     "sim_schematic_op",
     "sim_tran",
