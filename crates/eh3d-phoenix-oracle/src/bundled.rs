@@ -18,6 +18,10 @@ pub const BUNDLED: &[(&str, &str)] = &[
         include_str!("../../../tests/oracle/board.json"),
     ),
     (
+        "field.json",
+        include_str!("../../../tests/oracle/field.json"),
+    ),
+    (
         "netlist.json",
         include_str!("../../../tests/oracle/netlist.json"),
     ),

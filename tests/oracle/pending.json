@@ -9,7 +9,7 @@
       "area": "rules",
       "source": "IPC-2221, the chart of current against cross-section and temperature rise for external conductors, and the fit I = k dT^0.44 A^0.725",
       "status": "pending",
-      "reason": "the suite has no current capacity calculation yet (it is listed in docs/NOT_YET.md), and the tabulated points of the chart are not copied here until they can be checked against the printed chart"
+      "reason": "the suite has the fit of the chart since the command thermal (docs/THERMAL.md), but its constants and the range of the chart are those usually quoted and have not been checked against the printed standard, and the tabulated points of the chart are not copied here until they can be checked against the printed chart"
     },
     {
       "id": "ORACLE-PENDING-002",
@@ -17,7 +17,7 @@
       "area": "rules",
       "source": "IPC-2221, the chart of current against cross-section and temperature rise for internal conductors",
       "status": "pending",
-      "reason": "the suite has no current capacity calculation yet, and the tabulated points of the chart are not copied here until they can be checked against the printed chart"
+      "reason": "the suite has the fit of the chart since the command thermal (docs/THERMAL.md), whose constant for an inner layer is the one usually quoted and has not been checked against the printed standard, and the tabulated points of the chart are not copied here until they can be checked against the printed chart"
     },
     {
       "id": "ORACLE-PENDING-003",

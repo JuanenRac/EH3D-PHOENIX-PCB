@@ -5,6 +5,7 @@
 use serde_json::{Map, Value};
 
 use crate::calc_board;
+use crate::calc_field;
 use crate::calc_line;
 use crate::calc_netlist;
 use crate::calc_rfx;
@@ -106,6 +107,8 @@ pub fn compute(case: &Case) -> Result<f64, OracleError> {
         Some(value)
     } else if let Some(value) = calc_si::run(check, &inputs)? {
         Some(value)
+    } else if let Some(value) = calc_field::run(check, &inputs)? {
+        Some(value)
     } else {
         calc_board::run(check, &inputs)?
     };
@@ -130,6 +133,11 @@ pub const CHECKS: &[&str] = &[
     "differential_microstrip",
     "differential_stripline",
     "elliptic_k",
+    "field2d_coax_pf_per_m",
+    "field2d_parallel_plates_pf_per_m",
+    "field2d_stripline_z0_ohm",
+    "heat_convection_rise_k",
+    "heat_resistance_mohm_per_mm",
     "lengths_track",
     "line_quantity",
     "microstrip_eps",

@@ -9,7 +9,9 @@
 //! and the check of their structure adds `gerber-check`; the layout of a panel of boards adds `panel`; the bill of materials with costs adds `bom`
 //! and the 3D assembly of the board with the models of its components adds `assembly3d`; the run of
 //! the reference cases of the calculations adds `oracle`, and the run of the own corpus of small
-//! hand-written pieces adds `corpus`. The signal integrity estimates add `si`.
+//! hand-written pieces adds `corpus`. The signal integrity estimates add `si`. The two-dimensional
+//! field solver of the cross section of a line adds `field2d`, and the heating of tracks and vias
+//! by the current of their net adds `thermal`.
 //! The writing of boards, schematics and libraries as KiCad 8 files adds `kicad-export`.
 //! The simulation netlist of a schematic, made from a table of models, adds `netlist`.
 //! The annotation back into the schematic, as a plan that is read before it is applied, adds
@@ -53,6 +55,7 @@ mod eagle_deep;
 mod enclosure;
 mod export;
 mod fabpack;
+mod field2d;
 mod gerber_check;
 mod gerber_import;
 mod help;
@@ -85,6 +88,7 @@ pub mod sec_codes;
 mod si;
 mod sim;
 mod stencil;
+mod thermal;
 mod view;
 pub mod window_args;
 mod zones;
@@ -106,15 +110,17 @@ phoenix eagle-rate <folder of originals> <new folder for the copies>
               is checked by SHA-256) and measure how many the EAGLE reader reads: counts, versions
               and diagnostic codes only, never a name or a value
 
-phoenix stackup <job.json> --freq-ghz <GHz> [--material ID ...] [--settings FILE] [--lang xx] [--json]
+phoenix stackup <job.json> --freq-ghz <GHz> [--material ID ...] [--settings FILE] [--field2d] [--lang xx] [--json]
 
   stackup     compute the transmission lines of a stack-up (microstrip, stripline, coplanar
               waveguide, coupled pairs): impedance, effective permittivity, losses, delay and
               guided wavelength at a frequency, or the track width for a target impedance; the
               job file holds the layers, the materials and the lines; --material adds a material
               of the database (for example isola/370hr or rogers/ro4350b) that the layers name
-              by its identifier, its Dk and Df taken from the published points; a prototype
-              estimate, not a simulation; --lang is one of en, es, de, fr, it, ja, zh, pt
+              by its identifier, its Dk and Df taken from the published points; --field2d adds
+              the result of the two-dimensional field solver of `phoenix field2d` on the same
+              lines; a prototype estimate, not a simulation; --lang is one of en, es, de, fr,
+              it, ja, zh, pt
 
 phoenix materials list [--manufacturer NAME] [--kind KIND] [--min-tg C] [--min-dk X] [--max-dk X]
                        [--min-df X] [--max-df X] [--at-ghz F] [--phoenix] [--json]
@@ -385,6 +391,26 @@ phoenix si <crosstalk|reflect|eye|check> [--stackup FILE] [--net NAME] [--config
                 the codes PHOENIX-SI-<NNN>; quasi-static, a prototype, a dry run unless --out names
                 a new file, run `phoenix si` alone for its options
 
+phoenix field2d <config|board> [--stackup FILE] [--net NAME] [--settings FILE] [--freq-ghz GHZ]
+                [--refine N] [--out FILE] [--json] [--lang xx]
+
+  field2d       the impedance, effective permittivity, inductance, delay and dielectric loss of the
+                cross section of a line, and for a pair the differential and common impedance and
+                the mutual capacitance and inductance, by a two-dimensional field solver (a mesh
+                refined at the edges of the tracks, Laplace by finite differences), set beside the
+                closed formulas of `stackup` with the difference in percent, with the codes
+                PHOENIX-FIELD-<NNN>; a prototype, a dry run unless --out names a new file, run
+                `phoenix field2d` alone for its options
+
+phoenix thermal --currents FILE [--stackup FILE] [--net NAME] [--settings FILE] [--out FILE]
+                [--json] [--lang xx] <board>
+
+  thermal       the temperature rise that the current of each net (a file of `net = amps` lines)
+                gives to its tracks and vias, by the fit of IPC-2221 and by the convection model of
+                EH3D-THERMAL-LAB, with a warning above a limit of the settings and the codes
+                PHOENIX-HEAT-<NNN>; a prototype, a dry run unless --out names a new file, run
+                `phoenix thermal` alone for its options
+
 phoenix bom [--config FILE] [--prices FILE] [--parts FILE] [--schematic FILE] [--stackup FILE]
             [--boards N] [--variant NAME [--variant-file FILE]] [--csv FILE] [--json-file FILE]
             [--html FILE] [--json] [--lang xx] <board>
@@ -621,11 +647,13 @@ fn stackup_command(args: &[&str], out: &mut dyn Write, err: &mut dyn Write) -> i
     let mut settings_path: Option<&str> = None;
     let mut language = Language::En;
     let mut json = false;
+    let mut compare_field = false;
     let mut material_ids: Vec<&str> = Vec::new();
     let mut iter = args.iter().copied();
     while let Some(arg) = iter.next() {
         match arg {
             "--json" => json = true,
+            "--field2d" => compare_field = true,
             "--material" => match iter.next() {
                 Some(id) => material_ids.push(id),
                 None => {
@@ -686,12 +714,36 @@ fn stackup_command(args: &[&str], out: &mut dyn Write, err: &mut dyn Write) -> i
         }
     };
     let outcomes = job.run(freq, &settings);
+    let appendix = if compare_field {
+        match field2d::appendix(&job, freq, &settings, language) {
+            Ok(found) => Some(found),
+            Err(error) => {
+                let _ = writeln!(err, "error: {}", error.message(language));
+                return 2;
+            }
+        }
+    } else {
+        None
+    };
     let text = if json {
         let mut json_text = report_json(&job.stackup.name, freq, &outcomes, language);
+        if let Some((_, value)) = &appendix {
+            if let Ok(mut merged) = serde_json::from_str::<serde_json::Value>(&json_text) {
+                if let Some(map) = merged.as_object_mut() {
+                    map.insert("field2d".to_owned(), value.clone());
+                }
+                json_text = serde_json::to_string_pretty(&merged).unwrap_or(json_text);
+            }
+        }
         json_text.push('\n');
         json_text
     } else {
-        report_text(&job.stackup.name, freq, &outcomes, language)
+        let mut shown = report_text(&job.stackup.name, freq, &outcomes, language);
+        if let Some((extra, _)) = &appendix {
+            shown.push_str("\nthe field solver (phoenix field2d) on the same lines\n");
+            shown.push_str(extra);
+        }
+        shown
     };
     let _ = out.write_all(text.as_bytes());
     if outcomes.iter().any(|o| o.result.is_err()) {

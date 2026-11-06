@@ -9,7 +9,7 @@
 //!   tolerance and who chose it, and the source with its place in it; a case whose value cannot be
 //!   cited with certainty is *pending* and carries the reason, never a number;
 //! * [`compute`]: the checks, each one a call of the real functions of the stack-up, RF, simulator,
-//!   rules, lengths and zones crates with the inputs of the case;
+//!   rules, lengths, zones and field solver crates with the inputs of the case;
 //! * [`run`]: the run and the report (ok, outside the tolerance, pending, failed), the same every
 //!   time in text and in JSON;
 //! * [`bundled`]: the case files built into the program, or the files of a folder;
@@ -28,6 +28,7 @@
 
 pub mod bundled;
 mod calc_board;
+mod calc_field;
 mod calc_line;
 mod calc_netlist;
 mod calc_rfx;

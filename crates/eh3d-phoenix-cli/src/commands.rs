@@ -360,6 +360,20 @@ pub static COMMANDS: &[Command] = &[
         run: Some(crate::si::si_command),
     },
     Command {
+        name: "field2d",
+        topic: Topic::Signal,
+        doc: "docs/FIELD2D.md",
+        summary: ["impedance, permittivity, inductance and coupling of a line by a two-dimensional field solver, against the closed formulas", "impedancia, permitividad, inductancia y acoplamiento de una línea con un solucionador de campo bidimensional, frente a las fórmulas cerradas", "Impedanz, Permittivität, Induktivität und Kopplung einer Leitung mit einem zweidimensionalen Feldlöser, im Vergleich zu den geschlossenen Formeln", "impédance, permittivité, inductance et couplage d'une ligne par un solveur de champ bidimensionnel, comparés aux formules fermées", "impedenza, permittività, induttanza e accoppiamento di una linea con un risolutore di campo bidimensionale, confrontati con le formule chiuse", "二次元電界ソルバーによる線路のインピーダンス・誘電率・インダクタンス・結合（閉形式の式との比較付き）", "用二维场求解器计算线路的阻抗、介电常数、电感和耦合，并与封闭公式比较", "impedância, permitividade, indutância e acoplamento de uma linha com um resolvedor de campo bidimensional, comparados com as fórmulas fechadas"],
+        run: Some(crate::field2d::field2d_command),
+    },
+    Command {
+        name: "thermal",
+        topic: Topic::Board,
+        doc: "docs/THERMAL.md",
+        summary: ["temperature rise of the tracks and vias of each net from its current (IPC-2221 fit and convection model)", "subida de temperatura de las pistas y vías de cada red según su corriente (ajuste de IPC-2221 y modelo de convección)", "Temperaturerhöhung der Leiterbahnen und Durchkontaktierungen jedes Netzes aus seinem Strom (IPC-2221-Näherung und Konvektionsmodell)", "élévation de température des pistes et des vias de chaque réseau selon son courant (ajustement IPC-2221 et modèle de convection)", "aumento di temperatura di piste e via di ogni rete in base alla sua corrente (approssimazione IPC-2221 e modello di convezione)", "各ネットの電流による配線とビアの温度上昇（IPC-2221 近似と対流モデル）", "根据各网络电流估算走线和过孔的温升（IPC-2221 拟合与对流模型）", "subida de temperatura das pistas e vias de cada rede a partir da sua corrente (ajuste da IPC-2221 e modelo de convecção)"],
+        run: Some(crate::thermal::thermal_command),
+    },
+    Command {
         name: "eagle-check",
         topic: Topic::Formats,
         doc: "docs/EAGLE_DEEP.md",

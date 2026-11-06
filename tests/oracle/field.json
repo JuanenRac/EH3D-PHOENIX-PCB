@@ -1,0 +1,88 @@
+{
+  "format": "phoenix-oracle/1",
+  "suite": "field2d",
+  "title": "The two-dimensional field solver against exact solutions and the closed forms of the heating of a track",
+  "cases": [
+    {
+      "id": "ORACLE-FIELD-001",
+      "title": "Capacitor of parallel plates with a dielectric between them",
+      "area": "field2d",
+      "check": "field2d_parallel_plates_pf_per_m",
+      "inputs": { "er": 2.5, "width_mm": 10.0, "gap_mm": 2.0, "cells": 8 },
+      "expected": 110.67734766,
+      "unit": "pF/m",
+      "tolerance": { "rel": 1e-8 },
+      "tolerance_note": "chosen here: the field between the plates is uniform, so the equations of the mesh are exact for any mesh and what is left is the tolerance of the solver (1e-12) and the twelve digits stored for the permittivity of vacuum",
+      "source": "C = eps0 eps_r W / d for plates of width W a distance d apart with the field uniform between them (any text on electromagnetism, for example D. M. Pozar, Microwave Engineering, the section on the capacitance of a parallel-plate line); eps0 = 8.854 187 8128(13) e-12 F/m, CODATA recommended values (2018 adjustment)",
+      "status": "cited"
+    },
+    {
+      "id": "ORACLE-FIELD-002",
+      "title": "Coaxial line of circular conductors drawn as steps of the mesh",
+      "area": "field2d",
+      "check": "field2d_coax_pf_per_m",
+      "inputs": { "a_mm": 1.0, "b_mm": 2.3, "steps": 20 },
+      "expected": 66.79300447130308,
+      "unit": "pF/m",
+      "tolerance": { "rel": 0.035 },
+      "tolerance_note": "chosen here: the circles are steps of a square mesh, and the error seen in the tests of the crate at 10, 20 and 40 cells in the inner radius was 5.0, 2.5 and 1.1 percent, falling with the size of the step",
+      "source": "C = 2 pi eps0 / ln(b / a) per metre for a coaxial line of inner radius a and outer radius b with vacuum between them (any text on transmission lines, for example D. M. Pozar, Microwave Engineering, the section on the coaxial line; the number of the equation is not verified here); eps0 as in ORACLE-FIELD-001",
+      "status": "cited"
+    },
+    {
+      "id": "ORACLE-FIELD-003",
+      "title": "Centred stripline of 2 micrometres of thickness against the exact formula of zero thickness",
+      "area": "field2d",
+      "check": "field2d_stripline_z0_ohm",
+      "inputs": { "w_mm": 1.0, "t_mm": 0.002, "b_mm": 1.0, "er": 4.0 },
+      "expected": 32.67681257278605,
+      "unit": "ohm",
+      "tolerance": { "rel": 0.015 },
+      "tolerance_note": "chosen here: the formula is for a strip of no thickness and the strip here is 2 micrometres thick, which lowers the impedance a little; the field solver was seen 0.7 percent below it, and the box of the solver is a grounded one at 4 plane spacings from the strip",
+      "source": "S. B. Cohn, Characteristic impedance of the shielded-strip transmission line, IRE Transactions on Microwave Theory and Techniques, July 1954: Z0 = (eta0 / (4 sqrt(er))) K(k) / K(k') with k = sech(pi W / 2b); the page numbers are not verified here",
+      "status": "cited"
+    },
+    {
+      "id": "ORACLE-FIELD-004",
+      "title": "Rise of a copper track cooled by convection, with the resistance growing with the temperature",
+      "area": "field2d",
+      "check": "heat_convection_rise_k",
+      "inputs": { "width_mm": 2.0, "copper_um": 35.0, "current_a": 2.0, "ambient_c": 20.0, "h_w_m2k": 20.0, "resistivity_ohm_m": 1.724e-8 },
+      "expected": 26.250603733432726,
+      "unit": "K",
+      "tolerance": { "rel": 1e-9 },
+      "tolerance_note": "chosen here: it is a closed form worked out in double precision, and the iteration of the model of EH3D-THERMAL-LAB stops at 1e-9 K",
+      "source": "The fixed point of T = T_amb + P(T) / G with P = I^2 R20 (1 + a (T - 20)) and G = h (w + 2 t) L, which is dT = P0 / (G - a P0) at an ambient of 20 C (the closed form that the tests of EH3D-THERMAL-LAB check its trace model against), with a = 0.00393 per K and the resistivity of the input",
+      "status": "cited"
+    },
+    {
+      "id": "ORACLE-FIELD-005",
+      "title": "Resistance of a copper track per millimetre",
+      "area": "field2d",
+      "check": "heat_resistance_mohm_per_mm",
+      "inputs": { "width_mm": 0.508, "copper_um": 35.0, "resistivity_ohm_m": 1.724e-8 },
+      "expected": 969.6287964004501,
+      "unit": "mohm/mm",
+      "tolerance": { "rel": 1e-9 },
+      "tolerance_note": "chosen here: it is a product and a quotient in double precision",
+      "source": "R = rho L / A for a conductor of length L and cross-section A = w t (the definition of resistivity); rho = 1.724e-8 ohm m is the value of the settings of the suite and of EH3D-THERMAL-LAB for annealed copper at 20 C",
+      "status": "cited"
+    },
+    {
+      "id": "ORACLE-FIELD-006",
+      "title": "Impedance of a microstrip and of a coplanar line against another field solver",
+      "area": "field2d",
+      "source": "the same sections solved by an open field solver of the finite element or the method of moments kind, with its name and version written in the case",
+      "status": "pending",
+      "reason": "no other field solver has been run on these sections yet; the solver of the suite has been checked against exact solutions and against closed formulas only, and the number to enter is the result of the other program"
+    },
+    {
+      "id": "ORACLE-FIELD-007",
+      "title": "Even and odd mode impedance of an edge-coupled microstrip pair against published values",
+      "area": "field2d",
+      "source": "a published table or fit of the even and odd mode impedances of coupled microstrip lines (for example the work of Kirschning and Jansen)",
+      "status": "pending",
+      "reason": "the book or paper is not at hand to cite the values with their place in it, so no number is entered from memory"
+    }
+  ]
+}

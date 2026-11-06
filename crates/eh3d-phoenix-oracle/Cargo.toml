@@ -9,6 +9,7 @@ description = "Reference cases for the calculations of the suite (prototype): fi
 
 [dependencies]
 eh3d-phoenix-board = { path = "../eh3d-phoenix-board" }
+eh3d-phoenix-field2d = { path = "../eh3d-phoenix-field2d" }
 eh3d-phoenix-lengths = { path = "../eh3d-phoenix-lengths" }
 eh3d-phoenix-model = { path = "../eh3d-phoenix-model" }
 eh3d-phoenix-rf = { path = "../eh3d-phoenix-rf" }
