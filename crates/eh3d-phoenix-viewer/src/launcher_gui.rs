@@ -47,12 +47,22 @@ pub fn show(
                     Err(text) => *note = Some(text),
                 }
             }
+            if ui.button(LauncherText::GerberFolder.tr(lang)).clicked() {
+                match launcher.gerber_launch() {
+                    Ok(asked) => {
+                        *note = None;
+                        launch = Some(asked);
+                    }
+                    Err(text) => *note = Some(text),
+                }
+            }
             if ui.button(LauncherText::NewLibrary.tr(lang)).clicked() {
                 *note = None;
                 launch = Some(Launch::NewLibrary);
             }
         });
         ui.label(egui::RichText::new(LauncherText::DropHere.tr(lang)).color(DIM));
+        ui.label(egui::RichText::new(LauncherText::GerberHint.tr(lang)).color(DIM));
         if let Some(text) = *note {
             ui.label(egui::RichText::new(text.tr(lang)).color(DANGER));
         }

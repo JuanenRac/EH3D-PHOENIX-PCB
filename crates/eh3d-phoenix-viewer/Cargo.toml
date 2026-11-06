@@ -18,6 +18,8 @@ eh3d-phoenix-board = { path = "../eh3d-phoenix-board" }
 eh3d-phoenix-boardedit = { path = "../eh3d-phoenix-boardedit" }
 eh3d-phoenix-eagle-board = { path = "../eh3d-phoenix-eagle-board" }
 eh3d-phoenix-erc = { path = "../eh3d-phoenix-erc" }
+eh3d-phoenix-export = { path = "../eh3d-phoenix-export" }
+eh3d-phoenix-gerber = { path = "../eh3d-phoenix-gerber" }
 eh3d-phoenix-libedit = { path = "../eh3d-phoenix-libedit" }
 eh3d-phoenix-model = { path = "../eh3d-phoenix-model" }
 eh3d-phoenix-route = { path = "../eh3d-phoenix-route" }

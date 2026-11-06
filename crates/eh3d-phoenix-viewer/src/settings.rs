@@ -7,7 +7,7 @@ use std::collections::BTreeMap;
 use crate::codes::{ViewError, SETTINGS_INVALID};
 
 /// The colours that a settings text may name, with their defaults (red, green, blue, alpha).
-pub const DEFAULT_COLOURS: [(&str, [u8; 4]); 23] = [
+pub const DEFAULT_COLOURS: [(&str, [u8; 4]); 34] = [
     ("background", [0x0f, 0x0d, 0x0b, 0xff]),
     ("top_copper", [0xc8, 0xa3, 0x3c, 0xff]),
     ("bottom_copper", [0x3c, 0x78, 0xc8, 0xff]),
@@ -31,6 +31,17 @@ pub const DEFAULT_COLOURS: [(&str, [u8; 4]); 23] = [
     ("highlight", [0xff, 0x54, 0x70, 0xff]),
     ("measure", [0xff, 0xb0, 0x00, 0xff]),
     ("ratsnest", [0xe8, 0xe8, 0xf0, 0xb4]),
+    ("gerber_drill_plated", [0xe8, 0xe8, 0xf0, 0xff]),
+    ("gerber_drill_unplated", [0xff, 0x8c, 0x42, 0xff]),
+    ("gerber_only_files", [0xff, 0x54, 0x70, 0xe6]),
+    ("gerber_only_board", [0x4d, 0xd0, 0xe1, 0xe6]),
+    ("view3d_board", [0x1f, 0x6f, 0x45, 0xff]),
+    ("view3d_top_part", [0x6b, 0x7f, 0x95, 0xff]),
+    ("view3d_bottom_part", [0x95, 0x6b, 0x7f, 0xff]),
+    ("view3d_collision", [0xff, 0x54, 0x70, 0xff]),
+    ("view3d_too_tall", [0xff, 0xb0, 0x00, 0xff]),
+    ("view3d_outside", [0xb4, 0x3c, 0xc8, 0xff]),
+    ("view3d_selected", [0xf4, 0xec, 0xe0, 0xff]),
 ];
 
 /// The limits, tolerances, sizes and colours of the viewer.
@@ -120,6 +131,43 @@ pub struct ViewerSettings {
     pub recent_max: usize,
     /// The name of the file that holds the recent files, in the settings folder of the user.
     pub recent_file: String,
+    /// The number of sides of a circle of an imported Gerber layer (an aperture, the end of a
+    /// line, a hole).
+    pub gerber_circle_segments: usize,
+    /// The angle of one straight piece of an arc of an imported Gerber layer, in degrees.
+    pub gerber_arc_step_deg: f64,
+    /// The most polygons of the scene of an imported Gerber set.
+    pub gerber_max_polys: usize,
+    /// The width of a line that the file gives no width, in millimetres.
+    pub gerber_hairline_mm: f64,
+    /// The opacity a layer of an imported Gerber set starts with, from above 0 to 1.
+    pub gerber_default_opacity: f64,
+    /// The side of a cell of the comparison of two layers, in millimetres.
+    pub gerber_compare_cell_mm: f64,
+    /// The most cells of the comparison of two layers; a larger area gets larger cells.
+    pub gerber_compare_max_cells: usize,
+    /// How far from a corner or a centre a click of the measure still snaps to it, in pixels.
+    pub gerber_snap_px: f64,
+    /// The field of view of the camera of the 3D window, in degrees.
+    pub view3d_fov_deg: f64,
+    /// The turn of the camera around the board when the window opens, in degrees.
+    pub view3d_start_yaw_deg: f64,
+    /// The rise of the camera above the board when the window opens, in degrees.
+    pub view3d_start_pitch_deg: f64,
+    /// The turn of the camera for each pixel the pointer moves, in degrees.
+    pub view3d_rotate_deg_per_px: f64,
+    /// The speed of the pan: 1 moves the scene exactly with the pointer.
+    pub view3d_pan_speed: f64,
+    /// The wheel multiplies the distance of the camera by `exp(-scroll * this)`.
+    pub view3d_zoom_wheel_rate: f64,
+    /// The closest the camera may come to the point it looks at, in millimetres.
+    pub view3d_min_distance_mm: f64,
+    /// The highest or lowest the camera may go, in degrees below 90.
+    pub view3d_max_pitch_deg: f64,
+    /// The factor that the heights are multiplied by when drawn (1 is true to scale).
+    pub view3d_height_scale: f64,
+    /// How much room the first view leaves around the scene (1 touches the edges).
+    pub view3d_fit_factor: f64,
     /// The colours by name, each red, green, blue and alpha.
     pub colours: BTreeMap<String, [u8; 4]>,
 }
@@ -169,6 +217,24 @@ impl Default for ViewerSettings {
             backup_suffix: ".bak".to_string(),
             recent_max: 10,
             recent_file: "recent.cfg".to_string(),
+            gerber_circle_segments: 32,
+            gerber_arc_step_deg: 6.0,
+            gerber_max_polys: 2_000_000,
+            gerber_hairline_mm: 0.02,
+            gerber_default_opacity: 1.0,
+            gerber_compare_cell_mm: 0.05,
+            gerber_compare_max_cells: 4_000_000,
+            gerber_snap_px: 8.0,
+            view3d_fov_deg: 40.0,
+            view3d_start_yaw_deg: 35.0,
+            view3d_start_pitch_deg: 35.0,
+            view3d_rotate_deg_per_px: 0.4,
+            view3d_pan_speed: 1.0,
+            view3d_zoom_wheel_rate: 0.0015,
+            view3d_min_distance_mm: 5.0,
+            view3d_max_pitch_deg: 89.0,
+            view3d_height_scale: 1.0,
+            view3d_fit_factor: 1.15,
             colours: DEFAULT_COLOURS
                 .iter()
                 .map(|(name, rgba)| ((*name).to_string(), *rgba))
@@ -207,6 +273,16 @@ fn whole(value: &str, line: usize, key: &str) -> Result<u64, ViewError> {
 fn count(value: &str, line: usize, key: &str) -> Result<usize, ViewError> {
     usize::try_from(whole(value, line, key)?)
         .map_err(|_| invalid(line, format!("{key}: too large")))
+}
+
+fn signed(value: &str, line: usize, key: &str) -> Result<f64, ViewError> {
+    let parsed: f64 = value
+        .parse()
+        .map_err(|_| invalid(line, format!("{key}: not a number")))?;
+    if !parsed.is_finite() {
+        return Err(invalid(line, format!("{key}: must be a finite number")));
+    }
+    Ok(parsed)
 }
 
 /// Reads `#rrggbb` or `#rrggbbaa`.
@@ -316,6 +392,28 @@ impl ViewerSettings {
                     }
                     s.recent_file = value.to_string();
                 }
+                "gerber_circle_segments" => s.gerber_circle_segments = count(value, line, key)?,
+                "gerber_arc_step_deg" => s.gerber_arc_step_deg = number(value, line, key)?,
+                "gerber_max_polys" => s.gerber_max_polys = count(value, line, key)?,
+                "gerber_hairline_mm" => s.gerber_hairline_mm = number(value, line, key)?,
+                "gerber_default_opacity" => s.gerber_default_opacity = number(value, line, key)?,
+                "gerber_compare_cell_mm" => s.gerber_compare_cell_mm = number(value, line, key)?,
+                "gerber_compare_max_cells" => {
+                    s.gerber_compare_max_cells = count(value, line, key)?;
+                }
+                "gerber_snap_px" => s.gerber_snap_px = number(value, line, key)?,
+                "view3d_fov_deg" => s.view3d_fov_deg = number(value, line, key)?,
+                "view3d_start_yaw_deg" => s.view3d_start_yaw_deg = signed(value, line, key)?,
+                "view3d_start_pitch_deg" => s.view3d_start_pitch_deg = signed(value, line, key)?,
+                "view3d_rotate_deg_per_px" => {
+                    s.view3d_rotate_deg_per_px = number(value, line, key)?;
+                }
+                "view3d_pan_speed" => s.view3d_pan_speed = number(value, line, key)?,
+                "view3d_zoom_wheel_rate" => s.view3d_zoom_wheel_rate = number(value, line, key)?,
+                "view3d_min_distance_mm" => s.view3d_min_distance_mm = number(value, line, key)?,
+                "view3d_max_pitch_deg" => s.view3d_max_pitch_deg = number(value, line, key)?,
+                "view3d_height_scale" => s.view3d_height_scale = number(value, line, key)?,
+                "view3d_fit_factor" => s.view3d_fit_factor = number(value, line, key)?,
                 _ => return Err(invalid(line, format!("unknown key {key}"))),
             }
         }
@@ -341,6 +439,36 @@ impl ViewerSettings {
             return Err(ViewError::new(
                 SETTINGS_INVALID,
                 "arc_min_segments must not exceed arc_max_segments",
+            ));
+        }
+        if s.gerber_circle_segments < 6 {
+            return Err(ViewError::new(
+                SETTINGS_INVALID,
+                "gerber_circle_segments must be at least 6",
+            ));
+        }
+        if s.gerber_default_opacity > 1.0 {
+            return Err(ViewError::new(
+                SETTINGS_INVALID,
+                "gerber_default_opacity must not exceed 1",
+            ));
+        }
+        if s.view3d_fov_deg >= 170.0 {
+            return Err(ViewError::new(
+                SETTINGS_INVALID,
+                "view3d_fov_deg must be below 170",
+            ));
+        }
+        if s.view3d_max_pitch_deg >= 90.0 {
+            return Err(ViewError::new(
+                SETTINGS_INVALID,
+                "view3d_max_pitch_deg must be below 90",
+            ));
+        }
+        if s.view3d_start_pitch_deg.abs() > s.view3d_max_pitch_deg {
+            return Err(ViewError::new(
+                SETTINGS_INVALID,
+                "view3d_start_pitch_deg must lie within view3d_max_pitch_deg",
             ));
         }
         Ok(s)
@@ -398,6 +526,17 @@ mod tests {
             "recent_max = 0",
             "recent_file = ",
             "recent_file = a/b",
+            "gerber_circle_segments = 5",
+            "gerber_arc_step_deg = 0",
+            "gerber_default_opacity = 1.5",
+            "gerber_compare_cell_mm = -1",
+            "view3d_fov_deg = 170",
+            "view3d_fov_deg = abc",
+            "view3d_max_pitch_deg = 90",
+            "view3d_start_yaw_deg = nan",
+            "view3d_start_pitch_deg = 120",
+            "view3d_min_distance_mm = 0",
+            "colour.view3d_nothing = #000000",
         ] {
             let error = ViewerSettings::parse(text).unwrap_err();
             assert_eq!(error.code, SETTINGS_INVALID, "{text}");
@@ -417,6 +556,24 @@ mod tests {
         assert_eq!(s.findings_shown, 7);
         assert_eq!(s.backup_suffix, ".old");
         assert_eq!(s.colour("ratsnest"), [0x11, 0x22, 0x33, 0xff]);
+    }
+
+    #[test]
+    fn the_settings_of_the_gerber_scene_and_of_the_3d_window_are_read_and_checked() {
+        let s = ViewerSettings::parse(
+            "gerber_circle_segments = 12\ngerber_default_opacity = 0.5\nview3d_fov_deg = 60\nview3d_start_yaw_deg = -45\nview3d_start_pitch_deg = -10\nview3d_height_scale = 2\ncolour.view3d_collision = #112233\n",
+        )
+        .unwrap();
+        assert_eq!(s.gerber_circle_segments, 12);
+        assert_eq!(s.gerber_default_opacity, 0.5_f64);
+        assert_eq!(s.view3d_fov_deg, 60.0_f64);
+        assert_eq!(s.view3d_start_yaw_deg, -45.0_f64);
+        assert_eq!(s.view3d_start_pitch_deg, -10.0_f64);
+        assert_eq!(s.view3d_height_scale, 2.0_f64);
+        assert_eq!(s.colour("view3d_collision"), [0x11, 0x22, 0x33, 0xff]);
+        let d = ViewerSettings::default();
+        assert_eq!(d.gerber_circle_segments, 32);
+        assert_eq!(d.view3d_fov_deg, 40.0_f64);
     }
 
     #[test]

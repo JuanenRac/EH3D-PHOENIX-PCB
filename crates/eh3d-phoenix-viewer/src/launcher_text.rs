@@ -41,11 +41,15 @@ pub enum LauncherText {
     Missing,
     /// The note shown when the list of recent files could not be saved.
     SaveFailed,
+    /// The button that shows the Gerber and Excellon files of the typed folder.
+    GerberFolder,
+    /// The line that says a folder of Gerber files can be typed or dropped.
+    GerberHint,
 }
 
 impl LauncherText {
     /// Every text, for the tests that check the table.
-    pub const ALL: [LauncherText; 16] = [
+    pub const ALL: [LauncherText; 18] = [
         LauncherText::Welcome,
         LauncherText::TypePath,
         LauncherText::NewLibrary,
@@ -62,6 +66,8 @@ impl LauncherText {
         LauncherText::NothingToOpen,
         LauncherText::Missing,
         LauncherText::SaveFailed,
+        LauncherText::GerberFolder,
+        LauncherText::GerberHint,
     ];
 
     /// The text in a language.
@@ -223,6 +229,26 @@ impl LauncherText {
                 "最近使ったファイルの一覧を保存できませんでした。",
                 "无法保存最近文件列表。",
                 "Não foi possível guardar a lista de ficheiros recentes.",
+            ],
+            LauncherText::GerberFolder => [
+                "Gerber folder",
+                "Carpeta Gerber",
+                "Gerber-Ordner",
+                "Dossier Gerber",
+                "Cartella Gerber",
+                "Gerber フォルダー",
+                "Gerber 文件夹",
+                "Pasta Gerber",
+            ],
+            LauncherText::GerberHint => [
+                "A folder with Gerber and Excellon files is shown read-only.",
+                "Una carpeta con archivos Gerber y Excellon se muestra en solo lectura.",
+                "Ein Ordner mit Gerber- und Excellon-Dateien wird schreibgeschützt angezeigt.",
+                "Un dossier de fichiers Gerber et Excellon est affiché en lecture seule.",
+                "Una cartella con file Gerber ed Excellon viene mostrata in sola lettura.",
+                "Gerber / Excellon ファイルのフォルダーは読み取り専用で表示されます。",
+                "包含 Gerber 和 Excellon 文件的文件夹将以只读方式显示。",
+                "Uma pasta com ficheiros Gerber e Excellon é mostrada só para leitura.",
             ],
         }
     }

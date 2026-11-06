@@ -39,6 +39,15 @@
 //! * [`scene3d`]: the 3D scene of the assembled board (the board with the thickness of its
 //!   stack-up and each component as a box, from `eh3d-phoenix-assembly3d`) as data in millimetres:
 //!   the box that holds it all and the outlines on the board plane, with no window;
+//! * [`gerber_scene`] and [`gerber_text`]: the Gerber and Excellon files of a folder as layers of
+//!   filled shapes (one layer for each file, coloured by role, with the polarity kept), the
+//!   visibility, the order and the opacity of the layers, the snap of the measure and the
+//!   comparison of a layer with the same layer of a board of the project, and its texts in the
+//!   eight languages (the window is in `gerber_gui`, behind the `gui` feature);
+//! * [`view3d`] and [`view3d_text`]: the camera that orbits the assembled board, the perspective
+//!   projection worked out by hand, the faces sorted from far to near, the selection under a
+//!   click and the marks of the collisions and of the heights, and the texts of the 3D window in
+//!   the eight languages (the window is in `view3d_gui`, behind the `gui` feature);
 //! * [`settings`], [`codes`], [`msg`] and [`editmsg`]: the settings file, the codes
 //!   `PHOENIX-VIEW-<NNN>` and the texts in the eight languages.
 //!
@@ -56,6 +65,10 @@ pub mod board_sync;
 pub mod board_text;
 pub mod codes;
 pub mod editmsg;
+#[cfg(feature = "gui")]
+pub mod gerber_gui;
+pub mod gerber_scene;
+pub mod gerber_text;
 pub mod grid;
 #[cfg(feature = "gui")]
 pub mod gui;
@@ -83,6 +96,10 @@ pub mod schematic_text;
 pub mod session;
 pub mod settings;
 pub mod view;
+pub mod view3d;
+#[cfg(feature = "gui")]
+pub mod view3d_gui;
+pub mod view3d_text;
 pub mod viewer;
 pub mod workspace;
 

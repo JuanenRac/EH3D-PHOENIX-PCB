@@ -14,6 +14,7 @@ use crate::board_gui::{self, BoardEditUi};
 use crate::board_text::BoardMsg;
 use crate::codes::{ViewError, FILE_UNUSABLE, WINDOW_FAILED};
 use crate::editmsg::EditMsg;
+use crate::gerber_gui::GerberUi;
 use crate::launcher_gui;
 use crate::launcher_session::{Launch, Launcher};
 use crate::launcher_text::LauncherText;
@@ -25,6 +26,8 @@ use crate::scene::SceneKind;
 use crate::schematic_gui::{self, SchematicEditUi};
 use crate::schematic_text::SchMsg;
 use crate::settings::ViewerSettings;
+use crate::view3d_gui::View3dUi;
+use crate::view3d_text::View3dText;
 use crate::viewer::Tool;
 use crate::workspace::{erc_line, finding_line, suggested_save_path, Key, Shortcut, Workspace};
 
@@ -128,6 +131,12 @@ struct App {
     launcher: Launcher,
     /// What the start screen could not do last (an empty path, dropped files that do not open).
     launch_note: Option<LauncherText>,
+    /// The window of the imported Gerber and Excellon files, while a folder of them is shown.
+    gerber: Option<GerberUi>,
+    /// The 3D window of the assembled board, while it is shown.
+    view3d: Option<View3dUi>,
+    /// The table of models that the 3D window reads.
+    models_text: String,
 }
 
 impl App {
@@ -151,6 +160,9 @@ impl App {
             lib: LibraryUi::new(eh3d_phoenix_libedit::LibSettings::default()),
             launcher: Launcher::from_env(&settings, &|name: &str| std::env::var(name).ok()),
             launch_note: None,
+            gerber: None,
+            view3d: None,
+            models_text: String::new(),
         };
         if let Some(path) = initial {
             app.path_text = path.to_string_lossy().into_owned();
@@ -197,15 +209,43 @@ impl App {
     fn launch(&mut self, asked: Launch) {
         match asked {
             Launch::Open(path) => {
+                self.gerber = None;
+                self.view3d = None;
                 self.path_text = path.to_string_lossy().into_owned();
                 self.open(&path);
             }
+            Launch::OpenGerber(folder) => match GerberUi::open(&folder, &self.settings) {
+                Ok(window) => {
+                    self.gerber = Some(window);
+                    self.view3d = None;
+                    self.error = None;
+                }
+                Err(error) => self.error = Some(error),
+            },
             Launch::NewLibrary => {
+                self.gerber = None;
+                self.view3d = None;
                 self.lib.new_library();
                 self.workspace = None;
                 self.sch = None;
                 self.brd = None;
             }
+        }
+    }
+
+    /// Opens the 3D window of the board that is open, with the table of models that is typed.
+    fn open_3d(&mut self) {
+        let Some(session) = self.workspace.as_ref().and_then(|w| w.board_session()) else {
+            return;
+        };
+        let typed = self.models_text.trim();
+        let table = (!typed.is_empty()).then(|| PathBuf::from(typed));
+        match View3dUi::open(&session.board, table.as_deref(), &self.settings) {
+            Ok(window) => {
+                self.view3d = Some(window);
+                self.error = None;
+            }
+            Err(error) => self.error = Some(error),
         }
     }
 
@@ -240,6 +280,16 @@ impl App {
                     .clicked()
                 {
                     self.fit_pending = true;
+                }
+                if self.workspace.as_ref().is_some_and(|w| w.is_board()) {
+                    ui.separator();
+                    ui.label(dim(View3dText::ModelsTable.tr(lang)));
+                    let table =
+                        egui::TextEdit::singleline(&mut self.models_text).desired_width(150.0);
+                    ui.add(table);
+                    if ui.button(View3dText::Show3d.tr(lang)).clicked() {
+                        self.open_3d();
+                    }
                 }
                 let editing = self.sch.is_some() || self.brd.is_some();
                 if let Some(w) = self.workspace.as_mut() {
@@ -998,6 +1048,18 @@ impl eframe::App for App {
         if self.lib.is_open() {
             self.top_bar(ui);
             self.lib.show(ui, self.lang);
+            return;
+        }
+        if let Some(window) = self.gerber.as_mut() {
+            if window.show(ui, self.lang, &self.settings) {
+                self.gerber = None;
+            }
+            return;
+        }
+        if let Some(window) = self.view3d.as_mut() {
+            if window.show(ui, self.lang, &self.settings) {
+                self.view3d = None;
+            }
             return;
         }
         self.top_bar(ui);

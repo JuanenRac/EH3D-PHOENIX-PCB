@@ -17,6 +17,8 @@ use crate::settings::ViewerSettings;
 pub enum Launch {
     /// Open a file; the kind of the file decides the mode (board, schematic or library).
     Open(PathBuf),
+    /// Show the Gerber and Excellon files of a folder, read-only.
+    OpenGerber(PathBuf),
     /// Start an empty library.
     NewLibrary,
 }
@@ -149,23 +151,43 @@ impl Launcher {
         self.save();
     }
 
-    /// What the typed path asks for, or the note to show when it asks for nothing.
+    /// What the typed path asks for, or the note to show when it asks for nothing. A folder is
+    /// shown as a set of Gerber and Excellon files.
     pub fn typed_launch(&self) -> Result<Launch, LauncherText> {
         let path = clean_path(&self.typed);
         if path.is_empty() {
             Err(LauncherText::EnterPath)
+        } else if Path::new(&path).is_dir() {
+            Ok(Launch::OpenGerber(PathBuf::from(path)))
         } else {
             Ok(Launch::Open(PathBuf::from(path)))
         }
     }
 
-    /// What the files dropped on the window ask for: the first one that is a board, a schematic,
-    /// a library or a JSON file, or the note to show when there is none.
+    /// What the button of the Gerber folder asks for: the typed path as a folder of Gerber and
+    /// Excellon files, or the note to show when nothing is typed.
+    pub fn gerber_launch(&self) -> Result<Launch, LauncherText> {
+        let path = clean_path(&self.typed);
+        if path.is_empty() {
+            Err(LauncherText::EnterPath)
+        } else {
+            Ok(Launch::OpenGerber(PathBuf::from(path)))
+        }
+    }
+
+    /// What the files dropped on the window ask for: the first one that is a folder (Gerber and
+    /// Excellon files), a board, a schematic, a library or a JSON file, or the note to show when
+    /// there is none.
     pub fn dropped_launch(files: &[PathBuf]) -> Result<Launch, LauncherText> {
         files
             .iter()
-            .find(|path| EntryKind::of(path).is_some())
-            .map(|path| Launch::Open(path.clone()))
+            .find_map(|path| {
+                if path.is_dir() {
+                    Some(Launch::OpenGerber(path.clone()))
+                } else {
+                    EntryKind::of(path).map(|_| Launch::Open(path.clone()))
+                }
+            })
             .ok_or(LauncherText::NothingToOpen)
     }
 
@@ -234,6 +256,33 @@ mod tests {
             Launcher::dropped_launch(&[]),
             Err(LauncherText::NothingToOpen)
         );
+    }
+
+    #[test]
+    fn a_folder_is_shown_as_gerber_files_whether_typed_dropped_or_asked_for() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut launcher = Launcher::new(&settings(5), None);
+        launcher.typed = format!("\"{}\"", dir.path().display());
+        assert_eq!(
+            launcher.typed_launch(),
+            Ok(Launch::OpenGerber(dir.path().to_path_buf()))
+        );
+        assert_eq!(
+            Launcher::dropped_launch(&[PathBuf::from("a.zip"), dir.path().to_path_buf()]),
+            Ok(Launch::OpenGerber(dir.path().to_path_buf()))
+        );
+        // the button takes the typed path as a folder even when it is not there yet
+        launcher.typed = "/nowhere/gerbers".to_string();
+        assert_eq!(
+            launcher.gerber_launch(),
+            Ok(Launch::OpenGerber(PathBuf::from("/nowhere/gerbers")))
+        );
+        assert_eq!(
+            launcher.typed_launch(),
+            Ok(Launch::Open(PathBuf::from("/nowhere/gerbers")))
+        );
+        launcher.typed.clear();
+        assert_eq!(launcher.gerber_launch(), Err(LauncherText::EnterPath));
     }
 
     #[test]
