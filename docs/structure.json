@@ -312,6 +312,19 @@
           }
         },
         {
+          "name": "SHOVE.md",
+          "desc": {
+            "en": "push and shove, and arcs in tracks: operations, settings, window",
+            "es": "empuje de pistas y arcos en pistas: operaciones, ajustes, ventana",
+            "de": "Verdrängen von Leiterbahnen und Bögen: Operationen, Einstellungen, Fenster",
+            "fr": "poussage de pistes et arcs dans les pistes : opérations, réglages, fenêtre",
+            "it": "spinta delle piste e archi nelle piste: operazioni, impostazioni, finestra",
+            "ja": "配線の押しのけと円弧：操作、設定、ウィンドウ",
+            "zh": "走线推挤与圆弧：操作、设置、窗口",
+            "pt": "empurrar pistas e arcos nas pistas: operações, definições, janela"
+          }
+        },
+        {
           "name": "SIM.md",
           "desc": {
             "en": "circuit simulation: netlist, analyses, schematic export",

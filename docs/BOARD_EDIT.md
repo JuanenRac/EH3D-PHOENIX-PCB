@@ -1,6 +1,6 @@
 # EH3D-PHOENIX-PCB: the board editor
 
-**State: prototype.** Four parts make the editor: the operations, the rule check after each one and the state of the tools, all without a screen (`eh3d-phoenix-boardedit`), the command `phoenix boardedit` and a board editing mode of the window of the viewer (`docs/VIEWER.md`). It has been tried on boards made by hand and by the tests only. The window has never been seen on a screen or used with a mouse, and no real board has been routed with it, so requirement PPCB-015 stays at `prototype`. It does not route by itself: a track is made of the points it is given (the routing through an external autorouter is `docs/AUTOROUTE.md`).
+**State: prototype.** Four parts make the editor: the operations, the rule check after each one and the state of the tools, all without a screen (`eh3d-phoenix-boardedit`), the command `phoenix boardedit` and a board editing mode of the window of the viewer (`docs/VIEWER.md`). It has been tried on boards made by hand and by the tests only. The window has never been seen on a screen or used with a mouse, and no real board has been routed with it, so requirement PPCB-015 stays at `prototype`. It does not route by itself: a track is made of the points it is given (the routing through an external autorouter is `docs/AUTOROUTE.md`). A track can push the neighbour tracks aside and a corner can be rounded with a native arc (`docs/SHOVE.md`).
 
 ## The operations
 
@@ -18,7 +18,9 @@ An operation is one change that is asked for. It is a value (`EditOp`) that can 
 | `delete_segment`, `delete_track`, `delete_via`, `delete_net` | Deletes one piece of a track (the rest stays in one or two tracks), a track, a via, or every track and via of a net (its zones and the nets of its pads stay). |
 | `route_between` | Draws the shortest route between two pads without a router: a straight piece when they are in line (or at 45 degrees with the diagonal shape), an L otherwise. A pad that has no net takes the net of the other; two pads on different nets are refused. |
 | `paste_net` | Pastes a net: the pads get the net of that name (made when the board has none) and are joined in the order given, each with the shortest route to the next. A pad that is on another net is refused. |
-| `tune_length` | Adds square meanders to the longest straight pieces of a net until its copper length (measured by `eh3d-phoenix-lengths`: tracks and vias) is the target, to within `length_tolerance_nm`. Both sides of the piece are tried in turn. A net already within the tolerance is left as it is; a net longer than the target, or with no piece long enough, is refused (`PHOENIX-BEDIT-008`). |
+| `route_shove` | Draws a track like `route` and pushes aside, in parallel, the tracks of other nets that its clearance would invade: only horizontal, vertical and 45-degree pieces, the pads, the vias and the edge never move, within the depth and the number of tracks of the settings, all or nothing and refused with a `PHOENIX-SHOVE-<NNN>` code when it cannot be done or would leave a rule error (`docs/SHOVE.md`). |
+| `route_arc`, `round_corners` | Put an arc of a given radius, tangent to both pieces, at a vertex of a track, or round every corner of a track or of a net with the largest radius that fits (never below `arc_min_radius_nm`). The arc is the native arc piece of the model and is checked against the clearance of the rules by the editor (`PHOENIX-ARC-<NNN>`, `docs/SHOVE.md`). |
+| `tune_length` | Adds square meanders to the longest straight pieces (horizontal, vertical or at 45 degrees, the meanders turned with the piece) of a net until its copper length (measured by `eh3d-phoenix-lengths`: tracks and vias) is the target, to within `length_tolerance_nm`. Both sides of the piece are tried in turn. A net already within the tolerance is left as it is; a net longer than the target, or with no piece long enough, is refused (`PHOENIX-BEDIT-008`). |
 | `route_pair`, `tune_pair`, `fix_pair_gap` | The operations on a differential pair: the two tracks drawn side by side, the shorter net made as long as the other with meanders, and the pieces with a wrong gap moved to the gap of the pair. They are described in `docs/DIFFPAIRS.md`. |
 | `group` | Several operations that are one step of the history and are refused as a whole when one is. |
 | `forced` | An operation that is kept even if it adds a rule error. |
@@ -54,6 +56,8 @@ Undo and redo give back the same bytes. The ids of the parts the editor makes co
 | `track_width_nm`, `via_drill_nm`, `via_diameter_nm` | 250000, 300000, 600000 | The width of a track and the size of a via when the net class asks for no other; the rules and the classes raise them. |
 | `meander_amplitude_nm`, `meander_max_amplitude_nm`, `meander_pitch_nm` | 1000000, 3000000, 400000 | The amplitude the meanders start with, the largest amplitude and the run of one half period. |
 | `length_tolerance_nm`, `meander_candidates` | 100000, 3 | How far from the target the length may end, and how many of the longest straight pieces are tried. |
+| `shove_max_depth`, `shove_max_moved`, `shove_margin_nm` | 3, 8, 1000 | How many levels a push may go, the most tracks it may move and the gap added to the clearance of the rules (`docs/SHOVE.md`). |
+| `arc_min_radius_nm`, `arc_steps_per_quarter`, `arc_margin_nm` | 500000, 8, 1000 | The smallest radius of an arc, the chords of a quarter turn when an arc is checked and the gap added to the clearance of the rules. |
 
 A line that is not `key = value`, an unknown key or a value out of range is `PHOENIX-BEDIT-001`.
 
@@ -88,8 +92,8 @@ After every change the window gives the workspace the board as it is (`Workspace
 
 ## Codes
 
-`PHOENIX-BEDIT-001` to `PHOENIX-BEDIT-008` are in `docs/ERROR_CODES.md`, with their titles in the eight languages in `eh3d-phoenix-boardedit` (`src/codes.rs`). The codes `PHOENIX-PAIR-001` to `PHOENIX-PAIR-011` of the differential pairs are there too (`src/pair_codes.rs`).
+`PHOENIX-BEDIT-001` to `PHOENIX-BEDIT-008` are in `docs/ERROR_CODES.md`, with their titles in the eight languages in `eh3d-phoenix-boardedit` (`src/codes.rs`). The codes `PHOENIX-PAIR-001` to `PHOENIX-PAIR-011` of the differential pairs are there too (`src/pair_codes.rs`), and so are `PHOENIX-SHOVE-001` to `006` and `PHOENIX-ARC-001` to `003` of the push and the arcs (`src/shove_codes.rs`).
 
 ## What is not done
 
-The list is in `NOT_YET.md`. In short: no automatic routing, no push and shove (a track never moves another), no arcs in the tracks the editor draws, meanders only on horizontal or vertical pieces, differential pairs only as far as `docs/DIFFPAIRS.md` says, no copper zones or silkscreen in the editor, no check of the pieces of a drag while it is drawn (the rules run when it is let go), locks that are not saved, and a window that has not been seen on a screen or used with a mouse.
+The list is in `NOT_YET.md`. In short: no automatic routing, only a basic push and shove (`docs/SHOVE.md`: straight pieces at 0, 45 and 90 degrees, never a pad, a via or a component), arcs only at corners, meanders only on straight pieces, differential pairs only as far as `docs/DIFFPAIRS.md` says, no copper zones or silkscreen in the editor, no check of the pieces of a drag while it is drawn (the rules run when it is let go), locks that are not saved, and a window that has not been seen on a screen or used with a mouse.

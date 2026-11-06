@@ -60,6 +60,8 @@ The button *Edit schematic* of the left panel starts the schematic editor (`docs
 
 The button *Edit board* of the left panel starts the board editor (`docs/BOARD_EDIT.md`): the tools to place a footprint, draw tracks with horizontal, vertical and 45-degree pieces, add vias, delete, tune the length of a net with meanders and select by rectangle, the drag of components with the tracks on their pads following, turning, putting a component on the other side and locking it, the active layer, the lit net with its length and the ratsnest, with undo and redo and the design rules checked after every operation (an operation that adds a rule error is refused). After every change the board is handed to the workspace, so the findings and saving work on what was edited. The state is tested without a screen (`eh3d-phoenix-boardedit`); the window (`board_gui`) has never been seen on a screen or used with a mouse.
 
+The box *Push tool* of the same panel turns a click into a point of a new track of the chosen net, shows the tracks that the push would move before it is accepted and routes the track with the push as one step (`docs/SHOVE.md`); the window has never been seen on a screen or used with a mouse.
+
 The box *Pair tool* of the same panel turns a click into a point of the centre line of a differential pair and adds the buttons to draw the pair, make its lengths equal, correct its gap and check the pairs (`docs/DIFFPAIRS.md`); it has never been used with a mouse.
 
 ### Editing a library
