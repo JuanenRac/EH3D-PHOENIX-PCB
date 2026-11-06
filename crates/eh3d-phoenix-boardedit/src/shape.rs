@@ -3,6 +3,8 @@
 //! vertical and 45-degree pieces) and the meanders that add length to a straight piece. All in
 //! integer nanometres, with no floating point.
 
+use std::f64::consts::SQRT_2;
+
 use eh3d_phoenix_board::Segment;
 use eh3d_phoenix_model::Point;
 use serde::{Deserialize, Serialize};
@@ -123,6 +125,22 @@ pub fn axis_length(a: Point, b: Point) -> Option<i64> {
     Some(dx.abs() + dy.abs())
 }
 
+/// The length of a straight piece that a meander can replace: horizontal, vertical or at 45
+/// degrees (its length rounded to the nanometre); `None` for any other piece.
+pub fn piece_length(a: Point, b: Point) -> Option<i64> {
+    let dx = (b.x_nm.get() - a.x_nm.get()).abs();
+    let dy = (b.y_nm.get() - a.y_nm.get()).abs();
+    if dx == 0 && dy == 0 {
+        None
+    } else if dx == 0 || dy == 0 {
+        Some(dx + dy)
+    } else if dx == dy {
+        Some((dx as f64 * SQRT_2).round() as i64)
+    } else {
+        None
+    }
+}
+
 /// What a serpentine needs.
 #[derive(Debug, Clone, Copy)]
 pub struct Tuning {
@@ -136,9 +154,10 @@ pub struct Tuning {
     pub pitch_nm: i64,
 }
 
-/// A serpentine that replaces the horizontal or vertical piece from `start` to `end` and adds
-/// `tuning.extra_nm` of length (to within a nanometre): the pieces and the length they add. The
-/// bumps are square, centred on the piece, with a straight lead at both ends; `side` is 1 for the
+/// A serpentine that replaces the horizontal, vertical or 45-degree piece from `start` to `end`
+/// and adds `tuning.extra_nm` of length (to within a nanometre on a horizontal or vertical piece, a
+/// few on a 45-degree one): the pieces and the length they add. The bumps are square, centred on
+/// the piece, with a straight lead at both ends, and turned with the piece; `side` is 1 for the
 /// left of the direction of the piece and -1 for the right.
 pub fn serpentine(
     start: Point,
@@ -146,9 +165,40 @@ pub fn serpentine(
     tuning: Tuning,
     side: i64,
 ) -> Result<(Vec<Segment>, i64), BoardEditError> {
+    let dx = end.x_nm.get() - start.x_nm.get();
+    let dy = end.y_nm.get() - start.y_nm.get();
+    if dx != 0 && dx.abs() == dy.abs() {
+        // a 45-degree piece is worked in units of one axis: a step of one unit on both axes is
+        // sqrt 2 units long, so every length is divided by sqrt 2 and the result multiplied
+        let axis = |nm: i64| ((nm as f64 / SQRT_2).round() as i64).max(1);
+        let in_units = Tuning {
+            extra_nm: axis(tuning.extra_nm),
+            amplitude_nm: axis(tuning.amplitude_nm),
+            max_amplitude_nm: axis(tuning.max_amplitude_nm),
+            pitch_nm: axis(tuning.pitch_nm),
+        };
+        let (segments, added) = serpentine_units(start, end, dx.abs(), in_units, side)?;
+        return Ok((segments, (added as f64 * SQRT_2).round() as i64));
+    }
+    let len = axis_length(start, end).ok_or_else(|| {
+        BoardEditError::new(
+            TUNE_IMPOSSIBLE,
+            "the piece is not horizontal, vertical or at 45 degrees",
+        )
+    })?;
+    serpentine_units(start, end, len, tuning, side)
+}
+
+/// The serpentine of a piece whose length along its direction is `len` units, where the unit is
+/// the step of the coordinates (one unit on both axes for a 45-degree piece).
+fn serpentine_units(
+    start: Point,
+    end: Point,
+    len: i64,
+    tuning: Tuning,
+    side: i64,
+) -> Result<(Vec<Segment>, i64), BoardEditError> {
     let fail = |why: &str| BoardEditError::new(TUNE_IMPOSSIBLE, why.to_owned());
-    let len =
-        axis_length(start, end).ok_or_else(|| fail("the piece is not horizontal or vertical"))?;
     let Tuning {
         extra_nm,
         amplitude_nm,
@@ -303,6 +353,46 @@ mod tests {
     }
 
     #[test]
+    fn a_45_degree_piece_gets_meanders_that_are_turned_with_it() {
+        let start = p(0, 0);
+        let end = p(10_000_000, 10_000_000);
+        let tuning = Tuning {
+            extra_nm: 4_000_000,
+            amplitude_nm: 1_000_000,
+            max_amplitude_nm: 3_000_000,
+            pitch_nm: 400_000,
+        };
+        assert_eq!(piece_length(start, end), Some(14_142_136));
+        assert_eq!(piece_length(start, p(10_000_000, 0)), Some(10_000_000));
+        assert_eq!(piece_length(start, p(10_000_000, 3_000_000)), None);
+        assert_eq!(piece_length(start, start), None);
+        let (path, added) = serpentine(start, end, tuning, 1).unwrap();
+        assert!((added - 4_000_000).abs() <= 3, "{added}");
+        assert_eq!(path.first().unwrap().start(), start);
+        assert_eq!(path.last().unwrap().end(), end);
+        for pair in path.windows(2) {
+            assert_eq!(pair[0].end(), pair[1].start());
+        }
+        // every piece is horizontal, vertical or at 45 degrees: here all at 45 degrees
+        for segment in &path {
+            let dx = segment.end().x_nm.get() - segment.start().x_nm.get();
+            let dy = segment.end().y_nm.get() - segment.start().y_nm.get();
+            assert_eq!(dx.abs(), dy.abs(), "{segment:?}");
+        }
+        assert!((total(&path) - 14_142_136 - 4_000_000).abs() <= 30);
+        // the left of the direction of the piece is where y - x grows
+        let off = |s: &Segment| s.start().y_nm.get() - s.start().x_nm.get();
+        assert!(path.iter().all(|s| off(s) >= 0));
+        assert!(path.iter().any(|s| off(s) > 0));
+        let (other, _) = serpentine(start, end, tuning, -1).unwrap();
+        assert!(other.iter().all(|s| off(s) <= 0));
+        assert!(other.iter().any(|s| off(s) < 0));
+        // a piece going the other way works too
+        let (back, _) = serpentine(p(0, 0), p(-10_000_000, 10_000_000), tuning, 1).unwrap();
+        assert_eq!(back.last().unwrap().end(), p(-10_000_000, 10_000_000));
+    }
+
+    #[test]
     fn a_vertical_piece_is_tuned_too_and_a_hopeless_one_is_refused() {
         let tuning = Tuning {
             extra_nm: 2_000_000,
@@ -316,7 +406,7 @@ mod tests {
         // too short, not axis aligned, not enough length to add
         for (a, b, extra) in [
             (p(0, 0), p(500_000, 0), 2_000_000),
-            (p(0, 0), p(5_000_000, 5_000_000), 2_000_000),
+            (p(0, 0), p(5_000_000, 3_000_000), 2_000_000),
             (p(0, 0), p(10_000_000, 0), 1),
         ] {
             let error = serpentine(
