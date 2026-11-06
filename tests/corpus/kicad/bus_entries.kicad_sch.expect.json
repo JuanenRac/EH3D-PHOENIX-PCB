@@ -1,0 +1,31 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-KICAD-028",
+  "title": "A bus named by a label with four entries: one on a label, one on a wire that ends at a label, one with no label and one whose label is no member",
+  "kind": "kicad-schematic",
+  "input": "bus_entries.kicad_sch",
+  "how": [
+    "The label `D[0..3]` names a bus of the members D0, D1, D2 and D3 = 1 bus; the drawn `bus` line is not kept = 1 dropped `bus` element;",
+    "entry 1 goes from (100, 50) to (100 + 2.54, 50 + 2.54) = (102.54, 52.54), where the label D1 is = kept;",
+    "entry 2 ends at (102.54, 62.54), where a wire starts that ends at the label D2 at (110, 62.54) = kept: 2 entries kept;",
+    "entry 3 ends at (102.54, 72.54) with no label and no wire there = dropped for having no net label; entry 4 ends at (102.54, 77.54) at the label X9, which is no member of the bus = dropped;",
+    "one wire; no part and no pin, so no net (a net comes only from pins); one sheet."
+  ],
+  "expect": {
+    "outcome": "read",
+    "measures": {
+      "parts": 0,
+      "nets": 0,
+      "wires": 1,
+      "sheets": 1,
+      "sheets_read": 1,
+      "version": "20211123",
+      "generator": "eeschema",
+      "kept.buses": 1,
+      "kept.bus entries": 2,
+      "dropped.bus entries with no net label at their end": 1,
+      "dropped.bus entries whose member is in no bus of the sheet": 1,
+      "dropped.`bus` elements": 1
+    }
+  }
+}

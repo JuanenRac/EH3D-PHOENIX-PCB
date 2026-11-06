@@ -1,0 +1,24 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-KICAD-029",
+  "title": "A top sheet with four sheet symbols: two whose files are not given, one that leaves the folder and one with no file",
+  "kind": "kicad-schematic",
+  "input": "sheets_hier.kicad_sch",
+  "how": [
+    "The corpus reads one file and gives the reader no loader for other files: the sheets `power.kicad_sch` and `logic.kicad_sch` cannot be read = 2 sheets that could not be read;",
+    "`../outside.kicad_sch` leaves the folder of the schematic and is never opened, and a sheet symbol with no `Sheet file` is invalid: neither is counted among the sheets that could not be read;",
+    "only the top sheet is read: 1 sheet; one wire; no part, so no net."
+  ],
+  "expect": {
+    "outcome": "read",
+    "measures": {
+      "parts": 0,
+      "nets": 0,
+      "wires": 1,
+      "sheets": 1,
+      "sheets_read": 1,
+      "kept.sheets": 1,
+      "dropped.sheets that could not be read": 2
+    }
+  }
+}

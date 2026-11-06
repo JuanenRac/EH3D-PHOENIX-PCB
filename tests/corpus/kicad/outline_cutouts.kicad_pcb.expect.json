@@ -1,0 +1,29 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-KICAD-024",
+  "title": "A board outline of four loose lines with an opening drawn as a rectangle, an opening drawn as a polygon and a line that closes nothing",
+  "kind": "kicad-board",
+  "input": "outline_cutouts.kicad_pcb",
+  "how": [
+    "On Edge.Cuts: four `gr_line` that join end to end (0,0), (40,0), (40,20), (0,20) and close = one ring of 4 points, 40 x 20 mm = 800 mm2;",
+    "a `gr_rect` from (5,5) to (10,10) is a ring of 4 points (25 mm2) and a `gr_poly` of 3 points (20,5), (30,5), (25,12) is a ring (35 mm2 = 10 x 7 / 2);",
+    "the largest ring is the outline, and both other rings have every corner inside it, so 2 openings of the board;",
+    "the line from (100,100) to (110,100) joins nothing: 1 piece that does not close, dropped;",
+    "no footprint, no net used, no track: only the layer table gives the 2 copper layers."
+  ],
+  "expect": {
+    "outcome": "read",
+    "measures": {
+      "copper_layers": 2,
+      "components": 0,
+      "tracks": 0,
+      "outline_points": 4,
+      "outline_cutouts": 2,
+      "version": "20221018",
+      "generator": "pcbnew",
+      "kept.outline points": 4,
+      "kept.outline cutouts": 2,
+      "dropped.outline pieces not used (cut-outs and pieces that do not close)": 1
+    }
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-KICAD-027",
+  "title": "Copper zones on one layer and on two, a zone with no net, and rule areas that keep the pour out",
+  "kind": "kicad-board",
+  "input": "zones_keepout.kicad_pcb",
+  "how": [
+    "Copper zones with a net: GND on B.Cu (1 zone) and SIG with `layers \"F.Cu\" \"B.Cu\"` (1 zone for each layer = 2) = 3 zones; the third zone has `net 0` and no name, so it is left out and counted as a zone without a net;",
+    "the filled copper is computed again by the tool: the GND zone holds 1 `filled_polygon`, the others none = 1 dropped;",
+    "rule areas (a `keepout` in a zone): the first one forbids only copper pour, with tracks, vias and pads allowed, and its 4 corners lie inside the GND zone (x from 20 to 30 inside 1..49, y from 20 down to 10 inside 1..29) = 1 cutout of that zone; it does not lie in the SIG zone on B.Cu (5..10);",
+    "the second forbids tracks and vias too, which a cutout cannot say = dropped; the third forbids only the pour but lies at (60..70) outside every zone = dropped: 2 keep-out zones dropped;",
+    "a `gr_rect` on Edge.Cuts is a ring of 4 points; nets GND and SIG = 2."
+  ],
+  "expect": {
+    "outcome": "read",
+    "measures": {
+      "nets": 2,
+      "zones": 3,
+      "zone_cutouts": 1,
+      "outline_points": 4,
+      "kept.zones": 3,
+      "kept.zone cutouts": 1,
+      "dropped.zones without a net": 1,
+      "dropped.filled copper of zones (computed again by the tool)": 1,
+      "dropped.keep-out zones": 2
+    }
+  }
+}

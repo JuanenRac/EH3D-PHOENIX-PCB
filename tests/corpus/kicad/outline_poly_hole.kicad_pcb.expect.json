@@ -1,0 +1,21 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-KICAD-025",
+  "title": "An L-shaped outline drawn as one polygon with a square opening drawn as four loose lines",
+  "kind": "kicad-board",
+  "input": "outline_poly_hole.kicad_pcb",
+  "how": [
+    "A `gr_poly` of 6 points (0,0), (30,0), (30,10), (15,10), (15,20), (0,20) is the L: 30 x 10 + 15 x 10 = 450 mm2 and 6 outline points;",
+    "the four loose lines (3,3), (8,3), (8,8), (3,8) join end to end and close = a ring of 4 points and 25 mm2;",
+    "the polygon is the larger ring and every corner of the square lies inside the L (x from 3 to 8 is below 15, y from 3 to 8 is above 0), so 1 opening and nothing dropped."
+  ],
+  "expect": {
+    "outcome": "read",
+    "measures": {
+      "outline_points": 6,
+      "outline_cutouts": 1,
+      "kept.outline points": 6,
+      "kept.outline cutouts": 1
+    }
+  }
+}

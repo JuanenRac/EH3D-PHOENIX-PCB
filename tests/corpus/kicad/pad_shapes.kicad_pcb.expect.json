@@ -1,0 +1,35 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-KICAD-026",
+  "title": "A footprint with rounded rectangle pads, a trapezoid pad and a mounting hole, placed twice (once turned)",
+  "kind": "kicad-board",
+  "input": "pad_shapes.kicad_pcb",
+  "how": [
+    "Two footprints with the same name and the same pads once the turn of the part is taken off the angle of each pad (90 - 90 = 0 for U2): one footprint of the model, 2 components;",
+    "the footprint has 4 pads: two `roundrect` (read as a rectangle with the roundness kept), a `trapezoid` and a `np_thru_hole` with a drill of 2.2 mm = 4 pads, so 4 x 2 = 8 placed pads;",
+    "nets: GND and SIG = 2; pads with a net in each part: 1 (SIG), 2 (GND) and 3 (GND), the hole has none = 3 x 2 = 6 pad nets;",
+    "only the trapezoid has a shape that the model does not hold; the footprint is built once, so 1 pad with a simpler shape;",
+    "each part draws one `fp_circle` on the courtyard, which is not kept = 2 dropped graphics (the fields reference and value are not counted);",
+    "a `gr_rect` on Edge.Cuts is a ring of 4 points."
+  ],
+  "expect": {
+    "outcome": "read",
+    "measures": {
+      "copper_layers": 2,
+      "footprints": 1,
+      "footprint_pads": 4,
+      "components": 2,
+      "bottom_components": 0,
+      "placed_pads": 8,
+      "nets": 2,
+      "pad_nets": 6,
+      "outline_points": 4,
+      "kept.footprints": 1,
+      "kept.components": 2,
+      "kept.pads": 8,
+      "kept.nets": 2,
+      "transformed.pads with a simpler shape": 1,
+      "dropped.footprint graphics, texts and 3D models": 2
+    }
+  }
+}
