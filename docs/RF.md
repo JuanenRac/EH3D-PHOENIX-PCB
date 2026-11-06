@@ -2,6 +2,8 @@
 
 The crate `eh3d-phoenix-rf` holds the RF calculations of everyday use: Touchstone files, the parameters of two-ports and the conversions between them, impedance matching, the coordinates of the Smith chart and ladder filters. The command `phoenix rf` runs them. It sits next to `eh3d-phoenix-stackup`, which gives the impedance and the effective permittivity of a track: a line from the stack-up calculator can be turned into a line of the RF tools (`line::Line::from_stackup`) and lengths in degrees can be turned into metres on it.
 
+The extension of these tools (pi and T networks, the bandwidth of a match, the double stub, the equivalents with lines, the Smith path, filters with standard values, S parameters of a network, masks and stability circles) is described in `RF_ADVANCED.md`.
+
 **State: prototype.** The formulas are published ones and the tests use values of the textbooks (an L network from 50 to 100 ohm, a third-order Butterworth filter at 100 MHz, a quarter-wave line with `z = sqrt(z1 z2)`), properties (round trips between S, Z, Y and ABCD, reciprocity, passivity, conservation of power in a lossless filter) and hostile input. Nothing here has been compared with a network analyser, with a field solver or with another RF program, and the filters are ideal. Requirement PPCB-024 (RF tools by levels, analytic calculators first) is `prototype` because of this crate and of the stack-up one, and no further.
 
 ## What it does
@@ -16,7 +18,7 @@ The crate `eh3d-phoenix-rf` holds the RF calculations of everyday use: Touchston
 ## What it does not do
 
 * No version 2 keyword syntax (a line that starts with `[` is refused), no reference resistance per port, no mixed-mode parameters. Z and Y files are taken as normalised to the reference resistance; H and G files are read and refused when they have to be converted.
-* No loss, no parasitics, no tolerance of the components in the filters; no de-embedding; no noise circles and no gain circles; a stub is a lossless line of the characteristic impedance of the main line; no double stub, no tapered or multi-section broadband match.
+* No loss, no parasitics, no tolerance of the components in the filters; no de-embedding; no noise circles and no gain circles; a stub is a lossless line of the characteristic impedance of the main line; no tapered or multi-section broadband match (the double stub is in `RF_ADVANCED.md`).
 * No frequency-dependent models of the elements: a design is exact at the frequency asked (matching) or for ideal elements (filters).
 * An L network needs the right relation between the resistances (the series element can only transform in one direction for each topology); when none exists the tool says so and does not invent a network.
 * A group delay from a file is the phase step between the two points around the frequency: the points must be close enough for the phase to move by less than half a turn between them.
@@ -62,7 +64,7 @@ The limits and tolerances are in `config/rf.cfg` and are never fixed in the code
 
 ## Errors
 
-The codes `PHOENIX-RF-001` to `PHOENIX-RF-010` are in `ERROR_CODES.md`. Their titles exist in the eight languages of the suite (English, Spanish, German, French, Italian, Japanese, Chinese and European Portuguese); the detail is in English. A file never makes the program panic: what cannot be read becomes an error with the line.
+The codes `PHOENIX-RF-001` to `PHOENIX-RF-013` are in `ERROR_CODES.md`. Their titles exist in the eight languages of the suite (English, Spanish, German, French, Italian, Japanese, Chinese and European Portuguese); the detail is in English. A file never makes the program panic: what cannot be read becomes an error with the line.
 
 ## How it is tested
 

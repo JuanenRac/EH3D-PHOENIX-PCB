@@ -143,6 +143,19 @@
           }
         },
         {
+          "name": "RF_ADVANCED.md",
+          "desc": {
+            "en": "more RF: pi/T, standard values, masks, stability",
+            "es": "más RF: pi/T, valores estándar, máscaras, estabilidad",
+            "de": "mehr HF: Pi/T, Normwerte, Masken, Stabilität",
+            "fr": "plus de RF : pi/T, valeurs normalisées, gabarits, stabilité",
+            "it": "più RF: pi/T, valori standard, maschere, stabilità",
+            "ja": "RF 拡張：pi/T、標準値、マスク、安定性",
+            "zh": "更多射频：pi/T、标准值、模板、稳定性",
+            "pt": "mais RF: pi/T, valores padrão, máscaras, estabilidade"
+          }
+        },
+        {
           "name": "RFGEN.md",
           "desc": {
             "en": "RF structures on the board: formulas, sources and limits",
