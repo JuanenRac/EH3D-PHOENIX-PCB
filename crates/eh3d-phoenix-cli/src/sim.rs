@@ -6,9 +6,15 @@
 //! be read with it (`--model`). It can also print the netlist of a schematic, and check a ladder
 //! filter of the RF tools against its simulation. Nothing is written unless `--out` is given.
 //!
+//! The advanced analyses work on the same input: `--step` and `.step` (a parameter, an element or
+//! a source takes a list of values), `--measure` and `.measure` (values taken from the results),
+//! `--mc` with `--seed` (Monte Carlo over the tolerances), `--sens` (sensitivity of the measures
+//! to a parameter), and on an AC sweep `--noise`, `--poles` and `--figures`.
+//!
 //! Exit codes: 0 done, 1 the simulation disagrees with the RF filter (`--check-filter`), 2 the
 //! arguments, the settings or the input are unusable or the circuit cannot be solved.
 
+use std::collections::BTreeMap;
 use std::io::Write;
 use std::path::Path;
 
@@ -17,14 +23,21 @@ use eh3d_phoenix_rf::RfSettings;
 use eh3d_phoenix_rules::Lang;
 use eh3d_phoenix_sim::codes::{SimError, INPUT_UNREADABLE, OPTION_INVALID, SETTINGS_INVALID};
 use eh3d_phoenix_sim::filter::check_frequencies;
+use eh3d_phoenix_sim::measure::figures;
+use eh3d_phoenix_sim::montecarlo::parse_default_tolerances;
 use eh3d_phoenix_sim::output::{
     ac_csv, ac_json, dc_csv, dc_json, op_csv, op_json, select, tran_csv, tran_json, write_outputs,
 };
+use eh3d_phoenix_sim::report::{
+    figures_csv, figures_json, noise_csv, noise_json, poles_csv, poles_json, study_csv, study_json,
+};
+use eh3d_phoenix_sim::step::parse_target;
 use eh3d_phoenix_sim::units::parse_number;
 use eh3d_phoenix_sim::{
-    ac_analysis, compare_filter, dc_sweep, netlist_from_schematic_json, operating_point,
-    read_generated, read_netlist_file, to_spice, transient, AcRequest, Circuit, DcRequest,
-    Directive, Method, Netlist, SimSettings, SweepKind, TranRequest,
+    ac_analysis, compare_filter, dc_sweep, netlist_from_schematic_json, noise_analysis,
+    operating_point, parse_measure, parse_step, pole_zero, read_generated, read_netlist_file,
+    read_netlist_file_with_params, run_study, to_spice, transient, AcRequest, Circuit, DcRequest,
+    Directive, McSpec, Method, Netlist, SimSettings, StudyPlan, SweepKind, TranRequest,
 };
 
 use crate::netlist::{prepare, Inputs};
@@ -34,6 +47,10 @@ phoenix sim [--config FILE] [--lang xx] [--json] [--out BASE] [--probe LIST] [--
 phoenix sim [--config FILE] [--lang xx] [--json] [--out BASE] [--probe LIST] [--models FILE]
             [--erc-config FILE] [--no-erc] --schematic <schematic> <analysis>
 phoenix sim [--config FILE] [--lang xx] --check-filter FAMILY ORDER BAND F1 [F2] [--ripple-db DB] [--z0 OHM]
+phoenix sim [options] <input> [<analysis>] [--step TEXT]... [--measure TEXT]... [--mc [N] [--seed S]
+            [--tol R=1%,C=5%]] [--sens TARGET[,TARGET]]
+phoenix sim [options] <input> --ac KIND N F1 F2 --noise SIGNAL | --poles SIGNAL [--pole-order N] |
+            --figures SIGNAL
 
   sim         simulate a circuit with the solver of this program (modified nodal analysis; a
               prototype, never compared with SPICE). <input> is a SPICE-style netlist, or the
@@ -61,6 +78,31 @@ phoenix sim [--config FILE] [--lang xx] --check-filter FAMILY ORDER BAND F1 [F2]
   --probe LIST            the unknowns to write, such as v(out),i(v1); all by default
   --out BASE              write BASE.csv and BASE.json instead of printing
   --json                  print JSON instead of CSV
+  --step TEXT             run the circuit again for a list of values (same text as a `.step` line,
+                          without the word): `R1 lin 1k 10k 1k`, `param rl dec 10 10 1k`,
+                          `C1 list 1n 2n 5n`; several make a grid, the first the outermost; the
+                          table needs a measure
+  --measure TEXT          a value taken from the results (same text as a `.measure` line, without
+                          the word): `tran rise10 rise v(out)`, `tran vmax max v(out) from=1m`,
+                          `ac fc bw v(out)`, `ac pm phasemargin v(out)`; the table is written as
+                          CSV or as JSON (phoenix-sim-measure/1)
+  --mc [N]                Monte Carlo: N runs (config/sim.cfg: mc_runs) in which every resistor,
+                          capacitor and inductor with a tolerance (`tol=5%` on its line, SIM.TOL
+                          or `tol=` in the table of models, or --tol) changes by a random factor;
+                          the table ends with the mean, deviation, extremes and percentiles
+  --seed S                the seed of the generator (config/sim.cfg: mc_seed); the same seed gives
+                          the same table on every machine
+  --tol LIST              a tolerance by letter for the elements that have none, such as
+                          R=1%,C=10%,L=20%
+  --sens TARGET[,...]     the sensitivity of each measure to a parameter (an element, or
+                          param:NAME): the derivative and the relative sensitivity
+  --noise SIGNAL          the noise at a node of an AC sweep: the density in V/sqrt(Hz), the
+                          contribution of each source and the total in the band
+  --poles SIGNAL          the poles and zeros of the response of a signal, from a rational fit of
+                          the AC sweep (refused when no model of up to max_pole_order poles fits);
+                          --pole-order N fixes the number of poles
+  --figures SIGNAL        the figures of merit of the response: gain, peak, -3 dB cutoff, quality
+                          factors, unity-gain frequency and the phase and gain margins
   --check-filter ...      simulate a ladder filter of the RF tools and compare its magnitude,
                           phase and group delay with the RF crate (FAMILY is butterworth,
                           chebyshev or bessel; BAND is lowpass, highpass, bandpass or bandstop;
@@ -100,6 +142,17 @@ struct Options {
     method: Method,
     ripple_db: Option<f64>,
     z0: f64,
+    steps: Vec<String>,
+    measures: Vec<String>,
+    mc: bool,
+    mc_runs: Option<usize>,
+    seed: Option<u64>,
+    tol: Option<String>,
+    sens: Vec<String>,
+    noise: Option<String>,
+    poles: Option<String>,
+    pole_order: Option<usize>,
+    figures: Option<String>,
 }
 
 fn bad(why: impl Into<String>) -> SimError {
@@ -129,6 +182,17 @@ fn parse_options(args: &[&str]) -> Result<Options, SimError> {
         method: Method::Trapezoidal,
         ripple_db: None,
         z0: 50.0,
+        steps: Vec::new(),
+        measures: Vec::new(),
+        mc: false,
+        mc_runs: None,
+        seed: None,
+        tol: None,
+        sens: Vec::new(),
+        noise: None,
+        poles: None,
+        pole_order: None,
+        figures: None,
     };
     let mut iter = args.iter();
     let take = |what: &str, iter: &mut std::slice::Iter<'_, &str>| -> Result<String, SimError> {
@@ -212,6 +276,41 @@ fn parse_options(args: &[&str]) -> Result<Options, SimError> {
                 options.ripple_db = Some(number(&take("--ripple-db", &mut iter)?, "the ripple")?)
             }
             "--z0" => options.z0 = number(&take("--z0", &mut iter)?, "the source impedance")?,
+            "--step" => options.steps.push(take("--step", &mut iter)?),
+            "--measure" => options.measures.push(take("--measure", &mut iter)?),
+            "--mc" => {
+                options.mc = true;
+                // the number of runs is optional: the next word is it when it is a number
+                let next = iter.clone().next().map(|word| (*word).to_string());
+                if let Some(word) = next {
+                    if !word.starts_with("--") && parse_number(&word).is_some() {
+                        let runs = number(&take("--mc", &mut iter)?, "the number of runs")?;
+                        if runs < 1.0 || runs.fract() != 0.0 || runs > 1e9 {
+                            return Err(bad("the number of runs is not a whole number above zero"));
+                        }
+                        options.mc_runs = Some(runs as usize);
+                    }
+                }
+            }
+            "--seed" => {
+                let seed = number(&take("--seed", &mut iter)?, "the seed")?;
+                if seed < 0.0 || seed.fract() != 0.0 || seed > 9e15 {
+                    return Err(bad("the seed is not a whole number from 0 to 9e15"));
+                }
+                options.seed = Some(seed as u64);
+            }
+            "--tol" => options.tol = Some(take("--tol", &mut iter)?),
+            "--sens" => options.sens.push(take("--sens", &mut iter)?),
+            "--noise" => options.noise = Some(take("--noise", &mut iter)?),
+            "--poles" => options.poles = Some(take("--poles", &mut iter)?),
+            "--figures" => options.figures = Some(take("--figures", &mut iter)?),
+            "--pole-order" => {
+                let order = number(&take("--pole-order", &mut iter)?, "the order")?;
+                if order < 1.0 || order.fract() != 0.0 || order > 1e6 {
+                    return Err(bad("the order is not a whole number above zero"));
+                }
+                options.pole_order = Some(order as usize);
+            }
             other if other.starts_with("--") => {
                 return Err(bad(format!("unknown option {other}")));
             }
@@ -295,6 +394,187 @@ fn from_directive(d: &Directive) -> Analysis {
             stop_hz,
         } => Analysis::Ac(*kind, *points, *start_hz, *stop_hz),
     }
+}
+
+fn is_json_path(path: &str) -> bool {
+    Path::new(path)
+        .extension()
+        .is_some_and(|e| e.eq_ignore_ascii_case("json"))
+}
+
+/// The AC sweep the advanced options read: the one named on the command line, or else the first
+/// `.ac` line of the netlist.
+fn find_ac(options: &Options, netlist: &Netlist, what: &str) -> Result<AcRequest, SimError> {
+    let from = |kind: SweepKind, points: usize, start: f64, stop: f64| AcRequest {
+        kind,
+        points,
+        start_hz: start,
+        stop_hz: stop,
+    };
+    match &options.analysis {
+        Some(Analysis::Ac(kind, points, start, stop)) => Ok(from(*kind, *points, *start, *stop)),
+        Some(_) => Err(bad(format!(
+            "{what} reads an AC sweep: give --ac KIND N F1 F2 (or leave the analysis out and use the .ac line of the netlist)"
+        ))),
+        None => netlist
+            .analyses
+            .iter()
+            .find_map(|d| match d {
+                Directive::Ac {
+                    kind,
+                    points,
+                    start_hz,
+                    stop_hz,
+                } => Some(from(*kind, *points, *start_hz, *stop_hz)),
+                _ => None,
+            })
+            .ok_or_else(|| {
+                bad(format!(
+                    "{what} reads an AC sweep: give --ac KIND N F1 F2 or write a .ac line in the netlist"
+                ))
+            }),
+    }
+}
+
+/// `--noise`, `--poles` and `--figures`: they read the AC sweep of one signal.
+fn advanced_ac(
+    options: &Options,
+    netlist: &Netlist,
+    settings: &SimSettings,
+    out: &mut dyn Write,
+) -> Result<i32, SimError> {
+    let circuit = Circuit::compile(netlist, settings)?;
+    if let Some(signal) = &options.noise {
+        let request = find_ac(options, netlist, "--noise")?;
+        let result = noise_analysis(&circuit, settings, signal, &request)?;
+        emit(
+            options,
+            settings,
+            noise_csv(&result),
+            noise_json(&result),
+            out,
+        )?;
+        return Ok(0);
+    }
+    let (signal, what) = match (&options.poles, &options.figures) {
+        (Some(signal), _) => (signal, "--poles"),
+        (None, Some(signal)) => (signal, "--figures"),
+        (None, None) => return Ok(0),
+    };
+    let request = find_ac(options, netlist, what)?;
+    let result = ac_analysis(&circuit, settings, &request)?;
+    let wanted = signal.trim().to_lowercase();
+    let Some(series) = result.series(&wanted) else {
+        return Err(bad(format!(
+            "there is no {signal} in this circuit; the unknowns are {}",
+            circuit.labels().join(", ")
+        )));
+    };
+    if options.poles.is_some() {
+        let found = pole_zero(&result.freqs, &series, options.pole_order, settings)?;
+        emit(
+            options,
+            settings,
+            poles_csv(&found),
+            poles_json(&found),
+            out,
+        )?;
+    } else {
+        let values = figures(&result.freqs, &series);
+        emit(
+            options,
+            settings,
+            figures_csv(&values),
+            figures_json(&wanted, &values),
+            out,
+        )?;
+    }
+    Ok(0)
+}
+
+/// The study the options and the netlist ask for: steps, measures, Monte Carlo, sensitivity.
+fn study_command(
+    options: &Options,
+    netlist: &Netlist,
+    settings: &SimSettings,
+    file_input: Option<&str>,
+    out: &mut dyn Write,
+) -> Result<i32, SimError> {
+    let mut plan = StudyPlan::from_netlist(netlist);
+    for text in &options.steps {
+        plan.steps.push(parse_step(text, None)?);
+    }
+    for text in &options.measures {
+        plan.measures.push(parse_measure(text, None)?);
+    }
+    match &options.analysis {
+        Some(Analysis::Tran(step, stop, uic)) => {
+            plan.tran = Some(TranRequest {
+                tstep: *step,
+                tstop: *stop,
+                method: options.method,
+                adaptive: options.adaptive,
+                uic: options.uic || *uic,
+            });
+        }
+        Some(Analysis::Ac(kind, points, start, stop)) => {
+            plan.ac = Some(AcRequest {
+                kind: *kind,
+                points: *points,
+                start_hz: *start,
+                stop_hz: *stop,
+            });
+        }
+        Some(Analysis::Dc(source, start, stop, step)) => {
+            plan.dc = Some(DcRequest {
+                source: source.clone(),
+                start: *start,
+                stop: *stop,
+                step: *step,
+            });
+        }
+        _ => {}
+    }
+    if options.mc {
+        plan.mc = Some(McSpec {
+            runs: options.mc_runs.unwrap_or(settings.mc_runs),
+            seed: options.seed.unwrap_or(settings.mc_seed),
+        });
+    } else if options.seed.is_some() || options.tol.is_some() {
+        return Err(bad("--seed and --tol apply to --mc"));
+    }
+    if let Some(text) = &options.tol {
+        plan.default_tolerances = parse_default_tolerances(text)?;
+    }
+    for text in &options.sens {
+        for part in text.split(',').filter(|p| !p.trim().is_empty()) {
+            plan.sensitivity.push(parse_target(part)?);
+        }
+    }
+    let model = options.model.as_deref();
+    let build = |overrides: &BTreeMap<String, f64>| -> Result<Netlist, SimError> {
+        match file_input {
+            Some(path) => read_netlist_file_with_params(
+                Path::new(path),
+                model.map(Path::new),
+                settings,
+                overrides,
+            ),
+            None if overrides.is_empty() => Ok(netlist.clone()),
+            None => Err(bad(
+                "a .step on a parameter needs a netlist file: the netlist of a schematic has no .param to read again",
+            )),
+        }
+    };
+    let table = run_study(&plan, &build, settings)?;
+    emit(
+        options,
+        settings,
+        study_csv(&table),
+        study_json(&table),
+        out,
+    )?;
+    Ok(0)
 }
 
 fn emit(
@@ -451,6 +731,36 @@ fn run_inner(args: &[&str], out: &mut dyn Write, err: &mut dyn Write) -> Result<
             err,
         )?
     };
+    let file_input: Option<&str> = match (&options.schematic, &options.input) {
+        (None, Some(path)) if !is_json_path(path) => Some(path.as_str()),
+        _ => None,
+    };
+    let advanced = [&options.noise, &options.poles, &options.figures]
+        .iter()
+        .filter(|o| o.is_some())
+        .count();
+    if advanced > 1 {
+        return Err(bad(
+            "--noise, --poles and --figures cannot be given together",
+        ));
+    }
+    if advanced == 1 {
+        return advanced_ac(&options, &netlist, &settings, out);
+    }
+    if options.pole_order.is_some() {
+        return Err(bad("--pole-order applies to --poles"));
+    }
+    let study_asked = !options.steps.is_empty()
+        || !options.measures.is_empty()
+        || options.mc
+        || !options.sens.is_empty()
+        || (options.analysis.is_none() && !netlist.measures.is_empty());
+    if study_asked {
+        return study_command(&options, &netlist, &settings, file_input, out);
+    }
+    if options.seed.is_some() || options.tol.is_some() {
+        return Err(bad("--seed and --tol apply to --mc"));
+    }
     let from_netlist;
     let analysis = match &options.analysis {
         Some(analysis) => analysis,
