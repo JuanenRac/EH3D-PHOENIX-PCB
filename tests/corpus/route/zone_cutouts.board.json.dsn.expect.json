@@ -1,0 +1,25 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-ROUTE-005",
+  "title": "The autorouter file of a board whose pour has two cutouts and whose outline has an opening",
+  "kind": "dsn",
+  "input": "zone_cutouts.board.json",
+  "how": [
+    "The board is the small board of CORPUS-ROUTE-001 with an opening in the outline and two cutouts in its pour; the counts of the file are the same: 2 copper layers, 2 components, 6 pads, 1 net, 4 padstacks, 1 track and 2 vias;",
+    "the pour is on the bottom layer and holds 2 cutouts with 3 points each, and Specctra has no hole in a plane, so each is written as a keep-out area of that layer = 2 cutouts of zones;",
+    "the opening of the outline is written as a keep-out area on every layer and is not a cutout of a zone."
+  ],
+  "expect": {
+    "outcome": "read",
+    "measures": {
+      "layers": 2,
+      "components": 2,
+      "pads": 6,
+      "nets": 1,
+      "padstacks": 4,
+      "tracks": 1,
+      "vias": 2,
+      "zone_cutouts": 2
+    }
+  }
+}

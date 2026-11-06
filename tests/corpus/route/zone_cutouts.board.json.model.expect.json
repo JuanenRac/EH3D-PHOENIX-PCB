@@ -1,0 +1,25 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-ROUTE-006",
+  "title": "The same board read as JSON: the cutouts of the pour and the opening of the outline are kept",
+  "kind": "board-json",
+  "input": "zone_cutouts.board.json",
+  "how": [
+    "Counted from the file: one zone with a `cutouts` list of 2 polygons, and an `outline_cutouts` list of 1 polygon;",
+    "a track, 2 vias, 2 components with 3 pads each as placed (6) and 1 net, the same as the board it was made from; 4 outline points."
+  ],
+  "expect": {
+    "outcome": "read",
+    "measures": {
+      "zones": 1,
+      "zone_cutouts": 2,
+      "outline_points": 4,
+      "outline_cutouts": 1,
+      "components": 2,
+      "placed_pads": 6,
+      "nets": 1,
+      "tracks": 1,
+      "vias": 2
+    }
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-EAGLE-029",
+  "title": "A schematic with buses: a vector with a group name, a named bus, a name that is not a vector, a bus with no wire",
+  "kind": "eagle-schematic",
+  "input": "buses.sch",
+  "how": [
+    "The bus `B[0..2],ENA` holds the vector B[0..2] (members B0, B1, B2) and the name ENA, which is no vector (a note); the bus `Z:Q[0..1]` holds the vector Q[0..1] after the colon; `[0..3]` has no name for its members and `EMPTY[0..1]` has no wire: 2 buses of the model;",
+    "nets of the sheet: B1, B2, B0, B7 and Q1 = 5 nets (a net with no pin is kept);",
+    "entries: B1 has an end at (0, 5) on the bus wire from (0, 0) to (0, 20); B2 ends at (0, 12) on it (its second end); B0 has no end on the wire (the cross product of (3, 5) is -60, not 0); B7 is no member; Q1 has an end at (50, 2) on the second bus = 3 entries;",
+    "notes of code PHOENIX-EAGLE-022: the label of the first bus, the name ENA, the name [0..3], and the bus without a wire; one sheet; no part and no symbol."
+  ],
+  "expect": {
+    "outcome": "read",
+    "codes": [
+      "PHOENIX-EAGLE-022"
+    ],
+    "measures": {
+      "symbols": 0,
+      "parts": 0,
+      "nets": 5,
+      "sheets": 1,
+      "buses": 2,
+      "bus_entries": 3
+    }
+  }
+}

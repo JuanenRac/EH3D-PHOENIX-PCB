@@ -1,0 +1,39 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-EAGLE-028",
+  "title": "A board with restrict layers 41 and 42, pads of several shapes and a hole in the package",
+  "kind": "eagle-board",
+  "input": "restrict_and_pad_shapes.brd",
+  "how": [
+    "Layers 1, 16, 20 and 21 have a meaning = 4 layers, 2 copper; layers 41 and 42 are read from the areas drawn on them and are no layers of the model;",
+    "one package of 6 items: 3 `pad` (octagon, long and offset shapes, each read as round with a note of code PHOENIX-EAGLE-020), 2 `smd` (roundness 50 is a rectangle with rounded corners, roundness 100 with different sides is oblong: no note) and 1 `hole` = 6 pads in the footprint and 6 placed pads for the 1 element;",
+    "1 signal with 1 contactref (pad 1 of U1) = 1 pad net; its polygon on layer 1 is 1 zone with 4 corners;",
+    "the restrict area on layer 41 has all its corners inside that pour (x 20..26 inside 2..38, y 10..14 inside 2..23) = 1 cutout of the zone; the one on layer 42 has no pour on the bottom layer to belong to and the hole of the board is not read, both counted in a note of code PHOENIX-EAGLE-022;",
+    "four wires on layer 20 close a ring = 4 outline points; one wire on layer 21 = 1 silkscreen stroke."
+  ],
+  "expect": {
+    "outcome": "read",
+    "codes": [
+      "PHOENIX-EAGLE-020",
+      "PHOENIX-EAGLE-022"
+    ],
+    "measures": {
+      "layers": 4,
+      "copper_layers": 2,
+      "footprints": 1,
+      "footprint_pads": 6,
+      "components": 1,
+      "bottom_components": 0,
+      "placed_pads": 6,
+      "nets": 1,
+      "pad_nets": 1,
+      "tracks": 0,
+      "vias": 0,
+      "zones": 1,
+      "zone_cutouts": 1,
+      "silkscreen": 1,
+      "outline_points": 4,
+      "outline_cutouts": 0
+    }
+  }
+}

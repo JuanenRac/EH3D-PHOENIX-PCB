@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE eagle SYSTEM "eagle.dtd">
+<eagle version="9.6.2">
+<drawing>
+<layers>
+<layer number="1" name="Top" color="4" fill="1" visible="yes" active="yes"/>
+<layer number="16" name="Bottom" color="1" fill="1" visible="yes" active="yes"/>
+<layer number="20" name="Dimension" color="15" fill="1" visible="yes" active="yes"/>
+<layer number="21" name="tPlace" color="7" fill="1" visible="yes" active="yes"/>
+<layer number="41" name="tRestrict" color="4" fill="1" visible="yes" active="yes"/>
+<layer number="42" name="bRestrict" color="1" fill="1" visible="yes" active="yes"/>
+</layers>
+<board>
+<plain>
+<wire x1="0" y1="0" x2="40" y2="0" width="0" layer="20"/>
+<wire x1="40" y1="0" x2="40" y2="25" width="0" layer="20"/>
+<wire x1="40" y1="25" x2="0" y2="25" width="0" layer="20"/>
+<wire x1="0" y1="25" x2="0" y2="0" width="0" layer="20"/>
+<wire x1="5" y1="3" x2="15" y2="3" width="0.15" layer="21"/>
+<polygon width="0" layer="41">
+<vertex x="20" y="10"/>
+<vertex x="26" y="10"/>
+<vertex x="26" y="14"/>
+<vertex x="20" y="14"/>
+</polygon>
+<polygon width="0" layer="42">
+<vertex x="30" y="10"/>
+<vertex x="34" y="10"/>
+<vertex x="32" y="14"/>
+</polygon>
+<hole x="3" y="22" drill="3.2"/>
+</plain>
+<libraries>
+<library name="hand">
+<packages>
+<package name="MIX">
+<pad name="1" x="0" y="0" drill="0.8" diameter="1.6" shape="octagon"/>
+<pad name="2" x="2.54" y="0" drill="0.8" diameter="1.6" shape="long"/>
+<pad name="3" x="5.08" y="0" drill="0.8" diameter="1.6" shape="offset"/>
+<smd name="A" x="0" y="4" dx="1.2" dy="1.6" layer="1" roundness="50"/>
+<smd name="B" x="3" y="4" dx="2" dy="1" layer="1" roundness="100"/>
+<hole x="8" y="4" drill="2.2"/>
+</package>
+</packages>
+</library>
+</libraries>
+<elements>
+<element name="U1" library="hand" package="MIX" value="MIX" x="10" y="8" rot="R0"/>
+</elements>
+<signals>
+<signal name="GND" class="0">
+<contactref element="U1" pad="1"/>
+<polygon width="0.2" layer="1" isolate="0.3">
+<vertex x="2" y="2"/>
+<vertex x="38" y="2"/>
+<vertex x="38" y="23"/>
+<vertex x="2" y="23"/>
+</polygon>
+</signal>
+</signals>
+</board>
+</drawing>
+</eagle>
