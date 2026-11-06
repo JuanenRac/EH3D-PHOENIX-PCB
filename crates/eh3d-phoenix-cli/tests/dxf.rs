@@ -120,7 +120,7 @@ fn the_outline_of_a_drawing_is_shown_in_a_dry_run_and_nothing_is_written() {
     let dxf = f.write("edge.dxf", &rectangle_dxf(50, 30));
     let (code, out, err) = call(&["dxf-import", &dxf, "--board", &f.board, "--layer", "edge"]);
     assert_eq!(code, 0, "{out}{err}");
-    assert!(out.contains("entities read: LINE 4"), "{out}");
+    assert!(out.contains("entities read: POLYLINE 4"), "{out}");
     assert!(
         out.contains(
             "pieces: 4, chains: 1, closed contours: 1, open chains: 0, duplicates dropped: 0"
