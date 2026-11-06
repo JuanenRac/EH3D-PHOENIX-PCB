@@ -294,7 +294,7 @@ mod tests {
             ..Part::default()
         };
         p.params.insert("a".into(), "1;2".into());
-        let e = to_csv(&[p.clone()]).unwrap_err();
+        let e = to_csv(std::slice::from_ref(&p)).unwrap_err();
         assert_eq!(e.code, FORMAT_INVALID);
         assert!(e.detail.contains("write JSON"));
         p.params.clear();

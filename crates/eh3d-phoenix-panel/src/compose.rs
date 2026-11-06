@@ -848,7 +848,7 @@ mod tests {
     fn a_matrix_holds_n_copies_of_every_part_with_new_ids() {
         let board = sample("one");
         let (settings, plan) = panel_of(&board, "columns = 3\nrows = 2\n");
-        let panel = compose(&[board.clone()], &plan, &settings, 50_000, false).unwrap();
+        let panel = compose(std::slice::from_ref(&board), &plan, &settings, 50_000, false).unwrap();
         assert_eq!(panel.name, "one_panel");
         assert_eq!(panel.components.len(), 6 * 2);
         assert_eq!(panel.tracks.len(), 6);
@@ -880,7 +880,7 @@ mod tests {
     fn the_copies_can_carry_their_number_on_the_names() {
         let board = sample("one");
         let (settings, plan) = panel_of(&board, "columns = 2\nrows = 1\ncopy_suffix = true\n");
-        let panel = compose(&[board.clone()], &plan, &settings, 0, false).unwrap();
+        let panel = compose(std::slice::from_ref(&board), &plan, &settings, 0, false).unwrap();
         let mut refdes: Vec<&str> = panel
             .components
             .values()
@@ -907,7 +907,7 @@ mod tests {
     fn a_turned_copy_moves_its_pads_where_the_turned_board_has_them() {
         let board = sample("one");
         let (settings, plan) = panel_of(&board, "columns = 1\nrows = 1\ncopy_rotation_deg = 90\n");
-        let panel = compose(&[board.clone()], &plan, &settings, 0, false).unwrap();
+        let panel = compose(std::slice::from_ref(&board), &plan, &settings, 0, false).unwrap();
         // the resistor R1 at (10, 5) of a box of 30 by 20, turned 90 degrees: (20 - 5, 10) = (15, 10)
         let origin = plan.copies[0].origin;
         let r1 = panel
@@ -933,7 +933,7 @@ mod tests {
     fn a_mirrored_copy_is_the_board_seen_from_the_other_side() {
         let board = sample("one");
         let (settings, plan) = panel_of(&board, "columns = 1\nrows = 1\ncopy_mirror = true\n");
-        let panel = compose(&[board.clone()], &plan, &settings, 0, false).unwrap();
+        let panel = compose(std::slice::from_ref(&board), &plan, &settings, 0, false).unwrap();
         let origin = plan.copies[0].origin;
         // the via at (5, 5) in a box 30 wide goes to (25, 5) and its layers change sides
         let via = panel.vias.values().next().unwrap();
@@ -969,7 +969,7 @@ mod tests {
         let board = sample("one");
         let (settings, plan) =
             panel_of(&board, "columns = 2\nrows = 1\nlocal_fiducial_count = 2\n");
-        let bare = compose(&[board.clone()], &plan, &settings, 50_000, false).unwrap();
+        let bare = compose(std::slice::from_ref(&board), &plan, &settings, 50_000, false).unwrap();
         let full = compose(&[board], &plan, &settings, 50_000, true).unwrap();
         // 3 global fiducials, 4 tooling holes, 4 local fiducials on 2 boards, and the mouse bites
         let bites = plan
