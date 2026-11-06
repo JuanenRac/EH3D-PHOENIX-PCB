@@ -23,12 +23,16 @@ use eh3d_phoenix_sim::output::{
 use eh3d_phoenix_sim::units::parse_number;
 use eh3d_phoenix_sim::{
     ac_analysis, compare_filter, dc_sweep, netlist_from_schematic_json, operating_point,
-    read_netlist_file, to_spice, transient, AcRequest, Circuit, DcRequest, Directive, Method,
-    Netlist, SimSettings, SweepKind, TranRequest,
+    read_generated, read_netlist_file, to_spice, transient, AcRequest, Circuit, DcRequest,
+    Directive, Method, Netlist, SimSettings, SweepKind, TranRequest,
 };
+
+use crate::netlist::{prepare, Inputs};
 
 pub(crate) const USAGE: &str = "\
 phoenix sim [--config FILE] [--lang xx] [--json] [--out BASE] [--probe LIST] [--model FILE] <input> [<analysis>]
+phoenix sim [--config FILE] [--lang xx] [--json] [--out BASE] [--probe LIST] [--models FILE]
+            [--erc-config FILE] [--no-erc] --schematic <schematic> <analysis>
 phoenix sim [--config FILE] [--lang xx] --check-filter FAMILY ORDER BAND F1 [F2] [--ripple-db DB] [--z0 OHM]
 
   sim         simulate a circuit with the solver of this program (modified nodal analysis; a
@@ -45,6 +49,11 @@ phoenix sim [--config FILE] [--lang xx] --check-filter FAMILY ORDER BAND F1 [F2]
                           --adaptive for an adaptive step (STEP is then the largest) and
                           --method be|trap (trapezoidal by default)
   --netlist               print the netlist (useful for a schematic) and stop
+  --schematic FILE        simulate a schematic (an EAGLE .sch file, a KiCad .kicad_sch file or the
+                          JSON of the design model) with no netlist file in between: the netlist
+                          is made from a table of models (config/sim_models.cfg, or --models FILE),
+                          after the electrical rule check (--no-erc skips it, --erc-config sets
+                          it), and an error of the report (PHOENIX-NETLIST-<NNN>) stops the run
   (no analysis)           the first .op, .dc, .ac or .tran line of the netlist is run
   --model FILE            read a file of .model and .subckt lines before the netlist; it is only
                           read, never changed. An .include in a netlist is allowed only for a file
@@ -81,6 +90,10 @@ struct Options {
     probes: Vec<String>,
     input: Option<String>,
     model: Option<String>,
+    schematic: Option<String>,
+    table: Option<String>,
+    erc_config: Option<String>,
+    no_erc: bool,
     analysis: Option<Analysis>,
     uic: bool,
     adaptive: bool,
@@ -106,6 +119,10 @@ fn parse_options(args: &[&str]) -> Result<Options, SimError> {
         probes: Vec::new(),
         input: None,
         model: None,
+        schematic: None,
+        table: None,
+        erc_config: None,
+        no_erc: false,
         analysis: None,
         uic: false,
         adaptive: false,
@@ -128,6 +145,10 @@ fn parse_options(args: &[&str]) -> Result<Options, SimError> {
             "--netlist" => options.analysis = Some(Analysis::Netlist),
             "--config" => options.config = Some(take("--config", &mut iter)?),
             "--model" => options.model = Some(take("--model", &mut iter)?),
+            "--schematic" => options.schematic = Some(take("--schematic", &mut iter)?),
+            "--models" => options.table = Some(take("--models", &mut iter)?),
+            "--erc-config" => options.erc_config = Some(take("--erc-config", &mut iter)?),
+            "--no-erc" => options.no_erc = true,
             "--dc" => {
                 let source = take("--dc", &mut iter)?;
                 let start = number(&take("--dc", &mut iter)?, "the start value")?;
@@ -368,7 +389,7 @@ fn run_inner(args: &[&str], out: &mut dyn Write, err: &mut dyn Write) -> Result<
         Some(path) => read_settings(path)?,
         None => SimSettings::default(),
     };
-    if options.analysis.is_none() && options.input.is_none() {
+    if options.analysis.is_none() && options.input.is_none() && options.schematic.is_none() {
         let _ = err.write_all(USAGE.as_bytes());
         return Err(bad(
             "an analysis is needed: --op, --dc, --ac, --tran, --netlist or --check-filter",
@@ -380,17 +401,56 @@ fn run_inner(args: &[&str], out: &mut dyn Write, err: &mut dyn Write) -> Result<
         }
         return check_filter(words, &options, &settings, out, err);
     }
-    let Some(input) = &options.input else {
-        let _ = err.write_all(USAGE.as_bytes());
-        return Err(bad("an input file is needed"));
+    let netlist = if let Some(path) = &options.schematic {
+        if options.input.is_some() {
+            return Err(bad(
+                "--schematic and an input file cannot be given together",
+            ));
+        }
+        if options.model.is_some() {
+            return Err(bad(
+                "--model applies to a netlist file; give the models of a schematic with --models",
+            ));
+        }
+        let prepared = prepare(
+            &Inputs {
+                schematic: path,
+                models: options.table.as_deref(),
+                erc_config: options.erc_config.as_deref(),
+                no_erc: options.no_erc,
+            },
+            &settings,
+            options.lang,
+        )
+        .map_err(|why| SimError::new(INPUT_UNREADABLE, why))?;
+        let report = &prepared.generated.report;
+        let _ = err.write_all(report.to_text(options.lang).as_bytes());
+        if report.has_errors() {
+            let _ = writeln!(
+                err,
+                "error: the netlist of the schematic has errors (listed above); nothing was simulated"
+            );
+            return Ok(2);
+        }
+        read_generated(&prepared.generated, Some(&prepared.folder), &settings)?
+    } else {
+        if options.table.is_some() || options.erc_config.is_some() || options.no_erc {
+            return Err(bad(
+                "--models, --erc-config and --no-erc apply to --schematic",
+            ));
+        }
+        let Some(input) = &options.input else {
+            let _ = err.write_all(USAGE.as_bytes());
+            return Err(bad("an input file is needed"));
+        };
+        load(
+            input,
+            options.model.as_deref(),
+            &settings,
+            options.lang,
+            err,
+        )?
     };
-    let netlist = load(
-        input,
-        options.model.as_deref(),
-        &settings,
-        options.lang,
-        err,
-    )?;
     let from_netlist;
     let analysis = match &options.analysis {
         Some(analysis) => analysis,

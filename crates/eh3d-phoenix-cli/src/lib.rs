@@ -10,6 +10,7 @@
 //! and the 3D assembly of the board with the models of its components adds `assembly3d`; the run of
 //! the reference cases of the calculations adds `oracle`.
 //! The writing of boards, schematics and libraries as KiCad 8 files adds `kicad-export`.
+//! The simulation netlist of a schematic, made from a table of models, adds `netlist`.
 //!
 //! Exit codes: 0 done, 1 `stackup` could not compute one or more of the lines it was asked for,
 //! `check`, `connectivity` and `erc` proved an error, or `sync` found changes to make, 2 the
@@ -31,6 +32,7 @@ mod kicad_import;
 mod lengths;
 mod libedit;
 mod materials;
+mod netlist;
 mod oracle;
 mod pairs;
 mod panel;
@@ -153,6 +155,8 @@ phoenix sanitize [--out BASE] [--threshold N] [--config FILE] [--lang xx] [--jso
 
 phoenix sim <netlist or schematic.json> --op | --dc SRC START STOP STEP | --ac KIND N F1 F2 | --tran STEP STOP
               [--model FILE] [options]
+phoenix sim --schematic <schematic> --op | --dc SRC START STOP STEP | --ac KIND N F1 F2 | --tran STEP STOP
+              [--models FILE] [--no-erc] [options]
 phoenix sim --check-filter FAMILY ORDER BAND F1 [F2] [options]
 
   sim           simulate a circuit with the solver of this program (modified nodal analysis, a
@@ -161,7 +165,18 @@ phoenix sim --check-filter FAMILY ORDER BAND F1 [F2] [options]
                 LEDs, Zener diodes, bipolar and MOS transistors, switches, op-amps; a file of
                 models with --model; the .op, .dc, .ac or .tran line of the netlist when no
                 analysis is named) or of a schematic, as CSV or JSON; run `phoenix sim` alone
-                for its options
+                for its options. With --schematic the netlist is made from the schematic
+                and a table of models and chained to the solver with no file in between
+
+phoenix netlist [--models FILE] [--out NEW.cir] [--json] [--lang xx] [--no-erc] <schematic>
+
+  netlist       make the simulation netlist of a schematic (EAGLE, KiCad or the design model)
+                with no netlist written by hand: the model of each part from a table (by value,
+                symbol name or designator prefix) or from its attributes, values such as 4k7 or
+                1u5, stable names for the nets and a report of what cannot be simulated with
+                codes PHOENIX-NETLIST-<NNN>, after the electrical rule check; a dry run that
+                writes only to a new file named with --out, a prototype, run `phoenix netlist`
+                alone for its options
 
 phoenix ratsnest [--settings FILE] [--json] [--lang xx] <board>
 phoenix route [--settings FILE] [--rules FILE] [--layer NAME] [--mode around|stop] [--json]
@@ -382,6 +397,9 @@ pub fn run(args: &[String], out: &mut dyn Write, err: &mut dyn Write) -> i32 {
     }
     if let Some((&"sim", tail)) = rest.split_first() {
         return sim::sim_command(tail, out, err);
+    }
+    if let Some((&"netlist", tail)) = rest.split_first() {
+        return netlist::netlist_command(tail, out, err);
     }
     if let Some((&"schedit", tail)) = rest.split_first() {
         return schedit::schedit_command(tail, out, err);
