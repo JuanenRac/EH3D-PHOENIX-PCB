@@ -108,17 +108,30 @@ const NUMERIC: [usize; 6] = [1, 8, 9, 10, 11, 12];
 
 /// The lines of the bill as CSV, with a header line and `\n` line ends.
 pub fn bom_csv(bom: &Bom) -> String {
-    let mut out = COLUMNS.join(",");
+    let all: Vec<String> = COLUMNS.iter().map(|c| (*c).to_owned()).collect();
+    bom_csv_with(bom, &all)
+}
+
+/// The lines of the bill as CSV with the columns named, in that order (`csv_columns` of
+/// `config/costs.cfg`). A name that is not one of [`COLUMNS`] is skipped; the settings refuse it
+/// before.
+pub fn bom_csv_with(bom: &Bom, columns: &[String]) -> String {
+    let indexes: Vec<usize> = columns
+        .iter()
+        .filter_map(|name| COLUMNS.iter().position(|c| *c == name.as_str()))
+        .collect();
+    let header: Vec<&str> = indexes.iter().map(|&i| COLUMNS[i]).collect();
+    let mut out = header.join(",");
     out.push('\n');
     for line in &bom.lines {
-        let row: Vec<String> = cells(line)
+        let all = cells(line);
+        let row: Vec<String> = indexes
             .iter()
-            .enumerate()
-            .map(|(i, c)| {
+            .map(|&i| {
                 if NUMERIC.contains(&i) {
-                    csv_raw(c)
+                    csv_raw(&all[i])
                 } else {
-                    csv_text(c)
+                    csv_text(&all[i])
                 }
             })
             .collect();

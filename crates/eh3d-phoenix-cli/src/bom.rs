@@ -14,8 +14,8 @@ use std::path::Path;
 use eh3d_phoenix_bom::codes::{FILE_TOO_LARGE, INPUT_UNREADABLE, OPTION_INVALID, OUTPUT_FAILED};
 use eh3d_phoenix_bom::report::counts;
 use eh3d_phoenix_bom::{
-    bom_csv, bom_html, bom_json, bom_text, build_bom, BomError, BomInputs, CostSettings, PartsFile,
-    PriceBook,
+    bom_csv_with, bom_html, bom_json, bom_text, build_bom, BomError, BomInputs, CostSettings,
+    PartsFile, PriceBook,
 };
 use eh3d_phoenix_parts::{entries_of, link_bom, load as load_parts, PartsSettings};
 use eh3d_phoenix_rules::Lang;
@@ -292,7 +292,7 @@ fn bom(options: &Options, out: &mut dyn Write) -> Result<i32, BomError> {
 
     let mut files: Vec<(&str, String)> = Vec::new();
     if let Some(path) = &options.csv {
-        files.push((path.as_str(), bom_csv(&bom)));
+        files.push((path.as_str(), bom_csv_with(&bom, &settings.csv_columns)));
     }
     if let Some(path) = &options.json_file {
         files.push((path.as_str(), bom_json(&bom)));

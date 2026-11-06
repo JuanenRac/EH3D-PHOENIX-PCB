@@ -9,9 +9,29 @@ use std::collections::BTreeMap;
 
 use crate::codes::{BomError, SETTINGS_INVALID};
 use crate::money::{parse_micro, MICRO};
+use crate::report::COLUMNS;
 
 /// The most layers a tariff may be given for.
 const MAX_LAYERS: u32 = 64;
+
+/// What makes two parts one line of the bill, besides the value and the footprint, which always
+/// do.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct GroupBy {
+    /// Parts of different makers are different lines.
+    pub manufacturer: bool,
+    /// Parts of different part numbers are different lines.
+    pub mpn: bool,
+}
+
+impl Default for GroupBy {
+    fn default() -> Self {
+        GroupBy {
+            manufacturer: true,
+            mpn: true,
+        }
+    }
+}
 
 /// The numbers of one run.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -36,6 +56,10 @@ pub struct CostSettings {
     pub pcb_drill_cost_micro: i64,
     /// The least an order of boards costs, in millionths of the currency.
     pub pcb_min_order_micro: i64,
+    /// What makes two parts one line of the bill.
+    pub group_by: GroupBy,
+    /// The columns of the CSV file, by name, in the order they are written.
+    pub csv_columns: Vec<String>,
     /// The most components, lines and price rows a run handles.
     pub max_items: usize,
     /// The largest input file, in bytes.
@@ -61,6 +85,8 @@ impl Default for CostSettings {
             pcb_thickness_surcharge_percent_micro: 20 * MICRO,
             pcb_drill_cost_micro: 1_000,
             pcb_min_order_micro: 5 * MICRO,
+            group_by: GroupBy::default(),
+            csv_columns: COLUMNS.iter().map(|c| (*c).to_owned()).collect(),
             max_items: 100_000,
             max_file_bytes: 16 * 1024 * 1024,
         }
@@ -110,6 +136,8 @@ impl CostSettings {
                 }
                 "pcb_drill_cost" => s.pcb_drill_cost_micro = money()?,
                 "pcb_min_order_cost" => s.pcb_min_order_micro = money()?,
+                "group_by" => s.group_by = parse_group_by(value).ok_or_else(bad)?,
+                "csv_columns" => s.csv_columns = parse_columns(value).ok_or_else(bad)?,
                 "max_items" => s.max_items = value.parse().map_err(|_| bad())?,
                 "max_file_bytes" => s.max_file_bytes = value.parse().map_err(|_| bad())?,
                 _ => {
@@ -157,6 +185,36 @@ impl CostSettings {
     }
 }
 
+/// Reads `value,footprint[,manufacturer][,mpn]`: the value and the footprint are always part of
+/// it, a name twice or a name that is not one of the four is refused.
+fn parse_group_by(text: &str) -> Option<GroupBy> {
+    let mut seen = std::collections::BTreeSet::new();
+    for name in text.split(',').map(str::trim) {
+        if !["value", "footprint", "manufacturer", "mpn"].contains(&name) || !seen.insert(name) {
+            return None;
+        }
+    }
+    if !seen.contains("value") || !seen.contains("footprint") {
+        return None;
+    }
+    Some(GroupBy {
+        manufacturer: seen.contains("manufacturer"),
+        mpn: seen.contains("mpn"),
+    })
+}
+
+/// Reads a list of column names of the CSV file: at least one, each one of [`COLUMNS`], none twice.
+fn parse_columns(text: &str) -> Option<Vec<String>> {
+    let names: Vec<String> = text.split(',').map(|n| n.trim().to_owned()).collect();
+    let mut seen = std::collections::BTreeSet::new();
+    for name in &names {
+        if !COLUMNS.contains(&name.as_str()) || !seen.insert(name.clone()) {
+            return None;
+        }
+    }
+    Some(names)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -183,6 +241,34 @@ mod tests {
             s.pcb_setup_cost_micro,
             CostSettings::default().pcb_setup_cost_micro
         );
+    }
+
+    #[test]
+    fn the_grouping_and_the_columns_are_read_in_the_order_given() {
+        let s = CostSettings::parse(
+            "group_by = value, footprint\ncsv_columns = references,quantity,value\n",
+        )
+        .unwrap();
+        assert!(!s.group_by.manufacturer && !s.group_by.mpn);
+        assert_eq!(s.csv_columns, ["references", "quantity", "value"]);
+        let s = CostSettings::parse("group_by = footprint,value,mpn\n").unwrap();
+        assert!(!s.group_by.manufacturer && s.group_by.mpn);
+    }
+
+    #[test]
+    fn a_grouping_or_a_column_that_does_not_exist_is_refused() {
+        for text in [
+            "group_by = value\n",
+            "group_by = value,footprint,value\n",
+            "group_by = value,footprint,colour\n",
+            "group_by =\n",
+            "csv_columns = references,colour\n",
+            "csv_columns = value,value\n",
+            "csv_columns =\n",
+        ] {
+            let e = CostSettings::parse(text).unwrap_err();
+            assert_eq!(e.code, SETTINGS_INVALID, "{text}");
+        }
     }
 
     #[test]

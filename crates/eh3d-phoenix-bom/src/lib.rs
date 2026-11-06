@@ -41,5 +41,5 @@ pub use codes::{title, BomError, Finding, Severity};
 pub use parts::{PartData, PartsFile};
 pub use pcb::{pcb_cost, polygon_area, PcbCost};
 pub use prices::{PriceBook, PriceRow};
-pub use report::{bom_csv, bom_html, bom_json, bom_text, line_status, COLUMNS};
-pub use settings::CostSettings;
+pub use report::{bom_csv, bom_csv_with, bom_html, bom_json, bom_text, line_status, COLUMNS};
+pub use settings::{CostSettings, GroupBy};

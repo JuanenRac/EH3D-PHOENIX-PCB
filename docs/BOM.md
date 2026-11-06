@@ -8,7 +8,7 @@ Nothing is fetched from a network: every price, tariff and part number comes fro
 
 ## The lines
 
-The parts are the components of the board. With `--schematic FILE` (a JSON schematic) the parts of the schematic whose reference is not on the board are added, with the finding `PHOENIX-BOM-011`, and the footprint they name. Parts are grouped by **value, footprint, maker and part number**; each line has its quantity for one board and its references in natural order (`R2` before `R10`). The maker and the part number come from the file of part data (`--parts FILE`); a part that the file does not mention has neither.
+The parts are the components of the board. With `--schematic FILE` (a JSON schematic) the parts of the schematic whose reference is not on the board are added, with the finding `PHOENIX-BOM-011`, and the footprint they name. Parts are grouped by **value, footprint, maker and part number** (`group_by` in `config/costs.cfg` takes the maker or the part number out of the grouping, so parts that only they told apart become one line with neither; the value and the footprint always count); each line has its quantity for one board and its references in natural order (`R2` before `R10`). The maker and the part number come from the file of part data (`--parts FILE`); a part that the file does not mention has neither.
 
 A part without a footprint is listed and flagged (`PHOENIX-BOM-006`); a component that names a footprint that is not on the board is an error (`PHOENIX-BOM-010`).
 
@@ -80,6 +80,8 @@ It is a dry run: without `--csv`, `--json-file` and `--html` nothing is written,
 The same input always gives the same bytes: the order is fixed, money is written as decimals with six places, and nothing depends on the time or the machine.
 
 * **CSV**: one line for each bill line with the columns `references`, `quantity`, `value`, `footprint`, `manufacturer`, `mpn`, `supplier`, `supplier_code`, `unit_price`, `price_break`, `quantity_to_buy`, `line_cost_batch`, `line_cost_per_board`, `price_breaks` and `status` (`ok`, `no_price`, `no_footprint` or two of them joined by `+`). A text cell is quoted when it holds a comma, a quote or a line break, and a cell that a spreadsheet would run as a formula (it starts with `=`, `+`, `-` or `@`) gets a quote mark in front.
+The columns of the CSV file, and their order, are the `csv_columns` of `config/costs.cfg` (all fifteen by default; a name that is not in the list, or one named twice, is refused with `PHOENIX-BOM-001`). The HTML page and the JSON file keep all of them.
+
 * **JSON** (`phoenix-bom/1`): the lines with their offers and price breaks, the totals of the parts, the estimate of the boards, the total, whether it is complete and the findings; money is a string with six decimals.
 * **HTML**: one page with a table, the totals and the findings, with no script and no outside file; every text that comes from a file is escaped.
 

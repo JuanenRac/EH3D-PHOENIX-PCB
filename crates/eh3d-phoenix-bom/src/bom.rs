@@ -353,6 +353,18 @@ pub fn build_bom(inputs: &BomInputs) -> Result<Bom, BomError> {
         let (manufacturer, mpn) = data
             .map(|d| (d.manufacturer.clone(), d.mpn.clone()))
             .unwrap_or_default();
+        // a maker or a part number that does not separate lines is dropped from the key, so the
+        // line has none and its prices are looked up by value and footprint
+        let manufacturer = if settings.group_by.manufacturer {
+            manufacturer
+        } else {
+            String::new()
+        };
+        let mpn = if settings.group_by.mpn {
+            mpn
+        } else {
+            String::new()
+        };
         groups
             .entry((entry.value, entry.footprint, manufacturer, mpn))
             .or_default()

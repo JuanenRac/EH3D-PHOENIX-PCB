@@ -346,3 +346,29 @@ fn the_text_names_the_totals_and_the_findings_in_the_language_asked() {
     assert!(text.contains("total: 22.090000 for the batch, 2.209000 for one board (not complete)"));
     assert!(text.contains("warning: PHOENIX-BOM-005: A peça não tem preço [U1]"));
 }
+
+#[test]
+fn leaving_the_maker_out_of_the_grouping_joins_the_lines_that_only_it_separated() {
+    let parts = "match,manufacturer,mpn,fitted\nR3,,,no\nR1,Acme,AC-1,\n";
+    let settings = CostSettings::parse("group_by = value,footprint\n").unwrap();
+    let bom = run(&board(), parts, PRICES, &settings);
+    let refs: Vec<Vec<String>> = bom.lines.iter().map(|l| l.references.clone()).collect();
+    // R1 (Acme) and R2 (no maker) are one line of two, with neither maker nor part number
+    assert_eq!(refs, vec![vec!["C1"], vec!["R1", "R2"], vec!["U1"]]);
+    let r = bom.lines.iter().find(|l| l.qty == 2).unwrap();
+    assert!(r.manufacturer.is_empty() && r.mpn.is_empty());
+    // 2 parts x 10 boards + 5 per cent of waste = 21 parts, priced by value and footprint
+    assert_eq!(r.needed, 21);
+}
+
+#[test]
+fn the_csv_has_the_columns_asked_for_in_the_order_asked() {
+    let settings = CostSettings::parse("csv_columns = quantity,references,status\n").unwrap();
+    let bom = run(&board(), "match\n", PRICES, &settings);
+    let csv = eh3d_phoenix_bom::bom_csv_with(&bom, &settings.csv_columns);
+    let lines: Vec<&str> = csv.lines().collect();
+    assert_eq!(lines[0], "quantity,references,status");
+    // the first line of the bill is C1: one part, priced at one supplier
+    assert!(lines[1].starts_with("1,C1,"), "{csv}");
+    assert!(lines.iter().all(|l| l.split(',').count() == 3), "{csv}");
+}
