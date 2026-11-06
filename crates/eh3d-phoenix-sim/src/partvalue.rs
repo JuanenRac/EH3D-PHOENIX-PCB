@@ -66,8 +66,7 @@ pub fn parse_value(text: &str, upper_m_is_mega: bool) -> Option<f64> {
     let cleaned = text
         .trim()
         .replace(['\u{b5}', '\u{3bc}'], "u")
-        .replace('\u{3a9}', "")
-        .replace('\u{2126}', "");
+        .replace(['\u{3a9}', '\u{2126}'], "");
     let cleaned = cleaned.trim();
     if cleaned.is_empty() || cleaned.chars().any(char::is_control) {
         return None;
