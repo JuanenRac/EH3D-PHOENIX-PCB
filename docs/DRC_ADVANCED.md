@@ -58,6 +58,8 @@ The table in the file is Table 6-1, Electrical Conductor Spacing, of IPC-2221 (G
 
 Exit code: 0 when nothing is proven wrong, 1 when a finding of level `error` is proven, 2 when the input is unusable.
 
+`--time` (also of `phoenix connectivity`) writes one more line to the error stream, `time: S.SSS s`, with the seconds the command took from the end of the options to the end of the report, to three decimals. The report on the output and the exit code are the same with and without it. It is a wall-clock time of one run on the machine it ran on, so it is for comparing two runs on one computer and not a figure of the program.
+
 ## In the board editor
 
 The key `advanced_drc` of `config/boardedit.cfg` (off by default) adds the proven findings of the advanced checks, with the built-in settings, to the check the editor makes before and after every operation, so `added` and `removed` of the report of an operation include them and an operation that adds a finding of level `error` is refused when `reject_new_errors` is on. With the key off the behaviour of the editor is the one it had before.

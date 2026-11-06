@@ -7,6 +7,7 @@
 
 use std::collections::BTreeMap;
 use std::io::Write;
+use std::time::Instant;
 
 use eh3d_phoenix_eagle_board::{read_board, read_schematic};
 use eh3d_phoenix_model::{DeterministicRandom, IdGenerator, Nm, ObjectId, StepClock};
@@ -19,7 +20,7 @@ use eh3d_phoenix_rules::{
 const MAX_INPUT_BYTES: u64 = 256 * 1024 * 1024;
 
 pub(crate) const USAGE: &str = "\
-phoenix check [--rules FILE | --rules-dru FILE] [--advanced] [--drc-config FILE] [--json | --sarif] [--lang CODE] <board.brd>
+phoenix check [--rules FILE | --rules-dru FILE] [--advanced] [--drc-config FILE] [--json | --sarif] [--time] [--lang CODE] <board.brd>
 
   check         run the design rules on an EAGLE board. The limits come from FILE (a JSON rule
                 file, format phoenix-rules/1 or phoenix-rules/2, which adds net classes with
@@ -32,7 +33,7 @@ phoenix check [--rules FILE | --rules-dru FILE] [--advanced] [--drc-config FILE]
                 names (which implies --advanced); the spacing table is not verified against the
                 standard. --sarif prints a layout like SARIF, phoenix-drc/1
 
-phoenix connectivity [--rules FILE] [--json] [--lang CODE] <schematic.sch> <board.brd>
+phoenix connectivity [--rules FILE] [--json] [--time] [--lang CODE] <schematic.sch> <board.brd>
 
   connectivity  the copper of the board (shorts, unrouted nets) and the board against the schematic
                 (missing nets, unconnected pins, joined nets, names). The tolerance for copper
@@ -40,11 +41,14 @@ phoenix connectivity [--rules FILE] [--json] [--lang CODE] <schematic.sch> <boar
 
   --json        print the report as JSON (--sarif: the layout phoenix-drc/1). --lang CODE writes the text in en, es, de, fr, it, ja,
                 zh or pt. Exit code 0: nothing proven wrong; 1: an error is proven; 2: unusable input
+  --time        also write the time the command took, in seconds, as one line, time: S.SSS s, to
+                the error stream (the report on the output is the same with and without it)
 ";
 
 struct Options {
     json: bool,
     sarif: bool,
+    time: bool,
     advanced: bool,
     drc_config: Option<String>,
     lang: Lang,
@@ -57,6 +61,7 @@ fn parse_options(args: &[&str]) -> Result<Options, String> {
     let mut options = Options {
         json: false,
         sarif: false,
+        time: false,
         advanced: false,
         drc_config: None,
         lang: Lang::En,
@@ -69,6 +74,7 @@ fn parse_options(args: &[&str]) -> Result<Options, String> {
         match *arg {
             "--json" => options.json = true,
             "--sarif" => options.sarif = true,
+            "--time" => options.time = true,
             "--advanced" => options.advanced = true,
             "--drc-config" => {
                 let path = iter.next().ok_or("--drc-config needs a file")?;
@@ -121,7 +127,13 @@ pub(crate) fn id_source() -> Result<impl FnMut() -> ObjectId, String> {
     })
 }
 
-fn finish(report: &Report, options: &Options, out: &mut dyn Write) -> i32 {
+fn finish(
+    report: &Report,
+    options: &Options,
+    started: Instant,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+) -> i32 {
     let text = if options.sarif {
         to_sarif(report, options.lang)
     } else if options.json {
@@ -130,6 +142,9 @@ fn finish(report: &Report, options: &Options, out: &mut dyn Write) -> i32 {
         report.to_text(options.lang)
     };
     let _ = out.write_all(text.as_bytes());
+    if options.time {
+        let _ = writeln!(err, "time: {:.3} s", started.elapsed().as_secs_f64());
+    }
     if report.passes() {
         0
     } else {
@@ -155,6 +170,7 @@ pub(crate) fn check(args: &[&str], out: &mut dyn Write, err: &mut dyn Write) -> 
             return usage(err);
         }
     };
+    let started = Instant::now();
     let [board_path] = options.files.as_slice() else {
         return usage(err);
     };
@@ -246,7 +262,7 @@ pub(crate) fn check(args: &[&str], out: &mut dyn Write, err: &mut dyn Write) -> 
         };
         report.merge(check_advanced(&board, &config));
     }
-    finish(&report, &options, out)
+    finish(&report, &options, started, out, err)
 }
 
 pub(crate) fn connectivity(args: &[&str], out: &mut dyn Write, err: &mut dyn Write) -> i32 {
@@ -257,6 +273,7 @@ pub(crate) fn connectivity(args: &[&str], out: &mut dyn Write, err: &mut dyn Wri
             return usage(err);
         }
     };
+    let started = Instant::now();
     if options.advanced {
         return fail(
             err,
@@ -303,5 +320,5 @@ pub(crate) fn connectivity(args: &[&str], out: &mut dyn Write, err: &mut dyn Wri
         Err(diagnostic) => return fail(err, &diagnostic.message),
     };
     let report = check_connectivity(&schematic, &board, tolerance);
-    finish(&report, &options, out)
+    finish(&report, &options, started, out, err)
 }

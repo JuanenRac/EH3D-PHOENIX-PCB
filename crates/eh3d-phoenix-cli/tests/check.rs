@@ -175,6 +175,44 @@ fn check_exits_0_when_the_limit_is_met() {
 }
 
 #[test]
+fn time_writes_the_seconds_to_the_error_stream_and_leaves_the_report_alone() {
+    let f = Files::new();
+    let b = board();
+    let brd = f.write("b.brd", &write_board(&b).text);
+    let sch = f.write("s.sch", &write_schematic(&b, &schematic()).text);
+    let rules = f.write("r.json", RULES);
+    let (code, out, err) = call(&["check", "--rules", rules.as_str(), brd.as_str()]);
+    assert!(!err.contains("time: "), "{err}");
+    let (timed_code, timed_out, timed_err) =
+        call(&["check", "--time", "--rules", rules.as_str(), brd.as_str()]);
+    // the exit code and the report are the ones of the run without it
+    assert_eq!((timed_code, timed_out.as_str()), (code, out.as_str()));
+    // one line: the word, the seconds with three decimals, and the unit
+    let line = timed_err.trim_end();
+    let seconds = line
+        .strip_prefix("time: ")
+        .and_then(|rest| rest.strip_suffix(" s"));
+    let parsed = seconds.and_then(|text| text.parse::<f64>().ok());
+    assert!(
+        parsed.is_some_and(|value| value >= 0.0) && !line.contains('\n'),
+        "{timed_err}"
+    );
+    assert_eq!(
+        seconds
+            .and_then(|text| text.split_once('.'))
+            .map(|(_, f)| f.len()),
+        Some(3)
+    );
+    // the same for the command that compares the schematic with the board
+    let (code, _, err) = call(&["connectivity", "--time", sch.as_str(), brd.as_str()]);
+    assert_eq!(code, 0, "{err}");
+    assert!(
+        err.starts_with("time: ") && err.trim_end().ends_with(" s"),
+        "{err}"
+    );
+}
+
+#[test]
 fn check_takes_the_limits_from_the_design_rules_of_the_board() {
     let f = Files::new();
     let text = write_board(&board()).text;
