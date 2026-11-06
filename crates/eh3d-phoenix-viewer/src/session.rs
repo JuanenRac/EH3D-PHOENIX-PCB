@@ -11,7 +11,7 @@ use std::fs::{self, OpenOptions};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-use eh3d_phoenix_board::{Board, History, Id, Operation};
+use eh3d_phoenix_board::{Board, History, Id, Operation, Step};
 use eh3d_phoenix_eagle_board::write_board;
 use eh3d_phoenix_erc::{self as erc, ErcConfig};
 use eh3d_phoenix_model::{Nm, ObjectId, Point};
@@ -376,6 +376,16 @@ impl BoardSession {
     /// How many edits are done.
     pub fn edits(&self) -> usize {
         self.history.done().len()
+    }
+
+    /// The edits that are done, oldest first.
+    pub fn steps_done(&self) -> &[Step] {
+        self.history.done()
+    }
+
+    /// The edits that were undone and can be redone, the next one to redo last.
+    pub fn steps_undone(&self) -> &[Step] {
+        self.history.undone()
     }
 
     /// True when the board has changed since it was opened or saved.
@@ -796,6 +806,17 @@ impl SchematicSession {
     /// True when there is a package to redo.
     pub fn can_redo(&self) -> bool {
         !self.undone.is_empty()
+    }
+
+    /// The packages that are done, oldest first: true for one applied to the board and false for
+    /// one applied to the schematic.
+    pub fn steps_done(&self) -> Vec<bool> {
+        self.done.iter().map(|t| *t == Target::Board).collect()
+    }
+
+    /// The packages that were undone, the next one to redo last, in the same way.
+    pub fn steps_undone(&self) -> Vec<bool> {
+        self.undone.iter().map(|t| *t == Target::Board).collect()
     }
 
     /// True when the schematic or the board has changed since it was opened or saved.

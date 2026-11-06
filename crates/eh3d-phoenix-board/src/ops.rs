@@ -485,6 +485,11 @@ impl History {
         &self.done
     }
 
+    /// The changes that were undone and can be redone, the next one to redo last.
+    pub fn undone(&self) -> &[Step] {
+        &self.undone
+    }
+
     /// Applies the recorded operations, in order, to another board. Used to replay a history on
     /// the board it started from.
     pub fn replay(&self, board: &mut Board) -> Result<(), OpError> {
