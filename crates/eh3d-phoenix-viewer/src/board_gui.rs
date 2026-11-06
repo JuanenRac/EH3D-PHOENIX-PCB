@@ -13,6 +13,7 @@ use eh3d_phoenix_model::Point;
 use eh3d_phoenix_route::copper_layers;
 use eh3d_phoenix_rules::{Lang, Severity};
 
+use crate::board_pair::PairTool;
 use crate::board_text::BoardMsg;
 use crate::editmsg::EditMsg;
 use crate::workspace::Workspace;
@@ -46,6 +47,7 @@ pub struct BoardEditUi {
     length_key: Option<(u64, Id)>,
     length_mm: Option<f64>,
     target_mm: f64,
+    pair: PairTool,
 }
 
 /// Where a point of the drawing is on the screen, and back.
@@ -117,7 +119,9 @@ fn load_settings() -> BoardEditSettings {
 /// Starts editing the board that is open; `None` when the open document is a schematic.
 pub fn start(workspace: &Workspace) -> Option<BoardEditUi> {
     let session = workspace.board_session()?;
-    let edit = BoardEdit::new(session.board.clone(), session.ctx.clone(), load_settings()).ok()?;
+    let mut edit =
+        BoardEdit::new(session.board.clone(), session.ctx.clone(), load_settings()).ok()?;
+    edit.set_pair_config(crate::board_pair_gui::load_config());
     Some(BoardEditUi {
         state: EditState::new(edit),
         center: (30.0, 20.0),
@@ -129,6 +133,7 @@ pub fn start(workspace: &Workspace) -> Option<BoardEditUi> {
         length_key: None,
         length_mm: None,
         target_mm: 0.0,
+        pair: PairTool::default(),
     })
 }
 
@@ -354,7 +359,12 @@ pub fn canvas(
         let (x, y) = view.world_at(p);
         point_at(x, y)
     });
-    if let Some(at) = pointer {
+    if let Some(at) = pointer.filter(|_| st.pair.on) {
+        if frame.pressed && inside.is_some() {
+            st.pair.click(&st.state, at);
+        }
+    }
+    if let Some(at) = pointer.filter(|_| !st.pair.on) {
         if frame.pressed && inside.is_some() {
             st.state.pointer_pressed(at, frame.shift);
         } else {
@@ -390,6 +400,7 @@ pub fn canvas(
         let target = st.state.snap(at);
         painter.circle_stroke(view.at(target), 5.0, Stroke::new(1.0, ACCENT));
     }
+    crate::board_pair_gui::draw(&painter, &st.pair, &|p: Point| view.at(p));
     if let Some((a, b)) = st.state.marquee {
         let corners = vec![
             view.xy(mm(a.x_nm.get()), mm(a.y_nm.get())),
@@ -751,6 +762,7 @@ pub fn tools_panel(ui: &mut egui::Ui, st: &mut BoardEditUi, lang: Lang) -> bool 
             BoardMsg::NetLength.tr(lang)
         )));
     }
+    crate::board_pair_gui::panel(ui, &mut st.pair, &mut st.state, lang);
 
     ui.separator();
     ui.horizontal(|ui| {
