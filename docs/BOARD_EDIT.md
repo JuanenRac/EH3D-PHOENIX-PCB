@@ -66,7 +66,7 @@ A locked component refuses the whole operation (`PHOENIX-BEDIT-006`), an empty s
 ]
 ```
 
-The window does not offer the selection of several objects yet (see `docs/NOT_YET.md`): its own selection is the one of the tools, with components, tracks and vias only.
+The window offers it too (`board_select` of the viewer crate, see *The window*), keeping the set of what a click picks (components, tracks and vias) and joining it with the zones and silkscreen items that a rectangle or a net takes, so that nothing of the window that works with the picked set changes. The window has been neither seen on a screen nor used with a mouse.
 
 ## The state without a screen
 
@@ -126,7 +126,25 @@ The board is an EAGLE `.brd` file or the JSON of the model. The operations are a
 
 In a board, the button *Edit board* of the left panel starts the editor on the board that is open. The panel then shows the tools, the active layer, what the tool needs (the footprint, the reference and the value; the corner and the 45-degree pieces; the target length), the selection actions (turn, other side, lock, delete), the count of rule errors and of connections still to route, the length of the lit net, the grid, snapping and the rule check; the right panel keeps the findings of the rules. The mouse draws: the left button works the tool, the right or middle button pans, the wheel zooms about the pointer. The keys are V select, P place, T route, I via, D delete, L tune, R turn (shift: back), X other side, K lock, Delete, Enter ends the route, Space the corner, Escape drops the route or the drag, Ctrl+Z and Ctrl+Y.
 
-After every change the window gives the workspace the board as it is (`Workspace::replace_board`): the findings, the ratsnest and *Save as* work on what was edited, and the file that was read is never written over. The steps of the editor are its own; the undo of the top bar is switched off while the editor is on. The window reads `config/boardedit.cfg` from the folder it is started in when the file is there and good. A box *Pair tool* adds the section of the differential pairs (`docs/DIFFPAIRS.md`), and a box *Zone tool* the one of the copper zones (`docs/BOARD_ZONES.md`). The texts are in the eight languages of the suite (`board_text`, `board_pair_text`).
+After every change the window gives the workspace the board as it is (`Workspace::replace_board`): the findings, the ratsnest and *Save as* work on what was edited, and the file that was read is never written over. The steps of the editor are its own; the undo of the top bar is switched off while the editor is on. The window reads `config/boardedit.cfg` from the folder it is started in when the file is there and good. A box *Pair tool* adds the section of the differential pairs (`docs/DIFFPAIRS.md`), and a box *Zone tool* the one of the copper zones (`docs/BOARD_ZONES.md`). The texts are in the eight languages of the suite (`board_text`, `board_pair_text`, `board_select_text`).
+
+The selection of several objects in the window, with the tool *Select*:
+
+| Gesture or key | What it does |
+|---|---|
+| Click | Selects the object under the pointer and drops the rest, as before; a click on an object that is selected keeps the selection, so a drag moves all the selected components |
+| Shift+click or Ctrl+click | Toggles the object under the pointer |
+| Drag on an empty place | The rectangle of the tool, as before (what lies inside is added) |
+| Shift+drag or Ctrl+drag on an empty place | Adds what lies wholly inside the rectangle, zones and silkscreen items included |
+| Alt+drag on an empty place | Adds what lies inside and what the rectangle touches (a track by its centre line) |
+| N | Selects every object of the net under the pointer (else of the lit net) and lights it |
+| Ctrl+A | Selects every object of the board |
+| Escape | Drops the selection and the rectangle (and what the tool had in progress) |
+| Arrows | Move the selection one step of the grid (Shift: ten steps), as one step of the history |
+| Delete | Deletes the selection as one step |
+| Alt+Left, Right, Up, Down, Alt+C, Alt+M | Line the selection up on the left, right, top or bottom edge, or centre it along x or along y |
+
+The panel has the buttons *Select all*, *Select the net* and *Clear the selection*, the eight alignments (the two that spread the objects with equal gaps need three objects, the others two) and a line with these keys. The moves, the deletion of zones or silkscreen items and the alignments are made with `BoardEdit::apply` (`move_selection`, `delete_selection`, `align_selection`), so each is one step: undo and redo give the same bytes, a locked component refuses the whole operation and the reason is shown with its code. A move by the arrows is exactly the step of the grid even when snapping is off. The status bar of the drawing shows the number of selected objects. Turning, putting on the other side and locking work on the selected components as before. Zones and silkscreen items are shown as a box around their extent and cannot be picked by a click, only by a rectangle, by a net or with *Select all*.
 
 ## Codes
 
