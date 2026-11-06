@@ -1,0 +1,5 @@
+Designator;Comment;Footprint;Manufacturer;MPN;Qty;DNP
+R1,R2;10k;R0805;Acme;A-10K;2;
+R3;10k;R0805;Other;B-10K;1;
+R4;4k7;R0805;Acme;A-4K7;1;yes
+R5;1k;R0805;Acme;A-1K;1;

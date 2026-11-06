@@ -1,0 +1,16 @@
+{
+  "format": "phoenix-export/1",
+  "profiles": [
+    {
+      "name": "pour",
+      "description": "The generic profile with a thermal relief of four spokes on every pad of the net of a pour, rectangular pads included, and without the islands of a pour smaller than one square millimetre",
+      "gerber": {
+        "zone_thermal_spokes": 4,
+        "zone_thermal_gap_nm": 250000,
+        "zone_thermal_spoke_width_nm": 250000,
+        "zone_thermal_non_round": true,
+        "zone_island_min_area_nm2": 1000000000000
+      }
+    }
+  ]
+}

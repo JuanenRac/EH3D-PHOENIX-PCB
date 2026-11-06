@@ -1,0 +1,8 @@
+[
+  {"op": "select", "steps": [
+    {"select": "rect",
+     "from": {"x_nm": 5000000, "y_nm": 7000000},
+     "to": {"x_nm": 11000000, "y_nm": 13000000}}]},
+  {"op": "move_selection", "dx_nm": 0, "dy_nm": 2000000, "snap": false},
+  {"op": "select", "steps": [{"select": "clear"}]}
+]

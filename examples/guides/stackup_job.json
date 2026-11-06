@@ -1,0 +1,10 @@
+{
+  "stackup": {"name": "two", "layers": [
+    {"kind": "copper", "name": "Top", "thickness": {"um": 35.0}},
+    {"kind": "core", "name": "core", "thickness_nm": 200000, "material": "fr4"},
+    {"kind": "copper", "name": "Bottom", "thickness": {"um": 35.0}}]},
+  "materials": [{"name": "fr4", "dk_points": [[0.1, 4.3], [50.0, 4.3]],
+                 "df_points": [[0.1, 0.02], [50.0, 0.02]]}],
+  "lines": [
+    {"name": "clock", "kind": "microstrip", "layer": "Top", "width_nm": 300000}]
+}

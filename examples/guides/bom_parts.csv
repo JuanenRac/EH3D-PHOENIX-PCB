@@ -1,0 +1,4 @@
+match,manufacturer,mpn,fitted
+R1,Acme,A-10K,
+R2,Acme,A-10K,
+R3,Other,B-10K,
