@@ -41,7 +41,7 @@ What is not understood (ellipses, texts of the drawing, hatches, dimensions, mes
 3. a piece that repeats another in either direction, a piece with no length and a contour that repeats another are dropped, and the count is reported (`PHOENIX-DXF-012`); a closed chain with no area is left out (`PHOENIX-DXF-017`);
 4. the contours are put in order by containment: one inside no other is an outer contour, one inside one other is a cutout, one inside two is an outer contour again, and so on. The largest outer contour is the outline, counter-clockwise; the others are listed and left out (`PHOENIX-DXF-016`); the cutouts inside it are clockwise, and are kept as the cutouts of the board outline (`PHOENIX-DXF-015`, now an information and no longer a warning; the operation `outline_from_dxf` replaces the outline and the cutouts as one step that one undo takes back);
 5. the arcs and circles become straight pieces within `arc_tolerance_nm` (`PHOENIX-DXF-018`);
-6. the edges of the outline and of each cutout are checked for crossing themselves and each other, with exact integer arithmetic (`PHOENIX-DXF-013`, an error); a contour with more edges than `max_check_edges` is not checked and the report says so. A crossing along an overlap and a corner on another edge are not crossings.
+6. the edges of the outline and of each cutout are checked for crossing themselves and each other, with exact integer arithmetic (`PHOENIX-DXF-013`, an error); a contour with more edges than `max_check_edges` is not checked and the report says so. Before that, a drawing that makes more closed contours than `max_contours` (5000 by default; the containment of the contours is put in order in a time that grows with the square of their number) is refused: the report has the error `PHOENIX-DXF-002`, there is no outline and nothing else is done. A crossing along an overlap and a corner on another edge are not crossings.
 
 A drawing with no closed contour on the layer gives `PHOENIX-DXF-014`. The drawing is used in the coordinates it has: it is not moved to the origin of the board.
 
@@ -83,7 +83,7 @@ It is a dry run unless `--out` names a file that ends in `.dxf` and does not exi
 
 ## Settings
 
-`config/dxf.cfg` holds the names of the layers, the size of the text and of the crosses, the tolerances (`join_tolerance_nm`, `spline_tolerance_nm`, `arc_tolerance_nm`), the unit of a drawing without one and the limits of the reader. Every line is optional; an unknown key, a name that DXF forbids or a value out of range is refused with its line number (`PHOENIX-DXF-001`).
+`config/dxf.cfg` holds the names of the layers, the size of the text and of the crosses, the tolerances (`join_tolerance_nm`, `spline_tolerance_nm`, `arc_tolerance_nm`), the unit of a drawing without one and the limits of the reader (`max_file_bytes`, `max_entities`, `max_block_depth`, `max_blocks`, `max_spline_points`, `max_findings`, `max_check_edges`, `max_contours`). Every line is optional; an unknown key, a name that DXF forbids or a value out of range is refused with its line number (`PHOENIX-DXF-001`).
 
 ## Codes
 

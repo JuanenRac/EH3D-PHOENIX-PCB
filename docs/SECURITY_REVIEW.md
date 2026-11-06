@@ -49,6 +49,8 @@ Every number of the first table is read from the settings that the repository sh
 | KiCad files | config/kicad.cfg | max_sheets | 256 |
 | KiCad files | config/kicad.cfg | max_sheet_depth | 8 |
 | KiCad project | config/kicad.cfg | max_project_bytes | 4194304 |
+| KiCad files | config/kicad.cfg | max_keepout_checks | 100000000 |
+| KiCad files | config/kicad.cfg | max_outline_rings | 10000 |
 | Gerber and Excellon | config/gerber_import.cfg | max_file_bytes | 67108864 |
 | Gerber and Excellon | config/gerber_import.cfg | max_files | 64 |
 | Gerber and Excellon | config/gerber_import.cfg | max_commands | 5000000 |
@@ -61,6 +63,8 @@ Every number of the first table is read from the settings that the repository sh
 | DXF | config/dxf.cfg | max_entities | 500000 |
 | DXF | config/dxf.cfg | max_block_depth | 8 |
 | DXF | config/dxf.cfg | max_blocks | 10000 |
+| DXF | config/dxf.cfg | max_check_edges | 4000 |
+| DXF | config/dxf.cfg | max_contours | 5000 |
 | Simulator | config/sim.cfg | max_file_bytes | 4194304 |
 | Simulator | config/sim.cfg | max_lines | 200000 |
 | Simulator | config/sim.cfg | max_elements | 20000 |
@@ -93,6 +97,10 @@ Every number of the first table is read from the settings that the repository sh
 | Own corpus | config/corpus.cfg | max_file_bytes | 8388608 |
 | Own corpus | config/corpus.cfg | max_entries | 2000 |
 | Own corpus | config/corpus.cfg | max_depth | 8 |
+| Board checks | config/board.cfg | max_polygon_points | 10000 |
+| EAGLE files | config/eagle_board.cfg | max_outline_rings | 10000 |
+| EAGLE files | config/eagle_board.cfg | max_restrict_checks | 100000000 |
+| EAGLE files | config/eagle_board.cfg | max_bus_checks | 100000000 |
 <!-- limits:end -->
 
 Two limits are fixed in the code and have no line in the settings; the test `the_limits_fixed_in_the_code_are_the_ones_of_the_document` compares them with the document.
@@ -139,8 +147,8 @@ The test `no_reader_panics_or_takes_too_long_on_a_changed_file_of_the_corpus` ta
 ## What was not covered
 
 * **Memory.** The limits bound the size of the input and the number of items, not the memory that the program uses: the limits of the table can still ask for gigabytes on a computer with little memory. Lower them in the settings for such a computer.
-* **Time of the algorithms.** The test of hostile input measures time on the changed files only. The routers, the zone filling, the simulator and the stack-up solvers on a large legitimate design are not bounded in time beyond the limits of the table.
-* **The EAGLE reader has limits in the code only.** Its three limits are not in a settings file.
+* **Time of the algorithms.** The test of hostile input measures time on the changed files only. The routers, the zone filling, the simulator and the stack-up solvers on a large legitimate design are not bounded in time beyond the limits of the table. The places where the work grows with the square of a count that a file can make large are bounded by a limit of the table: the crossing test of the edges of a polygon of the board checks (`max_polygon_points`, `PHOENIX-BOARD-010`), the assignment of the rule areas of a KiCad board to its zones (`max_keepout_checks`) and the rings of its outline (`max_outline_rings`), the contours of a DXF drawing (`max_contours`, `PHOENIX-DXF-002`) and the edges of one contour (`max_check_edges`), and in the EAGLE readers the rings of the outline layer, the restrict areas against the pours and the ends of the nets against the wires of a bus (`config/eagle_board.cfg`, `PHOENIX-EAGLE-022`). The tests of these limits use inputs made by the test itself; the default of each is far above what the files of the repository hold, and no run on a design of a real project has set it. Other places that grow with the square of a count (the chaining of loose DXF lines that fall in one cell of the grid, for one) are bounded only by the size limits.
+* **The EAGLE XML reader has three limits in the code only.** The size, the depth and the number of nodes of the XML are not in a settings file.
 * **Arithmetic.** The model keeps coordinates inside a checked range in integer nanometres, and the readers refuse what is outside it; the sums and products of the rules, the router and the zone filling were looked at in the places where the search pointed, not in every line of the workspace.
 * **Links.** The commands that read a file follow links, as the system does. The ones that write do not follow a link at the name of the file, but a link in a folder of the path is followed.
 * **Races.** A check that a file does not exist before a write is followed by a write that is exclusive; between the two another program on the same computer is not considered.
