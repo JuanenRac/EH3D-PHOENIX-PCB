@@ -45,4 +45,4 @@ A folder is read file by file, not below. The files are only read: the summary g
 
 ## What is not here
 
-See `docs/NOT_YET.md`: showing the imported layers in the viewer, the step and repeat and aperture blocks, a comparison with a reference viewer and with files of real CAD programs, and the comparison of copper pours and silkscreen text.
+The imported layers are shown by the window of the viewer (`docs/VIEWER.md`). See `docs/NOT_YET.md`: showing them over the board in one drawing, the step and repeat and aperture blocks, a comparison with a reference viewer and with files of real CAD programs, and the comparison of copper pours and silkscreen text.

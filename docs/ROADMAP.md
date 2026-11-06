@@ -34,7 +34,7 @@ Gerber X2 and Excellon from the shared writers, assembly formats confirmed with 
 
 Gate: Output opens in two independent viewers and matches the model; a package is milled through the CAM chain.
 
-Progress: the export, the import of Gerber and Excellon files for review with its round trip against the export (`docs/GERBER_IMPORT.md`) and the panelization of a board (`docs/PANEL.md`) exist as prototypes tried on files and boards made by the tests only; no independent viewer or manufacturer has opened a file of them.
+Progress: the export, the import of Gerber and Excellon files for review with its round trip against the export (`docs/GERBER_IMPORT.md`) and the panelization of a board (`docs/PANEL.md`) exist as prototypes tried on files and boards made by the tests only, and a window of the viewer shows the imported layers and compares them with a board (`docs/VIEWER.md`); no independent viewer or manufacturer has opened a file of them.
 
 ## F5. KiCad reading and public oracle
 
@@ -114,7 +114,7 @@ Gate: Policy tests pass.
 
 3D viewer, STEP/IDF/glTF export, fit against an existing enclosure and simple parametric enclosures in EH3D-PHOENIX-CAD.
 
-Progress: the scene of the board with the models of its components as data (a model per footprint from a table, the box that encloses each STEP solid, collisions and height checked on boxes) and a simplified OBJ and STEP export exist as a prototype (`docs/ASSEMBLY3D.md`); the 3D window, the IDF and glTF export and the fit against an enclosure do not.
+Progress: the scene of the board with the models of its components as data (a model per footprint from a table, the box that encloses each STEP solid, collisions and height checked on boxes) and a simplified OBJ and STEP export exist as a prototype (`docs/ASSEMBLY3D.md`); the 3D window (`docs/VIEWER.md`) exists as a prototype that has never been seen on a screen; the IDF and glTF export and the fit against an enclosure do not.
 
 Gate: A small real project made entirely inside the tool, from schematic to measured result, with its passport.
 

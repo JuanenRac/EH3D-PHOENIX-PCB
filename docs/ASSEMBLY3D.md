@@ -35,7 +35,7 @@ Every kind but the first gives `PHOENIX-3D-005` and names what was replaced. A f
 
 ## The scene
 
-The scene has no screen and no window. The board lies between height 0 and its thickness, the thickness of the stack-up (`--stackup FILE`, the job file of `phoenix stackup`) or `default_board_thickness_nm` with the information `PHOENIX-3D-013`.
+The scene has no screen and no window of its own; the viewer draws it. The board lies between height 0 and its thickness, the thickness of the stack-up (`--stackup FILE`, the job file of `phoenix stackup`) or `default_board_thickness_nm` with the information `PHOENIX-3D-013`.
 
 * A component on the top side stands on the top of the board, from the height its model starts at.
 * A component on the bottom side hangs below height 0 with its model turned upside down; its box is mirrored along x before it is turned by the rotation of the component (the rotation the board file stores).
@@ -73,4 +73,4 @@ The JSON report (`phoenix-assembly3d/1`) has the board, each component with its 
 * It does not model the pins, the leads, the solder or the real shape of a component; two parts that fit one inside the box of the other are reported as colliding.
 * It does not read colours, assemblies, curved or free-form surfaces, or the position inside a STEP assembly.
 * It does not check a component against an enclosure; the enclosure lives in EH3D-PHOENIX-CAD.
-* It draws nothing: the window that shows the scene is not written yet.
+* It draws nothing itself: the 3D window of the viewer (`docs/VIEWER.md`) draws the scene, and it is a prototype that has never been seen on a screen.
