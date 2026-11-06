@@ -61,7 +61,7 @@
       "area": "field2d",
       "check": "heat_resistance_mohm_per_mm",
       "inputs": { "width_mm": 0.508, "copper_um": 35.0, "resistivity_ohm_m": 1.724e-8 },
-      "expected": 969.6287964004501,
+      "expected": 0.9696287964004501,
       "unit": "mohm/mm",
       "tolerance": { "rel": 1e-9 },
       "tolerance_note": "chosen here: it is a product and a quotient in double precision",

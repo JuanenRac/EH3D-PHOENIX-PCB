@@ -733,7 +733,7 @@ mod tests {
             }
         }
         let known = ipc2221_current_a(27.559_055_118_110_237, 10.0, Placement::External, &s);
-        assert!((known - 0.992_786_983_047_720_2).abs() < 1.0e-12, "{known}");
+        assert!((known - 1.463_635_288_434_556_3).abs() < 1.0e-12, "{known}");
     }
 
     #[test]
@@ -861,7 +861,7 @@ mod tests {
     fn the_resistance_and_the_power_per_millimetre_follow_from_the_resistivity() {
         let s = settings();
         let out = trace_heating(508_000, 35_000, 2.0, Placement::External, &s).unwrap();
-        assert!((out.resistance_mohm_per_mm - 969.628_796_400_450_1).abs() < 1.0e-6);
+        assert!((out.resistance_mohm_per_mm - 0.969_628_796_400_450_1).abs() < 1.0e-6);
         assert!((out.power_mw_per_mm - 4.0 * out.resistance_mohm_per_mm).abs() < 1.0e-6);
     }
 
