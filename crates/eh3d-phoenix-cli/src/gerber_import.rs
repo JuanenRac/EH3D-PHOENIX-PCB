@@ -194,13 +194,6 @@ pub(crate) fn collect(
                 found.push((name, file));
             }
         } else {
-            // a file that is not there is an unusable input, as a folder that is not there is: nothing is read and nothing is written
-            if std::fs::metadata(&path).is_err() {
-                return Err(GbrError::new(
-                    INPUT_UNREADABLE,
-                    format!("{input}: it does not exist or cannot be read"),
-                ));
-            }
             let name = path
                 .file_name()
                 .map_or_else(|| input.clone(), |n| n.to_string_lossy().into_owned());
@@ -310,6 +303,20 @@ pub(crate) fn gerber_import_command(
     };
     if let Some(board_path) = &options.roundtrip {
         return roundtrip_command(&options, board_path, &settings, lang, out, err);
+    }
+    // an input that is not there is an unusable input: nothing is read and the file of `--out` is not made
+    // (the checking command lists such a file as a finding instead)
+    if let Some(missing) = options
+        .inputs
+        .iter()
+        .find(|input| std::fs::metadata(input).is_err())
+    {
+        let error = GbrError::new(
+            INPUT_UNREADABLE,
+            format!("{missing}: it does not exist or cannot be read"),
+        );
+        let _ = writeln!(err, "error {}", error.message(lang));
+        return 2;
     }
     let entries = match collect(&options.inputs, &settings) {
         Ok(entries) => entries,
