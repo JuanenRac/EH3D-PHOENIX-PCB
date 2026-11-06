@@ -15,6 +15,8 @@
 //! `annotate`.
 //! The own library of footprints by the method of IPC-7351B adds `ipc`, and the bulk import of
 //! EAGLE and KiCad libraries into an index adds `libindex`.
+//! The pick and place files, the solder paste stencil and the fabrication package add `pnp`,
+//! `stencil` and `fabpack`.
 //!
 //! Exit codes: 0 done, 1 `stackup` could not compute one or more of the lines it was asked for,
 //! `check`, `connectivity` and `erc` proved an error, or `sync` or `annotate` found changes to
@@ -30,6 +32,7 @@ mod bom;
 mod check;
 mod design;
 mod export;
+mod fabpack;
 mod gerber_check;
 mod gerber_import;
 mod ipclib;
@@ -43,6 +46,7 @@ mod netlist;
 mod oracle;
 mod pairs;
 mod panel;
+mod pnp;
 mod rf;
 mod rfgen;
 mod route;
@@ -50,6 +54,7 @@ mod sanitize;
 mod schedit;
 mod script;
 mod sim;
+mod stencil;
 mod view;
 pub mod window_args;
 mod zones;
@@ -334,6 +339,27 @@ phoenix assembly3d [--config FILE] --models FILE [--stackup FILE] [--obj FILE] [
                 simplified OBJ and STEP export written only to new files, a prototype, run
                 `phoenix assembly3d` alone for its options
 
+phoenix pnp [--config FILE] [--maker NAME] [--parts FILE] [--dnp R1,R2,...] [--origin WORD]
+            [--units mm|mil] [--lang xx] [--out FOLDER] <board>
+phoenix stencil [--config FILE] [--profile NAME] [--profiles FILE] [--lang xx] [--out FOLDER]
+                <board>
+phoenix fabpack [--profile NAME] [--profiles FILE] [--pnp-config FILE] [--stencil-config FILE]
+                [--costs FILE] [--parts FILE] [--prices FILE] [--maker NAME] [--panel-boards N]
+                [--dnp R1,R2,...] [--lang xx] [--out FOLDER|FILE.zip] <board>
+
+  pnp           the pick and place files of a board, one for each face, as CSV and JSON, with the
+                centre of each part from its pads, extra rotations by footprint and maker from
+                config/pnp_rotations.cfg and the origin and unit of your choice; a dry run unless
+                --out names a new folder, a prototype, run `phoenix pnp` alone for its options
+  stencil       the solder paste stencil of a board as Gerber files with reduced openings, large
+                pads split into windows and the IPC-7525 ratios checked, from config/stencil.cfg;
+                a dry run unless --out names a new folder, a prototype, run `phoenix stencil`
+                alone for its options
+  fabpack       the fabrication package of a board: Gerber, Excellon, pick and place, bills of
+                materials of the assembly and stencil in one deterministic zip file or new folder
+                with a manifest of SHA-256 sums; a dry run unless --out names a new destination,
+                a prototype, run `phoenix fabpack` alone for its options
+
 phoenix oracle run  [--dir FOLDER] [--suite NAME] [--out FILE] [--json] [--lang xx]
 phoenix oracle list [--dir FOLDER] [--suite NAME]
 
@@ -474,6 +500,15 @@ pub fn run(args: &[String], out: &mut dyn Write, err: &mut dyn Write) -> i32 {
     }
     if let Some((&"bom", tail)) = rest.split_first() {
         return bom::bom_command(tail, out, err);
+    }
+    if let Some((&"pnp", tail)) = rest.split_first() {
+        return pnp::pnp_command(tail, out, err);
+    }
+    if let Some((&"stencil", tail)) = rest.split_first() {
+        return stencil::stencil_command(tail, out, err);
+    }
+    if let Some((&"fabpack", tail)) = rest.split_first() {
+        return fabpack::fabpack_command(tail, out, err);
     }
     if let Some((&"assembly3d", tail)) = rest.split_first() {
         return assembly3d::assembly3d_command(tail, out, err);
