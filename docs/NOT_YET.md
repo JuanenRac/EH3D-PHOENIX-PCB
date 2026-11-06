@@ -25,6 +25,7 @@ Good ideas that are not in the first version. Writing them here avoids implement
 | Through vias and vias between inner layers on boards of more than two layers | A via joins exactly the two layers it is placed between, as the model says | when the stack of vias is part of the model |
 | A faster search (a finer mesh only where it is needed, or a search from both ends) | The coarse mesh is simple to reason about and its speed on a large board has not been measured | when a large board is routed and the time is measured |
 | Dragging a component with its tracks following | Moving a component leaves its tracks where they are and the ratsnest shows what is left | after the window has been used on real boards |
+| A limit of memory and of time for every reader, the writer and the solver, and a fuzzer that is guided by coverage | The limits bound the size of the input and the number of items, and the test of hostile input uses a generator of its own with a fixed seed, which finds what simple changes of the corpus find | after a real design makes the memory or the time of one of them a problem, or when a fuzzer is accepted as a dependency of the tests |
 | Co-simulation of firmware with the circuit | Needs one emulator per processor family, starting with a single one | after circuit simulation |
 | Full parametric mechanical CAD | Belongs to EH3D-PHOENIX-CAD and comes after its first steps | after the first mechanical steps |
 | Electromagnetic co-simulation and dynamic heat maps | Needs the RF tools and the thermal laboratory | after both exist |

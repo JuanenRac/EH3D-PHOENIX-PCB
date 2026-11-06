@@ -62,6 +62,19 @@
           }
         },
         {
+          "name": "SECURITY_REVIEW.md",
+          "desc": {
+            "en": "the review of security and the limits in force",
+            "es": "la revisión de seguridad y los límites vigentes",
+            "de": "die Sicherheitsprüfung und die geltenden Grenzen",
+            "fr": "la revue de sécurité et les limites en vigueur",
+            "it": "la revisione di sicurezza e i limiti in vigore",
+            "ja": "セキュリティレビューと有効な上限",
+            "zh": "安全审查与现行限制",
+            "pt": "a revisão de segurança e os limites em vigor"
+          }
+        },
+        {
           "name": "DECISIONS.md  STATUS.md",
           "tree_name": "DECISIONS.md STATUS.md",
           "desc": {
