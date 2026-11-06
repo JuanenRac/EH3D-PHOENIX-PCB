@@ -14,12 +14,15 @@ use std::path::PathBuf;
 use eh3d_phoenix_rules::Lang;
 use eh3d_phoenix_viewer::bench;
 use eh3d_phoenix_viewer::codes::{ViewError, SETTINGS_INVALID};
+use eh3d_phoenix_viewer::panel_scene::{parse_files, PanelSession};
 use eh3d_phoenix_viewer::{open, Viewer, ViewerSettings};
 
 pub(crate) const USAGE: &str = "\
 phoenix view [--settings FILE] [--lang CODE] [<board.brd | schematic.sch | board.json>]
 phoenix view --summary [--settings FILE] [--lang CODE] <file>
 phoenix view --bench [--settings FILE] [--lang CODE]
+phoenix view --panel [--panel-config FILE] [--settings FILE] [--lang CODE] [<board>[,<board>...]]
+phoenix view --panel --summary [--panel-config FILE] [--settings FILE] [--lang CODE] <board>[,<board>...]
 
   view          a viewer of a board or a schematic: layers with a colour each, zoom, pan, fit,
                 a net highlighted by a click, a measure between two points and the position of
@@ -33,6 +36,11 @@ phoenix view --bench [--settings FILE] [--lang CODE]
   --bench       time the preparation of the primitives and the selection by position on three
                 synthetic boards (the sizes come from the settings); drawing on a screen is
                 not measured
+  --panel       the panel of boards (the window of `phoenix panel`): the copies of the boards, the
+                frame, the tabs or V-score lines, the fiducials and the holes, with the measures
+                of the panel and the part of its area that the boards take; with --summary the
+                measures are printed without a window. --panel-config is the settings of the
+                panel (config/panel.cfg shows every key)
   --settings    a settings file (config/viewer.cfg shows every key); --lang is one of en, es, de,
                 fr, it, ja, zh, pt
 ";
@@ -42,6 +50,8 @@ struct Options {
     lang: Lang,
     bench: bool,
     summary: bool,
+    panel: bool,
+    panel_config: Option<String>,
     file: Option<String>,
 }
 
@@ -51,6 +61,8 @@ fn parse_options(args: &[&str]) -> Result<Options, String> {
         lang: Lang::En,
         bench: false,
         summary: false,
+        panel: false,
+        panel_config: None,
         file: None,
     };
     let mut iter = args.iter();
@@ -58,6 +70,11 @@ fn parse_options(args: &[&str]) -> Result<Options, String> {
         match *arg {
             "--bench" => options.bench = true,
             "--summary" => options.summary = true,
+            "--panel" => options.panel = true,
+            "--panel-config" => {
+                let path = iter.next().ok_or("--panel-config needs a file")?;
+                options.panel_config = Some((*path).to_owned());
+            }
             "--settings" => {
                 let path = iter.next().ok_or("--settings needs a file")?;
                 options.settings = Some((*path).to_owned());
@@ -81,6 +98,12 @@ fn parse_options(args: &[&str]) -> Result<Options, String> {
     if options.summary && options.file.is_none() {
         return Err("--summary needs a file".to_owned());
     }
+    if options.panel && options.bench {
+        return Err("--panel cannot be combined with --bench".to_owned());
+    }
+    if options.panel_config.is_some() && !options.panel {
+        return Err("--panel-config needs --panel".to_owned());
+    }
     Ok(options)
 }
 
@@ -97,6 +120,33 @@ fn load_settings(path: Option<&str>) -> Result<ViewerSettings, ViewError> {
                 .map_err(|message| ViewError::new(SETTINGS_INVALID, message))?;
             ViewerSettings::parse(&text)
         }
+    }
+}
+
+fn window_panel(
+    files: Vec<std::path::PathBuf>,
+    config: Option<&str>,
+    lang: Lang,
+    settings: ViewerSettings,
+    err: &mut dyn Write,
+) -> i32 {
+    #[cfg(feature = "gui")]
+    {
+        let config = config.map(PathBuf::from);
+        match eh3d_phoenix_viewer::gui::run_panel(files, config, lang, settings) {
+            Ok(()) => 0,
+            Err(error) => fail(err, lang, &error),
+        }
+    }
+    #[cfg(not(feature = "gui"))]
+    {
+        let _ = (files, config, settings);
+        let error = ViewError::new(
+            eh3d_phoenix_viewer::codes::WINDOW_NOT_BUILT,
+            "build the program with the gui feature: cargo run --release -p eh3d-phoenix-cli \
+             --features gui -- view --panel (--panel --summary works without it)",
+        );
+        fail(err, lang, &error)
     }
 }
 
@@ -134,6 +184,22 @@ pub(crate) fn view(args: &[&str], out: &mut dyn Write, err: &mut dyn Write) -> i
         Ok(settings) => settings,
         Err(error) => return fail(err, lang, &error),
     };
+    if options.panel {
+        let files = parse_files(options.file.as_deref().unwrap_or(""));
+        if options.summary {
+            let config = options.panel_config.as_deref().map(Path::new);
+            return match PanelSession::open(&files, config, &settings) {
+                Ok(session) => {
+                    for line in session.scene.summary(lang) {
+                        let _ = writeln!(out, "{line}");
+                    }
+                    0
+                }
+                Err(error) => fail(err, lang, &error),
+            };
+        }
+        return window_panel(files, options.panel_config.as_deref(), lang, settings, err);
+    }
     if options.bench {
         return match bench::run(&settings) {
             Ok(rows) => {
@@ -253,6 +319,56 @@ mod tests {
         let (code, _, err) = run_view(&["--bench", "--settings", &name]);
         assert_eq!(code, 2);
         assert!(err.contains("PHOENIX-VIEW-005"), "{err}");
+    }
+
+    #[test]
+    fn the_panel_summary_describes_the_panel_of_a_board_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let settings = ViewerSettings::parse("bench_seed = 3").unwrap();
+        let board = synthetic_board(200, &settings).unwrap();
+        let file = dir.path().join("board.json");
+        std::fs::write(&file, board.to_bytes().unwrap()).unwrap();
+        let name = file.to_string_lossy().into_owned();
+        let (code, out, err) = run_view(&["--panel", "--summary", &name]);
+        assert_eq!(code, 0, "{err}");
+        assert!(out.starts_with("Size: "), "{out}");
+        assert!(out.contains("Boards: 4\n"), "{out}");
+        let list = format!("{name},{name}");
+        let cfg = dir.path().join("panel.cfg");
+        std::fs::write(&cfg, "frame = none\n").unwrap();
+        let cfg = cfg.to_string_lossy().into_owned();
+        let (code, out, err) = run_view(&[
+            "--panel",
+            "--summary",
+            "--panel-config",
+            &cfg,
+            "--lang",
+            "es",
+            &list,
+        ]);
+        assert_eq!(code, 0, "{err}");
+        assert!(out.starts_with("Tamaño: "), "{out}");
+        assert!(out.contains("Placas: 2\n"), "{out}");
+    }
+
+    #[test]
+    fn the_panel_options_are_checked() {
+        for args in [
+            vec!["--panel", "--bench"],
+            vec!["--panel-config", "panel.cfg"],
+            vec!["--panel", "--summary"],
+        ] {
+            let (code, out, err) = run_view(&args);
+            assert_eq!(code, 2, "{args:?}");
+            assert!(out.is_empty(), "{args:?}");
+            assert!(err.contains("phoenix view"), "{args:?}");
+        }
+        let (code, _, err) = run_view(&["--panel", "--summary", "/nonexistent/board.json"]);
+        assert_eq!(code, 2);
+        assert!(err.contains("PHOENIX-VIEW-001"), "{err}");
+        let (code, _, err) = run_view(&["--panel", "--summary", ""]);
+        assert_eq!(code, 2);
+        assert!(err.contains("PHOENIX-VIEW-014"), "{err}");
     }
 
     #[cfg(not(feature = "gui"))]

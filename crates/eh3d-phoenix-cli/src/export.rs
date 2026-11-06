@@ -104,21 +104,26 @@ pub(crate) fn read_board_file(path: &str) -> Result<Board, String> {
 }
 
 fn profile_of(options: &Options) -> Result<Profile, ExportError> {
-    let explicit = options.profiles.as_deref();
-    let path = explicit.or_else(|| {
+    load_profile(&options.profile, options.profiles.as_deref())
+}
+
+/// The export profile `name` from the JSON file `file`, or from `config/export_profiles.json` when
+/// that exists; the generic profile when there is no file at all.
+pub(crate) fn load_profile(name: &str, file: Option<&str>) -> Result<Profile, ExportError> {
+    let path = file.or_else(|| {
         Path::new(DEFAULT_PROFILES)
             .is_file()
             .then_some(DEFAULT_PROFILES)
     });
     let Some(path) = path else {
-        return if options.profile == "generic" {
+        return if name == "generic" {
             Ok(Profile::default())
         } else {
-            Err(ExportError::ProfileNotFound(options.profile.clone()))
+            Err(ExportError::ProfileNotFound(name.to_owned()))
         };
     };
     let text = read_text(path).map_err(ExportError::Profile)?;
-    ProfileSet::from_json(&text)?.get(&options.profile).cloned()
+    ProfileSet::from_json(&text)?.get(name).cloned()
 }
 
 fn error_line(error: &ExportError, lang: Lang) -> String {
