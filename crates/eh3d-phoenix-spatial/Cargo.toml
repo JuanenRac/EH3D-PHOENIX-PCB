@@ -1,0 +1,10 @@
+[package]
+name = "eh3d-phoenix-spatial"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "A shared spatial index for the checks of a board (prototype): a uniform grid over boxes in integer nanometres that gives the neighbours of a box in a fixed order, a counter of the candidates it hands out so that a test can tell linear from quadratic work without a clock, settings with strict keys and limits, and a seeded generator for the tests that compare it with the search of every pair"
+
+[dependencies]

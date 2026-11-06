@@ -1092,6 +1092,18 @@ The titles of these codes also exist in the eight languages of the suite (`TITLE
 | PHOENIX-ENCL-013 | The STEP solid of the board is simplified | information: the solid is the prism of the outline with the holes through it; copper, pads, components and the real shape of the edges are not in it |
 | PHOENIX-ENCL-014 | Inner contour of the enclosure cannot be used | the drawing named by `contour` that cannot be read, has no closed contour on the layer or has a contour that crosses itself; the detail gives the code of the drawing |
 
+## Spatial index (`eh3d-phoenix-spatial`, `src/codes.rs`)
+
+The titles of these codes also exist in the eight languages of the suite (`TITLES` in `src/codes.rs`); the detail of a message is in English.
+
+| Code | Title | Raised by |
+|---|---|---|
+| PHOENIX-SPATIAL-001 | Spatial index settings are not valid | a line of `config/spatial.cfg` that is not `key = value`, an unknown key, a key written twice, a value out of range or a file larger than 64 KiB |
+| PHOENIX-SPATIAL-002 | The spatial index would need more cells than the limit | boxes that cover more cells, added up, than `max_cells`; the index is not built, the copper clearance check compares every pair instead and `phoenix perf` exits with 1 |
+| PHOENIX-SPATIAL-003 | There are more items than the spatial index accepts | more boxes than `max_items`; the index is not built |
+| PHOENIX-SPATIAL-004 | A command option is not valid | an option of `phoenix perf` that the command does not know or needs a value for, a clearance out of its range, an unknown language code, no board or more than one |
+| PHOENIX-SPATIAL-005 | Input file cannot be read | the board or a settings file that cannot be opened or read |
+
 ## Printing (`eh3d-phoenix-print`, `src/codes.rs`)
 
 The titles of these codes also exist in the eight languages of the suite (`TITLES` in `src/codes.rs`); the detail of a message is in English. Every code is an error except PHOENIX-PRINT-007, a warning.
