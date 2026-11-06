@@ -38,6 +38,14 @@ pub enum SelectMsg {
     SelectNet,
     /// The button that drops the selection.
     ClearSelection,
+    /// The button that selects what is not selected and drops what is.
+    Invert,
+    /// The title of the group of buttons that spread the selection.
+    DistributeTitle,
+    /// The word before the corners of the box of the selection in the status bar.
+    StatusBox,
+    /// The word before the width and the height of the box of the selection in the status bar.
+    StatusSize,
     /// The keys of the selection of several objects.
     KeysHint,
 }
@@ -213,16 +221,68 @@ const TABLE: [(SelectMsg, [&str; 8]); SelectMsg::COUNT] = [
         ],
     ),
     (
+        SelectMsg::Invert,
+        [
+            "Invert the selection",
+            "Invertir la selección",
+            "Auswahl umkehren",
+            "Inverser la sélection",
+            "Inverti la selezione",
+            "選択を反転",
+            "反选",
+            "Inverter a seleção",
+        ],
+    ),
+    (
+        SelectMsg::DistributeTitle,
+        [
+            "Distribute the selection",
+            "Distribuir la selección",
+            "Auswahl verteilen",
+            "Répartir la sélection",
+            "Distribuisci la selezione",
+            "選択を等間隔に配置",
+            "均匀分布所选对象",
+            "Distribuir a seleção",
+        ],
+    ),
+    (
+        SelectMsg::StatusBox,
+        [
+            "box",
+            "recuadro",
+            "Rahmen",
+            "cadre",
+            "riquadro",
+            "範囲",
+            "范围",
+            "caixa",
+        ],
+    ),
+    (
+        SelectMsg::StatusSize,
+        [
+            "size",
+            "tamaño",
+            "Größe",
+            "taille",
+            "dimensioni",
+            "寸法",
+            "尺寸",
+            "tamanho",
+        ],
+    ),
+    (
         SelectMsg::KeysHint,
         [
-            "Shift or Ctrl+click toggles, Shift or Ctrl+drag selects inside, Alt+drag also what it touches, N the net, Ctrl+A all, Esc clears, arrows move (Shift: 10 steps), Alt+arrows, Alt+C, Alt+M align",
-            "Mayús o Ctrl+clic alterna, Mayús o Ctrl+arrastrar selecciona lo contenido, Alt+arrastrar también lo tocado, N la red, Ctrl+A todo, Esc quita, flechas mueven (Mayús: 10 pasos), Alt+flechas, Alt+C, Alt+M alinean",
-            "Umschalt oder Strg+Klick wechselt, Umschalt oder Strg+Ziehen wählt das Enthaltene, Alt+Ziehen auch das Berührte, N das Netz, Strg+A alles, Esc hebt auf, Pfeile verschieben (Umschalt: 10 Schritte), Alt+Pfeile, Alt+C, Alt+M richten aus",
-            "Maj ou Ctrl+clic bascule, Maj ou Ctrl+glisser sélectionne l'intérieur, Alt+glisser aussi ce qui est touché, N le réseau, Ctrl+A tout, Échap efface, flèches déplacent (Maj : 10 pas), Alt+flèches, Alt+C, Alt+M alignent",
-            "Maiusc o Ctrl+clic alterna, Maiusc o Ctrl+trascina seleziona il contenuto, Alt+trascina anche ciò che tocca, N la rete, Ctrl+A tutto, Esc annulla, frecce spostano (Maiusc: 10 passi), Alt+frecce, Alt+C, Alt+M allineano",
-            "Shift/Ctrl+クリックで切替、Shift/Ctrl+ドラッグで内側を選択、Alt+ドラッグで接触も選択、N ネット、Ctrl+A すべて、Esc 解除、矢印で移動（Shift: 10 ステップ）、Alt+矢印・Alt+C・Alt+M で整列",
-            "Shift/Ctrl+单击切换，Shift/Ctrl+拖动选择框内对象，Alt+拖动同时选择接触到的对象，N 网络，Ctrl+A 全选，Esc 取消，方向键移动（Shift：10 步），Alt+方向键、Alt+C、Alt+M 对齐",
-            "Shift ou Ctrl+clique alterna, Shift ou Ctrl+arrastar seleciona o que fica dentro, Alt+arrastar também o que toca, N a rede, Ctrl+A tudo, Esc limpa, setas movem (Shift: 10 passos), Alt+setas, Alt+C, Alt+M alinham",
+            "Shift or Ctrl+click toggles, Shift or Ctrl+drag selects inside, Alt+drag also what it touches, a click on a silkscreen item or on the border of a zone picks it, dragging a selected object moves the selection by the grid, N the net, Ctrl+A all, Ctrl+I inverts, Esc clears, arrows move (Shift: 10 steps), Alt+arrows, Alt+C, Alt+M align, Alt+H, Alt+V spread",
+            "Mayús o Ctrl+clic alterna, Mayús o Ctrl+arrastrar selecciona lo contenido, Alt+arrastrar también lo tocado, un clic en una serigrafía o en el borde de una zona la coge, arrastrar un objeto seleccionado mueve la selección por la rejilla, N la red, Ctrl+A todo, Ctrl+I invierte, Esc quita, flechas mueven (Mayús: 10 pasos), Alt+flechas, Alt+C, Alt+M alinean, Alt+H, Alt+V distribuyen",
+            "Umschalt oder Strg+Klick wechselt, Umschalt oder Strg+Ziehen wählt das Enthaltene, Alt+Ziehen auch das Berührte, ein Klick auf einen Bestückungsdruck oder auf den Rand einer Fläche wählt ihn, das Ziehen eines gewählten Objekts verschiebt die Auswahl im Raster, N das Netz, Strg+A alles, Strg+I kehrt um, Esc hebt auf, Pfeile verschieben (Umschalt: 10 Schritte), Alt+Pfeile, Alt+C, Alt+M richten aus, Alt+H, Alt+V verteilen",
+            "Maj ou Ctrl+clic bascule, Maj ou Ctrl+glisser sélectionne l'intérieur, Alt+glisser aussi ce qui est touché, un clic sur un élément de sérigraphie ou sur le bord d'une zone le prend, glisser un objet sélectionné déplace la sélection sur la grille, N le réseau, Ctrl+A tout, Ctrl+I inverse, Échap efface, flèches déplacent (Maj : 10 pas), Alt+flèches, Alt+C, Alt+M alignent, Alt+H, Alt+V répartissent",
+            "Maiusc o Ctrl+clic alterna, Maiusc o Ctrl+trascina seleziona il contenuto, Alt+trascina anche ciò che tocca, un clic su un elemento di serigrafia o sul bordo di una zona lo prende, trascinare un oggetto selezionato sposta la selezione sulla griglia, N la rete, Ctrl+A tutto, Ctrl+I inverte, Esc annulla, frecce spostano (Maiusc: 10 passi), Alt+frecce, Alt+C, Alt+M allineano, Alt+H, Alt+V distribuiscono",
+            "Shift/Ctrl+クリックで切替、Shift/Ctrl+ドラッグで内側を選択、Alt+ドラッグで接触も選択、シルク要素またはゾーンの縁のクリックでそれを選択、選択したオブジェクトのドラッグで選択全体をグリッド単位で移動、N ネット、Ctrl+A すべて、Ctrl+I 反転、Esc 解除、矢印で移動（Shift: 10 ステップ）、Alt+矢印・Alt+C・Alt+M で整列、Alt+H・Alt+V で等間隔に配置",
+            "Shift/Ctrl+单击切换，Shift/Ctrl+拖动选择框内对象，Alt+拖动同时选择接触到的对象，单击丝印项或区域边缘即可选中，拖动已选对象按网格移动整个选择，N 网络，Ctrl+A 全选，Ctrl+I 反选，Esc 取消，方向键移动（Shift：10 步），Alt+方向键、Alt+C、Alt+M 对齐，Alt+H、Alt+V 均匀分布",
+            "Shift ou Ctrl+clique alterna, Shift ou Ctrl+arrastar seleciona o que fica dentro, Alt+arrastar também o que toca, um clique num elemento de serigrafia ou no bordo de uma zona seleciona-o, arrastar um objeto selecionado move a seleção pela grelha, N a rede, Ctrl+A tudo, Ctrl+I inverte, Esc limpa, setas movem (Shift: 10 passos), Alt+setas, Alt+C, Alt+M alinham, Alt+H, Alt+V distribuem",
         ],
     ),
 ];
@@ -306,6 +366,34 @@ mod tests {
             for lang in [Lang::Es, Lang::De, Lang::Fr, Lang::It, Lang::Ja, Lang::Zh] {
                 assert_ne!(msg.tr(lang), msg.tr(Lang::En), "{msg:?} {lang:?}");
             }
+        }
+    }
+
+    #[test]
+    fn the_new_texts_are_not_copies_of_the_english_text() {
+        for msg in [
+            SelectMsg::Invert,
+            SelectMsg::DistributeTitle,
+            SelectMsg::StatusBox,
+            SelectMsg::StatusSize,
+        ] {
+            for lang in [Lang::Es, Lang::De, Lang::Fr, Lang::It, Lang::Ja, Lang::Zh] {
+                assert_ne!(msg.tr(lang), msg.tr(Lang::En), "{msg:?} {lang:?}");
+            }
+        }
+    }
+
+    #[test]
+    fn the_hint_names_the_new_keys_in_every_language() {
+        for lang in Lang::ALL {
+            let hint = SelectMsg::KeysHint.tr(lang);
+            for key in ["Alt+H", "Alt+V"] {
+                assert!(hint.contains(key), "{lang:?} {key}");
+            }
+            assert!(
+                hint.contains("Ctrl+I") || hint.contains("Strg+I"),
+                "{lang:?}"
+            );
         }
     }
 
