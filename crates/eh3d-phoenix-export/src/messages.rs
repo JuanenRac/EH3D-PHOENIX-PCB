@@ -68,7 +68,7 @@ impl Lang {
 
 /// Code, then the title in English, Spanish, German, French, Italian, Japanese, Chinese and
 /// European Portuguese.
-pub const TITLES: [(&str, [&str; 8]); 18] = [
+pub const TITLES: [(&str, [&str; 8]); 20] = [
     (
         "PHOENIX-EXPORT-001",
         [
@@ -301,6 +301,32 @@ pub const TITLES: [(&str, [&str; 8]); 18] = [
             "書き出したファイルを読み戻せませんでした",
             "无法回读已写入的文件",
             "Não foi possível reler o ficheiro escrito",
+        ],
+    ),
+    (
+        "PHOENIX-EXPORT-019",
+        [
+            "Attribute text written with escapes",
+            "Texto de atributo escrito con escapes",
+            "Attributtext mit Escape-Folgen geschrieben",
+            "Texte d'attribut écrit avec des échappements",
+            "Testo dell'attributo scritto con sequenze di escape",
+            "属性テキストをエスケープして出力しました",
+            "属性文本已使用转义序列输出",
+            "Texto de atributo escrito com sequências de escape",
+        ],
+    ),
+    (
+        "PHOENIX-EXPORT-020",
+        [
+            "Attribute text not allowed",
+            "Texto de atributo no permitido",
+            "Attributtext nicht zulässig",
+            "Texte d'attribut non autorisé",
+            "Testo dell'attributo non consentito",
+            "属性テキストは使用できません",
+            "属性文本不被允许",
+            "Texto de atributo não permitido",
         ],
     ),
 ];

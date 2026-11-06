@@ -53,6 +53,167 @@ pub enum DrillStyle {
     Fixed,
 }
 
+/// How much of Gerber X2 the layer files and the drill files carry.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum X2Level {
+    /// The three file attributes this export always wrote (`.GenerationSoftware`, `.FileFunction`,
+    /// `.FilePolarity`) and nothing else. The default: the files do not change.
+    Legacy,
+    /// Plain Gerber X1: no attribute of any kind, no comment with an attribute in the drill files.
+    X1,
+    /// Every file attribute (`TF`).
+    File,
+    /// The file attributes and the aperture attributes (`TA`, `.AperFunction`).
+    Aperture,
+    /// The file, aperture and object attributes (`TO`, `TD`).
+    Full,
+}
+
+impl X2Level {
+    /// True when the files carry the whole set of file attributes.
+    pub fn has_file_attributes(self) -> bool {
+        matches!(self, X2Level::File | X2Level::Aperture | X2Level::Full)
+    }
+
+    /// True when the apertures and the drill tools carry a function.
+    pub fn has_aperture_attributes(self) -> bool {
+        matches!(self, X2Level::Aperture | X2Level::Full)
+    }
+
+    /// True when the drawn objects carry attributes.
+    pub fn has_object_attributes(self) -> bool {
+        self == X2Level::Full
+    }
+}
+
+/// An object attribute that the files may carry.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ObjectAttribute {
+    /// `.N`, the net of a pad, a track, a via or a zone.
+    Net,
+    /// `.P`, the reference designator and the pin number of a pad.
+    Pin,
+    /// `.C`, the reference designator of the component of a pad.
+    Component,
+}
+
+/// The kind of fiducial the pads that are fiducials are.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum FiducialScope {
+    /// A fiducial that serves the area around it.
+    Local,
+    /// A fiducial that serves the whole board.
+    Global,
+}
+
+/// The choices for the Gerber X2 attributes.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields, default)]
+pub struct X2Profile {
+    /// How much of X2 is written.
+    pub level: X2Level,
+    /// The object attributes of the level `full`, in the order they are written.
+    pub object_attributes: Vec<ObjectAttribute>,
+    /// Refuse (instead of escaping as a Unicode escape) a net name, a reference designator or a pin
+    /// number with a character that an attribute field may not hold.
+    pub strict: bool,
+    /// The value of `.CreationDate`, an ISO 8601 date and time with an offset. Written only when
+    /// it is given here (or on the command line): the files never read the clock.
+    pub creation_date: Option<String>,
+    /// The identity of the project for `.ProjectId`, a UUID; when it is missing, one is derived
+    /// from the name of the board.
+    pub project_id: Option<String>,
+    /// The revision of `.ProjectId`.
+    pub project_revision: String,
+    /// The identifier of `.SameCoordinates`; empty for the attribute without an identifier.
+    pub same_coordinates: String,
+    /// A pad of a footprint whose name holds one of these words (any case) is a fiducial pad.
+    pub fiducial_names: Vec<String>,
+    /// The kind of fiducial pad those pads are.
+    pub fiducial_scope: FiducialScope,
+    /// A pad with one of these numbers (any case) is a heatsink pad.
+    pub heatsink_pad_numbers: Vec<String>,
+}
+
+impl Default for X2Profile {
+    fn default() -> Self {
+        X2Profile {
+            level: X2Level::Legacy,
+            object_attributes: vec![
+                ObjectAttribute::Net,
+                ObjectAttribute::Pin,
+                ObjectAttribute::Component,
+            ],
+            strict: false,
+            creation_date: None,
+            project_id: None,
+            project_revision: "1".to_owned(),
+            same_coordinates: "Original".to_owned(),
+            fiducial_names: vec!["fiducial".to_owned()],
+            fiducial_scope: FiducialScope::Local,
+            heatsink_pad_numbers: vec!["EP".to_owned()],
+        }
+    }
+}
+
+impl X2Profile {
+    /// True when `attribute` is among the object attributes to write.
+    pub fn writes(&self, attribute: ObjectAttribute) -> bool {
+        self.level.has_object_attributes() && self.object_attributes.contains(&attribute)
+    }
+
+    fn validate(&self, name: &str) -> Result<(), ExportError> {
+        let field = |what: &str, value: &str| -> Result<(), ExportError> {
+            if value.is_empty() || value.len() > 64 || crate::x2::needs_escape(value) {
+                Err(bad(format!("{name}: gerber.x2.{what} is not usable")))
+            } else {
+                Ok(())
+            }
+        };
+        field("project_revision", &self.project_revision)?;
+        if !self.same_coordinates.is_empty() {
+            field("same_coordinates", &self.same_coordinates)?;
+        }
+        if let Some(date) = &self.creation_date {
+            if chrono::DateTime::parse_from_rfc3339(date).is_err() {
+                return Err(bad(format!(
+                    "{name}: gerber.x2.creation_date is not a date and time with an offset"
+                )));
+            }
+        }
+        if let Some(id) = &self.project_id {
+            if uuid::Uuid::parse_str(id).is_err() {
+                return Err(bad(format!("{name}: gerber.x2.project_id is not a UUID")));
+            }
+        }
+        for (i, a) in self.object_attributes.iter().enumerate() {
+            if self.object_attributes[..i].contains(a) {
+                return Err(bad(format!(
+                    "{name}: gerber.x2.object_attributes names an attribute twice"
+                )));
+            }
+        }
+        if self.fiducial_names.iter().any(|n| n.trim().is_empty()) {
+            return Err(bad(format!(
+                "{name}: gerber.x2.fiducial_names holds an empty word"
+            )));
+        }
+        if self
+            .heatsink_pad_numbers
+            .iter()
+            .any(|n| n.trim().is_empty())
+        {
+            return Err(bad(format!(
+                "{name}: gerber.x2.heatsink_pad_numbers holds an empty number"
+            )));
+        }
+        Ok(())
+    }
+}
+
 /// A column of a CSV file: what it holds and what its header says.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -84,6 +245,8 @@ pub struct GerberProfile {
     pub paste_shrink_nm: i64,
     /// The width of the line that draws the board outline, in nanometres.
     pub outline_width_nm: i64,
+    /// The Gerber X2 attributes.
+    pub x2: X2Profile,
 }
 
 impl Default for GerberProfile {
@@ -94,6 +257,7 @@ impl Default for GerberProfile {
             mask_expansion_nm: 50_000,
             paste_shrink_nm: 0,
             outline_width_nm: 100_000,
+            x2: X2Profile::default(),
         }
     }
 }
@@ -310,6 +474,7 @@ impl Profile {
                 "{name}: gerber.outline_width_nm is not 1 to 10000000"
             )));
         }
+        g.x2.validate(name)?;
         let d = &self.drill;
         for (field, value) in [
             ("drill.decimals", d.decimals),

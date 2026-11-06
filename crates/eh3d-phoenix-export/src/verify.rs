@@ -245,7 +245,7 @@ fn check_drill(board: &Board, file: &FabFile, plated: bool, out: &mut Vec<Diagno
         ));
     }
     let diameters: Vec<f64> = read.tools.values().map(|t| t.diameter).collect();
-    if diameters.windows(2).any(|w| w[0] >= w[1]) {
+    if diameters.windows(2).any(|w| w[0] > w[1]) {
         out.push(codes::diagnostic(
             codes::VERIFY_MISMATCH,
             Severity::Error,

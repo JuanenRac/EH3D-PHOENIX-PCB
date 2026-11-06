@@ -44,6 +44,9 @@ pub enum ExportError {
     /// The drill file could not be written.
     #[error("drill file: {0}")]
     Drill(String),
+    /// A text cannot go into an attribute field.
+    #[error("attribute: {0}")]
+    Attribute(String),
     /// The package could not be assembled.
     #[error("package: {0}")]
     Package(String),
@@ -63,6 +66,7 @@ impl ExportError {
     pub fn code(&self) -> &'static str {
         match self {
             ExportError::Layer { .. } | ExportError::Drill(_) => codes::WRITE_FAILED,
+            ExportError::Attribute(_) => codes::ATTRIBUTE_REJECTED,
             ExportError::Package(_) => codes::PACKAGE_FAILED,
             ExportError::Profile(_) => codes::PROFILE_INVALID,
             ExportError::ProfileNotFound(_) => codes::PROFILE_NOT_FOUND,

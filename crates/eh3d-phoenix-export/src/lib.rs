@@ -11,11 +11,13 @@
 //! * [`package`]: an `.eh3dproj` 1.0.0 package (EH3D-COMMON) with those files, written without
 //!   the clock and without randomness, so the same board and options give the same bytes;
 //! * [`verify`]: the check that reads the files back and compares them with the model;
+//! * [`x2`]: the Gerber X2 attributes of the files (file, aperture and object attributes, their
+//!   twins in the drill files, the escapes of the text fields), chosen by the profile;
 //! * [`codes`] and [`messages`]: the stable codes `PHOENIX-EXPORT-<NNN>` for what the files cannot
 //!   say, with their titles in the eight languages.
 //!
 //! Not done: copper pours (a zone is written as its outline), clearances, blind and buried vias,
-//! the Gerber attributes of the pads and nets, polygon pads (the board model has none) and any check
+//! the component attributes of X2 beyond the reference, the pin and the net, polygon pads (the board model has none) and any check
 //! against a reference tool or a manufacturer. All of it has been tried on boards made by hand only.
 
 #![forbid(unsafe_code)]
@@ -30,6 +32,7 @@ pub mod messages;
 pub mod package;
 pub mod profile;
 pub mod verify;
+pub mod x2;
 
 pub use fab::{build, FabFile, FabSet, FileRole};
 pub use messages::Lang;

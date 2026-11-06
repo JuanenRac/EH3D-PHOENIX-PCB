@@ -52,6 +52,24 @@
           { "key": "quantity", "header": "Quantity" }
         ]
       }
+    },
+    {
+      "name": "x2-full",
+      "description": "The generic profile with every Gerber X2 attribute: the file attributes (function, polarity, project, coordinate system, part), the function of each aperture and of each drill tool, and the net, the pin and the component of each object. Not opened in any manufacturer viewer",
+      "gerber": {
+        "x2": {
+          "level": "full",
+          "object_attributes": ["net", "pin", "component"],
+          "strict": false
+        }
+      }
+    },
+    {
+      "name": "x1",
+      "description": "The generic profile as plain Gerber X1: no attribute of any kind in the layer files and no attribute comment in the drill files",
+      "gerber": {
+        "x2": { "level": "x1" }
+      }
     }
   ]
 }

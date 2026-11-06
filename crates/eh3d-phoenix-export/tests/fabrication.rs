@@ -10,7 +10,8 @@ use eh3d_phoenix_board::{
     Via, Zone,
 };
 use eh3d_phoenix_export::assembly::parse_csv;
-use eh3d_phoenix_export::profile::BottomRotation;
+use eh3d_phoenix_export::profile::{BottomRotation, FiducialScope, ObjectAttribute, X2Level};
+use eh3d_phoenix_export::x2::derived_project_id;
 use eh3d_phoenix_export::{
     build, codes, export_package_reproducible, export_package_with, verify, ExportOptions, FabSet,
     FileRole, Profile, ProfileSet,
@@ -668,4 +669,337 @@ fn profiles_come_from_the_file_and_errors_have_their_codes() {
     let mut bad = Profile::default();
     bad.gerber.decimal_digits = 0;
     assert_eq!(build(&f, &bad).unwrap_err().code(), codes::PROFILE_INVALID);
+}
+
+fn with_level(level: X2Level) -> Profile {
+    let mut profile = Profile::default();
+    profile.gerber.x2.level = level;
+    profile
+}
+
+fn layer_files(set: &FabSet) -> Vec<&str> {
+    set.files
+        .iter()
+        .filter(|f| matches!(f.role, FileRole::Layer { .. }))
+        .map(|f| f.text())
+        .collect()
+}
+
+#[test]
+fn the_default_level_writes_what_it_always_wrote() {
+    let f = fixture();
+    let set = build(&f, &Profile::default()).unwrap();
+    for text in layer_files(&set) {
+        assert!(!text.contains("%TA"), "{text}");
+        assert!(!text.contains("%TO"), "{text}");
+        assert!(!text.contains("%TD"), "{text}");
+        assert!(!text.contains(".ProjectId"), "{text}");
+        assert!(!text.contains(".Part"), "{text}");
+    }
+    let drill = file(&set, "layers/drill_pth.drl");
+    assert!(!drill.contains("TA."));
+    assert!(drill.contains("TF.FileFunction,Plated,1,2,PTH\n"));
+    // the other levels keep the layers, the order and the geometry of the default level
+    let full = build(&f, &with_level(X2Level::Full)).unwrap();
+    assert_eq!(full.files.len(), set.files.len());
+    for (a, b) in set.files.iter().zip(&full.files) {
+        assert_eq!(a.path, b.path);
+    }
+}
+
+#[test]
+fn plain_x1_has_no_attribute_at_all() {
+    let f = fixture();
+    let profile = with_level(X2Level::X1);
+    let set = build(&f, &profile).unwrap();
+    for text in layer_files(&set) {
+        assert!(!text.contains("%T"), "{text}");
+        assert!(text.ends_with("M02*\n"));
+    }
+    assert!(!file(&set, "layers/drill_pth.drl").contains("#@!"));
+    assert!(!file(&set, "layers/drill_npth.drl").contains("#@!"));
+    assert!(verify(&f, &profile, &set).is_empty());
+}
+
+#[test]
+fn the_file_level_adds_the_project_the_coordinates_and_the_part() {
+    let f = fixture();
+    let profile = with_level(X2Level::File);
+    let set = build(&f, &profile).unwrap();
+    let id = derived_project_id("Fab board").hyphenated().to_string();
+    let top = file(&set, "layers/02_top_copper.gbr");
+    assert!(
+        top.contains(&format!("%TF.ProjectId,Fab board,{id},1*%")),
+        "{top}"
+    );
+    assert!(top.contains("%TF.SameCoordinates,Original*%"));
+    assert!(top.contains("%TF.Part,Single*%"));
+    assert!(!top.contains("CreationDate"));
+    assert!(!top.contains("%TA"));
+    assert!(!top.contains("%TO"));
+    let names: Vec<String> = eh3d_parser_gerber::parse(top)
+        .attributes
+        .iter()
+        .map(|a| a.name.clone())
+        .collect();
+    assert_eq!(
+        names,
+        vec![
+            ".GenerationSoftware",
+            ".ProjectId",
+            ".SameCoordinates",
+            ".FileFunction",
+            ".FilePolarity",
+            ".Part"
+        ]
+    );
+    // the outline has no polarity; the drill file has the same project and no polarity
+    assert!(!file(&set, "layers/06_outline.gbr").contains("FilePolarity"));
+    let drill = file(&set, "layers/drill_pth.drl");
+    assert!(drill.contains(&format!("TF.ProjectId,Fab board,{id},1")));
+    assert!(drill.contains("TF.FileFunction,Plated,1,2,PTH,Drill"));
+    assert!(drill.contains("TF.Part,Single"));
+    assert!(!drill.contains("FilePolarity"));
+    assert!(verify(&f, &profile, &set).is_empty());
+}
+
+#[test]
+fn the_creation_date_only_appears_when_the_profile_gives_it() {
+    let f = fixture();
+    let mut profile = with_level(X2Level::File);
+    let set = build(&f, &profile).unwrap();
+    assert!(layer_files(&set)
+        .iter()
+        .all(|t| !t.contains("CreationDate")));
+    profile.gerber.x2.creation_date = Some("2000-01-01T00:00:00+00:00".to_owned());
+    profile.gerber.x2.project_id = Some("123e4567-e89b-12d3-a456-426614174000".to_owned());
+    let set = build(&f, &profile).unwrap();
+    let top = file(&set, "layers/02_top_copper.gbr");
+    assert!(top.contains("%TF.CreationDate,2000-01-01T00:00:00+00:00*%"));
+    assert!(top.contains("123e4567-e89b-12d3-a456-426614174000"));
+    assert!(
+        file(&set, "layers/drill_pth.drl").contains("TF.CreationDate,2000-01-01T00:00:00+00:00")
+    );
+}
+
+#[test]
+fn the_aperture_level_names_the_function_of_each_aperture() {
+    let f = fixture();
+    let profile = with_level(X2Level::Aperture);
+    let set = build(&f, &profile).unwrap();
+    let top = file(&set, "layers/02_top_copper.gbr");
+    for function in ["Conductor", "ViaPad", "ComponentPad", "SMDPad,CuDef"] {
+        assert!(
+            top.contains(&format!("%TA.AperFunction,{function}*%\n%ADD")),
+            "{function}"
+        );
+    }
+    assert!(!top.contains("%TO"));
+    let outline = file(&set, "layers/06_outline.gbr");
+    assert!(outline.contains("%TA.AperFunction,Profile*%\n%ADD10C,0.1*%\n%TD.AperFunction*%\n"));
+    // every definition follows the attribute of its function and the attribute is deleted after
+    let read = eh3d_parser_gerber::parse(top);
+    assert!(read.is_clean(), "{:?}", read.diagnostics);
+    let kinds: Vec<&str> = read.attributes.iter().map(|a| a.kind.as_str()).collect();
+    assert_eq!(kinds.last(), Some(&"TD"));
+    assert_eq!(kinds.iter().filter(|k| **k == "TA").count(), 5);
+    // the silkscreen has no function for its strokes
+    assert!(!file(&set, "layers/05_top_silk.gbr").contains("%TA"));
+    assert!(verify(&f, &profile, &set).is_empty());
+}
+
+#[test]
+fn the_full_level_puts_the_net_pin_and_component_on_each_object() {
+    let f = fixture();
+    let profile = with_level(X2Level::Full);
+    let set = build(&f, &profile).unwrap();
+    let top = file(&set, "layers/02_top_copper.gbr");
+    assert!(top.contains("%TO.N,N*%\n"), "{top}");
+    assert!(top.contains("%TO.N,N/C*%\n"));
+    assert!(top.contains("%TO.P,R1,1*%\n%TO.C,R1*%\n"));
+    // eight pads are on the top copper, four components
+    assert_eq!(top.matches("%TO.P,").count(), 8);
+    assert_eq!(top.matches("%TO.C,").count(), 4);
+    assert_eq!(top.matches("%TO.N,").count(), 2);
+    assert!(top.ends_with("%TD.N*%\n%TD.P*%\n%TD.C*%\nM02*\n"), "{top}");
+    let read = eh3d_parser_gerber::parse(top);
+    assert!(read.is_clean(), "{:?}", read.diagnostics);
+    // the mask file names the pins but not the nets; the outline has no object attribute
+    let mask = file(&set, "layers/03_top_mask.gbr");
+    assert!(mask.contains("%TO.P,R1,MH*%"));
+    assert!(!mask.contains("%TO.N,"));
+    assert!(!file(&set, "layers/06_outline.gbr").contains("%TO"));
+    // the zone of the bottom copper carries its net
+    let bottom = file(&set, "layers/01_bottom_copper.gbr");
+    assert!(bottom.contains("%TO.N,N*%\nG36*\n"), "{bottom}");
+    assert!(verify(&f, &profile, &set).is_empty());
+}
+
+#[test]
+fn the_object_attributes_can_be_chosen() {
+    let f = fixture();
+    let mut profile = with_level(X2Level::Full);
+    profile.gerber.x2.object_attributes = vec![ObjectAttribute::Net];
+    let set = build(&f, &profile).unwrap();
+    let top = file(&set, "layers/02_top_copper.gbr");
+    assert!(top.contains("%TO.N,"));
+    assert!(!top.contains("%TO.P,") && !top.contains("%TO.C,"));
+    profile.gerber.x2.object_attributes = vec![ObjectAttribute::Component];
+    let set = build(&f, &profile).unwrap();
+    let top = file(&set, "layers/02_top_copper.gbr");
+    assert!(!top.contains("%TO.N,") && !top.contains("%TO.P,"));
+    assert!(top.contains("%TO.C,C10*%"));
+    profile.gerber.x2.object_attributes = Vec::new();
+    let set = build(&f, &profile).unwrap();
+    assert!(!file(&set, "layers/02_top_copper.gbr").contains("%TO"));
+}
+
+#[test]
+fn pads_that_are_fiducials_or_heatsinks_get_their_function() {
+    let mut f = fixture();
+    let footprint = id(11);
+    f.footprints.get_mut(&footprint).unwrap().name = "Fiducial 1mm".into();
+    let mut profile = with_level(X2Level::Aperture);
+    let set = build(&f, &profile).unwrap();
+    assert!(file(&set, "layers/02_top_copper.gbr").contains("%TA.AperFunction,FiducialPad,Local*%"));
+    profile.gerber.x2.fiducial_scope = FiducialScope::Global;
+    let set = build(&f, &profile).unwrap();
+    assert!(
+        file(&set, "layers/02_top_copper.gbr").contains("%TA.AperFunction,FiducialPad,Global*%")
+    );
+    let mut g = fixture();
+    let soic = id(10);
+    g.footprints
+        .get_mut(&soic)
+        .unwrap()
+        .pads
+        .get_mut(&id(21))
+        .unwrap()
+        .number = "EP".into();
+    let set = build(&g, &with_level(X2Level::Aperture)).unwrap();
+    assert!(file(&set, "layers/02_top_copper.gbr").contains("%TA.AperFunction,HeatsinkPad*%"));
+}
+
+#[test]
+fn the_drill_tools_get_a_function_and_equal_diameters_get_two_tools() {
+    let mut f = fixture();
+    // a via drilled as the plated hole of pad 1
+    f.vias.get_mut(&id(41)).unwrap().drill = nm(800_000);
+    let profile = with_level(X2Level::Aperture);
+    let set = build(&f, &profile).unwrap();
+    let pth = file(&set, "layers/drill_pth.drl");
+    assert!(
+        pth.contains("; #@! TA.AperFunction,Plated,PTH,ViaDrill\nT01C0.3"),
+        "{pth}"
+    );
+    assert!(
+        pth.contains("; #@! TA.AperFunction,Plated,PTH,ViaDrill\nT02C0.8"),
+        "{pth}"
+    );
+    assert!(
+        pth.contains("; #@! TA.AperFunction,Plated,PTH,ComponentDrill\nT03C0.8"),
+        "{pth}"
+    );
+    assert!(pth.contains("; #@! TD.AperFunction\n%\n"));
+    let read = eh3d_parser_excellon::parse(pth);
+    assert!(read.is_clean(), "{:?}", read.diagnostics);
+    assert_eq!(read.tools.len(), 4);
+    let npth = file(&set, "layers/drill_npth.drl");
+    assert!(
+        npth.contains("; #@! TA.AperFunction,NonPlated,NPTH,MechanicalDrill\nT01C3.2"),
+        "{npth}"
+    );
+    assert!(npth.contains("TF.FileFunction,NonPlated,1,2,NPTH,Drill"));
+    assert!(verify(&f, &profile, &set).is_empty());
+    // a slot makes the file a mixed one
+    let mut slots = with_level(X2Level::Aperture);
+    slots.drill.oblong_as_slot = true;
+    let set = build(&fixture(), &slots).unwrap();
+    assert!(file(&set, "layers/drill_pth.drl").contains("TF.FileFunction,Plated,1,2,PTH,Mixed"));
+}
+
+#[test]
+fn text_that_a_field_cannot_hold_is_escaped_or_refused() {
+    let mut f = fixture();
+    f.nets.get_mut(&id(7)).unwrap().name = "A,B".into();
+    let mut profile = with_level(X2Level::Full);
+    let set = build(&f, &profile).unwrap();
+    let top = file(&set, "layers/02_top_copper.gbr");
+    assert!(top.contains("%TO.N,A\\u002CB*%"), "{top}");
+    assert!(codes_of(&set).contains(&codes::ATTRIBUTE_ESCAPED.to_string()));
+    assert!(verify(&f, &profile, &set).is_empty());
+    profile.gerber.x2.strict = true;
+    let error = build(&f, &profile).unwrap_err();
+    assert_eq!(error.code(), codes::ATTRIBUTE_REJECTED);
+    assert!(error.to_string().contains("U+002C"), "{error}");
+    // a name that needs no escape is fine in strict mode
+    assert!(build(&fixture(), &profile).is_ok());
+    // below the object level the net names are not written, so nothing is refused
+    let mut file_level = with_level(X2Level::File);
+    file_level.gerber.x2.strict = true;
+    assert!(build(&f, &file_level).is_ok());
+}
+
+#[test]
+fn every_level_gives_the_same_bytes_every_time() {
+    let f = fixture();
+    for level in [
+        X2Level::Legacy,
+        X2Level::X1,
+        X2Level::File,
+        X2Level::Aperture,
+        X2Level::Full,
+    ] {
+        let profile = with_level(level);
+        let a = build(&f, &profile).unwrap();
+        let b = build(&f, &profile).unwrap();
+        for (x, y) in a.files.iter().zip(&b.files) {
+            assert_eq!(x.bytes, y.bytes, "{}", x.path);
+        }
+        assert_eq!(a.manifest().unwrap(), b.manifest().unwrap());
+    }
+}
+
+#[test]
+fn the_x2_choices_of_a_profile_file_are_checked() {
+    let ok = r#"{"format": "phoenix-export/1", "profiles": [{"name": "a", "gerber": {"x2": {
+        "level": "full", "object_attributes": ["net", "pin"], "strict": true,
+        "creation_date": "2000-01-01T00:00:00Z", "project_revision": "B",
+        "same_coordinates": "", "fiducial_names": ["fid"], "fiducial_scope": "global",
+        "heatsink_pad_numbers": ["EP", "TAB"]}}}]}"#;
+    let set = ProfileSet::from_json(ok).unwrap();
+    let x2 = &set.get("a").unwrap().gerber.x2;
+    assert_eq!(x2.level, X2Level::Full);
+    assert!(x2.strict && x2.writes(ObjectAttribute::Pin) && !x2.writes(ObjectAttribute::Component));
+    assert_eq!(x2.fiducial_scope, FiducialScope::Global);
+    for text in [
+        r#"{"level": "everything"}"#,
+        r#"{"unknown": 1}"#,
+        r#"{"creation_date": "yesterday"}"#,
+        r#"{"project_id": "not-a-uuid"}"#,
+        r#"{"project_revision": ""}"#,
+        r#"{"project_revision": "a,b"}"#,
+        r#"{"same_coordinates": "a*b"}"#,
+        r#"{"object_attributes": ["net", "net"]}"#,
+        r#"{"object_attributes": ["colour"]}"#,
+        r#"{"fiducial_names": [" "]}"#,
+        r#"{"heatsink_pad_numbers": [""]}"#,
+    ] {
+        let json = format!(
+            r#"{{"format": "phoenix-export/1", "profiles": [{{"name": "a", "gerber": {{"x2": {text}}}}}]}}"#
+        );
+        let error = ProfileSet::from_json(&json).unwrap_err();
+        assert_eq!(error.code(), codes::PROFILE_INVALID, "{text}");
+    }
+    let shipped =
+        ProfileSet::from_json(include_str!("../../../config/export_profiles.json")).unwrap();
+    assert_eq!(
+        shipped.get("x2-full").unwrap().gerber.x2.level,
+        X2Level::Full
+    );
+    assert_eq!(shipped.get("x1").unwrap().gerber.x2.level, X2Level::X1);
+    assert_eq!(
+        shipped.get("generic").unwrap().gerber.x2.level,
+        X2Level::Legacy
+    );
 }

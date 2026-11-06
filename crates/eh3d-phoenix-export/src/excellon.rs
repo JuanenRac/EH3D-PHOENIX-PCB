@@ -19,13 +19,15 @@ use eh3d_diagnostic::{Diagnostic, Severity};
 use eh3d_parser_excellon::{ExcellonFile, Hit, Point as EPoint, Slot, Tool, Units};
 use eh3d_phoenix_board::connectivity::pad_position;
 use eh3d_phoenix_board::{Board, LayerKind, PadRef, PadShape};
-use eh3d_writer_excellon::{CoordinateStyle, ExcellonOptions, WriteError};
+use eh3d_writer_excellon::{CoordinateStyle, ExcellonOptions};
 
 use crate::codes;
-use crate::gerber::GENERATION_SOFTWARE;
+use crate::gerber::{LayerError, GENERATION_SOFTWARE};
+use crate::profile::{X2Level, X2Profile};
+use crate::x2::{self, DrillFunction, Fields, FileInput};
 
 /// What the caller chooses.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DrillOptions {
     /// How coordinates are written.
     pub style: CoordinateStyle,
@@ -33,6 +35,10 @@ pub struct DrillOptions {
     pub oblong_as_slot: bool,
     /// The number of copper layers, for the `.FileFunction` comment (at least 2 is written).
     pub copper_layers: usize,
+    /// The Gerber X2 attributes to write.
+    pub x2: X2Profile,
+    /// The name of the board, for `.ProjectId`.
+    pub board_name: String,
 }
 
 impl Default for DrillOptions {
@@ -41,6 +47,8 @@ impl Default for DrillOptions {
             style: CoordinateStyle::Decimal { decimals: 6 },
             oblong_as_slot: false,
             copper_layers: 2,
+            x2: X2Profile::default(),
+            board_name: String::new(),
         }
     }
 }
@@ -60,6 +68,8 @@ pub struct DrillFiles {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 struct Hole {
     diameter: i64,
+    /// What the hole is for; `None` when the level of X2 does not name it.
+    function: Option<DrillFunction>,
     y: i64,
     x: i64,
     /// The other end of a slot, as `(x, y)`.
@@ -103,23 +113,29 @@ fn slot_shape(shape: PadShape, drill: i64, total_udeg: i64, x: i64, y: i64) -> S
     }
 }
 
-fn write_one(holes: &[Hole], function: &str, options: &DrillOptions) -> Result<String, WriteError> {
+fn write_one(
+    holes: &[Hole],
+    plated: bool,
+    options: &DrillOptions,
+    diagnostics: &mut Vec<Diagnostic>,
+) -> Result<String, LayerError> {
     let mut sorted = holes.to_vec();
     sorted.sort_unstable();
-    let mut diameters: Vec<i64> = sorted.iter().map(|h| h.diameter).collect();
-    diameters.sort_unstable();
-    diameters.dedup();
-    let numbers: BTreeMap<i64, u32> = diameters
+    let mut kinds: Vec<(i64, Option<DrillFunction>)> =
+        sorted.iter().map(|h| (h.diameter, h.function)).collect();
+    kinds.sort_unstable();
+    kinds.dedup();
+    let numbers: BTreeMap<(i64, Option<DrillFunction>), u32> = kinds
         .iter()
         .enumerate()
-        .map(|(i, d)| (*d, 1 + i as u32))
+        .map(|(i, k)| (*k, 1 + i as u32))
         .collect();
     let file = ExcellonFile {
         units: Some(Units::Millimetres),
         zeros: None,
         tools: numbers
             .iter()
-            .map(|(d, n)| {
+            .map(|((d, _), n)| {
                 (
                     *n,
                     Tool {
@@ -136,7 +152,7 @@ fn write_one(holes: &[Hole], function: &str, options: &DrillOptions) -> Result<S
             .filter(|h| h.to.is_none())
             .map(|h| Hit {
                 line: 0,
-                tool: numbers[&h.diameter],
+                tool: numbers[&(h.diameter, h.function)],
                 at: EPoint {
                     x: mm(h.x),
                     y: mm(h.y),
@@ -148,7 +164,7 @@ fn write_one(holes: &[Hole], function: &str, options: &DrillOptions) -> Result<S
             .filter_map(|h| {
                 h.to.map(|(tx, ty)| Slot {
                     line: 0,
-                    tool: numbers[&h.diameter],
+                    tool: numbers[&(h.diameter, h.function)],
                     from: EPoint {
                         x: mm(h.x),
                         y: mm(h.y),
@@ -164,29 +180,75 @@ fn write_one(holes: &[Hole], function: &str, options: &DrillOptions) -> Result<S
         ended: true,
         diagnostics: Vec::new(),
     };
-    let write_options = ExcellonOptions {
-        style: options.style,
-        units: None,
-        zeros: None,
-        comments: vec![
+    let layers = options.copper_layers.max(2).to_string();
+    let mut function = vec![
+        if plated { "Plated" } else { "NonPlated" }.to_owned(),
+        "1".to_owned(),
+        layers,
+        if plated { "PTH" } else { "NPTH" }.to_owned(),
+    ];
+    let mut fields = Fields::new(options.x2.strict);
+    let comments = match options.x2.level {
+        X2Level::Legacy => vec![
             format!(
                 " #@! TF.GenerationSoftware,{}",
                 GENERATION_SOFTWARE.join(",")
             ),
-            format!(" #@! TF.FileFunction,{function}"),
+            format!(" #@! TF.FileFunction,{}", function.join(",")),
         ],
+        X2Level::X1 => Vec::new(),
+        _ => {
+            function.push(
+                if file.slots.is_empty() {
+                    "Drill"
+                } else {
+                    "Mixed"
+                }
+                .to_owned(),
+            );
+            let input = FileInput {
+                x2: &options.x2,
+                board_name: &options.board_name,
+                function: Some(function),
+                polarity: None,
+            };
+            x2::drill_comments(&x2::file_attributes(&input, &mut fields)?)
+        }
     };
-    eh3d_writer_excellon::write(&file, &write_options)
+    let write_options = ExcellonOptions {
+        style: options.style,
+        units: None,
+        zeros: None,
+        comments,
+    };
+    let mut text = eh3d_writer_excellon::write(&file, &write_options)?;
+    if options.x2.level.has_aperture_attributes() {
+        let functions: BTreeMap<u32, DrillFunction> = numbers
+            .iter()
+            .filter_map(|((_, f), n)| f.map(|f| (*n, f)))
+            .collect();
+        text = x2::insert_tool_attributes(&text, &functions);
+    }
+    if fields.escaped() > 0 {
+        diagnostics.push(codes::diagnostic(
+            codes::ATTRIBUTE_ESCAPED,
+            Severity::Info,
+            &format!("{} text(s) in one drill file", fields.escaped()),
+        ));
+    }
+    Ok(text)
 }
 
 /// Writes the drill files. A file is `None` when the board has no hole of its kind.
-pub fn write_drill_files(board: &Board, options: &DrillOptions) -> Result<DrillFiles, WriteError> {
+pub fn write_drill_files(board: &Board, options: &DrillOptions) -> Result<DrillFiles, LayerError> {
+    let named = options.x2.level.has_aperture_attributes();
     let mut diagnostics = Vec::new();
     let mut plated: Vec<Hole> = Vec::new();
     let mut non_plated: Vec<Hole> = Vec::new();
     for v in board.vias.values() {
         plated.push(Hole {
             diameter: v.drill.get(),
+            function: named.then_some(DrillFunction::Via),
             y: v.at.y_nm.get(),
             x: v.at.x_nm.get(),
             to: None,
@@ -226,6 +288,7 @@ pub fn write_drill_files(board: &Board, options: &DrillOptions) -> Result<DrillF
             let hole = match shape {
                 Shape::Slot(from, to) => Hole {
                     diameter: drill.get(),
+                    function: None,
                     y: from.1,
                     x: from.0,
                     to: Some(to),
@@ -239,11 +302,20 @@ pub fn write_drill_files(board: &Board, options: &DrillOptions) -> Result<DrillF
                     }
                     Hole {
                         diameter: drill.get(),
+                        function: None,
                         y,
                         x,
                         to: None,
                     }
                 }
+            };
+            let hole = Hole {
+                function: named.then_some(if on_copper {
+                    DrillFunction::Component
+                } else {
+                    DrillFunction::Mechanical
+                }),
+                ..hole
             };
             if on_copper {
                 plated.push(hole);
@@ -266,24 +338,15 @@ pub fn write_drill_files(board: &Board, options: &DrillOptions) -> Result<DrillF
             &format!("{off_axis} pad(s)"),
         ));
     }
-    let layers = options.copper_layers.max(2);
     let plated_text = if plated.is_empty() {
         None
     } else {
-        Some(write_one(
-            &plated,
-            &format!("Plated,1,{layers},PTH"),
-            options,
-        )?)
+        Some(write_one(&plated, true, options, &mut diagnostics)?)
     };
     let non_plated_text = if non_plated.is_empty() {
         None
     } else {
-        Some(write_one(
-            &non_plated,
-            &format!("NonPlated,1,{layers},NPTH"),
-            options,
-        )?)
+        Some(write_one(&non_plated, false, options, &mut diagnostics)?)
     };
     Ok(DrillFiles {
         plated: plated_text,
@@ -336,18 +399,21 @@ mod tests {
         let mut holes = [
             Hole {
                 diameter: 2,
+                function: None,
                 y: 0,
                 x: 0,
                 to: None,
             },
             Hole {
                 diameter: 1,
+                function: None,
                 y: 5,
                 x: 1,
                 to: None,
             },
             Hole {
                 diameter: 1,
+                function: None,
                 y: 5,
                 x: 0,
                 to: None,

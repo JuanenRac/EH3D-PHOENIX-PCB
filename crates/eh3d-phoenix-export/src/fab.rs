@@ -17,7 +17,7 @@ use eh3d_writer_excellon::CoordinateStyle;
 use crate::assembly::{bom_csv, placement_csv};
 use crate::codes;
 use crate::excellon::{write_drill_files, DrillOptions};
-use crate::gerber::{format_with_decimals, write_layer, LayerFileSpec};
+use crate::gerber::{format_with_decimals, write_layer, LayerError, LayerFileSpec};
 use crate::package::ExportError;
 use crate::profile::{DrillStyle, Profile};
 
@@ -206,11 +206,15 @@ pub fn build(board: &Board, profile: &Profile) -> Result<FabSet, ExportError> {
             format,
             mask_expansion: profile.gerber.mask_expansion_nm,
             paste_shrink: profile.gerber.paste_shrink_nm,
+            x2: profile.gerber.x2.clone(),
         };
         let (output, mut found) = write_layer(board, &spec, profile.gerber.outline_width_nm)
-            .map_err(|e| ExportError::Layer {
-                layer: layer.name.clone(),
-                message: e.to_string(),
+            .map_err(|e| match e {
+                LayerError::Field(f) => ExportError::Attribute(format!("{}: {f}", layer.name)),
+                other => ExportError::Layer {
+                    layer: layer.name.clone(),
+                    message: other.to_string(),
+                },
             })?;
         diagnostics.append(&mut found);
         files.push(FabFile {
@@ -248,9 +252,13 @@ pub fn build(board: &Board, profile: &Profile) -> Result<FabSet, ExportError> {
         },
         oblong_as_slot: d.oblong_as_slot,
         copper_layers: copper_layer_count(board),
+        x2: profile.gerber.x2.clone(),
+        board_name: name.clone(),
     };
-    let mut drills =
-        write_drill_files(board, &drill_options).map_err(|e| ExportError::Drill(e.to_string()))?;
+    let mut drills = write_drill_files(board, &drill_options).map_err(|e| match e {
+        LayerError::Field(f) => ExportError::Attribute(format!("drill file: {f}")),
+        other => ExportError::Drill(other.to_string()),
+    })?;
     diagnostics.append(&mut drills.diagnostics);
     for (text, file_name, plated) in [
         (drills.plated, &d.plated_file, true),

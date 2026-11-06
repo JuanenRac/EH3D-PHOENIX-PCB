@@ -13,11 +13,13 @@ use eh3d_parser_gerber::{
     QuadrantMode, Units, ZeroOmission,
 };
 use eh3d_phoenix_board::connectivity::pad_position;
-use eh3d_phoenix_board::{Board, Id, LayerKind, PadRef, PadShape, Segment};
+use eh3d_phoenix_board::{Board, Id, LayerKind, Pad, PadRef, PadShape, Segment};
 use eh3d_phoenix_model::Point;
 use eh3d_writer_gerber::{GerberOptions, GerberOutput, WriteError};
 
 use crate::codes;
+use crate::profile::{ObjectAttribute, X2Level, X2Profile};
+use crate::x2::{self, ApFunction, FieldError, Fields, FileInput, ObjectSet, NO_NET};
 
 /// The coordinate format of the files unless a profile says otherwise: 4 digits before and 6 after
 /// the point, in millimetres.
@@ -50,12 +52,22 @@ enum ApKey {
     Obround(i64, i64),
 }
 
+/// An aperture: its shape and, at the levels of X2 that name it, its function.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+struct Ap {
+    key: ApKey,
+    function: Option<ApFunction>,
+}
+
 enum Draw {
-    Flash(ApKey, Point),
-    Line(ApKey, Point, Point),
-    Arc(ApKey, Point, Point, (f64, f64), bool),
+    Flash(Ap, Point),
+    Line(Ap, Point, Point),
+    Arc(Ap, Point, Point, (f64, f64), bool),
     Region(Vec<Point>),
 }
+
+/// A drawn object with the object attributes it carries.
+type Drawn = (Draw, ObjectSet);
 
 fn mm(nm: i64) -> f64 {
     nm as f64 / 1_000_000.0
@@ -113,17 +125,18 @@ fn pad_key(shape: PadShape, swapped: bool) -> ApKey {
 }
 
 fn push_pieces(
-    draws: &mut Vec<Draw>,
-    key: ApKey,
+    draws: &mut Vec<Drawn>,
+    ap: Ap,
+    set: &ObjectSet,
     path: &[Segment],
     diagnostics: &mut Vec<Diagnostic>,
 ) {
     for s in path {
         match s {
-            Segment::Line { start, end } => draws.push(Draw::Line(key, *start, *end)),
+            Segment::Line { start, end } => draws.push((Draw::Line(ap, *start, *end), set.clone())),
             Segment::Arc { start, end, sweep } => match arc_centre(*start, *end, sweep.get()) {
                 Some((offset, clockwise)) => {
-                    draws.push(Draw::Arc(key, *start, *end, offset, clockwise))
+                    draws.push((Draw::Arc(ap, *start, *end, offset, clockwise), set.clone()))
                 }
                 None => diagnostics.push(codes::diagnostic(
                     codes::ARC_SKIPPED,
@@ -145,25 +158,70 @@ fn adjust(key: ApKey, delta: i64) -> ApKey {
     }
 }
 
+/// The function of the aperture of a pad.
+fn pad_function(pad: &Pad, footprint_name: &str, x2: &X2Profile) -> ApFunction {
+    let name = footprint_name.to_lowercase();
+    if x2
+        .fiducial_names
+        .iter()
+        .any(|word| name.contains(&word.to_lowercase()))
+    {
+        ApFunction::fiducial(x2.fiducial_scope)
+    } else if x2
+        .heatsink_pad_numbers
+        .iter()
+        .any(|number| number.eq_ignore_ascii_case(&pad.number))
+    {
+        ApFunction::HeatsinkPad
+    } else if pad.drill.is_some() {
+        ApFunction::ComponentPad
+    } else {
+        ApFunction::SmdPad
+    }
+}
+
 fn collect(
     board: &Board,
     spec: &LayerFileSpec,
     outline_width: i64,
     diagnostics: &mut Vec<Diagnostic>,
-) -> Vec<Draw> {
+) -> Vec<Drawn> {
     let (layer, kind) = (spec.layer, spec.kind);
+    let x2 = &spec.x2;
+    let named = x2.level.has_aperture_attributes();
+    let ap = |key: ApKey, function: ApFunction| Ap {
+        key,
+        function: named.then_some(function),
+    };
+    let plain = |key: ApKey| Ap {
+        key,
+        function: None,
+    };
     let delta = match kind {
         LayerKind::SolderMask => spec.mask_expansion.saturating_mul(2),
         LayerKind::Paste => spec.paste_shrink.saturating_mul(-2),
         _ => 0,
     };
-    let mut draws = Vec::new();
     let is_copper = kind == LayerKind::Copper;
+    let net_name = |id: Id| -> String {
+        board
+            .nets
+            .get(&id)
+            .map(|n| n.name.as_str())
+            .filter(|n| !n.is_empty())
+            .unwrap_or(NO_NET)
+            .to_owned()
+    };
+    let net_set = |id: Id| ObjectSet {
+        net: (is_copper && x2.writes(ObjectAttribute::Net)).then(|| net_name(id)),
+        ..ObjectSet::default()
+    };
+    let mut draws: Vec<Drawn> = Vec::new();
     if is_copper {
         let mut zones = 0usize;
         for z in board.zones.values().filter(|z| z.layer == layer) {
             if z.outline.len() >= 3 {
-                draws.push(Draw::Region(z.outline.clone()));
+                draws.push((Draw::Region(z.outline.clone()), net_set(z.net)));
                 zones += 1;
             }
         }
@@ -177,7 +235,8 @@ fn collect(
         for t in board.tracks.values().filter(|t| t.layer == layer) {
             push_pieces(
                 &mut draws,
-                ApKey::Circle(t.width.get()),
+                ap(ApKey::Circle(t.width.get()), ApFunction::Conductor),
+                &net_set(t.net),
                 &t.path,
                 diagnostics,
             );
@@ -187,7 +246,13 @@ fn collect(
             .values()
             .filter(|v| v.from_layer == layer || v.to_layer == layer)
         {
-            draws.push(Draw::Flash(ApKey::Circle(v.diameter.get()), v.at));
+            draws.push((
+                Draw::Flash(
+                    ap(ApKey::Circle(v.diameter.get()), ApFunction::ViaPad),
+                    v.at,
+                ),
+                net_set(v.net),
+            ));
         }
     }
     if kind == LayerKind::Silkscreen {
@@ -198,7 +263,8 @@ fn collect(
                     no_glyph += d.missing_glyphs;
                     push_pieces(
                         &mut draws,
-                        ApKey::Circle(d.width.get()),
+                        plain(ApKey::Circle(d.width.get())),
+                        &ObjectSet::default(),
                         &d.pieces,
                         diagnostics,
                     );
@@ -222,13 +288,12 @@ fn collect(
         }
     }
     if kind == LayerKind::Outline && board.outline.len() >= 3 {
-        let key = ApKey::Circle(outline_width);
+        let line = ap(ApKey::Circle(outline_width), ApFunction::Profile);
         let n = board.outline.len();
         for i in 0..n {
-            draws.push(Draw::Line(
-                key,
-                board.outline[i],
-                board.outline[(i + 1) % n],
+            draws.push((
+                Draw::Line(line, board.outline[i], board.outline[(i + 1) % n]),
+                ObjectSet::default(),
             ));
         }
     }
@@ -241,13 +306,11 @@ fn collect(
             if !pad.layers.contains(&layer) {
                 continue;
             }
-            let Some(at) = pad_position(
-                board,
-                PadRef {
-                    component: *cid,
-                    pad: *pid,
-                },
-            ) else {
+            let pad_ref = PadRef {
+                component: *cid,
+                pad: *pid,
+            };
+            let Some(at) = pad_position(board, pad_ref) else {
                 continue;
             };
             let total = (pad.rotation.get() + component.rotation.get()).rem_euclid(360_000_000);
@@ -255,7 +318,24 @@ fn collect(
                 rotated += 1;
             }
             let swapped = (total / 90_000_000) % 2 == 1 && total % 90_000_000 == 0;
-            draws.push(Draw::Flash(adjust(pad_key(pad.shape, swapped), delta), at));
+            let refdes = (!component.refdes.is_empty()).then(|| component.refdes.clone());
+            let set = ObjectSet {
+                net: (is_copper && x2.writes(ObjectAttribute::Net)).then(|| {
+                    board
+                        .net_of(pad_ref)
+                        .map_or_else(|| NO_NET.to_owned(), net_name)
+                }),
+                pin: refdes
+                    .clone()
+                    .filter(|_| x2.writes(ObjectAttribute::Pin) && !pad.number.is_empty())
+                    .map(|r| (r, pad.number.clone())),
+                component: refdes.filter(|_| x2.writes(ObjectAttribute::Component)),
+            };
+            let function = pad_function(pad, &footprint.name, x2);
+            draws.push((
+                Draw::Flash(ap(adjust(pad_key(pad.shape, swapped), delta), function), at),
+                set,
+            ));
         }
     }
     if rotated > 0 {
@@ -304,6 +384,52 @@ pub struct LayerFileSpec {
     pub mask_expansion: i64,
     /// How far, per side, a paste opening is smaller than its pad, in nanometres.
     pub paste_shrink: i64,
+    /// The Gerber X2 attributes to write.
+    pub x2: X2Profile,
+}
+
+/// Why a layer file could not be written.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum LayerError {
+    /// The writer of the format refused the file.
+    Write(WriteError),
+    /// The writer of the drill format refused the file.
+    Drill(eh3d_writer_excellon::WriteError),
+    /// A text cannot go into an attribute field.
+    Field(FieldError),
+    /// The attribute commands could not be put into the file (a defect of this export).
+    Attributes,
+}
+
+impl std::fmt::Display for LayerError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            LayerError::Write(e) => write!(f, "{e}"),
+            LayerError::Drill(e) => write!(f, "{e}"),
+            LayerError::Field(e) => write!(f, "{e}"),
+            LayerError::Attributes => f.write_str("the attribute commands do not fit the file"),
+        }
+    }
+}
+
+impl std::error::Error for LayerError {}
+
+impl From<WriteError> for LayerError {
+    fn from(e: WriteError) -> Self {
+        LayerError::Write(e)
+    }
+}
+
+impl From<eh3d_writer_excellon::WriteError> for LayerError {
+    fn from(e: eh3d_writer_excellon::WriteError) -> Self {
+        LayerError::Drill(e)
+    }
+}
+
+impl From<FieldError> for LayerError {
+    fn from(e: FieldError) -> Self {
+        LayerError::Field(e)
+    }
 }
 
 /// Writes one layer. Returns the file and the diagnostics.
@@ -311,19 +437,19 @@ pub fn write_layer(
     board: &Board,
     spec: &LayerFileSpec,
     outline_width: i64,
-) -> Result<(GerberOutput, Vec<Diagnostic>), WriteError> {
+) -> Result<(GerberOutput, Vec<Diagnostic>), LayerError> {
     let mut diagnostics = Vec::new();
     let draws = collect(board, spec, outline_width, &mut diagnostics);
-    let mut keys: Vec<ApKey> = draws
+    let mut keys: Vec<Ap> = draws
         .iter()
-        .filter_map(|d| match d {
+        .filter_map(|(d, _)| match d {
             Draw::Flash(k, _) | Draw::Line(k, _, _) | Draw::Arc(k, _, _, _, _) => Some(*k),
             Draw::Region(_) => None,
         })
         .collect();
     keys.sort();
     keys.dedup();
-    let numbers: BTreeMap<ApKey, u32> = keys
+    let numbers: BTreeMap<Ap, u32> = keys
         .iter()
         .enumerate()
         .map(|(i, k)| (*k, 10 + i as u32))
@@ -331,40 +457,46 @@ pub fn write_layer(
     let mut file = GerberFile {
         units: Some(Units::Millimetres),
         format: Some(spec.format),
-        apertures: numbers.iter().map(|(k, n)| (*n, aperture_of(*k))).collect(),
+        apertures: numbers
+            .iter()
+            .map(|(k, n)| (*n, aperture_of(k.key)))
+            .collect(),
         macros: BTreeMap::new(),
         attributes: Vec::new(),
         commands: Vec::new(),
         ended: true,
         diagnostics: Vec::new(),
     };
-    file.attributes.push(Attribute {
-        kind: "TF".to_owned(),
-        name: ".GenerationSoftware".to_owned(),
-        values: GENERATION_SOFTWARE
-            .iter()
-            .map(|s| (*s).to_owned())
-            .collect(),
-    });
-    if let Some(values) = &spec.file_function {
+    let mut fields = Fields::new(spec.x2.strict);
+    let input = FileInput {
+        x2: &spec.x2,
+        board_name: &board.name,
+        function: spec.file_function.clone(),
+        polarity: spec.polarity,
+    };
+    for (name, values) in x2::file_attributes(&input, &mut fields)? {
         file.attributes.push(Attribute {
             kind: "TF".to_owned(),
-            name: ".FileFunction".to_owned(),
-            values: values.clone(),
+            name: name.to_owned(),
+            values,
         });
     }
-    if let Some(polarity) = spec.polarity {
-        file.attributes.push(Attribute {
-            kind: "TF".to_owned(),
-            name: ".FilePolarity".to_owned(),
-            values: vec![polarity.to_owned()],
-        });
-    }
+    let objects = spec.x2.level == X2Level::Full;
+    let mut changes: Vec<String> = Vec::new();
+    let mut in_force = ObjectSet::default();
     let mut current: Option<u32> = None;
     let push = |file: &mut GerberFile, op: Operation| {
         file.commands.push(Command { line: 0, op });
     };
-    for d in &draws {
+    for (d, set) in &draws {
+        if objects {
+            let text = x2::object_changes(&in_force, set, &mut fields)?;
+            if !text.is_empty() {
+                push(&mut file, x2::marker());
+                changes.push(text);
+                in_force = set.clone();
+            }
+        }
         if let Draw::Flash(k, _) | Draw::Line(k, _, _) | Draw::Arc(k, _, _, _, _) = d {
             let n = numbers[k];
             if current != Some(n) {
@@ -414,7 +546,31 @@ pub fn write_layer(
             }
         }
     }
-    let output = eh3d_writer_gerber::write(&file, &GerberOptions::default())?;
+    if objects {
+        let text = x2::object_changes(&in_force, &ObjectSet::default(), &mut fields)?;
+        if !text.is_empty() {
+            push(&mut file, x2::marker());
+            changes.push(text);
+        }
+    }
+    let mut output = eh3d_writer_gerber::write(&file, &GerberOptions::default())?;
+    if objects {
+        output.text = x2::replace_markers(&output.text, &changes).ok_or(LayerError::Attributes)?;
+    }
+    if spec.x2.level.has_aperture_attributes() {
+        let functions: BTreeMap<u32, ApFunction> = numbers
+            .iter()
+            .filter_map(|(k, n)| k.function.map(|f| (*n, f)))
+            .collect();
+        output.text = x2::insert_aperture_attributes(&output.text, &functions);
+    }
+    if fields.escaped() > 0 {
+        diagnostics.push(codes::diagnostic(
+            codes::ATTRIBUTE_ESCAPED,
+            Severity::Info,
+            &format!("{} text(s) in one file", fields.escaped()),
+        ));
+    }
     Ok((output, diagnostics))
 }
 

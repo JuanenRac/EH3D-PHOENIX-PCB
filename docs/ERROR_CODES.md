@@ -132,6 +132,8 @@ Each table repeats the `REGISTRY` of a crate (`eh3d-phoenix-model` in `src/diagn
 | PHOENIX-EXPORT-016 | Slot pad not on a right angle | a drilled oblong pad turned by an angle that is not a multiple of 90 degrees, written as a round hole when slots are asked for (a warning) |
 | PHOENIX-EXPORT-017 | Layer side not given | a solder mask or paste layer written without a file function because the layer does not say which side it is on (information) |
 | PHOENIX-EXPORT-018 | Written file could not be read back | the check could not read a Gerber or Excellon file it has just made (an error) |
+| PHOENIX-EXPORT-019 | Attribute text written with escapes | a net name, a reference designator, a pin number or a project name with a comma, an asterisk, a percent sign, a backslash or a character outside printable ASCII, written as `\uXXXX` in a Gerber X2 attribute (information; the strict mode refuses it instead) |
+| PHOENIX-EXPORT-020 | Attribute text not allowed | the same kind of text in the strict mode of `gerber.x2`, or a character beyond the first plane of Unicode, which has no escape; the export stops (an error) |
 
 ## Schematic and its link to the board (`eh3d-phoenix-schematic`)
 
@@ -648,6 +650,23 @@ The titles of these codes also exist in the eight languages of the suite (`TITLE
 | PHOENIX-GBR-017 | File ends without an end command | warning: no `M02` in a Gerber file or no `M30` in a drill file; what was read is kept |
 | PHOENIX-GBR-018 | Command option not valid | an option of `phoenix gerber-import` that the command does not know or needs a value for, an unknown language code, files together with `--roundtrip`, `--profile` without `--roundtrip`, a profile that is not in the profile file, an output file that exists or is an input |
 | PHOENIX-GBR-019 | Export for the round trip failed | the export of the board with the profile refused it, so there is nothing to read back |
+
+## Gerber X2 check (`eh3d-phoenix-gerber`, `src/x2check.rs`)
+
+The titles of these codes also exist in the eight languages of the suite (`TITLES` in `src/x2check.rs`); the command is `phoenix gerber-check` (`docs/GERBER_X2.md`). The check is a subset chosen for this project and no manufacturer's tool has been used to compare it.
+
+| Code | Title | Raised by |
+|---|---|---|
+| PHOENIX-GX2-001 | End command missing or not last | error: no `M02` in a Gerber file or no `M30` in a drill file, or a command after it |
+| PHOENIX-GX2-002 | Required file attribute missing | error: a file without `.FileFunction` (a plain X1 file has none) |
+| PHOENIX-GX2-003 | Recommended file attribute missing | warning: `.GenerationSoftware`, `.Part` or, for copper, solder mask, legend and paste, `.FilePolarity` missing |
+| PHOENIX-GX2-004 | Aperture or tool used without a definition | error: an aperture selected that no `AD` defined, an object drawn with no aperture selected, or a drill tool selected that no line defined |
+| PHOENIX-GX2-005 | Attribute deleted that was not set | warning: a `TD` that names an attribute no `TA` or `TO` set, or a `TD` with nothing in force |
+| PHOENIX-GX2-006 | Attribute name or value not valid | error: an attribute without a name, a standard name used with the wrong command, or the values of `.FileFunction`, `.FilePolarity`, `.Part`, `.ProjectId`, `.GenerationSoftware`, `.N`, `.P` or `.C` with the wrong shape; warning: a `.FileFunction` or `.AperFunction` this check does not know |
+| PHOENIX-GX2-007 | Character not allowed in an attribute field | error: a character outside printable ASCII, or a backslash that does not begin a `\uXXXX` escape, in an attribute |
+| PHOENIX-GX2-008 | Drawing command before the format and units | error: a coordinate or an operation before `FS` and `MO` |
+| PHOENIX-GX2-009 | Region not opened or not closed | error: `G36` inside a region, `G37` without `G36`, or a region still open at the end |
+| PHOENIX-GX2-010 | Aperture defined twice or numbered below 10 | error: an aperture defined again, or a number below `D10` |
 
 ## Panelization (`eh3d-phoenix-panel`, `src/codes.rs`)
 

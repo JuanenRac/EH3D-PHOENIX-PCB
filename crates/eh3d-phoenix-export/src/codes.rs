@@ -44,6 +44,13 @@ pub const SIDE_MISSING: &str = "PHOENIX-EXPORT-017";
 /// A written file could not be read back by the check.
 pub const VERIFY_UNREADABLE: &str = "PHOENIX-EXPORT-018";
 
+/// A text for an attribute field held a character the field may not hold, and was written with an
+/// escape.
+pub const ATTRIBUTE_ESCAPED: &str = "PHOENIX-EXPORT-019";
+/// A text for an attribute field held a character the field may not hold and could not be written
+/// (strict mode, or a character without an escape).
+pub const ATTRIBUTE_REJECTED: &str = "PHOENIX-EXPORT-020";
+
 /// The codes of this crate with their titles.
 pub const REGISTRY: &[(&str, &str)] = &[
     (PAD_ROTATION, "Pad rotation is not a right angle"),
@@ -64,6 +71,8 @@ pub const REGISTRY: &[(&str, &str)] = &[
     (SLOT_ROTATION, "Slot pad not on a right angle"),
     (SIDE_MISSING, "Layer side not given"),
     (VERIFY_UNREADABLE, "Written file could not be read back"),
+    (ATTRIBUTE_ESCAPED, "Attribute text written with escapes"),
+    (ATTRIBUTE_REJECTED, "Attribute text not allowed"),
 ];
 
 /// Builds the diagnostic of `code` (which must be in [`REGISTRY`]) with a detail.
