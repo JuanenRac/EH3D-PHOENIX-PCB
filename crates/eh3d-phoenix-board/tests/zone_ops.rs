@@ -46,9 +46,7 @@ fn square(layer: Id, net: Id) -> Zone {
             pt(0, 1_000_000),
         ],
         clearance: Nm::new(200_000).unwrap(),
-        cutout,
         cutouts: Vec::new(),
-        s: Vec::new(),
     }
 }
 

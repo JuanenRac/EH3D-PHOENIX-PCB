@@ -42,10 +42,7 @@ fn pad(number: &str, x: i64, paste: Id) -> Pad {
         rotation: Udeg::new(0).unwrap(),
         drill: None,
         layers: vec![id(1), paste],
-        roundn,
         roundness: 0,
-        plated: true,
-        ess: 0,
         plated: true,
     }
 }

@@ -36,10 +36,7 @@ fn pad(number: &str, shape: PadShape, at: Point, drill: Option<i64>, layers: Vec
         rotation: Udeg::ZERO,
         drill: drill.map(nm),
         layers,
-        roundn,
         roundness: 0,
-        plated: true,
-        ess: 0,
         plated: true,
     }
 }

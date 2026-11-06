@@ -881,8 +881,6 @@ mod tests {
             drill: None,
             layers: vec![id(2)],
             roundness: 0,
-            roundness: 0,
-            plated: true,
             plated: true,
         }
     }
