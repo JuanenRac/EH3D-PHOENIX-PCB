@@ -208,6 +208,19 @@
           }
         },
         {
+          "name": "SHORTCUTS.md",
+          "desc": {
+            "en": "keyboard shortcuts of the window and how to change them",
+            "es": "atajos de teclado de la ventana y cómo cambiarlos",
+            "de": "Tastenkürzel des Fensters und wie man sie ändert",
+            "fr": "raccourcis clavier de la fenêtre et comment les changer",
+            "it": "scorciatoie da tastiera della finestra e come cambiarle",
+            "ja": "ウィンドウのキーボードショートカットと変更方法",
+            "zh": "窗口的键盘快捷键及其修改方法",
+            "pt": "atalhos de teclado da janela e como os alterar"
+          }
+        },
+        {
           "name": "SANITIZER.md",
           "desc": {
             "en": "the library sanitizer: duplicates, hash, report and plan",

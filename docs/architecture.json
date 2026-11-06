@@ -71,6 +71,8 @@
         "crates/eh3d-phoenix-viewer/src/launcher_session.rs",
         "crates/eh3d-phoenix-viewer/src/gerber_scene.rs",
         "crates/eh3d-phoenix-viewer/src/view3d.rs",
+        "crates/eh3d-phoenix-viewer/src/search_index.rs",
+        "crates/eh3d-phoenix-viewer/src/keymap.rs",
         "crates/eh3d-phoenix-cli/src/gui_main.rs",
         "crates/eh3d-phoenix-schematic/src/edit.rs",
         "crates/eh3d-phoenix-schematic/src/hier_expand.rs",
