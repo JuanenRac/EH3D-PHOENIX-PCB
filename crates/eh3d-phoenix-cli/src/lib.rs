@@ -9,6 +9,7 @@
 //! and the layout of a matrix of boards adds `panel`; the bill of materials with costs adds `bom`
 //! and the 3D assembly of the board with the models of its components adds `assembly3d`; the run of
 //! the reference cases of the calculations adds `oracle`.
+//! The writing of boards, schematics and libraries as KiCad 8 files adds `kicad-export`.
 //!
 //! Exit codes: 0 done, 1 `stackup` could not compute one or more of the lines it was asked for,
 //! `check`, `connectivity` and `erc` proved an error, or `sync` found changes to make, 2 the
@@ -25,6 +26,7 @@ mod design;
 mod export;
 mod gerber_import;
 mod kicad;
+mod kicad_export;
 mod kicad_import;
 mod lengths;
 mod libedit;
@@ -131,6 +133,14 @@ phoenix kicad-import [--settings FILE] [--lang xx] [--json] [--out FILE.json] <p
                 board) into the design model with one report; a dry run unless --out names a new
                 .json file, never over an input; a prototype. The commands that take a board or
                 a schematic also take a .kicad_pcb or a .kicad_sch file
+
+phoenix kicad-export [--settings FILE] [--lang xx] [--json] [--board FILE] [--out PATH]
+                     <board|schematic|library> <input>
+
+  kicad-export  write a board, a schematic (one file for each sheet) or the footprints or symbols
+                of a design as KiCad 8 files, with a report of what was written, changed and left
+                out; a dry run unless --out names a folder (or the one file to write), never over
+                an input or over a file that exists; a prototype never opened in KiCad
 
 phoenix sanitize [--out BASE] [--threshold N] [--config FILE] [--lang xx] [--json] <folder>
 
@@ -332,6 +342,9 @@ pub fn run(args: &[String], out: &mut dyn Write, err: &mut dyn Write) -> i32 {
     }
     if let Some((&"kicad-import", tail)) = rest.split_first() {
         return kicad_import::kicad_import(tail, out, err);
+    }
+    if let Some((&"kicad-export", tail)) = rest.split_first() {
+        return kicad_export::kicad_export(tail, out, err);
     }
     if let Some((&"sanitize", tail)) = rest.split_first() {
         return sanitize::sanitize_command(tail, out, err);
