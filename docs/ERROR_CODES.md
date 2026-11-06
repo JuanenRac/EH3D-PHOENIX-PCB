@@ -1235,6 +1235,8 @@ The titles of these codes also exist in the eight languages of the suite (`TITLE
 | PHOENIX-AROUTE-015 | The routes of a net were refused because they add a rule error | a net whose routes add an error of the design rules that the board did not have; the net is left out of the plan |
 | PHOENIX-AROUTE-016 | The plan leaves connections unrouted | `--require-complete` with a plan that leaves a connection of the nets asked for unrouted |
 | PHOENIX-AROUTE-017 | A differential pair was routed as two ordinary nets | a pair asked for with `--pairs` that could not be routed as two coupled tracks (a net with more than one open connection, tracks of different widths, no layer shared by the four pads, nets that change sides, no room or a blocked track), a note of the report with the reason |
+| PHOENIX-AROUTE-018 | A differential pair was routed across two layers with a via for each track | a pair coupled across two layers when `couple_via = true`: the two tracks change layer with one via each, side by side at the same relative position; a note of the report |
+| PHOENIX-AROUTE-019 | An existing via off the grid was joined to the grid by a short piece | an existing via of the net within `via_snap_nm` of a node of the grid that the search used as a change of layer: a short piece of two right-angle steps joins the node to the via on both layers; a note of the report with the count |
 
 ## Printing (`eh3d-phoenix-print`, `src/codes.rs`)
 
