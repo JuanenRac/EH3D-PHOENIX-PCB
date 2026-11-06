@@ -191,7 +191,7 @@ fn boardedit_keeps_the_zone_data_and_the_poured_board_in_new_files_and_the_expor
     ]);
     assert_eq!(code, 0, "{err}\n{out}");
     assert!(out.contains("zones: "), "{out}");
-    assert!(out.contains("gerber: "), "{out}");
+    assert!(out.contains("dsn: "), "{out}");
     let text = fs::read_to_string(data).unwrap();
     assert!(text.contains("phoenix-zone-data/1"), "{text}");
     let value: serde_json::Value = serde_json::from_str(&text).unwrap();
