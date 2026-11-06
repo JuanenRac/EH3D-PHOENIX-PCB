@@ -1,0 +1,23 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-KICAD-012",
+  "title": "A text as long as the configured limit",
+  "kind": "kicad-board",
+  "input": "long_string.kicad_pcb",
+  "limits": {
+    "max_string_bytes": 40
+  },
+  "how": [
+    "The value is 40 characters long, all ASCII = 40 bytes, the longest text of the file; max_string_bytes is 40, so it is read.",
+    "One footprint = 1 component with 2 pads; net 1 is the only net; pad 1 names net 1 and pad 2 names none = 1 pad net."
+  ],
+  "expect": {
+    "outcome": "read",
+    "measures": {
+      "components": 1,
+      "placed_pads": 2,
+      "nets": 1,
+      "pad_nets": 1
+    }
+  }
+}

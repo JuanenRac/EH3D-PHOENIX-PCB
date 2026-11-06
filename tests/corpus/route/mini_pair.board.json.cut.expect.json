@@ -1,0 +1,17 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-ROUTE-004",
+  "title": "A session cut before its end",
+  "kind": "dsn-ses",
+  "input": "mini_pair.board.json",
+  "session": "cut.ses",
+  "how": [
+    "The text stops with lists still open, so it cannot be read as a session (PHOENIX-ROUTE-022)."
+  ],
+  "expect": {
+    "outcome": "refused",
+    "codes": [
+      "PHOENIX-ROUTE-022"
+    ]
+  }
+}

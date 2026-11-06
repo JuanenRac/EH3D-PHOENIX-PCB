@@ -1,0 +1,21 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-MODEL-007",
+  "title": "A board with accents, Greek, Japanese and an emoji in its names",
+  "kind": "board-json",
+  "input": "unicode.board.json",
+  "how": [
+    "The names are free text; nothing else changes.",
+    "One layer (copper), one net, no part, an outline of 4 points; consistent."
+  ],
+  "expect": {
+    "outcome": "read",
+    "measures": {
+      "layers": 1,
+      "copper_layers": 1,
+      "nets": 1,
+      "outline_points": 4,
+      "consistent": true
+    }
+  }
+}

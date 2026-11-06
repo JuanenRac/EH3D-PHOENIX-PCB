@@ -1,0 +1,16 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-EAGLE-017",
+  "title": "A file that starts with 0x10 but not with the pair of the binary format",
+  "kind": "eagle",
+  "input": "binary_variant.brd",
+  "how": [
+    "The first byte is 0x10 and the second is `E`, not 0x80: a variant of the old binary format that is not read (PHOENIX-EAGLE-014)."
+  ],
+  "expect": {
+    "outcome": "refused",
+    "codes": [
+      "PHOENIX-EAGLE-014"
+    ]
+  }
+}

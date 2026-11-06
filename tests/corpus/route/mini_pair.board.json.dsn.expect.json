@@ -1,0 +1,24 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-ROUTE-001",
+  "title": "The autorouter file of the small board",
+  "kind": "dsn",
+  "input": "mini_pair.board.json",
+  "how": [
+    "The file counts what the board holds: 2 copper layers, 2 components, 6 pads, 1 net with pads (A), 1 track and 2 vias as fixed wires;",
+    "padstacks: three different pad shapes with their layers (the round drilled pad, the rectangular surface pad, the round mounting hole)",
+    "and one via padstack, because the vias and the default via have the same size = 4."
+  ],
+  "expect": {
+    "outcome": "read",
+    "measures": {
+      "layers": 2,
+      "components": 2,
+      "pads": 6,
+      "nets": 1,
+      "padstacks": 4,
+      "tracks": 1,
+      "vias": 2
+    }
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-GERBER-013",
+  "title": "A layer with a byte order mark",
+  "kind": "gerber",
+  "input": "bom.gtl",
+  "how": [
+    "The reader does not take off the mark: it stays in front of the first `%`, where a data block would have to end with `*` (PHOENIX-GBR-004).",
+    "This pins the behaviour of today: a file saved with a mark is refused with a syntax error."
+  ],
+  "expect": {
+    "outcome": "refused",
+    "codes": [
+      "PHOENIX-GBR-004"
+    ]
+  }
+}

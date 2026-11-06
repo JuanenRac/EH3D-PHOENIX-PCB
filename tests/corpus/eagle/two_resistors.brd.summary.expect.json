@@ -1,0 +1,25 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-EAGLE-001",
+  "title": "A board of two resistors and a header, summarised",
+  "kind": "eagle",
+  "input": "two_resistors.brd",
+  "how": [
+    "Counted from the file: 4 layer lines; 3 element lines (parts); 2 signal lines (nets);",
+    "routed items are the wire and via children of the signals: GND has wire, wire, via and SIG has wire, so 4;",
+    "1 library is embedded; every child of board is one the reader knows, so nothing is left uninterpreted."
+  ],
+  "expect": {
+    "outcome": "read",
+    "codes": [],
+    "measures": {
+      "kind": "board",
+      "version": "9.6.2",
+      "layers": 4,
+      "parts": 3,
+      "nets": 2,
+      "routed_items": 4,
+      "embedded_libraries": 1
+    }
+  }
+}

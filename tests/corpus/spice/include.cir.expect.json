@@ -1,0 +1,16 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-SPICE-010",
+  "title": "A netlist with an `.include`, which is read only from a file",
+  "kind": "spice",
+  "input": "include.cir",
+  "how": [
+    "The netlist has an `.include`, which is read only from a file: refused (PHOENIX-SIM-023)."
+  ],
+  "expect": {
+    "outcome": "refused",
+    "codes": [
+      "PHOENIX-SIM-023"
+    ]
+  }
+}

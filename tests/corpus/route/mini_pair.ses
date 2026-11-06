@@ -1,0 +1,1 @@
+(session mini_pair (routes (resolution um 1000) (network_out (net A (wire (path Top 250000 5000000 10000000 10000000 10000000)) (wire (path Top 250000 20000000 10000000 20000000 15000000)) (via Via_600000_300000_nm 25000000 5000000)))))

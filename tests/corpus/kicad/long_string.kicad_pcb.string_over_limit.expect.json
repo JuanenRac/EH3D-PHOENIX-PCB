@@ -1,0 +1,19 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-KICAD-013",
+  "title": "A text one byte longer than the configured limit",
+  "kind": "kicad-board",
+  "input": "long_string.kicad_pcb",
+  "limits": {
+    "max_string_bytes": 39
+  },
+  "how": [
+    "The same value of 40 bytes with max_string_bytes 39: the file is refused (PHOENIX-KICAD-002)."
+  ],
+  "expect": {
+    "outcome": "refused",
+    "codes": [
+      "PHOENIX-KICAD-002"
+    ]
+  }
+}

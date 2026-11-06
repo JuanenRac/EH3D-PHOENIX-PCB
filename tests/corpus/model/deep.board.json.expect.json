@@ -1,0 +1,13 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-MODEL-014",
+  "title": "An outline with arrays nested 300 deep",
+  "kind": "board-json",
+  "input": "deep.board.json",
+  "how": [
+    "The first element of the outline is 300 arrays inside each other, where a point is expected: refused, and the reader does not overflow its stack."
+  ],
+  "expect": {
+    "outcome": "refused"
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-SPICE-009",
+  "title": "A netlist with R1 and r1, which are the same name",
+  "kind": "spice",
+  "input": "duplicate_name.cir",
+  "how": [
+    "The netlist has R1 and r1, which are the same name: refused (PHOENIX-SIM-004)."
+  ],
+  "expect": {
+    "outcome": "refused",
+    "codes": [
+      "PHOENIX-SIM-004"
+    ]
+  }
+}

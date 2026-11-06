@@ -1,0 +1,13 @@
+G04 hand-written, inches, trailing zeros left out*
+%FSTAX24Y24*%
+%MOIN*%
+%ADD10C,0.01*%
+%ADD11R,0.05X0.03*%
+D10*
+X10Y10D02*
+G01*
+X20Y10D01*
+D11*
+X10Y10D03*
+X20Y10D03*
+M02*

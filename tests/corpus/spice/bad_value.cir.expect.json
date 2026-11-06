@@ -1,0 +1,16 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-SPICE-007",
+  "title": "A netlist with a resistor whose value `x` is not a number",
+  "kind": "spice",
+  "input": "bad_value.cir",
+  "how": [
+    "The netlist has a resistor whose value `x` is not a number: refused (PHOENIX-SIM-002)."
+  ],
+  "expect": {
+    "outcome": "refused",
+    "codes": [
+      "PHOENIX-SIM-002"
+    ]
+  }
+}

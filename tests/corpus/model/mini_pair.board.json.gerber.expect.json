@@ -1,0 +1,20 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-MODEL-002",
+  "title": "The files of the export read back as the board",
+  "kind": "gerber-roundtrip",
+  "input": "mini_pair.board.json",
+  "how": [
+    "The board has 5 layers: the two copper layers, the mask, the paste and the outline each give one file = 5 files; the plated drill file (pads 1 of both components and the 2 vias = 4 holes)",
+    "and the unplated drill file (the mounting hole of each component = 2 holes) make 7 files in all;",
+    "each file is read back with the import and compared with the board with the tolerance of the import: no difference, no file that fails."
+  ],
+  "expect": {
+    "outcome": "read",
+    "measures": {
+      "files": 7,
+      "differences": 0,
+      "imported_failed": 0
+    }
+  }
+}

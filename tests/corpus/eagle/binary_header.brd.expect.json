@@ -1,0 +1,16 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-EAGLE-018",
+  "title": "A file that starts like the old binary format",
+  "kind": "eagle",
+  "input": "binary_header.brd",
+  "how": [
+    "The first two bytes are 0x10 0x80, the mark of the binary files of the old versions; they are not read (PHOENIX-EAGLE-012)."
+  ],
+  "expect": {
+    "outcome": "refused",
+    "codes": [
+      "PHOENIX-EAGLE-012"
+    ]
+  }
+}

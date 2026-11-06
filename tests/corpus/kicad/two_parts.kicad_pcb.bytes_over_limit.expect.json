@@ -1,0 +1,20 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-KICAD-003",
+  "title": "A file one byte larger than the configured limit",
+  "kind": "kicad-board",
+  "input": "two_parts.kicad_pcb",
+  "limits": {
+    "max_file_bytes": "@size-1"
+  },
+  "how": [
+    "The limit max_file_bytes is `@size-1`, the size of the file or one byte less;",
+    "the file is refused with PHOENIX-KICAD-002 (larger or deeper than the limit)."
+  ],
+  "expect": {
+    "outcome": "refused",
+    "codes": [
+      "PHOENIX-KICAD-002"
+    ]
+  }
+}

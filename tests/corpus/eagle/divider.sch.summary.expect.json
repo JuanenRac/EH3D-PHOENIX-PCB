@@ -1,0 +1,25 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-EAGLE-003",
+  "title": "A two resistor divider, summarised",
+  "kind": "eagle",
+  "input": "divider.sch",
+  "how": [
+    "Counted from the file: 2 layer lines; 2 part lines; 2 net lines; 1 sheet; 1 embedded library;",
+    "routed items of a schematic are its segments: one in MID and one in GND, so 2."
+  ],
+  "expect": {
+    "outcome": "read",
+    "codes": [],
+    "measures": {
+      "kind": "schematic",
+      "version": "9.6.2",
+      "layers": 2,
+      "parts": 2,
+      "nets": 2,
+      "routed_items": 2,
+      "sheets": 1,
+      "embedded_libraries": 1
+    }
+  }
+}

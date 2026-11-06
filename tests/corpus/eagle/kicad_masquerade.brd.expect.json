@@ -1,0 +1,16 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-EAGLE-016",
+  "title": "A KiCad file with an EAGLE extension",
+  "kind": "eagle",
+  "input": "kicad_masquerade.brd",
+  "how": [
+    "The first bytes are `(kicad`, which no EAGLE file starts with; the reader names the other program (PHOENIX-EAGLE-013)."
+  ],
+  "expect": {
+    "outcome": "refused",
+    "codes": [
+      "PHOENIX-EAGLE-013"
+    ]
+  }
+}

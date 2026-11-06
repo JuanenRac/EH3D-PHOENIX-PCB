@@ -1,0 +1,30 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-MODEL-003",
+  "title": "Findings of the rule check on tracks and vias",
+  "kind": "board-json",
+  "input": "narrow_tracks.board.json",
+  "rules": "min_track_width = 0.15\nmin_clearance = 0.2\nmin_via_diameter = 0.5\nmin_drill = 0.2\nmin_annular_ring = 0.1\n",
+  "how": [
+    "Rules: track width 0.15 mm, clearance 0.2 mm, via diameter 0.5 mm, drill 0.2 mm, annular ring 0.1 mm.",
+    "Tracks: 0.25 mm on A, 0.25 mm on B and 0.1 mm on A: only the last is under 0.15 mm = 1 finding PHOENIX-RULE-002.",
+    "Vias: the first (0.6 / 0.3 mm) passes all three rules; the second (0.4 / 0.15 mm) has a diameter under 0.5 mm and a drill under 0.2 mm = 2 findings PHOENIX-RULE-003;",
+    "its ring is (0.4 - 0.15) / 2 = 0.125 mm on each side, at least 0.1 mm, so no ring finding.",
+    "Clearance: A and B run in parallel 0.4 mm apart (centre to centre) with widths 0.25 and 0.25: the edges are 0.4 - 0.25 = 0.15 mm apart, under 0.2 mm = 1 finding PHOENIX-RULE-005;",
+    "the third track is 4.6 mm away from B, and no via is near a track of another net. 4 findings proven, none that could not be judged."
+  ],
+  "expect": {
+    "outcome": "read",
+    "measures": {
+      "consistent": true,
+      "tracks": 3,
+      "vias": 2,
+      "drc.confirmed": 4,
+      "drc.inconclusive": 0,
+      "drc.PHOENIX-RULE-002": 1,
+      "drc.PHOENIX-RULE-003": 2,
+      "drc.PHOENIX-RULE-005": 1,
+      "drc.PHOENIX-RULE-004": 0
+    }
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-GERBER-012",
+  "title": "A layer that stops before M02",
+  "kind": "gerber",
+  "input": "no_end.gtl",
+  "how": [
+    "The same 5 objects are read; the missing end command is a warning (PHOENIX-GBR-017) and `ended` is false."
+  ],
+  "expect": {
+    "outcome": "read",
+    "codes": [
+      "PHOENIX-GBR-017"
+    ],
+    "measures": {
+      "content": "gerber",
+      "items": 5,
+      "flashes": 3,
+      "lines": 2,
+      "ended": false,
+      "complete": true
+    }
+  }
+}

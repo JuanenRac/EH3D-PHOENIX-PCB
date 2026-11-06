@@ -1,0 +1,13 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-MODEL-013",
+  "title": "A board file cut in the middle",
+  "kind": "board-json",
+  "input": "truncated.board.json",
+  "how": [
+    "Half of the text: the JSON ends inside an object: refused."
+  ],
+  "expect": {
+    "outcome": "refused"
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-MODEL-001",
+  "title": "A small board with a track, two vias and a zone",
+  "kind": "board-json",
+  "input": "mini_pair.board.json",
+  "how": [
+    "Counted in the file: 5 layers (2 copper); 1 footprint with 3 pads; 2 components (R1, R2) that use it = 6 placed pads; 1 net; 2 pad nets (pad 1 of each component);",
+    "1 track of 1 piece; 2 vias; 1 zone; the outline has 4 points; no silkscreen.",
+    "The board is consistent: every reference is there and the copper stack names the two copper layers."
+  ],
+  "expect": {
+    "outcome": "read",
+    "measures": {
+      "layers": 5,
+      "copper_layers": 2,
+      "footprints": 1,
+      "footprint_pads": 3,
+      "components": 2,
+      "bottom_components": 0,
+      "placed_pads": 6,
+      "nets": 1,
+      "pad_nets": 2,
+      "tracks": 1,
+      "track_pieces": 1,
+      "vias": 2,
+      "zones": 1,
+      "silkscreen": 0,
+      "outline_points": 4,
+      "consistent": true
+    }
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-EAGLE-011",
+  "title": "As many elements as the configured limit",
+  "kind": "eagle",
+  "input": "deep_nesting.brd",
+  "limits": {
+    "max_nodes": 10
+  },
+  "how": [
+    "Elements opened in the file: eagle, drawing, board, plain, n1, n2, n3, n4, n5, n6 = 10 elements, and the deepest, n6, is at depth 10;",
+    "with max_nodes 10 the tenth element is allowed."
+  ],
+  "expect": {
+    "outcome": "read",
+    "codes": [],
+    "measures": {
+      "kind": "board"
+    }
+  }
+}

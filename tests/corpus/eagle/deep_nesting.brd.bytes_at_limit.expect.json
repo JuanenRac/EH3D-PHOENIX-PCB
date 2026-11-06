@@ -1,0 +1,20 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-EAGLE-013",
+  "title": "A file as large as the configured limit",
+  "kind": "eagle",
+  "input": "deep_nesting.brd",
+  "limits": {
+    "max_bytes": "@size"
+  },
+  "how": [
+    "The limit is the size of the file itself (`@size`), so the text is exactly as large as allowed and is read."
+  ],
+  "expect": {
+    "outcome": "read",
+    "codes": [],
+    "measures": {
+      "kind": "board"
+    }
+  }
+}

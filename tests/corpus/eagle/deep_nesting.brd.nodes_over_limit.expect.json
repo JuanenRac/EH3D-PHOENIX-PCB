@@ -1,0 +1,20 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-EAGLE-012",
+  "title": "One element more than the configured limit",
+  "kind": "eagle",
+  "input": "deep_nesting.brd",
+  "limits": {
+    "max_nodes": 9
+  },
+  "how": [
+    "Elements opened in the file: eagle, drawing, board, plain, n1, n2, n3, n4, n5, n6 = 10 elements, and the deepest, n6, is at depth 10;",
+    "with max_nodes 9 the tenth element is refused (PHOENIX-EAGLE-004)."
+  ],
+  "expect": {
+    "outcome": "refused",
+    "codes": [
+      "PHOENIX-EAGLE-004"
+    ]
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-EAGLE-007",
+  "title": "A board with a byte order mark and lines ended by CRLF and LF in turn",
+  "kind": "eagle",
+  "input": "bom_mixed_eol.brd",
+  "how": [
+    "The file starts with the three bytes of the UTF-8 byte order mark and each line ends with CRLF or LF in turn;",
+    "the parser skips the mark and treats both endings as white space, so the board reads as it would without them:",
+    "1 layer line, 1 element line, no signal."
+  ],
+  "expect": {
+    "outcome": "read",
+    "codes": [],
+    "measures": {
+      "kind": "board",
+      "layers": 1,
+      "parts": 1,
+      "nets": 0
+    }
+  }
+}

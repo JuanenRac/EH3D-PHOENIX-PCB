@@ -1,0 +1,42 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-TRIP-001",
+  "title": "EAGLE board, model, KiCad file, model",
+  "kind": "roundtrip",
+  "input": "two_resistors.brd",
+  "via": [
+    "kicad"
+  ],
+  "compare": [
+    "components",
+    "placed_pads",
+    "nets",
+    "pad_nets",
+    "track_pieces",
+    "vias",
+    "outline_count",
+    "pad_points",
+    "via_points",
+    "track_points",
+    "outline_points",
+    "refdes_values",
+    "net_names",
+    "pad_net_names"
+  ],
+  "tolerance_nm": 10,
+  "how": [
+    "Chain: read the EAGLE board into the model, write it as a KiCad board, read that back into the model;",
+    "compared with a tolerance of 10 nm: the counts of components, placed pads, nets, pad nets, track pieces (3), vias (1) and outline points,",
+    "the positions of pads, vias, track ends and outline points, the references with their values, the net names and the pad net names;",
+    "the KiCad writer says what it wrote (footprints, pad nets, track pieces, vias, zones, nets) and each count must equal what the reader finds."
+  ],
+  "expect": {
+    "outcome": "read",
+    "measures": {
+      "steps": 1,
+      "differences": 0,
+      "declared_mismatches": 0,
+      "kicad_writer_problems": 0
+    }
+  }
+}

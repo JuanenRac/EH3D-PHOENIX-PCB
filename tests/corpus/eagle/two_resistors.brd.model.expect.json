@@ -1,0 +1,35 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-EAGLE-002",
+  "title": "The same board read into the board model",
+  "kind": "eagle-board",
+  "input": "two_resistors.brd",
+  "how": [
+    "Layers 1, 16, 20 and 21 all have a meaning, so 4 layers, 2 of them copper; 2 packages (R0805, PIN2) with 2 pads each;",
+    "3 elements, none mirrored; 2 pads each so 6 placed pads; 2 signals;",
+    "contactrefs R1.2, J1.1, R1.1 and R2.1 all name a pad of their package, so 4 pad nets;",
+    "the two GND wires on layer 1 share the point (14, 10) and one width, so they join into one track of 2 pieces; the SIG wire is a track of 1 piece: 2 tracks, 3 pieces;",
+    "1 via; the wire on layer 21 is 1 silkscreen stroke; the four wires on layer 20 close a ring, so 4 outline points."
+  ],
+  "expect": {
+    "outcome": "read",
+    "codes": [],
+    "measures": {
+      "layers": 4,
+      "copper_layers": 2,
+      "footprints": 2,
+      "footprint_pads": 4,
+      "components": 3,
+      "bottom_components": 0,
+      "placed_pads": 6,
+      "nets": 2,
+      "pad_nets": 4,
+      "tracks": 2,
+      "track_pieces": 3,
+      "vias": 1,
+      "zones": 0,
+      "silkscreen": 1,
+      "outline_points": 4
+    }
+  }
+}

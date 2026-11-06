@@ -1,0 +1,23 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-EAGLE-009",
+  "title": "Nesting exactly at the configured depth",
+  "kind": "eagle",
+  "input": "deep_nesting.brd",
+  "limits": {
+    "max_depth": 10
+  },
+  "how": [
+    "Elements opened in the file: eagle, drawing, board, plain, n1, n2, n3, n4, n5, n6 = 10 elements, and the deepest, n6, is at depth 10;",
+    "with max_depth 10 the deepest element is allowed."
+  ],
+  "expect": {
+    "outcome": "read",
+    "codes": [],
+    "measures": {
+      "kind": "board",
+      "parts": 0,
+      "nets": 0
+    }
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-EAGLE-006",
+  "title": "A board cut in the middle of a tag",
+  "kind": "eagle",
+  "input": "truncated.brd",
+  "how": [
+    "The file is the board of two resistors cut after the three characters `<wi` of a wire;",
+    "the parser reaches the end of the text inside a tag, which is not well-formed XML (PHOENIX-EAGLE-001)."
+  ],
+  "expect": {
+    "outcome": "refused",
+    "codes": [
+      "PHOENIX-EAGLE-001"
+    ]
+  }
+}

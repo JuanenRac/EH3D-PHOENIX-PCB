@@ -1,0 +1,42 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-TRIP-005",
+  "title": "The hand-written file is read, written canonically and read again",
+  "kind": "roundtrip",
+  "input": "mini_pair.board.json",
+  "via": [
+    "json"
+  ],
+  "compare": [
+    "components",
+    "placed_pads",
+    "nets",
+    "pad_nets",
+    "track_pieces",
+    "vias",
+    "zones",
+    "outline_count",
+    "copper_layers",
+    "pad_points",
+    "via_points",
+    "track_points",
+    "outline_points",
+    "component_points",
+    "refdes_values",
+    "net_names",
+    "pad_net_names"
+  ],
+  "tolerance_nm": 0,
+  "how": [
+    "The file is not in canonical form (it has indentation). Reading it, writing the canonical bytes, reading those and writing again must give the same board",
+    "and the same bytes the second time; the facts compared are all the ones of a board, exactly."
+  ],
+  "expect": {
+    "outcome": "read",
+    "measures": {
+      "steps": 1,
+      "differences": 0,
+      "json_bytes_differ": 0
+    }
+  }
+}

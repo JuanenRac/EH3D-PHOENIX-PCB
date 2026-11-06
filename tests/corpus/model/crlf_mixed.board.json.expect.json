@@ -1,0 +1,21 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-MODEL-006",
+  "title": "A board file with lines ended by CRLF and LF in turn",
+  "kind": "board-json",
+  "input": "crlf_mixed.board.json",
+  "how": [
+    "White space between JSON tokens may be CR or LF.",
+    "One layer (copper), one net, no part, an outline of 4 points; consistent."
+  ],
+  "expect": {
+    "outcome": "read",
+    "measures": {
+      "layers": 1,
+      "copper_layers": 1,
+      "nets": 1,
+      "outline_points": 4,
+      "consistent": true
+    }
+  }
+}

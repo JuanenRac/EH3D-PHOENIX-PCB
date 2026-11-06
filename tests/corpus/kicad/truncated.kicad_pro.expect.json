@@ -1,0 +1,16 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-KICAD-009",
+  "title": "A project file cut in the middle of the JSON",
+  "kind": "kicad-project",
+  "input": "truncated.kicad_pro",
+  "how": [
+    "The text stops inside an object, so it is not JSON: the project is refused (PHOENIX-KICAD-011)."
+  ],
+  "expect": {
+    "outcome": "refused",
+    "codes": [
+      "PHOENIX-KICAD-011"
+    ]
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-KICAD-006",
+  "title": "A footprint cut inside its last pad",
+  "kind": "kicad-footprint",
+  "input": "truncated.kicad_mod",
+  "how": [
+    "The file ends with lists still open: the reader says that it ends before it is complete (PHOENIX-KICAD-004)."
+  ],
+  "expect": {
+    "outcome": "refused",
+    "codes": [
+      "PHOENIX-KICAD-004"
+    ]
+  }
+}

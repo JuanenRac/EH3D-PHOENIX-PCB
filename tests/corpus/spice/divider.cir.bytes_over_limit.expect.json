@@ -1,0 +1,19 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-SPICE-003",
+  "title": "A netlist one byte larger than the configured limit",
+  "kind": "spice",
+  "input": "divider.cir",
+  "limits": {
+    "max_file_bytes": "@size-1"
+  },
+  "how": [
+    "max_file_bytes is one byte less than the size of the file (`@size-1`): refused (PHOENIX-SIM-008)."
+  ],
+  "expect": {
+    "outcome": "refused",
+    "codes": [
+      "PHOENIX-SIM-008"
+    ]
+  }
+}

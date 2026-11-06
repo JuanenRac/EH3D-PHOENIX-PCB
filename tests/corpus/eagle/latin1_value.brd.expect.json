@@ -1,0 +1,22 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-EAGLE-019",
+  "title": "A value with a byte that is not UTF-8",
+  "kind": "eagle",
+  "input": "latin1_value.brd",
+  "how": [
+    "The value ends with the single byte 0xE9, which is not valid UTF-8; the reader says so (PHOENIX-EAGLE-005) and reads the bytes as Latin-1,",
+    "so the board is read: 1 layer line, 1 element line."
+  ],
+  "expect": {
+    "outcome": "read",
+    "codes": [
+      "PHOENIX-EAGLE-005"
+    ],
+    "measures": {
+      "kind": "board",
+      "layers": 1,
+      "parts": 1
+    }
+  }
+}

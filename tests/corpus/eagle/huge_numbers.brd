@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<eagle version="9.6.2">
+<drawing>
+<layers>
+<layer number="1" name="Top" color="4" fill="1" visible="yes" active="yes"/>
+<layer number="16" name="Bottom" color="1" fill="1" visible="yes" active="yes"/>
+</layers>
+<board>
+<libraries>
+<library name="x">
+<packages>
+<package name="P">
+<smd name="1" x="-1" y="0" dx="1" dy="1" layer="1" roundness="0"/>
+<smd name="2" x="1" y="0" dx="1" dy="1" layer="1" roundness="0"/>
+</package>
+</packages>
+</library>
+</libraries>
+<elements>
+<element name="R1" library="x" package="P" value="far" x="2000" y="0"/>
+<element name="R2" library="x" package="P" value="near" x="10" y="10"/>
+</elements>
+<signals>
+<signal name="N" class="0">
+<contactref element="R2" pad="1"/>
+<wire x1="0" y1="0" x2="99999999999999999999" y2="0" width="0.25" layer="1"/>
+<via x="1100" y="0" extent="1-16" drill="0.3" diameter="0.6"/>
+</signal>
+</signals>
+</board>
+</drawing>
+</eagle>

@@ -1,0 +1,16 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-KICAD-019",
+  "title": "A schematic given to the board reader",
+  "kind": "kicad-board",
+  "input": "wrong_kind.kicad_pcb",
+  "how": [
+    "The root list is kicad_sch and the board reader wants kicad_pcb (PHOENIX-KICAD-003)."
+  ],
+  "expect": {
+    "outcome": "refused",
+    "codes": [
+      "PHOENIX-KICAD-003"
+    ]
+  }
+}

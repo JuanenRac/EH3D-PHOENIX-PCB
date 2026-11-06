@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE eagle SYSTEM "eagle.dtd">
+<eagle version="9.6.2">
+<drawing>
+<layers>
+<layer number="1" name="Top" color="4" fill="1" visible="yes" active="yes"/>
+<layer number="21" name="tPlace" color="7" fill="1" visible="yes" active="yes"/>
+<layer number="51" name="tDocu" color="7" fill="1" visible="yes" active="yes"/>
+</layers>
+<library>
+<description>Hand-written library of the corpus</description>
+<packages>
+<package name="R0805">
+<description>chip resistor</description>
+<smd name="1" x="-1" y="0" dx="1" dy="1.3" layer="1"/>
+<smd name="2" x="1" y="0" dx="1" dy="1.3" layer="1"/>
+<wire x1="-0.5" y1="0.7" x2="0.5" y2="0.7" width="0.127" layer="21"/>
+<wire x1="-0.5" y1="-0.7" x2="0.5" y2="-0.7" width="0.127" layer="21"/>
+<text x="0" y="1.5" size="1" layer="25">&gt;NAME</text>
+</package>
+<package name="DIP4">
+<pad name="1" x="0" y="0" drill="0.8"/>
+<pad name="2" x="0" y="-2.54" drill="0.8"/>
+<pad name="3" x="7.62" y="-2.54" drill="0.8"/>
+<pad name="4" x="7.62" y="0" drill="0.8"/>
+<rectangle x1="1" y1="-3.5" x2="6.5" y2="1" layer="51"/>
+</package>
+</packages>
+<symbols>
+<symbol name="RES">
+<pin name="1" x="-5.08" y="0" length="short" direction="pas"/>
+<pin name="2" x="5.08" y="0" length="short" direction="pas" rot="R180"/>
+<wire x1="-2.54" y1="-1" x2="2.54" y2="-1" width="0.254" layer="94"/>
+</symbol>
+<symbol name="CHIP">
+<pin name="A" x="-5.08" y="2.54" length="short" direction="in"/>
+<pin name="B" x="-5.08" y="0" length="short" direction="in"/>
+<pin name="C" x="5.08" y="0" length="short" direction="out" rot="R180"/>
+</symbol>
+</symbols>
+<devicesets>
+<deviceset name="R" prefix="R">
+<gates>
+<gate name="G$1" symbol="RES" x="0" y="0"/>
+</gates>
+<devices>
+<device name="" package="R0805">
+<connects>
+<connect gate="G$1" pin="1" pad="1"/>
+<connect gate="G$1" pin="2" pad="2"/>
+</connects>
+</device>
+</devices>
+</deviceset>
+<deviceset name="U" prefix="U">
+<gates>
+<gate name="A" symbol="CHIP" x="0" y="0"/>
+<gate name="B" symbol="GONE" x="0" y="10"/>
+</gates>
+<devices>
+<device name="" package="DIP4">
+<connects>
+<connect gate="A" pin="A" pad="1"/>
+<connect gate="A" pin="B" pad="2"/>
+<connect gate="A" pin="C" pad="3"/>
+<connect gate="B" pin="A" pad="4"/>
+<connect gate="B" pin="B" pad="9"/>
+</connects>
+</device>
+<device name="X" package="NOPE"/>
+</devices>
+</deviceset>
+</devicesets>
+</library>
+</drawing>
+</eagle>

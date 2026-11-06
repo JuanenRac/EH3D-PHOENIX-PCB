@@ -1,0 +1,2 @@
+# the corpus holds byte-exact files (byte order marks, line ends, bytes that are not text): git must not change any of them
+* -text

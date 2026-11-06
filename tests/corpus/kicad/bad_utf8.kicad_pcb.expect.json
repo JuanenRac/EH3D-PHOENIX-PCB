@@ -1,0 +1,23 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-KICAD-022",
+  "title": "A value with a byte that is not UTF-8",
+  "kind": "kicad-board",
+  "input": "bad_utf8.kicad_pcb",
+  "how": [
+    "The value `caf` is followed by the single byte 0xE9; the file is read with the bad byte replaced and the reader says so (PHOENIX-KICAD-012).",
+    "One footprint = 1 component with 2 pads; net 1 is the only net; pad 1 names net 1 and pad 2 names none = 1 pad net."
+  ],
+  "expect": {
+    "outcome": "read",
+    "codes_include": [
+      "PHOENIX-KICAD-012"
+    ],
+    "measures": {
+      "components": 1,
+      "placed_pads": 2,
+      "nets": 1,
+      "pad_nets": 1
+    }
+  }
+}

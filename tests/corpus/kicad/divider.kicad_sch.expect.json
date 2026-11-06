@@ -1,0 +1,29 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-KICAD-004",
+  "title": "A divider of two resistors with labels and a ground symbol",
+  "kind": "kicad-schematic",
+  "input": "divider.kicad_sch",
+  "how": [
+    "R at (100, 50): pin 1 at y - 3.81 = 46.19 and pin 2 at y + 3.81 = 53.81; R2 at (100, 70): pins at 66.19 and 73.81; the ground symbol at (100, 80) has its pin on its own point;",
+    "wires: 46.19 up to 40 (label VIN at its end), 53.81 down to 66.19 (label MID in the middle), 73.81 down to 80 (the ground pin at its end) = 3 wires;",
+    "parts: R1 and R2 (power symbols are not parts) = 2; nets: /VIN holds R1.1 only but has a name, /MID holds R1.2 and R2.1, GND holds R2.2 and the power pin = 3 nets;",
+    "one sheet in the model; no sheet symbol, so none read; 2 labels."
+  ],
+  "expect": {
+    "outcome": "read",
+    "measures": {
+      "parts": 2,
+      "nets": 3,
+      "wires": 3,
+      "sheets": 1,
+      "sheets_read": 0,
+      "version": "20211123",
+      "generator": "eeschema",
+      "kept.nets": 3,
+      "kept.parts": 2,
+      "kept.wires": 3,
+      "kept.labels": 2
+    }
+  }
+}

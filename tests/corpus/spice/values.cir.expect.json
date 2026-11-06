@@ -1,0 +1,19 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-SPICE-005",
+  "title": "Equal resistors written with and without a suffix",
+  "kind": "spice",
+  "input": "values.cir",
+  "how": [
+    "4.7k = 4700, so the divider is symmetric: v(out) = 5 x 4700 / 9400 = 2.5 V."
+  ],
+  "expect": {
+    "outcome": "read",
+    "probes": {
+      "v(out)": {
+        "value": 2.5,
+        "abs": 1e-09
+      }
+    }
+  }
+}

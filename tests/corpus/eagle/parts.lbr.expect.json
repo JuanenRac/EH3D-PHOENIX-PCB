@@ -1,0 +1,33 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-EAGLE-005",
+  "title": "A library with a missing symbol, a missing package and a pad that does not exist",
+  "kind": "eagle",
+  "input": "parts.lbr",
+  "how": [
+    "3 layer lines; 2 packages: R0805 has 2 smd pads, DIP4 has 4 pads, so 4 pads and 2 smds in all;",
+    "2 symbols: RES has 2 pins and CHIP has 3, so 5 pins; 2 device sets;",
+    "the gate B of U names the symbol GONE, which is not there (PHOENIX-EAGLE-007);",
+    "the device X of U names the package NOPE, which is not there (PHOENIX-EAGLE-006);",
+    "the device of U on DIP4 connects pad 9, and DIP4 has pads 1 to 4 (PHOENIX-EAGLE-008)."
+  ],
+  "expect": {
+    "outcome": "read",
+    "codes": [
+      "PHOENIX-EAGLE-006",
+      "PHOENIX-EAGLE-007",
+      "PHOENIX-EAGLE-008"
+    ],
+    "measures": {
+      "kind": "library",
+      "version": "9.6.2",
+      "layers": 3,
+      "packages": 2,
+      "package_pads": 4,
+      "package_smds": 2,
+      "symbols": 2,
+      "symbol_pins": 5,
+      "device_sets": 2
+    }
+  }
+}

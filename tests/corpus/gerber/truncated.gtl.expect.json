@@ -1,0 +1,16 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-GERBER-011",
+  "title": "A layer cut inside an aperture definition",
+  "kind": "gerber",
+  "input": "truncated.gtl",
+  "how": [
+    "The text ends inside the extended command `%ADD11R,1.2X0.` that has no closing `%` (PHOENIX-GBR-004)."
+  ],
+  "expect": {
+    "outcome": "refused",
+    "codes": [
+      "PHOENIX-GBR-004"
+    ]
+  }
+}

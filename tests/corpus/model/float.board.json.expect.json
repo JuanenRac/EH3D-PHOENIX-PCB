@@ -1,0 +1,13 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-MODEL-010",
+  "title": "A coordinate with a fraction",
+  "kind": "board-json",
+  "input": "float.board.json",
+  "how": [
+    "Lengths are whole nanometres; 10000000.5 is not one: refused."
+  ],
+  "expect": {
+    "outcome": "refused"
+  }
+}

@@ -1,0 +1,23 @@
+(kicad_sch (version 20211123) (generator eeschema)
+  (uuid "00000000-0000-0000-0000-0000000000a1")
+  (paper "A4")
+  (title_block (title "Divider"))
+  (lib_symbols
+    (symbol "Device:R" (pin_numbers hide) (pin_names (offset 0)) (in_bom yes) (on_board yes)
+      (property "Reference" "R" (id 0) (at 2.032 0 90) (effects (font (size 1.27 1.27))))
+      (property "Value" "R" (id 1) (at 0 0 90) (effects (font (size 1.27 1.27))))
+      (symbol "R_0_1" (rectangle (start -1.016 -2.54) (end 1.016 2.54) (stroke (width 0.254) (type default)) (fill (type none))))
+      (symbol "R_1_1"
+        (pin passive line (at 0 3.81 270) (length 1.27) (name "~" (effects (font (size 1.27 1.27)))) (number "1" (effects (font (size 1.27 1.27)))))
+        (pin passive line (at 0 -3.81 90) (length 1.27) (name "~" (effects (font (size 1.27 1.27)))) (number "2" (effects (font (size 1.27 1.27)))))))
+    (symbol "power:GND" (power) (pin_names (offset 0)) (in_bom no) (on_board yes)
+      (property "Reference" "#PWR" (id 0) (at 0 -6.35 0) (effects (font (size 1.27 1.27)) hide))
+      (property "Value" "GND" (id 1) (at 0 -3.81 0) (effects (font (size 1.27 1.27))))
+      (symbol "GND_0_1" (polyline (pts (xy 0 0) (xy 0 -1.27) (xy 1.27 -1.27) (xy 0 -2.54) (xy -1.27 -1.27) (xy 0 -1.27)) (stroke (width 0) (type default)) (fill (type none))))
+      (symbol "GND_1_1" (pin power_in line (at 0 0 270) (length 0) hide (name "GND" (effects (font (size 1.27 1.27)))) (number "1" (effects (font (size 1.27 1.27)))))))
+  )
+  (wire (pts (xy 100 46.19) (xy 100 40)) (stroke (width 0) (type default) (color 0 0 0 0)) (uuid "w1"))
+  (wire (pts (xy 100 53.81) (xy 100 66.19)) (stroke (width 0) (type default) (color 0 0 0 0)) (uuid "w2"))
+  (wire (pts (xy 100 73.81) (xy 100 80)) (stroke (width 0) (type default) (color 0 0 0 0)) (uuid "w3"))
+  (label "VIN" (at 100 40 0) (effects (font (size 1.27 1.27))) (uuid "l1"))
+  (label "MID" (at 100

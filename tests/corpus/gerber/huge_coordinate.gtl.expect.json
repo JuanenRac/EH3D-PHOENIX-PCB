@@ -1,0 +1,16 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-GERBER-015",
+  "title": "A flash at a coordinate of 14 digits",
+  "kind": "gerber",
+  "input": "huge_coordinate.gtl",
+  "how": [
+    "The coordinate is beyond the largest that is read (coordinate_limit_nm): refused (PHOENIX-GBR-011)."
+  ],
+  "expect": {
+    "outcome": "refused",
+    "codes": [
+      "PHOENIX-GBR-011"
+    ]
+  }
+}

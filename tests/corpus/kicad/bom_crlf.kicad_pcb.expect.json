@@ -1,0 +1,20 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-KICAD-010",
+  "title": "A board with a byte order mark and lines ended by CRLF and LF in turn",
+  "kind": "kicad-board",
+  "input": "bom_crlf.kicad_pcb",
+  "how": [
+    "The reader takes off the mark and treats both endings as white space; only the line numbers of messages change.",
+    "One footprint = 1 component with 2 pads; net 1 is the only net; pad 1 names net 1 and pad 2 names none = 1 pad net."
+  ],
+  "expect": {
+    "outcome": "read",
+    "measures": {
+      "components": 1,
+      "placed_pads": 2,
+      "nets": 1,
+      "pad_nets": 1
+    }
+  }
+}

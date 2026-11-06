@@ -1,0 +1,9 @@
+﻿Divisor de tensão 日本語 Ω
+* a comment line
+V1 IN 0 DC 12 ; the source
+R1 IN OUT 2k
+R2 out 0
++ 4k
+.op
+.end
+R9 never 0 1

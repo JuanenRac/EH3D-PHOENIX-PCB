@@ -1,0 +1,24 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-GERBER-008",
+  "title": "A layer in inches without attributes, trailing zeros left out",
+  "kind": "gerber",
+  "input": "inches.gtl",
+  "how": [
+    "The format TAX24 is 2 digits before the point and 4 after, trailing zeros left out; the unit is inches (`in`);",
+    "one line (D01) and two flashes (D03) = 3 objects; 2 apertures; the layer is told from the extension .gtl."
+  ],
+  "expect": {
+    "outcome": "read",
+    "codes": [],
+    "measures": {
+      "content": "gerber",
+      "units": "in",
+      "items": 3,
+      "flashes": 2,
+      "lines": 1,
+      "apertures": 2,
+      "ended": true
+    }
+  }
+}

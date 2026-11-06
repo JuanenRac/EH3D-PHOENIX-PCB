@@ -1,0 +1,19 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-EAGLE-014",
+  "title": "A file one byte larger than the configured limit",
+  "kind": "eagle",
+  "input": "deep_nesting.brd",
+  "limits": {
+    "max_bytes": "@size-1"
+  },
+  "how": [
+    "The limit is one byte less than the size of the file (`@size-1`), so the text is refused (PHOENIX-EAGLE-004)."
+  ],
+  "expect": {
+    "outcome": "refused",
+    "codes": [
+      "PHOENIX-EAGLE-004"
+    ]
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-KICAD-007",
+  "title": "A symbol library of a resistor and a capacitor",
+  "kind": "kicad-symbols",
+  "input": "passives.kicad_sym",
+  "how": [
+    "Two top-level `symbol` lists, R and C (the units R_0_1, R_1_1, C_0_1 and C_1_1 are inside them) = 2 symbols; the version is the one in the header."
+  ],
+  "expect": {
+    "outcome": "read",
+    "measures": {
+      "symbols": 2,
+      "version": "20211014"
+    }
+  }
+}

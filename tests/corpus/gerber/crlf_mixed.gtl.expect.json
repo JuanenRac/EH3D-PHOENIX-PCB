@@ -1,0 +1,24 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-GERBER-014",
+  "title": "The top copper layer with lines ended by CRLF and LF in turn",
+  "kind": "gerber",
+  "input": "crlf_mixed.gtl",
+  "how": [
+    "Drawn in the file: after D10 a move to (2, 3) and two straight lines (to (8, 3) and to (8, 7)) = 2 lines; flashes: D11 at two points and D12 at one = 3 flashes;",
+    "5 objects in all, 3 apertures (D10, D11, D12), units mm, closed by M02.",
+    "Line ends are not part of the language: the result is the one of the file with LF only."
+  ],
+  "expect": {
+    "outcome": "read",
+    "codes": [],
+    "measures": {
+      "content": "gerber",
+      "items": 5,
+      "flashes": 3,
+      "lines": 2,
+      "apertures": 3,
+      "ended": true
+    }
+  }
+}

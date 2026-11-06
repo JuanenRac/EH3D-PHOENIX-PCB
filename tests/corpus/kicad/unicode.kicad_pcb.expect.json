@@ -1,0 +1,20 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-KICAD-011",
+  "title": "Names and values with accents, Greek, Japanese and an emoji",
+  "kind": "kicad-board",
+  "input": "unicode.kicad_pcb",
+  "how": [
+    "The footprint name, the reference, the value and the net name hold characters outside ASCII; strings are read as UTF-8 and counted in characters for the position.",
+    "One footprint = 1 component with 2 pads; net 1 is the only net; pad 1 names net 1 and pad 2 names none = 1 pad net."
+  ],
+  "expect": {
+    "outcome": "read",
+    "measures": {
+      "components": 1,
+      "placed_pads": 2,
+      "nets": 1,
+      "pad_nets": 1
+    }
+  }
+}

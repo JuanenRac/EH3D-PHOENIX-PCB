@@ -1,0 +1,19 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-GERBER-007",
+  "title": "A file one byte larger than the configured limit",
+  "kind": "gerber",
+  "input": "top_copper.gtl",
+  "limits": {
+    "max_file_bytes": "@size-1"
+  },
+  "how": [
+    "max_file_bytes is one byte less than the size of the file (`@size-1`): it is refused (PHOENIX-GBR-002)."
+  ],
+  "expect": {
+    "outcome": "refused",
+    "codes": [
+      "PHOENIX-GBR-002"
+    ]
+  }
+}

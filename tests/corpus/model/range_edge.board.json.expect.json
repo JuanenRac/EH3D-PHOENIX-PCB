@@ -1,0 +1,17 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-MODEL-008",
+  "title": "An outline at the largest coordinates the model accepts",
+  "kind": "board-json",
+  "input": "range_edge.board.json",
+  "how": [
+    "Coordinates are valid strictly inside plus or minus 2^30 = 1073741824 nm, so 1073741823 is the largest one; the 4 corners of the outline are at plus or minus that value."
+  ],
+  "expect": {
+    "outcome": "read",
+    "measures": {
+      "outline_points": 4,
+      "layers": 1
+    }
+  }
+}

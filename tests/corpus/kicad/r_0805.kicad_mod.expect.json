@@ -1,0 +1,19 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-KICAD-005",
+  "title": "A footprint of two surface pads",
+  "kind": "kicad-footprint",
+  "input": "r_0805.kicad_mod",
+  "how": [
+    "Two `pad` lists = 2 pads; the reference text is REF** and the value text is R_0805; the version is the one in the header."
+  ],
+  "expect": {
+    "outcome": "read",
+    "measures": {
+      "pads": 2,
+      "reference": "REF**",
+      "value": "R_0805",
+      "version": "20221018"
+    }
+  }
+}

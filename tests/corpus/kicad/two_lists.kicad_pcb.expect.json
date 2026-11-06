@@ -1,0 +1,16 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-KICAD-018",
+  "title": "A file with a second list after the board",
+  "kind": "kicad-board",
+  "input": "two_lists.kicad_pcb",
+  "how": [
+    "A file holds exactly one list; the second one is a syntax error (PHOENIX-KICAD-001)."
+  ],
+  "expect": {
+    "outcome": "refused",
+    "codes": [
+      "PHOENIX-KICAD-001"
+    ]
+  }
+}

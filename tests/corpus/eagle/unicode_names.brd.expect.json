@@ -1,0 +1,30 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-EAGLE-008",
+  "title": "Names and values with accents, Greek, Japanese and an emoji, on a mirrored part",
+  "kind": "eagle-board",
+  "input": "unicode_names.brd",
+  "how": [
+    "The library, the package, the element, the value and the signal all have characters outside ASCII;",
+    "the lookups by name (library and package, element and pad) are by exact text, so they still find each other:",
+    "2 layers, both copper; 1 package with 2 pads; 1 element, mirrored (MR180), so on the bottom side; its 2 pads are on the signal."
+  ],
+  "expect": {
+    "outcome": "read",
+    "codes": [],
+    "measures": {
+      "layers": 2,
+      "copper_layers": 2,
+      "footprints": 1,
+      "footprint_pads": 2,
+      "components": 1,
+      "bottom_components": 1,
+      "placed_pads": 2,
+      "nets": 1,
+      "pad_nets": 2,
+      "tracks": 0,
+      "vias": 0,
+      "outline_points": 0
+    }
+  }
+}

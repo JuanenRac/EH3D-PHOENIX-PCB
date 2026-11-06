@@ -1,0 +1,16 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-KICAD-017",
+  "title": "A board with a closing parenthesis too many",
+  "kind": "kicad-board",
+  "input": "unbalanced.kicad_pcb",
+  "how": [
+    "After the first list is closed another `)` closes nothing (PHOENIX-KICAD-001)."
+  ],
+  "expect": {
+    "outcome": "refused",
+    "codes": [
+      "PHOENIX-KICAD-001"
+    ]
+  }
+}

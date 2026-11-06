@@ -1,0 +1,28 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-GERBER-001",
+  "title": "A top copper layer with file attributes (Gerber X2)",
+  "kind": "gerber",
+  "input": "top_copper.gtl",
+  "how": [
+    "Drawn in the file: after D10 a move to (2, 3) and two straight lines (to (8, 3) and to (8, 7)) = 2 lines; flashes: D11 at two points and D12 at one = 3 flashes;",
+    "5 objects in all, 3 apertures (D10, D11, D12), units mm, closed by M02.",
+    "The file function says Copper, L1, Top, so the layer is told by its attributes and no note about the role is made; the only set of object attributes is the empty one."
+  ],
+  "expect": {
+    "outcome": "read",
+    "codes": [],
+    "measures": {
+      "content": "gerber",
+      "units": "mm",
+      "items": 5,
+      "flashes": 3,
+      "lines": 2,
+      "arcs": 0,
+      "apertures": 3,
+      "ended": true,
+      "complete": true,
+      "attribute_sets": 1
+    }
+  }
+}

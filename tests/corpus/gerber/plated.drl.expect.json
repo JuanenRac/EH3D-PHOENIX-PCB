@@ -1,0 +1,23 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-GERBER-009",
+  "title": "An Excellon file of plated holes with a slot",
+  "kind": "gerber",
+  "input": "plated.drl",
+  "how": [
+    "Tools: T01 (0.8) and T02 (1.0) = 2; holes: two with T01, one with T02 at (5, 5) = 3; the line with G85 is one slot of T02 = 1 slot;",
+    "the unit is millimetres and the file ends with M30."
+  ],
+  "expect": {
+    "outcome": "read",
+    "codes": [],
+    "measures": {
+      "content": "excellon",
+      "units": "mm",
+      "hits": 3,
+      "slots": 1,
+      "tools": 2,
+      "ended": true
+    }
+  }
+}

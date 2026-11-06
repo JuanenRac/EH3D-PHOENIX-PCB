@@ -1,0 +1,16 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-GERBER-016",
+  "title": "A text that is neither Gerber nor Excellon",
+  "kind": "gerber",
+  "input": "neither.gbr",
+  "how": [
+    "No `%FS`, `%MO`, `%TF`, `G04` and no `M48` in the first part: the import cannot tell what it is (PHOENIX-GBR-004)."
+  ],
+  "expect": {
+    "outcome": "refused",
+    "codes": [
+      "PHOENIX-GBR-004"
+    ]
+  }
+}

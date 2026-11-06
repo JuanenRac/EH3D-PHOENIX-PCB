@@ -1,0 +1,22 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-SPICE-002",
+  "title": "A netlist as large as the configured limit",
+  "kind": "spice",
+  "input": "divider.cir",
+  "limits": {
+    "max_file_bytes": "@size"
+  },
+  "how": [
+    "max_file_bytes is the size of the file (`@size`): it is read and solved: v(out) = 7.5 V."
+  ],
+  "expect": {
+    "outcome": "read",
+    "probes": {
+      "v(out)": {
+        "value": 7.5,
+        "abs": 1e-09
+      }
+    }
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-ROUTE-002",
+  "title": "A session that repeats a track, adds a track and adds a via",
+  "kind": "dsn-ses",
+  "input": "mini_pair.board.json",
+  "session": "mini_pair.ses",
+  "how": [
+    "Unit: 1000 in `resolution um 1000` is one nanometre. The first wire is the track that the board already has (same layer, same width, same two points): left out and counted in already_there = 1;",
+    "the second wire runs from (20, 10) to (20, 15) mm on Top: 1 new track of length 5 mm = 5000000 nm (a vertical piece, so no square root);",
+    "the via is at (25, 5) mm with the size of the vias of the board: 1 new via;",
+    "all on net A, which the board has. After the plan is applied the file for the autorouter counts 1 + 1 = 2 tracks and 2 + 1 = 3 vias."
+  ],
+  "expect": {
+    "outcome": "read",
+    "measures": {
+      "before.tracks": 1,
+      "before.vias": 2,
+      "tracks": 1,
+      "vias": 1,
+      "already_there": 1,
+      "length_nm": 5000000,
+      "net.A.tracks": 1,
+      "net.A.vias": 1,
+      "net.A.length_nm": 5000000,
+      "consistent_after": true,
+      "after.tracks": 2,
+      "after.vias": 3,
+      "after.components": 2,
+      "after.pads": 6,
+      "after.padstacks": 4
+    }
+  }
+}

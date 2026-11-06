@@ -1,0 +1,20 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-KICAD-002",
+  "title": "A file as large as the configured limit",
+  "kind": "kicad-board",
+  "input": "two_parts.kicad_pcb",
+  "limits": {
+    "max_file_bytes": "@size"
+  },
+  "how": [
+    "The limit max_file_bytes is `@size`, the size of the file or one byte less;",
+    "the text is as large as allowed and is read: 3 components."
+  ],
+  "expect": {
+    "outcome": "read",
+    "measures": {
+      "components": 3
+    }
+  }
+}

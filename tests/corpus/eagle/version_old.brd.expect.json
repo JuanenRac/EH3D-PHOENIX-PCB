@@ -1,0 +1,22 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-EAGLE-021",
+  "title": "A board that declares a version before the supported range",
+  "kind": "eagle",
+  "input": "version_old.brd",
+  "how": [
+    "The file declares version 5.12.0 and the reader covers 6 to 9, so it warns (PHOENIX-EAGLE-003) and still summarises: 1 layer line, no part."
+  ],
+  "expect": {
+    "outcome": "read",
+    "codes": [
+      "PHOENIX-EAGLE-003"
+    ],
+    "measures": {
+      "kind": "board",
+      "version": "5.12.0",
+      "layers": 1,
+      "parts": 0
+    }
+  }
+}

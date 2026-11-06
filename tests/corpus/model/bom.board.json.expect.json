@@ -1,0 +1,13 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-MODEL-005",
+  "title": "A board file with a byte order mark",
+  "kind": "board-json",
+  "input": "bom.board.json",
+  "how": [
+    "The JSON reader does not accept a byte order mark in front of the text: refused (no code, the reader of the model gives a message)."
+  ],
+  "expect": {
+    "outcome": "refused"
+  }
+}

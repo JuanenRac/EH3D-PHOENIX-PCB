@@ -1,0 +1,25 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-KICAD-008",
+  "title": "A project with two net classes and three numeric rules",
+  "kind": "kicad-project",
+  "input": "board.kicad_pro",
+  "how": [
+    "meta.version is 1; two classes (Default, Power); the three numeric rules are min_clearance 0.2 mm = 200000 nm, min_track_width 0.15 mm = 150000 nm and min_via_diameter 0.5 mm = 500000 nm",
+    "(the true/false rule is not a length); one text variable; the track width of Default is 0.25 mm = 250000 nm and of Power 0.5 mm = 500000 nm."
+  ],
+  "expect": {
+    "outcome": "read",
+    "measures": {
+      "meta_version": 1,
+      "net_classes": 2,
+      "design_rules": 3,
+      "text_variables": 1,
+      "rule.min_clearance": 200000,
+      "rule.min_track_width": 150000,
+      "rule.min_via_diameter": 500000,
+      "class.Default.track_width_nm": 250000,
+      "class.Power.track_width_nm": 500000
+    }
+  }
+}

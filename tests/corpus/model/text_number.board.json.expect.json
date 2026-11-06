@@ -1,0 +1,13 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-MODEL-011",
+  "title": "A coordinate written as text",
+  "kind": "board-json",
+  "input": "text_number.board.json",
+  "how": [
+    "A number between quotes is a string, not a number: refused."
+  ],
+  "expect": {
+    "outcome": "refused"
+  }
+}

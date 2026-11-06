@@ -1,0 +1,23 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-MODEL-004",
+  "title": "Three pads of one net, two of them joined by a track",
+  "kind": "board-json",
+  "input": "three_pads.board.json",
+  "how": [
+    "Pads (1 mm squares) are centred at x = 0, 10 and 20 mm; the track runs from (0, 0) to (10, 0), so its two ends are inside the first two pads:",
+    "the copper of net A has two islands, {R1.1, track, R2.1} and {R3.1}; one connection is missing."
+  ],
+  "expect": {
+    "outcome": "read",
+    "measures": {
+      "consistent": true,
+      "components": 3,
+      "placed_pads": 3,
+      "pad_nets": 3,
+      "connectivity.nets": 1,
+      "connectivity.islands": 2,
+      "connectivity.missing": 1
+    }
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-EAGLE-015",
+  "title": "Coordinates beyond the range of the model",
+  "kind": "eagle-board",
+  "input": "huge_numbers.brd",
+  "how": [
+    "The model holds lengths strictly inside plus or minus 2^30 nm, a little over 1073 mm;",
+    "R1 is at x = 2000 mm, the wire ends at 99999999999999999999 mm and the via is at x = 1100 mm: three items left out,",
+    "each counted by name in one note (PHOENIX-EAGLE-022); R2 is read, with its 2 pads and the pad net of its contactref;",
+    "the 2 layers, the 1 package, the 1 signal remain."
+  ],
+  "expect": {
+    "outcome": "read",
+    "codes": [
+      "PHOENIX-EAGLE-022"
+    ],
+    "measures": {
+      "layers": 2,
+      "footprints": 1,
+      "components": 1,
+      "placed_pads": 2,
+      "nets": 1,
+      "pad_nets": 1,
+      "tracks": 0,
+      "vias": 0
+    }
+  }
+}

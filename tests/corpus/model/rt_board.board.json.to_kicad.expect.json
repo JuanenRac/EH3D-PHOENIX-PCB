@@ -1,0 +1,43 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-TRIP-007",
+  "title": "Model, KiCad file, model",
+  "kind": "roundtrip",
+  "input": "rt_board.board.json",
+  "via": [
+    "kicad"
+  ],
+  "compare": [
+    "components",
+    "placed_pads",
+    "nets",
+    "pad_nets",
+    "track_pieces",
+    "vias",
+    "zones",
+    "outline_count",
+    "pad_points",
+    "via_points",
+    "track_points",
+    "outline_points",
+    "refdes_values",
+    "net_names",
+    "pad_net_names"
+  ],
+  "tolerance_nm": 10,
+  "how": [
+    "Chain: model to a KiCad board and back. The board has 3 components (R1, R2 turned 90 degrees, J1 turned 180 degrees) = 6 placed pads, 2 nets, 4 pad nets, a track of 2 pieces and a track of 1 piece = 3 pieces,",
+    "1 via, 1 zone and an outline of 4 points; these counts and the positions of the pads, the via, the track ends and the outline points, the references with their values,",
+    "the net names and the pad net names are compared after the chain, with the tolerance written in the entry.",
+    "The KiCad writer reports how many footprints, pad nets, track pieces, vias, zones and nets it wrote; each must equal what the reader finds."
+  ],
+  "expect": {
+    "outcome": "read",
+    "measures": {
+      "steps": 1,
+      "differences": 0,
+      "declared_mismatches": 0,
+      "kicad_writer_problems": 0
+    }
+  }
+}

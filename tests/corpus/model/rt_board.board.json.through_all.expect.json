@@ -1,0 +1,44 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-TRIP-008",
+  "title": "Model, EAGLE, KiCad, JSON, model",
+  "kind": "roundtrip",
+  "input": "rt_board.board.json",
+  "via": [
+    "eagle",
+    "kicad",
+    "json"
+  ],
+  "compare": [
+    "components",
+    "placed_pads",
+    "nets",
+    "pad_nets",
+    "track_pieces",
+    "vias",
+    "zones",
+    "outline_count",
+    "pad_points",
+    "via_points",
+    "track_points",
+    "outline_points",
+    "refdes_values",
+    "net_names",
+    "pad_net_names"
+  ],
+  "tolerance_nm": 10,
+  "how": [
+    "Chain: model to EAGLE, then to KiCad, then to the canonical JSON and back. The board has 3 components (R1, R2 turned 90 degrees, J1 turned 180 degrees) = 6 placed pads, 2 nets, 4 pad nets, a track of 2 pieces and a track of 1 piece = 3 pieces,",
+    "1 via, 1 zone and an outline of 4 points; these counts and the positions of the pads, the via, the track ends and the outline points, the references with their values,",
+    "the net names and the pad net names are compared after the chain, with the tolerance written in the entry."
+  ],
+  "expect": {
+    "outcome": "read",
+    "measures": {
+      "steps": 3,
+      "differences": 0,
+      "declared_mismatches": 0,
+      "json_bytes_differ": 0
+    }
+  }
+}

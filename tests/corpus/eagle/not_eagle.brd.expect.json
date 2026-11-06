@@ -1,0 +1,16 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-EAGLE-020",
+  "title": "Well-formed XML that is not an EAGLE document",
+  "kind": "eagle",
+  "input": "not_eagle.brd",
+  "how": [
+    "The root element is `notes`, not `eagle` (PHOENIX-EAGLE-002)."
+  ],
+  "expect": {
+    "outcome": "refused",
+    "codes": [
+      "PHOENIX-EAGLE-002"
+    ]
+  }
+}

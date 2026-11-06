@@ -1,0 +1,41 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-TRIP-002",
+  "title": "EAGLE board, model, EAGLE file, model",
+  "kind": "roundtrip",
+  "input": "two_resistors.brd",
+  "via": [
+    "eagle"
+  ],
+  "compare": [
+    "components",
+    "placed_pads",
+    "nets",
+    "pad_nets",
+    "track_pieces",
+    "vias",
+    "outline_count",
+    "pad_points",
+    "via_points",
+    "track_points",
+    "outline_points",
+    "refdes_values",
+    "net_names",
+    "pad_net_names"
+  ],
+  "tolerance_nm": 0,
+  "how": [
+    "Chain: read the EAGLE board, write it as an EAGLE file, read that back;",
+    "the same facts as the KiCad chain are compared, with an exact tolerance, and the signature of the writer of EAGLE files must be equal before and after;",
+    "the writer leaves nothing out for this board."
+  ],
+  "expect": {
+    "outcome": "read",
+    "measures": {
+      "steps": 1,
+      "differences": 0,
+      "eagle_left_out": 0,
+      "eagle_signature_identical": true
+    }
+  }
+}

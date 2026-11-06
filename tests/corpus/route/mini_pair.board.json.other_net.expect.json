@@ -1,0 +1,17 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-ROUTE-003",
+  "title": "A session for a net that the board does not have",
+  "kind": "dsn-ses",
+  "input": "mini_pair.board.json",
+  "session": "other_net.ses",
+  "how": [
+    "The session names the net Z and the board has only A: the session does not match the board (PHOENIX-ROUTE-023)."
+  ],
+  "expect": {
+    "outcome": "refused",
+    "codes": [
+      "PHOENIX-ROUTE-023"
+    ]
+  }
+}

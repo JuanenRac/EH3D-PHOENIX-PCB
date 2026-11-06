@@ -1,0 +1,19 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-GERBER-006",
+  "title": "A file as large as the configured limit",
+  "kind": "gerber",
+  "input": "top_copper.gtl",
+  "limits": {
+    "max_file_bytes": "@size"
+  },
+  "how": [
+    "max_file_bytes is the size of the file (`@size`): it is read."
+  ],
+  "expect": {
+    "outcome": "read",
+    "measures": {
+      "items": 5
+    }
+  }
+}

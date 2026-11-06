@@ -1,0 +1,22 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-GERBER-002",
+  "title": "As many objects as the configured limit",
+  "kind": "gerber",
+  "input": "top_copper.gtl",
+  "limits": {
+    "max_objects": 5
+  },
+  "how": [
+    "Drawn in the file: after D10 a move to (2, 3) and two straight lines (to (8, 3) and to (8, 7)) = 2 lines; flashes: D11 at two points and D12 at one = 3 flashes;",
+    "5 objects in all, 3 apertures (D10, D11, D12), units mm, closed by M02.",
+    "max_objects is 5: the file has exactly that many and is read."
+  ],
+  "expect": {
+    "outcome": "read",
+    "measures": {
+      "items": 5,
+      "apertures": 3
+    }
+  }
+}

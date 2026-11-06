@@ -1,0 +1,16 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-SPICE-006",
+  "title": "A netlist with a resistor line with two nodes and no value",
+  "kind": "spice",
+  "input": "missing_value.cir",
+  "how": [
+    "The netlist has a resistor line with two nodes and no value: refused (PHOENIX-SIM-001)."
+  ],
+  "expect": {
+    "outcome": "refused",
+    "codes": [
+      "PHOENIX-SIM-001"
+    ]
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-KICAD-020",
+  "title": "A file with nothing but white space",
+  "kind": "kicad-board",
+  "input": "empty.kicad_pcb",
+  "how": [
+    "No list at all: a syntax error (PHOENIX-KICAD-001)."
+  ],
+  "expect": {
+    "outcome": "refused",
+    "codes": [
+      "PHOENIX-KICAD-001"
+    ]
+  }
+}

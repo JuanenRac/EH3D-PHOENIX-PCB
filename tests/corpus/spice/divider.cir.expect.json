@@ -1,0 +1,23 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-SPICE-001",
+  "title": "A divider of 1 kohm and 3 kohm on 10 V",
+  "kind": "spice",
+  "input": "divider.cir",
+  "how": [
+    "v(in) = 10 V (the source); v(out) = 10 x 3k / (1k + 3k) = 7.5 V; the solve is linear, so only rounding is accepted (1e-9)."
+  ],
+  "expect": {
+    "outcome": "read",
+    "probes": {
+      "v(out)": {
+        "value": 7.5,
+        "abs": 1e-09
+      },
+      "v(in)": {
+        "value": 10.0,
+        "abs": 1e-09
+      }
+    }
+  }
+}

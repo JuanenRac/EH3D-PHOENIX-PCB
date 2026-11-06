@@ -1,0 +1,22 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-GERBER-010",
+  "title": "An Excellon file that stops before M30",
+  "kind": "gerber",
+  "input": "no_end.drl",
+  "how": [
+    "One tool, one hole; the end command is missing, which is a warning (PHOENIX-GBR-017) and not an error."
+  ],
+  "expect": {
+    "outcome": "read",
+    "codes": [
+      "PHOENIX-GBR-017"
+    ],
+    "measures": {
+      "content": "excellon",
+      "hits": 1,
+      "tools": 1,
+      "ended": false
+    }
+  }
+}

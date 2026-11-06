@@ -1,0 +1,16 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-KICAD-016",
+  "title": "A board cut inside its last pad",
+  "kind": "kicad-board",
+  "input": "truncated.kicad_pcb",
+  "how": [
+    "The text stops with lists still open (PHOENIX-KICAD-004)."
+  ],
+  "expect": {
+    "outcome": "refused",
+    "codes": [
+      "PHOENIX-KICAD-004"
+    ]
+  }
+}

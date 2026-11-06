@@ -1,0 +1,39 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-TRIP-003",
+  "title": "KiCad board, model, EAGLE file, model",
+  "kind": "roundtrip",
+  "input": "two_parts.kicad_pcb",
+  "via": [
+    "eagle"
+  ],
+  "compare": [
+    "components",
+    "placed_pads",
+    "nets",
+    "pad_nets",
+    "track_pieces",
+    "vias",
+    "outline_count",
+    "pad_points",
+    "via_points",
+    "track_points",
+    "outline_points",
+    "refdes_values",
+    "net_names",
+    "pad_net_names"
+  ],
+  "tolerance_nm": 0,
+  "how": [
+    "Chain: read the KiCad board into the model, write it as an EAGLE file, read that back;",
+    "the facts compared are the ones that EAGLE keeps: counts of components (3), placed pads (6), nets (2), pad nets (5), track pieces (1), vias (1) and outline points (4),",
+    "positions of pads, vias, track ends and outline points, references with values, net names and pad net names, with an exact tolerance."
+  ],
+  "expect": {
+    "outcome": "read",
+    "measures": {
+      "steps": 1,
+      "differences": 0
+    }
+  }
+}

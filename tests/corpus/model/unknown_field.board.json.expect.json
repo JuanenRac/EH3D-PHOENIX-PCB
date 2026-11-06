@@ -1,0 +1,13 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-MODEL-012",
+  "title": "A field that the model does not have",
+  "kind": "board-json",
+  "input": "unknown_field.board.json",
+  "how": [
+    "The board accepts no field it does not know: refused."
+  ],
+  "expect": {
+    "outcome": "refused"
+  }
+}

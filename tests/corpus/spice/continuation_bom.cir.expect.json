@@ -1,0 +1,21 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-SPICE-004",
+  "title": "A netlist with a byte order mark, mixed line ends, comments, a continuation and names in two cases",
+  "kind": "spice",
+  "input": "continuation_bom.cir",
+  "how": [
+    "The mark is taken off; the title has accents, Japanese and Greek; names are compared without regard to case (IN/in, OUT/out);",
+    "R2 is continued on the next line (`+ 4k`) and everything after .end is ignored;",
+    "v(out) = 12 x 4k / (2k + 4k) = 8 V."
+  ],
+  "expect": {
+    "outcome": "read",
+    "probes": {
+      "v(out)": {
+        "value": 8.0,
+        "abs": 1e-09
+      }
+    }
+  }
+}

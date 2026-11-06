@@ -1,0 +1,16 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-SPICE-008",
+  "title": "A netlist with a resistor of zero ohm",
+  "kind": "spice",
+  "input": "zero_resistor.cir",
+  "how": [
+    "The netlist has a resistor of zero ohm: refused (PHOENIX-SIM-002)."
+  ],
+  "expect": {
+    "outcome": "refused",
+    "codes": [
+      "PHOENIX-SIM-002"
+    ]
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-KICAD-014",
+  "title": "Nesting exactly at the configured depth",
+  "kind": "kicad-board",
+  "input": "deep.kicad_pcb",
+  "limits": {
+    "max_depth": 7
+  },
+  "how": [
+    "Lists nested in the file: kicad_pcb (1), layers (2), the layer (3); a (2), b (3), c (4), d (5), e (6), f (7): the deepest has depth 7.",
+    "With max_depth 7 the file is read; the lists a to f are not known and are ignored: no component."
+  ],
+  "expect": {
+    "outcome": "read",
+    "measures": {
+      "components": 0,
+      "nets": 0
+    }
+  }
+}

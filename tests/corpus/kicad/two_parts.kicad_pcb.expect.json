@@ -1,0 +1,40 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-KICAD-001",
+  "title": "A board of two resistors and a header",
+  "kind": "kicad-board",
+  "input": "two_parts.kicad_pcb",
+  "how": [
+    "Footprints in the file: R1, R2 and J1 = 3 components, with 2 pads each = 6 placed pads;",
+    "nets 1 and 2 are GND and SIG (net 0 is no net) = 2; pads with a net: R1.1, R1.2, R2.1, R2.2, J1.1 = 5 pad nets (J1.2 has none);",
+    "one `segment` = 1 track of 1 piece; one `via`; four `gr_line` on Edge.Cuts close a ring = 4 outline points; no zone;",
+    "the fields of the footprints are not silkscreen items, so none; the layers named F.Cu and B.Cu are the 2 copper layers;",
+    "the quality report keeps 3 components, 6 pads, 2 nets, 1 track, 1 via and 4 outline points and drops the `setup` list."
+  ],
+  "expect": {
+    "outcome": "read",
+    "measures": {
+      "copper_layers": 2,
+      "components": 3,
+      "bottom_components": 0,
+      "placed_pads": 6,
+      "nets": 2,
+      "pad_nets": 5,
+      "tracks": 1,
+      "track_pieces": 1,
+      "vias": 1,
+      "zones": 0,
+      "silkscreen": 0,
+      "outline_points": 4,
+      "version": "20221018",
+      "generator": "pcbnew",
+      "kept.components": 3,
+      "kept.pads": 6,
+      "kept.nets": 2,
+      "kept.tracks": 1,
+      "kept.vias": 1,
+      "kept.outline points": 4,
+      "dropped.setup (stack-up, rules and plot settings)": 1
+    }
+  }
+}

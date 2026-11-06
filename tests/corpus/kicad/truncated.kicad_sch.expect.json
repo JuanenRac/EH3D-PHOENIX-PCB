@@ -1,0 +1,16 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-KICAD-023",
+  "title": "A schematic cut inside a label",
+  "kind": "kicad-schematic",
+  "input": "truncated.kicad_sch",
+  "how": [
+    "The text stops with lists still open (PHOENIX-KICAD-004)."
+  ],
+  "expect": {
+    "outcome": "refused",
+    "codes": [
+      "PHOENIX-KICAD-004"
+    ]
+  }
+}

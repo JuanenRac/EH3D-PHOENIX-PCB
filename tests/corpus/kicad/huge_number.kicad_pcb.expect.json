@@ -1,0 +1,22 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-KICAD-021",
+  "title": "A track that ends far outside the range of the model",
+  "kind": "kicad-board",
+  "input": "huge_number.kicad_pcb",
+  "how": [
+    "The end of the segment is 99999999999999 mm, far beyond 2^30 nm: the number is not valid and the track is not read (PHOENIX-KICAD-005),",
+    "the rest of the board is read: 1 component, 1 net, no track."
+  ],
+  "expect": {
+    "outcome": "read",
+    "codes_include": [
+      "PHOENIX-KICAD-005"
+    ],
+    "measures": {
+      "components": 1,
+      "nets": 1,
+      "tracks": 0
+    }
+  }
+}
