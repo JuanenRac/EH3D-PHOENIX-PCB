@@ -58,6 +58,15 @@ The table in the file is Table 6-1, Electrical Conductor Spacing, of IPC-2221 (G
 
 Exit code: 0 when nothing is proven wrong, 1 when a finding of level `error` is proven, 2 when the input is unusable.
 
+### Tables by category
+
+`--csv FILE` and `--html FILE` (of `phoenix check` and `phoenix connectivity`, with any of the forms above) also write the report for people who sort it in a spreadsheet or read it in a browser. Each writes a new file: a file that exists is never replaced, two outputs may not share a name, and nothing is written when one of them is refused (exit code 2).
+
+* The CSV header is `list,category,severity,code,title,location,x_nm,y_nm,measured_nm,limit_nm,detail`. One row per finding, the proven ones first (`list` is `confirmed` or `inconclusive`). `category`, `severity` and `list` keep their English keys in every language so a script can read them; only `title` is in the language of `--lang`. A text cell that a spreadsheet would run as a formula gets a quote mark in front, and a cell with a comma, a quote or a line break is quoted.
+* The HTML page has no script and no outside file and escapes every text that comes from the board. It starts with a summary of the proven and inconclusive findings of each category, then a table for each category that has findings. The headings are in the language of `--lang`.
+* The categories group the codes by what is fixed together: `size` (widths, via sizes, drills, rings, necks), `clearance` (copper clearance, isolation by voltage), `edge` (the board edge and drill spacing), `mask_silk` (solder mask and silkscreen), `zones`, `connectivity`, `advanced` (islands, stubs, duplicate vias, acid traps and the other advanced checks) and `other` (what could not be judged). The category is a reading aid and changes no result.
+
+
 `--time` (also of `phoenix connectivity`) writes one more line to the error stream, `time: S.SSS s`, with the seconds the command took from the end of the options to the end of the report, to three decimals. The report on the output and the exit code are the same with and without it. It is a wall-clock time of one run on the machine it ran on, so it is for comparing two runs on one computer and not a figure of the program.
 
 ## In the board editor

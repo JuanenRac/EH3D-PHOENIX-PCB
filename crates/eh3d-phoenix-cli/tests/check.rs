@@ -304,3 +304,68 @@ fn connectivity_reads_both_files_and_prints_one_report() {
         0
     );
 }
+
+#[test]
+fn check_writes_the_findings_as_csv_and_html_and_never_replaces_a_file() {
+    let f = Files::new();
+    let brd = f.write("b.brd", &write_board(&board()).text);
+    let rules = f.write("r.json", RULES);
+    let csv = f.dir.path().join("report.csv");
+    let html = f.dir.path().join("report.html");
+    let (csv_name, html_name) = (csv.to_str().unwrap(), html.to_str().unwrap());
+    let (code, out, _) = call(&[
+        "check",
+        "--rules",
+        rules.as_str(),
+        "--csv",
+        csv_name,
+        "--html",
+        html_name,
+        "--lang",
+        "de",
+        brd.as_str(),
+    ]);
+    assert_eq!(code, 1, "{out}");
+    // one proven finding: the track of 100000 nm against a limit of 150000 nm
+    let table = std::fs::read_to_string(&csv).unwrap();
+    let lines: Vec<&str> = table.lines().collect();
+    assert_eq!(lines.len(), 2, "{table}");
+    assert!(lines[0].starts_with("list,category,severity,code,title,"));
+    assert!(
+        lines[1].starts_with("confirmed,size,error,PHOENIX-CHECK-001,"),
+        "{table}"
+    );
+    assert!(lines[1].contains(",100000,150000,"), "{table}");
+    let page = std::fs::read_to_string(&html).unwrap();
+    assert!(page.contains("<html lang=\"de\">"));
+    assert!(page.contains("<h2>Breiten und Größen</h2>"));
+    assert!(page.contains("<td>100000 nm</td><td>150000 nm</td>"));
+    // a second run over the same names replaces nothing and writes nothing else
+    let (code, _, err) = call(&[
+        "check",
+        "--rules",
+        rules.as_str(),
+        "--csv",
+        csv_name,
+        brd.as_str(),
+    ]);
+    assert_eq!(code, 2);
+    assert!(err.contains("never replaced"), "{err}");
+    assert_eq!(std::fs::read_to_string(&csv).unwrap(), table);
+    // the same name for both outputs is refused before anything is written
+    let both = f.dir.path().join("both.out");
+    let both = both.to_str().unwrap();
+    let (code, _, err) = call(&[
+        "check",
+        "--rules",
+        rules.as_str(),
+        "--csv",
+        both,
+        "--html",
+        both,
+        brd.as_str(),
+    ]);
+    assert_eq!(code, 2);
+    assert!(err.contains("two outputs"), "{err}");
+    assert!(!std::path::Path::new(both).exists());
+}

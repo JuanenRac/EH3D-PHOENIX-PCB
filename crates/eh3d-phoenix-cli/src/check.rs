@@ -12,15 +12,15 @@ use std::time::Instant;
 use eh3d_phoenix_eagle_board::{read_board, read_schematic};
 use eh3d_phoenix_model::{DeterministicRandom, IdGenerator, Nm, ObjectId, StepClock};
 use eh3d_phoenix_rules::{
-    check_advanced, check_board, check_classes, check_connectivity, to_sarif, AdvancedConfig, Lang,
-    NetClasses, Report, RuleFile, RuleValues,
+    check_advanced, check_board, check_classes, check_connectivity, report_csv, report_html,
+    to_sarif, AdvancedConfig, Lang, NetClasses, Report, RuleFile, RuleValues,
 };
 
 /// The largest input file that is read, in bytes.
 const MAX_INPUT_BYTES: u64 = 256 * 1024 * 1024;
 
 pub(crate) const USAGE: &str = "\
-phoenix check [--rules FILE | --rules-dru FILE] [--advanced] [--drc-config FILE] [--json | --sarif] [--time] [--lang CODE] <board.brd>
+phoenix check [--rules FILE | --rules-dru FILE] [--advanced] [--drc-config FILE] [--json | --sarif] [--csv FILE] [--html FILE] [--time] [--lang CODE] <board.brd>
 
   check         run the design rules on an EAGLE board. The limits come from FILE (a JSON rule
                 file, format phoenix-rules/1 or phoenix-rules/2, which adds net classes with
@@ -33,7 +33,7 @@ phoenix check [--rules FILE | --rules-dru FILE] [--advanced] [--drc-config FILE]
                 names (which implies --advanced); the spacing table is not verified against the
                 standard. --sarif prints a layout like SARIF, phoenix-drc/1
 
-phoenix connectivity [--rules FILE] [--json] [--time] [--lang CODE] <schematic.sch> <board.brd>
+phoenix connectivity [--rules FILE] [--json] [--csv FILE] [--html FILE] [--time] [--lang CODE] <schematic.sch> <board.brd>
 
   connectivity  the copper of the board (shorts, unrouted nets) and the board against the schematic
                 (missing nets, unconnected pins, joined nets, names). The tolerance for copper
@@ -41,6 +41,10 @@ phoenix connectivity [--rules FILE] [--json] [--time] [--lang CODE] <schematic.s
 
   --json        print the report as JSON (--sarif: the layout phoenix-drc/1). --lang CODE writes the text in en, es, de, fr, it, ja,
                 zh or pt. Exit code 0: nothing proven wrong; 1: an error is proven; 2: unusable input
+  --csv FILE    also write the findings as a table of CSV, one row for each, with the stable keys of
+                the category and the severity and the title in the language of --lang
+  --html FILE   also write the report as a page of HTML, grouped by category, with the headings in
+                the language of --lang. Both write a new file: a file that exists is never replaced
   --time        also write the time the command took, in seconds, as one line, time: S.SSS s, to
                 the error stream (the report on the output is the same with and without it)
 ";
@@ -51,6 +55,8 @@ struct Options {
     time: bool,
     advanced: bool,
     drc_config: Option<String>,
+    csv: Option<String>,
+    html: Option<String>,
     lang: Lang,
     rules: Option<String>,
     rules_dru: Option<String>,
@@ -64,6 +70,8 @@ fn parse_options(args: &[&str]) -> Result<Options, String> {
         time: false,
         advanced: false,
         drc_config: None,
+        csv: None,
+        html: None,
         lang: Lang::En,
         rules: None,
         rules_dru: None,
@@ -80,6 +88,14 @@ fn parse_options(args: &[&str]) -> Result<Options, String> {
                 let path = iter.next().ok_or("--drc-config needs a file")?;
                 options.drc_config = Some((*path).to_owned());
                 options.advanced = true;
+            }
+            "--csv" => {
+                let path = iter.next().ok_or("--csv needs a file to write")?;
+                options.csv = Some((*path).to_owned());
+            }
+            "--html" => {
+                let path = iter.next().ok_or("--html needs a file to write")?;
+                options.html = Some((*path).to_owned());
             }
             "--lang" => {
                 let tag = iter.next().ok_or("--lang needs a language code")?;
@@ -127,6 +143,29 @@ pub(crate) fn id_source() -> Result<impl FnMut() -> ObjectId, String> {
     })
 }
 
+/// Writes each output as a new file; nothing is written when one of them exists or two are named
+/// alike, and an existing file is never replaced.
+fn write_new_files(files: &[(&str, String)]) -> Result<(), String> {
+    for (i, (path, _)) in files.iter().enumerate() {
+        if std::path::Path::new(path).exists() {
+            return Err(format!("{path} exists and is never replaced"));
+        }
+        if files[..i].iter().any(|(other, _)| other == path) {
+            return Err(format!("{path} is named for two outputs"));
+        }
+    }
+    for (path, text) in files {
+        let mut file = std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(path)
+            .map_err(|e| format!("{path}: {e}"))?;
+        file.write_all(text.as_bytes())
+            .map_err(|e| format!("{path}: {e}"))?;
+    }
+    Ok(())
+}
+
 fn finish(
     report: &Report,
     options: &Options,
@@ -134,6 +173,17 @@ fn finish(
     out: &mut dyn Write,
     err: &mut dyn Write,
 ) -> i32 {
+    let mut outputs: Vec<(&str, String)> = Vec::new();
+    if let Some(path) = &options.csv {
+        outputs.push((path.as_str(), report_csv(report, options.lang)));
+    }
+    if let Some(path) = &options.html {
+        outputs.push((path.as_str(), report_html(report, options.lang)));
+    }
+    if let Err(message) = write_new_files(&outputs) {
+        let _ = writeln!(err, "error: {message}");
+        return 2;
+    }
     let text = if options.sarif {
         to_sarif(report, options.lang)
     } else if options.json {

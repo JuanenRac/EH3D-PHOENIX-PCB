@@ -16,6 +16,7 @@
 //!   the width of the tracks and the size of the vias of their nets;
 //! * [`report`]: the report as text and as JSON, with proven (`confirmed`) and unjudged
 //!   (`inconclusive`) findings in two lists;
+//! * [`report_export`]: the report as CSV and as a page of HTML, grouped by category;
 //! * [`codes`]: the stable codes `PHOENIX-CHECK-<NNN>`, `PHOENIX-RULEFILE-<NNN>` and
 //!   `PHOENIX-CONN-<NNN>`, with their titles in the eight languages.
 //!
@@ -35,6 +36,7 @@ pub mod engine;
 mod geometry;
 mod items;
 pub mod report;
+pub mod report_export;
 pub mod rulefile;
 
 pub use advanced::{
@@ -46,4 +48,5 @@ pub use codes::{title, Lang, REGISTRY};
 pub use connectivity::{analyse_board, check_connectivity, compare_schematic};
 pub use engine::{check_board, check_board_with, clearance_work, ClearanceWork, Rule};
 pub use report::{Finding, Report, Severity};
+pub use report_export::{category, category_counts, report_csv, report_html};
 pub use rulefile::{parse_length, RuleFile, RuleFileError, RuleValues};
