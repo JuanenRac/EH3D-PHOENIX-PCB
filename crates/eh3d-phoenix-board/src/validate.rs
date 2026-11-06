@@ -26,6 +26,63 @@ pub const BAD_LAYER: &str = "PHOENIX-BOARD-007";
 pub const DUPLICATE_REFDES: &str = "PHOENIX-BOARD-008";
 /// An arc that has no shape.
 pub const BAD_ARC: &str = "PHOENIX-BOARD-009";
+/// A polygon with more points than the limit: its edges were not tested for crossing.
+pub const POLYGON_NOT_CHECKED: &str = "PHOENIX-BOARD-010";
+
+/// The limits of the validation, read from `config/board.cfg`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct BoardLimits {
+    /// The most points of a polygon (outline, cutout or zone) whose edges are tested for
+    /// crossing each other; the test takes time with the square of the number of points.
+    pub max_polygon_points: usize,
+}
+
+/// The most that `max_polygon_points` may be set to.
+const MAX_POLYGON_POINTS_CEILING: usize = 1_000_000;
+
+impl Default for BoardLimits {
+    fn default() -> Self {
+        BoardLimits {
+            max_polygon_points: 10_000,
+        }
+    }
+}
+
+impl BoardLimits {
+    /// Reads the limits from a settings text of `key = value` lines. Blank lines and lines that
+    /// start with `#` are ignored, a missing key keeps its default and an unknown key, a value
+    /// that is not a whole number from 3 to 1000000 or a line that is not `key = value` is an
+    /// error that names the line.
+    pub fn parse(text: &str) -> Result<BoardLimits, String> {
+        let mut limits = BoardLimits::default();
+        for (index, raw) in text.lines().enumerate() {
+            let line = index + 1;
+            let trimmed = raw.trim();
+            if trimmed.is_empty() || trimmed.starts_with('#') {
+                continue;
+            }
+            let (key, value) = trimmed
+                .split_once('=')
+                .ok_or_else(|| format!("line {line}: not key = value"))?;
+            let (key, value) = (key.trim(), value.trim());
+            match key {
+                "max_polygon_points" => {
+                    let n: usize = value
+                        .parse()
+                        .map_err(|_| format!("line {line}: {key} is not a whole number"))?;
+                    if !(3..=MAX_POLYGON_POINTS_CEILING).contains(&n) {
+                        return Err(format!(
+                            "line {line}: {key} must be from 3 to {MAX_POLYGON_POINTS_CEILING}"
+                        ));
+                    }
+                    limits.max_polygon_points = n;
+                }
+                _ => return Err(format!("line {line}: unknown key {key}")),
+            }
+        }
+        Ok(limits)
+    }
+}
 
 /// Every code of this crate with its title, in order.
 pub const REGISTRY: &[(&str, &str)] = &[
@@ -44,6 +101,10 @@ pub const REGISTRY: &[(&str, &str)] = &[
     (BAD_LAYER, "Layer of the wrong kind"),
     (DUPLICATE_REFDES, "Duplicate reference designator"),
     (BAD_ARC, "Arc has no shape"),
+    (
+        POLYGON_NOT_CHECKED,
+        "Polygon has more points than the limit, its edges were not tested for crossing",
+    ),
 ];
 
 fn make(code: &'static str, severity: Severity, detail: String) -> Diagnostic {
@@ -61,15 +122,28 @@ fn make(code: &'static str, severity: Severity, detail: String) -> Diagnostic {
         })
 }
 
-fn polygon_problem(points: &[Point]) -> Option<&'static str> {
+/// What the test of a polygon found.
+enum PolygonCheck {
+    /// Nothing is wrong.
+    Fine,
+    /// Something is wrong, said in a few words.
+    Problem(&'static str),
+    /// The polygon has more points than the limit; the edges were not tested for crossing.
+    NotCrossChecked,
+}
+
+fn polygon_problem(points: &[Point], max_points: usize) -> PolygonCheck {
     if points.len() < 3 {
-        return Some("fewer than three points");
+        return PolygonCheck::Problem("fewer than three points");
     }
     let n = points.len();
     for i in 0..n {
         if points[i] == points[(i + 1) % n] {
-            return Some("two consecutive points coincide");
+            return PolygonCheck::Problem("two consecutive points coincide");
         }
+    }
+    if n > max_points {
+        return PolygonCheck::NotCrossChecked;
     }
     for i in 0..n {
         for j in (i + 1)..n {
@@ -83,11 +157,33 @@ fn polygon_problem(points: &[Point]) -> Option<&'static str> {
                 points[j],
                 points[(j + 1) % n],
             ) {
-                return Some("the outline crosses itself");
+                return PolygonCheck::Problem("the outline crosses itself");
             }
         }
     }
-    None
+    PolygonCheck::Fine
+}
+
+/// Tests one polygon: an error for a problem, a warning for a polygon over the limit.
+fn polygon_findings(
+    points: &[Point],
+    what: &str,
+    max_points: usize,
+    error: &mut dyn FnMut(&'static str, String),
+    warnings: &mut Vec<Diagnostic>,
+) {
+    match polygon_problem(points, max_points) {
+        PolygonCheck::Fine => {}
+        PolygonCheck::Problem(why) => error(BAD_OUTLINE, format!("{what}: {why}")),
+        PolygonCheck::NotCrossChecked => warnings.push(make(
+            POLYGON_NOT_CHECKED,
+            Severity::Warning,
+            format!(
+                "{what}: {} points are more than the limit max_polygon_points = {max_points}",
+                points.len()
+            ),
+        )),
+    }
 }
 
 fn positive(value: Nm) -> bool {
@@ -97,30 +193,35 @@ fn positive(value: Nm) -> bool {
 impl Board {
     /// Every problem of the board, errors and warnings, in a fixed order.
     pub fn validate(&self) -> Vec<Diagnostic> {
+        self.validate_with(&BoardLimits::default())
+    }
+
+    /// Like [`Board::validate`] with the limits given.
+    pub fn validate_with(&self, limits: &BoardLimits) -> Vec<Diagnostic> {
+        let max_points = limits.max_polygon_points;
         let mut out = Vec::new();
         let mut error =
             |code: &'static str, detail: String| out.push(make(code, Severity::Error, detail));
         let mut warnings: Vec<Diagnostic> = Vec::new();
 
         if !self.outline.is_empty() {
-            if let Some(why) = polygon_problem(&self.outline) {
-                error(BAD_OUTLINE, format!("the board: {why}"));
-            }
+            polygon_findings(
+                &self.outline,
+                "the board",
+                max_points,
+                &mut error,
+                &mut warnings,
+            );
         }
         for (zone_id, zone) in &self.zones {
             for (i, cutout) in zone.cutouts.iter().enumerate() {
-                if let Some(why) = polygon_problem(cutout) {
-                    error(
-                        BAD_OUTLINE,
-                        format!("cutout {} of zone {zone_id}: {why}", i + 1),
-                    );
-                }
+                let what = format!("cutout {} of zone {zone_id}", i + 1);
+                polygon_findings(cutout, &what, max_points, &mut error, &mut warnings);
             }
         }
         for (i, cutout) in self.outline_cutouts.iter().enumerate() {
-            if let Some(why) = polygon_problem(cutout) {
-                error(BAD_OUTLINE, format!("cutout {}: {why}", i + 1));
-            }
+            let what = format!("cutout {}", i + 1);
+            polygon_findings(cutout, &what, max_points, &mut error, &mut warnings);
         }
         let layer_check =
             |id: &Id, what: &str, error: &mut dyn FnMut(&'static str, String)| match self
@@ -289,9 +390,13 @@ impl Board {
                 error(DANGLING, format!("zone {id} names a missing net"));
             }
             layer_check(&z.layer, &format!("zone {id}"), &mut error);
-            if let Some(why) = polygon_problem(&z.outline) {
-                error(BAD_OUTLINE, format!("zone {id}: {why}"));
-            }
+            polygon_findings(
+                &z.outline,
+                &format!("zone {id}"),
+                max_points,
+                &mut error,
+                &mut warnings,
+            );
             if z.clearance.get() < 0 {
                 error(BAD_SIZE, format!("clearance of zone {id}"));
             }
@@ -330,5 +435,98 @@ mod tests {
                 .unwrap_or_else(|| panic!("{code} is not documented"));
             assert!(row.contains(title), "{code}: {row}");
         }
+    }
+
+    fn pt(x: i64, y: i64) -> Point {
+        Point::from_nm(x, y).unwrap()
+    }
+
+    fn only(board: &Board, limits: &BoardLimits, code: &str) -> usize {
+        board
+            .validate_with(limits)
+            .iter()
+            .filter(|d| d.code.as_deref() == Some(code))
+            .count()
+    }
+
+    #[test]
+    fn the_shipped_limits_are_the_default() {
+        let shipped = include_str!("../../../config/board.cfg");
+        assert_eq!(BoardLimits::parse(shipped), Ok(BoardLimits::default()));
+    }
+
+    #[test]
+    fn the_settings_are_strict() {
+        assert_eq!(
+            BoardLimits::parse("max_polygon_points = 3")
+                .unwrap()
+                .max_polygon_points,
+            3
+        );
+        assert_eq!(
+            BoardLimits::parse("# only a note\n\n"),
+            Ok(BoardLimits::default())
+        );
+        for (text, line) in [
+            ("max_polygon_points = 2", 1),
+            ("max_polygon_points = 1000001", 1),
+            ("\nmax_polygon_points = x", 2),
+            ("max_polygon_points = -4", 1),
+            ("max_polygon_points", 1),
+            ("\n\nwhat = 3", 3),
+        ] {
+            let e = BoardLimits::parse(text).unwrap_err();
+            assert!(e.starts_with(&format!("line {line}:")), "{text}: {e}");
+        }
+    }
+
+    #[test]
+    fn a_polygon_over_the_limit_is_not_tested_for_crossings_and_gets_a_warning() {
+        // a bow tie: the edges (0,0)-(10,10) and (10,0)-(0,10) cross
+        let board = Board {
+            outline: vec![pt(0, 0), pt(10, 10), pt(10, 0), pt(0, 10)],
+            ..Board::default()
+        };
+        let strict = BoardLimits::default();
+        assert_eq!(only(&board, &strict, BAD_OUTLINE), 1);
+        assert_eq!(only(&board, &strict, POLYGON_NOT_CHECKED), 0);
+        // at the limit (4 points, limit 4) it is still tested
+        let at = BoardLimits {
+            max_polygon_points: 4,
+        };
+        assert_eq!(only(&board, &at, BAD_OUTLINE), 1);
+        assert_eq!(only(&board, &at, POLYGON_NOT_CHECKED), 0);
+        // one point over the limit: no crossing test, a warning
+        let low = BoardLimits {
+            max_polygon_points: 3,
+        };
+        assert_eq!(only(&board, &low, BAD_OUTLINE), 0);
+        let warned: Vec<_> = board
+            .validate_with(&low)
+            .into_iter()
+            .filter(|d| d.code.as_deref() == Some(POLYGON_NOT_CHECKED))
+            .collect();
+        assert_eq!(warned.len(), 1);
+        assert_eq!(warned[0].severity, Severity::Warning);
+        assert!(warned[0].message.contains("4 points"));
+        assert!(warned[0].message.contains("max_polygon_points = 3"));
+    }
+
+    #[test]
+    fn a_large_convex_polygon_over_the_default_limit_is_fast_and_warned_once() {
+        // 10001 points of the curve y = x * x closed by a chord: convex, no crossings
+        let limits = BoardLimits::default();
+        let n = i64::try_from(limits.max_polygon_points).unwrap() + 1;
+        let mut board = Board {
+            outline: (0..n).map(|i| pt(i * 1000, i * i)).collect(),
+            ..Board::default()
+        };
+        assert_eq!(board.outline.len(), 10_001);
+        assert_eq!(only(&board, &limits, POLYGON_NOT_CHECKED), 1);
+        assert_eq!(only(&board, &limits, BAD_OUTLINE), 0);
+        // the test of repeated points still runs over the limit
+        board.outline[5] = board.outline[4];
+        assert_eq!(only(&board, &limits, BAD_OUTLINE), 1);
+        assert_eq!(only(&board, &limits, POLYGON_NOT_CHECKED), 0);
     }
 }
