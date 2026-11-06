@@ -5,6 +5,8 @@
 //!   value, footprint, maker and part number, the quantity and the references of each line, the
 //!   cheapest supplier for the quantity of the batch with the waste, and the cost per board and
 //!   per batch;
+//! * [`assembly`]: the bills of the top face, the bottom face and the whole board, with the
+//!   quantities of a board and of a panel and the parts that are not fitted listed apart;
 //! * [`prices`] and [`parts`]: the local files that hold the prices by quantity break and the
 //!   makers, part numbers and parts that are not fitted (nothing is ever fetched from a network);
 //! * [`pcb`]: the estimate of the bare boards from the area, the layers, the thickness and the
@@ -23,6 +25,7 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
+pub mod assembly;
 pub mod bom;
 pub mod codes;
 pub mod money;
