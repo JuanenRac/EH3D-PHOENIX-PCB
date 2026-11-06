@@ -5,6 +5,8 @@
 //! code `PHOENIX-AROUTE-001`. A line that is left out keeps the default. Every pitch, penalty and
 //! limit is here and not in the code; the limits count nodes and passes, never time.
 
+use std::collections::BTreeMap;
+
 use crate::codes::{AutorouteError, SETTINGS_INVALID};
 
 /// The largest settings file that is read, in bytes.
@@ -89,7 +91,24 @@ pub struct AutorouteConfig {
     /// Whether a differential pair that is asked for may cross layers, with one via for each
     /// track side by side, when the ends of the pair have no layer in common.
     pub couple_via: bool,
+    /// The most changes of layer a differential pair that is asked for may make (1: the pair
+    /// crosses once, as before; more only with `couple_via`).
+    pub couple_layers_max: u32,
+    /// The weight of a net in percent, by name (`net_weight.NAME`): 100 is the default of every
+    /// net. A net of more weight is routed first and its vias and corners cost more.
+    pub net_weight: BTreeMap<String, i64>,
+    /// The weight in percent of every net of a net class of the rules, by class name
+    /// (`net_class_weight.CLASS`); the weight of the net itself wins over the one of its class.
+    pub class_weight: BTreeMap<String, i64>,
+    /// The most nodes the searches for one net may expand in all (0: no limit).
+    pub max_expansions_per_net: u64,
+    /// The same limit for the nets named here (`net_max_expansions.NAME`), instead of
+    /// `max_expansions_per_net`.
+    pub net_max_expansions: BTreeMap<String, u64>,
 }
+
+/// The weight of a net that no setting names, in percent.
+pub const DEFAULT_WEIGHT: i64 = 100;
 
 impl Default for AutorouteConfig {
     /// The values of `config/autoroute_native.cfg`.
@@ -116,6 +135,11 @@ impl Default for AutorouteConfig {
             via_in_pad: false,
             via_snap_nm: 0,
             couple_via: false,
+            couple_layers_max: 1,
+            net_weight: BTreeMap::new(),
+            class_weight: BTreeMap::new(),
+            max_expansions_per_net: 0,
+            net_max_expansions: BTreeMap::new(),
         }
     }
 }
@@ -219,7 +243,32 @@ impl AutorouteConfig {
                 "via_in_pad" => c.via_in_pad = flag(value).ok_or_else(bad)?,
                 "via_snap_nm" => c.via_snap_nm = int_in(value, 0, 5_000_000).ok_or_else(bad)?,
                 "couple_via" => c.couple_via = flag(value).ok_or_else(bad)?,
-                _ => return Err(fail(line, &format!("unknown key {key}"))),
+                "couple_layers_max" => {
+                    c.couple_layers_max = int_in(value, 1, 8).ok_or_else(bad)? as u32;
+                }
+                "max_expansions_per_net" => {
+                    c.max_expansions_per_net =
+                        int_in(value, 0, 100_000_000_000).ok_or_else(bad)? as u64;
+                }
+                _ => {
+                    let named = |prefix: &str| {
+                        key.strip_prefix(prefix)
+                            .map(str::trim)
+                            .filter(|name| !name.is_empty())
+                    };
+                    if let Some(name) = named("net_weight.") {
+                        let w = int_in(value, 1, 10_000).ok_or_else(bad)?;
+                        c.net_weight.insert(name.to_owned(), w);
+                    } else if let Some(name) = named("net_class_weight.") {
+                        let w = int_in(value, 1, 10_000).ok_or_else(bad)?;
+                        c.class_weight.insert(name.to_owned(), w);
+                    } else if let Some(name) = named("net_max_expansions.") {
+                        let n = int_in(value, 1, 100_000_000_000).ok_or_else(bad)? as u64;
+                        c.net_max_expansions.insert(name.to_owned(), n);
+                    } else {
+                        return Err(fail(line, &format!("unknown key {key}")));
+                    }
+                }
             }
         }
         Ok(c)
@@ -261,6 +310,46 @@ mod tests {
         assert_eq!(c.via_snap_nm, 150_000);
         assert!(c.couple_via);
         assert_eq!(c.grid_nm, d.grid_nm);
+    }
+
+    #[test]
+    fn the_weights_and_the_limits_per_net_are_off_by_default_and_are_read_when_written() {
+        let d = AutorouteConfig::default();
+        assert!(d.net_weight.is_empty() && d.class_weight.is_empty());
+        assert!(d.net_max_expansions.is_empty());
+        assert_eq!((d.max_expansions_per_net, d.couple_layers_max), (0, 1));
+        let c = AutorouteConfig::parse(
+            "net_weight.CLK = 300\nnet_weight.GND=50\nnet_class_weight.Power = 200\nmax_expansions_per_net = 5000\nnet_max_expansions.CLK = 900\ncouple_layers_max = 3\n",
+        )
+        .unwrap();
+        assert_eq!(c.net_weight.get("CLK"), Some(&300));
+        assert_eq!(c.net_weight.get("GND"), Some(&50));
+        assert_eq!(c.class_weight.get("Power"), Some(&200));
+        assert_eq!(c.max_expansions_per_net, 5000);
+        assert_eq!(c.net_max_expansions.get("CLK"), Some(&900));
+        assert_eq!(c.couple_layers_max, 3);
+        assert_eq!(c.grid_nm, d.grid_nm);
+    }
+
+    #[test]
+    fn a_weight_or_a_limit_per_net_out_of_range_or_without_a_name_is_refused() {
+        for text in [
+            "net_weight.CLK = 0\n",
+            "net_weight.CLK = 10001\n",
+            "net_weight. = 100\n",
+            "net_weight.CLK = heavy\n",
+            "net_weight.CLK = 100\nnet_weight.CLK = 200\n",
+            "net_class_weight.Power = -5\n",
+            "net_max_expansions.CLK = 0\n",
+            "max_expansions_per_net = -1\n",
+            "couple_layers_max = 0\n",
+            "couple_layers_max = 9\n",
+            "net_weights.CLK = 100\n",
+        ] {
+            let e = AutorouteConfig::parse(text).unwrap_err();
+            assert_eq!(e.code, SETTINGS_INVALID, "{text}");
+            assert!(e.detail.starts_with("line "), "{text}: {}", e.detail);
+        }
     }
 
     #[test]

@@ -10,12 +10,13 @@
 //! * `search`: A* over the nodes of the grid, layer by layer, with vias between layers, a cost for
 //!   corners, vias and steps against the preferred direction of a layer, tracks at 0, 45 and 90
 //!   degrees, and an order of expansion that never depends on anything but the input;
-//! * [`engine`]: the nets in the order of the settings, rip-up and reroute with limits counted in
-//!   nodes and passes, and the plan;
+//! * [`engine`]: the nets in the order of the settings (the nets of more weight first), with a
+//!   limit of expanded nodes for each net when the settings ask for one, rip-up and reroute with
+//!   limits counted in nodes and passes, and the plan;
 //! * [`plan`]: the result as one reversible operation of the board (also as a group of operations
 //!   of the editor), judged by the design rules before it is handed out, and a report that is the
 //!   same for the same input;
-//! * [`codes`]: the codes `PHOENIX-AROUTE-001` to `019` with their titles in the eight languages.
+//! * [`codes`]: the codes `PHOENIX-AROUTE-001` to `022` with their titles in the eight languages.
 //!
 //! All arithmetic is integer (nanometres, with 128 bits in the products). The same board, rules
 //! and settings always give the same plan, byte for byte. Tracks that are already on the board
@@ -47,9 +48,11 @@ mod tests_cases;
 #[cfg(test)]
 mod tests_extra;
 #[cfg(test)]
+mod tests_net;
+#[cfg(test)]
 mod tests_props;
 
 pub use codes::{registry, title, AutorouteError, LANGUAGES};
 pub use config::{AutorouteConfig, NetOrder};
 pub use engine::{autoroute, autoroute_with_pairs, PairSpec, Request};
-pub use plan::{AutoroutePlan, NetReport, PlannedTrack, PlannedVia, Report, Unrouted};
+pub use plan::{AutoroutePlan, NetReport, NetStats, PlannedTrack, PlannedVia, Report, Unrouted};

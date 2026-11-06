@@ -19,14 +19,16 @@ use eh3d_phoenix_route::{copper_layers, item_label, ratsnest, track_width, via_s
 use eh3d_phoenix_route::{RouteSettings, RuleContext};
 
 use crate::codes::{
-    AutorouteError, BOARD_NOT_ROUTABLE, EXPANSION_LIMIT, GRID_TOO_LARGE, LAYER_UNKNOWN,
-    NET_UNKNOWN, NO_PATH, NO_TERMINAL, PAIR_UNCOUPLED, PAIR_WITH_VIA, RIPUP_LIMIT,
-    TOO_MANY_CONNECTIONS, VIA_SNAPPED,
+    AutorouteError, BOARD_NOT_ROUTABLE, EXPANSION_LIMIT, GRID_TOO_LARGE, LAYER_UNKNOWN, NET_LIMIT,
+    NET_SETTING_UNUSED, NET_UNKNOWN, NO_PATH, NO_TERMINAL, PAIR_MANY_LAYERS, PAIR_UNCOUPLED,
+    PAIR_WITH_VIA, RIPUP_LIMIT, TOO_MANY_CONNECTIONS, VIA_SNAPPED,
 };
-use crate::config::{AutorouteConfig, NetOrder};
+use crate::config::{AutorouteConfig, NetOrder, DEFAULT_WEIGHT};
 use crate::geom::{half_up, isqrt_ceil, pair, turn, P};
 use crate::obstacles::{build, BuildParams, Obs, Spec, ViaSpec, World};
-use crate::plan::{finish, AutoroutePlan, NetOutcome, PlannedTrack, PlannedVia, Totals, Unrouted};
+use crate::plan::{
+    finish, AutoroutePlan, NetOutcome, NetStats, PlannedTrack, PlannedVia, Totals, Unrouted,
+};
 use crate::search::{search, terminals, Endpoint, Found, Grid, Job, Miss, Terminal};
 
 /// What to route: the nets and the layers, by name. Empty means all of them.
@@ -185,6 +187,12 @@ struct Engine<'a> {
     drill_gap: i64,
     expansions: u64,
     ripups: u32,
+    /// The weight of each net in percent.
+    weights: Vec<i64>,
+    /// The nodes the searches for each net have expanded.
+    net_exp: Vec<u64>,
+    /// The limit of expanded nodes of each net (0: none).
+    net_limit: Vec<u64>,
 }
 
 /// Removes the middle point of three that are on one line and the repeated points.
@@ -345,11 +353,30 @@ impl Engine<'_> {
             .cfg
             .max_expansions_total
             .saturating_sub(self.expansions);
+        // the vias and the corners of a net of more weight cost more
+        let base: &AutorouteConfig = self.cfg;
+        let weight = self.weights[net];
+        let scaled;
+        let cfg: &AutorouteConfig = if weight == DEFAULT_WEIGHT {
+            base
+        } else {
+            scaled = AutorouteConfig {
+                via_penalty_nm: base.via_penalty_nm * weight / DEFAULT_WEIGHT,
+                corner_penalty_nm: base.corner_penalty_nm * weight / DEFAULT_WEIGHT,
+                ..base.clone()
+            };
+            &scaled
+        };
+        let shared = base.max_expansions_per_search.min(remaining);
+        let net_left = match self.net_limit[net] {
+            0 => u64::MAX,
+            limit => limit.saturating_sub(self.net_exp[net]),
+        };
         let result = {
             let job = Job {
                 world: &self.world,
                 grid: &self.grid,
-                cfg: self.cfg,
+                cfg,
                 spec,
                 via,
                 slots: &self.slots,
@@ -357,7 +384,7 @@ impl Engine<'_> {
                 targets: &targets,
                 soft,
                 history: &self.history,
-                limit: self.cfg.max_expansions_per_search.min(remaining),
+                limit: shared.min(net_left),
                 free_vias: &self.free_vias[net],
             };
             search(&job)
@@ -365,14 +392,24 @@ impl Engine<'_> {
         match result {
             Ok(found) => {
                 self.expansions += found.expansions;
+                self.net_exp[net] += found.expansions;
                 Attempt::Found(found, sources, targets)
             }
             Err(Miss::Exhausted(n)) => {
                 self.expansions += n;
+                self.net_exp[net] += n;
                 Attempt::Missed(NO_PATH, format!("no way after {n} expanded nodes"))
             }
             Err(Miss::Limit(n)) => {
                 self.expansions += n;
+                self.net_exp[net] += n;
+                if net_left < shared {
+                    let limit = self.net_limit[net];
+                    return Attempt::Missed(
+                        NET_LIMIT,
+                        format!("the net reached its limit of {limit} expanded nodes"),
+                    );
+                }
                 Attempt::Missed(EXPANSION_LIMIT, format!("stopped after {n} expanded nodes"))
             }
         }
@@ -695,6 +732,29 @@ pub fn autoroute_with_pairs(
     // the vias of each net that are already on the board and sit on a node of the grid, or within
     // `via_snap_nm` of the nearest node
     let (free_vias, via_off) = index_vias(board, &ids, &grid, &copper, cfg.via_snap_nm);
+    // the weight of each net: its own, else the one of its class, else the default
+    let weights: Vec<i64> = nets
+        .iter()
+        .map(|n| {
+            cfg.net_weight
+                .get(&n.name)
+                .copied()
+                .or_else(|| {
+                    let class = ctx.classes.class_of(&n.name)?;
+                    cfg.class_weight.get(&class.name).copied()
+                })
+                .unwrap_or(DEFAULT_WEIGHT)
+        })
+        .collect();
+    let net_limit: Vec<u64> = nets
+        .iter()
+        .map(|n| {
+            cfg.net_max_expansions
+                .get(&n.name)
+                .copied()
+                .unwrap_or(cfg.max_expansions_per_net)
+        })
+        .collect();
     let mut conns: Vec<Conn> = Vec::new();
     for line in &lines {
         let net = ids.binary_search(&line.net).unwrap_or(0);
@@ -712,14 +772,16 @@ pub fn autoroute_with_pairs(
     for conn in &conns {
         total_len[conn.net] += conn.len;
     }
-    let key = |net: usize| -> (i64, i64, usize) {
+    let key = |net: usize| -> (i64, i64, i64, usize) {
         let info = &nets[net];
+        // the nets of more weight go first, whatever the order
+        let heavy = -weights[net];
         match cfg.order {
-            NetOrder::Shortest => (0, total_len[net], net),
-            NetOrder::Widest => (-info.width, total_len[net], net),
+            NetOrder::Shortest => (heavy, 0, total_len[net], net),
+            NetOrder::Widest => (heavy, -info.width, total_len[net], net),
             NetOrder::Critical => {
                 let first = cfg.critical_nets.contains(&info.name);
-                (i64::from(!first), total_len[net], net)
+                (heavy, i64::from(!first), total_len[net], net)
             }
         }
     };
@@ -728,6 +790,16 @@ pub fn autoroute_with_pairs(
         let conn = &conns[*c];
         (key(conn.net), conn.len, conn.a.at, conn.b.at, *c)
     });
+    // the place of each net in the order, from 1
+    let mut net_rank: Vec<usize> = vec![0; nets.len()];
+    let mut net_order: Vec<String> = Vec::new();
+    for c in &order {
+        let n = conns[*c].net;
+        if net_rank[n] == 0 {
+            net_order.push(nets[n].name.clone());
+            net_rank[n] = net_order.len();
+        }
+    }
     let mut engine = Engine {
         cfg,
         grid,
@@ -742,9 +814,35 @@ pub fn autoroute_with_pairs(
         drill_gap: rules.min_drill_spacing.get(),
         expansions: 0,
         ripups: 0,
+        net_exp: vec![0; weights.len()],
+        weights,
+        net_limit,
     };
-    // the differential pairs, coupled when there is room
     let mut notes: Vec<String> = Vec::new();
+    // a weight or a limit that names a net or a class that is not in this run
+    let in_run = |name: &str| engine.nets.iter().any(|n| n.name == name);
+    let unused = |what: String| format!("{NET_SETTING_UNUSED}: {what}: no connection to route");
+    for name in cfg.net_weight.keys().filter(|k| !in_run(k.as_str())) {
+        notes.push(unused(format!("net_weight.{name}")));
+    }
+    for name in cfg
+        .net_max_expansions
+        .keys()
+        .filter(|k| !in_run(k.as_str()))
+    {
+        notes.push(unused(format!("net_max_expansions.{name}")));
+    }
+    for class in cfg.class_weight.keys() {
+        let used = engine.nets.iter().any(|n| {
+            ctx.classes
+                .class_of(&n.name)
+                .is_some_and(|c| c.name == *class)
+        });
+        if !used {
+            notes.push(unused(format!("net_class_weight.{class}")));
+        }
+    }
+    // the differential pairs, coupled when there is room
     let mut coupled: Vec<String> = Vec::new();
     for spec in pairs {
         let (Some(p), Some(n)) = (
@@ -770,12 +868,25 @@ pub fn autoroute_with_pairs(
             notes.push(uncoupled("each net needs exactly one open connection"));
             continue;
         }
-        match engine.couple(cp[0], cn[0], spec.gap_nm) {
-            Ok(false) => coupled.push(spec.name.clone()),
-            Ok(true) => {
+        let before = engine.expansions;
+        let verdict = engine.couple(cp[0], cn[0], spec.gap_nm);
+        // the nodes the pair took are shared between its two nets
+        let spent = engine.expansions - before;
+        engine.net_exp[np] += spent - spent / 2;
+        engine.net_exp[nn] += spent / 2;
+        match verdict {
+            Ok(0) => coupled.push(spec.name.clone()),
+            Ok(1) => {
                 coupled.push(spec.name.clone());
                 notes.push(format!(
                     "{PAIR_WITH_VIA}: pair {}: one via for each track",
+                    spec.name
+                ));
+            }
+            Ok(changes) => {
+                coupled.push(spec.name.clone());
+                notes.push(format!(
+                    "{PAIR_MANY_LAYERS}: pair {}: {changes} changes of layer, one via for each track at each",
                     spec.name
                 ));
             }
@@ -799,6 +910,18 @@ pub fn autoroute_with_pairs(
             );
             continue;
         }
+        let owner = engine.conns[c].net;
+        if engine.net_limit[owner] > 0 && engine.net_exp[owner] >= engine.net_limit[owner] {
+            let limit = engine.net_limit[owner];
+            failures.insert(
+                c,
+                (
+                    NET_LIMIT,
+                    format!("the net reached its limit of {limit} expanded nodes"),
+                ),
+            );
+            continue;
+        }
         match engine.attempt(c, false) {
             Attempt::Found(found, sources, targets) => {
                 let assembled = assemble(
@@ -814,10 +937,12 @@ pub fn autoroute_with_pairs(
             }
             Attempt::Missed(code, detail) => {
                 let may_rip = code != NO_TERMINAL
+                    && code != NET_LIMIT
                     && engine.ripups < cfg.max_ripup_iterations
                     && rips[c] < cfg.max_rips_per_connection;
                 if !may_rip {
                     let (code, detail) = if code != NO_TERMINAL
+                        && code != NET_LIMIT
                         && (engine.ripups >= cfg.max_ripup_iterations
                             || rips[c] >= cfg.max_rips_per_connection)
                     {
@@ -928,6 +1053,34 @@ pub fn autoroute_with_pairs(
         }
         outcomes.push(outcome);
     }
+    let limited: BTreeSet<usize> = failures
+        .iter()
+        .filter(|(_, (code, _))| *code == NET_LIMIT)
+        .map(|(c, _)| engine.conns[*c].net)
+        .collect();
+    for n in limited {
+        notes.push(format!(
+            "{NET_LIMIT}: net {}: the limit of {} expanded nodes was reached",
+            engine.nets[n].name, engine.net_limit[n]
+        ));
+    }
+    let stats: Vec<NetStats> = engine
+        .nets
+        .iter()
+        .enumerate()
+        .map(|(n, info)| NetStats {
+            name: info.name.clone(),
+            weight_percent: engine.weights[n],
+            order: net_rank[n],
+            expansions: engine.net_exp[n],
+            rips: (0..engine.conns.len())
+                .filter(|c| engine.conns[*c].net == n)
+                .map(|c| rips[c])
+                .sum(),
+            corners: 0,
+            max_expansions: engine.net_limit[n],
+        })
+        .collect();
     let snapped: usize = engine
         .routed
         .iter()
@@ -951,6 +1104,8 @@ pub fn autoroute_with_pairs(
             expansions: engine.expansions,
             notes,
             pairs_coupled: coupled,
+            stats,
+            net_order,
         },
     )
 }

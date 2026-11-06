@@ -98,6 +98,26 @@ impl NetReport {
     }
 }
 
+/// What the run did for one net besides the routes: the weight it was routed with, its place in
+/// the order, and the work of the searches, all counts that do not depend on a clock.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NetStats {
+    /// The name of the net.
+    pub name: String,
+    /// The weight of the net in percent (100 when the settings do not name it or its class).
+    pub weight_percent: i64,
+    /// Its place in the order the nets were routed in, from 1.
+    pub order: usize,
+    /// The nodes the searches for it expanded.
+    pub expansions: u64,
+    /// How many times a connection of it was searched again through other copper.
+    pub rips: u32,
+    /// The corners of the tracks the plan adds for it.
+    pub corners: usize,
+    /// Its limit of expanded nodes (0: none).
+    pub max_expansions: u64,
+}
+
 /// What a run did, in counts that do not depend on a clock.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Report {
@@ -134,6 +154,10 @@ pub struct Report {
     /// What the run has to say besides the connections it left unrouted: a pair that was routed
     /// as two ordinary nets and why (`PHOENIX-AROUTE-017`).
     pub notes: Vec<String>,
+    /// The nets that had connections to route in the order the run routed them in.
+    pub net_order: Vec<String>,
+    /// What the run did for each of those nets, by name.
+    pub net_stats: Vec<NetStats>,
 }
 
 /// The routes of one net, as they leave the search.
@@ -153,6 +177,10 @@ pub(crate) struct Totals {
     pub expansions: u64,
     pub notes: Vec<String>,
     pub pairs_coupled: Vec<String>,
+    /// For each net of the outcomes, in the same order.
+    pub stats: Vec<NetStats>,
+    /// The names of the nets in the order they were routed in.
+    pub net_order: Vec<String>,
 }
 
 /// The plan.
@@ -269,6 +297,21 @@ impl AutoroutePlan {
         for note in &r.notes {
             out.push_str(&format!("note: {note}\n"));
         }
+        if !r.net_order.is_empty() {
+            out.push_str(&format!("order of the nets: {}\n", r.net_order.join(", ")));
+        }
+        for n in &r.net_stats {
+            out.push_str(&format!(
+                "net-stats {}: weight {}%, order {}, expanded nodes {}, rips {}, corners {}, limit {}\n",
+                n.name,
+                n.weight_percent,
+                n.order,
+                n.expansions,
+                n.rips,
+                n.corners,
+                n.max_expansions
+            ));
+        }
         for u in &r.unrouted {
             out.push_str(&format!(
                 "unrouted: {}: {} -> {}: {}: {}: {}\n",
@@ -317,6 +360,27 @@ impl AutoroutePlan {
             .iter()
             .map(|n| format!("\"{}\"", json_text(n)))
             .collect();
+        let order: Vec<String> = r
+            .net_order
+            .iter()
+            .map(|n| format!("\"{}\"", json_text(n)))
+            .collect();
+        let stats: Vec<String> = r
+            .net_stats
+            .iter()
+            .map(|n| {
+                format!(
+                    "{{\"name\":\"{}\",\"weight_percent\":{},\"order\":{},\"expansions\":{},\"rips\":{},\"corners\":{},\"max_expansions\":{}}}",
+                    json_text(&n.name),
+                    n.weight_percent,
+                    n.order,
+                    n.expansions,
+                    n.rips,
+                    n.corners,
+                    n.max_expansions
+                )
+            })
+            .collect();
         let missed: Vec<String> = r
             .unrouted
             .iter()
@@ -332,7 +396,7 @@ impl AutoroutePlan {
             })
             .collect();
         format!(
-            "{{\"nets_total\":{},\"nets_completed\":[{}],\"connections_total\":{},\"connections_routed\":{},\"tracks_added\":{},\"vias_added\":{},\"length_nm\":{},\"ripups\":{},\"expansions\":{},\"errors_before\":{},\"errors_after\":{},\"connections_left\":{},\"nets\":[{}],\"pairs_coupled\":[{}],\"notes\":[{}],\"unrouted\":[{}]}}",
+            "{{\"nets_total\":{},\"nets_completed\":[{}],\"connections_total\":{},\"connections_routed\":{},\"tracks_added\":{},\"vias_added\":{},\"length_nm\":{},\"ripups\":{},\"expansions\":{},\"errors_before\":{},\"errors_after\":{},\"connections_left\":{},\"nets\":[{}],\"pairs_coupled\":[{}],\"notes\":[{}],\"net_order\":[{}],\"net_stats\":[{}],\"unrouted\":[{}]}}",
             r.nets_total,
             names.join(","),
             r.connections_total,
@@ -348,6 +412,8 @@ impl AutoroutePlan {
             per_net.join(","),
             coupled.join(","),
             notes.join(","),
+            order.join(","),
+            stats.join(","),
             missed.join(",")
         )
     }
@@ -480,6 +546,7 @@ pub(crate) fn finish(
     let mut completed: Vec<String> = Vec::new();
     let mut routed = 0_usize;
     let mut per_net_report: Vec<NetReport> = Vec::with_capacity(outcomes.len());
+    let mut stats: Vec<NetStats> = totals.stats.clone();
     for (k, outcome) in outcomes.iter().enumerate() {
         let mut line = NetReport {
             name: outcome.name.clone(),
@@ -504,9 +571,17 @@ pub(crate) fn finish(
         line.tracks = outcome.tracks.len();
         line.vias = outcome.vias.len();
         line.length_nm = outcome.tracks.iter().map(PlannedTrack::length_nm).sum();
+        if let Some(st) = stats.get_mut(k) {
+            st.corners = outcome
+                .tracks
+                .iter()
+                .map(|t| t.points.len().saturating_sub(2))
+                .sum();
+        }
         per_net_report.push(line);
     }
     per_net_report.sort_by_key(|n| n.name.clone());
+    stats.sort_by_key(|n| n.name.clone());
     completed.sort();
     unrouted.sort_by(|a, b| {
         a.net
@@ -533,6 +608,8 @@ pub(crate) fn finish(
         nets: per_net_report,
         pairs_coupled: totals.pairs_coupled.clone(),
         notes: totals.notes.clone(),
+        net_order: totals.net_order.clone(),
+        net_stats: stats,
     };
     Ok(AutoroutePlan {
         tracks,

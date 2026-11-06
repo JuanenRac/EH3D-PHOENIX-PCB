@@ -42,6 +42,14 @@ pub const PAIR_UNCOUPLED: &str = "PHOENIX-AROUTE-017";
 pub const PAIR_WITH_VIA: &str = "PHOENIX-AROUTE-018";
 /// An existing via that is not on a node of the grid was joined to the grid by a short piece.
 pub const VIA_SNAPPED: &str = "PHOENIX-AROUTE-019";
+/// A net reached its own limit of expanded nodes and the rest of its connections were left out.
+pub const NET_LIMIT: &str = "PHOENIX-AROUTE-020";
+/// A weight or a limit of the settings names a net or a net class that has no connection to
+/// route in this run.
+pub const NET_SETTING_UNUSED: &str = "PHOENIX-AROUTE-021";
+/// A differential pair was routed across more than two layers, with one via for each track at
+/// every change of layer.
+pub const PAIR_MANY_LAYERS: &str = "PHOENIX-AROUTE-022";
 
 /// The language tags, in the order of the columns of [`TITLES`].
 pub const LANGUAGES: [&str; 8] = ["en", "es", "de", "fr", "it", "ja", "zh", "pt"];
@@ -296,6 +304,45 @@ pub const TITLES: &[(&str, [&str; 8])] = &[
             "Uma via existente fora da grelha foi ligada à grelha por um troço curto",
         ],
     ),
+    (
+        NET_LIMIT,
+        [
+            "A net reached its own limit of expanded nodes",
+            "Una red alcanzó su propio límite de nodos expandidos",
+            "Ein Netz hat sein eigenes Limit an erweiterten Knoten erreicht",
+            "Un réseau a atteint sa propre limite de nœuds développés",
+            "Una rete ha raggiunto il proprio limite di nodi espansi",
+            "ネットが自身の展開ノード数の上限に達しました",
+            "某个网络达到了自身的展开节点数上限",
+            "Uma rede atingiu o seu próprio limite de nós expandidos",
+        ],
+    ),
+    (
+        NET_SETTING_UNUSED,
+        [
+            "A weight or a limit names a net or a net class with no connection to route",
+            "Un peso o un límite nombra una red o una clase de redes sin conexiones por rutear",
+            "Ein Gewicht oder ein Limit nennt ein Netz oder eine Netzklasse ohne zu verlegende Verbindung",
+            "Un poids ou une limite nomme un réseau ou une classe de réseaux sans connexion à router",
+            "Un peso o un limite indica una rete o una classe di reti senza connessioni da instradare",
+            "重みまたは上限が、配線する接続のないネットまたはネットクラスを指定しています",
+            "某个权重或上限指定了没有待布线连接的网络或网络类",
+            "Um peso ou um limite indica uma rede ou uma classe de redes sem ligações por encaminhar",
+        ],
+    ),
+    (
+        PAIR_MANY_LAYERS,
+        [
+            "A differential pair was routed across several layers with a via for each track at every change",
+            "Un par diferencial se rutó entre varias capas con una vía por pista en cada cambio",
+            "Ein Differenzpaar wurde über mehrere Lagen mit einer Durchkontaktierung je Leiterbahn bei jedem Wechsel verlegt",
+            "Une paire différentielle a été routée sur plusieurs couches avec un via par piste à chaque changement",
+            "Una coppia differenziale è stata instradata su più strati con un via per pista a ogni cambio",
+            "差動ペアは複数の層にまたがり、層を変えるたびに配線ごとに1つのビアで配線されました",
+            "差分对跨多层布线，每次换层每条走线使用一个过孔",
+            "Um par diferencial foi encaminhado em várias camadas com uma via por pista em cada mudança",
+        ],
+    ),
 ];
 
 /// The codes of this crate with their titles in English.
@@ -365,7 +412,7 @@ mod tests {
                 assert_ne!(*text, row[0], "{code}");
             }
         }
-        assert_eq!(registry().len(), 19);
+        assert_eq!(registry().len(), 22);
     }
 
     #[test]

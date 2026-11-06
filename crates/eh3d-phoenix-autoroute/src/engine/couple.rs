@@ -180,7 +180,7 @@ impl Engine<'_> {
     /// Tries to route the two connections of a pair as coupled tracks. On success both are
     /// routed and put down; on failure nothing is changed (but the expanded nodes are counted)
     /// and the reason comes back.
-    pub(super) fn couple(&mut self, cp: usize, cn: usize, gap: i64) -> Result<bool, String> {
+    pub(super) fn couple(&mut self, cp: usize, cn: usize, gap: i64) -> Result<usize, String> {
         let (np, nn) = (self.conns[cp].net, self.conns[cn].net);
         if self.nets[np].width != self.nets[nn].width {
             return Err("the two nets have tracks of different widths".to_owned());
@@ -198,16 +198,23 @@ impl Engine<'_> {
         let mut reason = "the four ends have no layer in common".to_owned();
         for k in common {
             match self.couple_on(cp, cn, k, gap, ends) {
-                Ok(()) => return Ok(false),
+                Ok(()) => return Ok(0),
                 Err(why) => reason = why,
             }
         }
         if self.cfg.couple_via {
             match self.couple_through_via((cp, cn), gap, ends) {
-                Ok(()) => return Ok(true),
+                Ok(()) => return Ok(1),
                 // the reason of the search on one layer is the better one when there was one
                 Err(why) if !shared => reason = why,
                 Err(_) => {}
+            }
+            if self.cfg.couple_layers_max > 1 {
+                match self.couple_through_many((cp, cn), gap, ends) {
+                    Ok(changes) => return Ok(changes),
+                    Err(why) if !shared => reason = why,
+                    Err(_) => {}
+                }
             }
         }
         Err(reason)
@@ -601,6 +608,291 @@ impl Engine<'_> {
                         };
                         self.commit(cn, assembled);
                         return Ok(());
+                    }
+                }
+                self.uncommit(cp);
+            }
+        }
+        Err("a track of the pair is blocked".to_owned())
+    }
+}
+
+impl Engine<'_> {
+    /// Tries to route the pair across several layers, with up to `couple_layers_max` changes of
+    /// layer: the pair is searched as one fat track over all the layers the ends allow, and every
+    /// change of layer is made straight through (the same direction before and after), with one
+    /// via for each track side by side at the distance of the two tracks. The layers in between
+    /// need at least two nodes of the grid each. Used when the pair cannot be coupled on one layer
+    /// or across two, and `couple_via` is on. On success the number of changes of layer comes
+    /// back. On failure nothing is changed (but the expanded nodes are counted).
+    fn couple_through_many(
+        &mut self,
+        conns: (usize, usize),
+        gap: i64,
+        ends: [&Endpoint; 4],
+    ) -> Result<usize, String> {
+        let [pa, pb, na, nb] = ends;
+        let (cp, cn) = conns;
+        let (np, nn) = (self.conns[cp].net, self.conns[cn].net);
+        let width = self.nets[np].width;
+        let apart = centre_distance(width, gap);
+        let h = apart / 2;
+        let (vp, vn) = (self.via_spec(np), self.via_spec(nn));
+        let between = self.nets[np].gap.max(self.nets[nn].gap);
+        let need_copper = vp.half + vn.half + between;
+        let need_hole = vp.drill_half + vn.drill_half + vp.drill_gap;
+        if apart < need_copper || apart < need_hole {
+            return Err("the two vias of the pair would be too close to each other".to_owned());
+        }
+        let both = |a: &Endpoint, b: &Endpoint| -> Vec<usize> {
+            (0..self.slots.len())
+                .filter(|k| a.slots.contains(k) && b.slots.contains(k))
+                .collect()
+        };
+        let (first, last) = (both(pa, na), both(pb, nb));
+        if first.is_empty() || last.is_empty() {
+            return Err("an end of the pair has no layer that both its pads are on".to_owned());
+        }
+        let fat = Spec {
+            net: self.nets[np].id,
+            half: half_up(apart + width),
+            gap: between,
+        };
+        let fat_via = ViaSpec {
+            half: h + vp.half.max(vn.half),
+            drill_half: h + vp.drill_half.max(vn.drill_half),
+            drill_gap: vp.drill_gap,
+            in_pad: vp.in_pad,
+        };
+        let mut flat = self.cfg.clone();
+        flat.diagonal = false;
+        let mut sources: Vec<Terminal> = Vec::new();
+        for &k in &first {
+            let mut found = self.pair_terminals(&flat, self.slots[k], (pa, na), &fat);
+            found.iter_mut().for_each(|t| t.slot = k);
+            sources.extend(found);
+        }
+        if sources.is_empty() {
+            return Err("no free place near the first pair of pads".to_owned());
+        }
+        let mut targets: Vec<Terminal> = Vec::new();
+        for &k in &last {
+            let mut found = self.pair_terminals(&flat, self.slots[k], (pb, nb), &fat);
+            found.iter_mut().for_each(|t| t.slot = k);
+            targets.extend(found);
+        }
+        if targets.is_empty() {
+            return Err("no free place near the second pair of pads".to_owned());
+        }
+        let remaining = self
+            .cfg
+            .max_expansions_total
+            .saturating_sub(self.expansions);
+        let history = HashMap::new();
+        let no_vias = HashMap::new();
+        let result = search(&Job {
+            world: &self.world,
+            grid: &self.grid,
+            cfg: &flat,
+            spec: fat,
+            via: fat_via,
+            slots: &self.slots,
+            sources: &sources,
+            targets: &targets,
+            soft: false,
+            history: &history,
+            limit: self.cfg.max_expansions_per_search.min(remaining),
+            free_vias: &no_vias,
+        });
+        let found = match result {
+            Ok(found) => {
+                self.expansions += found.expansions;
+                found
+            }
+            Err(Miss::Exhausted(n)) | Err(Miss::Limit(n)) => {
+                self.expansions += n;
+                return Err(format!("no way for the pair after {n} expanded nodes"));
+            }
+        };
+        // the stretches of the path on one layer, in order
+        let mut groups: Vec<(usize, Vec<P>)> = Vec::new();
+        for n in &found.nodes {
+            let at = self.grid.point(n.ix, n.iy);
+            match groups.last_mut() {
+                Some((slot, pts)) if *slot == n.slot => pts.push(at),
+                _ => groups.push((n.slot, vec![at])),
+            }
+        }
+        let changes = groups.len() - 1;
+        if changes == 0 {
+            return Err("the pair does not need to change layer".to_owned());
+        }
+        if changes > self.cfg.couple_layers_max as usize {
+            return Err(format!(
+                "the pair would need {changes} changes of layer, the limit is {}",
+                self.cfg.couple_layers_max
+            ));
+        }
+        let lanes: Vec<Vec<P>> = groups.iter().map(|(_, pts)| simplify(pts)).collect();
+        if lanes[1..changes].iter().any(|lane| lane.len() < 2) {
+            return Err("two changes of layer of the pair would be on one place".to_owned());
+        }
+        // the direction the pair crosses in at each change: the same on both layers
+        let mut across: Vec<(i64, i64)> = Vec::new();
+        for (before, after) in lanes.iter().zip(lanes.iter().skip(1)) {
+            let along_a = (before.len() >= 2)
+                .then(|| direction(before[before.len() - 2], before[before.len() - 1]));
+            let along_b = (after.len() >= 2).then(|| direction(after[0], after[1]));
+            match (along_a, along_b) {
+                (Some(a), Some(b)) if a != b => return Err("the pair turns at its via".to_owned()),
+                (Some(a), _) | (None, Some(a)) => across.push(a),
+                (None, None) => {
+                    return Err("the ends of the pair are too close for two tracks".to_owned());
+                }
+            }
+        }
+        // on which side of the line the negative net lies, at both ends
+        let whole: Vec<P> = found
+            .nodes
+            .iter()
+            .map(|n| self.grid.point(n.ix, n.iy))
+            .collect();
+        let lane = simplify(&whole);
+        if lane.len() < 2 {
+            return Err("the ends of the pair are too close for two tracks".to_owned());
+        }
+        let first_side = left(direction(lane[0], lane[1]));
+        let last_side = left(direction(lane[lane.len() - 2], lane[lane.len() - 1]));
+        let on = |n: P, p: P, l: (i64, i64)| sign((n.0 - p.0) * l.0 + (n.1 - p.1) * l.1);
+        let (s_first, s_last) = (on(na.at, pa.at, first_side), on(nb.at, pb.at, last_side));
+        if s_first != 0 && s_last != 0 && s_first != s_last {
+            return Err("the two nets change sides between their ends".to_owned());
+        }
+        let side = if s_first != 0 {
+            s_first
+        } else if s_last != 0 {
+            s_last
+        } else {
+            1
+        };
+        let vias_at = |sign_of_net: i64| -> Vec<P> {
+            (0..changes)
+                .map(|i| {
+                    let normal = left(across[i]);
+                    let centre = groups[i + 1].1[0];
+                    (
+                        centre.0 + sign_of_net * h * normal.0,
+                        centre.1 + sign_of_net * h * normal.1,
+                    )
+                })
+                .collect()
+        };
+        let (via_p, via_n) = (vias_at(-side), vias_at(side));
+        let all: Vec<P> = via_p.iter().chain(via_n.iter()).copied().collect();
+        for (i, a) in all.iter().enumerate() {
+            for b in &all[i + 1..] {
+                let d = dist2(*a, *b);
+                let (c, o) = (i128::from(need_copper), i128::from(need_hole));
+                if d < c * c || d < o * o {
+                    return Err("two vias of the pair would be too close to each other".to_owned());
+                }
+            }
+        }
+        let span = |i: usize| {
+            let (x, y) = (self.slots[groups[i].0], self.slots[groups[i + 1].0]);
+            (x.min(y), x.max(y))
+        };
+        let (spec_p, spec_n) = (self.spec(np), self.spec(nn));
+        for (i, (at_p, at_n)) in via_p.iter().zip(via_n.iter()).enumerate() {
+            let (lo, hi) = span(i);
+            for (at, via, spec) in [(*at_p, &vp, &spec_p), (*at_n, &vn, &spec_n)] {
+                if self.world.via(at, lo, hi, via, spec, false) != Edge::Free {
+                    return Err("a via of the pair is blocked".to_owned());
+                }
+            }
+        }
+        // the lane of each stretch, moved to the side of each net; a single node at an end is the
+        // via beside it
+        let moved = |s: i64, vias: &[P]| -> Vec<Vec<P>> {
+            (0..lanes.len())
+                .map(|g| {
+                    if lanes[g].len() >= 2 {
+                        offset(&lanes[g], s, h)
+                    } else if g == 0 {
+                        vec![vias[0]]
+                    } else {
+                        vec![vias[changes - 1]]
+                    }
+                })
+                .collect()
+        };
+        let (moved_p, moved_n) = (moved(-side, &via_p), moved(side, &via_n));
+        // the tracks of one net: every stretch, the first and the last with the stub to the pad
+        let stretches = |first: &[P], last: &[P], shifted: &[Vec<P>], vias: &[P]| {
+            let m = shifted.len();
+            (0..m)
+                .map(|g| {
+                    if g == 0 {
+                        track(first, &shifted[0], &[vias[0]])
+                    } else if g == m - 1 {
+                        track(&[vias[g - 1]], &shifted[g], last)
+                    } else {
+                        simplify(&shifted[g])
+                    }
+                })
+                .collect::<Vec<Vec<P>>>()
+        };
+        let layers: Vec<usize> = groups.iter().map(|(slot, _)| self.slots[*slot]).collect();
+        let clear = |this: &Self, runs: &[Vec<P>], spec: &Spec| {
+            runs.iter()
+                .enumerate()
+                .all(|(g, pts)| this.track_is_clear(layers[g], pts, spec))
+        };
+        let assemble_for =
+            |runs: Vec<Vec<P>>, vias: &[P], nodes: Vec<(usize, i64, i64)>| Assembled {
+                runs: runs
+                    .into_iter()
+                    .enumerate()
+                    .map(|(g, pts)| Run {
+                        layer: layers[g],
+                        pts,
+                    })
+                    .collect(),
+                vias: vias
+                    .iter()
+                    .enumerate()
+                    .map(|(i, at)| {
+                        let (x, y) = (layers[i], layers[i + 1]);
+                        ViaItem {
+                            at: *at,
+                            lo: x.min(y),
+                            hi: x.max(y),
+                        }
+                    })
+                    .collect(),
+                nodes,
+                snapped: 0,
+            };
+        let nodes: Vec<(usize, i64, i64)> =
+            found.nodes.iter().map(|n| (n.slot, n.ix, n.iy)).collect();
+        let m = moved_p.len();
+        for first_p in stubs(pa.at, moved_p[0][0]) {
+            for last_p in stubs(pb.at, moved_p[m - 1][moved_p[m - 1].len() - 1]) {
+                let runs_p = stretches(&first_p, &last_p, &moved_p, &via_p);
+                if !clear(self, &runs_p, &spec_p) {
+                    continue;
+                }
+                let routed_p = assemble_for(runs_p, &via_p, nodes.clone());
+                self.commit(cp, routed_p);
+                for first_n in stubs(na.at, moved_n[0][0]) {
+                    for last_n in stubs(nb.at, moved_n[m - 1][moved_n[m - 1].len() - 1]) {
+                        let runs_n = stretches(&first_n, &last_n, &moved_n, &via_n);
+                        if !clear(self, &runs_n, &spec_n) {
+                            continue;
+                        }
+                        let routed_n = assemble_for(runs_n, &via_n, Vec::new());
+                        self.commit(cn, routed_n);
+                        return Ok(changes);
                     }
                 }
                 self.uncommit(cp);
