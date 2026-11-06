@@ -37,7 +37,10 @@ phoenix boardedit [--rules FILE] [--settings FILE] [--pair-config FILE] [--pairs
                 of a differential pair side by side (route_pair, with a via for each net where
                 the pair changes layer), make the shorter net of a pair as long as the other
                 with meanders (tune_pair) and move the pieces whose gap is out of tolerance
-                (fix_pair_gap). Each operation is
+                (fix_pair_gap); route a track and push aside the tracks of other nets that its
+                clearance would invade (route_shove, all or nothing, within the depth and the
+                number of tracks of the settings); put arcs in tracks (route_arc at one vertex,
+                round_corners on a track or a net). Each operation is
                 checked by the design rules and refused if it adds a rule error (an operation can
                 be forced), and the first one that is refused ends the run and names its number.
                 It is a dry run: nothing is written unless --out names a new file (.json for the

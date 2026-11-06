@@ -194,6 +194,114 @@ fn an_operation_that_adds_a_rule_error_is_refused_unless_it_is_forced() {
 }
 
 #[test]
+fn route_shove_pushes_the_neighbour_and_the_report_says_which_track_moved() {
+    let f = files();
+    let rules = write(
+        f.dir.path(),
+        "rules.json",
+        r#"{"format":"phoenix-rules/1","rules":{"min_clearance_nm":200000}}"#,
+    );
+    let shove = json!({
+        "op": "route_shove",
+        "net": id(11).to_string(),
+        "layer": id(1).to_string(),
+        "points": [
+            {"x_nm": 15_000_000, "y_nm": 10_300_000},
+            {"x_nm": 25_000_000, "y_nm": 10_300_000},
+        ],
+        "shape": "orthogonal",
+        "horizontal_first": true,
+    });
+    let ops = ops_file(&f, &[shove]);
+    let out_path = f.dir.path().join("pushed.json");
+    let (code, out, err) = call(&[
+        "boardedit",
+        "--rules",
+        &rules,
+        "--apply",
+        &ops,
+        "--out",
+        out_path.to_str().unwrap(),
+        &f.board,
+    ]);
+    assert_eq!(code, 0, "{err}");
+    assert!(out.contains("shove: 1 track(s) moved"), "{out}");
+    assert!(out.contains("tracks: 1 -> 2"), "{out}");
+    let written = Board::from_bytes(&std::fs::read(&out_path).unwrap()).unwrap();
+    match written.tracks[&id(40)].path.as_slice() {
+        [Segment::Line { start, end }] => {
+            assert_eq!(start.y_nm.get(), 10_000_000 - 151_001);
+            assert_eq!(end.y_nm.get(), 10_000_000 - 151_001);
+        }
+        other => panic!("{other:?}"),
+    }
+    // a push that cannot be done is refused with its code and writes nothing
+    let across = json!({
+        "op": "route_shove",
+        "net": id(11).to_string(),
+        "layer": id(1).to_string(),
+        "points": [
+            {"x_nm": 20_000_000, "y_nm": 5_000_000},
+            {"x_nm": 20_000_000, "y_nm": 15_000_000},
+        ],
+        "shape": "orthogonal",
+    });
+    let ops = ops_file(&f, &[across]);
+    let refused = f.dir.path().join("refused.json");
+    let (code, _, err) = call(&[
+        "boardedit",
+        "--rules",
+        &rules,
+        "--apply",
+        &ops,
+        "--out",
+        refused.to_str().unwrap(),
+        &f.board,
+    ]);
+    assert_eq!(code, 2);
+    assert!(err.contains("PHOENIX-SHOVE-005"), "{err}");
+    assert!(!refused.exists());
+}
+
+#[test]
+fn round_corners_puts_native_arcs_in_the_track() {
+    let f = files();
+    let ops = ops_file(
+        &f,
+        &[
+            route_gnd(&[(5, 14), (15, 14), (15, 24)]),
+            json!({"op": "round_corners", "net": id(11).to_string(), "radius_nm": 2_000_000}),
+        ],
+    );
+    let out_path = f.dir.path().join("round.json");
+    let (code, out, err) = call(&[
+        "boardedit",
+        "--apply",
+        &ops,
+        "--out",
+        out_path.to_str().unwrap(),
+        &f.board,
+    ]);
+    assert_eq!(code, 0, "{err}");
+    assert!(out.contains("arc: 1 corner(s) rounded"), "{out}");
+    let written = Board::from_bytes(&std::fs::read(&out_path).unwrap()).unwrap();
+    let gnd = written.tracks.values().find(|t| t.net == id(11)).unwrap();
+    assert_eq!(gnd.path.len(), 3);
+    assert!(matches!(gnd.path[1], Segment::Arc { .. }));
+    // a radius below the smallest one is refused with its code
+    let small = ops_file(
+        &f,
+        &[
+            route_gnd(&[(5, 14), (15, 14), (15, 24)]),
+            json!({"op": "round_corners", "net": id(11).to_string(), "radius_nm": 1000}),
+        ],
+    );
+    let (code, _, err) = call(&["boardedit", "--apply", &small, &f.board]);
+    assert_eq!(code, 2);
+    assert!(err.contains("PHOENIX-ARC-001"), "{err}");
+}
+
+#[test]
 fn the_arguments_are_checked() {
     let f = files();
     let ops = ops_file(&f, &[]);
