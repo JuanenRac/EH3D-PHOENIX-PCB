@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! The commands `check` and `connectivity`: read EAGLE files, run the rule engine or the
-//! connectivity analysis, and print the report as text or JSON.
+//! The commands `check` and `connectivity`: read EAGLE files (a KiCad board too, for `check`), run the
+//! rule engine or the connectivity analysis, and print the report as text, JSON or, for `check`, as
+//! SARIF, with a table of CSV and a page of HTML written on request. `check` also lists, as
+//! information, a polygon over `max_polygon_points`.
 //!
 //! Exit codes: 0 nothing is proven wrong, 1 at least one error is proven, 2 the arguments or the
 //! input are unusable.

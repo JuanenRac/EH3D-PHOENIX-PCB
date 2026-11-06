@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! The command line of EH3D-PHOENIX-PCB. It has twenty commands, `inventory`, `eagle-rate`,
+//! The command line of EH3D-PHOENIX-PCB. Its first commands are `inventory`, `eagle-rate`,
 //! `stackup`, `materials`, `check`, `connectivity`, `erc`, `sync`, `export`, `rf`, `rfgen`, `kicad-read`, `sanitize`,
-//! `sim`, `route`, `ratsnest`, `script`, `cam-import`, `schedit` and `view`.
+//! `sim`, `route`, `ratsnest`, `script`, `cam-import`, `schedit` and `view`; the others are added
+//! below, and the table in `commands.rs` holds them all.
 //!
 //! The editor of boards adds the command `boardedit`. The editor of libraries adds the commands `libedit` and `footprint`, and the routing through an
 //! external autorouter adds `autoroute`, the filling of copper zones adds `zones` and the lengths
@@ -135,8 +136,11 @@ phoenix materials show <id> [--at-ghz F] [--json]
               frequency) and, with --phoenix, keeps the materials that serve the design tool;
               show prints one record (run `phoenix materials` alone for the kinds)
 
-phoenix check [--rules FILE | --rules-dru FILE] [--limits FILE] [--json] [--lang xx] <board.brd>
-phoenix connectivity [--rules FILE] [--limits FILE] [--json] [--lang xx] <schematic.sch> <board.brd>
+phoenix check [--rules FILE | --rules-dru FILE | --dfm FILE] [--advanced] [--drc-config FILE] [--limits FILE] [--json | --sarif] [--csv FILE] [--html FILE] [--time] [--lang xx] <board.brd>
+phoenix connectivity [--rules FILE] [--limits FILE] [--json] [--csv FILE] [--html FILE] [--time] [--lang xx] <schematic.sch> <board.brd>
+
+  check         the design rules of a board (run `phoenix check` alone for every option); a polygon
+                over max_polygon_points is told as information and never changes the exit code
 
   check         run the design rules of FILE (JSON, phoenix-rules/1), of an EAGLE design rule file
                 (--rules-dru, a .dru) or of the board on an EAGLE board
@@ -532,10 +536,12 @@ phoenix eagle-convert <dru-to-rules|rules-to-dru|cam-to-profile|layers|variants>
 
 phoenix view [--settings FILE] [--lang xx] [<board or schematic>]
 phoenix view --summary <file>  |  phoenix view --snapshot OUT.svg <file>  |  phoenix view --bench
+phoenix --shot FILE.png [--size WxH] [--theme dark|light|contrast] [--window NAME] [--wait N] [--replace] [--open FILE]
 
   view          a viewer and editor window of a board or a schematic (a build with the gui
                 feature; a prototype), a text summary of a file, a picture of it as SVG, or a
-                timing of the preparation and the selection on three synthetic boards
+                timing of the preparation and the selection on three synthetic boards; --shot takes
+                a picture of the window and closes by itself (a build with the gui feature)
 
 phoenix help [<topic or command>] [--lang xx]
 phoenix --help [--lang xx]
