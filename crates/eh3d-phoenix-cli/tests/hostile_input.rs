@@ -586,3 +586,132 @@ fn the_settings_of_the_test_are_strict_and_the_shipped_ones_are_read() {
         assert!(parse_settings(bad).is_err(), "{bad}");
     }
 }
+
+// ---------------------------------------------------------------------------------------------
+// the same seeds cut at fixed places and repeated, made here and never kept
+
+/// The pieces that were added to the corpus for the newer readers and writers: they must be seeds
+/// of the readers that take them.
+const NEWER_SEEDS: [&str; 14] = [
+    "tests/corpus/kicad/outline_cutouts.kicad_pcb",
+    "tests/corpus/kicad/outline_poly_hole.kicad_pcb",
+    "tests/corpus/kicad/pad_shapes.kicad_pcb",
+    "tests/corpus/kicad/zones_keepout.kicad_pcb",
+    "tests/corpus/kicad/bus_entries.kicad_sch",
+    "tests/corpus/kicad/sheets_hier.kicad_sch",
+    "tests/corpus/eagle/restrict_and_pad_shapes.brd",
+    "tests/corpus/eagle/buses.sch",
+    "tests/corpus/route/zone_cutouts.board.json",
+    "tests/dxf/stadium_holes.dxf",
+    "tests/dxf/empty_entities.dxf",
+    "tests/dxf/rectangle_repeated_line.dxf",
+    "examples/guides/bus.sch",
+    "examples/guides/cutout.brd",
+];
+
+/// A seed cut at fixed places (a quarter, a half, three quarters, one byte less), twice in a row,
+/// and with its first half repeated in the middle. Nothing here is random, so every computer
+/// tries the same files.
+fn variants(seed: &[u8], cap: usize) -> Vec<Vec<u8>> {
+    let len = seed.len();
+    let mut out: Vec<Vec<u8>> = Vec::new();
+    for cut in [len / 4, len / 2, len * 3 / 4, len.saturating_sub(1)] {
+        out.push(seed[..cut].to_vec());
+    }
+    let mut twice = seed.to_vec();
+    twice.extend_from_slice(seed);
+    out.push(twice);
+    let half = len / 2;
+    let mut repeated = seed[..half].to_vec();
+    repeated.extend_from_slice(&seed[..half]);
+    repeated.extend_from_slice(&seed[half..]);
+    out.push(repeated);
+    for v in &mut out {
+        v.truncate(cap);
+    }
+    out
+}
+
+#[test]
+fn the_newer_pieces_of_the_corpus_and_the_guides_are_seeds_of_their_readers() {
+    let all = all_seeds();
+    for wanted in NEWER_SEEDS {
+        assert!(
+            all.iter().any(|(name, _)| name == wanted),
+            "{wanted} is not among the seeds"
+        );
+    }
+    let list = readers();
+    let seeds_for = |reader: &str| -> Vec<String> {
+        let reader = list.iter().find(|r| r.name == reader).unwrap();
+        seeds_of(reader, &all)
+            .into_iter()
+            .map(|(name, _)| name.clone())
+            .collect()
+    };
+    assert!(seeds_for("dxf").contains(&"tests/dxf/stadium_holes.dxf".to_owned()));
+    assert!(
+        seeds_for("kicad board").contains(&"tests/corpus/kicad/zones_keepout.kicad_pcb".to_owned())
+    );
+    assert!(seeds_for("kicad schematic")
+        .contains(&"tests/corpus/kicad/bus_entries.kicad_sch".to_owned()));
+    assert!(seeds_for("eagle schematic").contains(&"tests/corpus/eagle/buses.sch".to_owned()));
+    assert!(
+        seeds_for("board json").contains(&"tests/corpus/route/zone_cutouts.board.json".to_owned())
+    );
+}
+
+#[test]
+fn no_reader_panics_or_takes_too_long_on_a_seed_cut_at_fixed_places_or_repeated() {
+    let settings = settings();
+    let all = all_seeds();
+    let ctx = context();
+    let limit = Duration::from_secs(settings.max_seconds_per_input);
+    let mut problems: Vec<String> = Vec::new();
+    let mut tried = 0usize;
+    for reader in readers() {
+        for (name, bytes) in seeds_of(&reader, &all) {
+            for (n, variant) in variants(bytes, settings.max_input_bytes)
+                .into_iter()
+                .enumerate()
+            {
+                tried += 1;
+                if let Some(problem) = try_once(&reader, &variant, &ctx, limit) {
+                    problems.push(format!(
+                        "{} on {name}, variant {n} ({} bytes): {problem}",
+                        reader.name,
+                        variant.len()
+                    ));
+                }
+            }
+        }
+    }
+    assert!(tried > 1000, "{tried} files tried");
+    assert!(
+        problems.is_empty(),
+        "{} problems, the first ones: {:#?}",
+        problems.len(),
+        &problems[..problems.len().min(10)]
+    );
+}
+
+#[test]
+fn the_variants_are_the_same_every_time_and_stay_inside_the_cap() {
+    let seed = b"(kicad_pcb (version 1) (net 0 \"\") (gr_line (start 1 2) (end 3 4)))";
+    let first = variants(seed, 1 << 20);
+    assert_eq!(first, variants(seed, 1 << 20));
+    assert_eq!(first.len(), 6);
+    // a quarter, a half, three quarters, one byte less, twice, the first half repeated
+    let len = seed.len();
+    assert_eq!(first[0], seed[..len / 4]);
+    assert_eq!(first[1], seed[..len / 2]);
+    assert_eq!(first[2], seed[..len * 3 / 4]);
+    assert_eq!(first[3], seed[..len - 1]);
+    assert_eq!(first[4].len(), 2 * len);
+    assert_eq!(first[5].len(), len + len / 2);
+    for v in variants(seed, 10) {
+        assert!(v.len() <= 10);
+    }
+    // an empty seed gives six empty files and no panic
+    assert!(variants(b"", 8).iter().all(Vec::is_empty));
+}
