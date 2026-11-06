@@ -176,7 +176,7 @@ mod tests {
         assert!(points
             .iter()
             .any(|p| (p.0 - 10.0).abs() < 1e-9 && p.1.abs() < 1e-9));
-        assert!(points.iter().all(|p| p.0 >= -1e-9 && p.0 <= 10.0 + 1e-9));
+        assert!(points.iter().all(|p| (-1e-9..=10.0 + 1e-9).contains(&p.0)));
     }
 
     #[test]

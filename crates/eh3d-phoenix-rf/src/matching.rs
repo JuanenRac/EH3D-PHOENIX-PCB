@@ -583,8 +583,8 @@ mod tests {
                     let found = stub_match(load, z0, kind, termination, &settings()).unwrap();
                     assert!(!found.is_empty());
                     for m in found {
-                        assert!(m.distance_deg >= 0.0 && m.distance_deg < 180.0);
-                        assert!(m.stub_deg >= 0.0 && m.stub_deg <= 180.0);
+                        assert!((0.0..180.0).contains(&m.distance_deg));
+                        assert!((0.0..=180.0).contains(&m.stub_deg));
                         let zin = m.input_impedance(load, z0).unwrap();
                         assert!(
                             (zin - Complex::real(z0)).abs() < 1e-6 * z0,

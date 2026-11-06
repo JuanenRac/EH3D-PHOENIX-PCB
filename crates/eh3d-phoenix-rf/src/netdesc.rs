@@ -257,7 +257,7 @@ impl NetDesc {
                     });
                 }
                 "line" => {
-                    if words.len() < 3 || words.len() > 4 {
+                    if !(3..=4).contains(&words.len()) {
                         return Err(syntax(line, "`line Z0 length [eps_eff]` expected"));
                     }
                     let z0 = si_value(words[1]).map_err(|r| syntax(line, r))?;

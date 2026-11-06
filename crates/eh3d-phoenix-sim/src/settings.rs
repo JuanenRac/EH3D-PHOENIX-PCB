@@ -593,7 +593,7 @@ impl SimSettings {
         if !positive(self.sens_rel_step) || self.sens_rel_step >= 0.5 {
             return fail("sens_rel_step must be between 0 and 0.5");
         }
-        if self.max_pole_order < 1 || self.max_pole_order > 20 {
+        if !(1..=20).contains(&self.max_pole_order) {
             return fail("max_pole_order must be between 1 and 20");
         }
         if self.pole_fit_iterations < 1 || self.pole_root_iterations < 1 {
