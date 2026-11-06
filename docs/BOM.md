@@ -68,8 +68,8 @@ Every estimate says so (`PHOENIX-BOM-018`). The total of the batch is the parts 
 ## The command
 
 ```
-phoenix bom [--config FILE] [--prices FILE] [--parts FILE] [--schematic FILE] [--stackup FILE]
-            [--boards N] [--csv FILE] [--json-file FILE] [--html FILE] [--json] [--lang CODE]
+phoenix bom [--config FILE] [--prices FILE] [--parts FILE] [--parts-db PATH] [--schematic FILE]
+            [--stackup FILE] [--boards N] [--csv FILE] [--json-file FILE] [--html FILE] [--json] [--lang CODE]
             <board>
 ```
 
@@ -82,6 +82,10 @@ The same input always gives the same bytes: the order is fixed, money is written
 * **CSV**: one line for each bill line with the columns `references`, `quantity`, `value`, `footprint`, `manufacturer`, `mpn`, `supplier`, `supplier_code`, `unit_price`, `price_break`, `quantity_to_buy`, `line_cost_batch`, `line_cost_per_board`, `price_breaks` and `status` (`ok`, `no_price`, `no_footprint` or two of them joined by `+`). A text cell is quoted when it holds a comma, a quote or a line break, and a cell that a spreadsheet would run as a formula (it starts with `=`, `+`, `-` or `@`) gets a quote mark in front.
 * **JSON** (`phoenix-bom/1`): the lines with their offers and price breaks, the totals of the parts, the estimate of the boards, the total, whether it is complete and the findings; money is a string with six decimals.
 * **HTML**: one page with a table, the totals and the findings, with no script and no outside file; every text that comes from a file is escaped.
+
+## Completing the bill from the parts base
+
+With `--parts-db PATH` (a file or a folder of the local parts base, `docs/PARTS.md`) every part of the design is looked up in the base, by the part number that `--parts` gives or else by value and footprint, and the maker, the part number and the prices of the bill are completed from it. What `--parts` and `--prices` say wins over the base. The text of the bill ends with the parts without a match (`PHOENIX-PARTS-014`), the parts that match several parts of the base, which get none (`PHOENIX-PARTS-015`), and the parts that are obsolete or not recommended with the alternatives proposed for them (`PHOENIX-PARTS-016`); the proposals change nothing.
 
 ## The bills of the assembly
 

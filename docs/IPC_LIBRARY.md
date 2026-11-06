@@ -91,6 +91,10 @@ The library that comes with the program passes its own check; that proves that t
 
 `phoenix ipc compare` reads one footprint (a package of an EAGLE library by its name, or a `.kicad_mod` file), makes the one the library would generate for the family and variant, and pairs the pads by name. For each pair it gives the differences of position, size and hole; a pair within `compare_tol_mm` of the settings agrees. It also tries the generated footprint turned by 90, 180 and 270 degrees and keeps the turn where most pads agree, because the same package may have been drawn the other way round. The report lists, with the codes `PHOENIX-IPC-040` (a pad differs), `041` (a pad of the generated footprint is missing from yours) and `042` (a pad of yours has no counterpart). Nothing is replaced and nothing is written; the exit code is 1 when pads differ.
 
+## The names for the parts base
+
+`phoenix parts check` (`docs/PARTS.md`) asks whether the footprint of each part of the base is a footprint that this library generates (or one of the libraries `.lbr` given with `--lib`). The names it knows are exactly those of the library, which are a prototype, so a name of the datasheets of a maker may have to come from your own library.
+
 ## What it does not do
 
 * Dimensions checked against datasheets and against the tables of the standard (`docs/NOT_YET.md`).

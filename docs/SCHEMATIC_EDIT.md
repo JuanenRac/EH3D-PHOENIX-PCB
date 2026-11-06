@@ -22,6 +22,10 @@ An operation is one change that is asked for. It is a value (`EditOp`) that can 
 | `rename_mark` | Renames a net label or a power port. |
 | `batch` | Several operations that are one step. |
 
+## Assigning a part of the parts base
+
+The state of the editor can make the plan of assigning a part of the local parts base (`docs/PARTS.md`) to the selected symbols (module `assign` of `eh3d-phoenix-schedit`): the value, the maker and the part number, the footprint and the model, and the line of the file of part data for the bill of materials. The plan is read first and changes nothing; applying it is one `batch` step, so one undo gives the schematic back. The window has no button for it yet.
+
 ## All or nothing, undo and redo
 
 The `Editor` applies an operation on a copy of the schematic. The copy is tidied (below), the nets are made again, and only then does the schematic change; an operation that is refused (code `PHOENIX-SCH-010`: a part, sheet, symbol or item that does not exist, a reference that is used, a name that is empty or too long, a wire that is not orthogonal, a bus that is not of the form `D[0..7]`, a coordinate out of range) changes nothing, not the history and not the supply of ids. A batch is refused as a whole when one of its operations is.

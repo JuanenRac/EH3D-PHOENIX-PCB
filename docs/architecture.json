@@ -83,6 +83,8 @@
         "crates/eh3d-phoenix-viewer/src/panel_scene.rs",
         "crates/eh3d-phoenix-bom/src/bom.rs",
         "crates/eh3d-phoenix-bom/src/assembly.rs",
+        "crates/eh3d-phoenix-parts/src/link.rs",
+        "crates/eh3d-phoenix-sanitizer/src/apply.rs",
         "crates/eh3d-phoenix-export/src/pnp.rs",
         "crates/eh3d-phoenix-export/src/stencil.rs",
         "crates/eh3d-phoenix-export/src/fabpack.rs",

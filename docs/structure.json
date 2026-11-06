@@ -507,6 +507,19 @@
           }
         },
         {
+          "name": "PARTS.md",
+          "desc": {
+            "en": "local parts base: search, check, bill of materials link",
+            "es": "base local de piezas: búsqueda, comprobación, enlace a la lista",
+            "de": "lokale Bauteildatenbank: Suche, Prüfung, Verknüpfung zur Stückliste",
+            "fr": "base locale de pièces : recherche, contrôle, lien à la nomenclature",
+            "it": "base locale dei componenti: ricerca, controllo, legame alla distinta",
+            "ja": "ローカル部品データベース：検索、点検、部品表との連携",
+            "zh": "本地元件库：搜索、检查、与物料清单的关联",
+            "pt": "base local de peças: pesquisa, verificação, ligação à lista de materiais"
+          }
+        },
+        {
           "name": "PNP.md  STENCIL.md  FABPACK.md",
           "tree_name": "PNP.md STENCIL.md FABPACK.md",
           "desc": {
