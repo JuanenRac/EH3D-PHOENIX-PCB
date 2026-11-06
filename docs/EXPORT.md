@@ -31,14 +31,14 @@ A function that needs a fact the board does not give (the order of the copper la
 
 What is drawn:
 
-* **Copper:** zones as a region of their outline, tracks with lines and arcs (an arc is written with its centre offset and direction), vias and pads flashed.
+* **Copper:** zones as a region of their outline (the filled copper of a zone goes as one region for each polygon through the board that the board editor pours, `docs/BOARD_ZONES.md`), tracks with lines and arcs (an arc is written with its centre offset and direction), vias and pads flashed.
 * **Pads:** circle, rectangle and obround apertures. A pad turned by a multiple of 90 degrees swaps its sides; any other angle is flashed unrotated and reported (`PHOENIX-EXPORT-001`). The board model has no polygon pad, so none is written.
 * **Solder mask and paste:** the pads of the layer, larger by `gerber.mask_expansion_nm` on each side in the mask and smaller by `gerber.paste_shrink_nm` in the paste. An opening is never smaller than 1 micrometre, so no pad is lost from a file. Vias are covered (tented).
 * **Legend:** the strokes of the text and lines of the silkscreen layer, from the built-in stroke font.
 * **Profile:** the outline polygon as lines of `gerber.outline_width_nm`.
 * **Apertures** are numbered from 10 in the order of their sorted shapes, so there is one definition per shape.
 
-Not done: copper pours (a zone is its outline, `PHOENIX-EXPORT-002`), clearances, blind and buried vias, the component attributes beyond the reference, the pin and the net, and a polygon pad.
+Not done: copper pours made by the export itself (a zone is its outline, `PHOENIX-EXPORT-002`; the poured board of `docs/BOARD_ZONES.md` carries the polygons of a fill), clearances, blind and buried vias, the component attributes beyond the reference, the pin and the net, and a polygon pad.
 
 ## Excellon
 

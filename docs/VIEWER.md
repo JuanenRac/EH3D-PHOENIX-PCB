@@ -62,6 +62,8 @@ The button *Edit board* of the left panel starts the board editor (`docs/BOARD_E
 
 The box *Push tool* of the same panel turns a click into a point of a new track of the chosen net, shows the tracks that the push would move before it is accepted and routes the track with the push as one step (`docs/SHOVE.md`); the window has never been seen on a screen or used with a mouse.
 
+The box *Zone tool* of the same panel turns a click into a corner of a zone (the first point closes it), lets a corner be dragged, shows the fill before it is kept, lists the zones by priority and cuts holes (`docs/BOARD_ZONES.md`); the window has never been seen on a screen or used with a mouse.
+
 The box *Pair tool* of the same panel turns a click into a point of the centre line of a differential pair and adds the buttons to draw the pair, make its lengths equal, correct its gap and check the pairs (`docs/DIFFPAIRS.md`); it has never been used with a mouse.
 
 ### Editing a library
@@ -145,6 +147,7 @@ The crate `eh3d-phoenix-viewer` holds all of the logic, with no dependency on eg
 | `bench` | Three synthetic boards and their timing |
 | `settings`, `codes`, `msg`, `editmsg` | The settings file, the codes `PHOENIX-VIEW-<NNN>` and the texts in eight languages (`editmsg` those of the editing) |
 | `board_text`, `board_sync` | The texts of the board editor in eight languages and the hand-over of the edited board to the workspace (`Workspace::replace_board`) |
+| `board_zone`, `board_zone_text` | The state of the zone tool of the board editor (the polygon drawn by clicks, its vertices, the preview of the fill, the zones by priority and the operations on them) and its texts in eight languages |
 | `board_pair`, `board_pair_text` | The state of the pair tool of the board editor (the pair chosen, the points of the centre line, the operations on the pair and the report of the checks) and its texts in eight languages |
 | `board_pair_gui` (feature `gui`) | The section of the pairs in the panel of the board editor and the drawing of the points that were clicked |
 | `board_gui` (feature `gui`) | The editing mode of the window for a board: the panel of tools and the canvas that draws the board with the ratsnest and what is in progress and passes on the pointer and the keys to `eh3d-phoenix-boardedit` |

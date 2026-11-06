@@ -2,7 +2,7 @@
 
 Codes have the form `PHOENIX-<AREA>-<NNN>`. A code is stable: it never changes its meaning and is never reused. Programs show the text through the key `diag.<code>`; the codes themselves are never translated. The object identity (UUID v7) is the one of the shared container, with its own codes `EH3D-ID-001` and `EH3D-ID-002`. The container codes `EH3D-PKG-001` to `EH3D-PKG-014` belong to the shared container and are listed in the registry of the documentation repository.
 
-Each table repeats the `REGISTRY` of a crate (`eh3d-phoenix-model` in `src/diagnostic.rs`, `eh3d-phoenix-project` and `eh3d-phoenix-eagle` in `src/codes.rs`, `eh3d-phoenix-hub` in `src/lib.rs`, `eh3d-phoenix-export` in `src/codes.rs` and `src/fabcodes.rs`, `eh3d-phoenix-schematic` in `src/model.rs`, `src/draw.rs`, `src/edit.rs` and `src/link.rs`, `eh3d-phoenix-board` in `src/validate.rs`, `src/connectivity.rs` and `src/rules.rs`, `eh3d-phoenix-rules` in `src/codes.rs`, `eh3d-phoenix-stackup` and `eh3d-phoenix-rf` in `src/error.rs`, `eh3d-phoenix-viewer`, `eh3d-phoenix-sanitizer`, `eh3d-phoenix-erc`, `eh3d-phoenix-sync`, `eh3d-phoenix-schedit`, `eh3d-phoenix-boardedit`, `eh3d-phoenix-libedit`, `eh3d-phoenix-zones`, `eh3d-phoenix-lengths`, `eh3d-phoenix-gerber`, `eh3d-phoenix-panel`, `eh3d-phoenix-bom`, `eh3d-phoenix-assembly3d` and `eh3d-phoenix-oracle` in `src/codes.rs`); a test of each crate checks that every code of its registry is in the table with the same title.
+Each table repeats the `REGISTRY` of a crate (`eh3d-phoenix-model` in `src/diagnostic.rs`, `eh3d-phoenix-project` and `eh3d-phoenix-eagle` in `src/codes.rs`, `eh3d-phoenix-hub` in `src/lib.rs`, `eh3d-phoenix-export` in `src/codes.rs` and `src/fabcodes.rs`, `eh3d-phoenix-schematic` in `src/model.rs`, `src/draw.rs`, `src/edit.rs` and `src/link.rs`, `eh3d-phoenix-board` in `src/validate.rs`, `src/connectivity.rs` and `src/rules.rs`, `eh3d-phoenix-rules` in `src/codes.rs`, `eh3d-phoenix-stackup` and `eh3d-phoenix-rf` in `src/error.rs`, `eh3d-phoenix-viewer`, `eh3d-phoenix-sanitizer`, `eh3d-phoenix-erc`, `eh3d-phoenix-sync`, `eh3d-phoenix-schedit`, `eh3d-phoenix-boardedit` (also in `src/pair_codes.rs`, `src/shove_codes.rs` and `src/zone_codes.rs`), `eh3d-phoenix-libedit`, `eh3d-phoenix-zones`, `eh3d-phoenix-lengths`, `eh3d-phoenix-gerber`, `eh3d-phoenix-panel`, `eh3d-phoenix-bom`, `eh3d-phoenix-assembly3d` and `eh3d-phoenix-oracle` in `src/codes.rs`); a test of each crate checks that every code of its registry is in the table with the same title.
 
 ## Model foundations
 
@@ -523,6 +523,24 @@ The titles of these codes also exist in the eight languages of the suite (`TITLE
 | PHOENIX-ARC-001 | Radius of the arc is not valid | a radius below `arc_min_radius_nm` or above 2^29 nm |
 | PHOENIX-ARC-002 | Corner cannot be rounded | a vertex that does not exist, that is not between two straight pieces, whose pieces run on one line or turn back, or whose pieces are shorter than the arc needs; `round_corners` when no corner of the track or the net could be rounded |
 | PHOENIX-ARC-003 | Arc is too close to other copper or to the edge | an arc that, cut into short chords, comes nearer than the clearance of the rules (plus `arc_margin_nm`) to the copper of another net, a pad, a via or the edge of the board |
+
+## Zones in the board editor (`eh3d-phoenix-boardedit`, `src/zone_codes.rs`)
+
+The titles of these codes also exist in the eight languages of the suite (`TITLES` in `src/zone_codes.rs`); the detail of a message is in English. The notes of the operations on zones carry them, and so do the errors of those operations. Codes of the fill itself (`PHOENIX-ZONE-<NNN>`) appear in the notes as they are.
+
+| Code | Title | Raised by |
+|---|---|---|
+| PHOENIX-BZONE-001 | Zone is not on the board | `zone_edit`, `zone_remove`, `zone_fill`, `zone_priority` or `zone_cutout` on a zone the board does not have |
+| PHOENIX-BZONE-002 | Outline of the zone cannot be used | an outline with fewer than three points, with two equal neighbour points, with no area, with a side that folds back or with two sides that touch, or one that the fill cannot cut into convex pieces |
+| PHOENIX-BZONE-003 | Property of the zone is out of range | a negative length, a number of spokes that is not 2 or 4, or a clearance out of the design range |
+| PHOENIX-BZONE-004 | Cutout of the zone is not valid | a cutout that is not a polygon, that has a point outside the zone, that crosses a side of the outline, or a cutout to remove that does not exist |
+| PHOENIX-BZONE-005 | Fill breaks a clearance or joins nets | a fill that the check of `eh3d-phoenix-zones` proves to be nearer than the clearance to copper of another net, to lie outside the zone or the board, or (in a note) two zones of one priority that overlap; also copper added after the fill |
+| PHOENIX-BZONE-006 | Part of the fill is dropped or joined to nothing | an island that the fill dropped for its size, its width or because it touches no copper of its net, or a zone with nothing left after the fill (a note) |
+| PHOENIX-BZONE-007 | Zone has no fill | a zone that was never filled or whose fill was dropped because it was edited (a note) |
+| PHOENIX-BZONE-008 | Group cannot be pasted | a paste that adds a rule error, that names a layer the board does not have, that turns by something other than quarter turns, that gives both a clipboard and a net or neither, or that is empty |
+| PHOENIX-BZONE-009 | Clipboard cannot be used | a clipboard of another format, a net without a name, an item the board does not have, or nothing to copy |
+| PHOENIX-BZONE-010 | Zone data cannot be written to the format | the fill, the cutouts, the priority, the connection or the thermal relief of a zone, in a Gerber file without a fill, in a Specctra DSN file or in a KiCad board (a note for each zone) |
+| PHOENIX-BZONE-011 | File of zone data is not valid | a file of zone data that cannot be read, of another format, with an unknown field or with a property out of range, or a fill that cannot be poured |
 
 ## Circuit simulator (`eh3d-phoenix-sim`, `src/codes.rs`)
 

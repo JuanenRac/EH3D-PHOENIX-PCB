@@ -338,6 +338,19 @@
           }
         },
         {
+          "name": "BOARD_ZONES.md",
+          "desc": {
+            "en": "copper zones in the board editor: fill, priority, paste",
+            "es": "zonas de cobre en el editor de placas: relleno, prioridad, pegado",
+            "de": "Kupferzonen im Platinen-Editor: Füllung, Priorität, Einfügen",
+            "fr": "zones de cuivre dans l'éditeur de cartes : remplissage, priorité, collage",
+            "it": "zone di rame nell'editor di schede: riempimento, priorità, incolla",
+            "ja": "基板エディタの銅ゾーン：塗りつぶし、優先度、貼り付け",
+            "zh": "电路板编辑器中的铜区域：填充、优先级、粘贴",
+            "pt": "zonas de cobre no editor de placas: preenchimento, prioridade, colagem"
+          }
+        },
+        {
           "name": "SIM.md",
           "desc": {
             "en": "circuit simulation: netlist, analyses, schematic export",

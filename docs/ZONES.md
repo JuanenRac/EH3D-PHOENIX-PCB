@@ -2,7 +2,7 @@
 
 The crate `eh3d-phoenix-zones` and the command `phoenix zones` fill the copper zones of a board and measure the result against the rules (requirement PPCB-016, copper zones). A zone is a polygon with a net, a layer and a clearance; the fill is the copper that is left inside it once everything it has to keep away from is taken out.
 
-**State: prototype.** It has been tried on boards made by hand and by the tests only, never on a real board and never compared with the fill of the reference tool. The areas the tests expect were worked out on paper. Nothing written here has been opened by a viewer of Gerber files, because the export (`docs/EXPORT.md`) still writes a zone as its outline.
+**State: prototype.** It has been tried on boards made by hand and by the tests only, never on a real board and never compared with the fill of the reference tool. The areas the tests expect were worked out on paper. Nothing written here has been opened by a viewer of Gerber files: the export (`docs/EXPORT.md`) writes a zone as its outline, except for the board that the board editor pours with the polygons of a fill (`docs/BOARD_ZONES.md`).
 
 ## What the fill does
 
@@ -31,7 +31,7 @@ The board model has no priority for a zone, so it comes from an optional file, `
 }
 ```
 
-Every field but `zone` is optional; a zone the file does not name has priority 0 and the values of the board and of the settings. A zone of a higher priority is filled first; a zone below it keeps away from its whole outline, by the clearance when the nets differ and by nothing when they are the same. A zone the file names that the board does not have is the error `PHOENIX-ZONE-003` and nothing is filled. Two zones of different nets on one layer with the same priority whose outlines overlap give the warning `PHOENIX-ZONE-012`.
+A zone may also give the thermal relief of its own pads (`thermal_gap_nm`, `thermal_spoke_width_nm`, `thermal_spokes` of 2 or 4) and `cutouts`, a list of polygons (each a list of `[x, y]` in nanometres, at least three points) that the fill keeps away from, up to their exact edge. A cutout that is not a polygon gives the finding `PHOENIX-ZONE-004` and the zone gets no copper. Every field but `zone` is optional; a zone the file does not name has priority 0 and the values of the board and of the settings. A zone of a higher priority is filled first; a zone below it keeps away from its whole outline, by the clearance when the nets differ and by nothing when they are the same. A zone the file names that the board does not have is the error `PHOENIX-ZONE-003` and nothing is filled. Two zones of different nets on one layer with the same priority whose outlines overlap give the warning `PHOENIX-ZONE-012`.
 
 ## The clearance
 
@@ -75,5 +75,5 @@ Every radius, width, limit and default is in `config/zones.cfg`, which is also t
 * Same-net zones of equal priority are not merged, and the zone below another keeps away from the whole outline of the zone above, not from its fill.
 * A via joins the copper layers between its first and its last layer when the board gives the stack, else only those two.
 * Blind and buried pads, drills that are not plated and keep-out areas are not read; the board model has none of them.
-* The fill is not written in the Gerber files yet (`docs/EXPORT.md`), and the rule check of the board still judges a zone by its outline.
+* The export writes a zone as its outline; the board editor makes a board whose zones are the polygons of the fill for the Gerber files (`docs/BOARD_ZONES.md`). The rule check of the board still judges a zone by its outline.
 * Nothing has been compared with the fill of the reference tool, and the speed on a large board has not been measured.
