@@ -28,6 +28,8 @@ Progress: the frame of reference cases (`eh3d-phoenix-oracle`, `docs/ORACLE.md`)
 
 Connectivity of schematic and board, consistency between them, rule checks in a fixed order, reading of rule files, a report that separates confirmed from inconclusive results, comparison with the reference tool.
 
+Progress: the copper clearance check and the ratsnest use a spatial index (`eh3d-phoenix-spatial`, `docs/SPATIAL.md`) and give on the boards of the tests the results of the comparison of every pair; `phoenix perf` counts the comparisons with the index and without it. No board of a real design has been used.
+
 Gate: Connectivity and rule agreement rates do not drop; each difference is fixed or documented; deliberate errors are always found.
 
 ## F4. Manufacturing export and hand-off

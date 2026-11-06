@@ -639,6 +639,19 @@
           }
         },
         {
+          "name": "SPATIAL.md",
+          "desc": {
+            "en": "spatial index for the checks, perf report",
+            "es": "índice espacial de las comprobaciones, informe perf",
+            "de": "räumlicher Index der Prüfungen, perf-Bericht",
+            "fr": "index spatial des vérifications, rapport perf",
+            "it": "indice spaziale dei controlli, rapporto perf",
+            "ja": "検査の空間インデックスとperfレポート",
+            "zh": "检查的空间索引与 perf 报告",
+            "pt": "índice espacial das verificações, relatório perf"
+          }
+        },
+        {
           "name": "ORACLE.md",
           "desc": {
             "en": "reference cases and the plan to compare with EAGLE and KiCad",

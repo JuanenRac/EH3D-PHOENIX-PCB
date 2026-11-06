@@ -87,6 +87,7 @@
         "crates/eh3d-phoenix-viewer/src/panel_scene.rs",
         "crates/eh3d-phoenix-print/src/page.rs",
         "crates/eh3d-phoenix-dxf/src/outline.rs",
+        "crates/eh3d-phoenix-spatial/src/grid.rs",
         "crates/eh3d-phoenix-bom/src/bom.rs",
         "crates/eh3d-phoenix-bom/src/assembly.rs",
         "crates/eh3d-phoenix-parts/src/link.rs",
