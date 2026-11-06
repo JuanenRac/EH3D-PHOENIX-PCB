@@ -420,13 +420,13 @@ fn every_file_of_the_eagle_corpus_is_rewritten_without_loss_or_refused_with_a_co
     let folder = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../tests/corpus/eagle");
     let mut read = 0;
     let mut refused = 0;
-    for entry in std::fs::read_dir(&folder).unwrap() {
+    for entry in std::fs::read_dir(folder.as_path()).unwrap() {
         let path = entry.unwrap().path();
         let name = path.file_name().unwrap().to_string_lossy().into_owned();
         if !(name.ends_with(".brd") || name.ends_with(".sch") || name.ends_with(".lbr")) {
             continue;
         }
-        let (text, _) = decode_text(&std::fs::read(&path).unwrap());
+        let (text, _) = decode_text(&std::fs::read(path.as_path()).unwrap());
         match check_eagle(&text, &LayerMap::default()) {
             Ok(check) => {
                 assert!(check.tree_lossless, "{name}");

@@ -142,7 +142,7 @@ fn a_design_rule_file_becomes_a_rule_file_and_back() {
     ]);
     assert_eq!(code, 2);
     assert!(err.contains("PHOENIX-EAGLEX-023"), "{err}");
-    assert_eq!(std::fs::read_to_string(&target).unwrap(), text);
+    assert_eq!(std::fs::read_to_string(target.as_str()).unwrap(), text);
 }
 
 #[test]
