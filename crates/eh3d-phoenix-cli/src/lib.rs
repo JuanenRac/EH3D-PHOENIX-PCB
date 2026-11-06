@@ -469,11 +469,11 @@ phoenix enclosure <board> --enclosure FILE [--models FILE] [--stackup FILE] [--c
 phoenix perf <board> [--config FILE] [--clearance-mm N] [--json] [--lang xx]
 
   dxf-import    the outline of a board from the contours of a DXF drawing: the pieces are joined
-                into closed contours, the outer one becomes the outline and its cutouts are listed
-                and not kept; what is not understood is listed; all or nothing, checked by the
+                into closed contours, the outer one becomes the outline and the contours inside it
+                its cutouts; what is not understood is listed; all or nothing, checked by the
                 design rules before and after; a dry run unless --out names a new .json file, a
                 prototype, run `phoenix dxf-import` alone for its options
-  dxf-export    a board (outline, holes, outlines of the pads, silkscreen) or a panel (frame,
+  dxf-export    a board (outline and cutouts, holes, outlines of the pads, silkscreen) or a panel (frame,
                 scores, tabs, holes, fiducials) as a DXF drawing on layers with the names of
                 config/dxf.cfg; written only to a new file, a prototype that no CAD program has
                 opened, run `phoenix dxf-export` alone for its options
