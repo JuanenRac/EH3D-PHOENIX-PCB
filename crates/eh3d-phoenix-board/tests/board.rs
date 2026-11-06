@@ -126,7 +126,7 @@ fn every_kind_of_problem_has_its_code() {
 
 #[test]
 fn the_registry_has_every_code_the_checks_can_give() {
-    assert_eq!(REGISTRY.len(), 9);
+    assert_eq!(REGISTRY.len(), 10);
     let mut seen = std::collections::BTreeSet::new();
     for (code, _) in REGISTRY {
         assert!(seen.insert(*code));
