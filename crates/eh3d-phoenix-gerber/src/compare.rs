@@ -702,6 +702,8 @@ impl Checker<'_> {
                 if found.buried == buried
                     && usize::try_from(found.from) == Ok(from)
                     && usize::try_from(found.to) == Ok(to) => {}
+            // a file without the attribute (the X1 level has none) says nothing about the layers, so there is nothing to compare
+            None if !file.attributes.contains_key(".FileFunction") => {}
             _ => self.differ(
                 name,
                 "the attribute .FileFunction does not name the layers of the vias".to_owned(),
