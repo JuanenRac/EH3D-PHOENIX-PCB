@@ -1,0 +1,7 @@
+{
+  "description": "Small job",
+  "sections": [
+    {"name": "Top", "device": "GERBER_RS274X", "output": "%N.gtl", "layers": [1, 17, 18], "format": "2.5"},
+    {"name": "Drills", "device": "EXCELLON_24", "output": "%N.drd", "layers": "44 45"}
+  ]
+}

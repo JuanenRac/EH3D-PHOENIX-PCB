@@ -1,0 +1,20 @@
+[package]
+name = "eh3d-phoenix-eagle-deep"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Deep reading of EAGLE files (prototype): design rule files (.dru) read and written and turned into the rules of this tool and back, CAM jobs (.cam) turned into export profiles, part attributes and assembly variants, the table of the layers with a configurable map for the user layers, the other entities kept as opaque XML, and a report of what a rewrite keeps, simplifies or leaves out"
+
+[dependencies]
+eh3d-phoenix-board = { path = "../eh3d-phoenix-board" }
+eh3d-phoenix-eagle = { path = "../eh3d-phoenix-eagle" }
+eh3d-phoenix-model = { path = "../eh3d-phoenix-model" }
+eh3d-phoenix-rules = { path = "../eh3d-phoenix-rules" }
+serde.workspace = true
+serde_json = { workspace = true, features = ["float_roundtrip"] }
+
+[dev-dependencies]
+eh3d-phoenix-eagle-board = { path = "../eh3d-phoenix-eagle-board" }
+eh3d-phoenix-export = { path = "../eh3d-phoenix-export" }

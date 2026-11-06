@@ -1,0 +1,17 @@
+[CAM Processor Job]
+Description=Small job
+Section=Top
+Section=Drills
+
+[Top]
+Name=Top
+Device=GERBER_RS274X
+Output=%N.gtl
+Layers=1 17 18
+Format=2.5
+
+[Drills]
+Name=Drills
+Device=EXCELLON_24
+Output=%N.drd
+Layers=44 45

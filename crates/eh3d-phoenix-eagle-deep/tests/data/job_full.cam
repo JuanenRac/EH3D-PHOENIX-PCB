@@ -1,0 +1,74 @@
+[CAM Processor Job]
+Description=Two layer board, Gerber and Excellon
+Section=Top
+Section=Bottom
+Section=Silk
+Section=MaskTop
+Section=MaskBottom
+Section=PasteTop
+Section=Outline
+Section=Drill
+Section=Plot
+
+[Top]
+Name=Top copper
+Prompt=Component side
+Device=GERBER_RS274X
+Wheel=
+Rack=
+Scale=1
+Output=%N.cmp
+Offset=(0 0)
+Layers=1 17 18
+
+[Bottom]
+Name=Bottom copper
+Prompt=Solder side
+Device=GERBER_RS274X
+Scale=1
+Output=%N.sol
+Mirror=0
+Layers=16 17 18
+
+[Silk]
+Name=Silkscreen
+Device=GERBER_RS274X
+Output=%N.plc
+Layers=20 21 25 27
+
+[MaskTop]
+Name=Solder mask top
+Device=GERBER_RS274X
+Output=%N.stc
+Layers=29
+
+[MaskBottom]
+Name=Solder mask bottom
+Device=GERBER_RS274X
+Output=%N.sts
+Layers=30
+
+[PasteTop]
+Name=Paste top
+Device=GERBER_RS274X
+Output=%N.crc
+Layers=31
+
+[Outline]
+Name=Board outline
+Device=GERBER_RS274X
+Output=%N.dim
+Layers=20 46
+
+[Drill]
+Name=Drills
+Device=EXCELLON_24
+Output=%N.drd
+Layers=44 45
+
+[Plot]
+Name=Plot of the documents
+Device=HPGL
+Output=%N.plt
+Pen=1
+Layers=51 52

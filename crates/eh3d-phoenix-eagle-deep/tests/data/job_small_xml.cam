@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<job description="Small job">
+  <section name="Top" device="GERBER_RS274X" file="%N.gtl">
+    <layer number="1"/>
+    <layer number="17"/>
+    <layer number="18"/>
+    <param name="Format" value="2.5"/>
+  </section>
+  <section name="Drills">
+    <output device="EXCELLON_24" file="%N.drd"/>
+    <layer number="44"/>
+    <layer>45</layer>
+  </section>
+</job>
