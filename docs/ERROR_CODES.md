@@ -1320,3 +1320,19 @@ The same titles in the eight languages of the suite (English, Spanish, German, F
 | PHOENIX-EAGLEX-022 | A command option is not valid | Una opción del comando no es válida | Eine Befehlsoption ist ungültig | Une option de la commande n'est pas valide | Un'opzione del comando non è valida | コマンドのオプションが無効です | 命令选项无效 | Uma opção do comando não é válida |
 | PHOENIX-EAGLEX-023 | The output file exists or cannot be written | El fichero de salida existe o no se puede escribir | Die Ausgabedatei existiert oder kann nicht geschrieben werden | Le fichier de sortie existe ou ne peut pas être écrit | Il file di uscita esiste o non può essere scritto | 出力ファイルが既に存在するか、書き込めません | 输出文件已存在或无法写入 | O ficheiro de saída existe ou não pode ser escrito |
 | PHOENIX-EAGLEX-024 | Input file cannot be read | No se puede leer el fichero de entrada | Die Eingabedatei kann nicht gelesen werden | Le fichier d'entrée ne peut pas être lu | Il file di ingresso non può essere letto | 入力ファイルを読み取れません | 无法读取输入文件 | Não é possível ler o ficheiro de entrada |
+
+## Checks on files and paths (`eh3d-phoenix-cli`, `src/sec_codes.rs`)
+
+| Code | Title | Raised by |
+|---|---|---|
+| PHOENIX-SEC-001 | Output path is refused | a value of `--out`, `--dir`, `--into`, `--svg` or `--csv` that is empty, holds a NUL character, starts with `\\.\`, `\\?\` or `\\` (device, verbatim and network paths), holds a `:` after the drive letter (an alternate data stream of NTFS) or has a part named like a Windows device (`CON`, `PRN`, `AUX`, `NUL`, `COM1` to `COM9`, `LPT1` to `LPT9`, with any extension) |
+| PHOENIX-SEC-002 | The side file of the write is already there | the atomic write of `sync --out` and `netlist --out` finds the side file `NAME.tmp` already there; it is not written over and not followed if it is a link |
+| PHOENIX-SEC-003 | Settings file is larger than its limit | a settings file of more than 1 MiB given to `--config` of `inventory`, `corpus --settings`, `dxf-import --config`, `perf --config` or the window |
+
+The same titles in the eight languages of the suite (English, Spanish, German, French, Italian, Japanese, Chinese and European Portuguese), as the program prints them:
+
+| Code | en | es | de | fr | it | ja | zh | pt |
+|---|---|---|---|---|---|---|---|---|
+| PHOENIX-SEC-001 | Output path is refused | Se rechaza la ruta de salida | Der Ausgabepfad wird abgelehnt | Le chemin de sortie est refusé | Il percorso di uscita è rifiutato | 出力パスは拒否されました | 输出路径被拒绝 | O caminho de saída é recusado |
+| PHOENIX-SEC-002 | The side file of the write is already there | Ya existe el fichero auxiliar de la escritura | Die Hilfsdatei des Schreibvorgangs ist bereits vorhanden | Le fichier auxiliaire de l'écriture existe déjà | Il file ausiliario della scrittura esiste già | 書き込み用の補助ファイルが既に存在します | 写入用的辅助文件已存在 | O ficheiro auxiliar da escrita já existe |
+| PHOENIX-SEC-003 | Settings file is larger than its limit | El fichero de ajustes supera su límite | Die Einstellungsdatei ist größer als ihr Grenzwert | Le fichier de réglages dépasse sa limite | Il file delle impostazioni supera il suo limite | 設定ファイルが上限を超えています | 设置文件超过其限制 | O ficheiro de definições excede o seu limite |

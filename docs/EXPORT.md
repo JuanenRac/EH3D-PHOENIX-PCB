@@ -91,7 +91,7 @@ A file that cannot be read is `PHOENIX-EXPORT-018`; a difference is `PHOENIX-EXP
 
 ## Package and folder
 
-`build` makes the files in memory (`FabSet`). `FabSet::write_folder` writes them flat to a folder with `manifest.json`. `export_package_with` puts them in an `.eh3dproj` 1.0.0 package under `layers/` (layers and drill files are named in the metadata; the CSV files are entries without a layer) with the identity and the time stamp given by the caller; `export_package_reproducible` takes the identity from the first 128 bits of the SHA-256 of the manifest and the start of the Unix epoch as the time stamp, so the same board and profile give the same bytes anywhere. Nothing reads the clock or makes a random number.
+`build` makes the files in memory (`FabSet`). `FabSet::write_folder` writes them flat to a folder with `manifest.json`; a file that is already in the folder (a link included) is never replaced, and the call fails before it writes anything. `export_package_with` puts them in an `.eh3dproj` 1.0.0 package under `layers/` (layers and drill files are named in the metadata; the CSV files are entries without a layer) with the identity and the time stamp given by the caller; `export_package_reproducible` takes the identity from the first 128 bits of the SHA-256 of the manifest and the start of the Unix epoch as the time stamp, so the same board and profile give the same bytes anywhere. Nothing reads the clock or makes a random number.
 
 ## Command
 

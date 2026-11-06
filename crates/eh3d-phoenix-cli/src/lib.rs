@@ -41,6 +41,7 @@ mod assembly3d;
 mod autoroute;
 mod boardedit;
 mod bom;
+pub mod bounded;
 mod check;
 pub mod commands;
 mod corpus;
@@ -79,6 +80,7 @@ mod route;
 mod sanitize;
 mod schedit;
 mod script;
+pub mod sec_codes;
 mod si;
 mod sim;
 mod stencil;
@@ -508,6 +510,26 @@ phoenix --help [--lang xx]
                 help of one topic or one command, in en, es, de, fr, it, ja, zh or pt
 ";
 
+/// The options whose value is a path that a command writes to (or a folder it writes in).
+pub const OUTPUT_OPTIONS: [&str; 5] = ["--out", "--dir", "--into", "--svg", "--csv"];
+
+/// The message for the first value of an output option that is not an acceptable path to write
+/// (see `output_path_problem` of the model), or none when every value is acceptable.
+pub fn output_option_problem(args: &[String]) -> Option<String> {
+    for pair in args.windows(2) {
+        if OUTPUT_OPTIONS.contains(&pair[0].as_str()) {
+            if let Some(reason) = eh3d_phoenix_model::output_path_problem(&pair[1]) {
+                return Some(format!(
+                    "{}: {}: {reason}",
+                    sec_codes::OUTPUT_PATH_REFUSED,
+                    pair[0]
+                ));
+            }
+        }
+    }
+    None
+}
+
 /// Run the command line with the arguments that follow the program name. Returns the exit code.
 pub fn run(args: &[String], out: &mut dyn Write, err: &mut dyn Write) -> i32 {
     let mut args = args.to_vec();
@@ -517,7 +539,7 @@ pub fn run(args: &[String], out: &mut dyn Write, err: &mut dyn Write) -> i32 {
             let _ = err.write_all(USAGE.as_bytes());
             return 2;
         }
-        let parsed = std::fs::read_to_string(&args[1])
+        let parsed = bounded::read_config_text(&args[1])
             .map_err(|e| e.to_string())
             .and_then(|text| InventoryConfig::parse(&text).map_err(|e| e.to_string()));
         match parsed {
@@ -528,6 +550,10 @@ pub fn run(args: &[String], out: &mut dyn Write, err: &mut dyn Write) -> i32 {
             }
         }
         args.drain(..2);
+    }
+    if let Some(message) = output_option_problem(&args) {
+        let _ = writeln!(err, "error: {message}");
+        return 2;
     }
     let rest: Vec<&str> = args.iter().map(String::as_str).collect();
     // the words of the table of commands, then `help` and the options that ask for it

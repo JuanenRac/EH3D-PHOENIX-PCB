@@ -135,9 +135,20 @@ pub fn snapshot(
     Ok((records, diagnostics))
 }
 
+/// Copies a file to a name that does not exist yet: a file that is there (or a link) is never
+/// written over.
+fn copy_new(original: &Path, copy: &Path) -> io::Result<u64> {
+    let mut from = fs::File::open(original)?;
+    let mut to = fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(copy)?;
+    io::copy(&mut from, &mut to)
+}
+
 fn copy_checked(original: &Path, copy: &Path) -> Result<CopyRecord, String> {
     let before = sha256_file(original).map_err(|e| format!("cannot read the original: {e}"))?;
-    let size = fs::copy(original, copy).map_err(|e| format!("cannot copy: {e}"))?;
+    let size = copy_new(original, copy).map_err(|e| format!("cannot copy: {e}"))?;
     let copied = sha256_file(copy).map_err(|e| format!("cannot read the copy: {e}"))?;
     let after =
         sha256_file(original).map_err(|e| format!("cannot read the original again: {e}"))?;
@@ -317,6 +328,21 @@ mod tests {
             .map(|f| sha256_file(&src.join(f)).unwrap())
             .collect();
         assert_eq!(before, after);
+    }
+
+    #[test]
+    fn a_copy_never_replaces_a_file_that_is_already_in_the_folder() {
+        let (_dir, src, dst) = setup();
+        let (first, _) = snapshot(&src, &dst, &["lbr", "brd", "sch"]).unwrap();
+        for rec in &first {
+            fs::write(&rec.copy, b"mine").unwrap();
+        }
+        let (second, diags) = snapshot(&src, &dst, &["lbr", "brd", "sch"]).unwrap();
+        assert!(second.is_empty());
+        assert_eq!(diags.len(), 3);
+        for rec in &first {
+            assert_eq!(fs::read(&rec.copy).unwrap(), b"mine");
+        }
     }
 
     #[test]

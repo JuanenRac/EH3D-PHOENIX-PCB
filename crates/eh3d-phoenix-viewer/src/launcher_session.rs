@@ -89,7 +89,17 @@ impl Launcher {
     pub fn new(settings: &ViewerSettings, store: Option<PathBuf>) -> Launcher {
         let text = store
             .as_deref()
-            .and_then(|path| std::fs::read_to_string(path).ok())
+            .and_then(|path| {
+                // at most a megabyte is read: the list of recent files is a few kilobytes
+                use std::io::Read;
+                let mut text = String::new();
+                std::fs::File::open(path)
+                    .ok()?
+                    .take(1 << 20)
+                    .read_to_string(&mut text)
+                    .ok()?;
+                Some(text)
+            })
             .unwrap_or_default();
         Launcher {
             typed: String::new(),
@@ -269,6 +279,18 @@ mod tests {
             Launcher::dropped_launch(&[]),
             Err(LauncherText::NothingToOpen)
         );
+    }
+
+    #[test]
+    fn only_the_first_megabyte_of_the_list_of_recent_files_is_read() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = dir.path().join("recent.txt");
+        let mut text = String::from("first.brd\n");
+        text.push_str(&"#".repeat(2 << 20));
+        text.push_str("\nlate.brd\n");
+        std::fs::write(&store, text).unwrap();
+        let launcher = Launcher::new(&settings(5), Some(store));
+        assert_eq!(launcher.recent().entries(), [PathBuf::from("first.brd")]);
     }
 
     #[test]

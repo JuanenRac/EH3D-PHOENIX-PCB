@@ -27,7 +27,12 @@ pub fn write_atomic(target: &Path, bytes: &[u8], s: &SanitizerSettings) -> Resul
     temp_name.push(".part");
     let temp = target.with_file_name(temp_name);
     {
-        let mut file = fs::File::create(&temp).map_err(fail)?;
+        // made exclusively: a link or a file left at the name of the side file is not written to
+        let mut file = fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&temp)
+            .map_err(fail)?;
         file.write_all(bytes).map_err(fail)?;
         file.sync_all().map_err(fail)?;
     }
@@ -88,6 +93,18 @@ mod tests {
         write_atomic(&target, b"second", &s).unwrap();
         assert_eq!(fs::read(&target).unwrap(), b"second");
         assert!(!dir.path().join("out.txt.part").exists());
+    }
+
+    #[test]
+    fn a_side_file_that_is_already_there_is_not_written_over() {
+        let dir = tempfile::tempdir().unwrap();
+        let side = dir.path().join("out.txt.part");
+        fs::write(&side, b"not mine").unwrap();
+        let target = dir.path().join("out.txt");
+        let e = write_atomic(&target, b"x", &SanitizerSettings::default()).unwrap_err();
+        assert_eq!(e.code, OUTPUT_FAILED);
+        assert_eq!(fs::read(&side).unwrap(), b"not mine");
+        assert!(!target.exists());
     }
 
     #[test]

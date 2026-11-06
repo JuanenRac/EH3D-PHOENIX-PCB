@@ -244,7 +244,28 @@ pub(crate) fn write_atomic(
     let mut name = target.as_os_str().to_owned();
     name.push(".tmp");
     let temp = PathBuf::from(name);
-    std::fs::write(&temp, bytes).map_err(|e| format!("cannot write {path}: {e}"))?;
+    // the side file is made exclusively: a link or a file left at its name is never followed or
+    // written over
+    {
+        let mut file = std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&temp)
+            .map_err(|e| {
+                let code = if e.kind() == std::io::ErrorKind::AlreadyExists {
+                    crate::sec_codes::SIDE_FILE_EXISTS
+                } else {
+                    "side file"
+                };
+                format!("cannot write {path}: {code}: {}: {e}", temp.display())
+            })?;
+        let written = file.write_all(bytes).and_then(|()| file.sync_all());
+        if let Err(e) = written {
+            drop(file);
+            let _ = std::fs::remove_file(&temp);
+            return Err(format!("cannot write {path}: {e}"));
+        }
+    }
     let mut attempt = 0;
     loop {
         match std::fs::rename(&temp, target) {
@@ -490,5 +511,33 @@ pub(crate) fn sync(args: &[&str], out: &mut dyn Write, err: &mut dyn Write) -> i
         1
     } else {
         0
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_atomic_write_makes_the_file_and_leaves_no_side_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let target = dir.path().join("out.txt");
+        let path = target.to_str().unwrap();
+        write_atomic(path, b"one", 0, 0).unwrap();
+        write_atomic(path, b"two", 0, 0).unwrap();
+        assert_eq!(std::fs::read(&target).unwrap(), b"two");
+        assert!(!dir.path().join("out.txt.tmp").exists());
+    }
+
+    #[test]
+    fn the_atomic_write_never_writes_over_a_side_file_that_is_already_there() {
+        let dir = tempfile::tempdir().unwrap();
+        let side = dir.path().join("out.txt.tmp");
+        std::fs::write(&side, b"not mine").unwrap();
+        let target = dir.path().join("out.txt");
+        let message = write_atomic(target.to_str().unwrap(), b"data", 0, 0).unwrap_err();
+        assert!(message.contains("PHOENIX-SEC-002"), "{message}");
+        assert_eq!(std::fs::read(&side).unwrap(), b"not mine");
+        assert!(!target.exists());
     }
 }

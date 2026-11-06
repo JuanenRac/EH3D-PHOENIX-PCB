@@ -308,17 +308,37 @@ impl FabSet {
             .map_err(|e| ExportError::Package(e.to_string()))
     }
 
-    /// Writes the files and the manifest to `dir`, which is created when it is missing. Files that
-    /// are already there are replaced.
+    /// Writes the files and the manifest to `dir`, which is created when it is missing. A file
+    /// that is already there (a link included) is never replaced: the call fails before it
+    /// writes anything.
     pub fn write_folder(&self, dir: &Path) -> Result<(), ExportError> {
+        use std::io::Write;
         let fail = |what: &str, e: std::io::Error| ExportError::Output(format!("{what}: {e}"));
+        let manifest = self.manifest()?;
+        let mut entries: Vec<(&str, &[u8])> = self
+            .files
+            .iter()
+            .map(|f| (f.folder_name(), f.bytes.as_slice()))
+            .collect();
+        entries.push((MANIFEST_FILE, manifest.as_slice()));
         std::fs::create_dir_all(dir).map_err(|e| fail("the output folder", e))?;
-        for file in &self.files {
-            std::fs::write(dir.join(file.folder_name()), &file.bytes)
-                .map_err(|e| fail(file.folder_name(), e))?;
+        for &(name, _) in &entries {
+            if std::fs::symlink_metadata(dir.join(name)).is_ok() {
+                let exists = std::io::Error::new(
+                    std::io::ErrorKind::AlreadyExists,
+                    "it exists and is never replaced",
+                );
+                return Err(fail(name, exists));
+            }
         }
-        std::fs::write(dir.join(MANIFEST_FILE), self.manifest()?)
-            .map_err(|e| fail(MANIFEST_FILE, e))?;
+        for &(name, bytes) in &entries {
+            let mut file = std::fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(dir.join(name))
+                .map_err(|e| fail(name, e))?;
+            file.write_all(bytes).map_err(|e| fail(name, e))?;
+        }
         Ok(())
     }
 }

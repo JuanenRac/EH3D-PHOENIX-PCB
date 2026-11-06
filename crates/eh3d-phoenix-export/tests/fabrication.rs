@@ -530,6 +530,24 @@ fn the_folder_holds_the_files_and_the_manifest() {
 }
 
 #[test]
+fn a_file_that_is_already_in_the_folder_is_never_replaced() {
+    let f = fixture();
+    let set = build(&f, &Profile::default()).unwrap();
+    let dir = tempfile::tempdir().unwrap();
+    let name = set.files.last().unwrap().folder_name().to_owned();
+    std::fs::write(dir.path().join(&name), b"mine").unwrap();
+    let error = set.write_folder(dir.path()).unwrap_err();
+    assert_eq!(error.code(), codes::OUTPUT_FAILED);
+    assert_eq!(std::fs::read(dir.path().join(&name)).unwrap(), b"mine");
+    // nothing else was written before the refusal
+    assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 1);
+    // a second write into the folder of a first one is refused too
+    let out = dir.path().join("fab");
+    set.write_folder(&out).unwrap();
+    assert!(set.write_folder(&out).is_err());
+}
+
+#[test]
 fn the_package_has_the_layers_and_the_assembly_files() {
     let f = fixture();
     let options = ExportOptions {

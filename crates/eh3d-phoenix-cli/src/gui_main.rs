@@ -47,7 +47,7 @@ fn load_settings(named: Option<&Path>) -> Result<ViewerSettings, String> {
     let Some(path) = path else {
         return Ok(ViewerSettings::default());
     };
-    let text = std::fs::read_to_string(&path)
+    let text = eh3d_phoenix_cli::bounded::read_config_text(&path)
         .map_err(|e| format!("cannot read the settings {}: {e}", path.display()))?;
     ViewerSettings::parse(&text).map_err(|e| format!("{}: {}", path.display(), e.message(Lang::En)))
 }

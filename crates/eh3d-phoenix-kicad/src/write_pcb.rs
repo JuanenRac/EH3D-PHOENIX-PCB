@@ -966,6 +966,9 @@ pub fn file_stem(name: &str, fallback: &str) -> String {
     let trimmed = cleaned.trim_matches(['.', ' ']).to_owned();
     if trimmed.is_empty() {
         fallback.to_owned()
+    } else if eh3d_phoenix_model::is_reserved_device_name(&trimmed) {
+        // a file called CON.kicad_pcb is the console of Windows, not a file
+        format!("_{trimmed}")
     } else {
         trimmed
     }
@@ -1455,6 +1458,14 @@ mod tests {
         assert_eq!(file_stem("..", "x"), "x");
         assert_eq!(file_stem("", "board"), "board");
         assert_eq!(file_stem("My board 2", "x"), "My board 2");
+    }
+
+    #[test]
+    fn a_name_of_a_windows_device_does_not_become_a_file_name() {
+        assert_eq!(file_stem("CON", "x"), "_CON");
+        assert_eq!(file_stem("nul.v2", "x"), "_nul.v2");
+        assert_eq!(file_stem("Aux", "x"), "_Aux");
+        assert_eq!(file_stem("console", "x"), "console");
     }
 
     #[test]

@@ -101,7 +101,7 @@ fn load_config(path: Option<&str>) -> Result<SpatialConfig, SpatialError> {
     match path {
         None => Ok(SpatialConfig::default()),
         Some(path) => {
-            let text = std::fs::read_to_string(path)
+            let text = crate::bounded::read_config_text(path)
                 .map_err(|e| SpatialError::new(INPUT_UNREADABLE, format!("{path}: {e}")))?;
             SpatialConfig::parse(&text)
         }

@@ -16,6 +16,7 @@ pub mod canonical;
 pub mod diagnostic;
 pub mod error;
 pub mod geometry;
+pub mod paths;
 pub mod quantise;
 pub mod units;
 
@@ -25,4 +26,5 @@ pub use eh3d_container::{
 };
 pub use error::{CanonicalError, ModelError};
 pub use geometry::{orient, segments_intersect, Arc, Orientation, Point, Rect};
+pub use paths::{is_reserved_device_name, output_path_problem};
 pub use units::{Nm, ScaledDecimal, Udeg, ANGLE_LIMIT_UDEG, COORD_LIMIT_NM};

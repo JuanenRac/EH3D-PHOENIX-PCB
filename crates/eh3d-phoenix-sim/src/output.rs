@@ -217,7 +217,20 @@ fn write_atomic(path: &Path, text: &str, settings: &SimSettings) -> Result<(), S
     let mut name = path.as_os_str().to_owned();
     name.push(".tmp");
     let temporary = PathBuf::from(name);
-    std::fs::write(&temporary, text).map_err(failed)?;
+    {
+        use std::io::Write;
+        // made exclusively: a link or a file left at the name of the side file is not written to
+        let mut file = std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&temporary)
+            .map_err(failed)?;
+        if let Err(e) = file.write_all(text.as_bytes()) {
+            drop(file);
+            let _ = std::fs::remove_file(&temporary);
+            return Err(failed(e));
+        }
+    }
     let mut last = None;
     for attempt in 0..=settings.write_retries {
         match std::fs::rename(&temporary, path) {
@@ -354,6 +367,18 @@ mod tests {
         assert!(json.contains("\"analysis\": \"dc\""));
         assert!(json.contains("\"restarts\": 0"));
         assert!(!json.contains("v(a)"));
+    }
+
+    #[test]
+    fn a_side_file_that_is_already_there_is_not_written_over() {
+        let dir = std::env::temp_dir().join(format!("phoenix-sim-side-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let side = dir.join("r.csv.tmp");
+        std::fs::write(&side, "not mine").unwrap();
+        let e = write_atomic(&dir.join("r.csv"), "x", &SimSettings::default()).unwrap_err();
+        assert_eq!(e.code, OUTPUT_FAILED);
+        assert_eq!(std::fs::read_to_string(&side).unwrap(), "not mine");
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]

@@ -135,6 +135,7 @@ fn plain_file_name(name: &str) -> bool {
     !name.is_empty()
         && name.len() <= 64
         && !name.starts_with('.')
+        && !eh3d_phoenix_model::is_reserved_device_name(name)
         && name
             .bytes()
             .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'.' | b'_' | b'-'))
@@ -704,5 +705,15 @@ Layers=1
             job.profile.gerber.extension,
             Profile::default().gerber.extension
         );
+    }
+
+    #[test]
+    fn the_name_of_a_windows_device_is_not_a_plain_file_name() {
+        for name in ["CON", "nul.gbr", "Aux.txt", "COM1.drl", "lpt9"] {
+            assert!(!plain_file_name(name), "{name}");
+        }
+        for name in ["top.gbr", "console.gbr", "com10.drl"] {
+            assert!(plain_file_name(name), "{name}");
+        }
     }
 }

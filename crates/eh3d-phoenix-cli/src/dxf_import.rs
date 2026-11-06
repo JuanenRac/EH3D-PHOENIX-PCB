@@ -134,7 +134,7 @@ pub(crate) fn load_dxf_settings(
     match path {
         None => Ok((DxfSettings::default(), None)),
         Some(path) => {
-            let text = std::fs::read_to_string(path)
+            let text = crate::bounded::read_config_text(path)
                 .map_err(|e| DxfError::new(INPUT_UNREADABLE, format!("{path}: {e}")))?;
             Ok((DxfSettings::parse(&text)?, Some(text)))
         }

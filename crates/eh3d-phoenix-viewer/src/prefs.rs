@@ -306,7 +306,16 @@ pub fn save(path: &Path, prefs: &Prefs, retries: u32, wait_ms: u64) -> Result<()
     name.push(".part");
     let side = path.with_file_name(name);
     {
-        let mut file = fs::File::create(&side).map_err(failed)?;
+        // a side file left by an interrupted save is ours and is removed; a link is not followed
+        // (the exclusive creation below fails on it)
+        if fs::symlink_metadata(&side).is_ok_and(|m| m.is_file()) {
+            let _ = fs::remove_file(&side);
+        }
+        let mut file = fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&side)
+            .map_err(failed)?;
         file.write_all(prefs.to_text().as_bytes()).map_err(failed)?;
         file.sync_all().map_err(failed)?;
     }
@@ -564,6 +573,16 @@ mod tests {
         fs::write(&file, b"x").unwrap();
         let error = save(&file.join("prefs.cfg"), &full(), 0, 1).unwrap_err();
         assert_eq!(error.code, SAVE_FAILED);
+    }
+
+    #[test]
+    fn a_side_file_left_by_an_interrupted_save_does_not_block_the_next_one() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("prefs.cfg");
+        fs::write(dir.path().join("prefs.cfg.part"), b"half a file").unwrap();
+        save(&path, &full(), 1, 1).unwrap();
+        assert_eq!(fs::read_to_string(&path).unwrap(), full().to_text());
+        assert!(!dir.path().join("prefs.cfg.part").exists());
     }
 
     #[test]

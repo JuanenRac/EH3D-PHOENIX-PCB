@@ -7,7 +7,7 @@
 //! folder are unusable. The command starts no other program and writes nothing unless `--out`
 //! names a new file; an existing file is never replaced.
 
-use std::fs::{self, OpenOptions};
+use std::fs::OpenOptions;
 use std::io::Write;
 use std::path::Path;
 
@@ -91,7 +91,7 @@ fn settings_of(options: &Options) -> Result<CorpusSettings, SuiteError> {
     match &options.settings {
         None => Ok(CorpusSettings::default()),
         Some(path) => {
-            let text = fs::read_to_string(path)
+            let text = crate::bounded::read_config_text(path)
                 .map_err(|e| SuiteError::new(SETTINGS_INVALID, format!("{path}: {e}")))?;
             CorpusSettings::parse(&text)
         }
