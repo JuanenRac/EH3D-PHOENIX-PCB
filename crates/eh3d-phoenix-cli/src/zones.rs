@@ -11,6 +11,7 @@ use std::io::Write;
 use std::path::Path;
 
 use eh3d_phoenix_board::Board;
+use eh3d_phoenix_boardedit::{apply_operations, read_operations, BoardEdit, BoardEditSettings};
 use eh3d_phoenix_rules::{Lang, NetClasses, RuleFile, RuleValues};
 use eh3d_phoenix_zones::codes::{INPUT_UNREADABLE, OPTION_INVALID, OUTPUT_FAILED};
 use eh3d_phoenix_zones::{
@@ -20,15 +21,16 @@ use eh3d_phoenix_zones::{
 
 use crate::check::read_text;
 use crate::export::read_board_file;
+use crate::route::load_context;
 
 /// The settings file that is read when `--config` is not given and the file exists.
 const DEFAULT_CONFIG: &str = "config/zones.cfg";
 
 pub(crate) const USAGE: &str = "\
-phoenix zones fill [--config FILE] [--rules FILE] [--zones FILE] [--out FILE] [--json]
-                   [--lang CODE] <board>
-phoenix zones check [--config FILE] [--rules FILE] [--zones FILE] [--fill FILE] [--json]
-                    [--lang CODE] <board>
+phoenix zones fill [--config FILE] [--rules FILE] [--zones FILE] [--edit FILE] [--out FILE]
+                   [--json] [--lang CODE] <board>
+phoenix zones check [--config FILE] [--rules FILE] [--zones FILE] [--edit FILE] [--fill FILE]
+                    [--json] [--lang CODE] <board>
 
   zones fill    fill the copper zones of a board: the copper of other nets, the edge of the board,
                 the zones of a higher priority and the pads that are not joined are kept away from
@@ -43,6 +45,11 @@ phoenix zones check [--config FILE] [--rules FILE] [--zones FILE] [--fill FILE] 
   --rules       the JSON rule file (format phoenix-rules/1 or 2); an EAGLE board gives its own
                 design rules when the option is left out
   --zones       a JSON file (format phoenix-zones/1) with the priority and the limits of zones
+  --edit        a file of editing operations (the zone operations of phoenix boardedit: zone_add,
+                zone_edit, zone_remove, zone_priority, zone_cutout, paste_group, and the tracks
+                and vias around them) that is tried in memory before the fill: a dry run that
+                shows what the fill would be after them. The board, the file and every other
+                input are never written; --out still names a new file for the fill
   --lang CODE   the messages in en, es, de, fr, it, ja, zh or pt
 ";
 
@@ -52,6 +59,7 @@ struct Options {
     config: Option<String>,
     rules: Option<String>,
     zones: Option<String>,
+    edit: Option<String>,
     fill: Option<String>,
     out: Option<String>,
     files: Vec<String>,
@@ -64,6 +72,7 @@ fn parse_options(args: &[&str]) -> Result<Options, ZoneError> {
         config: None,
         rules: None,
         zones: None,
+        edit: None,
         fill: None,
         out: None,
         files: Vec::new(),
@@ -85,6 +94,7 @@ fn parse_options(args: &[&str]) -> Result<Options, ZoneError> {
             "--config" => options.config = Some(value("--config needs a file")?),
             "--rules" => options.rules = Some(value("--rules needs a file")?),
             "--zones" => options.zones = Some(value("--zones needs a file")?),
+            "--edit" => options.edit = Some(value("--edit needs a file")?),
             "--fill" => options.fill = Some(value("--fill needs a file")?),
             "--out" => options.out = Some(value("--out needs a file")?),
             other if other.starts_with("--") => {
@@ -170,12 +180,57 @@ fn load(options: &Options, err: &mut dyn Write) -> Result<Loaded, ZoneError> {
         }
         None => None,
     };
-    Ok(Loaded {
+    let mut loaded = Loaded {
         board,
         rules,
         settings,
         zones,
-    })
+    };
+    if let Some(edit_path) = options.edit.as_deref() {
+        try_edit(options, board_path, edit_path, &mut loaded, err)?;
+    }
+    Ok(loaded)
+}
+
+/// Applies the file of editing operations in memory, to the board that was read, and takes the
+/// priorities and limits the operations gave to the zones. Nothing is written.
+fn try_edit(
+    options: &Options,
+    board_path: &str,
+    edit_path: &str,
+    loaded: &mut Loaded,
+    err: &mut dyn Write,
+) -> Result<(), ZoneError> {
+    let text = read_text(edit_path).map_err(unreadable)?;
+    let ops = read_operations(&text).map_err(|e| unreadable(e.message(options.lang)))?;
+    let ctx = load_context(options.rules.as_deref(), board_path, err)
+        .map_err(|e| unreadable(e.to_string()))?;
+    let mut edit = BoardEdit::new(loaded.board.clone(), ctx, BoardEditSettings::default())
+        .map_err(|e| unreadable(e.message(options.lang)))?
+        .with_zone_settings(loaded.settings.clone());
+    let report =
+        apply_operations(&mut edit, &ops).map_err(|e| unreadable(e.message(options.lang)))?;
+    let _ = writeln!(
+        err,
+        "note: {} operations were tried in memory; nothing is written",
+        report.applied
+    );
+    for note in &report.notes {
+        let _ = writeln!(err, "note: {note}");
+    }
+    let mut file = edit.zone_data().zone_file(edit.board());
+    if let Some(given) = &loaded.zones {
+        for entry in &given.zones {
+            if edit.board().zones.contains_key(&entry.zone)
+                && !file.zones.iter().any(|e| e.zone == entry.zone)
+            {
+                file.zones.push(entry.clone());
+            }
+        }
+    }
+    loaded.board = edit.board().clone();
+    loaded.zones = Some(file);
+    Ok(())
 }
 
 fn fail(err: &mut dyn Write, error: &ZoneError, lang: Lang) -> i32 {
