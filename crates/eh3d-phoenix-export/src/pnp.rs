@@ -517,7 +517,7 @@ pub fn plan(board: &Board, settings: &PnpSettings, not_fitted: &BTreeSet<String>
             corrected += 1;
         }
         if let Some((a, b, d, e)) = outline {
-            if cx < a || cx > d || cy < b || cy > e {
+            if !(a..=d).contains(&cx) || !(b..=e).contains(&cy) {
                 findings.push(Finding::new(PNP_OUTSIDE, Severity::Warning, refdes, ""));
             }
         }
