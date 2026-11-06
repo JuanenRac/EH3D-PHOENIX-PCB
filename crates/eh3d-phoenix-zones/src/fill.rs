@@ -398,6 +398,15 @@ fn obstacles(
                     match relief_blocks(item, &relief) {
                         Some(blocks) => {
                             for block in blocks {
+                                let block = if ctx.settings.corner_radius_nm > 0 {
+                                    crate::round::round_all(
+                                        &block,
+                                        ctx.settings.corner_radius_nm,
+                                        ctx.settings.corner_tolerance_nm,
+                                    )
+                                } else {
+                                    block
+                                };
                                 add_hull(&mut out, zone_box, block);
                             }
                         }
@@ -666,6 +675,16 @@ fn fill_one(
         }
     }
     let mut polygons: Vec<Vec<P>> = kept.iter().map(|p| canonical(p)).collect();
+    if ctx.settings.corner_radius_nm > 0 {
+        polygons = crate::round::round_exposed(
+            &polygons,
+            ctx.settings.corner_radius_nm,
+            ctx.settings.corner_tolerance_nm,
+        )
+        .iter()
+        .map(|p| canonical(p))
+        .collect();
+    }
     polygons.sort();
     polygons.dedup();
     let total: i128 = polygons.iter().map(|p| area2(p)).sum::<i128>() / 2;

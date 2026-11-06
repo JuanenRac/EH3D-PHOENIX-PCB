@@ -7,6 +7,8 @@
 //!   reliefs leave spokes to the pads of the net; islands that are too small, too narrow or
 //!   joined to nothing are dropped. The order of everything is fixed, so the same board gives the
 //!   same bytes;
+//! * the rounding of corners (`corner_radius_nm`): the exposed convex corners of the fill and the
+//!   corners of the gaps of a thermal relief become arcs made of chords, with integer arithmetic;
 //! * [`check`]: the measuring of a fill against the board and the rules, independent of the way it
 //!   was made, with proven breaks (clearance, outline, island size and width) apart from warnings;
 //! * [`rules`]: the clearances taken from the rule file and the optional file with the priority and
@@ -31,6 +33,7 @@ pub mod fill;
 mod geom;
 mod items;
 pub mod report;
+mod round;
 pub mod rules;
 pub mod settings;
 

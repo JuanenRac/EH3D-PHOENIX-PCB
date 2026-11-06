@@ -74,6 +74,11 @@ pub struct ZoneSettings {
     pub max_fragments: usize,
     /// The most points of the outline of a zone.
     pub max_outline_points: usize,
+    /// The radius of the rounded corners of the fill and of the thermal reliefs, in nanometres;
+    /// zero leaves every corner sharp.
+    pub corner_radius_nm: i64,
+    /// The most an arc of a rounded corner may leave its chords, in nanometres.
+    pub corner_tolerance_nm: i64,
 }
 
 impl Default for ZoneSettings {
@@ -94,6 +99,8 @@ impl Default for ZoneSettings {
             arc_piece_degrees: 10,
             max_fragments: 200_000,
             max_outline_points: 10_000,
+            corner_radius_nm: 0,
+            corner_tolerance_nm: 1_000,
         }
     }
 }
@@ -156,6 +163,10 @@ impl ZoneSettings {
                 "arc_piece_degrees" => s.arc_piece_degrees = value.parse().map_err(|_| bad())?,
                 "max_fragments" => s.max_fragments = value.parse().map_err(|_| bad())?,
                 "max_outline_points" => s.max_outline_points = value.parse().map_err(|_| bad())?,
+                "corner_radius_nm" => s.corner_radius_nm = value.parse().map_err(|_| bad())?,
+                "corner_tolerance_nm" => {
+                    s.corner_tolerance_nm = value.parse().map_err(|_| bad())?
+                }
                 _ => {
                     return Err(ZoneError::new(
                         SETTINGS_INVALID,
@@ -202,6 +213,12 @@ impl ZoneSettings {
         }
         if !(3..=1_000_000).contains(&self.max_outline_points) {
             return fail("max_outline_points must be between 3 and 1000000");
+        }
+        if !length(self.corner_radius_nm) {
+            return fail("corner_radius_nm is outside 0 to 2^30 nanometres");
+        }
+        if !(1..=1_000_000).contains(&self.corner_tolerance_nm) {
+            return fail("corner_tolerance_nm must be between 1 and 1000000");
         }
         Ok(())
     }
