@@ -23,7 +23,9 @@ use std::fmt::Write as _;
 use std::path::Path;
 
 use eh3d_phoenix_rules::{Lang, Severity};
-use eh3d_phoenix_schematic::{Id, NetPin, Part, Pin, Schematic, SchematicNet};
+use eh3d_phoenix_schematic::{
+    EditError, HierConfig, Id, NetPin, Part, Pin, Schematic, SchematicNet,
+};
 
 use crate::circuit::Circuit;
 use crate::codes::SimError;
@@ -322,6 +324,9 @@ struct Builder<'a> {
     schematic: &'a Schematic,
     table: &'a ModelTable,
     props: Option<&'a PartProps>,
+    /// The reference on its sheet of each reference of an expanded schematic (`R1` for `U1/R1`);
+    /// the rules of the table look at that one.
+    local: Option<&'a BTreeMap<String, String>>,
     settings: &'a SimSettings,
     wiring: Wiring,
     report: NetlistReport,
@@ -563,7 +568,11 @@ impl Builder<'_> {
             },
             None => None,
         };
-        let found = table.find(&refdes, &part.value, &symbol.name);
+        let rule_refdes = self
+            .local
+            .and_then(|m| m.get(&refdes))
+            .map_or(refdes.as_str(), String::as_str);
+        let found = table.find(rule_refdes, &part.value, &symbol.name);
         let mut rule = match (device_attr, found) {
             (Some(device), Some(r)) if r.device == device => r.clone(),
             (Some(device), _) => Rule::new(device),
@@ -795,10 +804,46 @@ pub fn generate_netlist(
     props: Option<&PartProps>,
     settings: &SimSettings,
 ) -> NetlistText {
+    generate_with(schematic, table, props, settings, None)
+}
+
+/// Makes the netlist of a schematic that may have sheet symbols: the sheets are drawn out first,
+/// so a sheet shown twice gives its parts twice, with references such as `U1/R1` and nets such as
+/// `/U1/VOUT`; the rules of the table look at the reference on the sheet (`R1`). A schematic
+/// without sheet symbols gives the same netlist as [`generate_netlist`]. The error is a refusal to
+/// expand (the supply of ids ran out).
+pub fn generate_netlist_hier(
+    schematic: &Schematic,
+    hier: &HierConfig,
+    table: &ModelTable,
+    props: Option<&PartProps>,
+    settings: &SimSettings,
+) -> Result<NetlistText, EditError> {
+    if !schematic.has_hierarchy() {
+        return Ok(generate_netlist(schematic, table, props, settings));
+    }
+    let expanded = schematic.expand(hier)?;
+    Ok(generate_with(
+        &expanded.schematic,
+        table,
+        props,
+        settings,
+        Some(&expanded.designators),
+    ))
+}
+
+fn generate_with(
+    schematic: &Schematic,
+    table: &ModelTable,
+    props: Option<&PartProps>,
+    settings: &SimSettings,
+    local: Option<&BTreeMap<String, String>>,
+) -> NetlistText {
     let mut builder = Builder {
         schematic,
         table,
         props,
+        local,
         settings,
         wiring: wire(schematic, settings),
         report: NetlistReport::default(),

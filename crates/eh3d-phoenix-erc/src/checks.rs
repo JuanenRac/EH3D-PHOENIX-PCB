@@ -39,6 +39,8 @@ type Node = (Id, (i64, i64));
 struct Run<'a> {
     schematic: &'a Schematic,
     config: &'a ErcConfig,
+    /// The reference on its sheet of each reference of an expanded schematic, when it is one.
+    local: Option<&'a BTreeMap<String, String>>,
     report: Report,
     cut: bool,
 }
@@ -46,9 +48,21 @@ struct Run<'a> {
 /// Checks a schematic against the settings. The report has the proven findings and, apart, what
 /// could not be judged (pins without a type, pins without a position, a list that was cut).
 pub fn check(schematic: &Schematic, config: &ErcConfig) -> Report {
+    check_with_designators(schematic, config, None)
+}
+
+/// Like [`check`] for a schematic whose references were made from the names of sheet symbols
+/// (`U1/R1`): `local` gives the reference on its sheet (`R1`) of each one, and the checks that
+/// look at the letters of a designator use it.
+pub fn check_with_designators(
+    schematic: &Schematic,
+    config: &ErcConfig,
+    local: Option<&BTreeMap<String, String>>,
+) -> Report {
     let mut run = Run {
         schematic,
         config,
+        local,
         report: Report::default(),
         cut: false,
     };
@@ -80,6 +94,13 @@ pub fn check(schematic: &Schematic, config: &ErcConfig) -> Report {
 }
 
 impl Run<'_> {
+    /// The designator whose letters tell the kind of a part.
+    fn designator<'p>(&'p self, refdes: &'p str) -> &'p str {
+        self.local
+            .and_then(|m| m.get(refdes))
+            .map_or(refdes, String::as_str)
+    }
+
     fn full(&self) -> bool {
         self.report.confirmed.len() >= self.config.max_findings
     }
@@ -471,7 +492,7 @@ impl Run<'_> {
                 let Some(part) = s.parts.get(&pin.part) else {
                     continue;
                 };
-                if !has_prefix(&part.refdes, capacitors) {
+                if !has_prefix(self.designator(&part.refdes), capacitors) {
                     continue;
                 }
                 let Some(symbol) = s.symbols.get(&part.symbol) else {
@@ -494,7 +515,7 @@ impl Run<'_> {
                 let Some(part) = s.parts.get(&pin.part) else {
                     continue;
                 };
-                if has_prefix(&part.refdes, chips)
+                if has_prefix(self.designator(&part.refdes), chips)
                     && self.kind_of(pin.pin) == Some(PinKind::PowerIn)
                 {
                     by_chip.entry(pin.part).or_default().push(*pin);

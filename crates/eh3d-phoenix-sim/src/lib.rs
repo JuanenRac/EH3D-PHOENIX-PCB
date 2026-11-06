@@ -79,8 +79,8 @@ pub use noise::{noise_analysis, NoiseContribution, NoiseResult};
 pub use parse::parse;
 pub use real::Method;
 pub use schgen::{
-    generate_netlist, operating_table, read_generated, MeterReading, NetlistReport, NetlistText,
-    NodeVoltage, OpTable, SourceCurrent,
+    generate_netlist, generate_netlist_hier, operating_table, read_generated, MeterReading,
+    NetlistReport, NetlistText, NodeVoltage, OpTable, SourceCurrent,
 };
 pub use settings::SimSettings;
 pub use sketch::schematic_from_sketch;

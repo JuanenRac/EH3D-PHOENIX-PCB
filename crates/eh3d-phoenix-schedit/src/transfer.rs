@@ -7,9 +7,10 @@ use std::collections::BTreeSet;
 use std::path::Path;
 
 use eh3d_phoenix_board::Board;
-use eh3d_phoenix_schematic::{Id, Schematic};
+use eh3d_phoenix_schematic::{HierConfig, Id, Schematic};
 use eh3d_phoenix_sim::{
-    generate_netlist, operating_table, ModelTable, NetlistReport, OpTable, SimError, SimSettings,
+    generate_netlist, generate_netlist_hier, operating_table, ModelTable, NetlistReport,
+    NetlistText, OpTable, SimError, SimSettings,
 };
 use eh3d_phoenix_sync::{
     compare, plan_annotation, plan_forward, AnnotatePlan, AnnotateSettings, DiffReport,
@@ -109,9 +110,16 @@ pub struct NetlistExport {
     pub report: NetlistReport,
 }
 
+/// The netlist of a schematic, with every instance of every sheet drawn out when it has sheet
+/// symbols.
+fn generate(schematic: &Schematic, table: &ModelTable, settings: &SimSettings) -> NetlistText {
+    generate_netlist_hier(schematic, &HierConfig::default(), table, None, settings)
+        .unwrap_or_else(|_| generate_netlist(schematic, table, None, settings))
+}
+
 /// Translates a schematic for the simulator.
 pub fn export_netlist(schematic: &Schematic, settings: &SimSettings) -> NetlistExport {
-    let generated = generate_netlist(schematic, &ModelTable::built_in(), None, settings);
+    let generated = generate(schematic, &ModelTable::built_in(), settings);
     NetlistExport {
         text: generated.text,
         report: generated.report,
@@ -127,7 +135,7 @@ pub fn netlist_results(
     folder: Option<&Path>,
     settings: &SimSettings,
 ) -> Result<OpTable, SimError> {
-    let generated = generate_netlist(schematic, table, None, settings);
+    let generated = generate(schematic, table, settings);
     operating_table(&generated, folder, settings)
 }
 

@@ -25,9 +25,11 @@
 pub mod checks;
 pub mod codes;
 pub mod config;
+pub mod hier;
 pub mod report;
 
-pub use checks::check;
+pub use checks::{check, check_with_designators};
 pub use codes::{title, Rule, REGISTRY};
 pub use config::{ErcConfig, Level, SettingsError};
+pub use hier::check_hier;
 pub use report::{Finding, Report};

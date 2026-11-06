@@ -149,6 +149,17 @@ fn same_symbol(s: &Schematic, symbol: &Symbol, def: &SymbolDef) -> bool {
     have == want
 }
 
+/// The rule check of the schematic as it is edited: with every instance of every sheet drawn out
+/// when it has sheet symbols, else as it is.
+fn check_drawn_out(schematic: &Schematic, config: &ErcConfig) -> erc::Report {
+    erc::check_hier(
+        schematic,
+        &eh3d_phoenix_schematic::HierConfig::default(),
+        config,
+    )
+    .unwrap_or_else(|_| erc::check(schematic, config))
+}
+
 impl SchEdit {
     /// An editor on a schematic. The palette starts with the symbols the schematic already has and
     /// the electrical rule check is run at once.
@@ -156,7 +167,7 @@ impl SchEdit {
         let sheet = schematic.sheets.keys().next().copied();
         let mut palette = Palette::new();
         palette.add_schematic("schematic", &schematic);
-        let report = erc::check(&schematic, &erc_config);
+        let report = check_drawn_out(&schematic, &erc_config);
         let editor = Editor::with_limit(schematic, settings.history_limit);
         let horizontal_first = settings.wire_horizontal_first;
         SchEdit {
@@ -290,7 +301,7 @@ impl SchEdit {
 
     /// Runs the electrical rule check on the schematic as it is.
     pub fn run_erc(&mut self) {
-        self.erc = erc::check(self.editor.schematic(), &self.erc_config);
+        self.erc = check_drawn_out(self.editor.schematic(), &self.erc_config);
     }
 
     /// Undoes the last step.
