@@ -209,7 +209,7 @@ impl SearchIndex {
                 score: 100,
             })
             .collect();
-        hits.sort_by(|a, b| a.label.cmp(&b.label));
+        hits.sort_by_key(|h| h.label.clone());
         hits
     }
 }
@@ -600,7 +600,7 @@ mod tests {
 
     #[test]
     fn the_components_of_the_3d_window_are_found_by_reference_or_footprint() {
-        let parts = vec![
+        let parts = [
             ("R1".to_string(), "R0603".to_string()),
             ("R10".to_string(), "R0805".to_string()),
             ("U1".to_string(), "SOIC8".to_string()),

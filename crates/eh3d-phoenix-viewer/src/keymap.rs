@@ -651,7 +651,7 @@ impl Keymap {
     /// of the change that is at fault.
     pub fn with_changes(changes: &[(usize, String, String)]) -> Result<Keymap, (usize, String)> {
         let mut keymap = Keymap::default();
-        let mut lines = vec![0usize; Action::ALL.len()];
+        let mut lines = [0usize; Action::ALL.len()];
         for (line, id, value) in changes {
             let action =
                 Action::from_id(id).ok_or_else(|| (*line, format!("key.{id}: unknown action")))?;
