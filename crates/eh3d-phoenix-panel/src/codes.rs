@@ -30,6 +30,24 @@ pub const GAP_IGNORED: &str = "PHOENIX-PANEL-010";
 pub const MARKS_SKIPPED: &str = "PHOENIX-PANEL-011";
 /// The mouse bite holes do not fit in the tab.
 pub const BITES_DONT_FIT: &str = "PHOENIX-PANEL-012";
+/// The list of boards or their placement is not valid.
+pub const BOARDS_INVALID: &str = "PHOENIX-PANEL-013";
+/// Two boards of the panel overlap or are closer than the gap.
+pub const BOARDS_OVERLAP: &str = "PHOENIX-PANEL-014";
+/// A V-score line passes too close to a pad, a track, a via or a zone.
+pub const VSCORE_NEAR_COPPER: &str = "PHOENIX-PANEL-015";
+/// The V-score lines cannot separate every board from its neighbours.
+pub const VSCORE_CANNOT_SEPARATE: &str = "PHOENIX-PANEL-016";
+/// A local fiducial does not fit on its board.
+pub const LOCAL_MARK_DOESNT_FIT: &str = "PHOENIX-PANEL-017";
+/// The boards of the panel do not have the same layers.
+pub const LAYERS_DIFFER: &str = "PHOENIX-PANEL-018";
+/// The files of the panel read back differ from the plan.
+pub const ROUNDTRIP_MISMATCH: &str = "PHOENIX-PANEL-019";
+/// A board has no tab that holds it to the panel.
+pub const BOARD_NOT_JOINED: &str = "PHOENIX-PANEL-020";
+/// The layer files of the panel could not be written.
+pub const EXPORT_FAILED: &str = "PHOENIX-PANEL-021";
 
 /// Code, then the title in English, Spanish, German, French, Italian, Japanese, Chinese and
 /// European Portuguese.
@@ -188,6 +206,123 @@ pub const TITLES: &[(&str, [&str; 8])] = &[
             "ミシン目の穴がタブに収まりません",
             "邮票孔放不进连接桥",
             "Os furos de rutura não cabem na patilha",
+        ],
+    ),
+    (
+        BOARDS_INVALID,
+        [
+            "Board list or placement is not valid",
+            "La lista de placas o su colocación no es válida",
+            "Platinenliste oder Platzierung ungültig",
+            "La liste des cartes ou leur placement n'est pas valide",
+            "L'elenco delle schede o la loro posizione non è valido",
+            "基板リストまたは配置が無効です",
+            "电路板列表或位置无效",
+            "A lista de placas ou a sua posição não é válida",
+        ],
+    ),
+    (
+        BOARDS_OVERLAP,
+        [
+            "Boards overlap or are too close",
+            "Las placas se solapan o están demasiado cerca",
+            "Platinen überlappen sich oder sind zu nah",
+            "Les cartes se chevauchent ou sont trop proches",
+            "Le schede si sovrappongono o sono troppo vicine",
+            "基板が重なっているか近すぎます",
+            "电路板重叠或距离过近",
+            "As placas sobrepõem-se ou estão demasiado próximas",
+        ],
+    ),
+    (
+        VSCORE_NEAR_COPPER,
+        [
+            "V-score line too close to copper",
+            "Línea de V-score demasiado cerca del cobre",
+            "V-Ritzlinie zu nah am Kupfer",
+            "Ligne de rainure en V trop proche du cuivre",
+            "Linea di V-score troppo vicina al rame",
+            "Vカット線が銅箔に近すぎます",
+            "V形槽线距铜箔过近",
+            "Linha de V-score demasiado perto do cobre",
+        ],
+    ),
+    (
+        VSCORE_CANNOT_SEPARATE,
+        [
+            "V-score lines cannot separate the boards",
+            "Las líneas de V-score no pueden separar las placas",
+            "V-Ritzlinien können die Platinen nicht trennen",
+            "Les rainures en V ne peuvent pas séparer les cartes",
+            "Le linee di V-score non possono separare le schede",
+            "Vカット線では基板を分離できません",
+            "V形槽线无法分离这些电路板",
+            "As linhas de V-score não conseguem separar as placas",
+        ],
+    ),
+    (
+        LOCAL_MARK_DOESNT_FIT,
+        [
+            "Local fiducial does not fit on the board",
+            "El fiducial local no cabe en la placa",
+            "Die lokale Passmarke passt nicht auf die Platine",
+            "Le repère local ne tient pas sur la carte",
+            "Il fiducial locale non entra nella scheda",
+            "ローカルフィデューシャルが基板に収まりません",
+            "局部基准点放不进电路板",
+            "O fiducial local não cabe na placa",
+        ],
+    ),
+    (
+        LAYERS_DIFFER,
+        [
+            "Boards of the panel have different layers",
+            "Las placas del panel tienen capas distintas",
+            "Die Platinen des Nutzens haben unterschiedliche Lagen",
+            "Les cartes du panneau ont des couches différentes",
+            "Le schede del pannello hanno strati diversi",
+            "パネルの基板で層構成が異なります",
+            "拼板中的电路板层结构不同",
+            "As placas do painel têm camadas diferentes",
+        ],
+    ),
+    (
+        ROUNDTRIP_MISMATCH,
+        [
+            "Panel files differ from the plan when read back",
+            "Los ficheros del panel difieren del plan al releerlos",
+            "Die Dateien des Nutzens weichen beim Zurücklesen vom Plan ab",
+            "Les fichiers du panneau diffèrent du plan à la relecture",
+            "I file del pannello differiscono dal piano alla rilettura",
+            "読み戻したパネルファイルが計画と異なります",
+            "回读的拼板文件与计划不一致",
+            "Os ficheiros do painel diferem do plano ao serem relidos",
+        ],
+    ),
+    (
+        BOARD_NOT_JOINED,
+        [
+            "Board is not joined to the panel",
+            "La placa no está unida al panel",
+            "Die Platine ist nicht mit dem Nutzen verbunden",
+            "La carte n'est pas reliée au panneau",
+            "La scheda non è collegata al pannello",
+            "基板がパネルに接続されていません",
+            "电路板未与拼板连接",
+            "A placa não está ligada ao painel",
+        ],
+    ),
+    (
+        EXPORT_FAILED,
+        [
+            "The layers of the panel could not be written",
+            "No se pudieron escribir las capas del panel",
+            "Die Lagen des Nutzens konnten nicht geschrieben werden",
+            "Les couches du panneau n'ont pas pu être écrites",
+            "Non è stato possibile scrivere gli strati del pannello",
+            "パネルの層を書き出せませんでした",
+            "无法写出拼板的各层",
+            "Não foi possível escrever as camadas do painel",
         ],
     ),
 ];

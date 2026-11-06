@@ -253,6 +253,7 @@ The titles of these codes also exist in the eight languages of the suite (`TITLE
 | PHOENIX-VIEW-011 | The file may not be written there | a save as onto the input file, or onto a file that exists and was not written by this window |
 | PHOENIX-VIEW-012 | The file could not be written | a folder that does not exist, a disk that refuses, or a document that cannot be written in the format asked |
 | PHOENIX-VIEW-013 | The rule file cannot be used | a rule file or a settings file of a check that cannot be read or that the check refuses |
+| PHOENIX-VIEW-014 | The panel cannot be laid out | the boards or the settings of the panel window that the panel crate refuses (its own code follows in the message), or a board file that cannot be read |
 
 ## KiCad readers (`eh3d-phoenix-kicad`, `src/error.rs`)
 
@@ -780,14 +781,14 @@ The titles of these codes also exist in the eight languages of the suite (`TITLE
 
 | Code | Title | Raised by |
 |---|---|---|
-| PHOENIX-PANEL-001 | Panel settings are not valid | a line of `config/panel.cfg` that is not `key = value`, an unknown key, a number that cannot be read, a value out of range, tabs or mouse bite holes that the settings themselves contradict, or `--columns` and `--rows` out of range |
+| PHOENIX-PANEL-001 | Panel settings are not valid | a line of `config/panel.cfg` that is not `key = value`, an unknown key, a number that cannot be read, a value out of range, tabs or mouse bite holes that the settings themselves contradict, a turn that is not 0, 90, 180 or 270, a `place` line that is not `BOARD,X_nm,Y_nm,ROTATION_DEG,MIRROR`, a separator of the copy number with other characters than letters, digits, `_`, `-` and `.`, or `--columns` and `--rows` out of range |
 | PHOENIX-PANEL-002 | Board outline cannot be used for a panel | an outline with fewer than three points, or whose box has no width or no height |
 | PHOENIX-PANEL-003 | Panel too large or too many boards | more boards than `max_boards`, a side of the panel above `max_panel_nm`, a size that does not fit, or more than 99 drill diameters |
 | PHOENIX-PANEL-004 | Tabs do not fit on the edge | `tabs_per_edge` tabs of `tab_width_nm` that are longer together than the edge of the board |
 | PHOENIX-PANEL-005 | Mark does not fit in the frame | a fiducial or a tooling hole that is not entirely inside a rail of the frame |
 | PHOENIX-PANEL-006 | Marks overlap | two fiducials or tooling holes whose circles overlap |
-| PHOENIX-PANEL-007 | Command option not valid | an option of `phoenix panel` that the command does not know or needs a value for, an unknown language code, a number of board files other than one |
-| PHOENIX-PANEL-008 | Output file is not allowed | a file of the output folder that exists (nothing is written then), or a folder or file that cannot be created |
+| PHOENIX-PANEL-007 | Command option not valid | an option of `phoenix panel` that the command does not know or needs a value for, an unknown language code, a number of board files other than one (or a board given both as an argument and with `--boards`, or a name missing in the list of `--boards`), an export profile that cannot be found |
+| PHOENIX-PANEL-008 | Output file is not allowed | an output folder that exists (nothing is written then), or a folder or file that cannot be created |
 | PHOENIX-PANEL-009 | Outline is not a rectangle | information: the box around the outline is used for the spacing of the boards |
 | PHOENIX-PANEL-010 | Gap ignored for V-score | information: with `joint = v_score` the boards touch and `gap_nm` is not used |
 | PHOENIX-PANEL-011 | Marks skipped: the panel has no frame | warning: fiducials or tooling holes were asked for and `frame = none`, so none was put on the panel |
@@ -800,6 +801,7 @@ The titles of these codes also exist in the eight languages of the suite (`TITLE
 | PHOENIX-PANEL-018 | Boards of the panel have different layers | boards of a panel with another number of copper layers, or a layer that has no layer of the same kind and name in the first board |
 | PHOENIX-PANEL-019 | Panel files differ from the plan when read back | the files of the panel read back with the importer of this suite do not hold the copies, the holes and the marks that the plan has |
 | PHOENIX-PANEL-020 | Board is not joined to the panel | warning: with `joint = mouse_bites` a board with no tab on any side (no board or rail at the distance `gap_nm` from an edge) |
+| PHOENIX-PANEL-021 | The layers of the panel could not be written | the export of the copper, solder mask, paste, legend and drill files of the copies refused the panel (the message of the export follows) |
 
 ## Bill of materials with costs (`eh3d-phoenix-bom`, `src/codes.rs`)
 

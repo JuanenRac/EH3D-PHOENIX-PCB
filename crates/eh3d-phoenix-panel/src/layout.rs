@@ -8,8 +8,9 @@ use eh3d_phoenix_board::connectivity::pad_position;
 use eh3d_phoenix_board::{Board, LayerKind, PadRef};
 
 use crate::codes::{
-    Note, PanelError, BITES_DONT_FIT, GAP_IGNORED, MARKS_OVERLAP, MARKS_SKIPPED, MARK_DOESNT_FIT,
-    OUTLINE_NOT_RECTANGLE, OUTLINE_UNUSABLE, PANEL_TOO_LARGE, TABS_DONT_FIT,
+    Note, PanelError, BITES_DONT_FIT, GAP_IGNORED, LOCAL_MARK_DOESNT_FIT, MARKS_OVERLAP,
+    MARKS_SKIPPED, MARK_DOESNT_FIT, OUTLINE_NOT_RECTANGLE, OUTLINE_UNUSABLE, PANEL_TOO_LARGE,
+    TABS_DONT_FIT,
 };
 use crate::settings::{Joint, PanelSettings};
 
@@ -172,6 +173,71 @@ impl BoardShape {
     }
 }
 
+/// A point of a box of `w` by `h` after the board is mirrored about its vertical axis (when
+/// `mirror`) and turned `rotation_deg` (0, 90, 180 or 270) counter-clockwise, as a point of the new
+/// box (`h` by `w` for 90 and 270). The point is counted from the lower left corner of the box.
+pub fn local_map(x: i64, y: i64, w: i64, h: i64, rotation_deg: u32, mirror: bool) -> Pt {
+    let x = if mirror { w - x } else { x };
+    let (nx, ny) = match rotation_deg % 360 {
+        90 => (h - y, x),
+        180 => (w - x, h - y),
+        270 => (y, w - x),
+        _ => (x, y),
+    };
+    Pt { x: nx, y: ny }
+}
+
+/// A copy of a board in the panel: which board, where its box is and how it is turned.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PanelCopy {
+    /// The number of the board in the list of boards (0 for a matrix of one board).
+    pub board: usize,
+    /// The lower left corner of its box in the panel, after the turn.
+    pub origin: Pt,
+    /// The width of its box after the turn.
+    pub width: i64,
+    /// The height of its box after the turn.
+    pub height: i64,
+    /// The turn in degrees, counter-clockwise: 0, 90, 180 or 270.
+    pub rotation_deg: u32,
+    /// True when the board is mirrored about its vertical axis before the turn.
+    pub mirror: bool,
+}
+
+impl BoardShape {
+    /// The shape after the board is mirrored (when `mirror`) and turned `rotation_deg`: the box
+    /// is counted from its own lower left corner and the holes follow.
+    pub fn oriented(&self, rotation_deg: u32, mirror: bool) -> BoardShape {
+        let (w, h) = (self.width, self.height);
+        let (width, height) = if rotation_deg % 180 == 90 {
+            (h, w)
+        } else {
+            (w, h)
+        };
+        let holes = self
+            .holes
+            .iter()
+            .map(|(plated, at, diameter)| {
+                let p = local_map(
+                    at.x - self.origin.x,
+                    at.y - self.origin.y,
+                    w,
+                    h,
+                    rotation_deg,
+                    mirror,
+                );
+                (*plated, p, *diameter)
+            })
+            .collect();
+        BoardShape {
+            origin: Pt { x: 0, y: 0 },
+            width,
+            height,
+            holes,
+        }
+    }
+}
+
 /// The panel: its size, where each board is and everything that is drawn or drilled.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PanelPlan {
@@ -196,20 +262,27 @@ pub struct PanelPlan {
     pub holes: Vec<Hole>,
     /// The fiducials.
     pub fiducials: Vec<Mark>,
+    /// The fiducials of the boards, when `local_fiducial_count` asks for them.
+    pub local_fiducials: Vec<Mark>,
+    /// True for a panel of a list of boards (`plan_items`), false for a matrix of one board.
+    pub mixed: bool,
+    /// Every copy of a board: which board, where and how it is turned (the same order as
+    /// `origins`).
+    pub copies: Vec<PanelCopy>,
     /// What was changed or left out.
     pub notes: Vec<Note>,
 }
 
-fn too_large(what: &str) -> PanelError {
+pub(crate) fn too_large(what: &str) -> PanelError {
     PanelError::new(PANEL_TOO_LARGE, what.to_owned())
 }
 
-fn to_i64(value: i128) -> Result<i64, PanelError> {
+pub(crate) fn to_i64(value: i128) -> Result<i64, PanelError> {
     i64::try_from(value).map_err(|_| too_large("a size does not fit"))
 }
 
 /// The centres of `count` tabs of `width` along an edge of `length`, from the start of the edge.
-fn tab_centres(length: i64, count: u32, width: i64) -> Result<Vec<i64>, PanelError> {
+pub(crate) fn tab_centres(length: i64, count: u32, width: i64) -> Result<Vec<i64>, PanelError> {
     let n = i128::from(count);
     if i128::from(width) * n > i128::from(length) {
         return Err(PanelError::new(
@@ -242,7 +315,7 @@ fn edge_pieces(length: i64, centres: &[i64], width: i64) -> Vec<(i64, i64)> {
 }
 
 /// The row of mouse bite holes of one tab: `count` holes `pitch` apart, centred on `centre`.
-fn bite_offsets(count: u32, pitch: i64) -> Vec<i64> {
+pub(crate) fn bite_offsets(count: u32, pitch: i64) -> Vec<i64> {
     let n = i128::from(count);
     (0..i128::from(count))
         .map(|k| ((2 * k - (n - 1)) * i128::from(pitch) / 2) as i64)
@@ -287,7 +360,7 @@ fn corners(width: i64, height: i64, margin: i64) -> [Corner; 4] {
 
 /// The corners that carry `count` marks: the first three in the order lower left, lower right,
 /// upper right, upper left, or the diagonal for two.
-fn corner_indices(count: u32) -> &'static [usize] {
+pub(crate) fn corner_indices(count: u32) -> &'static [usize] {
     match count {
         2 => &[0, 2],
         3 => &[0, 1, 2],
@@ -315,6 +388,8 @@ fn inside_rail(c: &Circle, plan_w: i64, plan_h: i64, rail_x: i64, rail_y: i64) -
 /// marks.
 pub fn plan(shape: &BoardShape, settings: &PanelSettings) -> Result<PanelPlan, PanelError> {
     settings.validate()?;
+    let oriented = shape.oriented(settings.copy_rotation_deg, settings.copy_mirror);
+    let shape = &oriented;
     let mut notes: Vec<Note> = Vec::new();
     let v_score = settings.joint == Joint::VScore;
     let gap = if v_score { 0 } else { settings.gap_nm };
@@ -371,6 +446,17 @@ pub fn plan(shape: &BoardShape, settings: &PanelSettings) -> Result<PanelPlan, P
         }
     }
 
+    let copies: Vec<PanelCopy> = origins
+        .iter()
+        .map(|origin| PanelCopy {
+            board: 0,
+            origin: *origin,
+            width: bw,
+            height: bh,
+            rotation_deg: settings.copy_rotation_deg,
+            mirror: settings.copy_mirror,
+        })
+        .collect();
     let mut profile: Vec<Line> = Vec::new();
     let mut score: Vec<Line> = Vec::new();
     let mut tabs: Vec<Pt> = Vec::new();
@@ -574,6 +660,46 @@ pub fn plan(shape: &BoardShape, settings: &PanelSettings) -> Result<PanelPlan, P
         }
     }
 
+    let fiducials = frame_marks(
+        settings,
+        width,
+        height,
+        (rail_x, rail_y),
+        &mut holes,
+        &mut notes,
+    )?;
+    let local_fiducials = local_marks(&copies, settings)?;
+
+    Ok(PanelPlan {
+        width,
+        height,
+        columns: cols,
+        rows: rws,
+        origins,
+        profile,
+        score,
+        tabs,
+        holes,
+        fiducials,
+        local_fiducials,
+        mixed: false,
+        copies,
+        notes,
+    })
+}
+
+/// The fiducials and the tooling holes of the frame. The tooling holes are added to `holes`; a
+/// panel without a frame gets none and a note.
+pub(crate) fn frame_marks(
+    settings: &PanelSettings,
+    width: i64,
+    height: i64,
+    rails: (i64, i64),
+    holes: &mut Vec<Hole>,
+    notes: &mut Vec<Note>,
+) -> Result<Vec<Mark>, PanelError> {
+    let (rail_x, rail_y) = rails;
+    let top_bottom = settings.frame.has_top_bottom();
     // the marks of the frame
     let wants_marks = settings.tooling_hole_count > 0 || settings.fiducial_count > 0;
     let mut fiducials: Vec<Mark> = Vec::new();
@@ -652,23 +778,83 @@ pub fn plan(shape: &BoardShape, settings: &PanelSettings) -> Result<PanelPlan, P
             }
         }
     }
+    Ok(fiducials)
+}
 
-    Ok(PanelPlan {
-        width,
-        height,
-        columns: cols,
-        rows: rws,
-        origins,
-        profile,
-        score,
-        tabs,
-        holes,
-        fiducials,
-        notes,
-    })
+/// The fiducials of the boards: `local_fiducial_count` of them at the corners of the box of each
+/// copy, `local_fiducial_inset_nm` from its edges.
+pub(crate) fn local_marks(
+    copies: &[PanelCopy],
+    settings: &PanelSettings,
+) -> Result<Vec<Mark>, PanelError> {
+    let mut out = Vec::new();
+    if settings.local_fiducial_count == 0 {
+        return Ok(out);
+    }
+    let inset = settings.local_fiducial_inset_nm;
+    let radius = (settings.fiducial_mask_diameter_nm + 1) / 2;
+    for (number, copy) in copies.iter().enumerate() {
+        if inset < radius || copy.width <= 2 * inset || copy.height <= 2 * inset {
+            return Err(PanelError::new(
+                LOCAL_MARK_DOESNT_FIT,
+                format!(
+                    "board {} of {} nm by {} nm with a mark {} nm from the edges",
+                    number + 1,
+                    copy.width,
+                    copy.height,
+                    inset
+                ),
+            ));
+        }
+        let (x0, y0) = (copy.origin.x, copy.origin.y);
+        let (x1, y1) = (x0 + copy.width, y0 + copy.height);
+        let places = [
+            Pt {
+                x: x0 + inset,
+                y: y0 + inset,
+            },
+            Pt {
+                x: x1 - inset,
+                y: y0 + inset,
+            },
+            Pt {
+                x: x1 - inset,
+                y: y1 - inset,
+            },
+            Pt {
+                x: x0 + inset,
+                y: y1 - inset,
+            },
+        ];
+        for index in corner_indices(settings.local_fiducial_count) {
+            out.push(Mark {
+                at: places[*index],
+                copper_diameter: settings.fiducial_diameter_nm,
+                mask_diameter: settings.fiducial_mask_diameter_nm,
+            });
+        }
+    }
+    Ok(out)
 }
 
 impl PanelPlan {
+    /// The area of the boxes of all the boards, in square nanometres.
+    pub fn boards_area(&self) -> i128 {
+        self.copies
+            .iter()
+            .map(|c| i128::from(c.width) * i128::from(c.height))
+            .sum()
+    }
+
+    /// The part of the area of the panel that the boards take, in thousandths.
+    pub fn utilisation_permille(&self) -> u32 {
+        let total = i128::from(self.width) * i128::from(self.height);
+        if total <= 0 {
+            return 0;
+        }
+        u32::try_from(self.boards_area() * 1000 / total).unwrap_or(1000)
+    }
+
     /// The number of holes of a kind.
     pub fn holes_of(&self, kind: HoleKind) -> usize {
         self.holes.iter().filter(|h| h.kind == kind).count()
@@ -1048,5 +1234,93 @@ mod tests {
             BoardShape::from_board(&board).unwrap_err().code,
             OUTLINE_UNUSABLE
         );
+    }
+
+    #[test]
+    fn a_point_of_a_box_is_mirrored_and_turned_into_the_new_box() {
+        // the point (2, 3) of a box of 30 by 20
+        let at = |rotation, mirror| local_map(2, 3, 30, 20, rotation, mirror);
+        assert_eq!(at(0, false), Pt { x: 2, y: 3 });
+        assert_eq!(at(0, true), Pt { x: 28, y: 3 });
+        assert_eq!(at(90, false), Pt { x: 17, y: 2 });
+        assert_eq!(at(180, false), Pt { x: 28, y: 17 });
+        assert_eq!(at(270, false), Pt { x: 3, y: 28 });
+        // mirrored first, then turned
+        assert_eq!(at(90, true), Pt { x: 17, y: 28 });
+        // two turns of 90 degrees (in the box that the first one makes) are one of 180
+        let once = at(90, false);
+        assert_eq!(local_map(once.x, once.y, 20, 30, 90, false), at(180, false));
+    }
+
+    #[test]
+    fn a_turned_matrix_swaps_the_box_and_moves_the_holes() {
+        let s = settings("frame = none\ncolumns = 1\nrows = 1\ncopy_rotation_deg = 90\n");
+        let plan = plan(&shape(), &s).unwrap();
+        assert_eq!((plan.width, plan.height), (20 * MM, 30 * MM));
+        assert_eq!(plan.copies.len(), 1);
+        assert_eq!(plan.copies[0].rotation_deg, 90);
+        assert_eq!(
+            (plan.copies[0].width, plan.copies[0].height),
+            (20 * MM, 30 * MM)
+        );
+        // the holes (12, 7) and (38, 23) of a box that starts at (10, 5): local (2, 2) and (28, 18)
+        assert_eq!(plan.holes[0].kind, HoleKind::Plated);
+        assert_eq!(
+            plan.holes[0].at,
+            Pt {
+                x: 18 * MM,
+                y: 2 * MM
+            }
+        );
+        assert_eq!(plan.holes[1].kind, HoleKind::NonPlated);
+        assert_eq!(
+            plan.holes[1].at,
+            Pt {
+                x: 2 * MM,
+                y: 28 * MM
+            }
+        );
+        assert!(!plan.mixed);
+        // the boards use all of a panel with no frame and no gap to spare
+        assert_eq!(plan.utilisation_permille(), 1000);
+    }
+
+    #[test]
+    fn the_boards_of_a_matrix_take_a_part_of_the_area_of_the_panel() {
+        let plan = plan(&shape(), &PanelSettings::default()).unwrap();
+        // four boards of 30 by 20 mm in a panel of 82 by 62 mm
+        assert_eq!(plan.boards_area(), 4 * 30 * 20 * MM as i128 * MM as i128);
+        assert_eq!(plan.utilisation_permille(), 472);
+        assert_eq!(plan.copies.len(), 4);
+        assert!(plan.local_fiducials.is_empty());
+    }
+
+    #[test]
+    fn local_fiducials_sit_inside_each_board() {
+        let s = settings("local_fiducial_count = 2\nlocal_fiducial_inset_nm = 3000000\n");
+        let plan = plan(&shape(), &s).unwrap();
+        assert_eq!(plan.local_fiducials.len(), 8);
+        let first = plan.copies[0];
+        assert_eq!(
+            plan.local_fiducials[0].at,
+            Pt {
+                x: first.origin.x + 3 * MM,
+                y: first.origin.y + 3 * MM
+            }
+        );
+        assert_eq!(
+            plan.local_fiducials[1].at,
+            Pt {
+                x: first.origin.x + first.width - 3 * MM,
+                y: first.origin.y + first.height - 3 * MM
+            }
+        );
+        let small = settings("local_fiducial_count = 3\nlocal_fiducial_inset_nm = 12000000\n");
+        let e = plan_error(&small);
+        assert_eq!(e, LOCAL_MARK_DOESNT_FIT);
+    }
+
+    fn plan_error(settings: &PanelSettings) -> &'static str {
+        plan(&shape(), settings).unwrap_err().code
     }
 }

@@ -4,28 +4,48 @@
 //! * [`settings`]: the sizes and counts of the panel, read from `config/panel.cfg`;
 //! * [`layout`]: a matrix of boards with a gap and a frame, the tabs with a row of mouse bite
 //!   holes or the V-score lines, the fiducials and the tooling holes, in integer nanometres;
+//! * [`mixed`]: a panel of different boards, from a list with the place and the turn of each or
+//!   packed by rows with the gap between them;
 //! * [`files`]: the outline and the V-score lines as Gerber X2, the fiducials as Gerber X2 and the
 //!   holes (those of the boards, the mouse bites and the tooling holes) as Excellon;
+//! * [`compose`](mod@compose): the board of the panel, made of the copies of the boards (moved, turned and
+//!   mirrored as the plan says) and the marks of the panel;
+//! * [`layers`]: the copper, the solder mask, the paste, the legend and the drills of every copy,
+//!   written by the export of the suite from that board and read back with the Gerber importer;
+//! * [`vscore`]: the check that no V-score line passes too close to copper;
 //! * [`codes`]: the stable codes `PHOENIX-PANEL-<NNN>` with their titles in the eight languages.
 //!
-//! The panel is a plan and some text; it does not copy the copper, the mask or the legend of the
-//! boards into one file per layer, and nothing has been checked by a manufacturer.
+//! It is a prototype: nothing has been checked by a manufacturer, and the files have only been read
+//! back by the importer of this suite.
 
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
 pub mod codes;
+pub mod compose;
 pub mod files;
+pub mod layers;
 pub mod layout;
+pub mod mixed;
 pub mod settings;
+pub mod vscore;
 
 use eh3d_phoenix_rules::Lang;
 use serde_json::{json, Value};
 
 pub use codes::{title, Note, PanelError, TITLES};
+pub use compose::compose;
 pub use files::{panel_files, PanelFile};
-pub use layout::{plan, BoardShape, Hole, HoleKind, Line, Mark, PanelPlan, Pt};
-pub use settings::{Frame, Joint, PanelSettings};
+pub use layers::{panel_layers, PanelLayers};
+pub use layout::{plan, BoardShape, Hole, HoleKind, Line, Mark, PanelCopy, PanelPlan, Pt};
+pub use mixed::{items_from_settings, plan_items, Item};
+pub use settings::{Frame, Joint, PanelSettings, Placement};
+pub use vscore::check_v_score;
+
+/// A part of a thousand as a percentage with one decimal (`641` is `64.1`).
+pub fn permille_text(permille: u32) -> String {
+    format!("{}.{}", permille / 10, permille % 10)
+}
 
 fn mm_text(nm: i64) -> String {
     files::mm(nm)
@@ -38,13 +58,22 @@ pub fn summary_text(
     files: &[PanelFile],
     lang: Lang,
 ) -> String {
-    let mut out = format!(
-        "panel {} mm by {} mm, {} x {} boards\n",
-        mm_text(plan.width),
-        mm_text(plan.height),
-        plan.columns,
-        plan.rows
-    );
+    let mut out = if plan.mixed {
+        format!(
+            "panel {} mm by {} mm, {} boards\n",
+            mm_text(plan.width),
+            mm_text(plan.height),
+            plan.copies.len()
+        )
+    } else {
+        format!(
+            "panel {} mm by {} mm, {} x {} boards\n",
+            mm_text(plan.width),
+            mm_text(plan.height),
+            plan.columns,
+            plan.rows
+        )
+    };
     match settings.joint {
         Joint::MouseBites => out.push_str(&format!(
             "joint: mouse bites, {} tabs, {} holes\n",
@@ -59,6 +88,16 @@ pub fn summary_text(
         plan.holes_of(HoleKind::NonPlated),
         plan.holes_of(HoleKind::Tooling),
         plan.fiducials.len()
+    ));
+    if !plan.local_fiducials.is_empty() {
+        out.push_str(&format!(
+            "local fiducials: {}\n",
+            plan.local_fiducials.len()
+        ));
+    }
+    out.push_str(&format!(
+        "boards use {}% of the area of the panel\n",
+        permille_text(plan.utilisation_permille())
     ));
     for file in files {
         out.push_str(&format!("file {} ({} bytes)\n", file.name, file.text.len()));
@@ -87,6 +126,21 @@ pub fn summary_json(plan: &PanelPlan, settings: &PanelSettings, files: &[PanelFi
         .map(|n| json!({ "code": n.code, "detail": n.detail }))
         .collect();
     let names: Vec<Value> = files.iter().map(|f| json!(f.name)).collect();
+    let copies: Vec<Value> = plan
+        .copies
+        .iter()
+        .map(|c| {
+            json!({
+                "board": c.board,
+                "x_nm": c.origin.x,
+                "y_nm": c.origin.y,
+                "width_nm": c.width,
+                "height_nm": c.height,
+                "rotation_deg": c.rotation_deg,
+                "mirror": c.mirror,
+            })
+        })
+        .collect();
     let joint = match settings.joint {
         Joint::MouseBites => "mouse_bites",
         Joint::VScore => "v_score",
@@ -98,6 +152,10 @@ pub fn summary_json(plan: &PanelPlan, settings: &PanelSettings, files: &[PanelFi
         "rows": plan.rows,
         "joint": joint,
         "boards": boards,
+        "copies": copies,
+        "mixed": plan.mixed,
+        "utilisation_permille": plan.utilisation_permille(),
+        "local_fiducials": plan.local_fiducials.len(),
         "tabs": plan.tabs.len(),
         "score_lines": plan.score.len(),
         "profile_lines": plan.profile.len(),
@@ -156,6 +214,25 @@ mod tests {
         assert_eq!(value["holes"]["plated"], 4);
         assert_eq!(value["fiducials"][0]["x_nm"], 16_000_000);
         assert_eq!(value["width_nm"], 82_000_000);
+    }
+
+    #[test]
+    fn the_summary_tells_how_much_of_the_panel_the_boards_use() {
+        let settings = PanelSettings::default();
+        let plan = plan(&shape(), &settings).unwrap();
+        // four boards of 30 by 20 mm in 82 by 62 mm
+        let text = summary_text(&plan, &settings, &[], Lang::En);
+        assert!(
+            text.contains("boards use 47.2% of the area of the panel\n"),
+            "{text}"
+        );
+        let value = summary_json(&plan, &settings, &[]);
+        assert_eq!(value["utilisation_permille"], 472);
+        assert_eq!(value["mixed"], false);
+        assert_eq!(value["copies"].as_array().unwrap().len(), 4);
+        assert_eq!(value["copies"][1]["x_nm"], 42_000_000);
+        assert_eq!(permille_text(5), "0.5");
+        assert_eq!(permille_text(1000), "100.0");
     }
 
     #[test]

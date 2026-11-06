@@ -42,6 +42,23 @@ pub enum Joint {
     VScore,
 }
 
+/// Where one board of a list goes and how it is turned: the lower left corner of its box, counted
+/// from the lower left corner of the area inside the frame, a turn of 0, 90, 180 or 270 degrees
+/// (counter-clockwise) and whether it is mirrored about its vertical axis first.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Placement {
+    /// The number of the board in the list, from 0.
+    pub board: usize,
+    /// The horizontal position.
+    pub x_nm: i64,
+    /// The vertical position.
+    pub y_nm: i64,
+    /// The turn in degrees.
+    pub rotation_deg: u32,
+    /// True when the board is mirrored (and so seen from its other side).
+    pub mirror: bool,
+}
+
 /// The sizes and counts of a panel.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PanelSettings {
@@ -89,6 +106,24 @@ pub struct PanelSettings {
     pub max_boards: u32,
     /// The largest side of a panel.
     pub max_panel_nm: i64,
+    /// The turn of every board of a matrix, in degrees: 0, 90, 180 or 270.
+    pub copy_rotation_deg: u32,
+    /// Mirror every board of a matrix about its vertical axis.
+    pub copy_mirror: bool,
+    /// Add the number of the copy to the reference designators and the net names of each copy.
+    pub copy_suffix: bool,
+    /// What goes before the number of the copy.
+    pub copy_suffix_separator: String,
+    /// The widest row of boards when a list of boards is packed by rows.
+    pub pack_row_width_nm: i64,
+    /// How close a V-score line may pass to copper; 0 turns the check off.
+    pub v_score_clearance_nm: i64,
+    /// The fiducials on each board: 0, 2 or 3.
+    pub local_fiducial_count: u32,
+    /// The distance of a local fiducial from the two edges of its corner of the board.
+    pub local_fiducial_inset_nm: i64,
+    /// The places of the boards of a list (lines `place = ...`); empty to pack them by rows.
+    pub placements: Vec<Placement>,
 }
 
 impl Default for PanelSettings {
@@ -116,8 +151,32 @@ impl Default for PanelSettings {
             outline_width_nm: 100_000,
             max_boards: 400,
             max_panel_nm: 600_000_000,
+            copy_rotation_deg: 0,
+            copy_mirror: false,
+            copy_suffix: false,
+            copy_suffix_separator: "_".to_owned(),
+            pack_row_width_nm: 150_000_000,
+            v_score_clearance_nm: 300_000,
+            local_fiducial_count: 0,
+            local_fiducial_inset_nm: 3_000_000,
+            placements: Vec::new(),
         }
     }
+}
+
+/// A line `place = BOARD,X_nm,Y_nm,ROTATION_DEG,MIRROR`.
+fn parse_place(value: &str) -> Option<Placement> {
+    let parts: Vec<&str> = value.split(',').map(str::trim).collect();
+    let [board, x, y, rotation, mirror] = parts.as_slice() else {
+        return None;
+    };
+    Some(Placement {
+        board: board.parse().ok()?,
+        x_nm: x.parse().ok()?,
+        y_nm: y.parse().ok()?,
+        rotation_deg: rotation.parse().ok()?,
+        mirror: parse_bool(mirror)?,
+    })
 }
 
 fn parse_bool(value: &str) -> Option<bool> {
@@ -199,6 +258,21 @@ impl PanelSettings {
                 "outline_width_nm" => s.outline_width_nm = value.parse().map_err(|_| bad())?,
                 "max_boards" => s.max_boards = value.parse().map_err(|_| bad())?,
                 "max_panel_nm" => s.max_panel_nm = value.parse().map_err(|_| bad())?,
+                "copy_rotation_deg" => s.copy_rotation_deg = value.parse().map_err(|_| bad())?,
+                "copy_mirror" => s.copy_mirror = parse_bool(value).ok_or_else(bad)?,
+                "copy_suffix" => s.copy_suffix = parse_bool(value).ok_or_else(bad)?,
+                "copy_suffix_separator" => s.copy_suffix_separator = value.to_owned(),
+                "pack_row_width_nm" => s.pack_row_width_nm = value.parse().map_err(|_| bad())?,
+                "v_score_clearance_nm" => {
+                    s.v_score_clearance_nm = value.parse().map_err(|_| bad())?
+                }
+                "local_fiducial_count" => {
+                    s.local_fiducial_count = value.parse().map_err(|_| bad())?
+                }
+                "local_fiducial_inset_nm" => {
+                    s.local_fiducial_inset_nm = value.parse().map_err(|_| bad())?
+                }
+                "place" => s.placements.push(parse_place(value).ok_or_else(bad)?),
                 _ => {
                     return Err(PanelError::new(
                         SETTINGS_INVALID,
@@ -252,6 +326,34 @@ impl PanelSettings {
         }
         if self.max_boards == 0 || !size(self.max_panel_nm) {
             return fail("max_boards must be at least 1 and max_panel_nm at least 1");
+        }
+        if !matches!(self.copy_rotation_deg, 0 | 90 | 180 | 270) {
+            return fail("copy_rotation_deg must be 0, 90, 180 or 270");
+        }
+        let separator = &self.copy_suffix_separator;
+        if separator.len() > 8
+            || !separator
+                .bytes()
+                .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'_' | b'-' | b'.'))
+        {
+            return fail("copy_suffix_separator must be up to 8 letters, digits, _, - or .");
+        }
+        if !length(self.pack_row_width_nm) || !length(self.v_score_clearance_nm) {
+            return fail("pack_row_width_nm and v_score_clearance_nm must be between 0 and 2^30");
+        }
+        if !matches!(self.local_fiducial_count, 0 | 2 | 3) {
+            return fail("local_fiducial_count must be 0, 2 or 3");
+        }
+        if !length(self.local_fiducial_inset_nm) {
+            return fail("local_fiducial_inset_nm must be between 0 and 2^30");
+        }
+        for place in &self.placements {
+            if !matches!(place.rotation_deg, 0 | 90 | 180 | 270) {
+                return fail("a place line needs a rotation of 0, 90, 180 or 270");
+            }
+            if !length(place.x_nm) || !length(place.y_nm) {
+                return fail("a place line needs a position between 0 and 2^30");
+            }
         }
         if self.joint == Joint::MouseBites {
             if !size(self.tab_width_nm) || !(1..=1000).contains(&self.tabs_per_edge) {
@@ -319,6 +421,13 @@ mod tests {
             ("mouse_bite_pitch_nm = 100", "mouse_bite_pitch_nm"),
             ("gap_nm = 100000", "gap_nm"),
             ("max_boards = 0", "max_boards"),
+            ("copy_rotation_deg = 45", "copy_rotation_deg"),
+            ("copy_mirror = yes", "copy_mirror"),
+            ("copy_suffix_separator = a b", "copy_suffix_separator"),
+            ("local_fiducial_count = 4", "local_fiducial_count"),
+            ("place = 0,1,2", "place"),
+            ("place = 0,1,2,45,false", "rotation"),
+            ("place = 0,-1,2,0,false", "position"),
         ] {
             let e = PanelSettings::parse(text).unwrap_err();
             assert_eq!(e.code, SETTINGS_INVALID, "{text}");
@@ -326,6 +435,27 @@ mod tests {
         }
         let e = PanelSettings::parse("\n\ncolumns = x").unwrap_err();
         assert!(e.detail.starts_with("line 3"), "{}", e.detail);
+    }
+
+    #[test]
+    fn the_places_of_a_list_are_read_one_line_each() {
+        let s = PanelSettings::parse(
+            "place = 0, 0, 0, 0, false\nplace = 1,40000000,0,90,true\ncopy_suffix = true\ncopy_suffix_separator = -\n",
+        )
+        .unwrap();
+        assert_eq!(s.placements.len(), 2);
+        assert_eq!(
+            s.placements[1],
+            Placement {
+                board: 1,
+                x_nm: 40_000_000,
+                y_nm: 0,
+                rotation_deg: 90,
+                mirror: true,
+            }
+        );
+        assert!(s.copy_suffix);
+        assert_eq!(s.copy_suffix_separator, "-");
     }
 
     #[test]

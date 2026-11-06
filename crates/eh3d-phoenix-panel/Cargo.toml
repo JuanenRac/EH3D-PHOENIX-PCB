@@ -5,12 +5,12 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "Panelization of a board (prototype): a matrix of boards with a gap, a frame, tabs with mouse bite holes or V-score lines, fiducials and tooling holes, all taken from a settings file, with the outline and the drill files of the panel written as Gerber and Excellon text"
+description = "Panelization of boards (prototype): a matrix of one board or a list of different boards packed by rows, turned and mirrored, with a gap, a frame, tabs with mouse bite holes or V-score lines, fiducials and tooling holes, all taken from a settings file, with the outline, the V-score lines, and the copper, solder mask, paste, legend and drill files of every copy written through the export of the suite"
 
 [dependencies]
 eh3d-phoenix-board = { path = "../eh3d-phoenix-board" }
+eh3d-phoenix-export = { path = "../eh3d-phoenix-export" }
+eh3d-phoenix-gerber = { path = "../eh3d-phoenix-gerber" }
+eh3d-phoenix-model = { path = "../eh3d-phoenix-model" }
 eh3d-phoenix-rules = { path = "../eh3d-phoenix-rules" }
 serde_json.workspace = true
-
-[dev-dependencies]
-eh3d-phoenix-model = { path = "../eh3d-phoenix-model" }
