@@ -431,7 +431,7 @@ fn note(detail: String) -> Diagnostic {
 /// A length such as `8mil`, `0.2mm`, `0.01inch`, `50micron` or a bare number (millimetres), in
 /// nanometres. Rounds half up at the nanometre; `None` when the text is not a plain non-negative
 /// decimal with a known unit.
-pub(crate) fn parse_length(text: &str) -> Option<Nm> {
+pub fn parse_length(text: &str) -> Option<Nm> {
     let lower = text.trim().to_ascii_lowercase();
     let (number, unit_nm): (&str, i128) = if let Some(n) = lower.strip_suffix("mil") {
         (n, 25_400)

@@ -46,4 +46,4 @@ pub use codes::{title, Lang, REGISTRY};
 pub use connectivity::{analyse_board, check_connectivity, compare_schematic};
 pub use engine::{check_board, check_board_with, clearance_work, ClearanceWork, Rule};
 pub use report::{Finding, Report, Severity};
-pub use rulefile::{RuleFile, RuleFileError, RuleValues};
+pub use rulefile::{parse_length, RuleFile, RuleFileError, RuleValues};
