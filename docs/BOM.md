@@ -83,6 +83,12 @@ The same input always gives the same bytes: the order is fixed, money is written
 * **JSON** (`phoenix-bom/1`): the lines with their offers and price breaks, the totals of the parts, the estimate of the boards, the total, whether it is complete and the findings; money is a string with six decimals.
 * **HTML**: one page with a table, the totals and the findings, with no script and no outside file; every text that comes from a file is escaped.
 
+## The bills of the assembly
+
+A manufacturer that fits the two faces in two passes asks for one list for each pass. The module `assembly` of the crate `eh3d-phoenix-bom` (used by `phoenix fabpack`) makes three bills with the same grouping, prices and parts that are not fitted as the plain bill: the top face, the bottom face and the whole board. Each face is a bill of a copy of the board that holds only the components of that face; the schematic is used for the whole board only, because its parts have no face. The cost of the bare boards is left out.
+
+The CSV file of a face has the columns `references`, `quantity_board`, `quantity_panel`, `value`, `footprint`, `manufacturer`, `mpn`, `supplier`, `supplier_code`, `unit_price`, `quantity_to_buy` and `status`. The quantity of the panel is the quantity of a board times the boards in the panel (`--panel-boards`, 1 when there is no panel). `status` is `fitted`, `no_footprint` or `dnp`: the parts that the file of part data says are not fitted come after the others, each group with the status `dnp`, so that the assembler sees them. The JSON file (`phoenix-assembly-bom/1`) holds the three views with their lines, their parts that are not fitted and their findings. The same input always gives the same bytes.
+
 ## The codes
 
 `PHOENIX-BOM-001` to `PHOENIX-BOM-018`, with their titles in the eight languages; the table is in `docs/ERROR_CODES.md`.

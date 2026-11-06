@@ -494,6 +494,20 @@
           }
         },
         {
+          "name": "PNP.md  STENCIL.md  FABPACK.md",
+          "tree_name": "PNP.md STENCIL.md FABPACK.md",
+          "desc": {
+            "en": "pick and place, stencil and the fabrication package",
+            "es": "pick and place, plantilla y el paquete de fabricación",
+            "de": "Bestückungsdaten, Schablone und das Fertigungspaket",
+            "fr": "placement, pochoir et le paquet de fabrication",
+            "it": "posizionamento, stencil e il pacchetto di fabbricazione",
+            "ja": "実装座標、ステンシル、製造パッケージ",
+            "zh": "贴片坐标、钢网和制造包",
+            "pt": "posições, stencil e o pacote de fabrico"
+          }
+        },
+        {
           "name": "ASSEMBLY3D.md",
           "desc": {
             "en": "3D assembly: STEP models, collisions, OBJ, STEP",

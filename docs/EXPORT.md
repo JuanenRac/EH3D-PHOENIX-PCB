@@ -55,6 +55,8 @@ Both are plain text with one line per part or group, in the natural order of the
 * **Rounding:** nanometres and micro-degrees are shown by integer arithmetic, rounded half away from zero to `placement.coordinate_decimals` and `placement.rotation_decimals`.
 * **Columns:** `placement.columns` and `bom.columns` list, in order, a key and the text of its header. The keys of the placement are `ref`, `value`, `package`, `x`, `y`, `rotation` and `side`; those of the bill of materials are `designators`, `quantity`, `value` and `package`.
 
+The files above are the simple ones of a profile. The pick and place files with the centre of each part, the extra rotations of a machine, the origin and the unit (`docs/PNP.md`), the solder paste stencil (`docs/STENCIL.md`), the bills of the assembly by face (`docs/BOM.md`) and a deterministic zip file with a manifest of SHA-256 sums that holds all of them with the Gerber and Excellon files (`docs/FABPACK.md`) are made on top of this export by `phoenix pnp`, `phoenix stencil` and `phoenix fabpack`.
+
 ## Profiles
 
 A profile file is JSON: `{"format": "phoenix-export/1", "profiles": [...]}`. `config/export_profiles.json` holds `generic`, `jlc-like` (shaped after the files low-cost assemblers ask for and not compared with any manufacturer), `x2-full` (the generic profile with every Gerber X2 attribute) and `x1` (the generic profile without any attribute). A missing field takes the default of its profile section; an unknown field, a value out of its range or a file name that is not a plain name is an error (`PHOENIX-EXPORT-011`). Lengths are integer nanometres.
