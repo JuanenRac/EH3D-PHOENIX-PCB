@@ -138,6 +138,30 @@
       "source": "the percentiles of the standard normal distribution (a table of the normal distribution) for a resistor divider with normal tolerances",
       "status": "pending",
       "reason": "a percentile is a statistic of a sample, so its error depends on the number of runs and on the density at the percentile; the case format has one absolute or relative tolerance and cannot say it in standard errors yet"
+    },
+    {
+      "id": "ORACLE-PENDING-018",
+      "title": "Element values of a Legendre (optimum monotonic) low-pass prototype",
+      "area": "rf",
+      "source": "the tables of the Legendre prototype in Matthaei, Young and Jones, or in Zverev",
+      "status": "pending",
+      "reason": "the approximation is not in the tool: it has no closed formula for the elements, only tables, and the tables are not at hand to copy values from"
+    },
+    {
+      "id": "ORACLE-PENDING-019",
+      "title": "Element values of an elliptic (Cauer) low-pass prototype for a ripple and a selectivity",
+      "area": "rf",
+      "source": "the tables of elliptic prototypes in Zverev, Handbook of Filter Synthesis",
+      "status": "pending",
+      "reason": "the approximation is not in the tool, and the tables are not at hand to copy values from"
+    },
+    {
+      "id": "ORACLE-PENDING-020",
+      "title": "Bandwidth of a matching network at a return loss of 10 dB against another RF program",
+      "area": "rf",
+      "source": "the same network (a pi network from 50 to 100 ohm with a loaded Q of 5, ideal elements) in a circuit simulator or an RF program of another maker",
+      "status": "pending",
+      "reason": "the bandwidth here comes from a scan of the ABCD matrices with the element values fixed; it has not been compared with any other program"
     }
   ]
 }

@@ -30,6 +30,7 @@ pub mod bundled;
 mod calc_board;
 mod calc_line;
 mod calc_netlist;
+mod calc_rfx;
 mod calc_si;
 mod calc_sim;
 pub mod case;
