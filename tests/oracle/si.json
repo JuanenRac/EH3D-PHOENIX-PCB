@@ -1,0 +1,188 @@
+{
+  "format": "phoenix-oracle/1",
+  "suite": "si",
+  "title": "Reflections of a lossless line, the rise time of a single pole, the bandwidth of an edge and the delay of a line, with the cases of crosstalk, eyes and return paths that cannot be cited yet",
+  "cases": [
+    {
+      "id": "ORACLE-SI-001",
+      "title": "Reflection coefficient of a 100 ohm load on a 50 ohm line",
+      "area": "si",
+      "check": "si_reflection_coefficient",
+      "inputs": { "zl_ohm": 100.0, "z0_ohm": 50.0 },
+      "expected": 0.3333333333333333,
+      "unit": "",
+      "tolerance": { "abs": 1e-12 },
+      "tolerance_note": "chosen here: a closed formula on exact inputs, so only rounding is accepted",
+      "source": "D. M. Pozar, Microwave Engineering, the terminated lossless line: Gamma = (ZL - Z0)/(ZL + Z0) = 50/150",
+      "status": "cited"
+    },
+    {
+      "id": "ORACLE-SI-002",
+      "title": "Reflection coefficient of a short circuit",
+      "area": "si",
+      "check": "si_reflection_coefficient",
+      "inputs": { "zl_ohm": 0.0, "z0_ohm": 50.0 },
+      "expected": -1.0,
+      "unit": "",
+      "tolerance": { "abs": 1e-12 },
+      "tolerance_note": "chosen here: a closed formula on exact inputs, so only rounding is accepted",
+      "source": "D. M. Pozar, Microwave Engineering, the terminated lossless line: a short circuit reflects the whole wave with the opposite sign, Gamma = -1",
+      "status": "cited"
+    },
+    {
+      "id": "ORACLE-SI-003",
+      "title": "First arrival of a step at an open end through a 25 ohm driver on a 50 ohm line",
+      "area": "si",
+      "check": "si_bergeron_load_arrival_v",
+      "inputs": { "z0_ohm": 50.0, "rs_ohm": 25.0, "rl_ohm": 0.0, "arrival": 1 },
+      "expected": 1.3333333333333333,
+      "unit": "V",
+      "tolerance": { "abs": 1e-12 },
+      "tolerance_note": "chosen here: the diagram of bounces is exact arithmetic on exact inputs, so only rounding is accepted",
+      "source": "Lattice (Bergeron) diagram of a 1 V step on a lossless line: the wave launched is V Z0/(Rs + Z0) = 2/3 V and an open end (Gamma = +1) doubles it at the load, 4/3 V",
+      "status": "cited"
+    },
+    {
+      "id": "ORACLE-SI-004",
+      "title": "Second arrival at an open end of a step driven through Z0/3 (reflection of the source -1/2)",
+      "area": "si",
+      "check": "si_bergeron_load_arrival_v",
+      "inputs": { "z0_ohm": 50.0, "rs_ohm": 16.666666666666668, "rl_ohm": 0.0, "arrival": 2 },
+      "expected": 0.75,
+      "unit": "V",
+      "tolerance": { "abs": 1e-9 },
+      "tolerance_note": "chosen here: the source resistance is Z0/3 rounded to a double, so a few units of the last digits are accepted",
+      "source": "Lattice (Bergeron) diagram of a 1 V step: the first wave is 0.75 V, the source reflects with (Rs - Z0)/(Rs + Z0) = -1/2 and the open end with +1, so the load sees 1.5 V and then 1.5 - 2 x 0.375 = 0.75 V",
+      "status": "cited"
+    },
+    {
+      "id": "ORACLE-SI-005",
+      "title": "Final level of a step into a 50 ohm load through a 25 ohm driver",
+      "area": "si",
+      "check": "si_bergeron_final_level",
+      "inputs": { "z0_ohm": 50.0, "rs_ohm": 25.0, "rl_ohm": 50.0 },
+      "expected": 0.6666666666666666,
+      "unit": "",
+      "tolerance": { "abs": 1e-12 },
+      "tolerance_note": "chosen here: a divider on exact inputs, so only rounding is accepted",
+      "source": "Ohm's law: the lossless line carries no drop in steady state, so the driver resistance and the load form a divider, RL/(Rs + RL) = 50/75",
+      "status": "cited"
+    },
+    {
+      "id": "ORACLE-SI-006",
+      "title": "Overshoot at an open end of a step driven through Z0/3, from the time stepping",
+      "area": "si",
+      "check": "si_bergeron_overshoot_pct",
+      "inputs": { "z0_ohm": 50.0, "rs_ohm": 16.666666666666668, "td_ps": 1000.0, "tr_ps": 50.0 },
+      "expected": 50.0,
+      "unit": "%",
+      "tolerance": { "abs": 0.5 },
+      "tolerance_note": "chosen here: the voltage at the open end stays at 1.5 V for two delays, so the sampled peak is exact; half a percent leaves room for the rounding of the source resistance",
+      "source": "Lattice (Bergeron) diagram of a 1 V step on a lossless line: the open end sees 1.5 V against a final level of 1 V, an overshoot of 50 percent",
+      "status": "cited"
+    },
+    {
+      "id": "ORACLE-SI-007",
+      "title": "10 to 90 percent rise time of a single pole of 50 ohm and 10 pF",
+      "area": "si",
+      "check": "si_rc_rise_time_ps",
+      "inputs": { "r_ohm": 50.0, "c_pf": 10.0 },
+      "expected": 1098.6122886681098,
+      "unit": "ps",
+      "tolerance": { "rel": 0.002 },
+      "tolerance_note": "chosen here: the check uses the rule 0.35/fc, whose constant is ln 9/(2 pi) = 0.3497, so the gap to the exact value is 0.1 percent; 0.2 percent is accepted",
+      "source": "Exact step response of a single-pole RC, v = 1 - exp(-t/RC): t90 - t10 = RC ln 9, with RC = 500 ps",
+      "status": "cited"
+    },
+    {
+      "id": "ORACLE-SI-008",
+      "title": "Bandwidth of an edge of 350 ps from the rule 0.35/tr against the exact single pole",
+      "area": "si",
+      "check": "si_bandwidth_ghz",
+      "inputs": { "tr_ps": 350.0 },
+      "expected": 0.9991404359030281,
+      "unit": "GHz",
+      "tolerance": { "rel": 0.002 },
+      "tolerance_note": "chosen here: the rule rounds ln 9/(2 pi) = 0.3497 to 0.35, a gap of 0.09 percent; 0.2 percent is accepted",
+      "source": "Single-pole RC: BW = 1/(2 pi RC) and tr = RC ln 9, so BW x tr = ln 9/(2 pi), which is 0.3497 and is written 0.35 in the rule of thumb",
+      "status": "cited"
+    },
+    {
+      "id": "ORACLE-SI-009",
+      "title": "Delay per millimetre of a line of effective permittivity 4",
+      "area": "si",
+      "check": "si_delay_ps_per_mm",
+      "inputs": { "eps_eff": 4.0 },
+      "expected": 6.671281903963041,
+      "unit": "ps/mm",
+      "tolerance": { "rel": 1e-12 },
+      "tolerance_note": "chosen here: a square root of an exact input, so only rounding is accepted",
+      "source": "D. M. Pozar, Microwave Engineering, the microstrip line: the phase velocity is c/sqrt(eps_eff), so the delay is sqrt(eps_eff)/c = 2/299792458 s/m",
+      "status": "cited"
+    },
+    {
+      "id": "ORACLE-SI-101",
+      "title": "Near-end and far-end crosstalk coefficients of weakly coupled lines against a worked example",
+      "area": "si",
+      "source": "H. Johnson and M. Graham, High-Speed Digital Design (1993), the chapter on crosstalk, and C. R. Paul, Analysis of Multiconductor Transmission Lines: Kb = (Cm/C + Lm/L)/4 and Kf = (Cm/C - Lm/L)/2",
+      "status": "pending",
+      "reason": "the books are not at hand, so neither the page of the formulas nor a worked example with numbers can be cited; the formulas are written in the code from memory of them and marked as such"
+    },
+    {
+      "id": "ORACLE-SI-102",
+      "title": "Mutual inductance of two thin wires over a plane by the method of images",
+      "area": "si",
+      "source": "a text on partial inductance or transmission lines that gives Lm = mu0/(4 pi) ln(1 + (2h/d)^2) for two wires at height h and distance d, with a numerical example",
+      "status": "pending",
+      "reason": "no text with a place and a numerical example is at hand; the formula is the one of the images of two thin wires and is not checked against a table or a field solver for flat tracks"
+    },
+    {
+      "id": "ORACLE-SI-103",
+      "title": "Capacitive coupling of two microstrips taken as the inductive one times eps_eff/er",
+      "area": "si",
+      "source": "a two-dimensional field solver or a published table of the capacitance matrix of coupled microstrips",
+      "status": "pending",
+      "reason": "the ratio is an estimate made here and has no source; it needs a field solver or a published capacitance matrix to be compared with, and neither is available in this repository"
+    },
+    {
+      "id": "ORACLE-SI-104",
+      "title": "Slowing of the rise time by the loss of a line against a measured or published case",
+      "area": "si",
+      "source": "H. Johnson and M. Graham, High-Speed Digital Design (1993), the chapters on the skin effect and the dielectric loss, or a measurement with a time-domain reflectometer",
+      "status": "pending",
+      "reason": "the loss is a low-pass of one pole that matches the loss at the bandwidth of the edge and the rise times add in quadrature; both are approximations whose error is not known, and no published case with numbers or measurement is available"
+    },
+    {
+      "id": "ORACLE-SI-105",
+      "title": "Height, width and jitter of the eye of a lossy channel against a published simulation or a measurement",
+      "area": "si",
+      "source": "a published channel simulation or an eye diagram measured on a board of known stack-up and length",
+      "status": "pending",
+      "reason": "the eye is the response of one or two poles to a pseudo-random sequence, without reflections, crosstalk or dispersion; nothing in this repository has been measured, and no published eye with the inputs needed to repeat it is at hand"
+    },
+    {
+      "id": "ORACLE-SI-106",
+      "title": "Quarter-wave resonance of a via stub against a full-wave solution or a measurement",
+      "area": "si",
+      "source": "a full-wave solver or a measured insertion loss of a via with a known stub",
+      "status": "pending",
+      "reason": "the resonance is taken as 1/(4 Td) of the stub with the delay of a barrel set in the settings; the pads and the antipads are not in the model, and there is no reference to compare with"
+    },
+    {
+      "id": "ORACLE-SI-107",
+      "title": "Termination values proposed (series Z0 - Rs, parallel Z0, Thevenin 2 Z0, RC with a time constant of four delays) against a published design guide",
+      "area": "si",
+      "source": "a design guide for terminations that gives the values and the settling they reach for a stated driver and line",
+      "status": "pending",
+      "reason": "the first three values are the usual matching rules, but the time constant of the RC termination is a rule of thumb chosen here and no guide with a place and numbers is at hand"
+    },
+    {
+      "id": "ORACLE-SI-108",
+      "title": "Discontinuity of the return path where a track crosses the edge of the plane under it",
+      "area": "si",
+      "source": "a measurement of the crosstalk or the radiation of a track that crosses a split, or a full-wave solution of it",
+      "status": "pending",
+      "reason": "the crossing is found from the outline of the zone and is only reported, with no estimate of its effect; the fill of the zone with its antipads is not used and nothing has been measured"
+    }
+  ]
+}

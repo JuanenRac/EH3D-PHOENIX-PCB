@@ -26,6 +26,7 @@ pub const BUNDLED: &[(&str, &str)] = &[
         include_str!("../../../tests/oracle/pending.json"),
     ),
     ("rf.json", include_str!("../../../tests/oracle/rf.json")),
+    ("si.json", include_str!("../../../tests/oracle/si.json")),
     ("sim.json", include_str!("../../../tests/oracle/sim.json")),
     (
         "stackup.json",

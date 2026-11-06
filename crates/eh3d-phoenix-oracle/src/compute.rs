@@ -7,6 +7,7 @@ use serde_json::{Map, Value};
 use crate::calc_board;
 use crate::calc_line;
 use crate::calc_netlist;
+use crate::calc_si;
 use crate::calc_sim;
 use crate::case::Case;
 use crate::codes::{OracleError, CALC_FAILED, CHECK_UNKNOWN, INPUT_INVALID};
@@ -100,6 +101,8 @@ pub fn compute(case: &Case) -> Result<f64, OracleError> {
         Some(value)
     } else if let Some(value) = calc_netlist::run(check, &inputs)? {
         Some(value)
+    } else if let Some(value) = calc_si::run(check, &inputs)? {
+        Some(value)
     } else {
         calc_board::run(check, &inputs)?
     };
@@ -136,6 +139,13 @@ pub const CHECKS: &[&str] = &[
     "rf_quarter_wave_impedance",
     "rf_wavelength_m",
     "rules_clearance",
+    "si_bandwidth_ghz",
+    "si_bergeron_final_level",
+    "si_bergeron_load_arrival_v",
+    "si_bergeron_overshoot_pct",
+    "si_delay_ps_per_mm",
+    "si_rc_rise_time_ps",
+    "si_reflection_coefficient",
     "sim_ac",
     "sim_dc",
     "sim_mc",
