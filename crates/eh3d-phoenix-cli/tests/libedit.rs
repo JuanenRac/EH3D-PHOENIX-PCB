@@ -125,6 +125,56 @@ fn operations_make_a_new_library_with_a_copy_of_the_original() {
 }
 
 #[test]
+fn copies_and_moves_of_several_items_make_a_library_that_reads_back() {
+    let (dir, library) = setup();
+    let ops = path_of(dir.path(), "ops.json");
+    fs::write(
+        &ops,
+        r#"[
+          {"op":"copy_package","from":"R0603","to":"R0603_ALT"},
+          {"op":"copy_symbol","from":"R","to":"R_ALT"},
+          {"op":"copy_device_set","from":"R","to":"R_ALT"},
+          {"op":"create_package","name":"PAIR"},
+          {"op":"copy_items","from":{"kind":"package","name":"R0603"},"indices":[0,1],
+           "to":{"kind":"package","name":"PAIR"},"dx":1000000},
+          {"op":"move_items","target":{"kind":"package","name":"R0603_ALT"},"indices":[0,1],
+           "dx":0,"dy":500000},
+          {"op":"set_items_layer","target":{"kind":"package","name":"R0603_ALT"},
+           "indices":[2,3],"layer":26}
+        ]"#,
+    )
+    .unwrap();
+    let out_path = path_of(dir.path(), "out.lbr");
+    let (code, out, err) = call(&["libedit", "--apply", &ops, "--out", &out_path, &library]);
+    assert_eq!(code, 0, "{err}\n{out}");
+    assert!(
+        out.contains("operation 1: copy footprint R0603 to R0603_ALT"),
+        "{out}"
+    );
+    assert!(
+        out.contains("operation 5: copy 2 items of R0603 to PAIR"),
+        "{out}"
+    );
+    assert!(
+        out.contains("operation 6: move 2 items of R0603_ALT"),
+        "{out}"
+    );
+    assert!(
+        out.contains("operation 7: set the layer of 2 items of R0603_ALT"),
+        "{out}"
+    );
+    assert!(out.contains("the file was read back and is the same library"));
+    let written = fs::read_to_string(&out_path).unwrap();
+    assert!(written.contains("<package name=\"R0603_ALT\">"));
+    assert!(written.contains("<symbol name=\"R_ALT\">"));
+    assert!(written.contains("<deviceset name=\"R_ALT\""));
+    // the pads copied into PAIR are 1 mm to the right of the pads they come from (-0.8 and 0.8)
+    assert!(written.contains("x=\"0.2\""), "{written}");
+    assert!(written.contains("x=\"1.8\""), "{written}");
+    assert_eq!(fs::read_to_string(&library).unwrap(), LIBRARY);
+}
+
+#[test]
 fn the_input_is_never_written_over() {
     let (_dir, library) = setup();
     let (code, _, err) = call(&["libedit", "--out", &library, &library]);

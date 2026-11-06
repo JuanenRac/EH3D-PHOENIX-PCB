@@ -94,6 +94,13 @@ pub enum Operation {
         /// Its name.
         name: String,
     },
+    /// Makes a copy of a footprint under another name, with every item it holds.
+    CopyPackage {
+        /// The footprint to copy.
+        from: String,
+        /// The name of the copy.
+        to: String,
+    },
     /// Makes an empty symbol.
     CreateSymbol {
         /// Its name.
@@ -110,6 +117,13 @@ pub enum Operation {
     DeleteSymbol {
         /// Its name.
         name: String,
+    },
+    /// Makes a copy of a symbol under another name, with every item it holds.
+    CopySymbol {
+        /// The symbol to copy.
+        from: String,
+        /// The name of the copy.
+        to: String,
     },
     /// Makes an empty device set.
     CreateDeviceSet {
@@ -130,6 +144,14 @@ pub enum Operation {
     DeleteDeviceSet {
         /// Its name.
         name: String,
+    },
+    /// Makes a copy of a device set under another name, with its gates, devices and connections;
+    /// the copy uses the same symbols and footprints as the original.
+    CopyDeviceSet {
+        /// The device set to copy.
+        from: String,
+        /// The name of the copy.
+        to: String,
     },
     /// Sets the prefix of a device set.
     SetPrefix {
@@ -173,6 +195,54 @@ pub enum Operation {
         /// The shift in x, in nanometres.
         dx: i64,
         /// The shift in y, in nanometres.
+        dy: i64,
+    },
+    /// Moves several drawing items by the same shift, all or none.
+    MoveItems {
+        /// Where.
+        target: Target,
+        /// The places of the items in the list; none may repeat.
+        indices: Vec<usize>,
+        /// The shift in x, in nanometres.
+        dx: i64,
+        /// The shift in y, in nanometres.
+        dy: i64,
+    },
+    /// Puts several drawing items on one layer, all or none. Lines, arcs, rectangles, circles,
+    /// texts and surface-mount pads have a layer; any other item named is refused.
+    SetItemsLayer {
+        /// Where.
+        target: Target,
+        /// The places of the items in the list; none may repeat.
+        indices: Vec<usize>,
+        /// The number of the layer.
+        layer: u32,
+    },
+    /// Gives several lines, arcs and circles the same line width, all or none; any other item
+    /// named is refused.
+    SetItemsWidth {
+        /// Where.
+        target: Target,
+        /// The places of the items in the list; none may repeat.
+        indices: Vec<usize>,
+        /// The width, in nanometres.
+        width: i64,
+    },
+    /// Copies several drawing items, shifted, to the end of the list of a footprint or a symbol
+    /// (the same one or another), all or none. A pad keeps its name, so a copy of a pad into the
+    /// footprint it came from is a name used twice, which the check of the library reports.
+    CopyItems {
+        /// Where the items are.
+        from: Target,
+        /// The places of the items in the list; none may repeat.
+        indices: Vec<usize>,
+        /// Where the copies go; the kind must be the one the items are fit for.
+        to: Target,
+        /// The shift in x, in nanometres.
+        #[serde(default)]
+        dx: i64,
+        /// The shift in y, in nanometres.
+        #[serde(default)]
         dy: i64,
     },
     /// Moves the origin to a point: every item moves the other way.
@@ -287,6 +357,9 @@ impl Operation {
             Operation::CreatePackage { name } => format!("create footprint {name}"),
             Operation::RenamePackage { from, to } => format!("rename footprint {from} to {to}"),
             Operation::DeletePackage { name } => format!("delete footprint {name}"),
+            Operation::CopyPackage { from, to } => format!("copy footprint {from} to {to}"),
+            Operation::CopySymbol { from, to } => format!("copy symbol {from} to {to}"),
+            Operation::CopyDeviceSet { from, to } => format!("copy device set {from} to {to}"),
             Operation::CreateSymbol { name } => format!("create symbol {name}"),
             Operation::RenameSymbol { from, to } => format!("rename symbol {from} to {to}"),
             Operation::DeleteSymbol { name } => format!("delete symbol {name}"),
@@ -307,6 +380,39 @@ impl Operation {
             }
             Operation::MoveItem { target, index, .. } => {
                 format!("move item {index} of {}", target.name)
+            }
+            Operation::MoveItems {
+                target, indices, ..
+            } => {
+                format!("move {} items of {}", indices.len(), target.name)
+            }
+            Operation::SetItemsLayer {
+                target, indices, ..
+            } => {
+                format!(
+                    "set the layer of {} items of {}",
+                    indices.len(),
+                    target.name
+                )
+            }
+            Operation::SetItemsWidth {
+                target, indices, ..
+            } => {
+                format!(
+                    "set the width of {} items of {}",
+                    indices.len(),
+                    target.name
+                )
+            }
+            Operation::CopyItems {
+                from, indices, to, ..
+            } => {
+                format!(
+                    "copy {} items of {} to {}",
+                    indices.len(),
+                    from.name,
+                    to.name
+                )
             }
             Operation::ShiftOrigin { target, .. } => format!("move the origin of {}", target.name),
             Operation::SetOpening { package, pad, .. } => {
@@ -639,6 +745,22 @@ fn index_error(target: &Target, index: usize) -> LibError {
     )
 }
 
+/// Checks the places of several items: at least one, each inside the list and none twice.
+fn check_indices(len: usize, target: &Target, indices: &[usize]) -> Result<(), LibError> {
+    if indices.is_empty() {
+        return Err(err(VALUE_INVALID, "no item is named"));
+    }
+    for (k, index) in indices.iter().enumerate() {
+        if *index >= len {
+            return Err(index_error(target, *index));
+        }
+        if indices[..k].contains(index) {
+            return Err(err(VALUE_INVALID, format!("item {index} is named twice")));
+        }
+    }
+    Ok(())
+}
+
 /// Renames the uses of a footprint in the devices.
 fn rename_package_uses(lib: &mut Library, from: &str, to: &str) {
     for set in lib.devicesets.iter_mut() {
@@ -959,6 +1081,42 @@ pub fn apply_one(lib: &mut Library, op: &Operation) -> Result<(), LibError> {
             }
             lib.packages.remove(i);
         }
+        Operation::CopyPackage { from, to } => {
+            let i = lib
+                .package_index(from)
+                .ok_or_else(|| err(NOT_FOUND, format!("footprint {from}")))?;
+            check_name(to)?;
+            if lib.package_index(to).is_some() {
+                return Err(err(NAME_USED, format!("footprint {to}")));
+            }
+            let mut copy = (*lib.packages[i]).clone();
+            copy.name = to.clone();
+            lib.packages.push(Arc::new(copy));
+        }
+        Operation::CopySymbol { from, to } => {
+            let i = lib
+                .symbol_index(from)
+                .ok_or_else(|| err(NOT_FOUND, format!("symbol {from}")))?;
+            check_name(to)?;
+            if lib.symbol_index(to).is_some() {
+                return Err(err(NAME_USED, format!("symbol {to}")));
+            }
+            let mut copy = (*lib.symbols[i]).clone();
+            copy.name = to.clone();
+            lib.symbols.push(Arc::new(copy));
+        }
+        Operation::CopyDeviceSet { from, to } => {
+            let i = lib
+                .deviceset_index(from)
+                .ok_or_else(|| err(NOT_FOUND, format!("device set {from}")))?;
+            check_name(to)?;
+            if lib.deviceset_index(to).is_some() {
+                return Err(err(NAME_USED, format!("device set {to}")));
+            }
+            let mut copy = (*lib.devicesets[i]).clone();
+            copy.name = to.clone();
+            lib.devicesets.push(Arc::new(copy));
+        }
         Operation::CreateSymbol { name } => {
             check_name(name)?;
             if lib.symbol_index(name).is_some() {
@@ -1068,6 +1226,85 @@ pub fn apply_one(lib: &mut Library, op: &Operation) -> Result<(), LibError> {
                 return Err(index_error(target, *index));
             }
             translate(&mut items[*index], *dx, *dy)?;
+        }
+        Operation::MoveItems {
+            target,
+            indices,
+            dx,
+            dy,
+        } => {
+            let items = items_of(lib, target)?;
+            check_indices(items.len(), target, indices)?;
+            let mut moved = items.clone();
+            for index in indices {
+                translate(&mut moved[*index], *dx, *dy)?;
+            }
+            *items = moved;
+        }
+        Operation::SetItemsLayer {
+            target,
+            indices,
+            layer,
+        } => {
+            let items = items_of(lib, target)?;
+            check_indices(items.len(), target, indices)?;
+            let mut changed = items.clone();
+            for index in indices {
+                match &mut changed[*index] {
+                    Item::Wire(w) => w.layer = *layer,
+                    Item::Rect(r) => r.layer = *layer,
+                    Item::Circle(c) => c.layer = *layer,
+                    Item::Text(t) => t.layer = *layer,
+                    Item::Smd(s) => s.layer = *layer,
+                    other => {
+                        return Err(err(
+                            VALUE_INVALID,
+                            format!("a {} has no layer to set (item {index})", other.kind()),
+                        ))
+                    }
+                }
+                validate_item(target.kind, &changed[*index])?;
+            }
+            *items = changed;
+        }
+        Operation::SetItemsWidth {
+            target,
+            indices,
+            width,
+        } => {
+            let items = items_of(lib, target)?;
+            check_indices(items.len(), target, indices)?;
+            let mut changed = items.clone();
+            for index in indices {
+                match &mut changed[*index] {
+                    Item::Wire(w) => w.width = *width,
+                    Item::Circle(c) => c.width = *width,
+                    other => {
+                        return Err(err(
+                            VALUE_INVALID,
+                            format!("a {} has no line width (item {index})", other.kind()),
+                        ))
+                    }
+                }
+                validate_item(target.kind, &changed[*index])?;
+            }
+            *items = changed;
+        }
+        Operation::CopyItems {
+            from,
+            indices,
+            to,
+            dx,
+            dy,
+        } => {
+            let source = items_of(lib, from)?;
+            check_indices(source.len(), from, indices)?;
+            let mut copies: Vec<Item> = indices.iter().map(|i| source[*i].clone()).collect();
+            for copy in copies.iter_mut() {
+                translate(copy, *dx, *dy)?;
+                validate_item(to.kind, copy)?;
+            }
+            items_of(lib, to)?.extend(copies);
         }
         Operation::ShiftOrigin { target, dx, dy } => {
             in_range("dx", *dx)?;
@@ -1383,6 +1620,265 @@ mod tests {
         assert_eq!(lib.deviceset("R").unwrap().gates[0].symbol, "RES");
         apply_one(&mut lib, &Operation::DeletePackage { name: "NEW".into() }).unwrap();
         assert_eq!(lib.names(Kind::Package), ["R0603_A", "HDR1X2"]);
+    }
+
+    #[test]
+    fn a_copy_of_a_footprint_a_symbol_and_a_device_set_is_independent_of_the_original() {
+        let mut lib = sample();
+        let pads = lib.package("R0603").unwrap().items.len();
+        let pins = lib.symbol("R").unwrap().items.len();
+        let gates = lib.deviceset("R").unwrap().gates.len();
+        let devices = lib.deviceset("R").unwrap().devices.len();
+        for op in [
+            Operation::CopyPackage {
+                from: "R0603".into(),
+                to: "R0603_B".into(),
+            },
+            Operation::CopySymbol {
+                from: "R".into(),
+                to: "R_B".into(),
+            },
+            Operation::CopyDeviceSet {
+                from: "R".into(),
+                to: "R_B".into(),
+            },
+        ] {
+            apply_one(&mut lib, &op).unwrap();
+        }
+        assert_eq!(lib.package("R0603_B").unwrap().items.len(), pads);
+        assert_eq!(lib.symbol("R_B").unwrap().items.len(), pins);
+        let copy = lib.deviceset("R_B").unwrap();
+        assert_eq!((copy.gates.len(), copy.devices.len()), (gates, devices));
+        assert_eq!(copy.gates[0].symbol, "R");
+        // a change to the copy leaves the original alone
+        apply_one(
+            &mut lib,
+            &Operation::RemoveItem {
+                target: pkg("R0603_B"),
+                index: 0,
+            },
+        )
+        .unwrap();
+        assert_eq!(lib.package("R0603_B").unwrap().items.len(), pads - 1);
+        assert_eq!(lib.package("R0603").unwrap().items.len(), pads);
+        assert_eq!(lib.names(Kind::Package), ["R0603", "HDR1X2", "R0603_B"]);
+    }
+
+    /// The x of the item at a place of the list of a footprint, when it has one.
+    fn x_of(lib: &Library, package: &str, index: usize) -> Option<i64> {
+        match lib.package(package)?.items.get(index)? {
+            Item::Smd(s) => Some(s.x),
+            Item::Pad(p) => Some(p.x),
+            Item::Hole(h) => Some(h.x),
+            _ => None,
+        }
+    }
+
+    #[test]
+    fn several_items_move_together_and_none_moves_when_one_is_refused() {
+        let mut lib = sample();
+        // the two pads of the sample footprint are items 0 and 1; they move by 1 mm and 2 mm
+        let (a, b) = (x_of(&lib, "R0603", 0), x_of(&lib, "R0603", 1));
+        assert!(
+            a.is_some() && b.is_some(),
+            "the sample has two pads at the start"
+        );
+        let move_items = |indices: Vec<usize>, dx: i64| Operation::MoveItems {
+            target: pkg("R0603"),
+            indices,
+            dx,
+            dy: 2_000_000,
+        };
+        apply_one(&mut lib, &move_items(vec![0, 1], 1_000_000)).unwrap();
+        assert_eq!(x_of(&lib, "R0603", 0), a.map(|x| x + 1_000_000));
+        assert_eq!(
+            x_of(&lib, "R0603", 1),
+            b.map(|x| x + 1_000_000),
+            "the second item moved as well"
+        );
+        // an item out of the list, a place twice, an empty list and a shift out of the range of
+        // the design are refused, and the library is as it was
+        let before = lib.clone();
+        for (indices, dx, code) in [
+            (vec![0, 99], 1_000_000, NOT_FOUND),
+            (vec![1, 1], 1_000_000, VALUE_INVALID),
+            (vec![], 1_000_000, VALUE_INVALID),
+            (vec![0, 1], 2_000_000_000, VALUE_INVALID),
+        ] {
+            let e = apply_one(&mut lib, &move_items(indices, dx)).unwrap_err();
+            assert_eq!(e.code, code);
+            assert_eq!(lib, before, "nothing moved");
+        }
+    }
+
+    #[test]
+    fn the_layer_and_the_width_of_several_items_are_set_together_or_not_at_all() {
+        let mut lib = sample();
+        // items 0 and 1 are the surface-mount pads, 2 and 3 the lines, 4 and 5 the texts
+        let layers = |lib: &Library| -> Vec<Option<u32>> {
+            lib.package("R0603")
+                .unwrap()
+                .items
+                .iter()
+                .map(|item| match item {
+                    Item::Smd(s) => Some(s.layer),
+                    Item::Wire(w) => Some(w.layer),
+                    Item::Text(t) => Some(t.layer),
+                    _ => None,
+                })
+                .collect()
+        };
+        let widths = |lib: &Library| -> Vec<i64> {
+            lib.package("R0603")
+                .unwrap()
+                .items
+                .iter()
+                .filter_map(|item| match item {
+                    Item::Wire(w) => Some(w.width),
+                    _ => None,
+                })
+                .collect()
+        };
+        let before = layers(&lib);
+        apply_one(
+            &mut lib,
+            &Operation::SetItemsLayer {
+                target: pkg("R0603"),
+                indices: vec![2, 3, 5],
+                layer: 22,
+            },
+        )
+        .unwrap();
+        let after = layers(&lib);
+        assert_eq!(
+            (after[2], after[3], after[5]),
+            (Some(22), Some(22), Some(22))
+        );
+        assert_eq!(
+            (after[0], after[1], after[4]),
+            (before[0], before[1], before[4]),
+            "the items that were not named kept their layer"
+        );
+        apply_one(
+            &mut lib,
+            &Operation::SetItemsWidth {
+                target: pkg("R0603"),
+                indices: vec![2, 3],
+                width: 200_000,
+            },
+        )
+        .unwrap();
+        assert_eq!(widths(&lib), [200_000, 200_000]);
+        // a pad has no width and a polygon (an item that is kept as it came) has no layer to set:
+        // the whole operation is refused and nothing changes
+        let snapshot = lib.clone();
+        for op in [
+            Operation::SetItemsWidth {
+                target: pkg("R0603"),
+                indices: vec![2, 0],
+                width: 100_000,
+            },
+            Operation::SetItemsLayer {
+                target: pkg("R0603"),
+                indices: vec![2, 6],
+                layer: 21,
+            },
+            Operation::SetItemsLayer {
+                target: pkg("R0603"),
+                indices: vec![],
+                layer: 21,
+            },
+            Operation::SetItemsWidth {
+                target: pkg("R0603"),
+                indices: vec![2, 2],
+                width: 100_000,
+            },
+        ] {
+            let e = apply_one(&mut lib, &op).unwrap_err();
+            assert_eq!(e.code, VALUE_INVALID, "{op:?}");
+            assert_eq!(lib, snapshot, "{op:?}");
+        }
+        assert_eq!(
+            Operation::SetItemsWidth {
+                target: pkg("R0603"),
+                indices: vec![2, 3],
+                width: 1
+            }
+            .label(),
+            "set the width of 2 items of R0603"
+        );
+    }
+
+    #[test]
+    fn items_are_copied_shifted_to_the_same_footprint_or_to_another_and_the_kind_is_checked() {
+        let mut lib = sample();
+        let before = lib.package("HDR1X2").unwrap().items.len();
+        let from = lib.package("R0603").unwrap().items.len();
+        let copy_items = |to: Target, dx: i64| Operation::CopyItems {
+            from: pkg("R0603"),
+            indices: vec![0, 1],
+            to,
+            dx,
+            dy: 0,
+        };
+        // to another footprint: two items are added at its end and the source is untouched
+        apply_one(&mut lib, &copy_items(pkg("HDR1X2"), 5_000_000)).unwrap();
+        assert_eq!(lib.package("HDR1X2").unwrap().items.len(), before + 2);
+        assert_eq!(lib.package("R0603").unwrap().items.len(), from);
+        assert_eq!(
+            x_of(&lib, "HDR1X2", before),
+            x_of(&lib, "R0603", 0).map(|x| x + 5_000_000)
+        );
+        // to the same footprint: two more at its end
+        apply_one(&mut lib, &copy_items(pkg("R0603"), 0)).unwrap();
+        assert_eq!(lib.package("R0603").unwrap().items.len(), from + 2);
+        // to a symbol: pads are not fit for a symbol, so nothing is copied
+        let snapshot = lib.clone();
+        let e = apply_one(&mut lib, &copy_items(Target::symbol("R"), 0)).unwrap_err();
+        assert_eq!(e.code, VALUE_INVALID);
+        assert_eq!(lib, snapshot);
+        // a target that is not there
+        let e = apply_one(&mut lib, &copy_items(pkg("NONE"), 0)).unwrap_err();
+        assert_eq!(e.code, NOT_FOUND);
+        assert_eq!(lib, snapshot);
+        assert_eq!(
+            copy_items(pkg("B"), 0).label(),
+            "copy 2 items of R0603 to B"
+        );
+    }
+
+    #[test]
+    fn a_copy_needs_an_original_and_a_new_valid_name_and_changes_nothing_when_refused() {
+        let mut lib = sample();
+        let before = lib.clone();
+        let copy = |from: &str, to: &str| Operation::CopyPackage {
+            from: from.into(),
+            to: to.into(),
+        };
+        let cases = [
+            (copy("NONE", "X"), NOT_FOUND),
+            (copy("R0603", "HDR1X2"), NAME_USED),
+            (copy("R0603", "a b"), NAME_INVALID),
+            (
+                Operation::CopySymbol {
+                    from: "R".into(),
+                    to: "R".into(),
+                },
+                NAME_USED,
+            ),
+            (
+                Operation::CopyDeviceSet {
+                    from: "NONE".into(),
+                    to: "X".into(),
+                },
+                NOT_FOUND,
+            ),
+        ];
+        for (op, code) in cases {
+            assert_eq!(apply_one(&mut lib, &op).unwrap_err().code, code, "{op:?}");
+        }
+        assert_eq!(lib, before);
+        assert_eq!(copy("A", "B").label(), "copy footprint A to B");
     }
 
     #[test]
