@@ -283,3 +283,63 @@ pub fn schematic() -> Schematic {
     }
     s
 }
+
+/// An item of a scene made by hand: its kind, its label, its net and the shape of its primitive.
+pub type HandItem<'a> = (
+    crate::scene::ItemKind,
+    &'a str,
+    Option<u32>,
+    crate::prim::Shape,
+);
+
+/// A scene made by hand: three layers (top copper, bottom copper and the silkscreen of the top),
+/// the nets given by name, and one item for each entry with one primitive on the first layer, in
+/// the kind, with the label, net and shape that the entry gives.
+pub fn scene(nets: &[&str], items: &[HandItem<'_>]) -> crate::scene::Scene {
+    use crate::prim::{Bounds, Prim};
+    use crate::scene::{DocRef, Item, Role, Scene, SceneKind, SceneLayer};
+    let settings = crate::settings::ViewerSettings::default();
+    let layers = [
+        ("Top", Role::TopCopper),
+        ("Bottom", Role::BottomCopper),
+        ("tPlace", Role::SilkTop),
+    ]
+    .into_iter()
+    .map(|(name, role)| SceneLayer {
+        name: name.to_string(),
+        role,
+        colour: settings.colour(role.colour_key()),
+        visible: true,
+    })
+    .collect();
+    let mut bounds = Bounds::EMPTY;
+    let mut scene_items = Vec::new();
+    let mut prims = Vec::new();
+    for (index, (kind, label, net, shape)) in items.iter().enumerate() {
+        scene_items.push(Item {
+            kind: *kind,
+            label: (*label).to_string(),
+            net: *net,
+            doc: DocRef::None,
+        });
+        let prim = Prim {
+            shape: shape.clone(),
+            width: 0.2,
+            filled: true,
+            layer: 0,
+            net: *net,
+            item: index as u32,
+        };
+        bounds = bounds.union(prim.bounds());
+        prims.push(prim);
+    }
+    Scene {
+        kind: SceneKind::Board,
+        layers,
+        nets: nets.iter().map(|n| (*n).to_string()).collect(),
+        items: scene_items,
+        prims,
+        bounds,
+        skipped: 0,
+    }
+}
