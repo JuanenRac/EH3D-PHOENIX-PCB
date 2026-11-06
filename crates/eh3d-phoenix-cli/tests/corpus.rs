@@ -52,7 +52,25 @@ fn the_corpus_of_the_repository_runs_and_every_piece_is_as_expected() {
         "{out}"
     );
     assert!(out.contains("difference 0 | failed 0"), "{out}");
+    // 112 expectations: the 71 that must be read are ok and the 41 that must be refused are
+    // expected errors (docs/CORPUS.md gives the same numbers)
+    assert!(
+        out.contains("corpus: 112 | ok 71 | expected error 41 | difference 0 | failed 0"),
+        "{out}"
+    );
     assert!(err.is_empty(), "{err}");
+}
+
+#[test]
+fn the_list_has_as_many_lines_as_the_corpus_has_expectations() {
+    let (code, all, _) = command(&["corpus", "list", "--dir", &corpus_dir()]);
+    assert_eq!(code, 0);
+    assert_eq!(all.lines().count(), 112, "{all}");
+    assert_eq!(
+        all.lines().filter(|l| l.contains(" | refused | ")).count(),
+        41
+    );
+    assert_eq!(all.lines().filter(|l| l.contains(" | read | ")).count(), 71);
 }
 
 #[test]
