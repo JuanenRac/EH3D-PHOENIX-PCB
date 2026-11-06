@@ -22,7 +22,8 @@
 //! The hierarchy of sheets and the buses of a schematic add `hier`.
 //! The printing of schematics, boards and panels as SVG and PDF adds `print`.
 //! DXF drawings add `dxf-import` (the outline of a board from the contours of a drawing) and
-//! `dxf-export` (a board or a panel as a drawing).
+//! `dxf-export` (a board or a panel as a drawing), and the check of a board against the box of
+//! its enclosure adds `enclosure`.
 //!
 //! Exit codes: 0 done, 1 `stackup` could not compute one or more of the lines it was asked for,
 //! `check`, `connectivity` and `erc` proved an error, or `sync` or `annotate` found changes to
@@ -40,6 +41,7 @@ mod corpus;
 mod design;
 mod dxf_export;
 mod dxf_import;
+mod enclosure;
 mod export;
 mod fabpack;
 mod gerber_check;
@@ -423,6 +425,8 @@ phoenix print <schematic|board|panel> [--kind svg|pdf] [--out FOLDER|FILE] [--pa
 phoenix dxf-import <drawing.dxf> --board BOARD [--layer LAYER] [--join-tolerance-mm N]
                    [--config FILE] [--rules FILE] [--force] [--out FILE.json] [--json] [--lang xx]
 phoenix dxf-export <board|panel> [--out FILE.dxf] [--config FILE] [--silk] [--json] [--lang xx] <file>
+phoenix enclosure <board> --enclosure FILE [--models FILE] [--stackup FILE] [--config FILE]
+                  [--step FILE] [--json] [--lang xx]
 
   dxf-import    the outline of a board from the contours of a DXF drawing: the pieces are joined
                 into closed contours, the outer one becomes the outline and its cutouts are listed
@@ -433,6 +437,11 @@ phoenix dxf-export <board|panel> [--out FILE.dxf] [--config FILE] [--silk] [--js
                 scores, tabs, holes, fiducials) as a DXF drawing on layers with the names of
                 config/dxf.cfg; written only to a new file, a prototype that no CAD program has
                 opened, run `phoenix dxf-export` alone for its options
+  enclosure     the board and its components against the walls, the lid, the floor and the screw
+                posts of an enclosure (a box or an inner contour of a DXF drawing and a height):
+                collisions and least clearances with the codes PHOENIX-ENCL-NNN, and the board as a
+                STEP solid with its holes written only to a new file, a prototype, run
+                `phoenix enclosure` alone for its options
 
 phoenix view [--settings FILE] [--lang xx] [<board or schematic>]
 phoenix view --summary <file>  |  phoenix view --bench
@@ -538,6 +547,9 @@ pub fn run(args: &[String], out: &mut dyn Write, err: &mut dyn Write) -> i32 {
     }
     if let Some((&"dxf-export", tail)) = rest.split_first() {
         return dxf_export::dxf_export_command(tail, out, err);
+    }
+    if let Some((&"enclosure", tail)) = rest.split_first() {
+        return enclosure::enclosure_command(tail, out, err);
     }
     if let Some((&"sim", tail)) = rest.split_first() {
         return sim::sim_command(tail, out, err);

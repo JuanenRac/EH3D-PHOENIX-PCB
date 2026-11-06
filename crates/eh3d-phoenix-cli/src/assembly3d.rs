@@ -106,7 +106,11 @@ fn parse_options(args: &[&str]) -> Result<Options, AssemblyError> {
 }
 
 /// Reads a file that is no larger than `limit` bytes.
-fn read_limited(path: &Path, limit: u64, code: &'static str) -> Result<Vec<u8>, AssemblyError> {
+pub(crate) fn read_limited(
+    path: &Path,
+    limit: u64,
+    code: &'static str,
+) -> Result<Vec<u8>, AssemblyError> {
     let unreadable =
         |e: std::io::Error| AssemblyError::new(code, format!("{}: {e}", path.display()));
     let size = std::fs::metadata(path).map_err(unreadable)?.len();
@@ -119,13 +123,13 @@ fn read_limited(path: &Path, limit: u64, code: &'static str) -> Result<Vec<u8>, 
     std::fs::read(path).map_err(unreadable)
 }
 
-fn read_text_limited(path: &str, limit: u64) -> Result<String, AssemblyError> {
+pub(crate) fn read_text_limited(path: &str, limit: u64) -> Result<String, AssemblyError> {
     let bytes = read_limited(Path::new(path), limit, INPUT_UNREADABLE)?;
     String::from_utf8(bytes)
         .map_err(|_| AssemblyError::new(INPUT_UNREADABLE, format!("{path} is not text")))
 }
 
-fn load_settings(path: Option<&str>) -> Result<AssemblySettings, AssemblyError> {
+pub(crate) fn load_settings(path: Option<&str>) -> Result<AssemblySettings, AssemblyError> {
     let path = path.or_else(|| {
         Path::new(DEFAULT_CONFIG)
             .is_file()
@@ -138,7 +142,7 @@ fn load_settings(path: Option<&str>) -> Result<AssemblySettings, AssemblyError> 
 }
 
 /// Reads the STEP file that the table names, next to the table.
-fn read_model(
+pub(crate) fn read_model(
     folder: &Path,
     name: &str,
     settings: &AssemblySettings,
