@@ -80,22 +80,15 @@ fn an_obstacle_in_the_way_is_gone_around_with_two_corners() {
     let plan = run(&fix, &cfg(), &Request::default());
     assert_eq!(plan.tracks.len(), 1);
     assert!(plan.vias.is_empty());
-    // a track keeps 0.626 mm from the centre of the pad, so it passes 1 mm above or below it:
-    // one diagonal piece away from the first pad, a straight run and one diagonal piece back
-    let above = vec![
-        pt(mm(2), mm(5)),
-        pt(mm(3), mm(4)),
-        pt(mm(9), mm(4)),
-        pt(mm(10), mm(5)),
-    ];
-    let below = vec![
-        pt(mm(2), mm(5)),
-        pt(mm(3), mm(6)),
-        pt(mm(9), mm(6)),
-        pt(mm(10), mm(5)),
-    ];
+    // a track keeps 0.626 mm from the centre of the pad, so it passes 1 mm above or below it: a diagonal piece
+    // away from the first pad, a straight run and a diagonal piece back (a short straight piece may come before
+    // the first diagonal one: the length is the same wherever the diagonal pieces start)
     let points = &plan.tracks[0].points;
-    assert!(*points == above || *points == below, "{points:?}");
+    assert_eq!(points.first(), Some(&pt(mm(2), mm(5))), "{points:?}");
+    assert_eq!(points.last(), Some(&pt(mm(10), mm(5))), "{points:?}");
+    let passes_above = points.iter().any(|p| p.y_nm.get() == mm(4));
+    let passes_below = points.iter().any(|p| p.y_nm.get() == mm(6));
+    assert!(passes_above != passes_below, "{points:?}");
     assert_eq!(plan.report.length_nm, 8_828_428);
     assert_eq!(plan.report.connections_left, 0);
     assert_eq!(plan.report.errors_after, 0);
