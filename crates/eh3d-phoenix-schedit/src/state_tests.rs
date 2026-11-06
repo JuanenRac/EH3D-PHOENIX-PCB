@@ -265,6 +265,8 @@ fn the_transfer_is_a_preview_first_and_the_net_list_is_for_the_simulator() {
         se.netlist(&SimSettings::default()).report.translated.len(),
         2
     );
+    // two resistors with no source and no ground have no operating point to show
+    assert!(se.results(&SimSettings::default()).is_err());
     // a change of the schematic throws a stale package away
     se.plan_transfer(&Board::default(), &SyncSettings::default());
     se.selection.insert(Item::Part(f.r1));

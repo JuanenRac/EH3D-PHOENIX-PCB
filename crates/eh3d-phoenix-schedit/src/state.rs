@@ -12,13 +12,13 @@ use eh3d_phoenix_schematic::{
     orthogonal_path, Applied, Clip, EditError, EditOp, Editor, Id, Item, PinKind, Schematic,
     Symbol, SymbolDef,
 };
-use eh3d_phoenix_sim::SimSettings;
+use eh3d_phoenix_sim::{ModelTable, OpTable, SimError, SimSettings};
 use eh3d_phoenix_sync::{ForwardPackage, SyncSettings};
 
 use crate::hit::{hit, in_rect, snap_target};
 use crate::palette::{Palette, PaletteEntry};
 use crate::settings::SchEditSettings;
-use crate::transfer::{export_netlist, plan_transfer, NetlistExport};
+use crate::transfer::{export_netlist, netlist_results, plan_transfer, NetlistExport};
 
 /// The tool that a click uses.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -745,5 +745,16 @@ impl SchEdit {
     /// The net list of the schematic for the simulator.
     pub fn netlist(&self, settings: &SimSettings) -> NetlistExport {
         export_netlist(self.editor.schematic(), settings)
+    }
+
+    /// The operating point of the schematic, net by net: the voltage of each net and the current of
+    /// each source, as data. The models come from the built-in table.
+    pub fn results(&self, settings: &SimSettings) -> Result<OpTable, SimError> {
+        netlist_results(
+            self.editor.schematic(),
+            &ModelTable::built_in(),
+            None,
+            settings,
+        )
     }
 }

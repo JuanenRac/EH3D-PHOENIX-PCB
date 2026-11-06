@@ -1,13 +1,16 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! What leaves the editor: the transfer of the schematic to a board (a dry run first, as a package
 //! that is previewed and then applied as one step of the history of the board), and the net list
-//! for the simulator.
+//! for the simulator, with the result of the operating point net by net.
 
 use std::collections::BTreeSet;
+use std::path::Path;
 
 use eh3d_phoenix_board::Board;
 use eh3d_phoenix_schematic::{Id, Schematic};
-use eh3d_phoenix_sim::{netlist_from_schematic, to_spice, ExportReport, SimSettings};
+use eh3d_phoenix_sim::{
+    generate_netlist, operating_table, ModelTable, NetlistReport, OpTable, SimError, SimSettings,
+};
 use eh3d_phoenix_sync::{plan_forward, ForwardPackage, SyncSettings};
 
 /// The time stamp of the ids that the transfer makes.
@@ -75,22 +78,36 @@ pub fn plan_transfer(
 }
 
 /// The net list of a schematic for the simulator, as SPICE text, with the report of what could not
-/// be translated.
+/// be translated. It is made by the generator of the simulator crate with its built-in table of
+/// models (`config/sim_models.cfg`).
 #[derive(Debug, Clone, PartialEq)]
 pub struct NetlistExport {
     /// The netlist.
     pub text: String,
-    /// What was translated and what was not.
-    pub report: ExportReport,
+    /// What was translated and what was not, with a code and a severity for each issue.
+    pub report: NetlistReport,
 }
 
 /// Translates a schematic for the simulator.
 pub fn export_netlist(schematic: &Schematic, settings: &SimSettings) -> NetlistExport {
-    let (netlist, report) = netlist_from_schematic(schematic, settings);
+    let generated = generate_netlist(schematic, &ModelTable::built_in(), None, settings);
     NetlistExport {
-        text: to_spice(&netlist),
-        report,
+        text: generated.text,
+        report: generated.report,
     }
+}
+
+/// The operating point of a schematic, net by net (the voltage of each net, the current of each
+/// source), as data for a window or a table. The models come from `table`; the files that the
+/// table includes are looked for in `folder`.
+pub fn netlist_results(
+    schematic: &Schematic,
+    table: &ModelTable,
+    folder: Option<&Path>,
+    settings: &SimSettings,
+) -> Result<OpTable, SimError> {
+    let generated = generate_netlist(schematic, table, None, settings);
+    operating_table(&generated, folder, settings)
 }
 
 #[cfg(test)]
@@ -120,6 +137,84 @@ mod tests {
         let distinct: BTreeSet<Id> = first.iter().copied().collect();
         assert_eq!(distinct.len(), 5);
         assert!(first.iter().all(|id| !f.schematic.parts.contains_key(id)));
+    }
+
+    #[test]
+    fn the_results_of_a_schematic_come_net_by_net() {
+        use eh3d_phoenix_schematic::{NetPin, Part, SchematicNet};
+        let f = fixture();
+        let mut s = f.schematic.clone();
+        let symbol = s.parts[&f.r1].symbol;
+        let pin_of = |number: &str| -> Id {
+            *s.symbols[&symbol]
+                .pins
+                .iter()
+                .find(|(_, pin)| pin.number == number)
+                .map(|(id, _)| id)
+                .unwrap()
+        };
+        let (p1, p2) = (pin_of("1"), pin_of("2"));
+        let id = |n: u16| Id::from_parts(1_800_000_000_001, n, u64::from(n)).unwrap();
+        let v1 = id(1);
+        s.parts.insert(
+            v1,
+            Part {
+                refdes: "V1".into(),
+                value: "10".into(),
+                symbol,
+                footprint: None,
+                placement: None,
+            },
+        );
+        for net in s.nets.values_mut() {
+            net.name = "OUT".into();
+        }
+        let mut pins_in = vec![
+            NetPin { part: v1, pin: p1 },
+            NetPin {
+                part: f.r1,
+                pin: p1,
+            },
+        ];
+        pins_in.sort();
+        s.nets.insert(
+            id(2),
+            SchematicNet {
+                name: "IN".into(),
+                pins: pins_in,
+            },
+        );
+        let mut pins_gnd = vec![
+            NetPin { part: v1, pin: p2 },
+            NetPin {
+                part: f.r2,
+                pin: p2,
+            },
+        ];
+        pins_gnd.sort();
+        s.nets.insert(
+            id(3),
+            SchematicNet {
+                name: "GND".into(),
+                pins: pins_gnd,
+            },
+        );
+        let settings = SimSettings::default();
+        let table = netlist_results(&s, &ModelTable::built_in(), None, &settings).unwrap();
+        let volts = |net: &str| table.voltages.iter().find(|v| v.net == net).unwrap().volts;
+        // two resistors of 10 kohm in series across 10 V
+        assert!((volts("OUT") - 5.0).abs() < 1e-9);
+        assert!((volts("IN") - 10.0).abs() < 1e-9);
+        assert_eq!(volts("GND"), 0.0);
+        assert_eq!(table.currents.len(), 1);
+        assert_eq!(table.currents[0].refdes, "V1");
+        assert!((table.currents[0].amps + 0.5e-3).abs() < 1e-9);
+        // the text of the net list comes from the same generator and is clean
+        let export = export_netlist(&s, &settings);
+        assert!(export.report.is_clean(), "{:?}", export.report.issues);
+        assert!(export.text.contains("V1 in 0 "));
+        // the schematic of the fixture alone has no ground and no source
+        assert!(netlist_results(&f.schematic, &ModelTable::built_in(), None, &settings).is_err());
     }
 
     #[test]
