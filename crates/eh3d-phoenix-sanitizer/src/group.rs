@@ -496,7 +496,7 @@ pub fn group_device_sets(
     for (i, lib) in libs.iter().enumerate() {
         let Some(data) = &lib.data else { continue };
         for set in &data.devicesets {
-            let mut floor = 100;
+            let mut floor: u32 = 100;
             for g in &set.gates {
                 if let Some(v) = symbol_scores.get(&(lib.path.clone(), g.1.clone())) {
                     floor = floor.min(*v);
