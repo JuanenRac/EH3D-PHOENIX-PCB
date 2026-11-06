@@ -20,23 +20,32 @@ use eh3d_phoenix_erc::{check, ErcConfig};
 use eh3d_phoenix_model::ObjectId;
 use eh3d_phoenix_rules::Lang;
 use eh3d_phoenix_schematic::Schematic;
-use eh3d_phoenix_sync::{plan_backward, plan_forward, SchematicHistory, SyncSettings};
+use eh3d_phoenix_sync::{compare, plan_backward, plan_forward, SchematicHistory, SyncSettings};
 
 use crate::check::{id_source, read_text};
 
 pub(crate) const USAGE: &str = "\
-phoenix erc [--config FILE] [--json] [--lang CODE] <schematic> [<board>]
+phoenix erc [--config FILE] [--json] [--lang CODE] [--advanced] [--severity RULE=LEVEL]
+            [--matrix KIND.KIND=LEVEL] [--power-flag NET] <schematic> [<board>]
 
   erc           the electrical rule check of a schematic (an EAGLE .sch file or the JSON of the
                 design model): pins on no net, nets with one pin, pin types that the matrix does not
                 allow together, inputs with no driver, supplies with no source, net names that look
                 alike, references used twice, empty values, parts without a footprint and loose
-                wires. How serious each rule is and the matrix of pin types come from FILE
-                (config/erc.cfg). The board, when given, is only used to know the footprints of a
-                .sch file. The report keeps confirmed and inconclusive findings apart
+                wires, nets that nothing drives, power inputs of chips without a decoupling
+                capacitor near them, net names that may be typing mistakes and labels that touch
+                nothing. How serious each rule is and the matrix of pin types come from FILE
+                (config/erc.cfg). --advanced turns on the rules that are off by default (nets
+                without a driver, decoupling), --severity RULE=LEVEL (off, info, warning or error)
+                and --matrix KIND.KIND=LEVEL (ok, info, warning or error) change one line of the
+                settings, and --power-flag NET declares a net as supplied from outside; all can be
+                repeated and win over the file. The board, when given, is only used to know the
+                footprints of a .sch file. The report keeps confirmed and inconclusive findings
+                apart
 
 phoenix sync [--config FILE] [--json | --package] [--lang CODE] [--backward]
              [--apply --out FILE] <schematic> <board>
+phoenix sync --diff [--json] [--lang CODE] <schematic> <board>
 
   sync          compare a schematic and a board by the identity of their parts and show what the
                 transfer would change on the board (new parts, parts that are gone, references,
@@ -44,7 +53,10 @@ phoenix sync [--config FILE] [--json | --package] [--lang CODE] [--backward]
                 the annotation back into the schematic instead. --apply writes the result to
                 --out (a .json file of the design model, or .brd / .sch for EAGLE); an input file
                 is never overwritten. --package prints the package of changes as JSON. The
-                settings come from FILE (config/sync.cfg)
+                settings come from FILE (config/sync.cfg). --diff compares the two documents in
+                both directions at once and lists the differences (parts, values, footprints,
+                references, nets, pins on no net, nets with other pins) and the conflicts, in a
+                fixed order; exit 1 when they differ
 
   --json        print the report as JSON. --lang CODE writes the text in en, es, de, fr, it, ja,
                 zh or pt. Exit code of erc: 0 no error proven, 1 an error is proven, 2 unusable
@@ -57,11 +69,20 @@ struct Options {
     package: bool,
     backward: bool,
     apply: bool,
+    diff: bool,
     lang: Lang,
     config: Option<String>,
     out: Option<String>,
+    /// Lines of the settings of the electrical rule check given on the command line.
+    erc_lines: Vec<String>,
+    /// Nets declared as supplied from outside, for the electrical rule check.
+    power_flags: Vec<String>,
     files: Vec<String>,
 }
+
+/// The lines of the settings that `--advanced` adds: the rules that are off by default.
+const ADVANCED: &str =
+    "severity.net_without_driver = warning\nseverity.missing_decoupling = warning";
 
 fn parse_options(args: &[&str]) -> Result<Options, String> {
     let mut options = Options {
@@ -69,9 +90,12 @@ fn parse_options(args: &[&str]) -> Result<Options, String> {
         package: false,
         backward: false,
         apply: false,
+        diff: false,
         lang: Lang::En,
         config: None,
         out: None,
+        erc_lines: Vec::new(),
+        power_flags: Vec::new(),
         files: Vec::new(),
     };
     let mut iter = args.iter();
@@ -81,6 +105,28 @@ fn parse_options(args: &[&str]) -> Result<Options, String> {
             "--package" => options.package = true,
             "--backward" => options.backward = true,
             "--apply" => options.apply = true,
+            "--diff" => options.diff = true,
+            "--advanced" => options.erc_lines.push(ADVANCED.to_owned()),
+            "--severity" => {
+                let pair = iter.next().ok_or("--severity needs RULE=LEVEL")?;
+                let (rule, level) = pair.split_once('=').ok_or("--severity needs RULE=LEVEL")?;
+                options
+                    .erc_lines
+                    .push(format!("severity.{} = {}", rule.trim(), level.trim()));
+            }
+            "--matrix" => {
+                let pair = iter.next().ok_or("--matrix needs KIND.KIND=LEVEL")?;
+                let (kinds, level) = pair
+                    .split_once('=')
+                    .ok_or("--matrix needs KIND.KIND=LEVEL")?;
+                options
+                    .erc_lines
+                    .push(format!("matrix.{} = {}", kinds.trim(), level.trim()));
+            }
+            "--power-flag" => {
+                let net = iter.next().ok_or("--power-flag needs a net name")?;
+                options.power_flags.push((*net).to_owned());
+            }
             "--lang" => {
                 let tag = iter.next().ok_or("--lang needs a language code")?;
                 options.lang = Lang::from_tag(tag).ok_or("unknown language code")?;
@@ -117,7 +163,10 @@ pub(crate) fn has_extension(path: &str, wanted: &str) -> bool {
         .is_some_and(|e| e.eq_ignore_ascii_case(wanted))
 }
 
-fn load_board(path: &str, new_id: &mut dyn FnMut() -> ObjectId) -> Result<Board, String> {
+pub(crate) fn load_board(
+    path: &str,
+    new_id: &mut dyn FnMut() -> ObjectId,
+) -> Result<Board, String> {
     if has_extension(path, "kicad_pcb") {
         return crate::kicad_import::read_kicad_board(path, new_id);
     }
@@ -149,7 +198,7 @@ pub(crate) fn load_schematic(
     }
 }
 
-fn footprint_names(board: Option<&Board>) -> BTreeMap<String, ObjectId> {
+pub(crate) fn footprint_names(board: Option<&Board>) -> BTreeMap<String, ObjectId> {
     board
         .map(|b| {
             b.footprints
@@ -242,6 +291,15 @@ pub(crate) fn erc(args: &[&str], out: &mut dyn Write, err: &mut dyn Write) -> i3
         },
         None => ErcConfig::default(),
     };
+    let mut config = config;
+    for line in options.erc_lines.iter().flat_map(|text| text.lines()) {
+        if let Err(error) = config.merge(line) {
+            return fail(err, &format!("{line}: {error}"));
+        }
+    }
+    config
+        .power_flags
+        .extend(options.power_flags.iter().cloned());
     let mut new_id = match id_source() {
         Ok(source) => source,
         Err(message) => return fail(err, &message),
@@ -287,6 +345,18 @@ pub(crate) fn sync(args: &[&str], out: &mut dyn Write, err: &mut dyn Write) -> i
     let [schematic_path, board_path] = options.files.as_slice() else {
         return usage(err);
     };
+    if !options.erc_lines.is_empty() || !options.power_flags.is_empty() {
+        return fail(
+            err,
+            "--advanced, --severity, --matrix and --power-flag are options of erc",
+        );
+    }
+    if options.diff && (options.apply || options.package || options.backward) {
+        return fail(
+            err,
+            "--diff only compares: it does not go with --apply, --package or --backward",
+        );
+    }
     if options.apply && options.out.is_none() {
         return fail(
             err,
@@ -320,6 +390,17 @@ pub(crate) fn sync(args: &[&str], out: &mut dyn Write, err: &mut dyn Write) -> i
             Ok(schematic) => schematic,
             Err(message) => return fail(err, &message),
         };
+
+    if options.diff {
+        let report = compare(&schematic, &board);
+        let text = if options.json {
+            report.to_json()
+        } else {
+            report.to_text(options.lang)
+        };
+        let _ = out.write_all(text.as_bytes());
+        return i32::from(!report.in_sync());
+    }
 
     let (pending, text, written) = if options.backward {
         let package = plan_backward(&schematic, &board, &settings);

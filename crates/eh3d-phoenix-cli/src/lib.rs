@@ -11,15 +11,18 @@
 //! the reference cases of the calculations adds `oracle`.
 //! The writing of boards, schematics and libraries as KiCad 8 files adds `kicad-export`.
 //! The simulation netlist of a schematic, made from a table of models, adds `netlist`.
+//! The annotation back into the schematic, as a plan that is read before it is applied, adds
+//! `annotate`.
 //! The own library of footprints by the method of IPC-7351B adds `ipc`, and the bulk import of
 //! EAGLE and KiCad libraries into an index adds `libindex`.
 //!
 //! Exit codes: 0 done, 1 `stackup` could not compute one or more of the lines it was asked for,
-//! `check`, `connectivity` and `erc` proved an error, or `sync` found changes to make, 2 the
-//! arguments or the input are unusable.
+//! `check`, `connectivity` and `erc` proved an error, or `sync` or `annotate` found changes to
+//! make, 2 the arguments or the input are unusable.
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
+mod annotate;
 mod assembly3d;
 mod autoroute;
 mod boardedit;
@@ -94,16 +97,25 @@ phoenix connectivity [--rules FILE] [--json] [--lang xx] <schematic.sch> <board.
   connectivity  shorts and unrouted nets of the board, and the board against the schematic
                 (exit 1 when an error is proven; the report keeps confirmed and inconclusive apart)
 
-phoenix erc [--config FILE] [--json] [--lang xx] <schematic> [<board>]
+phoenix erc [--config FILE] [--json] [--lang xx] [--advanced] [--severity RULE=LEVEL] [--matrix KIND.KIND=LEVEL] [--power-flag NET] <schematic> [<board>]
 phoenix sync [--config FILE] [--json | --package] [--lang xx] [--backward] [--apply --out FILE] <schematic> <board>
+phoenix sync --diff [--json] [--lang xx] <schematic> <board>
+phoenix annotate [--config FILE] [--json] [--lang xx] [--renumber] [--apply --confirm CODE --out FILE [--board-out FILE]] <schematic> <board>
 
   erc           the electrical rule check of a schematic (pins on no net, pin types by a matrix in a
                 settings file, inputs without a driver, supplies without a source, net names that
                 look alike, references used twice, empty values, parts without a footprint, loose
-                wires); the report keeps confirmed and inconclusive findings apart
+                wires, nets that nothing drives, decoupling of chip power pins, typing mistakes in
+                net names, labels that touch nothing); the report keeps confirmed and inconclusive
+                findings apart
   sync          what the transfer of the schematic to the board (or, with --backward, the annotation
                 back into the schematic) would change, by the identity of the parts; a dry run
-                unless --apply writes the result to --out, and an input file is never overwritten
+                unless --apply writes the result to --out, and an input file is never overwritten;
+                --diff lists the differences and conflicts of the two documents in both directions
+  annotate      the annotation back into the schematic as a plan read before it is applied
+                (references, renumbering by position, values, footprints, swaps of equivalent
+                pins and gates); each change has a state and the plan a confirmation code; --apply
+                needs the code and writes a NEW file, never an input or a file that exists
 
 phoenix export [--profile NAME] [--profiles FILE] [--lang xx] [--eh3dproj FILE] --out <folder> <board>
 
@@ -376,6 +388,9 @@ pub fn run(args: &[String], out: &mut dyn Write, err: &mut dyn Write) -> i32 {
     }
     if let Some((&"sync", tail)) = rest.split_first() {
         return design::sync(tail, out, err);
+    }
+    if let Some((&"annotate", tail)) = rest.split_first() {
+        return annotate::annotate(tail, out, err);
     }
     if let Some((&"export", tail)) = rest.split_first() {
         return export::export(tail, out, err);
