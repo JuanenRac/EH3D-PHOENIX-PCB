@@ -1040,6 +1040,22 @@ The titles of these codes also exist in the eight languages of the suite (`TITLE
 | PHOENIX-3D-017 | A limit of the assembly was exceeded | more components than `max_components`, more entities in a STEP file than `max_step_entities`, or more findings of one kind than `max_findings` (the rest are counted, not listed) |
 | PHOENIX-3D-018 | The export is a simplified model | information: the OBJ and STEP files hold boxes and the prism of the board, not the copper, the pads, the holes or the real shape of the parts |
 
+## Printing (`eh3d-phoenix-print`, `src/codes.rs`)
+
+The titles of these codes also exist in the eight languages of the suite (`TITLES` in `src/codes.rs`); the detail of a message is in English. Every code is an error except PHOENIX-PRINT-007, a warning.
+
+| Code | Title | Raised by |
+|---|---|---|
+| PHOENIX-PRINT-001 | Print settings are not valid | a line of `config/print.cfg` that is not `key = value`, an unknown key, a colour that is not `#rrggbb` or `#rrggbbaa`, a value out of range, or a margin and a title block that leave no room on the paper |
+| PHOENIX-PRINT-002 | Paper size is not valid | a paper that is not `A4`, `A3`, `Letter` or `WIDTHxHEIGHT` with each side from 50 to 5000 mm, or a paper too small for the border and the title block |
+| PHOENIX-PRINT-003 | The drawing does not fit the paper at that scale | a scale given in the settings or with `--scale` at which the drawing is larger than the room inside the border |
+| PHOENIX-PRINT-004 | Nothing to print | a document without pages, or a choice of layers (`layers`, `--layers`) that holds nothing on a page |
+| PHOENIX-PRINT-005 | The output may not be written there | an output that exists, a file name that does not end in the extension of the format, or several files asked for one file |
+| PHOENIX-PRINT-006 | The file could not be written | a folder or a file that the system refuses to create |
+| PHOENIX-PRINT-007 | Text drawn as boxes in the PDF (use SVG) | warning: characters that Helvetica and Courier cannot show (Japanese and Chinese text) are drawn as empty boxes in a PDF; the SVG shows them |
+| PHOENIX-PRINT-008 | The PDF written failed its own check | a PDF whose table of offsets, lengths of streams, tree of pages or content the reader of the crate does not accept (a defect of the writer) |
+| PHOENIX-PRINT-009 | Print option is not valid | an option of `phoenix print` that is unknown, has no value or a value that is not valid, or a document that is not of the kind asked |
+
 ## Reference cases (`eh3d-phoenix-oracle`, `src/codes.rs`)
 
 | Code | Title | Raised by |

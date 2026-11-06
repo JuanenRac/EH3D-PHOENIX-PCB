@@ -1,0 +1,14 @@
+[package]
+name = "eh3d-phoenix-print"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Printing of schematics, boards and panels (prototype): a drawing of lines, polygons, circles and text in millimetres, a page with a frame, a title block and a scale bar, written as SVG and as a minimal PDF made by hand, the same every time, with its own reader that checks the tables of a PDF, the settings of a file and the texts in the eight languages"
+
+[dependencies]
+eh3d-phoenix-rules = { path = "../eh3d-phoenix-rules" }
+
+[dev-dependencies]
+tempfile.workspace = true
