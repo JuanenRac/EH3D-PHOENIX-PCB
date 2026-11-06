@@ -1018,7 +1018,7 @@ impl Raster {
                 }
             }
             crossings.sort_by(f64::total_cmp);
-            for pair in crossings.chunks_exact(2) {
+            for pair in crossings.as_chunks::<2>().0 {
                 let from = ((pair[0] - self.origin.x) / self.cell - 0.5).ceil();
                 let to = ((pair[1] - self.origin.x) / self.cell - 0.5).floor();
                 if to < 0.0 || from > (self.width - 1) as f64 {
