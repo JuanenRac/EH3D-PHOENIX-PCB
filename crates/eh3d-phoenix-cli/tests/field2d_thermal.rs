@@ -141,12 +141,13 @@ fn the_field_solver_refuses_what_it_cannot_use_and_never_replaces_a_file() {
     let (code, _, err) = call(&["field2d", text_of(&job), "--out", text_of(&existing)]);
     assert_eq!(code, 2);
     assert!(err.contains("PHOENIX-FIELD-007"), "{err}");
-    assert_eq!(fs::read_to_string(&existing).unwrap(), "kept");
+    assert_eq!(fs::read_to_string(existing.as_path()).unwrap(), "kept");
     let target = dir.path().join("new.json");
     let (code, text, _) = call(&["field2d", text_of(&job), "--out", text_of(&target)]);
     assert_eq!(code, 0);
     assert!(text.contains("written:"), "{text}");
-    let written: Value = serde_json::from_str(&fs::read_to_string(&target).unwrap()).unwrap();
+    let written: Value =
+        serde_json::from_str(&fs::read_to_string(target.as_path()).unwrap()).unwrap();
     assert_eq!(written["format"], "phoenix-field2d/1");
 }
 
@@ -244,5 +245,5 @@ fn the_thermal_command_refuses_what_it_cannot_use_and_never_replaces_a_file() {
     ]);
     assert_eq!(code, 2);
     assert!(err.contains("PHOENIX-HEAT-010"), "{err}");
-    assert_eq!(fs::read_to_string(&existing).unwrap(), "kept");
+    assert_eq!(fs::read_to_string(existing.as_path()).unwrap(), "kept");
 }

@@ -389,7 +389,7 @@ mod tests {
         assert_eq!(coarse, 3);
         // a tolerance as large as the radius leaves the straight cut across the corner
         let chamfer = fillet(sq[3], sq[0], sq[1], MM, MM).unwrap();
-        assert_eq!(chamfer.points, vec![(0, MM), (MM, 0)]);
+        assert_eq!(chamfer.points, [(0, MM), (MM, 0)]);
     }
 
     #[test]
@@ -425,12 +425,12 @@ mod tests {
     fn an_acute_and_an_obtuse_corner_are_cut_where_the_geometry_says() {
         // the triangle (0,0), (10 mm, 0), (10 mm, 4.142136 mm) has 22.5 degrees at the origin:
         // t = r cot(11.25 degrees) = 5.0273 r
-        let tri = vec![(0, 0), (10 * MM, 0), (10 * MM, 4_142_136)];
+        let tri = [(0, 0), (10 * MM, 0), (10 * MM, 4_142_136)];
         let f = fillet(tri[2], tri[0], tri[1], 500_000, 1000).unwrap();
         assert_eq!(f.last, (2_513_670, 0));
         assert_eq!(f.first, (2_322_328, 961_940));
         // the pentagon has 135 degrees at (10 mm, 0): t = r cot(67.5 degrees) = 0.4142 r
-        let pent = vec![
+        let pent = [
             (0, 0),
             (10 * MM, 0),
             (15 * MM, 5 * MM),
@@ -446,7 +446,7 @@ mod tests {
     fn a_corner_that_is_flat_or_turns_the_wrong_way_is_not_rounded() {
         // a straight line, a reflex corner of a counter-clockwise polygon, a radius of zero
         assert!(fillet((0, 0), (MM, 0), (2 * MM, 0), MM, 1000).is_none());
-        let l_shape = vec![
+        let l_shape = [
             (0, 0),
             (10 * MM, 0),
             (10 * MM, 5 * MM),

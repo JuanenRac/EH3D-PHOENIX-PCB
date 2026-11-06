@@ -206,9 +206,7 @@ pub fn section_from_stackup(
         _ if pair => 2.0 * w_m + gap,
         _ => w_m,
     };
-    let domain: Rect;
-    let y_track: f64;
-    match spec.kind {
+    let (domain, y_track) = match spec.kind {
         LineKind::Stripline | LineKind::DifferentialStripline => {
             if up.slabs.is_empty() || down.slabs.is_empty() || !up.reference || !down.reference {
                 return Err(refused(
@@ -218,9 +216,8 @@ pub fn section_from_stackup(
             let height = total(&up.slabs) + t_m + total(&down.slabs);
             let half = span / 2.0 + factor * (height + span);
             let y_below = stack(down.slabs.iter().rev(), 0.0, half, &mut blocks);
-            y_track = y_below;
             let y_top = stack(up.slabs.iter(), y_below + t_m, half, &mut blocks);
-            domain = Rect::new(-half, half, 0.0, y_top);
+            (Rect::new(-half, half, 0.0, y_top), y_below)
         }
         _ => {
             let (substrate, open) = match (up.slabs.is_empty(), down.slabs.is_empty()) {
@@ -259,10 +256,12 @@ pub fn section_from_stackup(
                 ));
             }
             let y_substrate = stack(substrate.slabs.iter().rev(), base, half, &mut blocks);
-            y_track = y_substrate;
-            domain = Rect::new(-half, half, 0.0, y_substrate + t_m + margin);
+            (
+                Rect::new(-half, half, 0.0, y_substrate + t_m + margin),
+                y_substrate,
+            )
         }
-    }
+    };
     let band = (y_track, y_track + t_m);
     let half = domain.x1;
     match (spec.kind, gap_m) {

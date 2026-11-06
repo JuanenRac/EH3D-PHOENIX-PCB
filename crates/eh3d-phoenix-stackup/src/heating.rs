@@ -628,8 +628,7 @@ fn finish(
         ipc2221_rise_k(area_mil2, current_a, placement, settings)
     };
     let in_range = current_a == 0.0
-        || (ipc >= settings.ipc_min_rise_k
-            && ipc <= settings.ipc_max_rise_k
+        || ((settings.ipc_min_rise_k..=settings.ipc_max_rise_k).contains(&ipc)
             && current_a <= settings.ipc_max_current_a);
     let capacity = ipc2221_current_a(area_mil2, settings.max_rise_k, placement, settings);
     let (convection, note) = if with_convection {
