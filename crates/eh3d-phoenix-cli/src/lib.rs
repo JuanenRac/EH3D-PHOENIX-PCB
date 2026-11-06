@@ -11,6 +11,8 @@
 //! the reference cases of the calculations adds `oracle`.
 //! The writing of boards, schematics and libraries as KiCad 8 files adds `kicad-export`.
 //! The simulation netlist of a schematic, made from a table of models, adds `netlist`.
+//! The own library of footprints by the method of IPC-7351B adds `ipc`, and the bulk import of
+//! EAGLE and KiCad libraries into an index adds `libindex`.
 //!
 //! Exit codes: 0 done, 1 `stackup` could not compute one or more of the lines it was asked for,
 //! `check`, `connectivity` and `erc` proved an error, or `sync` found changes to make, 2 the
@@ -27,6 +29,7 @@ mod design;
 mod export;
 mod gerber_check;
 mod gerber_import;
+mod ipclib;
 mod kicad;
 mod kicad_export;
 mod kicad_import;
@@ -270,6 +273,22 @@ phoenix footprint <family> [--param NAME=VALUE ...] [--config FILE] [--into LIBR
                 method of IPC-7351B with the values of config/footprints.cfg, a prototype that is
                 not checked against a datasheet (run either command alone for its options)
 
+phoenix ipc list|show|generate|check|compare ...
+phoenix libindex <folder> [--json] [--out INDEX.json] [--config FILE] [--lang xx]
+
+  ipc           the own library of footprints by the method of IPC-7351B: families (chip, MELF,
+                SOD, SOT, SOIC, SSOP, TSSOP, QFN, DFN, QFP, BGA, DIP, headers and connectors)
+                with their dimensions in data files, three density levels and the canonical
+                names (RESC1608X55N, SOIC127P600X175-8N); list, show, generate (a dry run unless
+                --out names a new .lbr or .kicad_mod file), check the library and compare a
+                footprint of yours with the generated one as a report; the dimensions are a
+                prototype, not checked against a datasheet (run `phoenix ipc` alone for its
+                options)
+  libindex      walk a folder of EAGLE (.lbr) and KiCad (.kicad_mod, .kicad_sym) libraries, judge
+                every footprint and symbol and make a deterministic index, phoenix-libindex/1,
+                with the hash of each item, without copying the files; a dry run unless --out
+                names a new file, a prototype
+
 phoenix zones fill [--config FILE] [--rules FILE] [--zones FILE] [--out FILE] [--json]
                    [--lang xx] <board>
 phoenix zones check [--config FILE] [--rules FILE] [--zones FILE] [--fill FILE] [--json]
@@ -420,6 +439,12 @@ pub fn run(args: &[String], out: &mut dyn Write, err: &mut dyn Write) -> i32 {
     }
     if let Some((&"libedit", tail)) = rest.split_first() {
         return libedit::libedit_command(tail, out, err);
+    }
+    if let Some((&"ipc", tail)) = rest.split_first() {
+        return ipclib::ipc_command(tail, out, err);
+    }
+    if let Some((&"libindex", tail)) = rest.split_first() {
+        return ipclib::libindex_command(tail, out, err);
     }
     if let Some((&"footprint", tail)) = rest.split_first() {
         return libedit::footprint_command(tail, out, err);
