@@ -14,6 +14,7 @@ gui = ["dep:eframe", "dep:png"]
 
 [dependencies]
 eh3d-phoenix-assembly3d = { path = "../eh3d-phoenix-assembly3d" }
+eh3d-phoenix-autoroute = { path = "../eh3d-phoenix-autoroute" }
 eh3d-phoenix-board = { path = "../eh3d-phoenix-board" }
 eh3d-phoenix-boardedit = { path = "../eh3d-phoenix-boardedit" }
 eh3d-phoenix-eagle-board = { path = "../eh3d-phoenix-eagle-board" }

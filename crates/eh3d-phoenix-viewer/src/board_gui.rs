@@ -13,6 +13,7 @@ use eh3d_phoenix_model::Point;
 use eh3d_phoenix_route::copper_layers;
 use eh3d_phoenix_rules::{Lang, Severity};
 
+use crate::board_autoroute::AutorouteTool;
 use crate::board_pair::PairTool;
 use crate::board_shove::ShoveTool;
 use crate::board_text::BoardMsg;
@@ -49,6 +50,7 @@ pub struct BoardEditUi {
     pair: PairTool,
     shove: ShoveTool,
     zone: ZoneTool,
+    autoroute: AutorouteTool,
 }
 
 /// Where a point of the drawing is on the screen, and back.
@@ -137,6 +139,7 @@ pub fn start(workspace: &Workspace) -> Option<BoardEditUi> {
         pair: PairTool::default(),
         shove: ShoveTool::default(),
         zone: ZoneTool::default(),
+        autoroute: AutorouteTool::with_config(crate::board_autoroute::load_config()),
     })
 }
 
@@ -215,6 +218,7 @@ impl BoardEditUi {
 /// The keys the editor answers to, read once per frame.
 #[derive(Default)]
 struct Keys {
+    a: bool,
     v: bool,
     p: bool,
     t: bool,
@@ -239,6 +243,7 @@ fn read_keys(ctx: &egui::Context) -> Keys {
         return Keys::default();
     }
     ctx.input(|i| Keys {
+        a: i.key_pressed(egui::Key::A),
         v: i.key_pressed(egui::Key::V),
         p: i.key_pressed(egui::Key::P),
         t: i.key_pressed(egui::Key::T),
@@ -274,6 +279,10 @@ fn apply_keys(st: &mut BoardEditUi, keys: &Keys) {
     }
     if keys.escape {
         st.state.cancel();
+        st.autoroute.clear();
+    }
+    if keys.a {
+        st.autoroute.key(&mut st.state, keys.shift);
     }
     if keys.space {
         st.state.horizontal_first = !st.state.horizontal_first;
@@ -420,6 +429,7 @@ pub fn canvas(
     }
     crate::board_pair_gui::draw(&painter, &st.pair, &|p: Point| view.at(p));
     crate::board_shove_gui::draw(&painter, &st.shove, &|p: Point| view.at(p));
+    crate::board_autoroute_gui::draw(&painter, &st.autoroute, &st.state, &|p: Point| view.at(p));
     crate::board_zone_gui::draw(&painter, &st.zone, &|p: Point| view.at(p));
     if let Some((a, b)) = st.state.marquee {
         let corners = vec![
@@ -790,6 +800,7 @@ pub fn tools_panel(ui: &mut egui::Ui, st: &mut BoardEditUi, lang: Lang) -> bool 
     }
     crate::board_pair_gui::panel(ui, &mut st.pair, &mut st.state, lang);
     crate::board_shove_gui::panel(ui, &mut st.shove, &mut st.state, lang);
+    crate::board_autoroute_gui::panel(ui, &mut st.autoroute, &mut st.state, lang);
     crate::board_zone_gui::panel(ui, &mut st.zone, &mut st.state, lang);
 
     ui.separator();

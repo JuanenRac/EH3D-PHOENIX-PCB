@@ -45,6 +45,11 @@
 //!   chosen, the points of the new track, the preview of the tracks that the push would move, and
 //!   the acceptance of the push as one step of the editor) and its texts in the eight languages
 //!   (the section of the panel is in `board_shove_gui`, behind the `gui` feature);
+//! * [`board_autoroute`] and [`board_autoroute_text`]: the autorouter in the board editor (the
+//!   plan that `eh3d-phoenix-autoroute` makes for the board as it is, kept as a preview that is
+//!   dropped when the board changes, and its acceptance as one step of the editor) and its texts in
+//!   the eight languages (the section of the panel is in `board_autoroute_gui`, behind the `gui`
+//!   feature);
 //! * [`library_session`] and [`library_text`]: the library mode: an EAGLE library edited with the
 //!   operations of `eh3d-phoenix-libedit` (footprints, symbols and devices, the tools, the grid and
 //!   the snap, the selection and the drag, the measure, the checks, the plan to replace by a master
@@ -106,6 +111,10 @@
 
 pub mod appearance;
 pub mod bench;
+pub mod board_autoroute;
+#[cfg(feature = "gui")]
+pub mod board_autoroute_gui;
+pub mod board_autoroute_text;
 #[cfg(feature = "gui")]
 pub mod board_gui;
 pub mod board_pair;
