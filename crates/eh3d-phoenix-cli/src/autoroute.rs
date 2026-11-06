@@ -35,6 +35,7 @@ phoenix autoroute import-ses [--settings FILE] [--rules FILE] [--json] [--lang C
                              [--require-complete] [--out FILE] <board> <session>
 phoenix autoroute run [--config FILE] [--settings FILE] [--rules FILE] [--json] [--lang CODE]
                       [--require-complete] [--execute] [--out FILE] [--ses-out FILE] <board>
+phoenix autoroute native [--nets N1,N2] [--layers L1,L2] [--config FILE] [--out FILE] <board>
 
   export-dsn    write the board as a Specctra DSN file for an external autorouter: layers, outline,
                 the width and clearance of the rules, pads, nets, net classes and the copper that
@@ -47,6 +48,8 @@ phoenix autoroute run [--config FILE] [--settings FILE] [--rules FILE] [--json] 
                 session it writes. A dry run without --execute (it prints the command that would
                 be started); with --execute it starts the program only if the settings say
                 enabled = true. --ses-out keeps a copy of the session
+  native        route with the autorouter that needs no outside program (a dry run unless --out
+                is given; run `phoenix autoroute native` alone for its options)
   --require-complete  refuse a session that leaves connections unrouted
   --rules       the JSON rule file (format phoenix-rules/1 or 2)
   --settings    the pitch, penalties and limits of the router (default: config/route.cfg)
@@ -176,6 +179,9 @@ pub(crate) fn autoroute_command(args: &[&str], out: &mut dyn Write, err: &mut dy
         let _ = err.write_all(USAGE.as_bytes());
         return 2;
     };
+    if sub == "native" {
+        return crate::autoroute_native::native_command(tail, out, err);
+    }
     if !matches!(sub, "export-dsn" | "import-ses" | "run") {
         let _ = err.write_all(USAGE.as_bytes());
         return 2;

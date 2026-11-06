@@ -39,6 +39,7 @@
 mod annotate;
 mod assembly3d;
 mod autoroute;
+mod autoroute_native;
 mod boardedit;
 mod bom;
 pub mod bounded;
@@ -249,12 +250,16 @@ phoenix route [--settings FILE] [--rules FILE] [--layer NAME] [--mode around|sto
                 run `phoenix route` alone for its options
 
 phoenix autoroute export-dsn|import-ses|run [--rules FILE] [--out FILE] [--lang xx] <board> [<session>]
+phoenix autoroute native [--nets N1,N2] [--layers L1,L2] [--config FILE] [--out FILE] <board>
 
   autoroute     routing by an external autorouter through files: write the board as a Specctra
                 DSN file, read a Specctra session as a plan checked against the rules (all or
                 nothing) and, only when config/autorouter.cfg switches it on and --execute is
                 given, start the program; a dry run by default, a prototype, run
-                `phoenix autoroute` alone for its options
+                `phoenix autoroute` alone for its options. `native` routes with the
+                autorouter that needs no outside program (a grid, a search per layer with
+                vias, rip-up and reroute within limits that count nodes); a dry run unless
+                --out names a new file
 
 phoenix gerber-import [--config FILE] [--json] [--lang xx] [--out FILE] <file or folder> ...
 phoenix gerber-import [--config FILE] [--json] [--lang xx] [--profile NAME] [--profiles FILE]
