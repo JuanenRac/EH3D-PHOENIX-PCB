@@ -50,6 +50,7 @@ eh3d-phoenix-libedit = { path = "../eh3d-phoenix-libedit" }
 eh3d-phoenix-model = { path = "../eh3d-phoenix-model" }
 eh3d-phoenix-oracle = { path = "../eh3d-phoenix-oracle" }
 eh3d-phoenix-panel = { path = "../eh3d-phoenix-panel" }
+eh3d-phoenix-print = { path = "../eh3d-phoenix-print" }
 eh3d-phoenix-parts = { path = "../eh3d-phoenix-parts" }
 eh3d-phoenix-rf = { path = "../eh3d-phoenix-rf" }
 eh3d-phoenix-rfgen = { path = "../eh3d-phoenix-rfgen" }

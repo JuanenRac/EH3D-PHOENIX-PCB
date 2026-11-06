@@ -20,6 +20,7 @@
 //! `stencil` and `fabpack`.
 //! The local parts base adds `parts`, and the bill of materials takes its data from it.
 //! The hierarchy of sheets and the buses of a schematic add `hier`.
+//! The printing of schematics, boards and panels as SVG and PDF adds `print`.
 //!
 //! Exit codes: 0 done, 1 `stackup` could not compute one or more of the lines it was asked for,
 //! `check`, `connectivity` and `erc` proved an error, or `sync` or `annotate` found changes to
@@ -53,6 +54,7 @@ mod pairs;
 mod panel;
 mod parts;
 mod pnp;
+mod print;
 mod rf;
 mod rfgen;
 mod route;
@@ -405,6 +407,15 @@ phoenix corpus check [--dir FOLDER] [--settings FILE] [--lang xx]
                 is consistent; nothing is written unless --out names a new file, a prototype
                 that holds no file of a maker, run `phoenix corpus` alone for its options
 
+phoenix print <schematic|board|panel> [--kind svg|pdf] [--out FOLDER|FILE] [--paper A4]
+              [--scale N] [--layers LIST] [--side top|bottom] [--lang xx] [--config FILE] <file>
+
+  print         print a schematic (a page for each sheet), a board (the assembly plan of each side
+                and its layers) or a panel of boards as SVG or as a PDF made by hand, with a
+                border, a title block in the language chosen and a scale bar; a dry run unless
+                --out names a file or a folder that does not exist yet, a prototype whose PDF has
+                not been opened in real readers, run `phoenix print` alone for its options
+
 phoenix view [--settings FILE] [--lang xx] [<board or schematic>]
 phoenix view --summary <file>  |  phoenix view --bench
 
@@ -500,6 +511,9 @@ pub fn run(args: &[String], out: &mut dyn Write, err: &mut dyn Write) -> i32 {
     }
     if let Some((&"panel", tail)) = rest.split_first() {
         return panel::panel_command(tail, out, err);
+    }
+    if let Some((&"print", tail)) = rest.split_first() {
+        return print::print_command(tail, out, err);
     }
     if let Some((&"sim", tail)) = rest.split_first() {
         return sim::sim_command(tail, out, err);
