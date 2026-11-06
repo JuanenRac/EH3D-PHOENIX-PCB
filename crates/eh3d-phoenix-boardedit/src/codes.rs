@@ -174,6 +174,9 @@ impl BoardEditError {
         if shown.is_empty() {
             shown = crate::shove_codes::title(self.code, lang);
         }
+        if shown.is_empty() {
+            shown = crate::zone_codes::title(self.code, lang);
+        }
         format!("{} {}: {}", self.code, shown, self.detail)
     }
 }

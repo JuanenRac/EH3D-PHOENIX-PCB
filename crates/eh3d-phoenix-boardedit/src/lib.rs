@@ -31,6 +31,14 @@
 //!   a number of tracks of the settings, all or nothing) and the arcs in tracks (`route_arc`,
 //!   `round_corners`, the arc checked against the clearance of the rules), with the codes
 //!   `PHOENIX-SHOVE-<NNN>` and `PHOENIX-ARC-<NNN>` in [`shove_codes`];
+//! * [`zone`], [`zone_clip`] and [`zone_codes`]: the copper zones in the editor: the properties of a
+//!   zone that the board model does not hold (priority, minimum width and island, connection and
+//!   thermal relief, cutouts) and the fills of `eh3d-phoenix-zones` as data of the editor that go
+//!   through undo and redo, the operations `zone_add`, `zone_edit`, `zone_remove`, `zone_fill`,
+//!   `zone_priority` and `zone_cutout`, the report of zones with no fill or joined to nothing, the
+//!   copy and paste of a net or a group with an offset, a turn and a mirror (`paste_group`), the
+//!   board with its zones poured for the writers of files and what each format cannot say, with the
+//!   codes `PHOENIX-BZONE-<NNN>`;
 //! * [`codes`]: the codes `PHOENIX-BEDIT-<NNN>`.
 //!
 //! **State: prototype.** It has been tried through the tests only, on boards made by hand; the
@@ -74,6 +82,11 @@ mod testutil;
 pub mod tool;
 #[cfg(test)]
 mod tool_tests;
+pub mod zone;
+pub mod zone_clip;
+pub mod zone_codes;
+#[cfg(test)]
+mod zone_tests;
 
 pub use codes::{registry, BoardEditError, TITLES};
 pub use edit::{BoardEdit, DrcReport, Outcome};
@@ -86,3 +99,8 @@ pub use settings::BoardEditSettings;
 pub use shape::{MeanderSide, Shape};
 pub use shove::{ShoveMove, ShovePreview};
 pub use tool::{Drag, EditState, Tool};
+pub use zone::{
+    export_issues, poured_board, validate_props, zone_issues, Target, ZoneChanges, ZoneData,
+    ZoneIssue, ZoneProps,
+};
+pub use zone_clip::{Clipboard, ClipTrack, ClipVia, ClipZone, CLIP_FORMAT};

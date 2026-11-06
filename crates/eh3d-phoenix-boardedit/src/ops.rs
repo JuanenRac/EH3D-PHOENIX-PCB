@@ -4,11 +4,15 @@
 //! into the reversible operations of `eh3d-phoenix-board` (one batch, all or nothing) by the
 //! planner of this crate, and checked by the design rules before it is kept.
 
+use std::collections::BTreeMap;
+
 use eh3d_phoenix_board::{Id, PadRef, Side};
 use eh3d_phoenix_model::Point;
 use serde::{Deserialize, Serialize};
 
 use crate::shape::{MeanderSide, Shape};
+use crate::zone::{ZoneChanges, ZoneProps};
+use crate::zone_clip::Clipboard;
 
 /// A change of layer along a routed pair: the part of the pair after a vertex goes to another
 /// copper layer, with a via for each net.
@@ -277,6 +281,100 @@ pub enum EditOp {
     FixPairGap {
         /// The name of the pair.
         pair: String,
+    },
+    /// Adds a copper zone: a closed polygon of copper of one net on one copper layer, with its
+    /// properties (`docs/BOARD_ZONES.md`). The fill is made by `zone_fill`.
+    ZoneAdd {
+        /// The id of the zone; made by the editor when it is left out.
+        #[serde(default)]
+        id: Option<Id>,
+        /// The net.
+        net: Id,
+        /// The copper layer.
+        layer: Id,
+        /// The outline, at least three points; the last joins the first.
+        outline: Vec<Point>,
+        /// The clearance of the zone in nanometres; the clearance of the rules when left out.
+        #[serde(default)]
+        clearance_nm: Option<i64>,
+        /// The priority, the minimum width and island, the connection and the thermal relief.
+        #[serde(default)]
+        props: ZoneProps,
+    },
+    /// Changes the properties or the outline of a zone. What is left out stays; the fill of the
+    /// zone is dropped and has to be made again.
+    ZoneEdit {
+        /// The zone.
+        zone: Id,
+        /// The new net.
+        #[serde(default)]
+        net: Option<Id>,
+        /// The new copper layer.
+        #[serde(default)]
+        layer: Option<Id>,
+        /// The new outline (its vertices).
+        #[serde(default)]
+        outline: Option<Vec<Point>>,
+        /// The new clearance in nanometres.
+        #[serde(default)]
+        clearance_nm: Option<i64>,
+        /// The new properties.
+        #[serde(default)]
+        props: ZoneChanges,
+    },
+    /// Removes a zone with its properties and its fill.
+    ZoneRemove {
+        /// The zone.
+        zone: Id,
+    },
+    /// Fills the zones with the crate `eh3d-phoenix-zones` and keeps the polygons of copper as data
+    /// of the zones. All the zones are filled together (the priorities depend on each other); with
+    /// a zone given only its fill is kept.
+    ZoneFill {
+        /// The zone whose fill is kept; every zone when left out.
+        #[serde(default)]
+        zone: Option<Id>,
+    },
+    /// Gives a zone a priority; a zone of a higher priority is filled first and the others keep
+    /// away from it.
+    ZonePriority {
+        /// The zone.
+        zone: Id,
+        /// The priority.
+        priority: i32,
+    },
+    /// Cuts a hole in a zone: the fill keeps away from the polygon, which must lie inside the
+    /// outline.
+    ZoneCutout {
+        /// The zone.
+        zone: Id,
+        /// The polygon of the hole, at least three points.
+        polygon: Vec<Point>,
+    },
+    /// Pastes a group of tracks, vias and zones (a copy of a net, or a clipboard made earlier,
+    /// maybe from another board) with an offset, a turn by quarter turns and a mirror. The ids are
+    /// new; the nets and layers are found by name. It is refused whenever the design rules find a
+    /// new error, also when `reject_new_errors` is off.
+    PasteGroup {
+        /// The clipboard; left out when `from_net` is given.
+        #[serde(default)]
+        clipboard: Option<Clipboard>,
+        /// A net of this board whose tracks, vias and zones are copied; left out when a clipboard
+        /// is given.
+        #[serde(default)]
+        from_net: Option<Id>,
+        /// Where the reference point of the group (the lower left corner of its box) goes.
+        at: Point,
+        /// Quarter turns counter-clockwise, from 0 to 3.
+        #[serde(default)]
+        quarter_turns: u8,
+        /// Whether the group is mirrored about the vertical axis of the reference point (before
+        /// the turn).
+        #[serde(default)]
+        mirror: bool,
+        /// Names of nets to give the copies instead of their own, by name.
+        #[serde(default)]
+        net_map: BTreeMap<String, String>,
     },
     /// Several operations that are kept or undone as one step.
     Group {

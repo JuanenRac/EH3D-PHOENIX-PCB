@@ -343,7 +343,16 @@ pub fn plan(
         EditOp::Lock { .. }
         | EditOp::Unlock { .. }
         | EditOp::Group { .. }
-        | EditOp::Forced { .. } => Err(refused("this operation does not change the board")),
+        | EditOp::Forced { .. }
+        | EditOp::ZoneAdd { .. }
+        | EditOp::ZoneEdit { .. }
+        | EditOp::ZoneRemove { .. }
+        | EditOp::ZoneFill { .. }
+        | EditOp::ZonePriority { .. }
+        | EditOp::ZoneCutout { .. }
+        | EditOp::PasteGroup { .. } => Err(refused(
+            "this operation is planned by the zone planner, not by the track planner",
+        )),
     }
 }
 
