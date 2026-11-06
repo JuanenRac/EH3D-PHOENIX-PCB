@@ -275,6 +275,9 @@ The titles of these codes also exist in the eight languages of the suite (`title
 | PHOENIX-RF-008 | The settings are not valid | a line of the settings text that is not `key = value`, an unknown key or a value out of range |
 | PHOENIX-RF-009 | A value is outside the configured limit | more ports, points, bytes, filter order, ripple, impedance, frequency or sweep points than the settings allow |
 | PHOENIX-RF-010 | Frequency outside the data of the file | a frequency below the first or above the last point of a Touchstone file (nothing is extrapolated) |
+| PHOENIX-RF-011 | The network description has a syntax error | a line of a network description (`phoenix rf sparams --net`) that is not an element, a value that is not a number or a length without its frequency or permittivity |
+| PHOENIX-RF-012 | The mask has a syntax error | a line of a mask that is not `parameter min start stop limit [limit]` (or `max`), a frequency or a limit that is not a number or a segment whose start is above its stop |
+| PHOENIX-RF-013 | The series of standard values is not known | a series other than E12, E24 or E96 |
 
 ## Viewer (`eh3d-phoenix-viewer`, `src/codes.rs`)
 

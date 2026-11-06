@@ -12,9 +12,17 @@
 //! * [`filter`]: Butterworth, Chebyshev and Bessel prototypes, their transformation into
 //!   low-pass, high-pass, band-pass and band-stop ladders and their response from ABCD matrices;
 //! * [`line`]: the link to the transmission lines of `eh3d-phoenix-stackup`;
+//! * [`matchnet`]: pi and T matching networks with a chosen loaded Q, the bandwidth of a
+//!   network, the double stub and the equivalents with lines, with lengths in metres;
+//! * [`trace`]: the path of a matching network on the Smith chart as data and as a small SVG;
+//! * [`eseries`] and [`filterx`]: the series E12, E24 and E96, a filter with components of a
+//!   series and the effect of the rounding on the band edges;
+//! * [`netdesc`] and [`mask`]: a network of lumped elements and lines written as text, its S
+//!   parameters and figures over a sweep, and the check of a response against a mask;
+//! * [`circles`]: stability circles and the simultaneous conjugate match from S parameters;
 //! * [`report`]: the text of `phoenix rf`;
 //! * [`settings`]: the limits and tolerances, read from `config/rf.cfg`;
-//! * [`error`]: typed errors with the codes `PHOENIX-RF-001` to `PHOENIX-RF-010` and their
+//! * [`error`]: typed errors with the codes `PHOENIX-RF-001` to `PHOENIX-RF-013` and their
 //!   titles in the eight languages of the suite.
 //!
 //! **State: prototype.** The formulas are the published ones and the tests use values of the
@@ -27,17 +35,24 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
+pub mod circles;
 pub mod complex;
 pub mod error;
+pub mod eseries;
 pub mod filter;
+pub mod filterx;
 pub mod line;
+pub mod mask;
 pub mod matching;
+pub mod matchnet;
 pub mod matrix;
+pub mod netdesc;
 pub mod network;
 pub mod report;
 pub mod settings;
 pub mod smith;
 pub mod touchstone;
+pub mod trace;
 
 pub use complex::Complex;
 pub use error::{Language, RfError};

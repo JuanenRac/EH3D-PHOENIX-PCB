@@ -27,6 +27,9 @@
 //! The deep reading of EAGLE files adds `eagle-check` and `eagle-convert`, and `check`, `bom` and
 //! `pnp` take design rule files and assembly variants of them.
 //!
+//! The help in the eight languages adds `help` and `--help`, which read the table of the commands in
+//! `commands.rs`, the table that `run` dispatches from.
+//!
 //! Exit codes: 0 done, 1 `stackup` could not compute one or more of the lines it was asked for,
 //! `check`, `connectivity` and `erc` proved an error, or `sync` or `annotate` found changes to
 //! make, 2 the arguments or the input are unusable.
@@ -39,6 +42,7 @@ mod autoroute;
 mod boardedit;
 mod bom;
 mod check;
+pub mod commands;
 mod corpus;
 mod design;
 mod dxf_export;
@@ -49,6 +53,8 @@ mod export;
 mod fabpack;
 mod gerber_check;
 mod gerber_import;
+mod help;
+mod help_topics;
 mod hier;
 mod ipclib;
 mod kicad;
@@ -491,6 +497,13 @@ phoenix view --summary <file>  |  phoenix view --bench
   view          a viewer and editor window of a board or a schematic (a build with the gui
                 feature; a prototype), a text summary of a file, or a timing of the preparation
                 and the selection on three synthetic boards
+
+phoenix help [<topic or command>] [--lang xx]
+phoenix --help [--lang xx]
+
+  help          the listing of the commands and of the topics (schematic, board, libraries,
+                manufacturing, simulation, rf, signal, formats, safety, errors, scripts), or the
+                help of one topic or one command, in en, es, de, fr, it, ja, zh or pt
 ";
 
 /// Run the command line with the arguments that follow the program name. Returns the exit code.
@@ -515,158 +528,17 @@ pub fn run(args: &[String], out: &mut dyn Write, err: &mut dyn Write) -> i32 {
         args.drain(..2);
     }
     let rest: Vec<&str> = args.iter().map(String::as_str).collect();
-    if let Some((&"stackup", tail)) = rest.split_first() {
-        return stackup_command(tail, out, err);
-    }
-    if let Some((&"materials", tail)) = rest.split_first() {
-        return materials::materials_command(tail, out, err);
-    }
-    if let Some((&"check", tail)) = rest.split_first() {
-        return check::check(tail, out, err);
-    }
-    if let Some((&"connectivity", tail)) = rest.split_first() {
-        return check::connectivity(tail, out, err);
-    }
-    if let Some((&"erc", tail)) = rest.split_first() {
-        return design::erc(tail, out, err);
-    }
-    if let Some((&"sync", tail)) = rest.split_first() {
-        return design::sync(tail, out, err);
-    }
-    if let Some((&"annotate", tail)) = rest.split_first() {
-        return annotate::annotate(tail, out, err);
-    }
-    if let Some((&"export", tail)) = rest.split_first() {
-        return export::export(tail, out, err);
-    }
-    if let Some((&"rf", tail)) = rest.split_first() {
-        return rf::rf(tail, out, err);
-    }
-    if let Some((&"rfgen", tail)) = rest.split_first() {
-        return rfgen::rfgen_command(tail, out, err);
-    }
-    if let Some((&"kicad-read", tail)) = rest.split_first() {
-        return kicad::kicad_read(tail, out, err);
-    }
-    if let Some((&"kicad-import", tail)) = rest.split_first() {
-        return kicad_import::kicad_import(tail, out, err);
-    }
-    if let Some((&"kicad-export", tail)) = rest.split_first() {
-        return kicad_export::kicad_export(tail, out, err);
-    }
-    if let Some((&"sanitize", tail)) = rest.split_first() {
-        return sanitize::sanitize_command(tail, out, err);
-    }
-    if let Some((&"script", tail)) = rest.split_first() {
-        return script::script_command(tail, out, err);
-    }
-    if let Some((&"cam-import", tail)) = rest.split_first() {
-        return script::cam_import_command(tail, out, err);
-    }
-    if let Some((&"route", tail)) = rest.split_first() {
-        return route::route_command(tail, out, err);
-    }
-    if let Some((&"ratsnest", tail)) = rest.split_first() {
-        return route::ratsnest_command(tail, out, err);
-    }
-    if let Some((&"autoroute", tail)) = rest.split_first() {
-        return autoroute::autoroute_command(tail, out, err);
-    }
-    if let Some((&"gerber-import", tail)) = rest.split_first() {
-        return gerber_import::gerber_import_command(tail, out, err);
-    }
-    if let Some((&"gerber-check", tail)) = rest.split_first() {
-        return gerber_check::gerber_check_command(tail, out, err);
-    }
-    if let Some((&"panel", tail)) = rest.split_first() {
-        return panel::panel_command(tail, out, err);
-    }
-    if let Some((&"print", tail)) = rest.split_first() {
-        return print::print_command(tail, out, err);
-    }
-    if let Some((&"dxf-import", tail)) = rest.split_first() {
-        return dxf_import::dxf_import_command(tail, out, err);
-    }
-    if let Some((&"dxf-export", tail)) = rest.split_first() {
-        return dxf_export::dxf_export_command(tail, out, err);
-    }
-    if let Some((&"enclosure", tail)) = rest.split_first() {
-        return enclosure::enclosure_command(tail, out, err);
-    }
-    if let Some((&"perf", tail)) = rest.split_first() {
-        return perf::perf_command(tail, out, err);
-    }
-    if let Some((&"sim", tail)) = rest.split_first() {
-        return sim::sim_command(tail, out, err);
-    }
-    if let Some((&"netlist", tail)) = rest.split_first() {
-        return netlist::netlist_command(tail, out, err);
-    }
-    if let Some((&"hier", tail)) = rest.split_first() {
-        return hier::hier_command(tail, out, err);
-    }
-    if let Some((&"schedit", tail)) = rest.split_first() {
-        return schedit::schedit_command(tail, out, err);
-    }
-    if let Some((&"boardedit", tail)) = rest.split_first() {
-        return boardedit::boardedit_command(tail, out, err);
-    }
-    if let Some((&"pairs", tail)) = rest.split_first() {
-        return pairs::pairs_command(tail, out, err);
-    }
-    if let Some((&"libedit", tail)) = rest.split_first() {
-        return libedit::libedit_command(tail, out, err);
-    }
-    if let Some((&"ipc", tail)) = rest.split_first() {
-        return ipclib::ipc_command(tail, out, err);
-    }
-    if let Some((&"libindex", tail)) = rest.split_first() {
-        return ipclib::libindex_command(tail, out, err);
-    }
-    if let Some((&"footprint", tail)) = rest.split_first() {
-        return libedit::footprint_command(tail, out, err);
-    }
-    if let Some((&"zones", tail)) = rest.split_first() {
-        return zones::zones_command(tail, out, err);
-    }
-    if let Some((&"lengths", tail)) = rest.split_first() {
-        return lengths::lengths_command(tail, out, err);
-    }
-    if let Some((&"si", tail)) = rest.split_first() {
-        return si::si_command(tail, out, err);
-    }
-    if let Some((&"eagle-check", tail)) = rest.split_first() {
-        return eagle_deep::eagle_check_command(tail, out, err);
-    }
-    if let Some((&"eagle-convert", tail)) = rest.split_first() {
-        return eagle_deep::eagle_convert_command(tail, out, err);
-    }
-    if let Some((&"bom", tail)) = rest.split_first() {
-        return bom::bom_command(tail, out, err);
-    }
-    if let Some((&"parts", tail)) = rest.split_first() {
-        return parts::parts_command(tail, out, err);
-    }
-    if let Some((&"pnp", tail)) = rest.split_first() {
-        return pnp::pnp_command(tail, out, err);
-    }
-    if let Some((&"stencil", tail)) = rest.split_first() {
-        return stencil::stencil_command(tail, out, err);
-    }
-    if let Some((&"fabpack", tail)) = rest.split_first() {
-        return fabpack::fabpack_command(tail, out, err);
-    }
-    if let Some((&"assembly3d", tail)) = rest.split_first() {
-        return assembly3d::assembly3d_command(tail, out, err);
-    }
-    if let Some((&"oracle", tail)) = rest.split_first() {
-        return oracle::oracle_command(tail, out, err);
-    }
-    if let Some((&"corpus", tail)) = rest.split_first() {
-        return corpus::corpus_command(tail, out, err);
-    }
-    if let Some((&"view", tail)) = rest.split_first() {
-        return view::view(tail, out, err);
+    // the words of the table of commands, then `help` and the options that ask for it
+    if let Some((name, tail)) = rest.split_first() {
+        if let Some(handler) = commands::command(name).and_then(|c| c.run) {
+            return handler(tail, out, err);
+        }
+        if *name == "help" {
+            return help::help_command(tail, false, out, err);
+        }
+        if matches!(*name, "--help" | "-h") {
+            return help::help_command(tail, true, out, err);
+        }
     }
     if let ["eagle-rate", source, copies] = rest.as_slice() {
         return eagle_rate(Path::new(source), Path::new(copies), out, err);

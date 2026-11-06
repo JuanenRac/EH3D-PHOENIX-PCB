@@ -95,7 +95,7 @@ impl LMatch {
     }
 }
 
-fn series_element(reactance_ohm: f64, omega: f64) -> Element {
+pub(crate) fn series_element(reactance_ohm: f64, omega: f64) -> Element {
     if reactance_ohm >= 0.0 {
         Element {
             kind: ElementKind::Inductor,
@@ -109,7 +109,7 @@ fn series_element(reactance_ohm: f64, omega: f64) -> Element {
     }
 }
 
-fn shunt_element(susceptance_s: f64, omega: f64) -> Element {
+pub(crate) fn shunt_element(susceptance_s: f64, omega: f64) -> Element {
     if susceptance_s >= 0.0 {
         Element {
             kind: ElementKind::Capacitor,
@@ -293,7 +293,7 @@ impl StubMatch {
 }
 
 /// An angle brought into the range zero (included) to 180 degrees (excluded), in radians.
-fn half_turn(theta: f64) -> f64 {
+pub(crate) fn half_turn(theta: f64) -> f64 {
     let wrapped = theta.rem_euclid(PI);
     if wrapped >= PI {
         0.0

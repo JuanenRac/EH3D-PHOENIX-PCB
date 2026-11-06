@@ -35,6 +35,28 @@ pub struct RfSettings {
     pub passivity_tolerance: f64,
     /// The reference impedance used when none is given, in ohm.
     pub default_z0_ohm: f64,
+    /// The most elements of a network description.
+    pub max_net_elements: usize,
+    /// The largest network description or mask text that is read, in bytes.
+    pub max_net_bytes: usize,
+    /// The most segments of a mask.
+    pub max_mask_segments: usize,
+    /// The points that sample each element of a path on the Smith chart.
+    pub smith_arc_points: usize,
+    /// The loaded quality factor used for a pi or T network when none is given.
+    pub default_loaded_q: f64,
+    /// The largest loaded quality factor accepted for a pi or T network.
+    pub max_loaded_q: f64,
+    /// The frequencies of the scans that look for band edges and bandwidths.
+    pub scan_points: usize,
+    /// The return loss in dB that bounds the bandwidth of a matching network.
+    pub return_loss_bandwidth_db: f64,
+    /// The series of standard values used when none is given: 12, 24 or 96.
+    pub default_series: usize,
+    /// The spacing of the two stubs of a double-stub match when none is given, in degrees.
+    pub default_stub_spacing_deg: f64,
+    /// The margin in dB below which a point of a mask still counts as on the limit.
+    pub mask_margin_tolerance_db: f64,
 }
 
 impl Default for RfSettings {
@@ -54,6 +76,17 @@ impl Default for RfSettings {
             tolerance: 1e-9,
             passivity_tolerance: 1e-6,
             default_z0_ohm: 50.0,
+            max_net_elements: 200,
+            max_net_bytes: 65_536,
+            max_mask_segments: 200,
+            smith_arc_points: 24,
+            default_loaded_q: 5.0,
+            max_loaded_q: 100.0,
+            scan_points: 400,
+            return_loss_bandwidth_db: 10.0,
+            default_series: 24,
+            default_stub_spacing_deg: 45.0,
+            mask_margin_tolerance_db: 1e-9,
         }
     }
 }
@@ -126,6 +159,23 @@ impl RfSettings {
                 "tolerance" => s.tolerance = number(value, line, key)?,
                 "passivity_tolerance" => s.passivity_tolerance = number(value, line, key)?,
                 "default_z0_ohm" => s.default_z0_ohm = number(value, line, key)?,
+                "max_net_elements" => s.max_net_elements = count(value, line, key)?,
+                "max_net_bytes" => s.max_net_bytes = count(value, line, key)?,
+                "max_mask_segments" => s.max_mask_segments = count(value, line, key)?,
+                "smith_arc_points" => s.smith_arc_points = count(value, line, key)?,
+                "default_loaded_q" => s.default_loaded_q = number(value, line, key)?,
+                "max_loaded_q" => s.max_loaded_q = number(value, line, key)?,
+                "scan_points" => s.scan_points = count(value, line, key)?,
+                "return_loss_bandwidth_db" => {
+                    s.return_loss_bandwidth_db = number(value, line, key)?
+                }
+                "default_series" => s.default_series = count(value, line, key)?,
+                "default_stub_spacing_deg" => {
+                    s.default_stub_spacing_deg = number(value, line, key)?
+                }
+                "mask_margin_tolerance_db" => {
+                    s.mask_margin_tolerance_db = number(value, line, key)?
+                }
                 _ => {
                     return Err(RfError::InvalidSettings {
                         line,
@@ -163,6 +213,31 @@ impl RfSettings {
             return Err(RfError::InvalidSettings {
                 line: 0,
                 reason: "delay_step_fraction must be below 0.5".to_string(),
+            });
+        }
+        if ![12, 24, 96].contains(&self.default_series) {
+            return Err(RfError::InvalidSettings {
+                line: 0,
+                reason: "default_series must be 12, 24 or 96".to_string(),
+            });
+        }
+        if self.scan_points < 20 || self.smith_arc_points < 2 {
+            return Err(RfError::InvalidSettings {
+                line: 0,
+                reason: "scan_points must be at least 20 and smith_arc_points at least 2"
+                    .to_string(),
+            });
+        }
+        if self.default_loaded_q > self.max_loaded_q {
+            return Err(RfError::InvalidSettings {
+                line: 0,
+                reason: "default_loaded_q must not be above max_loaded_q".to_string(),
+            });
+        }
+        if self.default_stub_spacing_deg >= 180.0 {
+            return Err(RfError::InvalidSettings {
+                line: 0,
+                reason: "default_stub_spacing_deg must be below 180".to_string(),
             });
         }
         Ok(())
@@ -285,6 +360,11 @@ mod tests {
             "min_ripple_db = 3\nmax_ripple_db = 3",
             "min_impedance_ohm = 5\nmax_impedance_ohm = 4",
             "delay_step_fraction = 0.5",
+            "default_series = 48",
+            "scan_points = 10",
+            "smith_arc_points = 1",
+            "default_loaded_q = 500",
+            "default_stub_spacing_deg = 180",
         ] {
             assert!(
                 matches!(

@@ -20,11 +20,20 @@ pub const REGISTRY: &[(&str, &str)] = &[
     ("PHOENIX-RF-008", "The settings are not valid"),
     ("PHOENIX-RF-009", "A value is outside the configured limit"),
     ("PHOENIX-RF-010", "Frequency outside the data of the file"),
+    (
+        "PHOENIX-RF-011",
+        "The network description has a syntax error",
+    ),
+    ("PHOENIX-RF-012", "The mask has a syntax error"),
+    (
+        "PHOENIX-RF-013",
+        "The series of standard values is not known",
+    ),
 ];
 
 /// The titles of the codes in the eight languages: English, Spanish, German, French, Italian,
 /// Japanese, Chinese and European Portuguese.
-const TITLES: [(&str, [&str; 8]); 10] = [
+const TITLES: [(&str, [&str; 8]); 13] = [
     (
         "PHOENIX-RF-001",
         [
@@ -155,6 +164,45 @@ const TITLES: [(&str, [&str; 8]); 10] = [
             "Frequência fora dos dados do ficheiro",
         ],
     ),
+    (
+        "PHOENIX-RF-011",
+        [
+            "The network description has a syntax error",
+            "La descripción de la red tiene un error de sintaxis",
+            "Die Netzwerkbeschreibung hat einen Syntaxfehler",
+            "La description du réseau contient une erreur de syntaxe",
+            "La descrizione della rete contiene un errore di sintassi",
+            "ネットワーク記述に構文エラーがあります",
+            "网络描述存在语法错误",
+            "A descrição da rede tem um erro de sintaxe",
+        ],
+    ),
+    (
+        "PHOENIX-RF-012",
+        [
+            "The mask has a syntax error",
+            "La máscara tiene un error de sintaxis",
+            "Die Maske hat einen Syntaxfehler",
+            "Le gabarit contient une erreur de syntaxe",
+            "La maschera contiene un errore di sintassi",
+            "マスクに構文エラーがあります",
+            "模板存在语法错误",
+            "A máscara tem um erro de sintaxe",
+        ],
+    ),
+    (
+        "PHOENIX-RF-013",
+        [
+            "The series of standard values is not known",
+            "La serie de valores normalizados no se conoce",
+            "Die Normwertreihe ist unbekannt",
+            "La série de valeurs normalisées est inconnue",
+            "La serie di valori normalizzati non è nota",
+            "標準値の系列が不明です",
+            "未知的标准值系列",
+            "A série de valores normalizados não é conhecida",
+        ],
+    ),
 ];
 
 fn column(language: Language) -> usize {
@@ -257,6 +305,28 @@ pub enum RfError {
         /// The highest frequency of the file, in Hz.
         high_hz: f64,
     },
+    /// A line of a network description cannot be read.
+    #[error("line {line} of the network description: {reason}")]
+    NetSyntax {
+        /// The line number, counted from 1 (0 when no line applies).
+        line: usize,
+        /// What is wrong with it.
+        reason: String,
+    },
+    /// A line of a mask cannot be read.
+    #[error("line {line} of the mask: {reason}")]
+    MaskSyntax {
+        /// The line number, counted from 1 (0 when no line applies).
+        line: usize,
+        /// What is wrong with it.
+        reason: String,
+    },
+    /// The name of a series of standard values is not one of the known series.
+    #[error("the series {name} is not known (use E12, E24 or E96)")]
+    UnknownSeries {
+        /// The name that was given.
+        name: String,
+    },
 }
 
 impl RfError {
@@ -273,6 +343,9 @@ impl RfError {
             RfError::InvalidSettings { .. } => "PHOENIX-RF-008",
             RfError::OutsideLimit { .. } => "PHOENIX-RF-009",
             RfError::OutsideRange { .. } => "PHOENIX-RF-010",
+            RfError::NetSyntax { .. } => "PHOENIX-RF-011",
+            RfError::MaskSyntax { .. } => "PHOENIX-RF-012",
+            RfError::UnknownSeries { .. } => "PHOENIX-RF-013",
         }
     }
 
@@ -339,6 +412,15 @@ mod tests {
                 low_hz: 2.0,
                 high_hz: 3.0,
             },
+            RfError::NetSyntax {
+                line: 2,
+                reason: "y".into(),
+            },
+            RfError::MaskSyntax {
+                line: 5,
+                reason: "y".into(),
+            },
+            RfError::UnknownSeries { name: "E7".into() },
         ]
     }
 
