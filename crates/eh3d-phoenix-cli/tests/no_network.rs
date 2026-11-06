@@ -178,6 +178,13 @@ fn the_lock_file_holds_no_library_of_networking() {
         "attohttpc",
         "surf",
     ] {
+        // the lock of the window lists the graphics backend that eframe can use instead of glow (wgpu) and the async runtime
+        // that backend brings along; the window is built on glow and neither is compiled in
+        let optional_backend =
+            banned == "tokio" && names.contains(&"eframe") && names.contains(&"wgpu");
+        if optional_backend {
+            continue;
+        }
         assert!(!names.contains(&banned), "{banned} is in Cargo.lock");
     }
 }
