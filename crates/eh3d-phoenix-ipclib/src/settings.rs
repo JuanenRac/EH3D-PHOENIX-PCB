@@ -19,7 +19,9 @@ fn nm(mm: f64) -> i64 {
 }
 
 /// The `key = value` lines of a text, with their numbers; comments and blank lines are left out.
-fn pairs(text: &str) -> Result<Vec<(usize, String, String)>, (usize, String)> {
+type Pairs = Vec<(usize, String, String)>;
+
+fn pairs(text: &str) -> Result<Pairs, (usize, String)> {
     let mut out = Vec::new();
     for (index, raw) in text.lines().enumerate() {
         let line = index + 1;

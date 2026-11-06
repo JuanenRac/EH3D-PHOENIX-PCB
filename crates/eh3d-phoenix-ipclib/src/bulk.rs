@@ -549,7 +549,7 @@ fn find_duplicates(index: &mut Index) {
             ));
         }
         same_name.push(Group {
-            kind: *kind,
+            kind,
             key: name.clone(),
             members: names,
         });
