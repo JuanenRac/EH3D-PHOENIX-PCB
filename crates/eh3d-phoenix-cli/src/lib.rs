@@ -8,7 +8,8 @@
 //! of nets and pairs add `lengths`; the import of Gerber and Excellon files adds `gerber-import`
 //! and the check of their structure adds `gerber-check`; the layout of a panel of boards adds `panel`; the bill of materials with costs adds `bom`
 //! and the 3D assembly of the board with the models of its components adds `assembly3d`; the run of
-//! the reference cases of the calculations adds `oracle`.
+//! the reference cases of the calculations adds `oracle`, and the run of the own corpus of small
+//! hand-written pieces adds `corpus`.
 //! The writing of boards, schematics and libraries as KiCad 8 files adds `kicad-export`.
 //! The simulation netlist of a schematic, made from a table of models, adds `netlist`.
 //! The annotation back into the schematic, as a plan that is read before it is applied, adds
@@ -32,6 +33,7 @@ mod autoroute;
 mod boardedit;
 mod bom;
 mod check;
+mod corpus;
 mod design;
 mod export;
 mod fabpack;
@@ -392,6 +394,17 @@ phoenix oracle list [--dir FOLDER] [--suite NAME]
                 prototype that does not compare anything with EAGLE, KiCad or a measurement,
                 run `phoenix oracle` alone for its options
 
+phoenix corpus run   [--dir FOLDER] [--filter TEXT] [--properties] [--settings FILE] [--out FILE] [--json] [--lang xx]
+phoenix corpus list  [--dir FOLDER] [--filter TEXT] [--settings FILE]
+phoenix corpus check [--dir FOLDER] [--settings FILE] [--lang xx]
+
+  corpus        run the own corpus (small hand-written boards, schematics, libraries and
+                manufacturing files in the formats the suite reads or writes, with expectations
+                worked out by hand, adversarial files, round trips between formats and, with
+                --properties, properties on boards made from seeds), list it, or check that it
+                is consistent; nothing is written unless --out names a new file, a prototype
+                that holds no file of a maker, run `phoenix corpus` alone for its options
+
 phoenix view [--settings FILE] [--lang xx] [<board or schematic>]
 phoenix view --summary <file>  |  phoenix view --bench
 
@@ -544,6 +557,9 @@ pub fn run(args: &[String], out: &mut dyn Write, err: &mut dyn Write) -> i32 {
     }
     if let Some((&"oracle", tail)) = rest.split_first() {
         return oracle::oracle_command(tail, out, err);
+    }
+    if let Some((&"corpus", tail)) = rest.split_first() {
+        return corpus::corpus_command(tail, out, err);
     }
     if let Some((&"view", tail)) = rest.split_first() {
         return view::view(tail, out, err);
