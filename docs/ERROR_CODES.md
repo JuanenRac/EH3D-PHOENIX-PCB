@@ -1120,7 +1120,7 @@ The titles of these codes also exist in the eight languages of the suite (`TITLE
 | PHOENIX-DXF-012 | Duplicate entity was dropped | information: a piece that repeats another in either direction, a piece with no length or a contour that repeats another |
 | PHOENIX-DXF-013 | Contour crosses itself or another contour | error: an edge of the outline crosses another edge of it or an edge of a cutout, or two cutouts cross; information when the check was skipped because the contour has more edges than `max_check_edges` |
 | PHOENIX-DXF-014 | No closed contour was found | error: no chain of pieces, closed polyline or circle on the layer asked for (or in the whole drawing) closes |
-| PHOENIX-DXF-015 | Cutout is not kept by the board | warning: a contour inside the outline; the board model holds its outline only, so the cutouts are listed and not kept |
+| PHOENIX-DXF-015 | Cutouts inside the outline | information: a contour inside the outline is kept as a cutout of the board outline |
 | PHOENIX-DXF-016 | More than one outer contour, the largest is used | warning: outer contours that are not inside another, besides the largest; they are left out with the cutouts of theirs |
 | PHOENIX-DXF-017 | Contour is degenerate | warning: a closed chain with fewer than three corners or with no area; it is left out |
 | PHOENIX-DXF-018 | Arcs were approximated by straight pieces | information: arcs and circles of the outline replaced by straight pieces within `arc_tolerance_nm` |

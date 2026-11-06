@@ -2,7 +2,7 @@
 
 The crate `eh3d-phoenix-dxf` and the commands `phoenix dxf-import` and `phoenix dxf-export` read and write DXF drawings, the format that every mechanical CAD program opens, for the outline of a board, its holes and the layout of a panel (requirement PPCB-026, the mechanical export).
 
-**State: prototype.** It has been tried on drawings written by the tests and by the crate itself, with the results worked out by hand (`tests/dxf`), and no CAD program has opened a file it writes or has written a file it reads. The board model holds its outline only, so the cutouts of a drawing are listed and not kept.
+**State: prototype.** It has been tried on drawings written by the tests and by the crate itself, with the results worked out by hand (`tests/dxf`), and no CAD program has opened a file it writes or has written a file it reads. The cutouts inside the outline of a drawing are kept as the cutouts of the board outline (`outline_cutouts`), and a board with cutouts is written as one closed contour on the layer of the outline for the outline and for each of them.
 
 Nothing is dropped without a word. What the reader does not understand is counted and listed with its layers; what it approximates says so; what the outline cannot keep is listed.
 
@@ -39,7 +39,7 @@ What is not understood (ellipses, texts of the drawing, hatches, dimensions, mes
 1. the lines and arcs are joined end to end into chains; two ends no further apart than `join_tolerance_nm` (or `--join-tolerance-mm`) are the same end, whatever the order and the direction of the pieces;
 2. a chain that returns to its start, a closed polyline and a circle are closed contours; a chain that does not is reported with its ends (`PHOENIX-DXF-011`) and is not part of the outline;
 3. a piece that repeats another in either direction, a piece with no length and a contour that repeats another are dropped, and the count is reported (`PHOENIX-DXF-012`); a closed chain with no area is left out (`PHOENIX-DXF-017`);
-4. the contours are put in order by containment: one inside no other is an outer contour, one inside one other is a cutout, one inside two is an outer contour again, and so on. The largest outer contour is the outline, counter-clockwise; the others are listed and left out (`PHOENIX-DXF-016`); the cutouts inside it are clockwise, and are listed and not kept (`PHOENIX-DXF-015`), because the board model holds its outline only;
+4. the contours are put in order by containment: one inside no other is an outer contour, one inside one other is a cutout, one inside two is an outer contour again, and so on. The largest outer contour is the outline, counter-clockwise; the others are listed and left out (`PHOENIX-DXF-016`); the cutouts inside it are clockwise, and are kept as the cutouts of the board outline (`PHOENIX-DXF-015`, now an information and no longer a warning; the operation `outline_from_dxf` replaces the outline and the cutouts as one step that one undo takes back);
 5. the arcs and circles become straight pieces within `arc_tolerance_nm` (`PHOENIX-DXF-018`);
 6. the edges of the outline and of each cutout are checked for crossing themselves and each other, with exact integer arithmetic (`PHOENIX-DXF-013`, an error); a contour with more edges than `max_check_edges` is not checked and the report says so. A crossing along an overlap and a corner on another edge are not crossings.
 

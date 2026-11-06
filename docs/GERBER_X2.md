@@ -86,4 +86,4 @@ The layers of a panel of boards (`docs/PANEL.md`, `phoenix panel`) are written b
 
 ## What is not here
 
-See `docs/NOT_YET.md`: the manufacturer and part number attributes, the attributes of components beyond the reference, the pin and the net, blind and buried vias in their own drill files, the aperture functions of the objects the board model lacks, object attributes in the drill files, and the comparison with the files of real CAD programs and with a viewer or CAM program of a manufacturer.
+See `docs/NOT_YET.md`: the manufacturer and part number attributes, the attributes of components beyond the reference, the pin and the net, the aperture functions of the objects the board model lacks, object attributes in the drill files, and the comparison with the files of real CAD programs and with a viewer or CAM program of a manufacturer.

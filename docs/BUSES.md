@@ -36,4 +36,4 @@ The panel of the schematic editor has the tools *Bus* (type the name, click wher
 
 ## Not done
 
-The list is in `docs/NOT_YET.md`. In short: the bus drawing is a mark at the anchor, with no wire along it; a bus entry is a point and not a diagonal piece with a size; a bus has no direction; the KiCad reader still counts a bus label and does not read it into these objects, and the EAGLE reader counts the buses.
+The list is in `docs/NOT_YET.md`. In short: the bus drawing is a mark at the anchor, with no wire along it; a bus entry is a point and not a diagonal piece with a size; a bus has no direction; the KiCad reader reads a bus label and the entries that end on a member label into these objects and the KiCad writer writes them (the bus as its label and a line from the anchor through the ends of its entries, the entry as a `bus_entry` with the label of its member), and the EAGLE reader counts the buses.

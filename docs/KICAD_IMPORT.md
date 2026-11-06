@@ -51,7 +51,7 @@ The **fidelity level** of the set is `complete` when every file was read and not
 
 A sheet symbol of the schematic is kept as a sheet symbol of the model (its name, corner and size, a pin for each pin with its shape as direction), the file it names is the sheet it shows and each hierarchical label of that file is a port (`docs/HIERARCHY.md`); the nets are still computed for the whole design as described here.
 
-A bus is not a net: the members of a bus join through the labels of their wires, which the reader already joins by name. A label that names a bus (`D[0..7]`) or a group of signals (`USB{DP DM}`) would only make a net with a wrong name, so it is not read as a net and is counted under `bus labels (the members are not expanded)`. The bus lines themselves and the bus entries are counted by name as before. Members that are joined only through a bus label between sheets are therefore not joined; this is listed in `docs/NOT_YET.md`.
+A bus is not a net: the members of a bus join through the labels of their wires, which the reader already joins by name. A label that names a bus (`D[0..7]`) or a group of signals (`USB{DP DM}`) would only make a net with a wrong name, so it is not read as a net: it becomes a `Bus` of the sheet (`docs/BUSES.md`), expanded to its members (`D0` to `D7`, `USB.DP` and `USB.DM`), and is counted under `buses`. A `bus_entry` whose far end meets a net label with the name of a member (or a wire that ends there and has such a label at its other end) becomes a `BusEntry` of that bus (`bus entries`). What is reported and not read: a label that names a bus that cannot be expanded (`bus labels that cannot be expanded`), an entry with no label of a member at its end (`bus entries with no net label at their end`), an entry whose member is in no bus of the sheet (`bus entries whose member is in no bus of the sheet`), and the wires of the buses, which the model does not draw (`` `bus` elements ``). Members that are joined only through a bus label between sheets are therefore not joined; this is listed in `docs/NOT_YET.md`.
 
 ## Other commands
 
@@ -67,4 +67,4 @@ Every file is hostile until proven otherwise: the limits of size, depth, nodes, 
 
 ## What is not done
 
-The writing of KiCad files, the comparison with KiCad on a public corpus, the shapes and platings of pads that the model does not hold, the filled copper of zones, the members of buses and the rules of the project as a rule file are in `docs/NOT_YET.md`.
+The writing of KiCad files, the comparison with KiCad on a public corpus, the trapezoid, chamfered and custom shapes of pads, the filled copper of zones, the members of buses between sheets and the rules of the project as a rule file are in `docs/NOT_YET.md`.

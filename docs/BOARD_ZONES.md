@@ -55,7 +55,7 @@ The ids of the copies come from the supply of the editor, so the same board and 
 
 ## Writing the filled copper
 
-* **Gerber.** `BoardEdit::poured_board` (and `phoenix boardedit --poured-out FILE`) gives the board with every filled zone replaced by one zone for each polygon of its copper. The export writes each as a region of the copper layer (with the net attribute when the profile writes it); the import reads the regions back (`docs/GERBER_IMPORT.md`), one for each polygon. The polygons are convex, touch along their sides and are all dark; the file has no clear-polarity regions. A zone with no fill stays as its outline.
+* **Gerber.** `BoardEdit::poured_board` (and `phoenix boardedit --poured-out FILE`) gives the board with every filled zone replaced by one zone for each polygon of its copper. The export writes each as a region of the copper layer (with the net attribute when the profile writes it); the import reads the regions back (`docs/GERBER_IMPORT.md`), one for each polygon. The polygons are convex, touch along their sides and are all dark. A zone with no fill stays as its outline, and the export clears out of every zone the `cutouts` of its model and a keep-away around the copper of other nets, with objects of clear polarity (`docs/EXPORT.md`).
 * **Specctra DSN and KiCad.** Both carry the outline of a zone (the router sees it as a plane of its net, KiCad fills it again). `export_issues` and the notes of `phoenix boardedit` name, for each zone, what a format cannot say (`PHOENIX-BZONE-010`): the fill, the cutouts, the priority, the connection and the thermal relief. Nothing is dropped without a note.
 
 ## The commands
