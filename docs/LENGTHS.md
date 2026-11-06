@@ -35,7 +35,7 @@ A pair names the positive and the negative net and may say:
 * `gap_nm` and `gap_tolerance_nm`: the gap between the edges of the two tracks. It is measured on every straight piece of the positive net against the straight pieces of the negative net on the same layer: the distance between the centre lines less half of each width. A piece within `coupling_range_nm` of the other net counts as coupled. The smallest gap of the coupled pieces below the gap asked for less the tolerance is `PHOENIX-LEN-007`, the largest above it plus the tolerance is `PHOENIX-LEN-008`;
 * `max_uncoupled_nm`: the most of the positive net that may run uncoupled (`PHOENIX-LEN-009`).
 
-A pair with no coupled stretch gives the warning `PHOENIX-LEN-019` and its gap is not judged. A piece of arc is never coupled.
+A pair with no coupled stretch gives the warning `PHOENIX-LEN-019` and its gap is not judged. A piece of arc is never coupled. The board editor draws, tunes and checks a pair as one object with its own definitions and codes, and uses this crate for the lengths and the gaps (`docs/DIFFPAIRS.md`).
 
 ## The file of groups and pairs
 

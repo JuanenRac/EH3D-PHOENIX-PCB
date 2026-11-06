@@ -364,6 +364,19 @@
           }
         },
         {
+          "name": "DIFFPAIRS.md",
+          "desc": {
+            "en": "differential pairs: definition, operations, checks, the command",
+            "es": "pares diferenciales: definición, operaciones, comprobaciones, el comando",
+            "de": "Differenzpaare: Definition, Operationen, Prüfungen, der Befehl",
+            "fr": "paires différentielles : définition, opérations, vérifications, la commande",
+            "it": "coppie differenziali: definizione, operazioni, verifiche, il comando",
+            "ja": "差動ペア：定義、操作、検査、コマンド",
+            "zh": "差分对：定义、操作、检查与命令",
+            "pt": "pares diferenciais: definição, operações, verificações, o comando"
+          }
+        },
+        {
           "name": "GERBER_IMPORT.md",
           "desc": {
             "en": "import of Gerber and Excellon files for review, and the round trip",

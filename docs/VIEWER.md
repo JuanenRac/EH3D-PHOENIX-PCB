@@ -60,6 +60,8 @@ The button *Edit schematic* of the left panel starts the schematic editor (`docs
 
 The button *Edit board* of the left panel starts the board editor (`docs/BOARD_EDIT.md`): the tools to place a footprint, draw tracks with horizontal, vertical and 45-degree pieces, add vias, delete, tune the length of a net with meanders and select by rectangle, the drag of components with the tracks on their pads following, turning, putting a component on the other side and locking it, the active layer, the lit net with its length and the ratsnest, with undo and redo and the design rules checked after every operation (an operation that adds a rule error is refused). After every change the board is handed to the workspace, so the findings and saving work on what was edited. The state is tested without a screen (`eh3d-phoenix-boardedit`); the window (`board_gui`) has never been seen on a screen or used with a mouse.
 
+The box *Pair tool* of the same panel turns a click into a point of the centre line of a differential pair and adds the buttons to draw the pair, make its lengths equal, correct its gap and check the pairs (`docs/DIFFPAIRS.md`); it has never been used with a mouse.
+
 ### Editing a library
 
 A `.lbr` file given to the window, or the button *Library editor*, starts the library mode (`docs/LIBRARY_EDIT.md`): lists of footprints, symbols and device sets, a drawing board with a fine grid and snapping, tools to place pads, holes, lines, arcs, circles, texts and pins, a measure, the properties of the item selected, the openings of the mask and the paste, the gates, variants and connections of a device set, the findings of the check of the library, the footprint generator and the plan to replace an item by its master. Every edit is a reversible operation of `eh3d-phoenix-libedit`, and the library is saved only as a new file that is read back and compared. The state is tested without a screen (`library_session`); the window (`library_gui`) has never been seen on a screen.
@@ -128,6 +130,8 @@ The crate `eh3d-phoenix-viewer` holds all of the logic, with no dependency on eg
 | `bench` | Three synthetic boards and their timing |
 | `settings`, `codes`, `msg`, `editmsg` | The settings file, the codes `PHOENIX-VIEW-<NNN>` and the texts in eight languages (`editmsg` those of the editing) |
 | `board_text`, `board_sync` | The texts of the board editor in eight languages and the hand-over of the edited board to the workspace (`Workspace::replace_board`) |
+| `board_pair`, `board_pair_text` | The state of the pair tool of the board editor (the pair chosen, the points of the centre line, the operations on the pair and the report of the checks) and its texts in eight languages |
+| `board_pair_gui` (feature `gui`) | The section of the pairs in the panel of the board editor and the drawing of the points that were clicked |
 | `board_gui` (feature `gui`) | The editing mode of the window for a board: the panel of tools and the canvas that draws the board with the ratsnest and what is in progress and passes on the pointer and the keys to `eh3d-phoenix-boardedit` |
 | `schematic_text`, `schematic_sync` | The texts of the schematic editor in eight languages and the hand-over of the edited schematic to the workspace (`Workspace::replace_schematic`) |
 | `schematic_gui` (feature `gui`) | The editing mode of the window for a schematic: the panel of tools, the palette, and the canvas that draws the schematic and passes on the pointer and the keys to `eh3d-phoenix-schedit` |

@@ -19,6 +19,7 @@ An operation is one change that is asked for. It is a value (`EditOp`) that can 
 | `route_between` | Draws the shortest route between two pads without a router: a straight piece when they are in line (or at 45 degrees with the diagonal shape), an L otherwise. A pad that has no net takes the net of the other; two pads on different nets are refused. |
 | `paste_net` | Pastes a net: the pads get the net of that name (made when the board has none) and are joined in the order given, each with the shortest route to the next. A pad that is on another net is refused. |
 | `tune_length` | Adds square meanders to the longest straight pieces of a net until its copper length (measured by `eh3d-phoenix-lengths`: tracks and vias) is the target, to within `length_tolerance_nm`. Both sides of the piece are tried in turn. A net already within the tolerance is left as it is; a net longer than the target, or with no piece long enough, is refused (`PHOENIX-BEDIT-008`). |
+| `route_pair`, `tune_pair`, `fix_pair_gap` | The operations on a differential pair: the two tracks drawn side by side, the shorter net made as long as the other with meanders, and the pieces with a wrong gap moved to the gap of the pair. They are described in `docs/DIFFPAIRS.md`. |
 | `group` | Several operations that are one step of the history and are refused as a whole when one is. |
 | `forced` | An operation that is kept even if it adds a rule error. |
 
@@ -59,7 +60,7 @@ A line that is not `key = value`, an unknown key or a value out of range is `PHO
 ## The command
 
 ```text
-phoenix boardedit [--rules FILE] [--settings FILE] [--json] [--lang xx] --apply OPERATIONS.json [--out FILE] <board>
+phoenix boardedit [--rules FILE] [--settings FILE] [--pair-config FILE] [--pairs FILE] [--json] [--lang xx] --apply OPERATIONS.json [--out FILE] <board>
 ```
 
 The board is an EAGLE `.brd` file or the JSON of the model. The operations are a JSON list, or an object with the list under `ops`:
@@ -75,6 +76,7 @@ The board is an EAGLE `.brd` file or the JSON of the model. The operations are a
 
 * It is a dry run: the operations are applied in memory, the design rules are checked after each one and the counts and the findings are printed. Nothing is written unless `--out` names a **new** file (`.json` for the model, `.brd` for EAGLE). An input file (the board, the file of operations, the rules and the settings) and a file that exists are never written over (`PHOENIX-BEDIT-003`).
 * All or nothing: the first operation that is refused ends the run, names its number and writes nothing (`PHOENIX-BEDIT-004` to `PHOENIX-BEDIT-008`; a file that cannot be read is `PHOENIX-BEDIT-002`).
+* `--pair-config` and `--pairs` give the settings and the pairs for the pair operations (`docs/DIFFPAIRS.md`): the settings file (default `config/diffpairs.cfg` when it exists) and a JSON file of pairs.
 * `--rules` is the JSON rule file (`docs/RULES.md`); without it an EAGLE board gives its own design rules and any other board is checked only for shorts.
 * Exit codes: 0 done and the rules prove no error on the result, 1 done and they prove an error (one that was there before, or one that a forced operation added), 2 the arguments, the input, an operation or the output are unusable.
 
@@ -82,12 +84,12 @@ The board is an EAGLE `.brd` file or the JSON of the model. The operations are a
 
 In a board, the button *Edit board* of the left panel starts the editor on the board that is open. The panel then shows the tools, the active layer, what the tool needs (the footprint, the reference and the value; the corner and the 45-degree pieces; the target length), the selection actions (turn, other side, lock, delete), the count of rule errors and of connections still to route, the length of the lit net, the grid, snapping and the rule check; the right panel keeps the findings of the rules. The mouse draws: the left button works the tool, the right or middle button pans, the wheel zooms about the pointer. The keys are V select, P place, T route, I via, D delete, L tune, R turn (shift: back), X other side, K lock, Delete, Enter ends the route, Space the corner, Escape drops the route or the drag, Ctrl+Z and Ctrl+Y.
 
-After every change the window gives the workspace the board as it is (`Workspace::replace_board`): the findings, the ratsnest and *Save as* work on what was edited, and the file that was read is never written over. The steps of the editor are its own; the undo of the top bar is switched off while the editor is on. The window reads `config/boardedit.cfg` from the folder it is started in when the file is there and good. The texts are in the eight languages of the suite (`board_text`).
+After every change the window gives the workspace the board as it is (`Workspace::replace_board`): the findings, the ratsnest and *Save as* work on what was edited, and the file that was read is never written over. The steps of the editor are its own; the undo of the top bar is switched off while the editor is on. The window reads `config/boardedit.cfg` from the folder it is started in when the file is there and good. A box *Pair tool* adds the section of the differential pairs (`docs/DIFFPAIRS.md`). The texts are in the eight languages of the suite (`board_text`, `board_pair_text`).
 
 ## Codes
 
-`PHOENIX-BEDIT-001` to `PHOENIX-BEDIT-008` are in `docs/ERROR_CODES.md`, with their titles in the eight languages in `eh3d-phoenix-boardedit` (`src/codes.rs`).
+`PHOENIX-BEDIT-001` to `PHOENIX-BEDIT-008` are in `docs/ERROR_CODES.md`, with their titles in the eight languages in `eh3d-phoenix-boardedit` (`src/codes.rs`). The codes `PHOENIX-PAIR-001` to `PHOENIX-PAIR-011` of the differential pairs are there too (`src/pair_codes.rs`).
 
 ## What is not done
 
-The list is in `NOT_YET.md`. In short: no automatic routing, no push and shove (a track never moves another), no arcs in the tracks the editor draws, meanders only on horizontal or vertical pieces, no differential pairs, no copper zones or silkscreen in the editor, no check of the pieces of a drag while it is drawn (the rules run when it is let go), locks that are not saved, and a window that has not been seen on a screen or used with a mouse.
+The list is in `NOT_YET.md`. In short: no automatic routing, no push and shove (a track never moves another), no arcs in the tracks the editor draws, meanders only on horizontal or vertical pieces, differential pairs only as far as `docs/DIFFPAIRS.md` says, no copper zones or silkscreen in the editor, no check of the pieces of a drag while it is drawn (the rules run when it is let go), locks that are not saved, and a window that has not been seen on a screen or used with a mouse.

@@ -71,7 +71,7 @@
         "crates/eh3d-phoenix-cli/src/gui_main.rs",
         "crates/eh3d-phoenix-schematic/src/edit.rs",
         "crates/eh3d-phoenix-schedit/src/state.rs",
-        "crates/eh3d-phoenix-libedit/src/ops.rs", "crates/eh3d-phoenix-boardedit/src/edit.rs",
+        "crates/eh3d-phoenix-libedit/src/ops.rs", "crates/eh3d-phoenix-boardedit/src/edit.rs", "crates/eh3d-phoenix-boardedit/src/pair_plan.rs",
         "crates/eh3d-phoenix-route/src/dsn.rs",
         "crates/eh3d-phoenix-zones/src/fill.rs",
         "crates/eh3d-phoenix-lengths/src/analyse.rs",
