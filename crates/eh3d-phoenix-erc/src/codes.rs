@@ -36,6 +36,14 @@ pub const JUNCTION_ON_FLOATING_WIRES: &str = "PHOENIX-ERC-014";
 pub const NOT_JUDGED: &str = "PHOENIX-ERC-015";
 /// A settings file that is not valid.
 pub const SETTINGS_INVALID: &str = "PHOENIX-ERC-016";
+/// A net with two or more pins and no pin of a type that drives a signal.
+pub const NET_WITHOUT_DRIVER: &str = "PHOENIX-ERC-017";
+/// A power input pin of a chip with no decoupling capacitor near it.
+pub const MISSING_DECOUPLING: &str = "PHOENIX-ERC-018";
+/// Two net names that differ by one character and may be a typing mistake.
+pub const NET_NAME_TYPO: &str = "PHOENIX-ERC-019";
+/// A net label or power port that touches no wire and no pin.
+pub const ORPHAN_LABEL: &str = "PHOENIX-ERC-020";
 
 /// The rules that can be set in the settings, in the fixed order of the report.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -68,11 +76,19 @@ pub enum Rule {
     FloatingWires,
     /// A junction on wires that join no pin.
     JunctionOnFloatingWires,
+    /// A net with no pin that drives it.
+    NetWithoutDriver,
+    /// A power pin of a chip with no decoupling capacitor near it.
+    MissingDecoupling,
+    /// Net names one character apart.
+    NetNameTypo,
+    /// A label that touches nothing.
+    OrphanLabel,
 }
 
 impl Rule {
     /// Every rule, in the order of the report.
-    pub const ALL: [Rule; 14] = [
+    pub const ALL: [Rule; 18] = [
         Rule::PinUnconnected,
         Rule::SinglePinNet,
         Rule::PinTypeConflict,
@@ -87,6 +103,10 @@ impl Rule {
         Rule::DuplicatePinNumber,
         Rule::FloatingWires,
         Rule::JunctionOnFloatingWires,
+        Rule::NetWithoutDriver,
+        Rule::MissingDecoupling,
+        Rule::NetNameTypo,
+        Rule::OrphanLabel,
     ];
 
     /// The place of the rule in the order of the report, from 1.
@@ -119,6 +139,10 @@ impl Rule {
             Rule::DuplicatePinNumber => "duplicate_pin_number",
             Rule::FloatingWires => "floating_wires",
             Rule::JunctionOnFloatingWires => "junction_on_floating_wires",
+            Rule::NetWithoutDriver => "net_without_driver",
+            Rule::MissingDecoupling => "missing_decoupling",
+            Rule::NetNameTypo => "net_name_typo",
+            Rule::OrphanLabel => "orphan_label",
         }
     }
 
@@ -139,6 +163,10 @@ impl Rule {
             Rule::DuplicatePinNumber => DUPLICATE_PIN_NUMBER,
             Rule::FloatingWires => FLOATING_WIRES,
             Rule::JunctionOnFloatingWires => JUNCTION_ON_FLOATING_WIRES,
+            Rule::NetWithoutDriver => NET_WITHOUT_DRIVER,
+            Rule::MissingDecoupling => MISSING_DECOUPLING,
+            Rule::NetNameTypo => NET_NAME_TYPO,
+            Rule::OrphanLabel => ORPHAN_LABEL,
         }
     }
 
@@ -169,6 +197,13 @@ pub const REGISTRY: &[(&str, &str)] = &[
     ),
     (NOT_JUDGED, "Check could not be judged"),
     (SETTINGS_INVALID, "Settings are not valid"),
+    (NET_WITHOUT_DRIVER, "Net has no driver"),
+    (
+        MISSING_DECOUPLING,
+        "Power pin has no decoupling capacitor near it",
+    ),
+    (NET_NAME_TYPO, "Net names may be a typing mistake"),
+    (ORPHAN_LABEL, "Label touches no wire or pin"),
 ];
 
 /// The titles in the eight languages, in the order of [`Lang::ALL`].
@@ -379,6 +414,58 @@ const TITLES: &[(&str, [&str; 8])] = &[
             "設定が正しくない",
             "设置无效",
             "As definições não são válidas",
+        ],
+    ),
+    (
+        NET_WITHOUT_DRIVER,
+        [
+            "Net has no driver",
+            "Red sin ningún driver",
+            "Netz ohne Treiber",
+            "Réseau sans pilote",
+            "Rete senza driver",
+            "ドライバのないネット",
+            "网络没有驱动源",
+            "Rede sem origem de sinal",
+        ],
+    ),
+    (
+        MISSING_DECOUPLING,
+        [
+            "Power pin has no decoupling capacitor near it",
+            "Pin de alimentación sin condensador de desacoplo cerca",
+            "Versorgungspin ohne Abblockkondensator in der Nähe",
+            "Broche d'alimentation sans condensateur de découplage proche",
+            "Pin di alimentazione senza condensatore di disaccoppiamento vicino",
+            "近くにデカップリングコンデンサのない電源ピン",
+            "电源引脚附近没有去耦电容",
+            "Pino de alimentação sem condensador de desacoplamento perto",
+        ],
+    ),
+    (
+        NET_NAME_TYPO,
+        [
+            "Net names may be a typing mistake",
+            "Nombres de red que pueden ser una errata",
+            "Netznamen könnten ein Tippfehler sein",
+            "Noms de réseau qui pourraient être une faute de frappe",
+            "Nomi di rete che potrebbero essere un errore di battitura",
+            "打ち間違いかもしれないネット名",
+            "网络名称可能是拼写错误",
+            "Nomes de rede que podem ser uma gralha",
+        ],
+    ),
+    (
+        ORPHAN_LABEL,
+        [
+            "Label touches no wire or pin",
+            "Etiqueta que no toca ningún cable ni pin",
+            "Bezeichnung berührt weder Leitung noch Pin",
+            "Étiquette qui ne touche aucun fil ni broche",
+            "Etichetta che non tocca alcun filo né pin",
+            "配線にもピンにも触れていないラベル",
+            "标签未接触任何导线或引脚",
+            "Etiqueta que não toca em nenhum fio nem pino",
         ],
     ),
 ];

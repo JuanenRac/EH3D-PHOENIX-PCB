@@ -7,8 +7,10 @@
 //! * [`checks`]: the checks in a fixed order: pins that are on no net, nets with a single pin, pins
 //!   of types the matrix does not allow together, inputs with no driver, power inputs with no
 //!   source, net names that look alike, reference designators used twice or empty, empty values,
-//!   parts without a footprint, symbol pins without a number or with a repeated one, and wires and
-//!   junctions that join no pin;
+//!   parts without a footprint, symbol pins without a number or with a repeated one, wires and
+//!   junctions that join no pin, nets that nothing really drives, power inputs of chips without a
+//!   decoupling capacitor near them, net names that may be typing mistakes and labels that touch
+//!   nothing; a net listed as a power flag counts as supplied from outside;
 //! * [`report`]: the report as text in eight languages and as JSON, with the proven findings
 //!   (`confirmed`) and what could not be judged (`inconclusive`) in two lists, in a fixed order;
 //! * [`codes`]: the stable codes `PHOENIX-ERC-<NNN>` with their titles in the eight languages.

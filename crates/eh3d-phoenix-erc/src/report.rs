@@ -14,7 +14,7 @@ use crate::codes::title;
 /// One finding of the check.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Finding {
-    /// The place of the rule in the fixed order of the checks (15 for what could not be judged).
+    /// The place of the rule in the fixed order of the checks (19 for what could not be judged).
     pub rank: u8,
     /// The stable name of the rule (`pin_unconnected`).
     pub rule: &'static str,

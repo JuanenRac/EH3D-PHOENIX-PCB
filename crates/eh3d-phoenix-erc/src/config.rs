@@ -92,6 +92,24 @@ pub struct ErcConfig {
     pub similar_name_min_stem: usize,
     /// The most findings listed.
     pub max_findings: usize,
+    /// The pin types that really drive a net (a passive pin does not): a net with two pins or
+    /// more and none of these is reported by the rule `net_without_driver`.
+    pub strong_drivers: Vec<PinKind>,
+    /// Net names that are supplied from outside the drawing (the work of a power flag): a power
+    /// input on such a net has a source. Compared without regard to case.
+    pub power_flags: Vec<String>,
+    /// The prefixes of the reference designators of the parts whose power inputs need a
+    /// decoupling capacitor (`U`, `IC`).
+    pub decoupling_prefixes: Vec<String>,
+    /// The prefixes of the reference designators of the parts that count as capacitors.
+    pub capacitor_prefixes: Vec<String>,
+    /// The names of the nets that count as ground for a decoupling capacitor.
+    pub ground_nets: Vec<String>,
+    /// The farthest a decoupling capacitor may be from the pin it serves, in nanometres, when
+    /// both are placed on one sheet.
+    pub decoupling_max_distance_nm: i64,
+    /// Net names shorter than this are never compared for a typing mistake.
+    pub typo_min_length: usize,
 }
 
 impl Default for ErcConfig {
@@ -103,6 +121,15 @@ impl Default for ErcConfig {
         }
         config
     }
+}
+
+fn parse_names(value: &str) -> Vec<String> {
+    value
+        .split(',')
+        .map(str::trim)
+        .filter(|part| !part.is_empty())
+        .map(str::to_owned)
+        .collect()
 }
 
 fn parse_kinds(value: &str) -> Option<Vec<PinKind>> {
@@ -127,7 +154,20 @@ impl ErcConfig {
             power_sources: Vec::new(),
             similar_name_min_stem: 3,
             max_findings: 10_000,
+            strong_drivers: Vec::new(),
+            power_flags: Vec::new(),
+            decoupling_prefixes: Vec::new(),
+            capacitor_prefixes: Vec::new(),
+            ground_nets: Vec::new(),
+            decoupling_max_distance_nm: 0,
+            typo_min_length: 4,
         }
+    }
+
+    /// Reads more settings lines on top of this configuration, for instance the options of the
+    /// command line over the file: a key that is left out keeps its value.
+    pub fn merge(&mut self, text: &str) -> Result<(), SettingsError> {
+        self.apply(text)
     }
 
     /// Reads a settings text on top of the default: a line that is left out keeps the default.
@@ -176,6 +216,19 @@ impl ErcConfig {
                 match key {
                     "drivers" => self.drivers = parse_kinds(value).ok_or_else(bad)?,
                     "power_sources" => self.power_sources = parse_kinds(value).ok_or_else(bad)?,
+                    "strong_drivers" => self.strong_drivers = parse_kinds(value).ok_or_else(bad)?,
+                    "power_flags" => self.power_flags = parse_names(value),
+                    "decoupling_prefixes" => self.decoupling_prefixes = parse_names(value),
+                    "capacitor_prefixes" => self.capacitor_prefixes = parse_names(value),
+                    "ground_nets" => self.ground_nets = parse_names(value),
+                    "decoupling_max_distance_nm" => {
+                        let n: i64 = value.parse().map_err(|_| bad())?;
+                        if n < 0 {
+                            return Err(bad());
+                        }
+                        self.decoupling_max_distance_nm = n;
+                    }
+                    "typo_min_length" => self.typo_min_length = value.parse().map_err(|_| bad())?,
                     "similar_name_min_stem" => {
                         self.similar_name_min_stem = value.parse().map_err(|_| bad())?;
                     }
@@ -236,6 +289,15 @@ mod tests {
         assert_eq!(c.pair_level(PinKind::Input, PinKind::Output), Level::Off);
         assert!(c.drivers.contains(&PinKind::Output));
         assert_eq!(c.power_sources, vec![PinKind::PowerOut]);
+        assert!(!c.strong_drivers.contains(&PinKind::Passive));
+        assert!(c.strong_drivers.contains(&PinKind::Output));
+        assert!(c.power_flags.is_empty());
+        assert_eq!(c.decoupling_prefixes, vec!["U".to_owned(), "IC".to_owned()]);
+        assert_eq!(c.capacitor_prefixes, vec!["C".to_owned()]);
+        assert_eq!(c.level(Rule::NetWithoutDriver), Level::Off);
+        assert_eq!(c.level(Rule::MissingDecoupling), Level::Off);
+        assert_eq!(c.level(Rule::NetNameTypo), Level::Warning);
+        assert_eq!(c.level(Rule::OrphanLabel), Level::Warning);
     }
 
     #[test]
@@ -273,6 +335,33 @@ mod tests {
     }
 
     #[test]
+    fn lists_of_names_and_the_advanced_keys_are_read_and_merged_over_a_configuration() {
+        let mut c = ErcConfig::default();
+        c.merge(
+            "power_flags = +5V, vbus ,,
+ground_nets = GND
+decoupling_max_distance_nm = 5
+",
+        )
+        .unwrap();
+        assert_eq!(c.power_flags, vec!["+5V".to_owned(), "vbus".to_owned()]);
+        assert_eq!(c.ground_nets, vec!["GND".to_owned()]);
+        assert_eq!(c.decoupling_max_distance_nm, 5);
+        // a key that is left out keeps its value
+        assert_eq!(
+            c.decoupling_prefixes,
+            ErcConfig::default().decoupling_prefixes
+        );
+        assert!(c.merge("severity.net_name_typo = loud").is_err());
+        c.merge(
+            "severity.net_without_driver = warning
+",
+        )
+        .unwrap();
+        assert_eq!(c.level(Rule::NetWithoutDriver), Level::Warning);
+    }
+
+    #[test]
     fn bad_settings_name_their_line_and_never_panic() {
         for (text, line) in [
             ("nonsense", 1),
@@ -282,6 +371,9 @@ mod tests {
             ("matrix.input.nothing = error", 1),
             ("drivers = output, nothing", 1),
             ("max_findings = 0", 1),
+            ("decoupling_max_distance_nm = -1", 1),
+            ("strong_drivers = output, nothing", 1),
+            ("typo_min_length = x", 1),
             ("similar_name_min_stem = x", 1),
             ("unknown_key = 1", 1),
         ] {

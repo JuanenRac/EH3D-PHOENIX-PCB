@@ -13,7 +13,7 @@ use crate::config::{ErcConfig, Level};
 use crate::report::{Finding, Report};
 
 /// The place of what could not be judged in the order of the report.
-const RANK_NOT_JUDGED: u8 = 15;
+const RANK_NOT_JUDGED: u8 = 19;
 
 /// A pin of a net as the report names it.
 struct PinInfo {
@@ -56,6 +56,9 @@ pub fn check(schematic: &Schematic, config: &ErcConfig) -> Report {
     run.symbols();
     run.nets();
     run.net_names();
+    run.net_name_typos();
+    run.decoupling();
+    run.orphan_labels();
     run.wires();
     run.untyped_pins();
     if run.cut {
@@ -295,6 +298,25 @@ impl Run<'_> {
                 )
             };
 
+            if pins.len() >= 2 && self.config.level(Rule::NetWithoutDriver) != Level::Off {
+                let strong = self
+                    .config
+                    .strong_drivers
+                    .iter()
+                    .any(|k| !by_kind[k.index()].is_empty());
+                if !strong {
+                    if unknown.is_empty() {
+                        self.emit(
+                            Rule::NetWithoutDriver,
+                            place.clone(),
+                            format!("{} pins and none drives the net", pins.len()),
+                        );
+                    } else {
+                        self.not_judged(place.clone(), format!("no driver found; {unknown_text}"));
+                    }
+                }
+            }
+
             if !by_kind[PinKind::Input.index()].is_empty() && !has(&self.config.drivers) {
                 let inputs = listed(&by_kind[PinKind::Input.index()]);
                 if unknown.is_empty() {
@@ -307,7 +329,15 @@ impl Run<'_> {
                     self.not_judged(place.clone(), format!("inputs {inputs}; {unknown_text}"));
                 }
             }
-            if !by_kind[PinKind::PowerIn.index()].is_empty() && !has(&self.config.power_sources) {
+            let flagged = self
+                .config
+                .power_flags
+                .iter()
+                .any(|f| f.eq_ignore_ascii_case(net.name.trim()));
+            if !by_kind[PinKind::PowerIn.index()].is_empty()
+                && !has(&self.config.power_sources)
+                && !flagged
+            {
                 let inputs = listed(&by_kind[PinKind::PowerIn.index()]);
                 if unknown.is_empty() {
                     self.emit(
@@ -359,6 +389,238 @@ impl Run<'_> {
                     }
                 }
             }
+        }
+    }
+
+    /// Net names one character apart that the rule of similar names does not already name.
+    fn net_name_typos(&mut self) {
+        if self.config.level(Rule::NetNameTypo) == Level::Off {
+            return;
+        }
+        let s = self.schematic;
+        let min_length = self.config.typo_min_length.max(1);
+        let mut names: Vec<&str> = s
+            .nets
+            .values()
+            .map(|n| n.name.trim())
+            .filter(|n| n.chars().count() >= min_length && !n.contains('$'))
+            .collect();
+        names.sort_unstable();
+        names.dedup();
+        for (i, a) in names.iter().enumerate() {
+            for b in names.iter().skip(i + 1) {
+                if self.full() {
+                    self.cut = true;
+                    return;
+                }
+                if typo_pair(a, b) {
+                    self.emit(
+                        Rule::NetNameTypo,
+                        format!("net {a} / net {b}"),
+                        String::new(),
+                    );
+                }
+            }
+        }
+    }
+
+    /// Power inputs of chips with no capacitor to ground between their net and ground, near them.
+    fn decoupling(&mut self) {
+        if self.config.level(Rule::MissingDecoupling) == Level::Off
+            || self.config.decoupling_prefixes.is_empty()
+            || self.config.capacitor_prefixes.is_empty()
+        {
+            return;
+        }
+        let s = self.schematic;
+        let config = self.config;
+        let chips = &config.decoupling_prefixes;
+        let capacitors = &config.capacitor_prefixes;
+        let limit = i128::from(config.decoupling_max_distance_nm);
+        let ground_ids: BTreeSet<Id> = s
+            .nets
+            .iter()
+            .filter(|(_, n)| {
+                config
+                    .ground_nets
+                    .iter()
+                    .any(|g| g.eq_ignore_ascii_case(n.name.trim()))
+            })
+            .map(|(id, _)| *id)
+            .collect();
+        let mut net_of: BTreeMap<NetPin, Id> = BTreeMap::new();
+        for (id, net) in &s.nets {
+            for pin in &net.pins {
+                net_of.insert(*pin, *id);
+            }
+        }
+        let positions: BTreeMap<NetPin, (Id, (i64, i64))> = s
+            .pin_positions()
+            .into_iter()
+            .map(|(pin, sheet, at)| (pin, (sheet, (at.x_nm.get(), at.y_nm.get()))))
+            .collect();
+
+        let mut findings: Vec<(String, String)> = Vec::new();
+        for (net_id, net) in &s.nets {
+            if ground_ids.contains(net_id) {
+                continue;
+            }
+            // the capacitors with one pin on this net and another on a ground net
+            let mut caps: Vec<NetPin> = Vec::new();
+            for pin in &net.pins {
+                let Some(part) = s.parts.get(&pin.part) else {
+                    continue;
+                };
+                if !has_prefix(&part.refdes, capacitors) {
+                    continue;
+                }
+                let Some(symbol) = s.symbols.get(&part.symbol) else {
+                    continue;
+                };
+                let to_ground = symbol.pins.keys().filter(|k| **k != pin.pin).any(|k| {
+                    let other = NetPin {
+                        part: pin.part,
+                        pin: *k,
+                    };
+                    net_of.get(&other).is_some_and(|n| ground_ids.contains(n))
+                });
+                if to_ground {
+                    caps.push(*pin);
+                }
+            }
+            // the power inputs of chips on this net, by chip
+            let mut by_chip: BTreeMap<Id, Vec<NetPin>> = BTreeMap::new();
+            for pin in &net.pins {
+                let Some(part) = s.parts.get(&pin.part) else {
+                    continue;
+                };
+                if has_prefix(&part.refdes, chips)
+                    && self.kind_of(pin.pin) == Some(PinKind::PowerIn)
+                {
+                    by_chip.entry(pin.part).or_default().push(*pin);
+                }
+            }
+            let place_net = net_place(net_id, net);
+            for (chip, pins) in by_chip {
+                let refdes = s.parts.get(&chip).map_or("?", |p| p.refdes.as_str());
+                if caps.is_empty() {
+                    findings.push((
+                        format!("{refdes} on {place_net}"),
+                        "no capacitor between this net and ground".to_owned(),
+                    ));
+                    continue;
+                }
+                // the nearest pair; a pair with a position that is not given is near by connection
+                let mut nearest: Option<i128> = None;
+                let mut unknown = false;
+                for a in &pins {
+                    for b in &caps {
+                        match (positions.get(a), positions.get(b)) {
+                            (Some((sa, pa)), Some((sb, pb))) if sa == sb => {
+                                let dx = i128::from(pa.0) - i128::from(pb.0);
+                                let dy = i128::from(pa.1) - i128::from(pb.1);
+                                let d2 = dx * dx + dy * dy;
+                                nearest = Some(nearest.map_or(d2, |n| n.min(d2)));
+                            }
+                            (Some(_), Some(_)) => {}
+                            _ => unknown = true,
+                        }
+                    }
+                }
+                if unknown || limit == 0 {
+                    continue;
+                }
+                match nearest {
+                    Some(d2) if d2 <= limit * limit => {}
+                    Some(d2) => findings.push((
+                        format!("{refdes} on {place_net}"),
+                        format!(
+                            "the nearest capacitor to ground is {:.1} mm away, the limit is {:.1} mm",
+                            (d2 as f64).sqrt() / 1e6,
+                            limit as f64 / 1e6
+                        ),
+                    )),
+                    None => findings.push((
+                        format!("{refdes} on {place_net}"),
+                        "the capacitors to ground are on other sheets".to_owned(),
+                    )),
+                }
+            }
+        }
+        for (place, detail) in findings {
+            self.emit(Rule::MissingDecoupling, place, detail);
+        }
+    }
+
+    /// Net labels and power ports that touch no wire and no pin.
+    fn orphan_labels(&mut self) {
+        if self.config.level(Rule::OrphanLabel) == Level::Off {
+            return;
+        }
+        let s = self.schematic;
+        if s.labels.is_empty() && s.power_ports.is_empty() {
+            return;
+        }
+        let pins: BTreeSet<Node> = s
+            .pin_positions()
+            .into_iter()
+            .map(|(_, sheet, at)| (sheet, (at.x_nm.get(), at.y_nm.get())))
+            .collect();
+        let mut unpositioned = 0usize;
+        for part in s.parts.values() {
+            if part.placement.is_none() {
+                continue;
+            }
+            if let Some(symbol) = s.symbols.get(&part.symbol) {
+                unpositioned += symbol.pins.values().filter(|p| p.at.is_none()).count();
+            }
+        }
+        let marks = s
+            .labels
+            .values()
+            .map(|l| ("label", l.sheet, l.at, l.name.as_str()))
+            .chain(
+                s.power_ports
+                    .values()
+                    .map(|p| ("power port", p.sheet, p.at, p.name.as_str())),
+            );
+        let mut found: Vec<(String, String)> = Vec::new();
+        for (what, sheet, at, name) in marks {
+            let Some(sheet_data) = s.sheets.get(&sheet) else {
+                continue;
+            };
+            let point = (at.x_nm.get(), at.y_nm.get());
+            let on_pin = pins.contains(&(sheet, point));
+            let on_wire = s.wires.values().filter(|w| w.sheet == sheet).any(|w| {
+                w.path.iter().any(|p| (p.x_nm.get(), p.y_nm.get()) == point)
+                    || w.path.windows(2).any(|pair| {
+                        on_segment(
+                            point,
+                            (pair[0].x_nm.get(), pair[0].y_nm.get()),
+                            (pair[1].x_nm.get(), pair[1].y_nm.get()),
+                        )
+                    })
+            });
+            if on_pin || on_wire {
+                continue;
+            }
+            let place = format!(
+                "{what} {name} on sheet {} at ({}, {}) nm",
+                sheet_data.name, point.0, point.1
+            );
+            if unpositioned > 0 {
+                self.not_judged(
+                    place,
+                    format!(
+                        "{unpositioned} pins of placed parts have no position and could lie under it"
+                    ),
+                );
+            } else {
+                found.push((place, String::new()));
+            }
+        }
+        for (place, detail) in found {
+            self.emit(Rule::OrphanLabel, place, detail);
         }
     }
 
@@ -502,6 +764,69 @@ fn stem_of(name: &str) -> String {
         .to_owned()
 }
 
+/// The reference designator's letters in upper case (`R` of `r12`).
+fn refdes_letters(refdes: &str) -> String {
+    refdes
+        .trim()
+        .chars()
+        .take_while(|c| c.is_ascii_alphabetic())
+        .map(|c| c.to_ascii_uppercase())
+        .collect()
+}
+
+/// True when the letters of a reference designator are one of the prefixes (case does not matter).
+fn has_prefix(refdes: &str, prefixes: &[String]) -> bool {
+    let letters = refdes_letters(refdes);
+    !letters.is_empty() && prefixes.iter().any(|p| p.eq_ignore_ascii_case(&letters))
+}
+
+/// True when two names, in lower case, differ by one character: one inserted, one dropped, one
+/// changed or two neighbours swapped. A change of one digit to another (`D0` and `D1`) is a bus,
+/// not a mistake.
+fn one_edit_apart(x: &[char], y: &[char]) -> bool {
+    let (nx, ny) = (x.len(), y.len());
+    if nx.abs_diff(ny) > 1 {
+        return false;
+    }
+    let prefix = x.iter().zip(y.iter()).take_while(|(p, q)| p == q).count();
+    if nx == ny {
+        if prefix == nx {
+            return false;
+        }
+        if x[prefix + 1..] == y[prefix + 1..] {
+            return !(x[prefix].is_ascii_digit() && y[prefix].is_ascii_digit());
+        }
+        prefix + 2 <= nx
+            && x[prefix] == y[prefix + 1]
+            && x[prefix + 1] == y[prefix]
+            && x[prefix + 2..] == y[prefix + 2..]
+    } else {
+        let (long, short) = if nx > ny { (x, y) } else { (y, x) };
+        long[prefix + 1..] == short[prefix..]
+    }
+}
+
+/// True when two net names may be a typing mistake of each other. Names that differ only by case or
+/// by the number on the end are the business of the rule of similar names.
+fn typo_pair(a: &str, b: &str) -> bool {
+    let (la, lb) = (a.to_lowercase(), b.to_lowercase());
+    if la == lb || stem_of(&la) == stem_of(&lb) {
+        return false;
+    }
+    let x: Vec<char> = la.chars().collect();
+    let y: Vec<char> = lb.chars().collect();
+    one_edit_apart(&x, &y)
+}
+
+/// True when `p` lies on the piece from `a` to `b` (ends included).
+fn on_segment(p: (i64, i64), a: (i64, i64), b: (i64, i64)) -> bool {
+    let (px, py) = (i128::from(p.0), i128::from(p.1));
+    let (ax, ay) = (i128::from(a.0), i128::from(a.1));
+    let (bx, by) = (i128::from(b.0), i128::from(b.1));
+    let cross = (bx - ax) * (py - ay) - (by - ay) * (px - ax);
+    cross == 0 && px >= ax.min(bx) && px <= ax.max(bx) && py >= ay.min(by) && py <= ay.max(by)
+}
+
 /// The root of a group of nodes, shortening the path on the way.
 fn find(parent: &mut [usize], mut i: usize) -> usize {
     while parent[i] != i {
@@ -522,6 +847,51 @@ mod tests {
         assert_eq!(stem_of("D_12"), "d");
         assert_eq!(stem_of("+3V3"), "+3v");
         assert_eq!(stem_of("123"), "");
+    }
+
+    fn chars(text: &str) -> Vec<char> {
+        text.chars().collect()
+    }
+
+    #[test]
+    fn names_one_character_apart_are_typing_mistakes_unless_they_are_a_bus() {
+        for (a, b, expected) in [
+            ("sda", "sdl", true),
+            ("vbus", "vbuss", true),
+            ("vbus", "vbs", true),
+            ("sdal", "sdla", true),
+            ("d0", "d1", false),
+            ("adc1_in", "adc2_in", false),
+            ("clk", "clk", false),
+            ("clk", "data", false),
+            ("abc", "abcde", false),
+        ] {
+            assert_eq!(one_edit_apart(&chars(a), &chars(b)), expected, "{a} {b}");
+            assert_eq!(one_edit_apart(&chars(b), &chars(a)), expected, "{b} {a}");
+        }
+        assert!(!typo_pair("GND", "gnd"));
+        assert!(!typo_pair("DATA", "DATA1"));
+        assert!(typo_pair("RESET", "RESEET"));
+    }
+
+    #[test]
+    fn a_prefix_is_the_letters_of_the_reference_without_regard_to_case() {
+        let prefixes = vec!["U".to_owned(), "ic".to_owned()];
+        assert_eq!(refdes_letters(" r12"), "R");
+        assert!(has_prefix("U3", &prefixes));
+        assert!(has_prefix("IC1", &prefixes));
+        assert!(!has_prefix("UR1", &prefixes));
+        assert!(!has_prefix("12", &prefixes));
+        assert!(!has_prefix("", &prefixes));
+    }
+
+    #[test]
+    fn a_point_is_on_a_piece_only_between_its_ends() {
+        assert!(on_segment((5, 0), (0, 0), (10, 0)));
+        assert!(on_segment((0, 0), (0, 0), (10, 0)));
+        assert!(on_segment((3, 3), (0, 0), (10, 10)));
+        assert!(!on_segment((11, 0), (0, 0), (10, 0)));
+        assert!(!on_segment((5, 1), (0, 0), (10, 0)));
     }
 
     #[test]

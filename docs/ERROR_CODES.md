@@ -411,6 +411,10 @@ The titles of these codes also exist in the eight languages of the suite (`TITLE
 | PHOENIX-ERC-014 | Junction on wires that join no pin | three or more wire pieces meeting at a point of wires that join no pin (a warning) |
 | PHOENIX-ERC-015 | Check could not be judged | a finding in the inconclusive list: pins without a type, pins without a position, a list cut at `max_findings` (information, never a failure) |
 | PHOENIX-ERC-016 | Settings are not valid | a line of the settings text that is not `key = value`, an unknown key or rule, or a value out of range |
+| PHOENIX-ERC-017 | Net has no driver | a net with two pins or more and no pin of a type listed as `strong_drivers` (a passive pin does not drive); off by default |
+| PHOENIX-ERC-018 | Power pin has no decoupling capacitor near it | a power input of a part whose prefix is in `decoupling_prefixes` on a net with no capacitor to a ground net within `decoupling_max_distance_nm`; off by default |
+| PHOENIX-ERC-019 | Net names may be a typing mistake | two net names one character apart (one added, dropped, changed or two neighbours swapped) that the rule of similar names does not name; a change of one digit to another is a bus (a warning) |
+| PHOENIX-ERC-020 | Label touches no wire or pin | a net label or a power port that lies on no wire and no pin of its sheet (a warning) |
 
 ## Synchronisation (`eh3d-phoenix-sync`, `src/codes.rs`)
 

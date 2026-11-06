@@ -6,15 +6,16 @@ use std::collections::BTreeMap;
 
 use eh3d_phoenix_erc::codes::{
     DUPLICATE_PIN_NUMBER, DUPLICATE_REFDES, EMPTY_REFDES, EMPTY_VALUE, FLOATING_WIRES,
-    INPUT_WITHOUT_DRIVER, JUNCTION_ON_FLOATING_WIRES, NOT_JUDGED, PART_WITHOUT_FOOTPRINT,
-    PIN_TYPE_CONFLICT, PIN_UNCONNECTED, PIN_WITHOUT_NUMBER, POWER_WITHOUT_SOURCE,
-    SIMILAR_NET_NAMES, SINGLE_PIN_NET,
+    INPUT_WITHOUT_DRIVER, JUNCTION_ON_FLOATING_WIRES, MISSING_DECOUPLING, NET_NAME_TYPO,
+    NET_WITHOUT_DRIVER, NOT_JUDGED, ORPHAN_LABEL, PART_WITHOUT_FOOTPRINT, PIN_TYPE_CONFLICT,
+    PIN_UNCONNECTED, PIN_WITHOUT_NUMBER, POWER_WITHOUT_SOURCE, SIMILAR_NET_NAMES, SINGLE_PIN_NET,
 };
 use eh3d_phoenix_erc::{check, ErcConfig, Level, Report, Rule};
 use eh3d_phoenix_model::{Nm, Point, Udeg};
 use eh3d_phoenix_rules::{Lang, Severity};
 use eh3d_phoenix_schematic::{
-    Id, NetPin, Part, Pin, PinKind, Placement, Schematic, SchematicNet, Sheet, Symbol, Wire,
+    Id, NetLabel, NetPin, Part, Pin, PinKind, Placement, PowerPort, Schematic, SchematicNet, Sheet,
+    Symbol, Wire,
 };
 
 struct Builder {
@@ -663,4 +664,325 @@ fn the_list_of_findings_is_bounded_and_says_when_it_was_cut() {
     assert_eq!(report.inconclusive.len(), 1);
     assert_eq!(report.inconclusive[0].location, "report");
     assert!(report.inconclusive[0].detail.contains("2"));
+}
+
+fn config_with(lines: &str) -> ErcConfig {
+    ErcConfig::parse(lines).unwrap()
+}
+
+fn sheet_of(b: &mut Builder) -> Id {
+    let sheet = b.id();
+    b.s.sheets.insert(
+        sheet,
+        Sheet {
+            name: "Sheet 1".into(),
+            width: Nm::new(297_000_000).unwrap(),
+            height: Nm::new(210_000_000).unwrap(),
+        },
+    );
+    sheet
+}
+
+#[test]
+fn two_outputs_on_a_net_are_an_error_and_open_collectors_may_share_one_unless_the_matrix_says_not()
+{
+    let mut b = Builder::new();
+    let (o, o_pins) = b.symbol("O", &[("1", Some(PinKind::Output))]);
+    let (oc, oc_pins) = b.symbol("OC", &[("1", Some(PinKind::OpenCollector))]);
+    let (x1, x2) = (b.part("X1", "x", o, true), b.part("X2", "x", o, true));
+    let (y1, y2) = (b.part("Y1", "x", oc, true), b.part("Y2", "x", oc, true));
+    b.net("TWO_OUT", &[(x1, o_pins[0]), (x2, o_pins[0])]);
+    b.net("WIRED_OR", &[(y1, oc_pins[0]), (y2, oc_pins[0])]);
+    let report = run(&b);
+    assert_eq!(at(&report, PIN_TYPE_CONFLICT), ["net TWO_OUT"]);
+    // the default matrix lets open collectors share a net; a line of the settings can forbid it
+    let stricter = config_with("matrix.open_collector.open_collector = warning\n");
+    let report = check(&b.s, &stricter);
+    assert_eq!(
+        at(&report, PIN_TYPE_CONFLICT),
+        ["net TWO_OUT", "net WIRED_OR"]
+    );
+}
+
+#[test]
+fn nets_without_a_driver_are_found_when_the_rule_is_on_and_only_by_the_strong_drivers() {
+    let mut b = Builder::new();
+    let (p, p_pins) = b.symbol("P", &[("1", Some(PinKind::Passive))]);
+    let (o, o_pins) = b.symbol("O", &[("1", Some(PinKind::Output))]);
+    let (i, i_pins) = b.symbol("I", &[("1", Some(PinKind::Input))]);
+    let (u, u_pins) = b.symbol("U", &[("1", None)]);
+    let (r1, r2, r3, r4) = (
+        b.part("R1", "1k", p, true),
+        b.part("R2", "1k", p, true),
+        b.part("R3", "1k", p, true),
+        b.part("R4", "1k", p, true),
+    );
+    let (o1, i1, i2, u1) = (
+        b.part("O1", "x", o, true),
+        b.part("I1", "x", i, true),
+        b.part("I2", "x", i, true),
+        b.part("U1", "x", u, true),
+    );
+    b.net("MID", &[(r1, p_pins[0]), (r2, p_pins[0])]);
+    b.net("DRIVEN", &[(o1, o_pins[0]), (i1, i_pins[0])]);
+    b.net("WEAK", &[(r3, p_pins[0]), (i2, i_pins[0])]);
+    b.net("UNKNOWN", &[(r4, p_pins[0]), (u1, u_pins[0])]);
+    b.net("LONELY", &[]);
+    // off by default
+    assert!(at(&run(&b), NET_WITHOUT_DRIVER).is_empty());
+    let on = config_with("severity.net_without_driver = warning\n");
+    let report = check(&b.s, &on);
+    assert_eq!(at(&report, NET_WITHOUT_DRIVER), ["net MID", "net WEAK"]);
+    assert_eq!(
+        detail(&report, NET_WITHOUT_DRIVER)[0],
+        "2 pins and none drives the net"
+    );
+    // a pin without a type could be the driver, so that net is not judged and is said so
+    assert!(report
+        .inconclusive
+        .iter()
+        .any(|f| f.location == "net UNKNOWN" && f.detail.starts_with("no driver found")));
+    // the list of the types that drive can be changed
+    let loose = config_with(
+        "severity.net_without_driver = warning\nstrong_drivers = output, bidirectional, passive\n",
+    );
+    assert!(at(&check(&b.s, &loose), NET_WITHOUT_DRIVER).is_empty());
+}
+
+#[test]
+fn a_power_flag_gives_a_net_a_source_without_regard_to_case() {
+    let mut b = Builder::new();
+    let (ic, ic_pins) = b.symbol("IC", &[("1", Some(PinKind::PowerIn))]);
+    let (u1, u2) = (b.part("U1", "x", ic, true), b.part("U2", "x", ic, true));
+    b.net("VIN", &[(u1, ic_pins[0])]);
+    b.net("V5", &[(u2, ic_pins[0])]);
+    let report = run(&b);
+    assert_eq!(at(&report, POWER_WITHOUT_SOURCE), ["net V5", "net VIN"]);
+    let flagged = config_with("power_flags = vin\n");
+    assert_eq!(at(&check(&b.s, &flagged), POWER_WITHOUT_SOURCE), ["net V5"]);
+}
+
+#[test]
+fn net_names_one_character_apart_are_typing_mistakes_and_the_bus_and_the_numbers_are_not() {
+    let mut b = Builder::new();
+    for name in [
+        "VBUS", "VBUSS", "RESET", "RESEET", "D0", "D1", "DATA0", "DATA1", "GND", "GND1", "MOSI",
+        "SCLK", "N$1", "N$2",
+    ] {
+        b.net(name, &[]);
+    }
+    let report = run(&b);
+    assert_eq!(
+        at(&report, NET_NAME_TYPO),
+        ["net RESEET / net RESET", "net VBUS / net VBUSS"]
+    );
+    let longer = config_with("typo_min_length = 5\n");
+    assert_eq!(
+        at(&check(&b.s, &longer), NET_NAME_TYPO),
+        ["net RESEET / net RESET"]
+    );
+    let off = config_with("severity.net_name_typo = off\n");
+    assert!(at(&check(&b.s, &off), NET_NAME_TYPO).is_empty());
+    let error = config_with("severity.net_name_typo = error\n");
+    assert!(!check(&b.s, &error).passes());
+}
+
+#[test]
+fn labels_and_power_ports_that_touch_no_wire_and_no_pin_are_found() {
+    let mut b = Builder::new();
+    let sheet = sheet_of(&mut b);
+    let mm = |x: i64, y: i64| pt(x * 1_000_000, y * 1_000_000);
+    let wire = b.id();
+    b.s.wires.insert(
+        wire,
+        Wire {
+            sheet,
+            path: vec![mm(0, 0), mm(10, 0)],
+        },
+    );
+    for (name, x, y) in [("MID", 5, 0), ("LOOSE", 20, 20)] {
+        let id = b.id();
+        b.s.labels.insert(
+            id,
+            NetLabel {
+                sheet,
+                at: mm(x, y),
+                name: name.into(),
+            },
+        );
+    }
+    for (name, x, y) in [("GND", 10, 0), ("VCC", 30, 30)] {
+        let id = b.id();
+        b.s.power_ports.insert(
+            id,
+            PowerPort {
+                sheet,
+                at: mm(x, y),
+                name: name.into(),
+            },
+        );
+    }
+    let report = run(&b);
+    assert_eq!(
+        at(&report, ORPHAN_LABEL),
+        [
+            "label LOOSE on sheet Sheet 1 at (20000000, 20000000) nm",
+            "power port VCC on sheet Sheet 1 at (30000000, 30000000) nm"
+        ]
+    );
+    let off = config_with("severity.orphan_label = off\n");
+    assert!(at(&check(&b.s, &off), ORPHAN_LABEL).is_empty());
+
+    // a placed part with a pin whose position is not given could lie under a label
+    let (s, _) = b.symbol("S", &[("1", Some(PinKind::Passive))]);
+    let p = b.part("P1", "x", s, true);
+    b.s.parts.get_mut(&p).unwrap().placement = Some(Placement {
+        sheet,
+        at: mm(60, 60),
+        rotation: Udeg::ZERO,
+    });
+    let report = run(&b);
+    assert!(at(&report, ORPHAN_LABEL).is_empty());
+    assert_eq!(
+        report
+            .inconclusive
+            .iter()
+            .filter(|f| f.location.starts_with("label LOOSE") || f.location.contains("VCC"))
+            .count(),
+        2
+    );
+}
+
+/// Chips with a power input, capacitors and a ground, for the decoupling check.
+struct Rig {
+    b: Builder,
+    ic: Id,
+    ic_pin: Id,
+    cap: Id,
+    cap_pins: Vec<Id>,
+}
+
+fn rig() -> Rig {
+    let mut b = Builder::new();
+    let (ic, ic_pins) = b.symbol("IC", &[("1", Some(PinKind::PowerIn))]);
+    let (cap, cap_pins) = b.symbol(
+        "CAP",
+        &[("1", Some(PinKind::Passive)), ("2", Some(PinKind::Passive))],
+    );
+    Rig {
+        b,
+        ic,
+        ic_pin: ic_pins[0],
+        cap,
+        cap_pins,
+    }
+}
+
+#[test]
+fn a_power_input_of_a_chip_needs_a_capacitor_to_ground_on_its_net() {
+    let mut r = rig();
+    let (u1, u2, u3, x1) = (
+        r.b.part("U1", "x", r.ic, true),
+        r.b.part("U2", "x", r.ic, true),
+        r.b.part("U3", "x", r.ic, true),
+        r.b.part("X1", "x", r.ic, true),
+    );
+    let (c1, c3) = (
+        r.b.part("C1", "100n", r.cap, true),
+        r.b.part("C3", "100n", r.cap, true),
+    );
+    let (ic_pin, cap_pins) = (r.ic_pin, r.cap_pins.clone());
+    r.b.net("VCC", &[(u1, ic_pin), (c1, cap_pins[0])]);
+    r.b.net("GND", &[(c1, cap_pins[1])]);
+    r.b.net("V33", &[(u2, ic_pin)]);
+    r.b.net("V12", &[(u3, ic_pin), (c3, cap_pins[0])]);
+    r.b.net("SIG", &[(c3, cap_pins[1])]);
+    r.b.net("V5", &[(x1, ic_pin)]);
+    // off by default
+    assert!(at(&run(&r.b), MISSING_DECOUPLING).is_empty());
+    let on = config_with("severity.missing_decoupling = warning\n");
+    let report = check(&r.b.s, &on);
+    assert_eq!(
+        at(&report, MISSING_DECOUPLING),
+        ["U2 on net V33", "U3 on net V12"]
+    );
+    assert_eq!(
+        detail(&report, MISSING_DECOUPLING),
+        [
+            "no capacitor between this net and ground",
+            "no capacitor between this net and ground"
+        ]
+    );
+    // the prefix is a setting: with X as a chip prefix the part X1 is judged too
+    let with_x = config_with("severity.missing_decoupling = warning\ndecoupling_prefixes = U, X\n");
+    assert_eq!(
+        at(&check(&r.b.s, &with_x), MISSING_DECOUPLING),
+        ["U2 on net V33", "U3 on net V12", "X1 on net V5"]
+    );
+    // with no prefix the rule has nothing to judge
+    let none = config_with("severity.missing_decoupling = warning\ndecoupling_prefixes =\n");
+    assert!(at(&check(&r.b.s, &none), MISSING_DECOUPLING).is_empty());
+}
+
+#[test]
+fn the_capacitor_must_be_near_the_pin_when_both_are_placed() {
+    let mut r = rig();
+    let sheet = sheet_of(&mut r.b);
+    let mm = |x: i64, y: i64| pt(x * 1_000_000, y * 1_000_000);
+    // every pin sits at the origin of its symbol, so the places of the parts are the places of
+    // the pins
+    let (ic, cap) = (r.ic, r.cap);
+    r.b.s
+        .symbols
+        .get_mut(&ic)
+        .unwrap()
+        .pins
+        .values_mut()
+        .for_each(|p| p.at = Some(pt(0, 0)));
+    r.b.s
+        .symbols
+        .get_mut(&cap)
+        .unwrap()
+        .pins
+        .values_mut()
+        .for_each(|p| p.at = Some(pt(0, 0)));
+    let (u1, c1) = (
+        r.b.part("U1", "x", r.ic, true),
+        r.b.part("C1", "100n", r.cap, true),
+    );
+    for (part, x) in [(u1, 0), (c1, 50)] {
+        r.b.s.parts.get_mut(&part).unwrap().placement = Some(Placement {
+            sheet,
+            at: mm(x, 0),
+            rotation: Udeg::ZERO,
+        });
+    }
+    let (ic_pin, cap_pins) = (r.ic_pin, r.cap_pins.clone());
+    r.b.net("VCC", &[(u1, ic_pin), (c1, cap_pins[0])]);
+    r.b.net("GND", &[(c1, cap_pins[1])]);
+    let on = config_with("severity.missing_decoupling = warning\n");
+    let report = check(&r.b.s, &on);
+    assert_eq!(at(&report, MISSING_DECOUPLING), ["U1 on net VCC"]);
+    assert_eq!(
+        detail(&report, MISSING_DECOUPLING),
+        ["the nearest capacitor to ground is 50.0 mm away, the limit is 30.0 mm"]
+    );
+    // a closer capacitor, or a longer limit, is enough
+    let longer = config_with(
+        "severity.missing_decoupling = warning\ndecoupling_max_distance_nm = 60000000\n",
+    );
+    assert!(at(&check(&r.b.s, &longer), MISSING_DECOUPLING).is_empty());
+    let c2 = r.b.part("C2", "100n", r.cap, true);
+    r.b.s.parts.get_mut(&c2).unwrap().placement = Some(Placement {
+        sheet,
+        at: mm(10, 0),
+        rotation: Udeg::ZERO,
+    });
+    r.b.net("VCC2", &[(c2, cap_pins[0])]);
+    r.b.net("GND2", &[(c2, cap_pins[1])]);
+    // the new capacitor is on other nets, so it does not serve U1
+    assert_eq!(
+        at(&check(&r.b.s, &on), MISSING_DECOUPLING),
+        ["U1 on net VCC"]
+    );
 }
