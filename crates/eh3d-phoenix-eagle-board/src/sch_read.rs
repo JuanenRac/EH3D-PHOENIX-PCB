@@ -6,6 +6,10 @@
 //! package, through the map the caller gives. Sheets get the name `Sheet N` and the size of an A4
 //! sheet, because the file does not keep them. Everything else is counted by element name in a
 //! `PHOENIX-EAGLE-022` note.
+//!
+//! A module of a hierarchical design is read as a sheet that sheet symbols show: each `moduleinst`
+//! becomes a sheet symbol with a pin for each port of the module, and the module has the ports
+//! as ports of its sheet. The parts and the nets inside a module are not read; they are counted.
 
 use std::collections::BTreeMap;
 
@@ -14,11 +18,30 @@ use eh3d_phoenix_board::Id;
 use eh3d_phoenix_eagle::xml::{parse, Element, Limits};
 use eh3d_phoenix_model::{Nm, Point};
 use eh3d_phoenix_schematic::{
-    NetPin, Part, Pin, PinKind, Placement, Schematic, SchematicNet, Sheet, Symbol, Wire,
+    HierPin, NetPin, Part, Pin, PinKind, Placement, PortDir, Schematic, SchematicNet, Sheet,
+    SheetBlock, SheetPort, Symbol, Wire,
 };
 
 use crate::codes::{self, NOT_READ, UNREADABLE};
-use crate::reader::{note, point, rotation};
+use crate::reader::{nm, note, point, rotation};
+
+/// The size of the symbol of a module whose file gives none, in nanometres (20 mm).
+const MODULE_SIZE_NM: i64 = 20_000_000;
+
+/// A port of a module: where it is on the edge of the module symbol.
+struct ModulePort {
+    name: String,
+    dir: PortDir,
+    side: String,
+    coord: i64,
+}
+
+/// A module of the file: the sheet that stands for it, the size of its symbol and its ports.
+struct ModuleDef {
+    sheet: Id,
+    size: (i64, i64),
+    ports: Vec<ModulePort>,
+}
 
 /// A schematic read from a file and what was not read.
 #[derive(Debug, Clone)]
@@ -139,6 +162,14 @@ pub fn read_schematic(
         }
     }
 
+    // modules
+    let mut modules: BTreeMap<String, ModuleDef> = BTreeMap::new();
+    if let Some(list) = element.child("modules") {
+        for module in list.children_named("module") {
+            read_module(module, &mut s, &mut modules, new_id, &mut notes);
+        }
+    }
+
     // sheets
     let mut nets: BTreeMap<String, Id> = BTreeMap::new();
     if let Some(list) = element.child("sheets") {
@@ -174,6 +205,11 @@ pub fn read_schematic(
                         }
                         None => note("instance", &mut notes),
                     }
+                }
+            }
+            if let Some(list) = sheet.child("moduleinsts") {
+                for inst in list.children_named("moduleinst") {
+                    add_module_symbol(inst, sheet_id, &modules, &mut s, new_id, &mut notes);
                 }
             }
             if let Some(list) = sheet.child("nets") {
@@ -230,6 +266,162 @@ pub fn read_schematic(
         schematic: s,
         diagnostics,
     })
+}
+
+/// The direction of a port of a module (`in`, `out`, `io`, anything else is passive).
+fn port_dir(direction: &str) -> PortDir {
+    match direction {
+        "in" => PortDir::Input,
+        "out" => PortDir::Output,
+        "io" => PortDir::Bidirectional,
+        _ => PortDir::Passive,
+    }
+}
+
+/// Where a port is on a module symbol whose lower left corner is `origin`: on the edge it names,
+/// `coord` along it.
+fn port_at(origin: Point, size: (i64, i64), side: &str, coord: i64) -> Option<Point> {
+    let (x, y) = (origin.x_nm.get(), origin.y_nm.get());
+    let (px, py) = match side {
+        "left" => (x, y.checked_add(coord)?),
+        "right" => (x.checked_add(size.0)?, y.checked_add(coord)?),
+        "top" => (x.checked_add(coord)?, y.checked_add(size.1)?),
+        _ => (x.checked_add(coord)?, y),
+    };
+    Point::from_nm(px, py).ok()
+}
+
+/// Reads a module as a sheet with the ports of the module as its ports.
+fn read_module(
+    module: &Element,
+    s: &mut Schematic,
+    modules: &mut BTreeMap<String, ModuleDef>,
+    new_id: &mut dyn FnMut() -> Id,
+    notes: &mut BTreeMap<String, usize>,
+) {
+    let name = module.attr("name").unwrap_or("").to_owned();
+    if name.is_empty() || modules.contains_key(&name) {
+        note("module", notes);
+        return;
+    }
+    if module.child("parts").is_some() || module.child("sheets").is_some() {
+        note("module contents", notes);
+    }
+    let size = point(module, "dx", "dy").map_or((MODULE_SIZE_NM, MODULE_SIZE_NM), |p| {
+        (p.x_nm.get().abs().max(1), p.y_nm.get().abs().max(1))
+    });
+    let sheet = new_id();
+    s.sheets.insert(
+        sheet,
+        Sheet {
+            name: name.clone(),
+            width: Nm::new(297_000_000).expect("in range"),
+            height: Nm::new(210_000_000).expect("in range"),
+        },
+    );
+    let mut ports = Vec::new();
+    if let Some(list) = module.child("ports") {
+        for port in list.children_named("port") {
+            let port_name = port.attr("name").unwrap_or("").to_owned();
+            if port_name.is_empty() {
+                note("port", notes);
+                continue;
+            }
+            ports.push(ModulePort {
+                name: port_name,
+                dir: port_dir(port.attr("direction").unwrap_or("")),
+                side: port.attr("side").unwrap_or("").to_owned(),
+                coord: nm(port, "coord").map_or(0, |n| n.get()),
+            });
+        }
+    }
+    let origin = Point::from_nm(0, 0).expect("in range");
+    for port in &ports {
+        if s.sheet_ports
+            .values()
+            .any(|p| p.sheet == sheet && p.name == port.name)
+        {
+            note("port", notes);
+            continue;
+        }
+        if let Some(at) = port_at(origin, size, &port.side, port.coord) {
+            s.sheet_ports.insert(
+                new_id(),
+                SheetPort {
+                    sheet,
+                    name: port.name.clone(),
+                    dir: port.dir,
+                    at,
+                },
+            );
+        }
+    }
+    modules.insert(name, ModuleDef { sheet, size, ports });
+}
+
+/// Draws the sheet symbol of a `moduleinst`: a block on the sheet that shows the sheet of the
+/// module, with one pin for each port of the module.
+fn add_module_symbol(
+    inst: &Element,
+    sheet: Id,
+    modules: &BTreeMap<String, ModuleDef>,
+    s: &mut Schematic,
+    new_id: &mut dyn FnMut() -> Id,
+    notes: &mut BTreeMap<String, usize>,
+) {
+    let found = inst
+        .attr("module")
+        .and_then(|m| modules.get(m))
+        .zip(point(inst, "x", "y"));
+    let Some((def, at)) = found else {
+        note("moduleinst", notes);
+        return;
+    };
+    let (Ok(width), Ok(height)) = (Nm::new(def.size.0), Nm::new(def.size.1)) else {
+        note("moduleinst", notes);
+        return;
+    };
+    let base = inst.attr("name").unwrap_or("").trim().replace('/', "_");
+    let base = if base.is_empty() {
+        "M".to_owned()
+    } else {
+        base
+    };
+    let mut name = base.clone();
+    let mut n = 1usize;
+    while s
+        .sheet_blocks
+        .values()
+        .any(|b| b.sheet == sheet && b.name == name)
+    {
+        n += 1;
+        name = format!("{base}_{n}");
+    }
+    let block = new_id();
+    s.sheet_blocks.insert(
+        block,
+        SheetBlock {
+            sheet,
+            child: def.sheet,
+            name,
+            at,
+            width,
+            height,
+        },
+    );
+    for port in &def.ports {
+        if let Some(pin_at) = port_at(at, def.size, &port.side, port.coord) {
+            s.hier_pins.insert(
+                new_id(),
+                HierPin {
+                    block,
+                    name: port.name.clone(),
+                    dir: port.dir,
+                    at: pin_at,
+                },
+            );
+        }
+    }
 }
 
 /// The electrical type of a pin from the `direction` of an EAGLE pin (`in`, `out`, `io`, `pas`,
@@ -386,6 +578,76 @@ pub fn schematic_signature(s: &Schematic) -> Vec<String> {
 mod direction_tests {
     use super::*;
     use eh3d_phoenix_model::ObjectId;
+
+    #[test]
+    fn a_module_and_its_instances_become_a_sheet_and_sheet_symbols() {
+        let text = r#"<eagle version="9.6.2"><drawing><schematic>
+            <modules>
+              <module name="FILTER" dx="20" dy="10">
+                <ports>
+                  <port name="IN" side="left" coord="5" direction="in"/>
+                  <port name="OUT" side="right" coord="5" direction="out"/>
+                </ports>
+                <parts/>
+                <sheets><sheet/></sheets>
+              </module>
+            </modules>
+            <sheets><sheet>
+              <moduleinsts>
+                <moduleinst name="F1" module="FILTER" x="30" y="40"/>
+                <moduleinst name="F2" module="FILTER" x="70" y="40"/>
+                <moduleinst name="F3" module="MISSING" x="0" y="0"/>
+              </moduleinsts>
+            </sheet></sheets></schematic></drawing></eagle>"#;
+        let mut n: u16 = 0;
+        let mut new_id = || {
+            n += 1;
+            ObjectId::from_parts(1_700_000_000_000, n, u64::from(n)).unwrap()
+        };
+        let read = read_schematic(text, &BTreeMap::new(), &mut new_id).unwrap();
+        let s = read.schematic;
+        // the module is a sheet next to the one sheet of the file
+        assert_eq!(s.sheets.len(), 2);
+        let module = s.sheets.iter().find(|(_, x)| x.name == "FILTER").unwrap().0;
+        assert_eq!(s.sheet_ports.len(), 2);
+        assert!(s.sheet_ports.values().all(|p| p.sheet == *module));
+        // two symbols show it, with a pin for each port at the edge of the symbol
+        assert_eq!(s.sheet_blocks.len(), 2);
+        let mut names: Vec<&str> = s.sheet_blocks.values().map(|b| b.name.as_str()).collect();
+        names.sort_unstable();
+        assert_eq!(names, vec!["F1", "F2"]);
+        assert!(s.sheet_blocks.values().all(|b| b.child == *module));
+        assert_eq!(s.hier_pins.len(), 4);
+        let (f1, block) = s.sheet_blocks.iter().find(|(_, b)| b.name == "F1").unwrap();
+        let out = s
+            .hier_pins
+            .values()
+            .find(|p| p.block == *f1 && p.name == "OUT")
+            .unwrap();
+        assert_eq!(
+            (out.at.x_nm.get(), out.at.y_nm.get()),
+            (50_000_000, 45_000_000)
+        );
+        assert_eq!(out.dir, PortDir::Output);
+        assert_eq!(block.width.get(), 20_000_000);
+        // the instance of a module the file does not define, and what is inside a module, are counted
+        let counted: Vec<&str> = read
+            .diagnostics
+            .iter()
+            .map(|d| d.message.as_str())
+            .collect();
+        assert!(
+            counted.iter().any(|m| m.contains("moduleinst")),
+            "{counted:?}"
+        );
+        assert!(
+            counted.iter().any(|m| m.contains("module contents")),
+            "{counted:?}"
+        );
+        // the checks of the hierarchy find nothing wrong with what was read
+        let problems = s.hier_problems(&eh3d_phoenix_schematic::HierConfig::default());
+        assert!(problems.is_empty(), "{problems:?}");
+    }
 
     #[test]
     fn the_direction_of_an_eagle_pin_becomes_its_electrical_type() {

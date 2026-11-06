@@ -28,7 +28,7 @@ use eh3d_phoenix_board::Id;
 use eh3d_phoenix_hub::QualityReport;
 use eh3d_phoenix_model::{Nm, Point, Udeg};
 use eh3d_phoenix_schematic::model::{NetPin, Part, Pin, Schematic, SchematicNet, Symbol};
-use eh3d_phoenix_schematic::{Placement, Sheet, Wire};
+use eh3d_phoenix_schematic::{HierPin, Placement, PortDir, Sheet, SheetBlock, SheetPort, Wire};
 
 use crate::conv::{
     at_args, check_root, decode, is_safe_relative_name, nm_text, to_model, turn_up, xy_args, Ctx, P,
@@ -93,6 +93,11 @@ struct RawSheetRef {
     name: String,
     file: String,
     pins: Vec<(String, P)>,
+    /// The shape each pin is drawn with (`input`, `output`, ...), in the order of `pins`.
+    shapes: Vec<String>,
+    /// The corner of the symbol and its size, as written (y down).
+    at: Option<P>,
+    size: Option<P>,
     line: u32,
 }
 
@@ -227,10 +232,14 @@ fn parse_sheet_ref(node: &Node, ctx: &mut Ctx) -> Option<RawSheetRef> {
         return None;
     }
     let mut pins = Vec::new();
+    let mut shapes = Vec::new();
     for pin in node.children("pin") {
         let pin_name = pin.arg_text(0).unwrap_or("");
         match pin.child("at").and_then(at_args) {
-            Some((at, _)) => pins.push((pin_name.to_owned(), at)),
+            Some((at, _)) => {
+                pins.push((pin_name.to_owned(), at));
+                shapes.push(pin.arg_text(1).unwrap_or("").to_owned());
+            }
             None => ctx.invalid(pin, "sheet pin position", "not two numbers"),
         }
     }
@@ -238,6 +247,9 @@ fn parse_sheet_ref(node: &Node, ctx: &mut Ctx) -> Option<RawSheetRef> {
         name: if name.is_empty() { file.clone() } else { name },
         file,
         pins,
+        shapes,
+        at: node.child("at").and_then(at_args).map(|(at, _)| at),
+        size: node.child("size").and_then(xy_args),
         line: node.line,
     })
 }
@@ -436,6 +448,32 @@ impl State {
                 self.globals.insert(name.to_owned(), node);
             }
         }
+    }
+
+    /// Keeps a hierarchical label of a sub-sheet as a port of that sheet, the connection the
+    /// sheet symbol above joins by the name.
+    fn add_port(&mut self, ctx: &mut Ctx, sheet: Id, label: &RawLabel) {
+        let Some(at) = to_model(label.at) else {
+            return;
+        };
+        let used = self
+            .schematic
+            .sheet_ports
+            .values()
+            .any(|p| p.sheet == sheet && p.name == label.text);
+        if used {
+            return;
+        }
+        let id = ctx.id();
+        self.schematic.sheet_ports.insert(
+            id,
+            SheetPort {
+                sheet,
+                name: label.text.clone(),
+                dir: PortDir::Bidirectional,
+                at,
+            },
+        );
     }
 
     fn join_local(&mut self, instance: usize, name: &str, node: usize) {
@@ -695,7 +733,7 @@ fn instantiate(
     path: &[String],
     parent_pins: &BTreeMap<String, usize>,
     depth: usize,
-) {
+) -> Id {
     let instance = st.instances;
     st.instances += 1;
     st.sheets_read += 1;
@@ -768,6 +806,9 @@ fn instantiate(
                 if let Some(up) = parent_pins.get(&label.text) {
                     st.union(node, *up);
                 }
+                if !path.is_empty() {
+                    st.add_port(ctx, sheet_id, label);
+                }
             }
         }
     }
@@ -835,7 +876,74 @@ fn instantiate(
     // sub-sheets
     for (sheet, pins) in children {
         st.sheet_files.push(sheet.file.clone());
-        read_child(st, ctx, loader, sheet, pins, path, depth);
+        if let Some(child) = read_child(st, ctx, loader, sheet, pins, path, depth) {
+            add_block(st, ctx, sheet_id, child, sheet);
+        }
+    }
+    sheet_id
+}
+
+fn pin_direction(shape: &str) -> PortDir {
+    match shape {
+        "input" => PortDir::Input,
+        "output" => PortDir::Output,
+        "passive" => PortDir::Passive,
+        _ => PortDir::Bidirectional,
+    }
+}
+
+/// Keeps the sheet symbol, as the model has it: a block on the parent sheet that shows the child
+/// sheet, with the pins of the symbol. The name is the name of the sheet in the file, without a
+/// slash and not used by another symbol of the same sheet.
+fn add_block(st: &mut State, ctx: &mut Ctx, parent: Id, child: Id, raw: &RawSheetRef) {
+    let (Some(at), Some((width, height))) = (raw.at, raw.size) else {
+        return;
+    };
+    let (Some(corner), Ok(width), Ok(height)) = (
+        at.1.checked_add(height).and_then(|y| to_model((at.0, y))),
+        Nm::new(width),
+        Nm::new(height),
+    ) else {
+        return;
+    };
+    let base = raw.name.replace('/', "_");
+    let mut name = base.clone();
+    let mut n = 1usize;
+    while st
+        .schematic
+        .sheet_blocks
+        .values()
+        .any(|b| b.sheet == parent && b.name == name)
+    {
+        n += 1;
+        name = format!("{base}_{n}");
+    }
+    let block = ctx.id();
+    st.schematic.sheet_blocks.insert(
+        block,
+        SheetBlock {
+            sheet: parent,
+            child,
+            name,
+            at: corner,
+            width,
+            height,
+        },
+    );
+    for ((pin_name, pin_at), shape) in raw.pins.iter().zip(&raw.shapes) {
+        let Some(at) = to_model(*pin_at) else {
+            continue;
+        };
+        let id = ctx.id();
+        st.schematic.hier_pins.insert(
+            id,
+            HierPin {
+                block,
+                name: pin_name.clone(),
+                dir: pin_direction(shape),
+                at,
+            },
+        );
     }
 }
 
@@ -847,7 +955,7 @@ fn read_child(
     pins: BTreeMap<String, usize>,
     path: &[String],
     depth: usize,
-) {
+) -> Option<Id> {
     let line = sheet.line as usize;
     if depth + 1 > ctx.settings.max_sheet_depth {
         ctx.push(KicadError::Limit {
@@ -857,7 +965,7 @@ fn read_child(
             line,
             column: 0,
         });
-        return;
+        return None;
     }
     if st.sheets_read >= ctx.settings.max_sheets {
         ctx.push(KicadError::Limit {
@@ -867,7 +975,7 @@ fn read_child(
             line,
             column: 0,
         });
-        return;
+        return None;
     }
     if !is_safe_relative_name(&sheet.file) {
         ctx.push(KicadError::MissingReference {
@@ -875,14 +983,14 @@ fn read_child(
                 .to_owned(),
             line,
         });
-        return;
+        return None;
     }
     if st.open_files.contains(&sheet.file) {
         ctx.push(KicadError::MissingReference {
             what: format!("sheet `{}` contains itself", sheet.file),
             line,
         });
-        return;
+        return None;
     }
     let Some(bytes) = loader(&sheet.file) else {
         ctx.push(KicadError::MissingReference {
@@ -890,13 +998,13 @@ fn read_child(
             line,
         });
         ctx.lose("sheets that could not be read", 1);
-        return;
+        return None;
     };
     let (text, encoding) = match decode(&bytes, ctx.settings) {
         Ok(pair) => pair,
         Err(e) => {
             ctx.push(e);
-            return;
+            return None;
         }
     };
     if let Some(note) = encoding {
@@ -907,19 +1015,20 @@ fn read_child(
         Ok(root) => root,
         Err(e) => {
             ctx.push(e);
-            return;
+            return None;
         }
     };
     if let Err(e) = check_root(&root, &["kicad_sch"], "a schematic (kicad_sch)", ctx) {
         ctx.push(e);
-        return;
+        return None;
     }
     let child = parse_sheet(&root, ctx);
     let mut child_path = path.to_vec();
     child_path.push(sheet.name.clone());
     st.open_files.push(sheet.file.clone());
-    instantiate(st, ctx, loader, &child, &child_path, &pins, depth + 1);
+    let child_sheet = instantiate(st, ctx, loader, &child, &child_path, &pins, depth + 1);
     st.open_files.pop();
+    Some(child_sheet)
 }
 
 fn finish(mut st: State, ctx: &mut Ctx) -> Finished {
@@ -1031,7 +1140,7 @@ pub fn read_schematic_with_sheets(
         sheets_read: 0,
         labels: 0,
     };
-    instantiate(&mut st, &mut ctx, loader, &parsed, &[], &BTreeMap::new(), 0);
+    let _ = instantiate(&mut st, &mut ctx, loader, &parsed, &[], &BTreeMap::new(), 0);
     let labels = st.labels;
     let done = finish(st, &mut ctx);
     ctx.keep("labels", labels);
@@ -1282,6 +1391,36 @@ pub(crate) mod tests {
             vec![("R1", "2"), ("R2", "2"), ("R3", "2")]
         );
         assert!(s.sheets.values().any(|sheet| sheet.name == "Sub"));
+    }
+
+    #[test]
+    fn the_sheet_symbol_its_pin_and_the_port_of_the_sheet_are_kept() {
+        let r = read_with_child(&root_v6(), Some(child_v6()));
+        let s = &r.schematic;
+        assert_eq!(s.sheet_blocks.len(), 1);
+        let block = s.sheet_blocks.values().next().unwrap();
+        assert_eq!(block.name, "Sub");
+        assert_eq!(s.sheets[&block.child].name, "Sub");
+        assert_ne!(block.sheet, block.child);
+        assert_eq!(block.width.get(), 20_000_000);
+        assert_eq!(block.height.get(), 10_000_000);
+        // the file's y axis points down, the model's up: the corner is the lower left one
+        assert_eq!(block.at, Point::from_nm(150_000_000, -50_000_000).unwrap());
+        assert_eq!(s.hier_pins.len(), 1);
+        let pin = s.hier_pins.values().next().unwrap();
+        assert_eq!((pin.name.as_str(), pin.dir), ("IN", PortDir::Input));
+        assert_eq!(pin.at, Point::from_nm(150_000_000, -46_190_000).unwrap());
+        assert_eq!(s.sheet_ports.len(), 1);
+        let port = s.sheet_ports.values().next().unwrap();
+        assert_eq!(port.name, "IN");
+        assert_eq!(port.sheet, block.child);
+        // the structure agrees with itself: the pin has its port
+        let problems = s.hier_problems(&eh3d_phoenix_schematic::HierConfig::default());
+        assert!(problems.is_empty(), "{problems:?}");
+        // a sheet that could not be read is only listed: no symbol is kept for it
+        let alone = read(&root_v6());
+        assert!(alone.schematic.sheet_blocks.is_empty());
+        assert!(alone.schematic.hier_pins.is_empty());
     }
 
     #[test]
