@@ -19,8 +19,8 @@ use eh3d_phoenix_gerber::{compare_files_with, ImportSettings};
 
 use crate::codes::{PanelError, EXPORT_FAILED, ROUNDTRIP_MISMATCH};
 use crate::compose::compose;
-use crate::files::{panel_files, PanelFile};
-use crate::layout::{BoardShape, HoleKind, PanelPlan};
+use crate::files::{panel_files_with_cutouts, PanelFile};
+use crate::layout::{BoardShape, HoleKind, PanelPlan, Pt};
 use crate::settings::{Joint, PanelSettings};
 use crate::vscore::check_v_score;
 
@@ -150,7 +150,19 @@ pub fn panel_layers(
             });
         }
     }
-    for file in panel_files(plan, settings)? {
+    let openings: Vec<Vec<Pt>> = full
+        .outline_cutouts
+        .iter()
+        .map(|ring| {
+            ring.iter()
+                .map(|p| Pt {
+                    x: p.x_nm.get(),
+                    y: p.y_nm.get(),
+                })
+                .collect()
+        })
+        .collect();
+    for file in panel_files_with_cutouts(plan, settings, &openings)? {
         if file.name == "panel_profile.gbr" || file.name == "panel_vscore.gbr" {
             files.push(file);
         }
@@ -345,6 +357,22 @@ mod tests {
         let plated = file(&layers, "panel_drill_pth.drl");
         assert!(plated.contains("M30"), "{plated}");
         assert!(file(&layers, "panel_drill_npth.drl").contains("M30"));
+    }
+
+    #[test]
+    fn the_openings_inside_the_boards_are_routed_in_the_profile_of_the_panel() {
+        let mut board = sample();
+        board.outline_cutouts = vec![vec![pt(10, 3), pt(12, 3), pt(12, 5), pt(10, 5)]];
+        let settings = PanelSettings::parse("columns = 2\nrows = 1\n").unwrap();
+        let (shape, _) = BoardShape::from_board(&board).unwrap();
+        let laid = plan(&shape, &settings).unwrap();
+        let layers = panel_layers(&[board], &laid, &settings, &Profile::default()).unwrap();
+        let profile = file(&layers, "panel_profile.gbr");
+        // four lines for each of the two copies after the lines of the plan
+        assert_eq!(profile.matches("D01*").count(), laid.profile.len() + 8);
+        // the second copy is one box (30 mm) and one gap to the right of the first
+        let x2 = laid.copies[1].origin.x + 10 * MM;
+        assert!(profile.contains(&format!("X{x2}Y")), "{profile}");
     }
 
     #[test]

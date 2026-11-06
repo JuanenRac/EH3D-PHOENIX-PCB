@@ -17,7 +17,7 @@ use eh3d_phoenix_dxf::codes::{
     DxfError, Finding, Severity, EXPORT_SIMPLIFIED, INPUT_UNREADABLE, OPTION_INVALID, OUTPUT_FAILED,
 };
 use eh3d_phoenix_dxf::{write_dxf, Drawing, DxfSettings, Seg, P};
-use eh3d_phoenix_panel::{HoleKind, PanelPlan};
+use eh3d_phoenix_panel::{panel_openings, HoleKind, PanelPlan};
 use eh3d_phoenix_rules::Lang;
 use eh3d_phoenix_viewer::panel_scene::PanelSession;
 use eh3d_phoenix_viewer::ViewerSettings;
@@ -350,6 +350,19 @@ pub(crate) fn panel_drawing(plan: &PanelPlan, names: &[String], settings: &DxfSe
     d
 }
 
+/// The openings that the boards have inside their outlines, each a closed polygon on the layer
+/// of the outline.
+pub(crate) fn add_openings(
+    drawing: &mut Drawing,
+    openings: &[Vec<eh3d_phoenix_panel::Pt>],
+    settings: &DxfSettings,
+) {
+    for ring in openings.iter().filter(|r| r.len() >= 3) {
+        let points: Vec<(i64, i64)> = ring.iter().map(|p| (p.x, p.y)).collect();
+        drawing.polygon(&settings.layer_outline, &points);
+    }
+}
+
 fn export_note() -> Finding {
     Finding::new(
         EXPORT_SIMPLIFIED,
@@ -406,7 +419,11 @@ fn drawing_of(options: &Options, settings: &DxfSettings) -> Result<Drawing, DxfE
     )
     .map_err(|e| unreadable(e.message(options.lang)))?;
     let names: Vec<String> = paths.iter().map(|p| stem(p)).collect();
-    Ok(panel_drawing(&session.plan, &names, settings))
+    let mut drawing = panel_drawing(&session.plan, &names, settings);
+    let openings = panel_openings(&session.boards, &session.plan)
+        .map_err(|e| DxfError::new(INPUT_UNREADABLE, e.to_string()))?;
+    add_openings(&mut drawing, &openings, settings);
+    Ok(drawing)
 }
 
 /// The command `dxf-export`.
@@ -741,6 +758,31 @@ mod tests {
                 assert_eq!(text, "demo");
                 assert_eq!(*at, (0, -2 * MM));
                 assert_eq!(*height, MM);
+            }
+            other => panic!("{other:?}"),
+        }
+    }
+
+    #[test]
+    fn the_openings_of_the_boards_of_a_panel_are_closed_polygons_on_the_outline_layer() {
+        let dxf = DxfSettings::default();
+        let mut d = Drawing::new();
+        let ring: Vec<Pt> = [(1, 1), (3, 1), (3, 2)]
+            .iter()
+            .map(|(x, y)| Pt {
+                x: x * MM,
+                y: y * MM,
+            })
+            .collect();
+        let short = vec![Pt { x: 0, y: 0 }, Pt { x: MM, y: 0 }];
+        add_openings(&mut d, &[ring, short], &dxf);
+        // the ring with two points is not an opening
+        assert_eq!(on(&d, "OUTLINE").len(), 1);
+        match on(&d, "OUTLINE")[0] {
+            DxfShape::Path { segs, closed } => {
+                assert!(*closed);
+                assert_eq!(segs.len(), 3);
+                assert_eq!(segs[2].a, (3 * MM, 2 * MM));
             }
             other => panic!("{other:?}"),
         }

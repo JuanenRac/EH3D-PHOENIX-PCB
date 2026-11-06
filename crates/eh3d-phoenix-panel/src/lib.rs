@@ -34,8 +34,8 @@ use eh3d_phoenix_rules::Lang;
 use serde_json::{json, Value};
 
 pub use codes::{title, Note, PanelError, TITLES};
-pub use compose::compose;
-pub use files::{panel_files, PanelFile};
+pub use compose::{compose, panel_openings};
+pub use files::{panel_files, panel_files_with_cutouts, PanelFile};
 pub use layers::{panel_layers, PanelLayers};
 pub use layout::{plan, BoardShape, Hole, HoleKind, Line, Mark, PanelCopy, PanelPlan, Pt};
 pub use mixed::{items_from_settings, plan_items, Item};

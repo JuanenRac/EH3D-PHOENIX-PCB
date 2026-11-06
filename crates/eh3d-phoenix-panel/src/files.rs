@@ -51,6 +51,24 @@ fn gerber_lines(function: &str, width_nm: i64, lines: &[Line]) -> String {
     out
 }
 
+/// The openings of the boards inside the panel, each a closed contour, drawn with the same
+/// aperture after the lines of the profile.
+fn gerber_profile(width_nm: i64, lines: &[Line], cutouts: &[Vec<Pt>]) -> String {
+    let mut out = gerber_lines("Profile,NP", width_nm, lines);
+    out.truncate(out.len() - "M02*\n".len());
+    for ring in cutouts.iter().filter(|r| r.len() >= 3) {
+        for (i, from) in ring.iter().enumerate() {
+            let to = ring[(i + 1) % ring.len()];
+            out.push_str(&format!(
+                "X{}Y{}D02*\nX{}Y{}D01*\n",
+                from.x, from.y, to.x, to.y
+            ));
+        }
+    }
+    out.push_str("M02*\n");
+    out
+}
+
 fn gerber_flashes(function: &str, diameter_nm: i64, centres: &[Pt]) -> String {
     let mut out = gerber_header(function);
     out.push_str(&format!("%ADD10C,{}*%\n%LPD*%\nD10*\n", mm(diameter_nm)));
@@ -107,9 +125,20 @@ pub fn panel_files(
     plan: &PanelPlan,
     settings: &PanelSettings,
 ) -> Result<Vec<PanelFile>, PanelError> {
+    panel_files_with_cutouts(plan, settings, &[])
+}
+
+/// The same files, with the openings that the boards have inside their outlines (`cutouts`, each a
+/// closed contour in the coordinates of the panel, as `compose` moves them) drawn in the profile
+/// after the lines of the panel.
+pub fn panel_files_with_cutouts(
+    plan: &PanelPlan,
+    settings: &PanelSettings,
+    cutouts: &[Vec<Pt>],
+) -> Result<Vec<PanelFile>, PanelError> {
     let mut files = vec![PanelFile {
         name: "panel_profile.gbr".to_owned(),
-        text: gerber_lines("Profile,NP", settings.outline_width_nm, &plan.profile),
+        text: gerber_profile(settings.outline_width_nm, &plan.profile, cutouts),
     }];
     if !plan.score.is_empty() {
         files.push(PanelFile {
@@ -242,6 +271,33 @@ mod tests {
         let not_plated = &files[4].text;
         // mouse bites (0.5), tooling holes (3.0) and the holes of the boards (3.0)
         assert!(not_plated.contains("T1C0.5\nT2C3.0\n%\n"), "{not_plated}");
+    }
+
+    #[test]
+    fn the_openings_of_the_boards_are_closed_contours_in_the_profile() {
+        let settings = PanelSettings::default();
+        let plan = plan(&shape(), &settings).unwrap();
+        let ring = vec![
+            Pt { x: MM, y: MM },
+            Pt { x: 3 * MM, y: MM },
+            Pt {
+                x: 3 * MM,
+                y: 2 * MM,
+            },
+        ];
+        let none = panel_files_with_cutouts(&plan, &settings, &[]).unwrap();
+        assert_eq!(none, panel_files(&plan, &settings).unwrap());
+        // a ring with fewer than three points is not an opening
+        let short = vec![Pt { x: 0, y: 0 }, Pt { x: MM, y: 0 }];
+        let same = panel_files_with_cutouts(&plan, &settings, &[short]).unwrap();
+        assert_eq!(none, same);
+        let files = panel_files_with_cutouts(&plan, &settings, &[ring]).unwrap();
+        let text = &files[0].text;
+        // three more lines, the last one back to the first point, before the end of the file
+        assert_eq!(text.matches("D01*").count(), plan.profile.len() + 3);
+        assert!(text.ends_with("X3000000Y2000000D02*\nX1000000Y1000000D01*\nM02*\n"));
+        assert!(text.contains("X1000000Y1000000D02*\nX3000000Y1000000D01*\n"));
+        assert_eq!(text.matches("M02*").count(), 1);
     }
 
     #[test]

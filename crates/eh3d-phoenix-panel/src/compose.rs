@@ -83,6 +83,19 @@ impl Xf {
             .map_err(|_| too_large("an angle leaves the range"))
     }
 
+    /// Closed polygons (the cutouts of an outline or of a zone) moved, turned and mirrored.
+    fn rings(&self, rings: &[Vec<Point>]) -> Result<Vec<Vec<Point>>, PanelError> {
+        let mut out = Vec::with_capacity(rings.len());
+        for ring in rings {
+            let mut moved = Vec::with_capacity(ring.len());
+            for p in ring {
+                moved.push(self.point(*p)?);
+            }
+            out.push(moved);
+        }
+        Ok(out)
+    }
+
     fn path(&self, path: &[Segment]) -> Result<Vec<Segment>, PanelError> {
         let mut out = Vec::with_capacity(path.len());
         for piece in path {
@@ -350,6 +363,48 @@ fn with_suffix(name: &str, suffix: &str) -> String {
     }
 }
 
+/// The openings that the boards have inside their outlines, as closed contours in the coordinates
+/// of the panel (moved, turned and mirrored as the plan says), for the routed outline and the
+/// drawings of the panel.
+pub fn panel_openings(boards: &[Board], plan: &PanelPlan) -> Result<Vec<Vec<Pt>>, PanelError> {
+    let mut shapes = Vec::with_capacity(boards.len());
+    for board in boards {
+        shapes.push(BoardShape::from_board(board)?.0);
+    }
+    let mut out: Vec<Vec<Pt>> = Vec::new();
+    for copy in &plan.copies {
+        let (Some(source), Some(shape)) = (boards.get(copy.board), shapes.get(copy.board)) else {
+            return Err(PanelError::new(
+                LAYERS_DIFFER,
+                format!(
+                    "the plan names board {} of {}",
+                    copy.board + 1,
+                    boards.len()
+                ),
+            ));
+        };
+        let xf = Xf {
+            source: shape.origin,
+            width: shape.width,
+            height: shape.height,
+            rotation_deg: copy.rotation_deg,
+            mirror: copy.mirror,
+            dest: copy.origin,
+        };
+        for ring in xf.rings(&source.outline_cutouts)? {
+            out.push(
+                ring.iter()
+                    .map(|p| Pt {
+                        x: p.x_nm.get(),
+                        y: p.y_nm.get(),
+                    })
+                    .collect(),
+            );
+        }
+    }
+    Ok(out)
+}
+
 /// Makes the board of the panel from the boards of the plan. With `hardware` the fiducials, the
 /// tooling holes and the mouse bite holes are parts of the board too; without it the board holds
 /// only the copies (for the placement file and the bill of materials of the panel).
@@ -557,6 +612,7 @@ pub fn compose(
             for p in &zone.outline {
                 outline.push(xf.point(*p)?);
             }
+            let cutouts = xf.rings(&zone.cutouts)?;
             let id = ids.make()?;
             out.zones.insert(
                 id,
@@ -565,10 +621,12 @@ pub fn compose(
                     layer: layers.need(copy.board, copy.mirror, zone.layer)?,
                     outline,
                     clearance: zone.clearance,
-                    cutouts: Vec::new(),
+                    cutouts,
                 },
             );
         }
+        out.outline_cutouts
+            .extend(xf.rings(&source.outline_cutouts)?);
         for item in source.silkscreen.values() {
             let moved = match item {
                 SilkItem::Text {
@@ -977,6 +1035,88 @@ mod tests {
         assert!(smd.pads.values().all(|p| p.layers == [id(2), id(4)]));
         // the zone was on the bottom layer and is now on the top one
         assert_eq!(panel.zones.values().next().unwrap().layer, id(1));
+    }
+
+    #[test]
+    fn the_cutouts_of_the_outline_and_of_a_zone_go_to_every_copy_moved_and_mirrored() {
+        let mut board = sample("one");
+        board.outline_cutouts = vec![vec![pt(10, 5), pt(14, 5), pt(14, 9), pt(10, 9)]];
+        board
+            .zones
+            .values_mut()
+            .next()
+            .unwrap()
+            .cutouts
+            .push(vec![pt(2, 2), pt(4, 2), pt(4, 4)]);
+        let (settings, plan) = panel_of(&board, "columns = 2\nrows = 1\n");
+        let panel = compose(std::slice::from_ref(&board), &plan, &settings, 0, false).unwrap();
+        // one opening and one zone cutout for each of the two copies
+        assert_eq!(panel.outline_cutouts.len(), 2);
+        assert!(panel.zones.values().all(|z| z.cutouts.len() == 1));
+        let o = plan.copies[0].origin;
+        let xs: Vec<i64> = panel.outline_cutouts[0]
+            .iter()
+            .map(|p| p.x_nm.get())
+            .collect();
+        assert_eq!(
+            xs,
+            vec![o.x + 10 * MM, o.x + 14 * MM, o.x + 14 * MM, o.x + 10 * MM]
+        );
+        let again = compose(std::slice::from_ref(&board), &plan, &settings, 0, false).unwrap();
+        assert_eq!(panel, again);
+        // seen from the other side, x goes to 30 - x: the opening spans 16 to 20 mm
+        let (settings, plan) = panel_of(&board, "columns = 1\nrows = 1\ncopy_mirror = true\n");
+        let mirrored = compose(std::slice::from_ref(&board), &plan, &settings, 0, false).unwrap();
+        let o = plan.copies[0].origin;
+        let mut xs: Vec<i64> = mirrored.outline_cutouts[0]
+            .iter()
+            .map(|p| p.x_nm.get())
+            .collect();
+        xs.sort_unstable();
+        assert_eq!((xs[0], xs[3]), (o.x + 16 * MM, o.x + 20 * MM));
+        // the triangle of the zone: 2 to 4 mm becomes 26 to 28 mm
+        let zone = mirrored.zones.values().next().unwrap();
+        let mut zx: Vec<i64> = zone.cutouts[0].iter().map(|p| p.x_nm.get()).collect();
+        zx.sort_unstable();
+        assert_eq!((zx[0], zx[2]), (o.x + 26 * MM, o.x + 28 * MM));
+    }
+
+    #[test]
+    fn the_openings_of_the_panel_are_the_cutouts_of_the_copies_in_nanometres() {
+        let mut board = sample("one");
+        board.outline_cutouts = vec![vec![pt(10, 5), pt(14, 5), pt(14, 9)]];
+        let (_, plan) = panel_of(&board, "columns = 2\nrows = 1\n");
+        let rings = panel_openings(std::slice::from_ref(&board), &plan).unwrap();
+        assert_eq!(rings.len(), 2);
+        assert_eq!(rings[1].len(), 3);
+        let o = plan.copies[1].origin;
+        assert_eq!(
+            rings[1][2],
+            Pt {
+                x: o.x + 14 * MM,
+                y: o.y + 9 * MM
+            }
+        );
+        // the same openings as the board of the panel has
+        let (settings, _) = panel_of(&board, "columns = 2\nrows = 1\n");
+        let panel = compose(std::slice::from_ref(&board), &plan, &settings, 0, false).unwrap();
+        let from_panel: Vec<Vec<Pt>> = panel
+            .outline_cutouts
+            .iter()
+            .map(|r| {
+                r.iter()
+                    .map(|p| Pt {
+                        x: p.x_nm.get(),
+                        y: p.y_nm.get(),
+                    })
+                    .collect()
+            })
+            .collect();
+        assert_eq!(rings, from_panel);
+        // a board without openings gives none
+        let plain = sample("two");
+        let (_, plan) = panel_of(&plain, "columns = 2\nrows = 1\n");
+        assert!(panel_openings(&[plain], &plan).unwrap().is_empty());
     }
 
     #[test]
