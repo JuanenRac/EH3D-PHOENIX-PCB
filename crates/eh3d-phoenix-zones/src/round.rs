@@ -181,13 +181,18 @@ pub(crate) fn round_all(poly: &[P], radius: i64, tolerance: i64) -> Vec<P> {
     out
 }
 
+/// A point of the outline with the number of its side.
+type NumberedPoint = (P, usize);
+/// A side of the outline (its two ends) with its number.
+type NumberedSide = (P, P, usize);
+
 /// A uniform grid over points and over the boxes of sides, to find what is near a point.
 struct Index {
     cell: i64,
-    points: BTreeMap<(i64, i64), Vec<(P, usize)>>,
-    sides: BTreeMap<(i64, i64), Vec<(P, P, usize)>>,
-    long_sides: Vec<(P, P, usize)>,
-    all_points: Vec<(P, usize)>,
+    points: BTreeMap<(i64, i64), Vec<NumberedPoint>>,
+    sides: BTreeMap<(i64, i64), Vec<NumberedSide>>,
+    long_sides: Vec<NumberedSide>,
+    all_points: Vec<NumberedPoint>,
 }
 
 fn cell_of(cell: i64, p: P) -> (i64, i64) {
