@@ -45,6 +45,18 @@ pub fn write_schematic(board: &Board, schematic: &Schematic) -> Written {
         .attrs
         .push(("name".to_owned(), LIBRARY.to_owned()));
 
+    if !schematic.buses.is_empty() || !schematic.bus_entries.is_empty() {
+        diagnostics.push(codes::diagnostic(
+            ITEM_LEFT_OUT,
+            Severity::Warning,
+            &format!(
+                "{} bus(es) and {} bus entries are not written",
+                schematic.buses.len(),
+                schematic.bus_entries.len()
+            ),
+        ));
+    }
+
     let mut ignored = Vec::new();
     let package_of = package_names(board, &mut ignored);
     let symbol_of = symbol_names(schematic, &mut ignored);
@@ -594,5 +606,27 @@ mod tests {
         assert_eq!((summary.sheets, summary.parts), (1, 2));
         assert_eq!(written.text.matches("<pinref ").count(), 2);
         assert_eq!(written.text.matches("<instance ").count(), 0);
+    }
+
+    #[test]
+    fn the_buses_of_a_schematic_are_reported_as_not_written() {
+        let (board, mut s) = fixture();
+        let plain = write_schematic(&board, &s);
+        assert!(plain.diagnostics.iter().all(|d| !d.message.contains("bus")));
+        s.buses.insert(
+            id(70),
+            eh3d_phoenix_schematic::Bus {
+                sheet: id(13),
+                at: pt(0, 0),
+                spec: "D[0..3]".to_owned(),
+            },
+        );
+        let written = write_schematic(&board, &s);
+        assert!(written.diagnostics.iter().any(|d| {
+            d.code.as_deref() == Some(crate::ITEM_LEFT_OUT)
+                && d.severity == Severity::Warning
+                && d.message.contains("1 bus(es) and 0 bus entries")
+        }));
+        assert_eq!(written.text.matches("<bus ").count(), 0);
     }
 }

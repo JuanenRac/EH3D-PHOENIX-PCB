@@ -10,6 +10,13 @@
 //! A module of a hierarchical design is read as a sheet that sheet symbols show: each `moduleinst`
 //! becomes a sheet symbol with a pin for each port of the module, and the module has the ports
 //! as ports of its sheet. The parts and the nets inside a module are not read; they are counted.
+//!
+//! A `bus` becomes a bus of its sheet for each of its vectors (`D[0..7]`, or the vectors of a name
+//! with several, `A[0..3],B[0..3]`, or of a named one, `BUS:A[0..3]`), anchored where its first
+//! wire starts and expanded to its members. A net of the sheet that has the name of a member and
+//! an end on a wire of the bus becomes an entry of that bus at that end. What the model does not
+//! have is counted: the wires and labels of the bus, the names in a bus that are not vectors and
+//! the buses that cannot be expanded or have no wire.
 
 use std::collections::BTreeMap;
 
@@ -18,8 +25,8 @@ use eh3d_phoenix_board::Id;
 use eh3d_phoenix_eagle::xml::{parse, Element, Limits};
 use eh3d_phoenix_model::{Nm, Point};
 use eh3d_phoenix_schematic::{
-    HierPin, NetPin, Part, Pin, PinKind, Placement, PortDir, Schematic, SchematicNet, Sheet,
-    SheetBlock, SheetPort, Symbol, Wire,
+    expand_spec, Bus, BusEntry, HierPin, NetPin, Part, Pin, PinKind, Placement, PortDir, Schematic,
+    SchematicNet, Sheet, SheetBlock, SheetPort, Symbol, Wire,
 };
 
 use crate::codes::{self, NOT_READ, UNREADABLE};
@@ -172,6 +179,7 @@ pub fn read_schematic(
 
     // sheets
     let mut nets: BTreeMap<String, Id> = BTreeMap::new();
+    let mut net_wires: Vec<(String, Vec<(Point, Point)>)> = Vec::new();
     if let Some(list) = element.child("sheets") {
         for (index, sheet) in list.children_named("sheet").enumerate() {
             let sheet_id = new_id();
@@ -212,9 +220,11 @@ pub fn read_schematic(
                     add_module_symbol(inst, sheet_id, &modules, &mut s, new_id, &mut notes);
                 }
             }
+            net_wires.clear();
             if let Some(list) = sheet.child("nets") {
                 for net in list.children_named("net") {
                     let name = net.attr("name").unwrap_or("").to_owned();
+                    net_wires.push((name.clone(), wires_of(net)));
                     let net_id = *nets.entry(name.clone()).or_insert_with(|| {
                         let id = new_id();
                         s.nets.insert(
@@ -233,23 +243,26 @@ pub fn read_schematic(
                     }
                 }
             }
+            if let Some(list) = sheet.child("busses") {
+                for bus in list.children_named("bus") {
+                    read_bus(bus, sheet_id, &net_wires, &mut s, new_id, &mut notes);
+                }
+            }
         }
     }
     for net in s.nets.values_mut() {
         net.pins.sort();
         net.pins.dedup();
     }
-    for other in ["plain", "busses"] {
-        for sheet in element
-            .child("sheets")
-            .map(|l| l.children_named("sheet"))
-            .into_iter()
-            .flatten()
-        {
-            let count = sheet.child(other).map_or(0, |e| e.children.len());
-            for _ in 0..count {
-                note(other, &mut notes);
-            }
+    for sheet in element
+        .child("sheets")
+        .map(|l| l.children_named("sheet"))
+        .into_iter()
+        .flatten()
+    {
+        let count = sheet.child("plain").map_or(0, |e| e.children.len());
+        for _ in 0..count {
+            note("plain", &mut notes);
         }
     }
     let diagnostics = notes
@@ -266,6 +279,96 @@ pub fn read_schematic(
         schematic: s,
         diagnostics,
     })
+}
+
+/// The wires of the segments of a net or a bus, as pairs of end points.
+fn wires_of(element: &Element) -> Vec<(Point, Point)> {
+    let mut out = Vec::new();
+    for segment in element.children_named("segment") {
+        for wire in segment.children_named("wire") {
+            if let (Some(a), Some(b)) = (point(wire, "x1", "y1"), point(wire, "x2", "y2")) {
+                out.push((a, b));
+            }
+        }
+    }
+    out
+}
+
+/// Whether `p` lies on the straight piece from `a` to `b`, ends included.
+fn on_piece(p: Point, a: Point, b: Point) -> bool {
+    let (px, py) = (i128::from(p.x_nm.get()), i128::from(p.y_nm.get()));
+    let (ax, ay) = (i128::from(a.x_nm.get()), i128::from(a.y_nm.get()));
+    let (bx, by) = (i128::from(b.x_nm.get()), i128::from(b.y_nm.get()));
+    let cross = (bx - ax) * (py - ay) - (by - ay) * (px - ax);
+    cross == 0 && px >= ax.min(bx) && px <= ax.max(bx) && py >= ay.min(by) && py <= ay.max(by)
+}
+
+/// Reads a `bus` of a sheet: a bus of the model for each vector in its name, and an entry for each
+/// net of the sheet with the name of a member that ends on a wire of the bus.
+fn read_bus(
+    bus: &Element,
+    sheet: Id,
+    net_wires: &[(String, Vec<(Point, Point)>)],
+    s: &mut Schematic,
+    new_id: &mut dyn FnMut() -> Id,
+    notes: &mut BTreeMap<String, usize>,
+) {
+    let wires = wires_of(bus);
+    for segment in bus.children_named("segment") {
+        for item in &segment.children {
+            match item.name.as_str() {
+                "wire" => note("bus wire", notes),
+                "label" => note("bus label", notes),
+                other => note(other, notes),
+            }
+        }
+    }
+    let Some(anchor) = wires.first().map(|(a, _)| *a) else {
+        note("bus without a wire", notes);
+        return;
+    };
+    // a name with a colon names the bus itself; the members follow it
+    let full = bus.attr("name").unwrap_or("");
+    let list = full.split_once(':').map_or(full, |(_, rest)| rest);
+    let none = BTreeMap::new();
+    for text in list.split(',').map(str::trim).filter(|t| !t.is_empty()) {
+        if !text.contains('[') {
+            note("bus name that is not a vector", notes);
+            continue;
+        }
+        let Ok(members) = expand_spec(text, &none) else {
+            note("bus name that cannot be expanded", notes);
+            continue;
+        };
+        let id = new_id();
+        s.buses.insert(
+            id,
+            Bus {
+                sheet,
+                at: anchor,
+                spec: text.to_owned(),
+            },
+        );
+        for (name, ends) in net_wires {
+            if !members.contains(name) {
+                continue;
+            }
+            let end = ends
+                .iter()
+                .flat_map(|(a, b)| [*a, *b])
+                .find(|p| wires.iter().any(|(a, b)| on_piece(*p, *a, *b)));
+            if let Some(at) = end {
+                s.bus_entries.insert(
+                    new_id(),
+                    BusEntry {
+                        bus: id,
+                        at,
+                        member: name.clone(),
+                    },
+                );
+            }
+        }
+    }
 }
 
 /// The direction of a port of a module (`in`, `out`, `io`, anything else is passive).
@@ -696,5 +799,105 @@ mod direction_tests {
         // a pin with an unknown direction or none has no type, and nothing else is invented
         assert_eq!(symbol.pins.len(), 11);
         assert_eq!(s.pin_kinds.len(), 9);
+    }
+
+    const BUS_FILE: &str = r#"<eagle version="9.6.2"><drawing><schematic><sheets><sheet>
+        <busses>
+          <bus name="D[0..3],CLK"><segment>
+            <wire x1="0" y1="0" x2="0" y2="20" width="0.762" layer="92"/>
+            <label x="0" y="21" size="1.778" layer="95"/>
+          </segment></bus>
+          <bus name="X:A[0..1]"><segment>
+            <wire x1="50" y1="0" x2="50" y2="10" width="0.762" layer="92"/>
+          </segment></bus>
+          <bus name="[0..3]"><segment>
+            <wire x1="80" y1="0" x2="80" y2="1" width="0.762" layer="92"/>
+          </segment></bus>
+          <bus name="EMPTY[0..1]"><segment/></bus>
+        </busses>
+        <nets>
+          <net name="D1" class="0"><segment>
+            <wire x1="0" y1="5" x2="10" y2="5" width="0.1524" layer="91"/>
+          </segment></net>
+          <net name="D2" class="0"><segment>
+            <wire x1="10" y1="10" x2="0" y2="10" width="0.1524" layer="91"/>
+          </segment></net>
+          <net name="D7" class="0"><segment>
+            <wire x1="0" y1="15" x2="10" y2="15" width="0.1524" layer="91"/>
+          </segment></net>
+          <net name="D3" class="0"><segment>
+            <wire x1="3" y1="5" x2="10" y2="6" width="0.1524" layer="91"/>
+          </segment></net>
+          <net name="A0" class="0"><segment>
+            <wire x1="50" y1="2" x2="60" y2="2" width="0.1524" layer="91"/>
+          </segment></net>
+        </nets>
+        </sheet></sheets></schematic></drawing></eagle>"#;
+
+    fn read_buses() -> ReadSchematic {
+        let mut n: u16 = 0;
+        let mut new_id = || {
+            n += 1;
+            ObjectId::from_parts(1_700_000_000_000, n, u64::from(n)).unwrap()
+        };
+        read_schematic(BUS_FILE, &BTreeMap::new(), &mut new_id).unwrap()
+    }
+
+    #[test]
+    fn the_vectors_of_a_bus_become_buses_with_their_members_and_the_nets_that_end_on_them_entries()
+    {
+        let read = read_buses();
+        let s = &read.schematic;
+        let mut specs: Vec<&str> = s.buses.values().map(|b| b.spec.as_str()).collect();
+        specs.sort_unstable();
+        assert_eq!(specs, ["A[0..1]", "D[0..3]"]);
+        let d = *s.buses.iter().find(|(_, b)| b.spec == "D[0..3]").unwrap().0;
+        assert_eq!(s.bus_member_names(d).unwrap(), ["D0", "D1", "D2", "D3"]);
+        // the anchor is where the first wire starts: (0, 0) and (50, 0) in millimetres
+        let anchor = s.buses[&d].at;
+        assert_eq!((anchor.x_nm.get(), anchor.y_nm.get()), (0, 0));
+        // D1 ends on the bus at its first end, D2 at its second end; D3 and D7 do not touch it
+        // (D7 is not a member in any case) and A0 ends on the second bus
+        let mut entries: Vec<(String, i64, i64)> = s
+            .bus_entries
+            .values()
+            .map(|e| (e.member.clone(), e.at.x_nm.get(), e.at.y_nm.get()))
+            .collect();
+        entries.sort();
+        assert_eq!(
+            entries,
+            [
+                ("A0".to_owned(), 50_000_000, 2_000_000),
+                ("D1".to_owned(), 0, 5_000_000),
+                ("D2".to_owned(), 0, 10_000_000),
+            ]
+        );
+        assert!(s.bus_entries.values().all(|e| s.buses.contains_key(&e.bus)));
+        // the nets stay what they were
+        assert_eq!(s.nets.len(), 5);
+    }
+
+    #[test]
+    fn what_a_bus_cannot_say_is_counted_and_nothing_is_dropped_silently() {
+        let read = read_buses();
+        let messages: Vec<&str> = read
+            .diagnostics
+            .iter()
+            .map(|d| d.message.as_str())
+            .collect();
+        for expected in [
+            "3 bus wire element(s)",
+            "1 bus label element(s)",
+            "1 bus name that is not a vector element(s)",
+            "1 bus name that cannot be expanded element(s)",
+            "1 bus without a wire element(s)",
+        ] {
+            assert!(
+                messages.iter().any(|m| m.contains(expected)),
+                "{expected}: {messages:?}"
+            );
+        }
+        // the buses of the sheet are not counted as left out any more
+        assert!(!messages.iter().any(|m| m.contains("busses")));
     }
 }
