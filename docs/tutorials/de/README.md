@@ -18,6 +18,10 @@ Die Hilfe steckt im Programm: `phoenix help` listet Themen und Befehle auf, `pho
 1. [Die Signalintegrität eines Differenzialpaars prüfen](TUTORIAL_DIFFERENTIAL_PAIR.md)
 1. [Skripte verwenden: eine LED-Matrix und ein Nutzen](TUTORIAL_SCRIPTS.md)
 
+## Funktionsanleitungen
+
+* [Anleitungen zu den neueren Funktionen](../guides/de/README.md): Prüfberichte und Fähigkeitsprofile, Stückliste, Nutzenvorlagen, Feldlöser und Erwärmung, Kupferflächen, Aussparungen, Busse, Autorouter, Mehrfachauswahl und Bilder des Fensters; in acht Sprachen
+
 ## Glossar und Migrationsleitfaden
 
 * [Glossar](../../glossary/de/GLOSSARY.md)

@@ -54,7 +54,7 @@
 <text x="712.67" y="496" font-family="'Segoe UI','Noto Sans','Noto Sans CJK SC','Microsoft YaHei','Yu Gothic','Helvetica Neue',Helvetica,Arial,sans-serif" font-size="12.8" font-weight="400" fill="#8A97A6" text-anchor="start">the terms and the guide for users of EAGLE and KiCad</text>
 <line x1="392" y1="504" x2="1118" y2="504" stroke="#1A2430" stroke-width="1"/>
 <text x="392" y="523" font-family="'JetBrains Mono','Cascadia Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="14.5" font-weight="600" fill="#E6EDF3" text-anchor="start">tutorials/  glossary/  migration/</text>
-<text x="712.67" y="523" font-family="'Segoe UI','Noto Sans','Noto Sans CJK SC','Microsoft YaHei','Yu Gothic','Helvetica Neue',Helvetica,Arial,sans-serif" font-size="12.8" font-weight="400" fill="#8A97A6" text-anchor="start">tutorials run by a test, and the translations</text>
+<text x="712.67" y="523" font-family="'Segoe UI','Noto Sans','Noto Sans CJK SC','Microsoft YaHei','Yu Gothic','Helvetica Neue',Helvetica,Arial,sans-serif" font-size="12.8" font-weight="400" fill="#8A97A6" text-anchor="start">tutorials run by a test, feature guides and translations</text>
 <line x1="392" y1="531" x2="1118" y2="531" stroke="#1A2430" stroke-width="1"/>
 <text x="392" y="550" font-family="'JetBrains Mono','Cascadia Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="14.5" font-weight="600" fill="#E6EDF3" text-anchor="start">ERROR_CODES.md</text>
 <text x="712.67" y="550" font-family="'Segoe UI','Noto Sans','Noto Sans CJK SC','Microsoft YaHei','Yu Gothic','Helvetica Neue',Helvetica,Arial,sans-serif" font-size="12.8" font-weight="400" fill="#8A97A6" text-anchor="start">the diagnostic codes PHOENIX-&lt;AREA&gt;-&lt;NNN&gt;</text>
@@ -235,7 +235,7 @@
 <text x="631.76" y="2203" font-family="'Segoe UI','Noto Sans','Noto Sans CJK SC','Microsoft YaHei','Yu Gothic','Helvetica Neue',Helvetica,Arial,sans-serif" font-size="12.8" font-weight="400" fill="#8A97A6" text-anchor="start">the settings file (every tuned value)</text>
 <line x1="392" y1="2211" x2="1118" y2="2211" stroke="#1A2430" stroke-width="1"/>
 <text x="392" y="2230" font-family="'JetBrains Mono','Cascadia Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="14.5" font-weight="600" fill="#E6EDF3" text-anchor="start">examples/</text>
-<text x="631.76" y="2230" font-family="'Segoe UI','Noto Sans','Noto Sans CJK SC','Microsoft YaHei','Yu Gothic','Helvetica Neue',Helvetica,Arial,sans-serif" font-size="12.8" font-weight="400" fill="#8A97A6" text-anchor="start">example scripts, their output and the tutorial files</text>
+<text x="631.76" y="2230" font-family="'Segoe UI','Noto Sans','Noto Sans CJK SC','Microsoft YaHei','Yu Gothic','Helvetica Neue',Helvetica,Arial,sans-serif" font-size="12.8" font-weight="400" fill="#8A97A6" text-anchor="start">example scripts, their output and the files of tutorials and guides</text>
 <line x1="392" y1="2238" x2="1118" y2="2238" stroke="#1A2430" stroke-width="1"/>
 <text x="392" y="2257" font-family="'JetBrains Mono','Cascadia Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="14.5" font-weight="600" fill="#E6EDF3" text-anchor="start">Cargo.toml  Cargo.lock</text>
 <text x="631.76" y="2257" font-family="'Segoe UI','Noto Sans','Noto Sans CJK SC','Microsoft YaHei','Yu Gothic','Helvetica Neue',Helvetica,Arial,sans-serif" font-size="12.8" font-weight="400" fill="#8A97A6" text-anchor="start">the Rust workspace and its locked dependencies</text>

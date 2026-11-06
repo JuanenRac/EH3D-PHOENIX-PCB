@@ -114,7 +114,7 @@ EH3D-PHOENIX-PCB/
 │   ├── TESTING.md I18N_AUDIT.md                 how things are tested, and the check of the eight languages
 │   ├── ROADMAP.md                               the map of phases, from foundations to the all-in-one suite
 │   ├── GLOSSARY.md MIGRATION.md                 the terms and the guide for users of EAGLE and KiCad
-│   ├── tutorials/ glossary/ migration/          tutorials run by a test, and the translations
+│   ├── tutorials/ glossary/ migration/          tutorials run by a test, feature guides and translations
 │   ├── ERROR_CODES.md                           the diagnostic codes PHOENIX-<AREA>-<NNN>
 │   ├── STACKUP.md                               stack-up and line calculations, formulas
 │   ├── RF.md                                    RF tools: Touchstone, two-ports, matching, filters
@@ -173,7 +173,7 @@ EH3D-PHOENIX-PCB/
 ├── deny.toml                                    licence and advisory policy of the dependencies
 ├── crates/                                      inventory, model, project, board, schematic, EAGLE, KiCad, rules, ERC, sync, hub, export, Gerber import, panel, stack-up, RF, simulator, router, zones, lengths, bill of materials, 3D assembly, sanitizer, scripts, viewer, CLI
 ├── config/                                      the settings file (every tuned value)
-├── examples/                                    example scripts, their output and the tutorial files
+├── examples/                                    example scripts, their output and the files of tutorials and guides
 ├── Cargo.toml Cargo.lock                        the Rust workspace and its locked dependencies
 ├── tools/                                       the repository check, its tests and the picture tools
 ├── tests/                                       reference cases and the own corpus of hand-written pieces
@@ -217,6 +217,7 @@ README and texts exist in English, Spanish, French, Italian, German, Chinese, Ja
 * [Changelog](CHANGELOG.md)
 * [Scope, requirements, dependencies, threat model and decisions](docs/SCOPE.md)
 * [Tutorials](docs/tutorials/README.md): nine flows with commands that a test runs, in eight languages; `phoenix help` explains every topic and command in the program
+* [Feature guides](docs/tutorials/guides/README.md): ten guides on the newer functions (check reports, bill of materials, panel templates, field solver, pours, cutouts, buses, autorouter, selection, pictures of the window), in eight languages
 * [Testing](docs/TESTING.md): what is tested and how, where the example files live and how to add a case; [the eight languages](docs/I18N_AUDIT.md): what is checked in every text and every page
 * [Glossary](docs/GLOSSARY.md) and [migration guide for users of EAGLE and KiCad](docs/MIGRATION.md)
 

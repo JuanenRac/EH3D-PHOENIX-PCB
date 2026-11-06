@@ -18,6 +18,10 @@ La guida è nel programma: `phoenix help` elenca i temi e i comandi, `phoenix he
 1. [Rivedere l'integrità del segnale di una coppia differenziale](TUTORIAL_DIFFERENTIAL_PAIR.md)
 1. [Usare gli script: una matrice di LED e un pannello](TUTORIAL_SCRIPTS.md)
 
+## Guide alle funzioni
+
+* [Guide alle funzioni più recenti](../guides/it/README.md): rapporti di controllo e profili di capacità, distinta base, modelli di pannello, risolutore di campo e riscaldamento, riempimenti di rame, aperture, bus, autorouter, selezione multipla e immagini della finestra; in otto lingue
+
 ## Glossario e guida alla migrazione
 
 * [Glossario](../../glossary/it/GLOSSARY.md)

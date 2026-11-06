@@ -114,7 +114,7 @@ EH3D-PHOENIX-PCB/
 │   ├── TESTING.md I18N_AUDIT.md                 come si prova, e il controllo delle otto lingue
 │   ├── ROADMAP.md                               la mappa delle fasi, dalle fondamenta alla suite tutto in uno
 │   ├── GLOSSARY.md MIGRATION.md                 i termini e la guida per chi arriva da EAGLE o KiCad
-│   ├── tutorials/ glossary/ migration/          tutorial eseguiti da un test, e le traduzioni
+│   ├── tutorials/ glossary/ migration/          tutorial eseguiti da un test, guide alle funzioni, traduzioni
 │   ├── ERROR_CODES.md                           i codici di diagnostica PHOENIX-<AREA>-<NNN>
 │   ├── STACKUP.md                               calcoli di stratificazione e linee, formule
 │   ├── RF.md                                    strumenti RF: Touchstone, doppi bipoli, adattamento, filtri
@@ -173,7 +173,7 @@ EH3D-PHOENIX-PCB/
 ├── deny.toml                                    politica di licenze e avvisi delle dipendenze
 ├── crates/                                      inventario, modello, progetto, scheda, schema, EAGLE, KiCad, regole, ERC, sincronizzazione, hub, esportazione, importazione Gerber, pannello, stratificazione, RF, simulatore, router, zone, lunghezze, distinta base, assemblaggio 3D, sanificatore, script, visualizzatore, CLI
 ├── config/                                      il file delle impostazioni (ogni valore regolato)
-├── examples/                                    script di esempio, il loro output e i file dei tutorial
+├── examples/                                    script di esempio, il loro output e i file di tutorial e guide
 ├── Cargo.toml Cargo.lock                        il workspace Rust e le sue dipendenze bloccate
 ├── tools/                                       il controllo del repository, i suoi test e gli strumenti delle immagini
 ├── tests/                                       casi di riferimento e corpus proprio di pezzi scritti a mano
@@ -217,6 +217,7 @@ Il README e i testi esistono in inglese, spagnolo, francese, italiano, tedesco, 
 * [Registro delle modifiche](CHANGELOG.md)
 * [Ambito, requisiti, dipendenze, modello delle minacce e decisioni](docs/SCOPE.md)
 * [Tutorial](docs/tutorials/it/README.md): nove percorsi con comandi che un test esegue, in otto lingue; `phoenix help` spiega ogni tema e comando nel programma
+* [Guide alle funzioni](docs/tutorials/guides/it/README.md): dieci guide sulle funzioni più recenti (rapporti di controllo, distinta base, modelli di pannello, risolutore di campo, riempimenti, aperture, bus, autorouter, selezione, immagini della finestra), in otto lingue
 * [Test](docs/TESTING.md): cosa si prova e come, dove stanno i file di esempio e come aggiungere un caso; [le otto lingue](docs/I18N_AUDIT.md): cosa si controlla in ogni testo e in ogni pagina
 * [Glossario](docs/glossary/it/GLOSSARY.md) e [guida alla migrazione per chi arriva da EAGLE o KiCad](docs/migration/it/MIGRATION.md)
 

@@ -18,6 +18,10 @@ L'aide est dans le programme : `phoenix help` liste les thèmes et les commandes
 1. [Revoir l'intégrité du signal d'une paire différentielle](TUTORIAL_DIFFERENTIAL_PAIR.md)
 1. [Utiliser des scripts : une matrice de LED et un panneau](TUTORIAL_SCRIPTS.md)
 
+## Guides des fonctions
+
+* [Guides des fonctions les plus récentes](../guides/fr/README.md) : rapports de vérification et profils de capacités, nomenclature, modèles de panneau, solveur de champ et échauffement, plans de cuivre, ouvertures, bus, autorouteur, sélection multiple et images de la fenêtre ; en huit langues
+
 ## Glossaire et guide de migration
 
 * [Glossaire](../../glossary/fr/GLOSSARY.md)

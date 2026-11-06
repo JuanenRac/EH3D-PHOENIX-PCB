@@ -114,7 +114,7 @@ EH3D-PHOENIX-PCB/
 │   ├── TESTING.md I18N_AUDIT.md                 comment on teste, et la vérification des huit langues
 │   ├── ROADMAP.md                               la carte des phases, des fondations à la suite tout-en-un
 │   ├── GLOSSARY.md MIGRATION.md                 les termes et le guide pour qui vient d'EAGLE ou de KiCad
-│   ├── tutorials/ glossary/ migration/          tutoriels exécutés par un test, et les traductions
+│   ├── tutorials/ glossary/ migration/          tutoriels exécutés par un test, guides des fonctions, traductions
 │   ├── ERROR_CODES.md                           les codes de diagnostic PHOENIX-<ZONE>-<NNN>
 │   ├── STACKUP.md                               calculs d'empilage et de lignes, formules
 │   ├── RF.md                                    outils RF : Touchstone, quadripôles, adaptation, filtres
@@ -173,7 +173,7 @@ EH3D-PHOENIX-PCB/
 ├── deny.toml                                    politique de licences et d'avis des dépendances
 ├── crates/                                      inventaire, modèle, projet, carte, schéma, EAGLE, KiCad, règles, ERC, synchronisation, hub, export, import Gerber, panneau, empilage, RF, simulateur, routeur, zones, longueurs, nomenclature, assemblage 3D, assainisseur, scripts, visionneuse, CLI
 ├── config/                                      le fichier de réglages (chaque valeur ajustée)
-├── examples/                                    scripts d'exemple, leur sortie et les fichiers des tutoriels
+├── examples/                                    scripts d'exemple, leur sortie, fichiers des tutoriels et guides
 ├── Cargo.toml Cargo.lock                        l'espace de travail Rust et ses dépendances figées
 ├── tools/                                       le contrôle du dépôt, ses tests et les outils des images
 ├── tests/                                       cas de référence et corpus propre de pièces écrites à la main
@@ -217,6 +217,7 @@ Le README et les textes existent en anglais, espagnol, français, italien, allem
 * [Journal des modifications](CHANGELOG.md)
 * [Périmètre, exigences, dépendances, modèle de menaces et décisions](docs/SCOPE.md)
 * [Tutoriels](docs/tutorials/fr/README.md) : neuf parcours avec des commandes qu'un test exécute, en huit langues ; `phoenix help` explique chaque thème et chaque commande dans le programme
+* [Guides des fonctions](docs/tutorials/guides/fr/README.md) : dix guides sur les fonctions les plus récentes (rapports de vérification, nomenclature, modèles de panneau, solveur de champ, plans de cuivre, ouvertures, bus, autorouteur, sélection, images de la fenêtre), en huit langues
 * [Tests](docs/TESTING.md) : ce qui est testé et comment, où se trouvent les fichiers d'exemple et comment ajouter un cas ; [les huit langues](docs/I18N_AUDIT.md) : ce qui est vérifié dans chaque texte et chaque page
 * [Glossaire](docs/glossary/fr/GLOSSARY.md) et [guide de migration pour qui vient d'EAGLE ou de KiCad](docs/migration/fr/MIGRATION.md)
 

@@ -18,6 +18,10 @@
 1. [审查差分对的信号完整性](TUTORIAL_DIFFERENTIAL_PAIR.md)
 1. [使用脚本：LED 矩阵和拼板](TUTORIAL_SCRIPTS.md)
 
+## 功能指南
+
+* [较新功能的指南](../guides/zh/README.md)：检查报告与能力档案、物料清单、拼板模板、场求解器与发热、铜区、开口、总线、自动布线器、多选和窗口截图；提供八种语言
+
 ## 术语表与迁移指南
 
 * [术语表](../../glossary/zh/GLOSSARY.md)

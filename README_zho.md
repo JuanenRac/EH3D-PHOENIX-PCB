@@ -114,7 +114,7 @@ EH3D-PHOENIX-PCB/
 │   ├── TESTING.md I18N_AUDIT.md                 如何测试，以及八种语言的检查
 │   ├── ROADMAP.md                               从基础到一体化套件的阶段图
 │   ├── GLOSSARY.md MIGRATION.md                 术语表和面向 EAGLE、KiCad 用户的迁移指南
-│   ├── tutorials/ glossary/ migration/          由测试运行的教程及其译文
+│   ├── tutorials/ glossary/ migration/          由测试运行的教程、功能指南及其译文
 │   ├── ERROR_CODES.md                           诊断代码 PHOENIX-<领域>-<NNN>
 │   ├── STACKUP.md                               叠层与传输线计算、公式
 │   ├── RF.md                                    射频工具：Touchstone、二端口、匹配、滤波器
@@ -173,7 +173,7 @@ EH3D-PHOENIX-PCB/
 ├── deny.toml                                    依赖项的许可证与公告策略
 ├── crates/                                      清点、模型、项目、电路板、原理图、EAGLE、KiCad、规则、ERC、同步、枢纽、导出、Gerber 导入、拼板、叠层、射频、仿真器、布线器、铜区、长度、物料清单、3D 装配、清理器、脚本、查看器、命令行
 ├── config/                                      设置文件（所有调整值）
-├── examples/                                    示例脚本及其输出，以及教程用的文件
+├── examples/                                    示例脚本及其输出，以及教程和指南用的文件
 ├── Cargo.toml Cargo.lock                        Rust 工作区及其锁定的依赖
 ├── tools/                                       仓库检查、其测试以及图片工具
 ├── tests/                                       基准用例以及手写样例的自有语料库
@@ -217,6 +217,7 @@ README 和文本提供英语、西班牙语、法语、意大利语、德语、�
 * [变更日志](CHANGELOG.md)
 * [范围、需求、依赖、威胁模型和决策](docs/SCOPE.md)
 * [教程](docs/tutorials/zh/README.md)：九个流程，附测试会运行的命令，共八种语言；`phoenix help` 在程序内解释每个主题和命令
+* [功能指南](docs/tutorials/guides/zh/README.md)：十篇关于较新功能的指南（检查报告、物料清单、拼板模板、场求解器、铜区、开口、总线、自动布线器、选择、窗口截图），共八种语言
 * [测试](docs/TESTING.md)：测什么、怎么测，示例文件放在哪里，如何添加用例；[八种语言](docs/I18N_AUDIT.md)：对每段文字和每个页面检查什么
 * [术语表](docs/glossary/zh/GLOSSARY.md)和[面向 EAGLE、KiCad 用户的迁移指南](docs/migration/zh/MIGRATION.md)
 

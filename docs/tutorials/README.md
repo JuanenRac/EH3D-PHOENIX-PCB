@@ -18,6 +18,10 @@ The help of the program is in the program: `phoenix help` lists the topics and t
 1. [Review the signal integrity of a differential pair](TUTORIAL_DIFFERENTIAL_PAIR.md)
 1. [Use scripts: an LED matrix and a panel](TUTORIAL_SCRIPTS.md)
 
+## Feature guides
+
+* [Guides on the newer functions](guides/README.md): check reports and capability profiles, bill of materials, panel templates, field solver and heating, pours, cutouts, buses, autorouter, multiple selection and pictures of the window; in eight languages
+
 ## Glossary and migration guide
 
 * [Glossary](../GLOSSARY.md)

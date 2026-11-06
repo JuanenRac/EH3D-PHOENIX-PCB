@@ -114,7 +114,7 @@ EH3D-PHOENIX-PCB/
 │   ├── TESTING.md I18N_AUDIT.md                 テストの方法と、8 言語の検査
 │   ├── ROADMAP.md                               基盤からオールインワン スイートまでのフェーズ マップ
 │   ├── GLOSSARY.md MIGRATION.md                 用語集と、EAGLE／KiCad から移行する人向けのガイド
-│   ├── tutorials/ glossary/ migration/          テストが実行するチュートリアルと翻訳
+│   ├── tutorials/ glossary/ migration/          テストが実行するチュートリアル、機能ガイド、翻訳
 │   ├── ERROR_CODES.md                           診断コード PHOENIX-<領域>-<NNN>
 │   ├── STACKUP.md                               スタックアップと線路の計算、式
 │   ├── RF.md                                    RF ツール：Touchstone、2 ポート、整合、フィルタ
@@ -173,7 +173,7 @@ EH3D-PHOENIX-PCB/
 ├── deny.toml                                    依存関係のライセンスと勧告の方針
 ├── crates/                                      棚卸し、モデル、プロジェクト、基板、回路図、EAGLE、KiCad、ルール、ERC、同期、ハブ、書き出し、Gerber 読み込み、パネル、スタックアップ、RF、シミュレータ、ルーター、ゾーン、長さ、部品表、3Dアセンブリ、整理、スクリプト、ビューア、CLI
 ├── config/                                      設定ファイル（調整する値はすべてここ）
-├── examples/                                    サンプルスクリプトとその出力、チュートリアルのファイル
+├── examples/                                    サンプルスクリプトとその出力、チュートリアルとガイドのファイル
 ├── Cargo.toml Cargo.lock                        Rust ワークスペースと固定された依存関係
 ├── tools/                                       リポジトリ チェック、そのテスト、画像のツール
 ├── tests/                                       基準ケースと手書きの例による独自のコーパス
@@ -217,6 +217,7 @@ README とテキストは、英語、スペイン語、フランス語、イタ�
 * [変更履歴](CHANGELOG.md)
 * [範囲、要件、依存関係、脅威モデル、決定事項](docs/SCOPE.md)
 * [チュートリアル](docs/tutorials/ja/README.md)：テストが実行するコマンド付きの 9 つの流れ（8 言語）。`phoenix help` がプログラム内で各トピックとコマンドを説明します
+* [機能ガイド](docs/tutorials/guides/ja/README.md)：新しい機能についての十のガイド（チェックレポート、部品表、パネルのテンプレート、電界ソルバー、銅ベタ、開口、バス、オートルーター、選択、ウィンドウの画像）、八つの言語
 * [テスト](docs/TESTING.md)：何をどう試すか、例のファイルの置き場所、ケースの追加方法。[8 言語](docs/I18N_AUDIT.md)：すべてのテキストとページで何を検査するか
 * [用語集](docs/glossary/ja/GLOSSARY.md)と [EAGLE／KiCad からの移行ガイド](docs/migration/ja/MIGRATION.md)
 

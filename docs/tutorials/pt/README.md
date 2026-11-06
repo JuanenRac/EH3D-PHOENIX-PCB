@@ -18,6 +18,10 @@ A ajuda está no próprio programa: `phoenix help` lista os temas e os comandos,
 1. [Rever a integridade de sinal de um par diferencial](TUTORIAL_DIFFERENTIAL_PAIR.md)
 1. [Usar scripts: uma matriz de LED e um painel](TUTORIAL_SCRIPTS.md)
 
+## Guias de funcionalidades
+
+* [Guias das funcionalidades mais recentes](../guides/pt/README.md): relatórios de verificação e perfis de capacidades, lista de materiais, modelos de painel, solucionador de campo e aquecimento, preenchimentos de cobre, aberturas, barramentos, encaminhador automático, seleção múltipla e imagens da janela; em oito idiomas
+
 ## Glossário e guia de migração
 
 * [Glossário](../../glossary/pt/GLOSSARY.md)

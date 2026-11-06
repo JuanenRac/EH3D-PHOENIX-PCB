@@ -114,7 +114,7 @@ EH3D-PHOENIX-PCB/
 │   ├── TESTING.md I18N_AUDIT.md                 wie getestet wird, und die Prüfung der acht Sprachen
 │   ├── ROADMAP.md                               die Phasenkarte, von den Grundlagen bis zur All-in-one-Suite
 │   ├── GLOSSARY.md MIGRATION.md                 die Begriffe und der Leitfaden für Umsteiger von EAGLE und KiCad
-│   ├── tutorials/ glossary/ migration/          Anleitungen, die ein Test ausführt, und die Übersetzungen
+│   ├── tutorials/ glossary/ migration/          Anleitungen, die ein Test ausführt, Funktionsanleitungen, Übersetzungen
 │   ├── ERROR_CODES.md                           die Diagnosecodes PHOENIX-<BEREICH>-<NNN>
 │   ├── STACKUP.md                               Lagenaufbau- und Leitungsrechnung, Formeln
 │   ├── RF.md                                    HF-Werkzeuge: Touchstone, Zweitore, Anpassung, Filter
@@ -173,7 +173,7 @@ EH3D-PHOENIX-PCB/
 ├── deny.toml                                    Lizenz- und Hinweisrichtlinie der Abhängigkeiten
 ├── crates/                                      Inventar, Modell, Projekt, Platine, Schaltplan, EAGLE, KiCad, Regeln, ERC, Abgleich, Hub, Export, Gerber-Import, Nutzen, Lagenaufbau, HF, Simulator, Router, Zonen, Längen, Stückliste, 3D-Baugruppe, Bereiniger, Skripte, Betrachter, CLI
 ├── config/                                      die Einstellungsdatei (jeder abgestimmte Wert)
-├── examples/                                    Beispielskripte, ihre Ausgabe und die Dateien der Anleitungen
+├── examples/                                    Beispielskripte, ihre Ausgabe, Dateien der Anleitungen und Guides
 ├── Cargo.toml Cargo.lock                        der Rust-Workspace und seine festgelegten Abhängigkeiten
 ├── tools/                                       die Repository-Prüfung, ihre Tests und die Bild-Werkzeuge
 ├── tests/                                       Referenzfälle und das eigene Korpus handgeschriebener Stücke
@@ -217,6 +217,7 @@ README und Texte gibt es auf Englisch, Spanisch, Französisch, Italienisch, Deut
 * [Änderungsprotokoll](CHANGELOG.md)
 * [Umfang, Anforderungen, Abhängigkeiten, Bedrohungsmodell und Entscheidungen](docs/SCOPE.md)
 * [Anleitungen](docs/tutorials/de/README.md): neun Abläufe mit Befehlen, die ein Test ausführt, in acht Sprachen; `phoenix help` erklärt jedes Thema und jeden Befehl im Programm
+* [Funktionsanleitungen](docs/tutorials/guides/de/README.md): zehn Anleitungen zu den neueren Funktionen (Prüfberichte, Stückliste, Nutzenvorlagen, Feldlöser, Kupferflächen, Aussparungen, Busse, Autorouter, Auswahl, Bilder des Fensters), in acht Sprachen
 * [Tests](docs/TESTING.md): was wie getestet wird, wo die Beispieldateien liegen und wie man einen Fall hinzufügt; [die acht Sprachen](docs/I18N_AUDIT.md): was in jedem Text und jeder Seite geprüft wird
 * [Glossar](docs/glossary/de/GLOSSARY.md) und [Migrationsleitfaden für Umsteiger von EAGLE und KiCad](docs/migration/de/MIGRATION.md)
 

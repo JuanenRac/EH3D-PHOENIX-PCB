@@ -18,6 +18,10 @@ La ayuda del programa está en el programa: `phoenix help` lista los temas y los
 1. [Revisar la integridad de señal de un par diferencial](TUTORIAL_DIFFERENTIAL_PAIR.md)
 1. [Usar scripts: una matriz de LED y un panel](TUTORIAL_SCRIPTS.md)
 
+## Guías de funciones
+
+* [Guías de las funciones más recientes](../guides/es/README.md): informes de revisión y perfiles de capacidades, lista de materiales, plantillas de panel, solucionador de campo y calentamiento, rellenos de cobre, aberturas, buses, autorruteador, selección múltiple y capturas de la ventana; en ocho idiomas
+
 ## Glosario y guía de migración
 
 * [Glosario](../../glossary/es/GLOSSARY.md)

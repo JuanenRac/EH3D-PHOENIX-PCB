@@ -148,14 +148,14 @@
           "name": "tutorials/  glossary/  migration/",
           "tree_name": "tutorials/ glossary/ migration/",
           "desc": {
-            "en": "tutorials run by a test, and the translations",
-            "es": "tutoriales que ejecuta una prueba, y las traducciones",
-            "de": "Anleitungen, die ein Test ausführt, und die Übersetzungen",
-            "fr": "tutoriels exécutés par un test, et les traductions",
-            "it": "tutorial eseguiti da un test, e le traduzioni",
-            "ja": "テストが実行するチュートリアルと翻訳",
-            "zh": "由测试运行的教程及其译文",
-            "pt": "tutoriais executados por um teste, e as traduções"
+            "en": "tutorials run by a test, feature guides and translations",
+            "es": "tutoriales que ejecuta una prueba, guías de funciones y traducciones",
+            "de": "Anleitungen, die ein Test ausführt, Funktionsanleitungen, Übersetzungen",
+            "fr": "tutoriels exécutés par un test, guides des fonctions, traductions",
+            "it": "tutorial eseguiti da un test, guide alle funzioni, traduzioni",
+            "ja": "テストが実行するチュートリアル、機能ガイド、翻訳",
+            "zh": "由测试运行的教程、功能指南及其译文",
+            "pt": "tutoriais executados por um teste, guias de funcionalidades, traduções"
           }
         },
         {
@@ -954,14 +954,14 @@
         {
           "name": "examples/",
           "desc": {
-            "en": "example scripts, their output and the tutorial files",
-            "es": "scripts de ejemplo, su salida y los ficheros de los tutoriales",
-            "de": "Beispielskripte, ihre Ausgabe und die Dateien der Anleitungen",
-            "fr": "scripts d'exemple, leur sortie et les fichiers des tutoriels",
-            "it": "script di esempio, il loro output e i file dei tutorial",
-            "ja": "サンプルスクリプトとその出力、チュートリアルのファイル",
-            "zh": "示例脚本及其输出，以及教程用的文件",
-            "pt": "scripts de exemplo, a sua saída e os ficheiros dos tutoriais"
+            "en": "example scripts, their output and the files of tutorials and guides",
+            "es": "scripts de ejemplo, su salida y los ficheros de tutoriales y guías",
+            "de": "Beispielskripte, ihre Ausgabe, Dateien der Anleitungen und Guides",
+            "fr": "scripts d'exemple, leur sortie, fichiers des tutoriels et guides",
+            "it": "script di esempio, il loro output e i file di tutorial e guide",
+            "ja": "サンプルスクリプトとその出力、チュートリアルとガイドのファイル",
+            "zh": "示例脚本及其输出，以及教程和指南用的文件",
+            "pt": "scripts de exemplo, a sua saída e ficheiros de tutoriais e guias"
           }
         },
         {
