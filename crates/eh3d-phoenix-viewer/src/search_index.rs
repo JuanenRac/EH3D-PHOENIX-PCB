@@ -286,7 +286,7 @@ impl SearchState {
     }
 
     /// Goes to the next result, and from the last to the first.
-    pub fn next(&mut self) -> Option<&Hit> {
+    pub fn go_next(&mut self) -> Option<&Hit> {
         if self.hits.is_empty() {
             return None;
         }
@@ -295,7 +295,7 @@ impl SearchState {
     }
 
     /// Goes to the previous result, and from the first to the last.
-    pub fn previous(&mut self) -> Option<&Hit> {
+    pub fn go_previous(&mut self) -> Option<&Hit> {
         if self.hits.is_empty() {
             return None;
         }
@@ -514,14 +514,14 @@ mod tests {
             query: "r1".to_string(),
             ..SearchState::default()
         };
-        assert!(state.next().is_none() && state.previous().is_none());
+        assert!(state.go_next().is_none() && state.go_previous().is_none());
         state.run(&index(), 10);
         assert_eq!(state.hits().len(), 2);
         assert_eq!(state.cursor(), 0);
         assert_eq!(state.current().unwrap().label, "R1 10k");
-        assert_eq!(state.next().unwrap().label, "R12 4k7");
-        assert_eq!(state.next().unwrap().label, "R1 10k");
-        assert_eq!(state.previous().unwrap().label, "R12 4k7");
+        assert_eq!(state.go_next().unwrap().label, "R12 4k7");
+        assert_eq!(state.go_next().unwrap().label, "R1 10k");
+        assert_eq!(state.go_previous().unwrap().label, "R12 4k7");
         assert!(state.set_cursor(0));
         assert!(!state.set_cursor(2));
         assert_eq!(state.cursor(), 0);
@@ -541,7 +541,7 @@ mod tests {
         };
         state.set_hits(vec![hit(4), hit(7)]);
         assert_eq!(state.current().unwrap().item, Some(4));
-        assert_eq!(state.next().unwrap().item, Some(7));
+        assert_eq!(state.go_next().unwrap().item, Some(7));
         state.set_hits(Vec::new());
         assert!(state.current().is_none() && state.cursor() == 0);
     }
