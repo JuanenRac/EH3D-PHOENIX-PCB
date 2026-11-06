@@ -163,6 +163,51 @@ impl Builder {
         self.add(format!("EDGE_CURVE('',#{},#{},#{line},.T.)", from.0, to.0))
     }
 
+    /// A closed edge that goes once round a circle about the axis through `centre`, from the
+    /// vertex `vertex` that lies on the circle at its angle 0.
+    fn circle_edge(&mut self, vertex: usize, centre: (i64, i64, i64), radius: i64) -> usize {
+        let placement = self.axis(centre, (0.0, 0.0, 1.0), (1.0, 0.0, 0.0));
+        let circle = self.add(format!("CIRCLE('',#{placement},{})", step_real(radius)));
+        self.add(format!("EDGE_CURVE('',#{vertex},#{vertex},#{circle},.T.)"))
+    }
+
+    /// An edge loop of oriented edges.
+    fn edge_loop(&mut self, sides: &[(usize, bool)]) -> usize {
+        let oriented: Vec<String> = sides
+            .iter()
+            .map(|(edge, forward)| {
+                let id = self.add(format!(
+                    "ORIENTED_EDGE('',*,*,#{edge},{})",
+                    if *forward { ".T." } else { ".F." }
+                ));
+                format!("#{id}")
+            })
+            .collect();
+        self.add(format!("EDGE_LOOP('',({}))", oriented.join(",")))
+    }
+
+    /// A face on a surface, with an outer loop and the loops of its holes.
+    fn face_on(
+        &mut self,
+        outer: &[(usize, bool)],
+        holes: &[Vec<(usize, bool)>],
+        surface: usize,
+        same_sense: bool,
+    ) -> usize {
+        let outer_loop = self.edge_loop(outer);
+        let mut bounds = vec![self.add(format!("FACE_OUTER_BOUND('',#{outer_loop},.T.)"))];
+        for hole in holes {
+            let hole_loop = self.edge_loop(hole);
+            bounds.push(self.add(format!("FACE_BOUND('',#{hole_loop},.T.)")));
+        }
+        let list: Vec<String> = bounds.iter().map(|b| format!("#{b}")).collect();
+        self.add(format!(
+            "ADVANCED_FACE('',({}),#{surface},{})",
+            list.join(","),
+            if same_sense { ".T." } else { ".F." }
+        ))
+    }
+
     fn face(&mut self, sides: &[(usize, bool)], placement: usize) -> usize {
         let oriented: Vec<String> = sides
             .iter()
@@ -244,6 +289,12 @@ pub fn prisms_step(prisms: &[Prism]) -> String {
         )));
     }
 
+    finish(b, &solids)
+}
+
+/// The file around the solids that a builder made: the units, the context, the product and the
+/// header.
+fn finish(mut b: Builder, solids: &[usize]) -> String {
     let origin = b.axis((0, 0, 0), (0.0, 0.0, 1.0), (1.0, 0.0, 0.0));
     let length_unit = b.add("(LENGTH_UNIT() NAMED_UNIT(*) SI_UNIT(.MILLI.,.METRE.))".to_owned());
     let angle = b.add("(NAMED_UNIT(*) PLANE_ANGLE_UNIT() SI_UNIT($,.RADIAN.))".to_owned());
@@ -255,7 +306,7 @@ pub fn prisms_step(prisms: &[Prism]) -> String {
         "(GEOMETRIC_REPRESENTATION_CONTEXT(3) GLOBAL_UNCERTAINTY_ASSIGNED_CONTEXT((#{uncertainty})) GLOBAL_UNIT_ASSIGNED_CONTEXT((#{length_unit},#{angle},#{solid_angle})) REPRESENTATION_CONTEXT('assembly','3D'))"
     ));
     let mut items = format!("#{origin}");
-    for solid in &solids {
+    for solid in solids {
         items.push_str(&format!(",#{solid}"));
     }
     let representation = b.add(format!(
@@ -297,6 +348,118 @@ pub fn prisms_step(prisms: &[Prism]) -> String {
     }
     out.push_str("ENDSEC;\nEND-ISO-10303-21;\n");
     out
+}
+
+/// A hole through the board: its centre and its diameter, in nanometres.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Hole {
+    /// The centre.
+    pub at: P,
+    /// The diameter.
+    pub diameter_nm: i64,
+}
+
+/// The board as one solid in a STEP file: the prism of the outline from height 0 to
+/// `thickness_nm`, with a cylindrical hole through it for each of `holes` (circles about the
+/// axis of the hole, a cylinder face for the wall, both circles as the inner loops of the top and
+/// the bottom face). The holes must lie inside the outline and clear of each other and of its
+/// edges; `usable_holes` of the enclosure module picks those. The radius is half the diameter,
+/// rounded down to the nanometre.
+pub fn board_step(outline: &[P], thickness_nm: i64, holes: &[Hole]) -> String {
+    let base = counter_clockwise(outline);
+    let n = base.len();
+    let mut b = Builder::default();
+    if n < 3 || thickness_nm <= 0 {
+        return finish(b, &[]);
+    }
+    let low = |i: usize| (base[i].0, base[i].1, 0);
+    let high = |i: usize| (base[i].0, base[i].1, thickness_nm);
+    let bottom_vertices: Vec<usize> = (0..n)
+        .map(|i| {
+            let p = b.point(low(i).0, low(i).1, low(i).2);
+            b.add(format!("VERTEX_POINT('',#{p})"))
+        })
+        .collect();
+    let top_vertices: Vec<usize> = (0..n)
+        .map(|i| {
+            let p = b.point(high(i).0, high(i).1, high(i).2);
+            b.add(format!("VERTEX_POINT('',#{p})"))
+        })
+        .collect();
+    let mut bottom_edges = Vec::new();
+    let mut top_edges = Vec::new();
+    let mut upright_edges = Vec::new();
+    for i in 0..n {
+        let j = (i + 1) % n;
+        bottom_edges.push(b.edge((bottom_vertices[i], low(i)), (bottom_vertices[j], low(j))));
+        top_edges.push(b.edge((top_vertices[i], high(i)), (top_vertices[j], high(j))));
+        upright_edges.push(b.edge((bottom_vertices[i], low(i)), (top_vertices[i], high(i))));
+    }
+
+    // the holes: a circle on the bottom, a circle on the top and the line along the wall
+    let mut bottom_loops: Vec<Vec<(usize, bool)>> = Vec::new();
+    let mut top_loops: Vec<Vec<(usize, bool)>> = Vec::new();
+    let mut walls: Vec<usize> = Vec::new();
+    for hole in holes {
+        let radius = hole.diameter_nm / 2;
+        let (cx, cy) = hole.at;
+        let at_bottom = (cx + radius, cy, 0);
+        let at_top = (cx + radius, cy, thickness_nm);
+        let p_bottom = b.point(at_bottom.0, at_bottom.1, at_bottom.2);
+        let v_bottom = b.add(format!("VERTEX_POINT('',#{p_bottom})"));
+        let p_top = b.point(at_top.0, at_top.1, at_top.2);
+        let v_top = b.add(format!("VERTEX_POINT('',#{p_top})"));
+        let circle_bottom = b.circle_edge(v_bottom, (cx, cy, 0), radius);
+        let circle_top = b.circle_edge(v_top, (cx, cy, thickness_nm), radius);
+        let seam = b.edge((v_bottom, at_bottom), (v_top, at_top));
+        bottom_loops.push(vec![(circle_bottom, true)]);
+        top_loops.push(vec![(circle_top, false)]);
+        // the wall of the hole looks into the hole: its face is the cylinder turned inside out,
+        // walked clockwise about the axis on the bottom, up the seam, anticlockwise on the top
+        // and down the seam
+        let axis = b.axis((cx, cy, 0), (0.0, 0.0, 1.0), (1.0, 0.0, 0.0));
+        let cylinder = b.add(format!(
+            "CYLINDRICAL_SURFACE('',#{axis},{})",
+            step_real(radius)
+        ));
+        let sides = [
+            (circle_bottom, false),
+            (seam, true),
+            (circle_top, true),
+            (seam, false),
+        ];
+        walls.push(b.face_on(&sides, &[], cylinder, false));
+    }
+
+    let mut faces = Vec::new();
+    let down = b.axis(low(0), (0.0, 0.0, -1.0), (1.0, 0.0, 0.0));
+    let down_plane = b.add(format!("PLANE('',#{down})"));
+    let reversed: Vec<(usize, bool)> = (0..n).rev().map(|i| (bottom_edges[i], false)).collect();
+    faces.push(b.face_on(&reversed, &bottom_loops, down_plane, true));
+    let up = b.axis(high(0), (0.0, 0.0, 1.0), (1.0, 0.0, 0.0));
+    let up_plane = b.add(format!("PLANE('',#{up})"));
+    let forward: Vec<(usize, bool)> = (0..n).map(|i| (top_edges[i], true)).collect();
+    faces.push(b.face_on(&forward, &top_loops, up_plane, true));
+    for i in 0..n {
+        let j = (i + 1) % n;
+        let (dx, dy) = (
+            (base[j].0 - base[i].0) as f64,
+            (base[j].1 - base[i].1) as f64,
+        );
+        let placement = b.axis(low(i), (dy, -dx, 0.0), (dx, dy, 0.0));
+        let sides = [
+            (bottom_edges[i], true),
+            (upright_edges[j], true),
+            (top_edges[i], false),
+            (upright_edges[i], false),
+        ];
+        faces.push(b.face(&sides, placement));
+    }
+    faces.extend(walls);
+    let list: Vec<String> = faces.iter().map(|f| format!("#{f}")).collect();
+    let shell = b.add(format!("CLOSED_SHELL('',({}))", list.join(",")));
+    let solid = b.add(format!("MANIFOLD_SOLID_BREP('board',#{shell})"));
+    finish(b, &[solid])
 }
 
 #[cfg(test)]
@@ -433,5 +596,93 @@ mod tests {
         assert!(a.contains("DIRECTION('',(0.,-1.000000000,0.))"));
         assert!(a.contains("DIRECTION('',(1.000000000,0.,0.))"));
         assert!(a.contains("CARTESIAN_POINT('',(2.,2.,1.))"));
+    }
+
+    fn board_with_two_holes() -> String {
+        let outline = [(0, 0), (20 * MM, 0), (20 * MM, 10 * MM), (0, 10 * MM)];
+        let holes = [
+            Hole {
+                at: (5 * MM, 5 * MM),
+                diameter_nm: 3 * MM,
+            },
+            Hole {
+                at: (15 * MM, 5 * MM),
+                diameter_nm: 2 * MM,
+            },
+        ];
+        board_step(&outline, 1_600_000, &holes)
+    }
+
+    #[test]
+    fn a_board_with_holes_has_a_bound_and_a_wall_for_each_hole() {
+        let a = board_with_two_holes();
+        assert_eq!(a, board_with_two_holes());
+        assert!(a.starts_with("ISO-10303-21;\nHEADER;\n"));
+        assert!(a.ends_with("END-ISO-10303-21;\n"));
+        // the six faces of the prism and a wall for each hole
+        assert_eq!(a.matches("ADVANCED_FACE(").count(), 8);
+        // the top and the bottom face have an inner bound for each hole
+        assert_eq!(a.matches("FACE_BOUND(").count(), 4);
+        assert_eq!(a.matches("FACE_OUTER_BOUND(").count(), 8);
+        assert_eq!(a.matches("CYLINDRICAL_SURFACE(").count(), 2);
+        assert_eq!(a.matches("CIRCLE(").count(), 4);
+        // 12 edges of the prism, and for each hole two circles and the line along the wall
+        assert_eq!(a.matches("EDGE_CURVE(").count(), 18);
+        assert_eq!(a.matches("CLOSED_SHELL(").count(), 1);
+        assert_eq!(a.matches("MANIFOLD_SOLID_BREP('board',").count(), 1);
+        // the radius of each hole: 1.5 mm and 1 mm
+        assert!(a.contains("CYLINDRICAL_SURFACE('',#") && a.contains(",1.5)"));
+        assert!(a.contains(",1.)"));
+        // the wall of a hole is the cylinder turned inside out: its face has the sense false
+        let inside_out = a
+            .lines()
+            .filter(|l| l.contains("ADVANCED_FACE(") && l.ends_with(",.F.);"))
+            .count();
+        assert_eq!(inside_out, 2);
+    }
+
+    #[test]
+    fn every_reference_of_a_board_with_holes_is_defined_before_the_end_of_the_file() {
+        let a = board_with_two_holes();
+        let defined = a.lines().filter(|l| l.starts_with('#')).count();
+        for line in a.lines().filter(|l| l.starts_with('#')) {
+            let mut rest = line.split_once('=').unwrap().1;
+            while let Some(at) = rest.find('#') {
+                let digits: String = rest[at + 1..]
+                    .chars()
+                    .take_while(char::is_ascii_digit)
+                    .collect();
+                let id: usize = digits.parse().unwrap();
+                assert!((1..=defined).contains(&id), "{line}");
+                rest = &rest[at + 1..];
+            }
+        }
+    }
+
+    #[test]
+    fn the_reader_of_the_suite_reads_the_board_back_with_its_circles() {
+        let solid = crate::step::read_step(&board_with_two_holes(), 100_000).unwrap();
+        assert_eq!(solid.kind, crate::step::SolidKind::Curved);
+        // the circles count as cubes about their centres: 1.5 mm for the biggest hole
+        assert_eq!(solid.min, [0, 0, -1_500_000]);
+        assert_eq!(solid.max, [20 * MM, 10 * MM, 3_100_000]);
+        // without holes it is a plain box
+        let plain = board_step(
+            &[(0, 0), (20 * MM, 0), (20 * MM, 10 * MM), (0, 10 * MM)],
+            1_600_000,
+            &[],
+        );
+        let solid = crate::step::read_step(&plain, 100_000).unwrap();
+        assert_eq!(solid.kind, crate::step::SolidKind::Box);
+        assert_eq!(solid.max, [20 * MM, 10 * MM, 1_600_000]);
+        assert_eq!(plain.matches("ADVANCED_FACE(").count(), 6);
+    }
+
+    #[test]
+    fn an_outline_without_area_or_a_board_without_thickness_gives_a_file_with_no_solid() {
+        let none = board_step(&[(0, 0), (MM, 0)], 1_600_000, &[]);
+        assert_eq!(none, prisms_step(&[]));
+        let thin = board_step(&[(0, 0), (MM, 0), (MM, MM)], 0, &[]);
+        assert_eq!(thin, prisms_step(&[]));
     }
 }

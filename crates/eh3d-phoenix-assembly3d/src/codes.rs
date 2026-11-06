@@ -282,11 +282,13 @@ pub const TITLES: &[(&str, [&str; 8])] = &[
     ),
 ];
 
-/// The title of a code in a language; empty for a code that is not in the table.
+/// The title of a code in a language, of the assembly (`PHOENIX-3D-<NNN>`) or of the check against
+/// an enclosure (`PHOENIX-ENCL-<NNN>`); empty for a code that is in neither table.
 pub fn title(code: &str, lang: Lang) -> &'static str {
     let column = Lang::ALL.iter().position(|l| *l == lang).unwrap_or(0);
     TITLES
         .iter()
+        .chain(crate::enclosure_codes::TITLES.iter())
         .find(|(c, _)| *c == code)
         .map_or("", |(_, row)| row[column])
 }
