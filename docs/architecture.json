@@ -62,7 +62,7 @@
         "crates/eh3d-phoenix-sanitizer/src/group.rs",
         "crates/eh3d-phoenix-script/src/exec.rs",
         "crates/eh3d-phoenix-sim/src/tran.rs",
-        "crates/eh3d-phoenix-sim/src/schgen.rs",
+        "crates/eh3d-phoenix-sim/src/schgen.rs", "crates/eh3d-phoenix-sim/src/study.rs",
         "crates/eh3d-phoenix-erc/src/checks.rs",
         "crates/eh3d-phoenix-sync/src/forward.rs",
         "crates/eh3d-phoenix-sync/src/annotate.rs",

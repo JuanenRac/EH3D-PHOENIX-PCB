@@ -1,6 +1,6 @@
 # EH3D-PHOENIX-PCB: circuit simulation
 
-The crate `eh3d-phoenix-sim` and the command `phoenix sim` are the first step of phase F12 (requirement PPCB-022). They simulate linear circuits and circuits with diodes, bipolar and MOS transistors, voltage-controlled switches, operational-amplifier macromodels and comparators with a solver of our own, by modified nodal analysis, and link no engine (the decision is `docs/adr/0010-own-circuit-simulator.md`, provisional). The non-linear devices, the report of a DC solution, the DC sweep and the analysis lines of a netlist are described in `docs/SIM_NONLINEAR.md`.
+The crate `eh3d-phoenix-sim` and the command `phoenix sim` are the first step of phase F12 (requirement PPCB-022). They simulate linear circuits and circuits with diodes, bipolar and MOS transistors, voltage-controlled switches, operational-amplifier macromodels and comparators with a solver of our own, by modified nodal analysis, and link no engine (the decision is `docs/adr/0010-own-circuit-simulator.md`, provisional). The non-linear devices, the report of a DC solution, the DC sweep and the analysis lines of a netlist are described in `docs/SIM_NONLINEAR.md`. The runs over a list of values (`.step`), the measures (`.measure`), Monte Carlo over tolerances, sensitivity, noise, poles and zeros and the figures of merit are described in `docs/SIM_ADVANCED.md`.
 
 **State: prototype.** The results are an own numerical approximation. The tests use values of the textbooks and properties (superposition, conservation of current, repeatable results), and a coherence check compares the simulation of a filter with the RF crate. Nothing has been compared with SPICE or with a measurement, and the device models are simple (see "The device models" below for what they leave out).
 
@@ -95,7 +95,7 @@ phoenix sim [--config FILE] [--lang xx] --check-filter FAMILY ORDER BAND F1 [F2]
 
 ## Settings and codes
 
-`config/sim.cfg` holds every limit, tolerance and default. A missing line keeps the default; an unknown key or a value out of range is refused with its line number (`PHOENIX-SIM-007`). The codes are `PHOENIX-SIM-001` to `PHOENIX-SIM-024` in `docs/ERROR_CODES.md`, with titles in the eight languages.
+`config/sim.cfg` holds every limit, tolerance and default. A missing line keeps the default; an unknown key or a value out of range is refused with its line number (`PHOENIX-SIM-007`). The codes are `PHOENIX-SIM-001` to `PHOENIX-SIM-029` in `docs/ERROR_CODES.md`, with titles in the eight languages.
 
 ## Tests and limits
 

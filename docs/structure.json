@@ -391,6 +391,19 @@
           }
         },
         {
+          "name": "SIM_ADVANCED.md",
+          "desc": {
+            "en": "simulator: steps, measures, Monte Carlo, poles",
+            "es": "simulador: barridos, medidas, Monte Carlo, polos",
+            "de": "Simulator: Läufe, Messungen, Monte Carlo, Pole",
+            "fr": "simulateur : balayages, mesures, Monte Carlo, pôles",
+            "it": "simulatore: scansioni, misure, Monte Carlo, poli",
+            "ja": "シミュレータ：掃引、測定、モンテカルロ、極",
+            "zh": "仿真器：扫描、测量、蒙特卡罗、极点",
+            "pt": "simulador: varrimentos, medições, Monte Carlo, polos"
+          }
+        },
+        {
           "name": "NETLIST.md",
           "desc": {
             "en": "the netlist of a schematic: table of models, report",
