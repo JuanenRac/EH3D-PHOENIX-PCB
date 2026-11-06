@@ -105,7 +105,7 @@ impl Lang {
     ];
 
     /// The column of this language in the tables.
-    fn column(self) -> usize {
+    pub(crate) fn column(self) -> usize {
         match self {
             Lang::En => 0,
             Lang::Es => 1,
@@ -638,6 +638,7 @@ pub fn title(code: &str, lang: Lang) -> Option<&'static str> {
         .iter()
         .find(|(c, _)| *c == code)
         .map(|(_, texts)| texts[lang.column()])
+        .or_else(|| crate::advanced::codes::title(code, lang))
 }
 
 /// A word of the text report in a language; an unknown key gives an empty text.

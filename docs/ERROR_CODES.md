@@ -2,7 +2,7 @@
 
 Codes have the form `PHOENIX-<AREA>-<NNN>`. A code is stable: it never changes its meaning and is never reused. Programs show the text through the key `diag.<code>`; the codes themselves are never translated. The object identity (UUID v7) is the one of the shared container, with its own codes `EH3D-ID-001` and `EH3D-ID-002`. The container codes `EH3D-PKG-001` to `EH3D-PKG-014` belong to the shared container and are listed in the registry of the documentation repository.
 
-Each table repeats the `REGISTRY` of a crate (`eh3d-phoenix-model` in `src/diagnostic.rs`, `eh3d-phoenix-project` and `eh3d-phoenix-eagle` in `src/codes.rs`, `eh3d-phoenix-hub` in `src/lib.rs`, `eh3d-phoenix-export` in `src/codes.rs` and `src/fabcodes.rs`, `eh3d-phoenix-schematic` in `src/model.rs`, `src/draw.rs`, `src/edit.rs`, `src/link.rs`, `src/hier.rs` and `src/bus.rs`, `eh3d-phoenix-board` in `src/validate.rs`, `src/connectivity.rs` and `src/rules.rs`, `eh3d-phoenix-rules` in `src/codes.rs`, `eh3d-phoenix-stackup` and `eh3d-phoenix-rf` in `src/error.rs`, `eh3d-phoenix-viewer`, `eh3d-phoenix-sanitizer`, `eh3d-phoenix-erc`, `eh3d-phoenix-sync`, `eh3d-phoenix-schedit`, `eh3d-phoenix-boardedit` (also in `src/pair_codes.rs`, `src/shove_codes.rs` and `src/zone_codes.rs`), `eh3d-phoenix-libedit`, `eh3d-phoenix-zones`, `eh3d-phoenix-lengths`, `eh3d-phoenix-gerber`, `eh3d-phoenix-panel`, `eh3d-phoenix-bom`, `eh3d-phoenix-assembly3d` and `eh3d-phoenix-oracle` in `src/codes.rs`); a test of each crate checks that every code of its registry is in the table with the same title.
+Each table repeats the `REGISTRY` of a crate (`eh3d-phoenix-model` in `src/diagnostic.rs`, `eh3d-phoenix-project` and `eh3d-phoenix-eagle` in `src/codes.rs`, `eh3d-phoenix-hub` in `src/lib.rs`, `eh3d-phoenix-export` in `src/codes.rs` and `src/fabcodes.rs`, `eh3d-phoenix-schematic` in `src/model.rs`, `src/draw.rs`, `src/edit.rs`, `src/link.rs`, `src/hier.rs` and `src/bus.rs`, `eh3d-phoenix-board` in `src/validate.rs`, `src/connectivity.rs` and `src/rules.rs`, `eh3d-phoenix-rules` in `src/codes.rs` and `src/advanced/codes.rs`, `eh3d-phoenix-stackup` and `eh3d-phoenix-rf` in `src/error.rs`, `eh3d-phoenix-viewer`, `eh3d-phoenix-sanitizer`, `eh3d-phoenix-erc`, `eh3d-phoenix-sync`, `eh3d-phoenix-schedit`, `eh3d-phoenix-boardedit` (also in `src/pair_codes.rs`, `src/shove_codes.rs` and `src/zone_codes.rs`), `eh3d-phoenix-libedit`, `eh3d-phoenix-zones`, `eh3d-phoenix-lengths`, `eh3d-phoenix-gerber`, `eh3d-phoenix-panel`, `eh3d-phoenix-bom`, `eh3d-phoenix-assembly3d` and `eh3d-phoenix-oracle` in `src/codes.rs`); a test of each crate checks that every code of its registry is in the table with the same title.
 
 ## Model foundations
 
@@ -193,6 +193,48 @@ Each table repeats the `REGISTRY` of a crate (`eh3d-phoenix-model` in `src/diagn
 | PHOENIX-CONN-007 | Net name differs for the same pins | the pins of a schematic net are exactly those of a board net with another name (a warning) |
 | PHOENIX-CONN-008 | Connection could not be judged | a contact that the shape of a pad or the size of the numbers does not decide, or a track with an arc (information) |
 | PHOENIX-CONN-009 | Pad on a board net but its pin is on no schematic net | a pad of a component whose part is in the schematic but whose pin is on no net there (a warning) |
+
+## Advanced design rule checks (`eh3d-phoenix-rules`, `src/advanced/codes.rs`)
+
+The checks of `phoenix check --advanced`, with the limits and the levels of `config/drc_advanced.cfg`. The level of a check (off, info, warning or error) is the severity of its findings.
+
+| Code | Title | Raised by |
+|---|---|---|
+| PHOENIX-DRC-001 | Annular ring thinner than the advanced minimum | An annular ring (via pad or drilled pad against its drill) thinner than annular_ring_min_nm |
+| PHOENIX-DRC-002 | Copper too close to the board edge | A track or a via closer to the outline than copper_edge_min_nm |
+| PHOENIX-DRC-003 | Pad too close to the board edge | A pad closer to the outline than pad_edge_min_nm |
+| PHOENIX-DRC-004 | Drill smaller than the minimum of its net class | A via or a drilled pad whose drill is below the minimum of the class of its net (or the default) |
+| PHOENIX-DRC-005 | Silkscreen too close to a drill hole | Silkscreen closer to the drill of a through hole than silk_hole_min_nm |
+| PHOENIX-DRC-006 | Neck: narrow track joined to wider copper | A track narrower than neck_min_width_nm whose end joins wider copper of the same net |
+| PHOENIX-DRC-007 | Acid trap: acute angle between tracks of one net | Two pieces of tracks of one net that meet at an angle below acid_trap_min_angle_deg |
+| PHOENIX-DRC-008 | Spacing below the minimum for the voltage between nets | Copper of two nets with a voltage between them closer than the table of IPC-2221 asks (figures not verified against the standard) |
+| PHOENIX-DRC-009 | Copper island joined to no pad | Tracks, vias or zones of a net that are joined together but to no pad |
+| PHOENIX-DRC-010 | Dead-end track (stub) | A track with one end that touches nothing of its net while the other end is joined |
+| PHOENIX-DRC-011 | Duplicate or stacked vias | Two vias that share a layer and are at most via_duplicate_max_distance_nm apart |
+| PHOENIX-DRC-012 | Pad on no net | A pad of a placed component that is assigned to no net |
+| PHOENIX-DRC-013 | Part outside the board outline | A component with a pad whose centre is outside the outline of the board |
+| PHOENIX-DRC-014 | Advanced check could not be judged | An item the advanced checks cannot judge: a shape too coarse to tell, numbers too large, a board without an outline (information, never a failure) |
+| PHOENIX-DRC-015 | Advanced check settings are not valid | A settings file that is too large, has a key it does not know or written twice, or a value out of range |
+
+Titles of the same codes in the other seven languages (Portuguese is the Portuguese of Portugal):
+
+| Code | es | de | fr | it | ja | zh | pt |
+|---|---|---|---|---|---|---|---|
+| PHOENIX-DRC-001 | Anillo anular más fino que el mínimo avanzado | Restring dünner als das erweiterte Minimum | Anneau de cuivre plus fin que le minimum avancé | Anello anulare più sottile del minimo avanzato | アニュラリングが詳細チェックの最小値より薄い | 环形焊环比高级检查的最小值更薄 | Anel anular mais fino do que o mínimo avançado |
+| PHOENIX-DRC-002 | Cobre demasiado cerca del borde de la placa | Kupfer zu nah am Platinenrand | Cuivre trop près du bord de la carte | Rame troppo vicino al bordo della scheda | 銅箔が基板の端に近すぎる | 铜箔离板边太近 | Cobre demasiado perto do limite da placa |
+| PHOENIX-DRC-003 | Pad demasiado cerca del borde de la placa | Pad zu nah am Platinenrand | Pastille trop près du bord de la carte | Pad troppo vicino al bordo della scheda | パッドが基板の端に近すぎる | 焊盘离板边太近 | Pad demasiado perto do limite da placa |
+| PHOENIX-DRC-004 | Taladro menor que el mínimo de su clase de red | Bohrung kleiner als das Minimum ihrer Netzklasse | Perçage plus petit que le minimum de sa classe de réseau | Foro più piccolo del minimo della sua classe di rete | ドリル径がネットクラスの最小値より小さい | 钻孔小于其网络类别的最小值 | Furo mais pequeno do que o mínimo da sua classe de rede |
+| PHOENIX-DRC-005 | Serigrafía demasiado cerca de un taladro | Bestückungsdruck zu nah an einer Bohrung | Sérigraphie trop près d'un perçage | Serigrafia troppo vicina a un foro | シルクが穴に近すぎる | 丝印离钻孔太近 | Serigrafia demasiado perto de um furo |
+| PHOENIX-DRC-006 | Cuello: pista estrecha unida a cobre más ancho | Engstelle: schmale Leiterbahn an breiterem Kupfer | Goulot : piste étroite reliée à du cuivre plus large | Strozzatura: pista stretta unita a rame più largo | ネック：細い配線が太い銅箔につながっている | 瓶颈：窄走线连接到更宽的铜箔 | Estrangulamento: pista estreita ligada a cobre mais largo |
+| PHOENIX-DRC-007 | Trampa de ácido: ángulo agudo entre pistas de una red | Säurefalle: spitzer Winkel zwischen Leiterbahnen eines Netzes | Piège à acide : angle aigu entre pistes d'un réseau | Trappola d'acido: angolo acuto tra piste di una rete | アシッドトラップ：同一ネットの配線間の鋭角 | 酸液陷阱：同一网络走线间的锐角 | Armadilha de ácido: ângulo agudo entre pistas de uma rede |
+| PHOENIX-DRC-008 | Separación inferior al mínimo para la tensión entre redes | Abstand unter dem Minimum für die Spannung zwischen Netzen | Distance inférieure au minimum pour la tension entre réseaux | Distanza inferiore al minimo per la tensione tra reti | ネット間の電圧に対する間隔が最小値未満 | 间距小于网络间电压要求的最小值 | Distância inferior ao mínimo para a tensão entre redes |
+| PHOENIX-DRC-009 | Isla de cobre sin ningún pad | Kupferinsel ohne Pad | Îlot de cuivre sans aucune pastille | Isola di rame senza alcun pad | パッドにつながらない銅箔の島 | 未连接任何焊盘的铜岛 | Ilha de cobre sem nenhum pad |
+| PHOENIX-DRC-010 | Pista muerta (sin pad ni vía en un extremo) | Blinde Leiterbahn (Stummel) | Piste borgne (tronçon sans issue) | Pista cieca (moncone) | 行き止まりの配線（スタブ） | 断头走线（残桩） | Pista sem saída (cotoco) |
+| PHOENIX-DRC-011 | Vías duplicadas o apiladas | Doppelte oder gestapelte Durchkontaktierungen | Vias dupliqués ou empilés | Via duplicate o impilate | 重複または積み重なったビア | 重复或堆叠的过孔 | Vias duplicadas ou empilhadas |
+| PHOENIX-DRC-012 | Pad sin ninguna red | Pad ohne Netz | Pastille sans réseau | Pad senza alcuna rete | どのネットにも属さないパッド | 不属于任何网络的焊盘 | Pad sem nenhuma rede |
+| PHOENIX-DRC-013 | Pieza fuera del contorno de la placa | Bauteil außerhalb des Platinenumrisses | Pièce hors du contour de la carte | Componente fuori dal contorno della scheda | 部品が基板外形の外にある | 元件超出板框 | Peça fora do contorno da placa |
+| PHOENIX-DRC-014 | Comprobación avanzada sin poder juzgar | Erweiterte Prüfung nicht entscheidbar | Contrôle avancé non concluant | Controllo avanzato non conclusivo | 詳細チェックを判定できない | 高级检查无法判定 | Verificação avançada sem conclusão |
+| PHOENIX-DRC-015 | Ajustes de las comprobaciones avanzadas no válidos | Einstellungen der erweiterten Prüfungen ungültig | Réglages des contrôles avancés non valides | Impostazioni dei controlli avanzati non valide | 詳細チェックの設定が正しくない | 高级检查的设置无效 | Definições das verificações avançadas inválidas |
 
 ## Stack-up and transmission lines (`eh3d-phoenix-stackup`, `src/error.rs`)
 

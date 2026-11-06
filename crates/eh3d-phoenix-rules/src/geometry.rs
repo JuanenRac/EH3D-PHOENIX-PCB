@@ -240,6 +240,11 @@ impl Prim {
         Prim::new(vec![(p, p)], lo, hi, false)
     }
 
+    /// The box of the end points of the pieces: `[min x, min y, max x, max y]`.
+    pub(crate) fn bbox(&self) -> [i128; 4] {
+        self.bbox
+    }
+
     /// The first point of the first piece, to say where the item is.
     pub(crate) fn first_point(&self) -> Point {
         self.pieces[0].0

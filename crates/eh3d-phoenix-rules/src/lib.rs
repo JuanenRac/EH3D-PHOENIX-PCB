@@ -8,6 +8,10 @@
 //!   its place, the rule, the measured value, the limit and the severity;
 //! * [`connectivity`]: the nets that the copper really forms (a gap of the tolerance still counts as
 //!   touching), shorts and unrouted connections, and the comparison with the schematic;
+//! * [`advanced`]: further checks with a settings file of their own (annular ring, distance to the
+//!   board edge, acid traps, silkscreen over holes, isolation by voltage, copper islands, stubs,
+//!   duplicate vias, pads on no net and parts outside the outline), with the codes
+//!   `PHOENIX-DRC-<NNN>`;
 //! * [`classes`]: net classes of a rule file of the second format, with limits of their own for
 //!   the width of the tracks and the size of the vias of their nets;
 //! * [`report`]: the report as text and as JSON, with proven (`confirmed`) and unjudged
@@ -23,6 +27,7 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
+pub mod advanced;
 pub mod classes;
 pub mod codes;
 pub mod connectivity;
@@ -32,6 +37,10 @@ mod items;
 pub mod report;
 pub mod rulefile;
 
+pub use advanced::{
+    advanced_findings, check_advanced, check_advanced_with, to_sarif, AdvancedConfig,
+    AdvancedError, IndexMode,
+};
 pub use classes::{check_classes, NetClass, NetClasses};
 pub use codes::{title, Lang, REGISTRY};
 pub use connectivity::{analyse_board, check_connectivity, compare_schematic};
