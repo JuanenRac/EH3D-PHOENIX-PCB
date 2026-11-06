@@ -1,0 +1,13 @@
+[package]
+name = "eh3d-phoenix-field2d"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "A two-dimensional field solver for the cross section of a transmission line (prototype): a non-uniform rectangular mesh refined near the edges of the tracks, the Laplace equation by finite differences solved by conjugate gradients or successive over-relaxation with limits that count cells and iterations, and from the capacitance with and without the dielectric the impedance, effective permittivity, inductance, coupling and differential and common impedance, compared with the closed formulas of the stack-up crate"
+
+[dependencies]
+eh3d-phoenix-stackup = { path = "../eh3d-phoenix-stackup" }
+serde.workspace = true
+serde_json = { workspace = true, features = ["float_roundtrip"] }
