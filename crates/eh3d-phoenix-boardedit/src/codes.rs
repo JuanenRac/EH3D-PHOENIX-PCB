@@ -23,6 +23,12 @@ pub const COMPONENT_LOCKED: &str = "PHOENIX-BEDIT-006";
 pub const GEOMETRY_INVALID: &str = "PHOENIX-BEDIT-007";
 /// A net that cannot be tuned to the length asked for.
 pub const TUNE_IMPOSSIBLE: &str = "PHOENIX-BEDIT-008";
+/// An operation on the selection when nothing is selected.
+pub const SELECTION_EMPTY: &str = "PHOENIX-BEDIT-009";
+/// An object that the board does not have, named in a selection or in a group operation.
+pub const ITEM_MISSING: &str = "PHOENIX-BEDIT-010";
+/// Too few objects to align (fewer than two) or to distribute (fewer than three).
+pub const ALIGN_TOO_FEW: &str = "PHOENIX-BEDIT-011";
 
 /// Code, then the title in English, Spanish, German, French, Italian, Japanese, Chinese and
 /// European Portuguese.
@@ -129,6 +135,45 @@ pub const TITLES: &[(&str, [&str; 8])] = &[
             "ネットを指定の長さに調整できません",
             "无法将网络调整到所需长度",
             "A rede não pode ser ajustada ao comprimento pedido",
+        ],
+    ),
+    (
+        SELECTION_EMPTY,
+        [
+            "Nothing is selected",
+            "No hay nada seleccionado",
+            "Es ist nichts ausgewählt",
+            "Rien n'est sélectionné",
+            "Non è selezionato nulla",
+            "何も選択されていません",
+            "未选择任何对象",
+            "Não está nada selecionado",
+        ],
+    ),
+    (
+        ITEM_MISSING,
+        [
+            "Item is not on the board",
+            "El elemento no está en la placa",
+            "Das Element befindet sich nicht auf der Platine",
+            "L'élément n'est pas sur la carte",
+            "L'elemento non è sulla scheda",
+            "要素が基板にありません",
+            "该对象不在电路板上",
+            "O elemento não está na placa",
+        ],
+    ),
+    (
+        ALIGN_TOO_FEW,
+        [
+            "Too few items to align or distribute",
+            "Hay muy pocos elementos para alinear o distribuir",
+            "Zu wenige Elemente zum Ausrichten oder Verteilen",
+            "Trop peu d'éléments pour aligner ou répartir",
+            "Troppo pochi elementi da allineare o distribuire",
+            "整列または等間隔配置するには要素が足りません",
+            "对象太少，无法对齐或分布",
+            "Há poucos elementos para alinhar ou distribuir",
         ],
     ),
 ];

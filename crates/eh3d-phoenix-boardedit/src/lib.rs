@@ -42,6 +42,12 @@
 //! * `outline`: the operation `outline_from_dxf`, which replaces the outline of the board with the
 //!   outer contour of a DXF drawing (`eh3d-phoenix-dxf`), all or nothing, with the design rules
 //!   checked before and after and the cutouts of the drawing kept as the cutouts of the outline;
+//! * [`selection`] and [`group`]: the selection of several objects (components, tracks, vias, zones
+//!   and silkscreen items) as an ordered set with pure operations (add, take away, toggle, a net,
+//!   a rectangle wholly inside or also touched, all, invert, clear), and the operations on a
+//!   group as one step with an exact inverse: move by an offset on the grid, delete, align and
+//!   distribute (`select`, `move_selection`, `delete_selection`, `align_selection`, `move_items`
+//!   and `delete_items` of the file of operations);
 //! * [`codes`]: the codes `PHOENIX-BEDIT-<NNN>`.
 //!
 //! **State: prototype.** It has been tried through the tests only, on boards made by hand; the
@@ -64,6 +70,9 @@ mod copper;
 pub mod edit;
 #[cfg(test)]
 mod edit_tests;
+pub mod group;
+#[cfg(test)]
+mod group_tests;
 pub mod hit;
 pub mod ids;
 pub mod ops;
@@ -79,6 +88,7 @@ mod pair_plan;
 mod pair_tests;
 pub mod pairs;
 pub mod plan;
+pub mod selection;
 pub mod settings;
 pub mod shape;
 pub mod shove;
@@ -98,11 +108,13 @@ mod zone_tests;
 
 pub use codes::{registry, BoardEditError, TITLES};
 pub use edit::{BoardEdit, DrcReport, Outcome};
+pub use group::{align_moves, AlignMode, ItemMove};
 pub use hit::Picked;
 pub use ops::{EditOp, PairLayerChange};
 pub use ops_file::{apply_operations, read_operations, ApplyReport};
 pub use pair_check::{check_pairs, PairFinding, PairMeasure, PairReport};
 pub use pairs::{PairConfig, PairDef, PairSettings, ResolvedPair};
+pub use selection::{item_bounds, Bounds, Item, RectMode, SelectAction, SelectStep, Selection};
 pub use settings::BoardEditSettings;
 pub use shape::{MeanderSide, Shape};
 pub use shove::{ShoveMove, ShovePreview};

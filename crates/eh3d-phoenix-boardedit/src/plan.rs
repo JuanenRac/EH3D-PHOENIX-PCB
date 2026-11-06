@@ -88,7 +88,7 @@ pub(crate) fn single(op: Operation) -> Plan {
     }
 }
 
-fn check_unlocked(env: &Env, id: Id) -> Result<(), BoardEditError> {
+pub(crate) fn check_unlocked(env: &Env, id: Id) -> Result<(), BoardEditError> {
     if env.locked.contains(&id) {
         return Err(BoardEditError::new(
             COMPONENT_LOCKED,
@@ -353,6 +353,14 @@ pub fn plan(
             *join_tolerance_nm,
             settings.as_deref(),
         ),
+        EditOp::MoveItems { moves } => crate::group::plan_moves(board, env, moves),
+        EditOp::DeleteItems { items } => crate::group::plan_delete(board, env, items),
+        EditOp::Select { .. }
+        | EditOp::MoveSelection { .. }
+        | EditOp::DeleteSelection
+        | EditOp::AlignSelection { .. } => Err(refused(
+            "this operation works on the selection of the editor, not on the board",
+        )),
         EditOp::Lock { .. }
         | EditOp::Unlock { .. }
         | EditOp::Group { .. }

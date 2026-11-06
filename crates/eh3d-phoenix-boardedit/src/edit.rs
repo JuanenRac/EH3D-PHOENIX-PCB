@@ -15,10 +15,12 @@ use eh3d_phoenix_zones::{FillReport, ZoneSettings};
 use serde_json::{json, Value};
 
 use crate::codes::{BoardEditError, OPERATION_REFUSED, REJECTED_BY_DRC, TUNE_IMPOSSIBLE};
+use crate::group;
 use crate::ids::IdSupply;
 use crate::ops::EditOp;
 use crate::pairs::PairConfig;
 use crate::plan::{plan, Env};
+use crate::selection::Selection;
 use crate::settings::BoardEditSettings;
 use crate::shove::{plan_shove, ShovePreview, ShoveRequest};
 use crate::zone::{plan_zone, run_fill, zone_issues, ZoneData, ZoneEnv, ZoneIssue, ZonePlan};
@@ -239,6 +241,8 @@ pub struct BoardEdit {
     data_done: Vec<Arc<ZoneData>>,
     /// The zone data after each undone step, one for each entry of `undone`.
     data_undone: Vec<Arc<ZoneData>>,
+    /// The objects that the operations on the selection work on.
+    selection: Selection,
 }
 
 impl BoardEdit {
@@ -268,6 +272,7 @@ impl BoardEdit {
             zone_data: Arc::new(ZoneData::default()),
             data_done: Vec::new(),
             data_undone: Vec::new(),
+            selection: Selection::new(),
         })
     }
 
@@ -336,6 +341,18 @@ impl BoardEdit {
     /// The board as it is now.
     pub fn board(&self) -> &Board {
         &self.board
+    }
+
+    /// The selection that `select`, `move_selection`, `delete_selection` and `align_selection`
+    /// work on. It is not part of the history; what the board loses is dropped from it.
+    pub fn selection(&self) -> &Selection {
+        &self.selection
+    }
+
+    /// Replaces the selection (objects the board does not have are dropped).
+    pub fn set_selection(&mut self, selection: Selection) {
+        self.selection = selection;
+        self.selection.prune(&self.board);
     }
 
     /// The board, when the editor is done with it.
@@ -421,6 +438,7 @@ impl BoardEdit {
             self.data_undone.push(now);
         }
         self.recheck();
+        self.selection.prune(&self.board);
         true
     }
 
@@ -439,6 +457,7 @@ impl BoardEdit {
             self.data_done.push(before);
         }
         self.recheck();
+        self.selection.prune(&self.board);
         true
     }
 
@@ -486,7 +505,9 @@ impl BoardEdit {
 
     /// Applies an operation. On an error nothing changes.
     pub fn apply(&mut self, op: &EditOp) -> Result<Outcome, BoardEditError> {
-        self.apply_inner(op, false)
+        let result = self.apply_inner(op, false);
+        self.selection.prune(&self.board);
+        result
     }
 
     /// Applies several operations as one step: all or nothing, and the first one that is refused
@@ -633,7 +654,32 @@ impl BoardEdit {
                 }
                 return Ok(Outcome::default());
             }
+            EditOp::Select { steps } => {
+                let mut trial = self.selection.clone();
+                for (index, step) in steps.iter().enumerate() {
+                    trial.apply(&self.board, step).map_err(|e| {
+                        BoardEditError::new(
+                            e.code,
+                            format!("step {} of the selection: {}", index + 1, e.detail),
+                        )
+                    })?;
+                }
+                self.selection = trial;
+                return Ok(Outcome {
+                    notes: vec![format!("selected objects: {}", self.selection.len())],
+                    ..Outcome::default()
+                });
+            }
+            EditOp::MoveSelection { .. }
+            | EditOp::DeleteSelection
+            | EditOp::AlignSelection { .. } => {
+                let expanded = group::expand(op, &self.board, &self.selection, &self.settings)?;
+                return self.apply_inner(&expanded, force);
+            }
             _ => {}
+        }
+        if let Some(ops) = group::zone_split(op, &self.board, &self.zone_data)? {
+            return self.apply_group(&ops, force);
         }
         let zone_plan = plan_zone(
             op,

@@ -616,6 +616,9 @@ The titles of the bus codes in the eight languages of the suite:
 | PHOENIX-BEDIT-006 | Component is locked | moving, turning, mirroring or removing a component that was locked |
 | PHOENIX-BEDIT-007 | Shape cannot be made | a route of fewer than two points or of no length, a width that is not above zero, a vertex or a piece that does not exist, a point out of the design range |
 | PHOENIX-BEDIT-008 | Net cannot be tuned to the length asked for | a target that is not above zero, a net with no copper, a net already longer than the target, no horizontal or vertical piece long enough for the meanders, an amplitude above the largest allowed, or a result that would end farther from the target than the tolerance |
+| PHOENIX-BEDIT-009 | Nothing is selected | `move_selection`, `delete_selection` or `align_selection` while the selection of the editor is empty |
+| PHOENIX-BEDIT-010 | Item is not on the board | an object named in `select` (`add` or `toggle`), `move_items`, `delete_items` or an alignment, or a net named in `select`, that the board does not have, or an object named twice |
+| PHOENIX-BEDIT-011 | Too few items to align or distribute | `align_selection` with fewer than two objects (`left`, `right`, `top`, `bottom`, `center_x`, `center_y`) or fewer than three (`distribute_x`, `distribute_y`) |
 
 ## Differential pairs (`eh3d-phoenix-boardedit`, `src/pair_codes.rs`)
 

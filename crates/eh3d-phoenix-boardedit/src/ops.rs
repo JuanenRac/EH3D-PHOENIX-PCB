@@ -10,6 +10,8 @@ use eh3d_phoenix_board::{Id, PadRef, Side};
 use eh3d_phoenix_model::Point;
 use serde::{Deserialize, Serialize};
 
+use crate::group::{AlignMode, ItemMove};
+use crate::selection::{Item, SelectStep};
 use crate::shape::{MeanderSide, Shape};
 use crate::zone::{ZoneChanges, ZoneProps};
 use crate::zone_clip::Clipboard;
@@ -396,6 +398,41 @@ pub enum EditOp {
         /// Names of nets to give the copies instead of their own, by name.
         #[serde(default)]
         net_map: BTreeMap<String, String>,
+    },
+    /// Changes the selection of the editor by steps in order (`docs/BOARD_EDIT.md`): add, remove or
+    /// toggle objects, every object of a net, a rectangle (wholly inside or also touched), all,
+    /// invert, clear. It changes nothing on the board and is not a step of the history; all or
+    /// nothing, the first step that cannot be done leaves the selection as it was.
+    Select {
+        /// The steps.
+        steps: Vec<SelectStep>,
+    },
+    /// Moves every selected object by one offset, rounded to the grid unless `snap` is false.
+    MoveSelection {
+        /// The offset along x in nanometres.
+        dx_nm: i64,
+        /// The offset along y in nanometres (up is positive).
+        dy_nm: i64,
+        /// Whether the offset is rounded to the grid; the setting `snap` when left out.
+        #[serde(default)]
+        snap: Option<bool>,
+    },
+    /// Deletes every selected object.
+    DeleteSelection,
+    /// Lines the selected objects up, or spreads them with equal gaps.
+    AlignSelection {
+        /// How.
+        mode: AlignMode,
+    },
+    /// Moves objects, each by its own offset, as one step.
+    MoveItems {
+        /// The objects and their offsets.
+        moves: Vec<ItemMove>,
+    },
+    /// Deletes objects as one step.
+    DeleteItems {
+        /// The objects.
+        items: Vec<Item>,
     },
     /// Several operations that are kept or undone as one step.
     Group {

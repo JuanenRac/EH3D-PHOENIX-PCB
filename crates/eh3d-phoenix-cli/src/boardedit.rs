@@ -51,7 +51,9 @@ phoenix boardedit [--rules FILE] [--settings FILE] [--pair-config FILE] [--pairs
                 number of tracks of the settings); put arcs in tracks (route_arc at one vertex,
                 round_corners on a track or a net); copper zones (zone_add, zone_edit,
                 zone_remove, zone_fill, zone_priority, zone_cutout) and the paste of a net or a
-                group with an offset, a turn and a mirror (paste_group). Each operation is
+                group with an offset, a turn and a mirror (paste_group); the selection of
+                several objects (select) and the move, delete and align of the selection
+                (move_selection, delete_selection, align_selection). Each operation is
                 checked by the design rules and refused if it adds a rule error (an operation can
                 be forced), and the first one that is refused ends the run and names its number.
                 It is a dry run: nothing is written unless --out names a new file (.json for the
