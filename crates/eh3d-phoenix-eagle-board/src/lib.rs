@@ -25,6 +25,7 @@
 mod codes;
 mod layers;
 mod library;
+mod limits;
 mod reader;
 mod sch;
 mod sch_read;
@@ -33,9 +34,12 @@ mod writer;
 
 pub use codes::{diagnostic, ITEM_LEFT_OUT, ITEM_SIMPLIFIED, NOT_READ, REGISTRY, UNREADABLE};
 pub use library::write_library;
-pub use reader::{read_board, ReadBoard};
+pub use limits::EagleLimits;
+pub use reader::{read_board, read_board_with_limits, ReadBoard};
 pub use sch::write_schematic;
-pub use sch_read::{read_schematic, schematic_signature, ReadSchematic};
+pub use sch_read::{
+    read_schematic, read_schematic_with_limits, schematic_signature, ReadSchematic,
+};
 pub use signature::{round_trip, signature, RoundTrip};
 pub use writer::{write_board, Written};
 

@@ -4,7 +4,9 @@
 //! tracks, vias and polygons, the silkscreen, and what is counted as not read.
 
 use eh3d_phoenix_board::{Id, PadShape, Segment, Side, SilkItem};
-use eh3d_phoenix_eagle_board::{read_board, ReadBoard, NOT_READ};
+use eh3d_phoenix_eagle_board::{
+    read_board, read_board_with_limits, EagleLimits, ReadBoard, NOT_READ,
+};
 use eh3d_phoenix_model::ObjectId;
 
 const FILE: &str = r#"<?xml version="1.0" encoding="utf-8"?>
@@ -102,6 +104,92 @@ fn the_layers_are_read_with_their_kind_and_the_copper_stack_by_number() {
         .expect("the silkscreen layer");
     // an odd number is a top layer
     assert_eq!(silk.side, Some(Side::Top));
+}
+
+fn read_with(text: &str, limits: &EagleLimits) -> ReadBoard {
+    read_board_with_limits(text, &mut ids(), limits).unwrap()
+}
+
+fn messages(read: &ReadBoard) -> Vec<&str> {
+    read.diagnostics
+        .iter()
+        .map(|d| d.message.as_str())
+        .collect()
+}
+
+#[test]
+fn rings_of_the_outline_layer_over_the_limit_are_counted_and_not_tested_for_openings() {
+    // three squares of 1 mm inside the board of 20 by 10 mm, each of four wires
+    let square = |x: i32, y: i32| {
+        format!(
+            "<wire x1=\"{x}\" y1=\"{y}\" x2=\"{}\" y2=\"{y}\" width=\"0.1\" layer=\"20\"/>\
+             <wire x1=\"{}\" y1=\"{y}\" x2=\"{}\" y2=\"{}\" width=\"0.1\" layer=\"20\"/>\
+             <wire x1=\"{}\" y1=\"{}\" x2=\"{x}\" y2=\"{}\" width=\"0.1\" layer=\"20\"/>\
+             <wire x1=\"{x}\" y1=\"{}\" x2=\"{x}\" y2=\"{y}\" width=\"0.1\" layer=\"20\"/>",
+            x + 1,
+            x + 1,
+            x + 1,
+            y + 1,
+            x + 1,
+            y + 1,
+            y + 1,
+            y + 1,
+        )
+    };
+    let anchor = "<wire x1=\"0\" y1=\"10\" x2=\"0\" y2=\"0\" width=\"0.1\" layer=\"20\"/>";
+    assert!(FILE.contains(anchor));
+    let text = FILE.replace(
+        anchor,
+        &format!("{anchor}{}{}{}", square(2, 2), square(5, 2), square(8, 2)),
+    );
+    let all = read_with(&text, &EagleLimits::default());
+    assert_eq!(all.board.outline.len(), 4);
+    assert_eq!(all.board.outline_cutouts.len(), 3);
+    assert!(!messages(&all)
+        .iter()
+        .any(|m| m.contains("max_outline_rings")));
+    // the outline and one opening are kept, the other two rings are left over
+    let tight = EagleLimits {
+        max_outline_rings: 2,
+        ..EagleLimits::default()
+    };
+    let r = read_with(&text, &tight);
+    assert_eq!(r.board.outline.len(), 4);
+    assert_eq!(r.board.outline_cutouts.len(), 1);
+    assert!(messages(&r)
+        .iter()
+        .any(|m| m.contains("2 outline ring (over max_outline_rings) element(s)")));
+}
+
+#[test]
+fn restrict_areas_over_the_check_budget_are_counted_and_not_given_to_a_pour() {
+    // the pour of FILE has 3 vertices on the bottom layer; the restrict area (layer 42) has 3
+    // points inside it, so it costs 3 * 3 = 9 tests
+    let area = "<polygon width=\"0\" layer=\"42\"><vertex x=\"6\" y=\"2\"/><vertex x=\"8\" y=\"2\"/><vertex x=\"8\" y=\"3\"/></polygon>\n<text x=\"1\" y=\"5\"";
+    let text = FILE.replace("<text x=\"1\" y=\"5\"", area);
+    let cutouts = |limits: &EagleLimits| {
+        let r = read_with(&text, limits);
+        let n = r
+            .board
+            .zones
+            .values()
+            .next()
+            .expect("the pour")
+            .cutouts
+            .len();
+        (n, messages(&r).join("|"))
+    };
+    let budget = |max_restrict_checks| EagleLimits {
+        max_restrict_checks,
+        ..EagleLimits::default()
+    };
+    let (n, said) = cutouts(&EagleLimits::default());
+    assert_eq!(n, 1);
+    assert!(!said.contains("max_restrict_checks"));
+    assert_eq!(cutouts(&budget(9)).0, 1);
+    let (n, said) = cutouts(&budget(8));
+    assert_eq!(n, 0);
+    assert!(said.contains("1 polygon (over max_restrict_checks) element(s)"));
 }
 
 #[test]

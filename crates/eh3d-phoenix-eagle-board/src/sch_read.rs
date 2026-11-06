@@ -18,7 +18,7 @@
 //! have is counted: the wires and labels of the bus, the names in a bus that are not vectors and
 //! the buses that cannot be expanded or have no wire.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use eh3d_diagnostic::{Diagnostic, Severity};
 use eh3d_phoenix_board::Id;
@@ -30,6 +30,7 @@ use eh3d_phoenix_schematic::{
 };
 
 use crate::codes::{self, NOT_READ, UNREADABLE};
+use crate::limits::EagleLimits;
 use crate::reader::{nm, note, point, rotation};
 
 /// The size of the symbol of a module whose file gives none, in nanometres (20 mm).
@@ -61,10 +62,21 @@ pub struct ReadSchematic {
 
 /// Reads an EAGLE schematic file. The new objects get their ids from `new_id`; `footprints` maps
 /// the name of a package to the id of the footprint of the board that it stands for.
+/// The limits are the default ones, see [`EagleLimits`].
 pub fn read_schematic(
     text: &str,
     footprints: &BTreeMap<String, Id>,
     new_id: &mut dyn FnMut() -> Id,
+) -> Result<ReadSchematic, Diagnostic> {
+    read_schematic_with_limits(text, footprints, new_id, &EagleLimits::default())
+}
+
+/// Like [`read_schematic`] with the limits given.
+pub fn read_schematic_with_limits(
+    text: &str,
+    footprints: &BTreeMap<String, Id>,
+    new_id: &mut dyn FnMut() -> Id,
+    limits: &EagleLimits,
 ) -> Result<ReadSchematic, Diagnostic> {
     let unreadable = |why: &str| codes::diagnostic(UNREADABLE, Severity::Error, why);
     let root = parse(text, &Limits::default()).map_err(|e| unreadable(&e.to_string()))?;
@@ -180,6 +192,7 @@ pub fn read_schematic(
     // sheets
     let mut nets: BTreeMap<String, Id> = BTreeMap::new();
     let mut net_wires: Vec<(String, Vec<(Point, Point)>)> = Vec::new();
+    let mut bus_budget = limits.max_bus_checks;
     if let Some(list) = element.child("sheets") {
         for (index, sheet) in list.children_named("sheet").enumerate() {
             let sheet_id = new_id();
@@ -245,7 +258,15 @@ pub fn read_schematic(
             }
             if let Some(list) = sheet.child("busses") {
                 for bus in list.children_named("bus") {
-                    read_bus(bus, sheet_id, &net_wires, &mut s, new_id, &mut notes);
+                    read_bus(
+                        bus,
+                        sheet_id,
+                        &net_wires,
+                        &mut bus_budget,
+                        &mut s,
+                        new_id,
+                        &mut notes,
+                    );
                 }
             }
         }
@@ -309,6 +330,7 @@ fn read_bus(
     bus: &Element,
     sheet: Id,
     net_wires: &[(String, Vec<(Point, Point)>)],
+    budget: &mut u64,
     s: &mut Schematic,
     new_id: &mut dyn FnMut() -> Id,
     notes: &mut BTreeMap<String, usize>,
@@ -349,10 +371,20 @@ fn read_bus(
                 spec: text.to_owned(),
             },
         );
+        let member_set: BTreeSet<&str> = members.iter().map(String::as_str).collect();
         for (name, ends) in net_wires {
-            if !members.contains(name) {
+            if !member_set.contains(name.as_str()) {
                 continue;
             }
+            let cost = (ends.len() as u64)
+                .saturating_mul(2)
+                .saturating_mul(wires.len() as u64);
+            if cost > *budget {
+                *budget = 0;
+                note("bus entry (over max_bus_checks)", notes);
+                continue;
+            }
+            *budget -= cost;
             let end = ends
                 .iter()
                 .flat_map(|(a, b)| [*a, *b])
@@ -875,6 +907,48 @@ mod direction_tests {
         assert!(s.bus_entries.values().all(|e| s.buses.contains_key(&e.bus)));
         // the nets stay what they were
         assert_eq!(s.nets.len(), 5);
+    }
+
+    fn entries_with(limits: &EagleLimits) -> (Vec<String>, Vec<String>) {
+        let mut n: u16 = 0;
+        let mut new_id = || {
+            n += 1;
+            ObjectId::from_parts(1_700_000_000_000, n, u64::from(n)).unwrap()
+        };
+        let read =
+            read_schematic_with_limits(BUS_FILE, &BTreeMap::new(), &mut new_id, limits).unwrap();
+        let mut members: Vec<String> = read
+            .schematic
+            .bus_entries
+            .values()
+            .map(|e| e.member.clone())
+            .collect();
+        members.sort();
+        let messages = read.diagnostics.into_iter().map(|d| d.message).collect();
+        (members, messages)
+    }
+
+    #[test]
+    fn bus_entries_over_the_check_budget_are_counted_and_not_read() {
+        // the bus D[0..3] has one wire; D1, D2 and D3 are members and each has one wire with two
+        // ends, so each costs 2 * 1 * 1 = 2 tests: 6 in all; A0 on the second bus costs 2 more
+        let limits = |max_bus_checks| EagleLimits {
+            max_bus_checks,
+            ..EagleLimits::default()
+        };
+        let (members, _) = entries_with(&limits(8));
+        assert_eq!(members, ["A0", "D1", "D2"]);
+        let (members, messages) = entries_with(&limits(7));
+        assert_eq!(members, ["D1", "D2"]);
+        assert!(messages
+            .iter()
+            .any(|m| m.contains("1 bus entry (over max_bus_checks) element(s)")));
+        // 3 tests: D1 is read (2), D2, D3 and A0 are left over
+        let (members, messages) = entries_with(&limits(3));
+        assert_eq!(members, ["D1"]);
+        assert!(messages
+            .iter()
+            .any(|m| m.contains("3 bus entry (over max_bus_checks) element(s)")));
     }
 
     #[test]

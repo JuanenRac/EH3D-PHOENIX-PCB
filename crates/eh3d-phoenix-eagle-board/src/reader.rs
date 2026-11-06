@@ -17,6 +17,7 @@ use eh3d_phoenix_model::{Nm, Point, Udeg};
 
 use crate::codes::{self, ITEM_SIMPLIFIED, NOT_READ, UNREADABLE};
 use crate::layers::meaning;
+use crate::limits::EagleLimits;
 use crate::writer::LIBRARY;
 use crate::{parse_nm, parse_udeg};
 
@@ -101,8 +102,18 @@ fn runs(wires: Vec<Wire>) -> Vec<(u32, Nm, Vec<Segment>)> {
     out
 }
 
-/// Reads an EAGLE XML board file. The new objects get their ids from `new_id`.
+/// Reads an EAGLE XML board file. The new objects get their ids from `new_id`. The limits are the
+/// default ones, see [`EagleLimits`].
 pub fn read_board(text: &str, new_id: &mut dyn FnMut() -> Id) -> Result<ReadBoard, Diagnostic> {
+    read_board_with_limits(text, new_id, &EagleLimits::default())
+}
+
+/// Like [`read_board`] with the limits given.
+pub fn read_board_with_limits(
+    text: &str,
+    new_id: &mut dyn FnMut() -> Id,
+    limits: &EagleLimits,
+) -> Result<ReadBoard, Diagnostic> {
     let unreadable = |why: &str| codes::diagnostic(UNREADABLE, Severity::Error, why);
     let root = parse(text, &Limits::default()).map_err(|e| unreadable(&e.to_string()))?;
     if root.name != "eagle" {
@@ -492,12 +503,23 @@ pub fn read_board(text: &str, new_id: &mut dyn FnMut() -> Id) -> Result<ReadBoar
             }
         }
         // a restrict area inside a pour of its layer is a cutout of that pour
+        let mut restrict_budget = limits.max_restrict_checks;
         for (number, ring) in restricts {
             let target = layer_ids.get(&if number == 41 { 1 } else { 16 }).copied();
             let mut attached = false;
             for zone in board.zones.values_mut() {
+                if Some(zone.layer) != target {
+                    continue;
+                }
+                let cost = (ring.len() as u64).saturating_mul(zone.outline.len() as u64);
+                if cost > restrict_budget {
+                    restrict_budget = 0;
+                    note("polygon (over max_restrict_checks)", &mut notes);
+                    continue;
+                }
+                restrict_budget -= cost;
                 let inside = ring.iter().all(|p| point_in_polygon(*p, &zone.outline));
-                if Some(zone.layer) == target && inside {
+                if inside {
                     zone.cutouts.push(ring.clone());
                     attached = true;
                 }
@@ -557,7 +579,13 @@ pub fn read_board(text: &str, new_id: &mut dyn FnMut() -> Id) -> Result<ReadBoar
             (0..rings.len()).max_by_key(|&i| (doubled_area(&rings[i]), usize::MAX - i))
         {
             let outline = rings.remove(largest);
+            let mut tested = 1usize;
             for ring in rings {
+                if tested >= limits.max_outline_rings {
+                    note("outline ring (over max_outline_rings)", &mut notes);
+                    continue;
+                }
+                tested += 1;
                 if ring.len() >= 3 && ring.iter().all(|p| point_in_polygon(*p, &outline)) {
                     board.outline_cutouts.push(ring);
                 } else {
