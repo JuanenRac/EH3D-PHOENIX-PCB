@@ -11,20 +11,26 @@ use std::io::Write;
 use eh3d_phoenix_eagle_board::{read_board, read_schematic};
 use eh3d_phoenix_model::{DeterministicRandom, IdGenerator, Nm, ObjectId, StepClock};
 use eh3d_phoenix_rules::{
-    check_board, check_classes, check_connectivity, Lang, NetClasses, Report, RuleFile, RuleValues,
+    check_advanced, check_board, check_classes, check_connectivity, to_sarif, AdvancedConfig, Lang,
+    NetClasses, Report, RuleFile, RuleValues,
 };
 
 /// The largest input file that is read, in bytes.
 const MAX_INPUT_BYTES: u64 = 256 * 1024 * 1024;
 
 pub(crate) const USAGE: &str = "\
-phoenix check [--rules FILE] [--json] [--lang CODE] <board.brd>
+phoenix check [--rules FILE] [--advanced] [--drc-config FILE] [--json | --sarif] [--lang CODE] <board.brd>
 
   check         run the design rules on an EAGLE board. The limits come from FILE (a JSON rule
                 file, format phoenix-rules/1 or phoenix-rules/2, which adds net classes with
                 limits of their own for tracks and vias) or, without --rules, from the
                 <designrules> of the board. The report keeps confirmed and inconclusive findings
-                in two lists
+                in two lists. --advanced adds the further checks (annular ring, distance to the board
+                edge, silkscreen over holes, acid traps, spacing by voltage, copper islands, stubs,
+                duplicate vias, pads on no net and parts outside the outline, codes PHOENIX-DRC-nnn),
+                with the levels and limits of config/drc_advanced.cfg or of the file --drc-config
+                names (which implies --advanced); the spacing table is not verified against the
+                standard. --sarif prints a layout like SARIF, phoenix-drc/1
 
 phoenix connectivity [--rules FILE] [--json] [--lang CODE] <schematic.sch> <board.brd>
 
@@ -32,12 +38,15 @@ phoenix connectivity [--rules FILE] [--json] [--lang CODE] <schematic.sch> <boar
                 (missing nets, unconnected pins, joined nets, names). The tolerance for copper
                 that touches comes from the rule file
 
-  --json        print the report as JSON. --lang CODE writes the text in en, es, de, fr, it, ja,
+  --json        print the report as JSON (--sarif: the layout phoenix-drc/1). --lang CODE writes the text in en, es, de, fr, it, ja,
                 zh or pt. Exit code 0: nothing proven wrong; 1: an error is proven; 2: unusable input
 ";
 
 struct Options {
     json: bool,
+    sarif: bool,
+    advanced: bool,
+    drc_config: Option<String>,
     lang: Lang,
     rules: Option<String>,
     files: Vec<String>,
@@ -46,6 +55,9 @@ struct Options {
 fn parse_options(args: &[&str]) -> Result<Options, String> {
     let mut options = Options {
         json: false,
+        sarif: false,
+        advanced: false,
+        drc_config: None,
         lang: Lang::En,
         rules: None,
         files: Vec::new(),
@@ -54,6 +66,13 @@ fn parse_options(args: &[&str]) -> Result<Options, String> {
     while let Some(arg) = iter.next() {
         match *arg {
             "--json" => options.json = true,
+            "--sarif" => options.sarif = true,
+            "--advanced" => options.advanced = true,
+            "--drc-config" => {
+                let path = iter.next().ok_or("--drc-config needs a file")?;
+                options.drc_config = Some((*path).to_owned());
+                options.advanced = true;
+            }
             "--lang" => {
                 let tag = iter.next().ok_or("--lang needs a language code")?;
                 options.lang = Lang::from_tag(tag).ok_or("unknown language code")?;
@@ -97,7 +116,9 @@ pub(crate) fn id_source() -> Result<impl FnMut() -> ObjectId, String> {
 }
 
 fn finish(report: &Report, options: &Options, out: &mut dyn Write) -> i32 {
-    let text = if options.json {
+    let text = if options.sarif {
+        to_sarif(report, options.lang)
+    } else if options.json {
         report.to_json()
     } else {
         report.to_text(options.lang)
@@ -197,6 +218,18 @@ pub(crate) fn check(args: &[&str], out: &mut dyn Write, err: &mut dyn Write) -> 
     if !classes.is_empty() {
         report.merge(check_classes(&board, &classes));
     }
+    if options.advanced {
+        let config = match &options.drc_config {
+            Some(path) => match read_text(path)
+                .and_then(|t| AdvancedConfig::parse(&t).map_err(|e| e.to_string()))
+            {
+                Ok(config) => config,
+                Err(message) => return fail(err, &message),
+            },
+            None => AdvancedConfig::default(),
+        };
+        report.merge(check_advanced(&board, &config));
+    }
     finish(&report, &options, out)
 }
 
@@ -208,6 +241,12 @@ pub(crate) fn connectivity(args: &[&str], out: &mut dyn Write, err: &mut dyn Wri
             return usage(err);
         }
     };
+    if options.advanced {
+        return fail(
+            err,
+            "--advanced and --drc-config belong to the command check, not to connectivity",
+        );
+    }
     let [schematic_path, board_path] = options.files.as_slice() else {
         return usage(err);
     };
