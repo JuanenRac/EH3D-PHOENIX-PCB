@@ -224,7 +224,6 @@ pub fn scene_svg(scene: &Scene, settings: &ViewerSettings) -> String {
 mod tests {
     use super::*;
     use crate::sample;
-    use crate::scene::Scene;
 
     fn board_scene() -> (Scene, ViewerSettings) {
         let settings = ViewerSettings::default();
