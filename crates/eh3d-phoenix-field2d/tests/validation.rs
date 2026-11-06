@@ -100,7 +100,7 @@ fn coax_capacitance(a: f64, b: f64, n: usize) -> f64 {
 
 #[test]
 fn the_coaxial_line_is_close_to_the_formula_and_closer_with_smaller_steps() {
-    let (a, b) = (1.0e-3, 2.3e-3);
+    let (a, b): (f64, f64) = (1.0e-3, 2.3e-3);
     let exact = 2.0 * std::f64::consts::PI * EPS0 / (b / a).ln();
     let errors: Vec<f64> = [10, 20, 40]
         .iter()
