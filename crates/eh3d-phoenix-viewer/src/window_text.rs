@@ -102,6 +102,21 @@ pub enum WinText {
     OpCopperStack,
     /// A step: the outline of the board was replaced.
     OpSetOutline,
+    /// A step: the openings inside the outline were replaced; the number of openings goes where
+    /// the braces are.
+    OpSetOutlineCutouts,
+    /// A step: a track with an arc was drawn; the net goes where the braces are.
+    OpArcTrack,
+    /// A step: tracks were pushed aside or reshaped; the net goes where the braces are.
+    OpShoveTracks,
+    /// A step: a differential pair was routed; the first net goes where the braces are.
+    OpRoutePair,
+    /// A step: several nets were routed by the autorouter; their number goes where the braces
+    /// are.
+    OpAutoroute,
+    /// A step: a zone was changed (its outline, cutouts or properties); the net goes where the
+    /// braces are.
+    OpChangeZone,
     /// A step: something was added to the silkscreen.
     OpAddSilk,
     /// A step: something was removed from the silkscreen.
@@ -162,7 +177,7 @@ pub enum WinText {
 
 impl WinText {
     /// Every text, for the tests that check the table.
-    pub const ALL: [WinText; 74] = [
+    pub const ALL: [WinText; 80] = [
         WinText::SearchTitle,
         WinText::SearchHint,
         WinText::SearchNothing,
@@ -209,6 +224,12 @@ impl WinText {
         WinText::OpRemoveFootprint,
         WinText::OpCopperStack,
         WinText::OpSetOutline,
+        WinText::OpSetOutlineCutouts,
+        WinText::OpArcTrack,
+        WinText::OpShoveTracks,
+        WinText::OpRoutePair,
+        WinText::OpAutoroute,
+        WinText::OpChangeZone,
         WinText::OpAddSilk,
         WinText::OpRemoveSilk,
         WinText::OpBatch,
@@ -699,6 +720,66 @@ impl WinText {
                 "更改电路板轮廓",
                 "Alterar o contorno da placa",
             ],
+            WinText::OpSetOutlineCutouts => [
+                "Change the openings inside the outline ({})",
+                "Cambiar las aberturas dentro del contorno ({})",
+                "Öffnungen im Umriss ändern ({})",
+                "Modifier les ouvertures dans le contour ({})",
+                "Modifica le aperture nel contorno ({})",
+                "外形内の開口部を変更（{}）",
+                "更改轮廓内的开口（{}）",
+                "Alterar as aberturas dentro do contorno ({})",
+            ],
+            WinText::OpArcTrack => [
+                "Draw an arc on net {}",
+                "Dibujar un arco en la red {}",
+                "Bogen im Netz {} zeichnen",
+                "Dessiner un arc sur le réseau {}",
+                "Disegna un arco sulla rete {}",
+                "ネット {} に円弧を描く",
+                "在网络 {} 上绘制圆弧",
+                "Desenhar um arco na rede {}",
+            ],
+            WinText::OpShoveTracks => [
+                "Push tracks aside on net {}",
+                "Apartar pistas en la red {}",
+                "Leiterbahnen im Netz {} verschieben",
+                "Pousser des pistes sur le réseau {}",
+                "Sposta le piste sulla rete {}",
+                "ネット {} のパターンを押しのける",
+                "推开网络 {} 的走线",
+                "Afastar pistas na rede {}",
+            ],
+            WinText::OpRoutePair => [
+                "Route a pair ({})",
+                "Rutear un par ({})",
+                "Paar routen ({})",
+                "Router une paire ({})",
+                "Instrada una coppia ({})",
+                "ペアを配線（{}）",
+                "布线差分对（{}）",
+                "Encaminhar um par ({})",
+            ],
+            WinText::OpAutoroute => [
+                "Autoroute {} nets",
+                "Autorrutear {} redes",
+                "{} Netze automatisch routen",
+                "Autorouter {} réseaux",
+                "Autoinstrada {} reti",
+                "{} 本のネットを自動配線",
+                "自动布线 {} 个网络",
+                "Autoencaminhar {} redes",
+            ],
+            WinText::OpChangeZone => [
+                "Change the zone of net {}",
+                "Cambiar la zona de la red {}",
+                "Zone des Netzes {} ändern",
+                "Modifier la zone du réseau {}",
+                "Modifica la zona della rete {}",
+                "ネット {} のゾーンを変更",
+                "更改网络 {} 的敷铜区",
+                "Alterar a zona da rede {}",
+            ],
             WinText::OpAddSilk => [
                 "Add silkscreen",
                 "Añadir serigrafía",
@@ -1045,6 +1126,12 @@ mod tests {
             WinText::OpRemoveZone,
             WinText::OpAddFootprint,
             WinText::OpRemoveFootprint,
+            WinText::OpSetOutlineCutouts,
+            WinText::OpArcTrack,
+            WinText::OpShoveTracks,
+            WinText::OpRoutePair,
+            WinText::OpAutoroute,
+            WinText::OpChangeZone,
             WinText::OpBatch,
         ] {
             for lang in Lang::ALL {

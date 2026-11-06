@@ -4,7 +4,7 @@
 //! GND`), the place where the document is in it and how many undos or redos it takes to go to a
 //! step. The steps are the ones the editing already keeps: this module only reads them.
 
-use eh3d_phoenix_board::{Board, Id, Operation, Step};
+use eh3d_phoenix_board::{Board, Id, Operation, Segment, Step, Track};
 use eh3d_phoenix_rules::Lang;
 
 use crate::session::{BoardSession, SchematicSession};
@@ -185,6 +185,84 @@ fn item_net(board: &Board, inverse: &Operation) -> String {
     net.map_or_else(|| "?".to_string(), |id| net_name(board, id))
 }
 
+/// Every operation of a batch, looking inside the batches it holds.
+fn flat(ops: &[Operation]) -> Vec<&Operation> {
+    let mut out = Vec::new();
+    for op in ops {
+        match op {
+            Operation::Batch { ops: inner } => out.extend(flat(inner)),
+            other => out.push(other),
+        }
+    }
+    out
+}
+
+/// The name of a step made of several that the contents show to be one of the editing tools: an
+/// arc, a push, a pair, the autorouter, a zone, the outline or its openings. `None` when the
+/// contents do not say, and the step is named after its first operation.
+///
+/// The test is on what the step does, not on who did it: tracks added and removed together are a
+/// push; two nets with tracks added and nothing removed are a pair; three nets or more are the
+/// autorouter.
+fn named_batch(ops: &[Operation], board: &Board, lang: Lang) -> Option<String> {
+    let all = flat(ops);
+    let mut added: Vec<&Track> = Vec::new();
+    let mut removed_tracks = 0usize;
+    let mut zone_added: Option<Id> = None;
+    let mut zone_removed = false;
+    let mut outline = false;
+    let mut openings: Option<usize> = None;
+    for op in &all {
+        match op {
+            Operation::AddTrack { track, .. } => added.push(track),
+            Operation::RemoveTrack { .. } => removed_tracks += 1,
+            Operation::AddZone { zone, .. } => zone_added = Some(zone.net),
+            Operation::RemoveZone { .. } => zone_removed = true,
+            Operation::SetOutline { .. } => outline = true,
+            Operation::SetOutlineCutouts { cutouts } => openings = Some(cutouts.len()),
+            _ => {}
+        }
+    }
+    if let Some(count) = openings {
+        return Some(fill(WinText::OpSetOutlineCutouts, lang, &count.to_string()));
+    }
+    if outline {
+        return Some(WinText::OpSetOutline.tr(lang).to_string());
+    }
+    if let (Some(net), true) = (zone_added, zone_removed) {
+        return Some(fill(WinText::OpChangeZone, lang, &net_name(board, net)));
+    }
+    let arc = added
+        .iter()
+        .find(|t| t.path.iter().any(|s| matches!(s, Segment::Arc { .. })));
+    if let Some(track) = arc {
+        return Some(fill(WinText::OpArcTrack, lang, &net_name(board, track.net)));
+    }
+    let mut nets: Vec<Id> = added.iter().map(|t| t.net).collect();
+    nets.sort();
+    nets.dedup();
+    let mut names: Vec<String> = nets.iter().map(|n| net_name(board, *n)).collect();
+    names.sort();
+    if removed_tracks > 0 && !added.is_empty() {
+        return Some(fill(
+            WinText::OpShoveTracks,
+            lang,
+            &net_name(board, added[0].net),
+        ));
+    }
+    match nets.len() {
+        2 if removed_tracks == 0 => Some(fill(
+            WinText::OpRoutePair,
+            lang,
+            &format!("{}/{}", names[0], names[1]),
+        )),
+        n if n >= 3 && removed_tracks == 0 => {
+            Some(fill(WinText::OpAutoroute, lang, &n.to_string()))
+        }
+        _ => None,
+    }
+}
+
 /// A short description of one operation in a language. `board` is the board as it is now and
 /// `inverse` the operation that undoes this one, which carries the names of what was removed.
 pub fn describe_operation(
@@ -260,7 +338,16 @@ pub fn describe_operation(
         Operation::SetCopperStack { .. } => WinText::OpCopperStack.tr(lang).to_string(),
         Operation::AddSilk { .. } => WinText::OpAddSilk.tr(lang).to_string(),
         Operation::RemoveSilk { .. } => WinText::OpRemoveSilk.tr(lang).to_string(),
+        Operation::SetOutline { .. } => WinText::OpSetOutline.tr(lang).to_string(),
+        Operation::SetOutlineCutouts { cutouts } => fill(
+            WinText::OpSetOutlineCutouts,
+            lang,
+            &cutouts.len().to_string(),
+        ),
         Operation::Batch { ops } => {
+            if let Some(name) = named_batch(ops, board, lang) {
+                return name;
+            }
             let inner_inverse = match inverse {
                 Operation::Batch { ops: inverses } => inverses.last(),
                 _ => None,
@@ -292,7 +379,7 @@ pub fn describe_step(step: &Step, board: &Board, lang: Lang) -> String {
 mod tests {
     use super::*;
     use crate::sample::{self, id, point};
-    use eh3d_phoenix_board::{History, PadRef, Segment, Track};
+    use eh3d_phoenix_board::{History, PadRef, Zone};
     use eh3d_phoenix_model::{Nm, Udeg};
     use eh3d_phoenix_route::RouteSettings;
 
@@ -415,6 +502,135 @@ mod tests {
             Lang::En,
         );
         assert_eq!(empty, "Edit");
+    }
+
+    fn line(from: f64, to: f64, net: u16) -> Operation {
+        Operation::AddTrack {
+            id: id(60 + net),
+            track: Track {
+                net: id(net),
+                layer: id(1),
+                width: Nm::new(200_000).unwrap(),
+                path: vec![Segment::Line {
+                    start: point(from, 1.0),
+                    end: point(to, 1.0),
+                }],
+            },
+        }
+    }
+
+    fn named(op: &Operation, lang: Lang) -> String {
+        let board = sample::board();
+        describe_operation(op, &Operation::Batch { ops: Vec::new() }, &board, lang)
+    }
+
+    #[test]
+    fn the_outline_and_its_openings_have_names() {
+        let ring = vec![point(1.0, 1.0), point(2.0, 1.0), point(2.0, 2.0)];
+        let cut = Operation::SetOutlineCutouts {
+            cutouts: vec![ring.clone(), ring.clone()],
+        };
+        assert_eq!(
+            named(&cut, Lang::En),
+            "Change the openings inside the outline (2)"
+        );
+        let outline = Operation::SetOutline { outline: ring };
+        assert_eq!(named(&outline, Lang::En), "Change the board outline");
+        // a drawing that gives the outline and its openings in one step is named by the openings
+        let both = Operation::Batch {
+            ops: vec![outline, cut],
+        };
+        assert_eq!(
+            named(&both, Lang::Es),
+            "Cambiar las aberturas dentro del contorno (2)"
+        );
+    }
+
+    #[test]
+    fn a_batch_is_named_by_what_it_does_to_the_tracks_and_the_zones() {
+        let arc = Operation::Batch {
+            ops: vec![Operation::AddTrack {
+                id: id(70),
+                track: Track {
+                    net: id(11),
+                    layer: id(1),
+                    width: Nm::new(200_000).unwrap(),
+                    path: vec![Segment::Arc {
+                        start: point(1.0, 1.0),
+                        end: point(3.0, 3.0),
+                        sweep: Udeg::new(90_000_000).unwrap(),
+                    }],
+                },
+            }],
+        };
+        assert_eq!(named(&arc, Lang::En), "Draw an arc on net VCC");
+        let push = Operation::Batch {
+            ops: vec![Operation::RemoveTrack { id: id(40) }, line(1.0, 2.0, 11)],
+        };
+        assert_eq!(named(&push, Lang::En), "Push tracks aside on net VCC");
+        let pair = Operation::Batch {
+            ops: vec![line(1.0, 2.0, 11), line(1.0, 2.0, 10)],
+        };
+        assert_eq!(named(&pair, Lang::En), "Route a pair (GROUND/VCC)");
+        let auto = Operation::Batch {
+            ops: vec![
+                line(1.0, 2.0, 10),
+                line(1.0, 2.0, 11),
+                line(3.0, 4.0, 12),
+                line(5.0, 6.0, 12),
+            ],
+        };
+        assert_eq!(named(&auto, Lang::En), "Autoroute 3 nets");
+        // one net alone stays what it was: named after its first operation
+        let one = Operation::Batch {
+            ops: vec![line(1.0, 2.0, 11), line(2.0, 3.0, 11)],
+        };
+        assert_eq!(named(&one, Lang::En), "Route net VCC (several changes)");
+        let zone = Zone {
+            net: id(10),
+            layer: id(1),
+            outline: vec![point(0.0, 0.0), point(5.0, 0.0), point(5.0, 5.0)],
+            clearance: Nm::new(200_000).unwrap(),
+            cutouts: Vec::new(),
+        };
+        let changed = Operation::Batch {
+            ops: vec![
+                Operation::RemoveZone { id: id(43) },
+                Operation::AddZone { id: id(43), zone },
+            ],
+        };
+        assert_eq!(named(&changed, Lang::En), "Change the zone of net GROUND");
+    }
+
+    #[test]
+    fn the_new_steps_are_written_in_every_language_without_a_loose_brace() {
+        let ring = vec![point(1.0, 1.0), point(2.0, 1.0), point(2.0, 2.0)];
+        let steps = [
+            Operation::SetOutlineCutouts {
+                cutouts: vec![ring],
+            },
+            Operation::Batch {
+                ops: vec![line(1.0, 2.0, 11), line(1.0, 2.0, 10)],
+            },
+            Operation::Batch {
+                ops: vec![Operation::RemoveTrack { id: id(40) }, line(1.0, 2.0, 11)],
+            },
+        ];
+        for lang in Lang::ALL {
+            let mut seen: Vec<String> = Vec::new();
+            for op in &steps {
+                let text = named(op, lang);
+                assert!(!text.contains("{}"), "{lang:?}: {text}");
+                seen.push(text);
+            }
+            if lang != Lang::En {
+                assert!(seen.iter().all(|t| !t.starts_with("Route a pair")));
+            }
+            seen.sort();
+            seen.dedup();
+            assert_eq!(seen.len(), 3, "{lang:?}");
+        }
+        assert_eq!(named(&steps[1], Lang::De), "Paar routen (GROUND/VCC)");
     }
 
     #[test]
