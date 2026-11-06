@@ -709,22 +709,11 @@ impl Reader {
             }
         }
         let total = rings.len() + segments.len();
-        let chained = chain(&segments);
-        let mut unused = 0usize;
+        // every closed ring that the loose lines and arcs make when joined end to end (the outline and the openings)
+        let (chains, open) = chain_rings(&segments);
+        let mut unused = open;
         let mut candidates: Vec<Vec<Point>> = rings;
-        match chained {
-            Some((ring, used)) => {
-                if used < segments.len() {
-                    unused += 1;
-                }
-                candidates.push(ring);
-            }
-            None => {
-                if !segments.is_empty() {
-                    unused += 1;
-                }
-            }
-        }
+        candidates.extend(chains);
         let mut best: Option<Vec<Point>> = None;
         let mut others: Vec<Vec<Point>> = Vec::new();
         for ring in candidates {
@@ -771,12 +760,8 @@ impl Reader {
     }
 }
 
-/// The first closed ring that the segments make when joined end to end, as its points and the
-/// number of segments it used.
-fn chain(segments: &[(Point, Point)]) -> Option<(Vec<Point>, usize)> {
-    if segments.is_empty() {
-        return None;
-    }
+/// Every closed ring that the segments make when joined end to end, and the number of groups of segments that do not close.
+fn chain_rings(segments: &[(Point, Point)]) -> (Vec<Vec<Point>>, usize) {
     let key = |p: &Point| (p.x_nm.get(), p.y_nm.get());
     let mut touching: BTreeMap<(i64, i64), Vec<usize>> = BTreeMap::new();
     for (i, (a, b)) in segments.iter().enumerate() {
@@ -784,29 +769,38 @@ fn chain(segments: &[(Point, Point)]) -> Option<(Vec<Point>, usize)> {
         touching.entry(key(b)).or_default().push(i);
     }
     let mut used = vec![false; segments.len()];
-    used[0] = true;
-    let first = segments[0].0;
-    let mut ring = vec![first];
-    let mut current = segments[0].1;
-    let mut count = 1usize;
-    loop {
-        if current == first {
-            return if ring.len() >= 3 {
-                Some((ring, count))
-            } else {
-                None
-            };
+    let mut rings: Vec<Vec<Point>> = Vec::new();
+    let mut open = 0usize;
+    for start in 0..segments.len() {
+        if used[start] {
+            continue;
         }
-        ring.push(current);
-        let next = touching
-            .get(&key(&current))
-            .and_then(|list| list.iter().copied().find(|j| !used[*j]));
-        let j = next?;
-        used[j] = true;
-        count += 1;
-        let (a, b) = segments[j];
-        current = if a == current { b } else { a };
+        used[start] = true;
+        let first = segments[start].0;
+        let mut ring = vec![first];
+        let mut current = segments[start].1;
+        let closed = loop {
+            if current == first {
+                break ring.len() >= 3;
+            }
+            ring.push(current);
+            let next = touching
+                .get(&key(&current))
+                .and_then(|list| list.iter().copied().find(|j| !used[*j]));
+            let Some(j) = next else {
+                break false;
+            };
+            used[j] = true;
+            let (a, b) = segments[j];
+            current = if a == current { b } else { a };
+        };
+        if closed {
+            rings.push(ring);
+        } else {
+            open += 1;
+        }
     }
+    (rings, open)
 }
 
 /// Reads a `.kicad_pcb` file. Ids for the new objects come from `new_id`.

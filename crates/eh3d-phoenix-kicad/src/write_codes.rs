@@ -371,7 +371,9 @@ mod tests {
         assert_eq!(r.count_of(LEFT_OUT), 3);
         let notes = r.notes();
         assert_eq!(notes.len(), 2);
-        assert_eq!(notes[0].detail, "first");
+        // ordered by code: what was left out (001) before what was changed (002)
+        assert_eq!(notes[0].detail, "fill");
+        assert_eq!(notes[1].detail, "first");
         assert!(!r.has_problem());
         let mut other = ExportReport::default();
         other.note(ROUND_TRIP, "x", "y");

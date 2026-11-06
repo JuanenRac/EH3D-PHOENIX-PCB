@@ -570,7 +570,7 @@ mod tests {
         let pair = Operation::Batch {
             ops: vec![line(1.0, 2.0, 11), line(1.0, 2.0, 10)],
         };
-        assert_eq!(named(&pair, Lang::En), "Route a pair (GROUND/VCC)");
+        assert_eq!(named(&pair, Lang::En), "Route a pair (GND/VCC)");
         let auto = Operation::Batch {
             ops: vec![
                 line(1.0, 2.0, 10),
@@ -629,7 +629,7 @@ mod tests {
             seen.dedup();
             assert_eq!(seen.len(), 3, "{lang:?}");
         }
-        assert_eq!(named(&steps[1], Lang::De), "Paar routen (GROUND/VCC)");
+        assert_eq!(named(&steps[1], Lang::De), "Paar routen (GND/VCC)");
     }
 
     #[test]
