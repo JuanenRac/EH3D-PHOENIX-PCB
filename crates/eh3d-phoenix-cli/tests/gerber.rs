@@ -335,15 +335,24 @@ fn panel_files_are_written_to_a_new_folder_and_read_back_by_the_import() {
     assert_eq!(
         names,
         vec![
+            "panel_01_bottom.gbr",
+            "panel_02_top.gbr",
+            "panel_bom.csv",
             "panel_drill_npth.drl",
             "panel_drill_pth.drl",
-            "panel_fiducial_copper_top.gbr",
-            "panel_fiducial_mask_top.gbr",
+            "panel_placement.csv",
             "panel_profile.gbr"
         ]
     );
-    // the import reads every file of the panel
-    let (code, text, err) = command(&["gerber-import", out_text]);
+    // the import reads the Gerber and drill files of the panel (the two tables are not Gerber)
+    let files: Vec<String> = names
+        .iter()
+        .filter(|n| n.ends_with(".gbr") || n.ends_with(".drl"))
+        .map(|n| out.join(n).to_str().unwrap().to_owned())
+        .collect();
+    let mut args = vec!["gerber-import"];
+    args.extend(files.iter().map(String::as_str));
+    let (code, text, err) = command(&args);
     assert_eq!((code, err.as_str()), (0, ""), "{text}");
     assert!(
         text.contains("panel_profile.gbr: outline (from the attributes)"),
