@@ -93,7 +93,7 @@ jobs:
         run: cargo clippy -p eh3d-phoenix-viewer -p eh3d-phoenix-cli --all-targets --features gui -- -D warnings
         working-directory: EH3D-PHOENIX-PCB
       - name: Tests
-        run: cargo test --all-targets
+        run: cargo test --all-targets --no-fail-fast
         working-directory: EH3D-PHOENIX-PCB
 
   main-against-main:
