@@ -231,6 +231,60 @@ pub fn compare_filter(f: &Filter, freqs: &[f64], s: &SimSettings) -> Result<Cohe
     Ok(result)
 }
 
+/// One point of the simulated response of a filter.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ResponsePoint {
+    /// The frequency in Hz.
+    pub freq_hz: f64,
+    /// The transmission in dB, relative to the maximum power available from the source (the
+    /// `S21` of the filter between its source resistance and its load).
+    pub gain_db: f64,
+    /// The phase of the transmission in degrees.
+    pub phase_deg: f64,
+    /// The group delay in seconds.
+    pub delay_s: f64,
+}
+
+/// The response of a ladder filter simulated in AC at the given frequencies: the netlist of the
+/// filter is made, solved by modified nodal analysis, and the output is scaled to the `S21` of
+/// the filter (magnitude, phase and group delay). The ABCD calculation of the RF crate is not
+/// used.
+pub fn ac_response(
+    f: &Filter,
+    freqs: &[f64],
+    s: &SimSettings,
+) -> Result<Vec<ResponsePoint>, SimError> {
+    let (netlist, label) = netlist_of_filter(f);
+    let circuit = Circuit::compile(&netlist, s)?;
+    let ac = ac_at(&circuit, s, freqs)?;
+    let (Some(output), Some(delays)) = (ac.series(&label), ac.delay(&label)) else {
+        return Err(SimError::new(
+            ANALYSIS_INVALID,
+            format!("the output {label} is not in the circuit"),
+        ));
+    };
+    // the output voltage of a 1 V source is S21 * sqrt(RL / Rs) / 2
+    let ratio = (f.load_ohm / f.z0_ohm).sqrt() / 2.0;
+    Ok(freqs
+        .iter()
+        .zip(output.iter().zip(delays.iter()))
+        .map(|(&freq_hz, (voltage, &delay_s))| {
+            let s21 = voltage.scale(1.0 / ratio);
+            ResponsePoint {
+                freq_hz,
+                gain_db: s21.db20(),
+                phase_deg: s21.arg_deg(),
+                delay_s,
+            }
+        })
+        .collect())
+}
+
+/// The SPICE text of the netlist of a ladder filter.
+pub fn filter_spice(f: &Filter) -> String {
+    crate::write::to_spice(&netlist_of_filter(f).0)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -353,5 +407,57 @@ mod tests {
         // the load is the same as the source, so the gain at DC is 1/2
         assert!((h[0].abs() - 0.5).abs() < 1e-6);
         assert!((h[1].db20() - h[0].db20() + 3.010_299_956_6).abs() < 1e-4);
+    }
+
+    #[test]
+    fn the_ac_response_is_the_s21_of_the_filter() {
+        let s = SimSettings::default();
+        for f in [
+            built(
+                Approximation::Butterworth,
+                3,
+                None,
+                Band::LowPass { cutoff_hz: 1e6 },
+            ),
+            built(
+                Approximation::Chebyshev,
+                4,
+                Some(0.5),
+                Band::LowPass { cutoff_hz: 10e6 },
+            ),
+        ] {
+            let freqs = [1e5, 5e5, 1e6, 2e6, 8e6];
+            let points = ac_response(&f, &freqs, &s).unwrap();
+            assert_eq!(points.len(), freqs.len());
+            let rf = RfSettings::default();
+            for p in &points {
+                let expected = f.response_at(p.freq_hz).unwrap().s21;
+                assert!((p.gain_db - expected.db20()).abs() < 1e-6, "{p:?}");
+                let phase_error =
+                    (expected.arg_deg() - p.phase_deg + 180.0).rem_euclid(360.0) - 180.0;
+                assert!(phase_error.abs() < 1e-4, "{p:?}");
+                let delay = f.group_delay_s(p.freq_hz, &rf).unwrap();
+                assert!(
+                    (p.delay_s - delay).abs() * p.freq_hz < 1e-3,
+                    "{p:?} {delay}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn the_spice_text_of_a_filter_names_its_parts() {
+        let f = built(
+            Approximation::Butterworth,
+            3,
+            None,
+            Band::LowPass { cutoff_hz: 1e6 },
+        );
+        let text = filter_spice(&f);
+        assert!(text.starts_with("ladder filter\n"), "{text}");
+        for name in ["v1 ", "rs ", "rl ", "c0 ", "l1 ", "c2 "] {
+            assert!(text.contains(name), "{name}: {text}");
+        }
+        assert_eq!(text, filter_spice(&f));
     }
 }
