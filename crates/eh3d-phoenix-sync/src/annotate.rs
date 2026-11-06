@@ -353,7 +353,7 @@ fn in_order(mut group: Vec<Candidate>, settings: &AnnotateSettings) -> Vec<Candi
             Order::LeftToRight => (x, top_first),
         }
     };
-    group.sort_by(|a, b| (key(a), a.id).cmp(&(key(b), b.id)));
+    group.sort_by_key(|c| (key(c), c.id));
     let mut out: Vec<Candidate> = Vec::with_capacity(group.len());
     let mut i = 0;
     while i < group.len() {
@@ -363,7 +363,7 @@ fn in_order(mut group: Vec<Candidate>, settings: &AnnotateSettings) -> Vec<Candi
             j += 1;
         }
         let mut band: Vec<Candidate> = group[i..j].to_vec();
-        band.sort_by(|a, b| (key(a).1, a.id).cmp(&(key(b).1, b.id)));
+        band.sort_by_key(|c| (key(c).1, c.id));
         out.extend(band);
         i = j;
     }
