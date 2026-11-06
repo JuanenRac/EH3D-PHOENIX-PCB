@@ -273,6 +273,32 @@
           }
         },
         {
+          "name": "IPC_LIBRARY.md",
+          "desc": {
+            "en": "the own library of footprints: families, densities, check",
+            "es": "la biblioteca propia de huellas: familias, densidades, pruebas",
+            "de": "die eigene Footprint-Bibliothek: Familien, Dichten, Prüfung",
+            "fr": "la bibliothèque propre d'empreintes : familles, densités, contrôle",
+            "it": "la libreria propria di footprint: famiglie, densità, controllo",
+            "ja": "独自のフットプリントライブラリ：ファミリ、密度、チェック",
+            "zh": "自有封装库：系列、密度、检查",
+            "pt": "a biblioteca própria de pegadas: famílias, densidades, verificação"
+          }
+        },
+        {
+          "name": "LIBINDEX.md",
+          "desc": {
+            "en": "the bulk import of libraries: quality report, index",
+            "es": "la importación masiva de bibliotecas: informe de calidad, índice",
+            "de": "der Massenimport von Bibliotheken: Qualitätsbericht, Index",
+            "fr": "l'import en masse de bibliothèques : rapport de qualité, index",
+            "it": "l'importazione di massa di librerie: rapporto di qualità, indice",
+            "ja": "ライブラリの一括インポート：品質レポート、インデックス",
+            "zh": "库的批量导入：质量报告、索引",
+            "pt": "a importação em massa de bibliotecas: relatório de qualidade, índice"
+          }
+        },
+        {
           "name": "BOARD_EDIT.md",
           "desc": {
             "en": "the board editor: operations, rule check, window",
