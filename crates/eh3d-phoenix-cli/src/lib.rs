@@ -24,6 +24,8 @@
 //! DXF drawings add `dxf-import` (the outline of a board from the contours of a drawing) and
 //! `dxf-export` (a board or a panel as a drawing), and the check of a board against the box of
 //! its enclosure adds `enclosure`.
+//! The deep reading of EAGLE files adds `eagle-check` and `eagle-convert`, and `check`, `bom` and
+//! `pnp` take design rule files and assembly variants of them.
 //!
 //! Exit codes: 0 done, 1 `stackup` could not compute one or more of the lines it was asked for,
 //! `check`, `connectivity` and `erc` proved an error, or `sync` or `annotate` found changes to
@@ -41,6 +43,7 @@ mod corpus;
 mod design;
 mod dxf_export;
 mod dxf_import;
+mod eagle_deep;
 mod enclosure;
 mod export;
 mod fabpack;
@@ -111,10 +114,11 @@ phoenix materials show <id> [--at-ghz F] [--json]
               frequency) and, with --phoenix, keeps the materials that serve the design tool;
               show prints one record (run `phoenix materials` alone for the kinds)
 
-phoenix check [--rules FILE] [--json] [--lang xx] <board.brd>
+phoenix check [--rules FILE | --rules-dru FILE] [--json] [--lang xx] <board.brd>
 phoenix connectivity [--rules FILE] [--json] [--lang xx] <schematic.sch> <board.brd>
 
-  check         run the design rules of FILE (JSON, phoenix-rules/1) or of the board on an EAGLE board
+  check         run the design rules of FILE (JSON, phoenix-rules/1), of an EAGLE design rule file
+                (--rules-dru, a .dru) or of the board on an EAGLE board
   connectivity  shorts and unrouted nets of the board, and the board against the schematic
                 (exit 1 when an error is proven; the report keeps confirmed and inconclusive apart)
 
@@ -358,8 +362,8 @@ phoenix si <crosstalk|reflect|eye|check> [--stackup FILE] [--net NAME] [--config
                 a new file, run `phoenix si` alone for its options
 
 phoenix bom [--config FILE] [--prices FILE] [--parts FILE] [--schematic FILE] [--stackup FILE]
-            [--boards N] [--csv FILE] [--json-file FILE] [--html FILE] [--json] [--lang xx]
-            <board>
+            [--boards N] [--variant NAME [--variant-file FILE]] [--csv FILE] [--json-file FILE]
+            [--html FILE] [--json] [--lang xx] <board>
 phoenix assembly3d [--config FILE] --models FILE [--stackup FILE] [--obj FILE] [--step FILE]
                    [--json-file FILE] [--json] [--lang xx] <board>
 
@@ -384,7 +388,7 @@ phoenix parts search|show|check|import|export [--base PATH] [options] (run `phoe
                 exported to a new file; nothing is fetched from a network, a prototype
 
 phoenix pnp [--config FILE] [--maker NAME] [--parts FILE] [--dnp R1,R2,...] [--origin WORD]
-            [--units mm|mil] [--lang xx] [--out FOLDER] <board>
+            [--variant NAME [--variant-file FILE]] [--units mm|mil] [--lang xx] [--out FOLDER] <board>
 phoenix stencil [--config FILE] [--profile NAME] [--profiles FILE] [--lang xx] [--out FOLDER]
                 <board>
 phoenix fabpack [--profile NAME] [--profiles FILE] [--pnp-config FILE] [--stencil-config FILE]
@@ -458,6 +462,19 @@ phoenix perf <board> [--config FILE] [--clearance-mm N] [--json] [--lang xx]
                 spatial index and without it, counted in comparisons and not timed, with the codes
                 PHOENIX-SPATIAL-NNN; read-only, a prototype, run `phoenix perf` alone for its
                 options
+
+phoenix eagle-check [--layers FILE] [--json] [--lang xx] <file.brd|file.sch|file.lbr>
+phoenix eagle-convert <dru-to-rules|rules-to-dru|cam-to-profile|layers|variants> [options] <file>
+
+  eagle-check   what a rewrite of an EAGLE file keeps, simplifies and leaves out: the proof that
+                writing the XML tree and reading it again changes nothing, and the kinds of element
+                that the design model simplifies or leaves out, with the codes
+                PHOENIX-EAGLEX-<NNN> in eight languages; read-only, a prototype, run
+                `phoenix eagle-check` alone for its options
+  eagle-convert design rule files (.dru) into rule files and back, CAM jobs (.cam) into export
+                profiles, the table of the layers and the variants and attributes of parts, each
+                with the list of what has no equivalent; written only to a new file, a prototype,
+                run `phoenix eagle-convert` alone for its options
 
 phoenix view [--settings FILE] [--lang xx] [<board or schematic>]
 phoenix view --summary <file>  |  phoenix view --bench
@@ -608,6 +625,12 @@ pub fn run(args: &[String], out: &mut dyn Write, err: &mut dyn Write) -> i32 {
     }
     if let Some((&"si", tail)) = rest.split_first() {
         return si::si_command(tail, out, err);
+    }
+    if let Some((&"eagle-check", tail)) = rest.split_first() {
+        return eagle_deep::eagle_check_command(tail, out, err);
+    }
+    if let Some((&"eagle-convert", tail)) = rest.split_first() {
+        return eagle_deep::eagle_convert_command(tail, out, err);
     }
     if let Some((&"bom", tail)) = rest.split_first() {
         return bom::bom_command(tail, out, err);

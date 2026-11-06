@@ -29,7 +29,7 @@ const DEFAULT_CONFIG: &str = "config/costs.cfg";
 
 pub(crate) const USAGE: &str = "\
 phoenix bom [--config FILE] [--prices FILE] [--parts FILE] [--parts-db PATH] [--schematic FILE]
-            [--stackup FILE] [--boards N] [--csv FILE] [--json-file FILE] [--html FILE] [--json] [--lang CODE]
+            [--stackup FILE] [--boards N] [--variant NAME [--variant-file FILE]] [--csv FILE] [--json-file FILE] [--html FILE] [--json] [--lang CODE]
             <board>
 
   bom           the bill of materials of a board: the parts grouped by value, footprint, maker and
@@ -52,6 +52,9 @@ phoenix bom [--config FILE] [--prices FILE] [--parts FILE] [--parts-db PATH] [--
   --schematic   a JSON schematic: its parts that are not on the board are added
   --stackup     a stack-up job file (the file of `phoenix stackup`) for the thickness of the board
   --boards N    the number of boards of the batch (default: the settings)
+  --variant     an assembly variant of an EAGLE file: the parts it does not fit are left out and the
+                values it changes replace the values of the board; the variants are read from the
+                board file when it is an EAGLE .brd or .sch, otherwise from --variant-file
   --lang CODE   the messages in en, es, de, fr, it, ja, zh or pt
 ";
 
@@ -65,6 +68,8 @@ struct Options {
     schematic: Option<String>,
     stackup: Option<String>,
     boards: Option<u64>,
+    variant: Option<String>,
+    variant_file: Option<String>,
     csv: Option<String>,
     json_file: Option<String>,
     html: Option<String>,
@@ -82,6 +87,8 @@ fn parse_options(args: &[&str]) -> Result<Options, BomError> {
         schematic: None,
         stackup: None,
         boards: None,
+        variant: None,
+        variant_file: None,
         csv: None,
         json_file: None,
         html: None,
@@ -116,6 +123,8 @@ fn parse_options(args: &[&str]) -> Result<Options, BomError> {
                         .ok_or_else(|| bad("--boards is a whole number from 1 to 1000000"))?,
                 );
             }
+            "--variant" => options.variant = Some(value("--variant needs a name")?),
+            "--variant-file" => options.variant_file = Some(value("--variant-file needs a file")?),
             "--csv" => options.csv = Some(value("--csv needs a file")?),
             "--json-file" => options.json_file = Some(value("--json-file needs a file")?),
             "--html" => options.html = Some(value("--html needs a file")?),
@@ -202,7 +211,25 @@ fn bom(options: &Options, out: &mut dyn Write) -> Result<i32, BomError> {
     }
     settings.validate()?;
     let unreadable = |what: String| BomError::new(INPUT_UNREADABLE, what);
-    let board = read_board_file(board_path).map_err(unreadable)?;
+    let mut board = read_board_file(board_path).map_err(unreadable)?;
+    let mut variant_note = String::new();
+    if let Some(name) = &options.variant {
+        let source = options.variant_file.as_deref().unwrap_or(board_path);
+        let view = crate::eagle_deep::variant_view(source, name, options.lang)
+            .map_err(|message| BomError::new(OPTION_INVALID, message))?;
+        let applied = eh3d_phoenix_eagle_deep::apply_to_board(&mut board, &view);
+        variant_note = format!(
+            "variant: {name}, left out: {}, values changed: {}
+",
+            applied.removed.len(),
+            applied.revalued.len()
+        );
+    } else if options.variant_file.is_some() {
+        return Err(BomError::new(
+            OPTION_INVALID,
+            "--variant-file needs --variant",
+        ));
+    }
     let prices = match &options.prices {
         Some(path) => PriceBook::parse(
             &read_limited(path, settings.max_file_bytes)?,
@@ -278,7 +305,8 @@ fn bom(options: &Options, out: &mut dyn Write) -> Result<i32, BomError> {
     let text = if options.json {
         bom_json(&bom)
     } else {
-        let mut text = bom_text(&bom, options.lang);
+        let mut text = variant_note;
+        text.push_str(&bom_text(&bom, options.lang));
         for (path, _) in &files {
             text.push_str(&format!("written: {path}\n"));
         }

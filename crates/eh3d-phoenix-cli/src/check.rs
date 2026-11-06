@@ -19,7 +19,7 @@ use eh3d_phoenix_rules::{
 const MAX_INPUT_BYTES: u64 = 256 * 1024 * 1024;
 
 pub(crate) const USAGE: &str = "\
-phoenix check [--rules FILE] [--advanced] [--drc-config FILE] [--json | --sarif] [--lang CODE] <board.brd>
+phoenix check [--rules FILE | --rules-dru FILE] [--advanced] [--drc-config FILE] [--json | --sarif] [--lang CODE] <board.brd>
 
   check         run the design rules on an EAGLE board. The limits come from FILE (a JSON rule
                 file, format phoenix-rules/1 or phoenix-rules/2, which adds net classes with
@@ -49,6 +49,7 @@ struct Options {
     drc_config: Option<String>,
     lang: Lang,
     rules: Option<String>,
+    rules_dru: Option<String>,
     files: Vec<String>,
 }
 
@@ -60,6 +61,7 @@ fn parse_options(args: &[&str]) -> Result<Options, String> {
         drc_config: None,
         lang: Lang::En,
         rules: None,
+        rules_dru: None,
         files: Vec::new(),
     };
     let mut iter = args.iter();
@@ -80,6 +82,10 @@ fn parse_options(args: &[&str]) -> Result<Options, String> {
             "--rules" => {
                 let path = iter.next().ok_or("--rules needs a file")?;
                 options.rules = Some((*path).to_owned());
+            }
+            "--rules-dru" => {
+                let path = iter.next().ok_or("--rules-dru needs a file")?;
+                options.rules_dru = Some((*path).to_owned());
             }
             other if other.starts_with("--") => return Err(format!("unknown option {other}")),
             other => options.files.push(other.to_owned()),
@@ -163,20 +169,30 @@ pub(crate) fn check(args: &[&str], out: &mut dyn Write, err: &mut dyn Write) -> 
             Err(message) => return fail(err, &message),
         }
     };
-    let (rules, classes) = match &options.rules {
-        Some(path) => {
+    let (rules, classes) = match (&options.rules, &options.rules_dru) {
+        (Some(_), Some(_)) => return fail(err, "give --rules or --rules-dru, not both"),
+        (Some(path), None) => {
             match read_text(path).and_then(|t| RuleFile::from_json(&t).map_err(|e| e.to_string())) {
                 Ok(file) => (file.values, file.classes),
                 Err(message) => return fail(err, &message),
             }
         }
-        None if kicad => {
+        (None, Some(path)) => match crate::eagle_deep::dru_values(path, options.lang) {
+            Ok((values, notes)) => {
+                for note in notes {
+                    let _ = writeln!(err, "note: {note}");
+                }
+                (values, NetClasses::default())
+            }
+            Err(message) => return fail(err, &message),
+        },
+        (None, None) if kicad => {
             return fail(
                 err,
                 "a KiCad board gives no design rules to this command; give the limits with --rules FILE (a JSON rule file)",
             )
         }
-        None => match RuleValues::from_eagle_board(&text) {
+        (None, None) => match RuleValues::from_eagle_board(&text) {
             Ok((values, notes)) => {
                 for note in notes {
                     let _ = writeln!(err, "note: {}", note.message);
@@ -245,6 +261,12 @@ pub(crate) fn connectivity(args: &[&str], out: &mut dyn Write, err: &mut dyn Wri
         return fail(
             err,
             "--advanced and --drc-config belong to the command check, not to connectivity",
+        );
+    }
+    if options.rules_dru.is_some() {
+        return fail(
+            err,
+            "--rules-dru belongs to the command check, not to connectivity",
         );
     }
     let [schematic_path, board_path] = options.files.as_slice() else {

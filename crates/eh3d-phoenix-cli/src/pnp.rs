@@ -18,7 +18,7 @@ use crate::fabpack::{
 
 pub(crate) const USAGE: &str = "\
 phoenix pnp [--config FILE] [--maker NAME] [--parts FILE] [--dnp R1,R2,...]
-            [--origin lower_left|aux|panel] [--units mm|mil] [--lang CODE] [--out FOLDER] <board>
+            [--variant NAME [--variant-file FILE]] [--origin lower_left|aux|panel] [--units mm|mil] [--lang CODE] [--out FOLDER] <board>
 
   pnp           the pick and place files of a board, one for each face, as CSV and as JSON
                 (phoenix-pnp/1): designator, value, footprint, X, Y, rotation and face of every
@@ -32,6 +32,9 @@ phoenix pnp [--config FILE] [--maker NAME] [--parts FILE] [--dnp R1,R2,...]
   --config      the settings (default: config/pnp_rotations.cfg when it exists)
   --maker       the section of the settings for a machine or maker
   --parts       a CSV of part data; the parts it says are not fitted are left out
+  --variant     an assembly variant of an EAGLE file: the parts it does not fit are left out like
+                --dnp; the variants are read from the board file when it is an EAGLE .brd or .sch,
+                otherwise from --variant-file
   --lang CODE   the messages in en, es, de, fr, it, ja, zh or pt
 ";
 
@@ -66,6 +69,8 @@ struct Options {
     maker: Option<String>,
     parts: Option<String>,
     dnp: Vec<String>,
+    variant: Option<String>,
+    variant_file: Option<String>,
     origin: Option<PnpOrigin>,
     units: Option<Unit>,
     out: Option<String>,
@@ -79,6 +84,8 @@ fn parse_options(args: &[&str]) -> Result<Options, FabError> {
         maker: None,
         parts: None,
         dnp: Vec::new(),
+        variant: None,
+        variant_file: None,
         origin: None,
         units: None,
         out: None,
@@ -103,6 +110,8 @@ fn parse_options(args: &[&str]) -> Result<Options, FabError> {
             "--dnp" => o
                 .dnp
                 .extend(split_designators(&value("--dnp needs a list")?)),
+            "--variant" => o.variant = Some(value("--variant needs a name")?),
+            "--variant-file" => o.variant_file = Some(value("--variant-file needs a file")?),
             "--origin" => {
                 o.origin = Some(match value("--origin needs a word")?.as_str() {
                     "lower_left" => PnpOrigin::LowerLeft,
@@ -148,7 +157,26 @@ fn pnp(o: &Options, out: &mut dyn Write) -> Result<i32, FabError> {
     settings.validate()?;
     let board = board_of(board_path)?;
     let parts = load_parts(o.parts.as_deref())?;
-    let not_fitted = not_fitted_set(&board, &parts, &o.dnp);
+    let mut dnp = o.dnp.clone();
+    let mut variant_note = String::new();
+    if let Some(name) = &o.variant {
+        let source = o.variant_file.as_deref().unwrap_or(board_path);
+        let view = crate::eagle_deep::variant_view(source, name, o.lang)
+            .map_err(|message| FabError::new(PNP_OPTION_INVALID, message))?;
+        let left_out = view.not_fitted();
+        variant_note = format!(
+            "variant: {name}, not fitted: {}
+",
+            left_out.len()
+        );
+        dnp.extend(left_out);
+    } else if o.variant_file.is_some() {
+        return Err(FabError::new(
+            PNP_OPTION_INVALID,
+            "--variant-file needs --variant",
+        ));
+    }
+    let not_fitted = not_fitted_set(&board, &parts, &dnp);
     let placement = plan(&board, &settings, &not_fitted);
     let files = pnp_files(&placement, &settings, "");
 
@@ -160,6 +188,7 @@ fn pnp(o: &Options, out: &mut dyn Write) -> Result<i32, FabError> {
         placement.excluded.len(),
         settings.unit.name()
     );
+    text.push_str(&variant_note);
     for f in &placement.findings {
         text.push_str(&f.line(o.lang));
         text.push('\n');
