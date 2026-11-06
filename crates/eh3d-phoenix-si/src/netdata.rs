@@ -140,7 +140,7 @@ pub(crate) fn collect(
             width_nm: *width,
         });
     }
-    out.sort_by(|a, b| a.name.cmp(&b.name));
+    out.sort_by_key(|n| n.name.clone());
     Ok(out)
 }
 

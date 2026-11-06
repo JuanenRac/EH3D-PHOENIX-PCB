@@ -276,7 +276,7 @@ mod tests {
 
     #[test]
     fn the_findings_are_listed_errors_first_and_counted() {
-        let list = vec![
+        let list = [
             Finding::new(PLANE_SPLIT, Severity::Warning, Some("A"), "split"),
             Finding::new(NEXT_HIGH, Severity::Error, Some("A/B"), "big"),
         ];

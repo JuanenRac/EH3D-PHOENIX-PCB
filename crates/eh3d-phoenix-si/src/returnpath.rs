@@ -416,7 +416,7 @@ mod tests {
     #[test]
     fn the_copper_under_a_series_of_points_is_followed() {
         let a: Id = "01890a5d-ac96-7ab2-80e2-4536629c1301".parse().unwrap();
-        let zones: Vec<ZoneOutline> = vec![(a, vec![(0, 0), (10, 0), (10, 10), (0, 10)])];
+        let zones: [ZoneOutline; 1] = [(a, vec![(0, 0), (10, 0), (10, 10), (0, 10)])];
         let (changes, first, nothing) = walk(&zones, &[(1, 5), (5, 5), (9, 5)]);
         assert_eq!((changes, first, nothing), (0, None, false));
         let (changes, first, nothing) = walk(&zones, &[(5, 5), (12, 5), (20, 5)]);
