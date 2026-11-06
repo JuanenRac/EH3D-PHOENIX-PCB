@@ -15,7 +15,7 @@ Ejecute cada comando desde la raíz del repositorio. Los comandos solo escriben 
 1. [Leer los buses de un esquema EAGLE](TUTORIAL_EAGLE_BUSES.md)
 1. [Rutar una placa con el autorruteador integrado, con un par y con las vías que ya hay en la placa](TUTORIAL_AUTOROUTE_NATIVE.md)
 1. [Seleccionar varios objetos en el editor de placas y moverlos, alinearlos o borrarlos como un solo paso](TUTORIAL_MULTIPLE_SELECTION.md)
-1. [Hacer capturas de las ventanas con el modo de captura de phoenix-gui](TUTORIAL_SCREENSHOTS.md)
+1. [Hacer capturas de las ventanas con el modo de captura de phoenix](TUTORIAL_SCREENSHOTS.md)
 
 ## Tutoriales
 

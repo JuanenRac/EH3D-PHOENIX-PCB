@@ -15,7 +15,7 @@ Execute cada comando a partir da raiz do repositório. Os comandos só escrevem 
 1. [Ler os barramentos de um esquema EAGLE](TUTORIAL_EAGLE_BUSES.md)
 1. [Encaminhar uma placa com o encaminhador automático integrado, com um par e com as vias que já existem na placa](TUTORIAL_AUTOROUTE_NATIVE.md)
 1. [Selecionar vários objetos no editor de placas e movê-los, alinhá-los ou apagá-los como um só passo](TUTORIAL_MULTIPLE_SELECTION.md)
-1. [Tirar imagens das janelas com o modo de imagem de phoenix-gui](TUTORIAL_SCREENSHOTS.md)
+1. [Tirar imagens das janelas com o modo de imagem de phoenix](TUTORIAL_SCREENSHOTS.md)
 
 ## Tutoriais
 

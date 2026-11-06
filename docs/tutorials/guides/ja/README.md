@@ -15,7 +15,7 @@
 1. [EAGLE の回路図のバスを読み込む](TUTORIAL_EAGLE_BUSES.md)
 1. [内蔵オートルーターで基板を配線する：差動ペアと基板上の既存ビアの利用](TUTORIAL_AUTOROUTE_NATIVE.md)
 1. [基板エディターで複数のオブジェクトを選択し、1 ステップで移動・整列・削除する](TUTORIAL_MULTIPLE_SELECTION.md)
-1. [phoenix-gui の画像モードでウィンドウの画像を撮る](TUTORIAL_SCREENSHOTS.md)
+1. [phoenix の画像モードでウィンドウの画像を撮る](TUTORIAL_SCREENSHOTS.md)
 
 ## チュートリアル
 

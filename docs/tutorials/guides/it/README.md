@@ -15,7 +15,7 @@ Eseguite ogni comando dalla radice del repository. I comandi scrivono solo nuovi
 1. [Leggere i bus di uno schema EAGLE](TUTORIAL_EAGLE_BUSES.md)
 1. [Instradare una scheda con l'autorouter integrato, con una coppia e con le via già presenti sulla scheda](TUTORIAL_AUTOROUTE_NATIVE.md)
 1. [Selezionare più oggetti nell'editor di schede e spostarli, allinearli o eliminarli come un solo passo](TUTORIAL_MULTIPLE_SELECTION.md)
-1. [Fare immagini delle finestre con la modalità immagine di phoenix-gui](TUTORIAL_SCREENSHOTS.md)
+1. [Fare immagini delle finestre con la modalità immagine di phoenix](TUTORIAL_SCREENSHOTS.md)
 
 ## Tutorial
 

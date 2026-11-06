@@ -4,7 +4,7 @@
 # Copyright (C) 2026 JuanenRac (Electro Hobby 3D) <electrohobby3d@gmail.com>
 # GPL-3.0-or-later - see LICENSE
 # =============================================================================
-"""Takes the pictures of the windows of `phoenix-gui` for the documentation.
+"""Takes the pictures of the windows of `phoenix` for the documentation.
 
 The program is started once for each window with its picture mode (`--shot`, see docs/VIEWER.md), with a size, a
 theme, the window to show and, when the window needs one, an example board of the repository. Each run has its own
@@ -12,7 +12,7 @@ settings folder inside a temporary folder (APPDATA, HOME and the rest of the var
 and the recent files of the person are never read or written, and nothing is written on the drive D:. A program that
 does not finish in time is stopped by its own process number and by no other.
 
-    py -3.14 -I tools/make_shots.py --exe PATH/phoenix-gui.exe [--out images/screens] [--size 1600x900]
+    py -3.14 -I tools/make_shots.py --exe PATH/phoenix.exe [--out images/screens] [--size 1600x900]
                                     [--wait 12] [--timeout 60] [--only start,document] [--gerber FOLDER]
                                     [--max-kb 400] [--dry-run]
 
@@ -223,8 +223,8 @@ def run_shot(args: list[str], env: dict[str, str], timeout: int) -> tuple[int | 
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Takes the pictures of the windows of phoenix-gui for the documentation.")
-    parser.add_argument("--exe", required=True, type=Path, help="the program phoenix-gui")
+    parser = argparse.ArgumentParser(description="Takes the pictures of the windows of phoenix for the documentation.")
+    parser.add_argument("--exe", required=True, type=Path, help="the program phoenix, built with the gui feature")
     parser.add_argument("--out", type=Path, default=ROOT / "images" / "screens", help="the folder of the pictures")
     parser.add_argument("--size", default=DEFAULT_SIZE)
     parser.add_argument("--wait", type=int, default=DEFAULT_WAIT, help="frames drawn before each picture")

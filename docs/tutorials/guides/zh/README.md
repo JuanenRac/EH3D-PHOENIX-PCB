@@ -15,7 +15,7 @@
 1. [读取 EAGLE 原理图中的总线](TUTORIAL_EAGLE_BUSES.md)
 1. [用内置自动布线器为电路板布线：差分对和复用板上已有的过孔](TUTORIAL_AUTOROUTE_NATIVE.md)
 1. [在电路板编辑器中选择多个对象，并作为一步来移动、对齐或删除](TUTORIAL_MULTIPLE_SELECTION.md)
-1. [用 phoenix-gui 的截图模式为窗口截图](TUTORIAL_SCREENSHOTS.md)
+1. [用 phoenix 的截图模式为窗口截图](TUTORIAL_SCREENSHOTS.md)
 
 ## 教程
 

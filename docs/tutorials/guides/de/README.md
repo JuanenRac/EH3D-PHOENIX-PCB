@@ -15,7 +15,7 @@ Führen Sie jeden Befehl im Hauptordner des Repositorys aus. Die Befehle schreib
 1. [Die Busse eines EAGLE-Schaltplans lesen](TUTORIAL_EAGLE_BUSES.md)
 1. [Eine Platine mit dem eingebauten Autorouter verdrahten, mit einem Paar und mit den schon vorhandenen Durchkontaktierungen](TUTORIAL_AUTOROUTE_NATIVE.md)
 1. [Mehrere Objekte im Platineneditor auswählen und als einen Schritt verschieben, ausrichten oder löschen](TUTORIAL_MULTIPLE_SELECTION.md)
-1. [Bilder der Fenster mit dem Bildmodus von phoenix-gui aufnehmen](TUTORIAL_SCREENSHOTS.md)
+1. [Bilder der Fenster mit dem Bildmodus von phoenix aufnehmen](TUTORIAL_SCREENSHOTS.md)
 
 ## Anleitungen
 

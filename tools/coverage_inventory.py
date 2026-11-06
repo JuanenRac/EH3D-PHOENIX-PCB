@@ -108,7 +108,7 @@ def analyse() -> list[Module]:
 
 
 def is_window(module: Module) -> bool:
-    return module.name.endswith("_gui") or module.name in ("gui", "main", "gui_main")
+    return module.name.endswith("_gui") or module.name in ("gui", "main", "window_run")
 
 
 def candidates(modules: list[Module]) -> list[tuple[Module, list[str]]]:

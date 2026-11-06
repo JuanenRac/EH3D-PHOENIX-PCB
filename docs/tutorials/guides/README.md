@@ -15,7 +15,7 @@ Run every command from the root of the repository. The commands write only new f
 1. [Read the buses of an EAGLE schematic](TUTORIAL_EAGLE_BUSES.md)
 1. [Route a board with the built-in autorouter, with a pair and with the vias already on the board](TUTORIAL_AUTOROUTE_NATIVE.md)
 1. [Select several objects in the board editor and move, align or delete them as one step](TUTORIAL_MULTIPLE_SELECTION.md)
-1. [Take pictures of the windows with the picture mode of phoenix-gui](TUTORIAL_SCREENSHOTS.md)
+1. [Take pictures of the windows with the picture mode of phoenix](TUTORIAL_SCREENSHOTS.md)
 
 ## Tutorials
 

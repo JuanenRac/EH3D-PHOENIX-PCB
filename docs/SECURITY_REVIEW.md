@@ -118,7 +118,7 @@ The commands write new files and new folders and refuse a name that exists; only
 
 These calls do not follow those ways and are on purpose:
 
-* the error file of the window program (`gui_main.rs`) and the list of recent files (`launcher_session.rs`): small files of the window in its own folder of settings;
+* the error file of the window (`window_run.rs`) and the list of recent files (`launcher_session.rs`): small files of the window in its own folder of settings;
 * the save of a file by the window (`session.rs`): it writes over a file only when the window itself saved it before, and makes a copy first;
 * the files of the external autorouter (`autorouter.rs`): created in a folder that was made new for the run.
 
@@ -127,6 +127,10 @@ The value of `--out`, `--dir`, `--into`, `--svg` and `--csv` is looked at before
 ## Network and processes
 
 The test `no_source_file_opens_the_network_or_starts_a_program_outside_the_list` reads every source file of the workspace and fails on a use of `std::net`, of a socket, of `Command::new`, of `std::process` or of the name of a library of networking that is not in an explicit list with its reason, and on an item of the list that nothing uses. The list holds the adapter of the external autorouter (`crates/eh3d-phoenix-route/src/autorouter.rs`: off unless `enabled = true` in `config/autorouter.cfg` and `--execute` on the command line, started directly without a shell and with an empty environment), the exit code of the two programs, and the number of the process in the name of the temporary folder of four tests. Another test fails when `Cargo.lock` holds a library of networking, and one fails when the shipped `config/autorouter.cfg` does not say `enabled = false`.
+
+## The one place with unsafe code
+
+Every crate of the workspace forbids `unsafe` code except `eh3d-phoenix-console`, which exists to hold it. On Windows the program `phoenix` is built for the graphical subsystem (so no console window opens behind the window) and the crate joins it to the console of the process that started it: `AttachConsole` with the constant that names the parent, and, only for a standard output or error that the starter did not give, `GetStdHandle` and `SetStdHandle` with the handle of `CONOUT$` that the function opened and keeps open. No pointer, buffer or string crosses the call, nothing is read from the console and nothing happens on any other system or when there is no console of the parent. The file `main.rs` of the program and the rest of the crates still forbid `unsafe` code.
 
 ## Hostile input
 

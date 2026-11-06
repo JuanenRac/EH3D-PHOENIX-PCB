@@ -15,7 +15,7 @@ Exécutez chaque commande depuis la racine du dépôt. Les commandes n'écrivent
 1. [Lire les bus d'un schéma EAGLE](TUTORIAL_EAGLE_BUSES.md)
 1. [Router une carte avec l'autorouteur intégré, avec une paire et avec les vias déjà présents sur la carte](TUTORIAL_AUTOROUTE_NATIVE.md)
 1. [Sélectionner plusieurs objets dans l'éditeur de carte et les déplacer, les aligner ou les supprimer en une seule étape](TUTORIAL_MULTIPLE_SELECTION.md)
-1. [Prendre des images des fenêtres avec le mode image de phoenix-gui](TUTORIAL_SCREENSHOTS.md)
+1. [Prendre des images des fenêtres avec le mode image de phoenix](TUTORIAL_SCREENSHOTS.md)
 
 ## Tutoriels
 
