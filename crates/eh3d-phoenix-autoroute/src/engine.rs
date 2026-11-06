@@ -7,6 +7,8 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap, VecDeque};
 
 mod couple;
+#[cfg(test)]
+mod snap_tests;
 
 pub use couple::PairSpec;
 
@@ -18,7 +20,8 @@ use eh3d_phoenix_route::{RouteSettings, RuleContext};
 
 use crate::codes::{
     AutorouteError, BOARD_NOT_ROUTABLE, EXPANSION_LIMIT, GRID_TOO_LARGE, LAYER_UNKNOWN,
-    NET_UNKNOWN, NO_PATH, NO_TERMINAL, PAIR_UNCOUPLED, RIPUP_LIMIT, TOO_MANY_CONNECTIONS,
+    NET_UNKNOWN, NO_PATH, NO_TERMINAL, PAIR_UNCOUPLED, PAIR_WITH_VIA, RIPUP_LIMIT,
+    TOO_MANY_CONNECTIONS, VIA_SNAPPED,
 };
 use crate::config::{AutorouteConfig, NetOrder};
 use crate::geom::{half_up, isqrt_ceil, pair, turn, P};
@@ -68,6 +71,92 @@ struct Assembled {
     runs: Vec<Run>,
     vias: Vec<ViaItem>,
     nodes: Vec<(usize, i64, i64)>,
+    /// How many existing vias off the grid the route joins by a short piece.
+    snapped: usize,
+}
+
+/// An existing via of a net that is within reach of a node of the grid.
+struct NearVia {
+    dist2: i128,
+    id: Id,
+    net: usize,
+    node: (i64, i64),
+    at: P,
+    span: (usize, usize),
+}
+
+/// For each net, the vias of it by node of the grid, with the first and the last place in the
+/// copper stack they join.
+type ViaSpans = Vec<HashMap<(i64, i64), (usize, usize)>>;
+
+/// For each net, where a via really is when it is not on its node of the grid.
+type ViaOffsets = Vec<HashMap<(i64, i64), P>>;
+
+/// The vias of each net (`ids`, sorted) that are already on the board and can be used as a free
+/// change of layer: the ones on a node of the grid and, when `reach` is more than 0, the ones at
+/// most `reach` nanometres from the nearest node. Of several vias for one node the nearest to it
+/// is kept, then the one with the lowest id.
+fn index_vias(
+    board: &Board,
+    ids: &[Id],
+    grid: &Grid,
+    copper: &[Id],
+    reach: i64,
+) -> (ViaSpans, ViaOffsets) {
+    let mut free_vias: ViaSpans = vec![HashMap::new(); ids.len()];
+    let mut via_off: ViaOffsets = vec![HashMap::new(); ids.len()];
+    let limit = i128::from(reach) * i128::from(reach);
+    let mut near: Vec<NearVia> = Vec::new();
+    for (id, via) in &board.vias {
+        let Ok(n) = ids.binary_search(&via.net) else {
+            continue;
+        };
+        let at = pair(via.at);
+        let (dx, dy) = (at.0 - grid.ox, at.1 - grid.oy);
+        let ix = (dx + grid.pitch / 2).div_euclid(grid.pitch);
+        let iy = (dy + grid.pitch / 2).div_euclid(grid.pitch);
+        if ix < 0 || iy < 0 || ix >= grid.nx || iy >= grid.ny {
+            continue;
+        }
+        let node = grid.point(ix, iy);
+        let (ex, ey) = (i128::from(at.0 - node.0), i128::from(at.1 - node.1));
+        let dist2 = ex * ex + ey * ey;
+        if dist2 > limit {
+            continue;
+        }
+        let ends = [via.from_layer, via.to_layer].map(|l| copper.iter().position(|c| *c == l));
+        if let [Some(a), Some(b)] = ends {
+            near.push(NearVia {
+                dist2,
+                id: *id,
+                net: n,
+                node: (ix, iy),
+                at,
+                span: (a.min(b), a.max(b)),
+            });
+        }
+    }
+    near.sort_by_key(|v| (v.dist2, v.id));
+    for v in &near {
+        if free_vias[v.net].contains_key(&v.node) {
+            continue;
+        }
+        free_vias[v.net].insert(v.node, v.span);
+        if v.dist2 > 0 {
+            via_off[v.net].insert(v.node, v.at);
+        }
+    }
+    (free_vias, via_off)
+}
+
+/// The way from a node of the grid to a via near it, the node left out: one piece when they share
+/// a coordinate, else a step along x and a step along y (both along an axis).
+fn dogleg(node: P, via: P) -> Vec<P> {
+    if node.0 == via.0 || node.1 == via.1 {
+        vec![via]
+    } else {
+        vec![(via.0, node.1), via]
+    }
 }
 
 struct Routed {
@@ -90,7 +179,9 @@ struct Engine<'a> {
     routed: Vec<Option<Routed>>,
     history: HashMap<(usize, i64, i64), u32>,
     /// For each net, the vias of it that are on the board and sit on a node of the grid.
-    free_vias: Vec<HashMap<(i64, i64), (usize, usize)>>,
+    free_vias: ViaSpans,
+    /// For each net, where those vias really are when that is not the node itself.
+    via_off: ViaOffsets,
     drill_gap: i64,
     expansions: u64,
     ripups: u32,
@@ -118,10 +209,12 @@ fn assemble(
     slots: &[usize],
     grid: &Grid,
     free_vias: &HashMap<(i64, i64), (usize, usize)>,
+    off_grid: &HashMap<(i64, i64), P>,
 ) -> Assembled {
     let first = found.nodes[0];
     let mut runs: Vec<Run> = Vec::new();
     let mut vias: Vec<ViaItem> = Vec::new();
+    let mut snapped = 0_usize;
     let mut current = Run {
         layer: slots[first.slot],
         pts: sources[found.src].stub.clone(),
@@ -144,10 +237,19 @@ fn assemble(
                     hi: x.max(y),
                 });
             }
+            // a via that is not on the node is joined to it by a short piece on both layers
+            let mut start = vec![at];
+            if let Some(&via_at) = off_grid.get(&(a.ix, a.iy)).filter(|_| there) {
+                let way = dogleg(at, via_at);
+                current.pts.extend_from_slice(&way);
+                start = way.iter().rev().copied().collect();
+                start.push(at);
+                snapped += 1;
+            }
             runs.push(current);
             current = Run {
                 layer: slots[b.slot],
-                pts: vec![at],
+                pts: start,
             };
         }
     }
@@ -172,6 +274,7 @@ fn assemble(
         runs,
         vias,
         nodes: found.nodes.iter().map(|n| (n.slot, n.ix, n.iy)).collect(),
+        snapped,
     }
 }
 
@@ -464,7 +567,7 @@ pub fn autoroute_with_pairs(
                     return Err(AutorouteError::new(
                         LAYER_UNKNOWN,
                         format!("no copper layer named {name}"),
-                    ))
+                    ));
                 }
             }
         }
@@ -484,7 +587,7 @@ pub fn autoroute_with_pairs(
                     return Err(AutorouteError::new(
                         NET_UNKNOWN,
                         format!("no net named {name}"),
-                    ))
+                    ));
                 }
             }
         }
@@ -585,26 +688,9 @@ pub fn autoroute_with_pairs(
             name,
         });
     }
-    // the vias of each net that are already on the board and sit exactly on a node of the grid
-    let mut free_vias: Vec<HashMap<(i64, i64), (usize, usize)>> = vec![HashMap::new(); nets.len()];
-    for via in board.vias.values() {
-        let Ok(n) = ids.binary_search(&via.net) else {
-            continue;
-        };
-        let at = pair(via.at);
-        let (dx, dy) = (at.0 - ox, at.1 - oy);
-        if dx < 0 || dy < 0 || dx % pitch != 0 || dy % pitch != 0 {
-            continue;
-        }
-        let (ix, iy) = (dx / pitch, dy / pitch);
-        if ix >= grid.nx || iy >= grid.ny {
-            continue;
-        }
-        let ends = [via.from_layer, via.to_layer].map(|l| copper.iter().position(|c| *c == l));
-        if let [Some(a), Some(b)] = ends {
-            free_vias[n].entry((ix, iy)).or_insert((a.min(b), a.max(b)));
-        }
-    }
+    // the vias of each net that are already on the board and sit on a node of the grid, or within
+    // `via_snap_nm` of the nearest node
+    let (free_vias, via_off) = index_vias(board, &ids, &grid, &copper, cfg.via_snap_nm);
     let mut conns: Vec<Conn> = Vec::new();
     for line in &lines {
         let net = ids.binary_search(&line.net).unwrap_or(0);
@@ -648,6 +734,7 @@ pub fn autoroute_with_pairs(
         conns,
         history: HashMap::new(),
         free_vias,
+        via_off,
         drill_gap: rules.min_drill_spacing.get(),
         expansions: 0,
         ripups: 0,
@@ -680,7 +767,14 @@ pub fn autoroute_with_pairs(
             continue;
         }
         match engine.couple(cp[0], cn[0], spec.gap_nm) {
-            Ok(_) => coupled.push(spec.name.clone()),
+            Ok(false) => coupled.push(spec.name.clone()),
+            Ok(true) => {
+                coupled.push(spec.name.clone());
+                notes.push(format!(
+                    "{PAIR_WITH_VIA}: pair {}: one via for each track",
+                    spec.name
+                ));
+            }
             Err(why) => notes.push(uncoupled(&why)),
         }
     }
@@ -710,6 +804,7 @@ pub fn autoroute_with_pairs(
                     &engine.slots,
                     &engine.grid,
                     &engine.free_vias[engine.conns[c].net],
+                    &engine.via_off[engine.conns[c].net],
                 );
                 engine.commit(c, assembled);
             }
@@ -739,6 +834,7 @@ pub fn autoroute_with_pairs(
                             &engine.slots,
                             &engine.grid,
                             &engine.free_vias[engine.conns[c].net],
+                            &engine.via_off[engine.conns[c].net],
                         );
                         let crossed = engine.crossing(c, &assembled);
                         if !crossed.is_empty() {
@@ -827,6 +923,17 @@ pub fn autoroute_with_pairs(
             }
         }
         outcomes.push(outcome);
+    }
+    let snapped: usize = engine
+        .routed
+        .iter()
+        .flatten()
+        .map(|r| r.assembled.snapped)
+        .sum();
+    if snapped > 0 {
+        notes.push(format!(
+            "{VIA_SNAPPED}: {snapped} existing via(s) off the grid joined to a node"
+        ));
     }
     finish(
         board,

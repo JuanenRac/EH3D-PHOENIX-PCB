@@ -35,6 +35,7 @@ pub(crate) struct Fix {
     pub top: Id,
     pub bottom: Id,
     smd: Id,
+    smd_bottom: Id,
     thru: Id,
     next: u32,
 }
@@ -44,6 +45,7 @@ impl Fix {
     /// (`Top`, `Bottom`) or only the first.
     pub(crate) fn new(width: i64, height: i64, two_layers: bool) -> Fix {
         let (top, bottom, smd, thru) = (id(1), id(2), id(10), id(11));
+        let smd_bottom = id(14);
         let mut board = Board {
             name: "test".to_owned(),
             ..Board::default()
@@ -79,10 +81,14 @@ impl Fix {
         let round = PadShape::Circle {
             diameter: Nm::new(600_000).unwrap(),
         };
-        for (footprint, pad_id, layers, drill) in [
+        let mut kinds = vec![
             (smd, id(12), vec![top], None),
             (thru, id(13), thru_layers, Some(Nm::new(300_000).unwrap())),
-        ] {
+        ];
+        if two_layers {
+            kinds.push((smd_bottom, id(15), vec![bottom], None));
+        }
+        for (footprint, pad_id, layers, drill) in kinds {
             let mut pads = BTreeMap::new();
             pads.insert(
                 pad_id,
@@ -110,6 +116,7 @@ impl Fix {
             top,
             bottom,
             smd,
+            smd_bottom,
             thru,
             next: 1000,
         }
@@ -135,9 +142,22 @@ impl Fix {
     /// A round pad of 0.6 mm on a net, at a place in nanometres: on the top layer, or through the
     /// board with a drill of 0.3 mm.
     pub(crate) fn pad(&mut self, net: Id, x: i64, y: i64, through: bool) -> PadRef {
+        let (footprint, pad) = if through {
+            (self.thru, id(13))
+        } else {
+            (self.smd, id(12))
+        };
+        self.place(net, (x, y), footprint, pad)
+    }
+
+    /// A round pad of 0.6 mm on a net that is on the bottom layer only (a board of two layers).
+    pub(crate) fn pad_bottom(&mut self, net: Id, x: i64, y: i64) -> PadRef {
+        let (footprint, pad) = (self.smd_bottom, id(15));
+        self.place(net, (x, y), footprint, pad)
+    }
+
+    fn place(&mut self, net: Id, at: (i64, i64), footprint: Id, pad: Id) -> PadRef {
         let component = self.fresh();
-        let footprint = if through { self.thru } else { self.smd };
-        let pad = if through { id(13) } else { id(12) };
         let refdes = format!("P{}", self.next);
         self.board.components.insert(
             component,
@@ -146,7 +166,7 @@ impl Fix {
                 value: "x".to_owned(),
                 symbol: None,
                 footprint,
-                at: pt(x, y),
+                at: pt(at.0, at.1),
                 rotation: Udeg::ZERO,
                 side: Side::Top,
             },

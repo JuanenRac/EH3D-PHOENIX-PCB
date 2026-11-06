@@ -38,6 +38,10 @@ pub const REJECTED_BY_RULES: &str = "PHOENIX-AROUTE-015";
 pub const INCOMPLETE: &str = "PHOENIX-AROUTE-016";
 /// A differential pair was routed as two ordinary nets, not as two coupled tracks.
 pub const PAIR_UNCOUPLED: &str = "PHOENIX-AROUTE-017";
+/// A differential pair was routed across two layers, with one via for each track.
+pub const PAIR_WITH_VIA: &str = "PHOENIX-AROUTE-018";
+/// An existing via that is not on a node of the grid was joined to the grid by a short piece.
+pub const VIA_SNAPPED: &str = "PHOENIX-AROUTE-019";
 
 /// The language tags, in the order of the columns of [`TITLES`].
 pub const LANGUAGES: [&str; 8] = ["en", "es", "de", "fr", "it", "ja", "zh", "pt"];
@@ -266,6 +270,32 @@ pub const TITLES: &[(&str, [&str; 8])] = &[
             "Um par diferencial foi encaminhado como duas redes normais",
         ],
     ),
+    (
+        PAIR_WITH_VIA,
+        [
+            "A differential pair was routed across two layers with a via for each track",
+            "Un par diferencial se rutó entre dos capas con una vía por pista",
+            "Ein Differenzpaar wurde über zwei Lagen mit einer Durchkontaktierung je Leiterbahn verlegt",
+            "Une paire différentielle a été routée sur deux couches avec un via par piste",
+            "Una coppia differenziale è stata instradata su due strati con un via per pista",
+            "差動ペアは2つの層にまたがり、配線ごとに1つのビアで配線されました",
+            "差分对跨两层布线，每条走线使用一个过孔",
+            "Um par diferencial foi encaminhado em duas camadas com uma via por pista",
+        ],
+    ),
+    (
+        VIA_SNAPPED,
+        [
+            "An existing via off the grid was joined to the grid by a short piece",
+            "Una vía existente fuera de la rejilla se unió a la rejilla con un tramo corto",
+            "Eine vorhandene Durchkontaktierung abseits des Rasters wurde mit einem kurzen Stück an das Raster angeschlossen",
+            "Un via existant hors de la grille a été relié à la grille par un court tronçon",
+            "Un via esistente fuori dalla griglia è stato collegato alla griglia con un breve tratto",
+            "グリッド外の既存のビアを短い線分でグリッドに接続しました",
+            "网格外的现有过孔通过一小段走线接入网格",
+            "Uma via existente fora da grelha foi ligada à grelha por um troço curto",
+        ],
+    ),
 ];
 
 /// The codes of this crate with their titles in English.
@@ -335,7 +365,7 @@ mod tests {
                 assert_ne!(*text, row[0], "{code}");
             }
         }
-        assert_eq!(registry().len(), 17);
+        assert_eq!(registry().len(), 19);
     }
 
     #[test]

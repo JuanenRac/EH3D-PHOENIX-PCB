@@ -13,14 +13,15 @@
 //! When there is no room for that (the ends have no layer in common, the nets cross between their
 //! ends, a stub or a track is blocked) the pair is not coupled: both nets are routed as ordinary
 //! nets by the search of the run, and the report says why. A pair that needs a via is also routed
-//! as two ordinary nets: the pair has no change of layer yet.
+//! as two ordinary nets, unless `couple_via` is on: then the pair may cross to another layer once,
+//! straight through, with one via for each track side by side.
 
 use std::collections::HashMap;
 
-use super::{simplify, Assembled, Engine, Run};
+use super::{simplify, Assembled, Engine, Run, ViaItem};
 use crate::geom::{half_up, seg_len, P};
-use crate::obstacles::{Edge, Spec};
-use crate::search::{search, Endpoint, Job, Miss, Terminal};
+use crate::obstacles::{Edge, Spec, ViaSpec};
+use crate::search::{search, Endpoint, Job, Miss, Node, Terminal};
 
 /// A differential pair to route as two coupled tracks: the names of its two nets and the gap
 /// between the edges of the two tracks. The width of the tracks is the width of the nets, which
@@ -179,7 +180,7 @@ impl Engine<'_> {
     /// Tries to route the two connections of a pair as coupled tracks. On success both are
     /// routed and put down; on failure nothing is changed (but the expanded nodes are counted)
     /// and the reason comes back.
-    pub(super) fn couple(&mut self, cp: usize, cn: usize, gap: i64) -> Result<usize, String> {
+    pub(super) fn couple(&mut self, cp: usize, cn: usize, gap: i64) -> Result<bool, String> {
         let (np, nn) = (self.conns[cp].net, self.conns[cn].net);
         if self.nets[np].width != self.nets[nn].width {
             return Err("the two nets have tracks of different widths".to_owned());
@@ -192,14 +193,21 @@ impl Engine<'_> {
         let common: Vec<usize> = (0..self.slots.len())
             .filter(|k| [&pa, &pb, &na, &nb].iter().all(|e| e.slots.contains(k)))
             .collect();
-        if common.is_empty() {
-            return Err("the four ends have no layer in common".to_owned());
-        }
-        let mut reason = String::new();
+        let ends = [&pa, &pb, &na, &nb];
+        let shared = !common.is_empty();
+        let mut reason = "the four ends have no layer in common".to_owned();
         for k in common {
-            match self.couple_on(cp, cn, k, gap, [&pa, &pb, &na, &nb]) {
-                Ok(()) => return Ok(k),
+            match self.couple_on(cp, cn, k, gap, ends) {
+                Ok(()) => return Ok(false),
                 Err(why) => reason = why,
+            }
+        }
+        if self.cfg.couple_via {
+            match self.couple_through_via((cp, cn), gap, ends) {
+                Ok(()) => return Ok(true),
+                // the reason of the search on one layer is the better one when there was one
+                Err(why) if !shared => reason = why,
+                Err(_) => {}
             }
         }
         Err(reason)
@@ -309,6 +317,7 @@ impl Engine<'_> {
                         }],
                         vias: Vec::new(),
                         nodes: nodes.clone(),
+                        snapped: 0,
                     },
                 );
                 for first_n in stubs(na.at, lane_n[0]) {
@@ -323,8 +332,274 @@ impl Engine<'_> {
                                 runs: vec![Run { layer, pts: pts_n }],
                                 vias: Vec::new(),
                                 nodes: Vec::new(),
+                                snapped: 0,
                             },
                         );
+                        return Ok(());
+                    }
+                }
+                self.uncommit(cp);
+            }
+        }
+        Err("a track of the pair is blocked".to_owned())
+    }
+
+    /// Tries to route the pair across two layers: the pair is searched as one fat track that
+    /// changes layer once, straight through (not at a corner), and each track then has its own
+    /// via, the two vias side by side at the distance of the two tracks. Used when the pair cannot
+    /// be coupled on one layer and `couple_via` is on. On failure nothing is changed (but the
+    /// expanded nodes are counted).
+    fn couple_through_via(
+        &mut self,
+        conns: (usize, usize),
+        gap: i64,
+        ends: [&Endpoint; 4],
+    ) -> Result<(), String> {
+        let [pa, pb, na, nb] = ends;
+        let (np, nn) = (self.conns[conns.0].net, self.conns[conns.1].net);
+        let apart = centre_distance(self.nets[np].width, gap);
+        let (vp, vn) = (self.via_spec(np), self.via_spec(nn));
+        let between = self.nets[np].gap.max(self.nets[nn].gap);
+        let copper_ok = apart >= vp.half + vn.half + between;
+        let holes_ok = apart >= vp.drill_half + vn.drill_half + vp.drill_gap;
+        if !copper_ok || !holes_ok {
+            return Err("the two vias of the pair would be too close to each other".to_owned());
+        }
+        let both = |a: &Endpoint, b: &Endpoint| -> Vec<usize> {
+            (0..self.slots.len())
+                .filter(|k| a.slots.contains(k) && b.slots.contains(k))
+                .collect()
+        };
+        let (first, last) = (both(pa, na), both(pb, nb));
+        if first.is_empty() || last.is_empty() {
+            return Err("an end of the pair has no layer that both its pads are on".to_owned());
+        }
+        let mut reason = "the pair has no two layers to cross".to_owned();
+        for &ka in &first {
+            for &kb in &last {
+                if ka == kb {
+                    continue;
+                }
+                match self.couple_across(conns, gap, (ka, kb), ends) {
+                    Ok(()) => return Ok(()),
+                    Err(why) => reason = why,
+                }
+            }
+        }
+        Err(reason)
+    }
+
+    /// The pair from layer `ka` (the first ends) to layer `kb` (the last ends), by one via for
+    /// each track.
+    fn couple_across(
+        &mut self,
+        conns: (usize, usize),
+        gap: i64,
+        layers: (usize, usize),
+        ends: [&Endpoint; 4],
+    ) -> Result<(), String> {
+        let [pa, pb, na, nb] = ends;
+        let (cp, cn) = conns;
+        let (ka, kb) = layers;
+        let (np, nn) = (self.conns[cp].net, self.conns[cn].net);
+        let width = self.nets[np].width;
+        let apart = centre_distance(width, gap);
+        let h = apart / 2;
+        let (vp, vn) = (self.via_spec(np), self.via_spec(nn));
+        let fat = Spec {
+            net: self.nets[np].id,
+            half: half_up(apart + width),
+            gap: self.nets[np].gap.max(self.nets[nn].gap),
+        };
+        // a circle around both vias, for the search
+        let fat_via = ViaSpec {
+            half: h + vp.half.max(vn.half),
+            drill_half: h + vp.drill_half.max(vn.drill_half),
+            drill_gap: vp.drill_gap,
+            in_pad: vp.in_pad,
+        };
+        let ks = [ka.min(kb), ka.max(kb)];
+        let stack = [self.slots[ks[0]], self.slots[ks[1]]];
+        let (la, lb) = (self.slots[ka], self.slots[kb]);
+        let (from_slot, to_slot) = (usize::from(ka > kb), usize::from(kb > ka));
+        let mut flat = self.cfg.clone();
+        flat.diagonal = false;
+        let mut sources = self.pair_terminals(&flat, la, (pa, na), &fat);
+        if sources.is_empty() {
+            return Err("no free place near the first pair of pads".to_owned());
+        }
+        let mut targets = self.pair_terminals(&flat, lb, (pb, nb), &fat);
+        if targets.is_empty() {
+            return Err("no free place near the second pair of pads".to_owned());
+        }
+        for t in &mut sources {
+            t.slot = from_slot;
+        }
+        for t in &mut targets {
+            t.slot = to_slot;
+        }
+        let remaining = self
+            .cfg
+            .max_expansions_total
+            .saturating_sub(self.expansions);
+        let history = HashMap::new();
+        let no_vias = HashMap::new();
+        let result = search(&Job {
+            world: &self.world,
+            grid: &self.grid,
+            cfg: &flat,
+            spec: fat,
+            via: fat_via,
+            slots: &stack,
+            sources: &sources,
+            targets: &targets,
+            soft: false,
+            history: &history,
+            limit: self.cfg.max_expansions_per_search.min(remaining),
+            free_vias: &no_vias,
+        });
+        let found = match result {
+            Ok(found) => {
+                self.expansions += found.expansions;
+                found
+            }
+            Err(Miss::Exhausted(n)) | Err(Miss::Limit(n)) => {
+                self.expansions += n;
+                return Err(format!("no way for the pair after {n} expanded nodes"));
+            }
+        };
+        let first_slot = found.nodes[0].slot;
+        let changes = found
+            .nodes
+            .windows(2)
+            .filter(|w| w[0].slot != w[1].slot)
+            .count();
+        let cut = found.nodes.iter().position(|n| n.slot != first_slot);
+        let Some(cut) = cut.filter(|_| changes == 1) else {
+            return Err("the pair would need more than one change of layer".to_owned());
+        };
+        let point = |n: &Node| self.grid.point(n.ix, n.iy);
+        let pts_a: Vec<P> = found.nodes[..cut].iter().map(point).collect();
+        let pts_b: Vec<P> = found.nodes[cut..].iter().map(point).collect();
+        let whole: Vec<P> = found.nodes.iter().map(point).collect();
+        let (lane_a, lane_b, lane) = (simplify(&pts_a), simplify(&pts_b), simplify(&whole));
+        let centre = pts_b[0];
+        if lane.len() < 2 {
+            return Err("the ends of the pair are too close for two tracks".to_owned());
+        }
+        // the direction the pair crosses in: the same on both layers
+        let along_a = (lane_a.len() >= 2).then(|| {
+            let n = lane_a.len();
+            direction(lane_a[n - 2], lane_a[n - 1])
+        });
+        let along_b = (lane_b.len() >= 2).then(|| direction(lane_b[0], lane_b[1]));
+        let across = match (along_a, along_b) {
+            (Some(a), Some(b)) if a != b => return Err("the pair turns at its via".to_owned()),
+            (Some(a), _) | (None, Some(a)) => a,
+            (None, None) => {
+                return Err("the ends of the pair are too close for two tracks".to_owned());
+            }
+        };
+        // on which side of the line the negative net lies, at both ends
+        let first = left(direction(lane[0], lane[1]));
+        let last = left(direction(lane[lane.len() - 2], lane[lane.len() - 1]));
+        let on = |n: P, p: P, l: (i64, i64)| sign((n.0 - p.0) * l.0 + (n.1 - p.1) * l.1);
+        let (s_first, s_last) = (on(na.at, pa.at, first), on(nb.at, pb.at, last));
+        if s_first != 0 && s_last != 0 && s_first != s_last {
+            return Err("the two nets change sides between their ends".to_owned());
+        }
+        let side = if s_first != 0 {
+            s_first
+        } else if s_last != 0 {
+            s_last
+        } else {
+            1
+        };
+        let normal = left(across);
+        let via_p = (
+            centre.0 - side * h * normal.0,
+            centre.1 - side * h * normal.1,
+        );
+        let via_n = (
+            centre.0 + side * h * normal.0,
+            centre.1 + side * h * normal.1,
+        );
+        let shifted = |lane: &[P], s: i64, via: P| -> Vec<P> {
+            if lane.len() >= 2 {
+                offset(lane, s, h)
+            } else {
+                vec![via]
+            }
+        };
+        let (a_p, b_p) = (
+            shifted(&lane_a, -side, via_p),
+            shifted(&lane_b, -side, via_p),
+        );
+        let (a_n, b_n) = (shifted(&lane_a, side, via_n), shifted(&lane_b, side, via_n));
+        let (spec_p, spec_n) = (self.spec(np), self.spec(nn));
+        let (lo, hi) = (la.min(lb), la.max(lb));
+        for (at, via, spec) in [(via_p, &vp, &spec_p), (via_n, &vn, &spec_n)] {
+            if self.world.via(at, lo, hi, via, spec, false) != Edge::Free {
+                return Err("a via of the pair is blocked".to_owned());
+            }
+        }
+        let nodes: Vec<(usize, i64, i64)> = found
+            .nodes
+            .iter()
+            .map(|n| (ks[n.slot], n.ix, n.iy))
+            .collect();
+        for first_p in stubs(pa.at, a_p[0]) {
+            for last_p in stubs(pb.at, b_p[b_p.len() - 1]) {
+                let run_a = track(&first_p, &a_p, &[via_p]);
+                let run_b = track(&[via_p], &b_p, &last_p);
+                if !self.track_is_clear(la, &run_a, &spec_p)
+                    || !self.track_is_clear(lb, &run_b, &spec_p)
+                {
+                    continue;
+                }
+                let routes = vec![
+                    Run {
+                        layer: la,
+                        pts: run_a,
+                    },
+                    Run {
+                        layer: lb,
+                        pts: run_b,
+                    },
+                ];
+                let assembled = Assembled {
+                    runs: routes,
+                    vias: vec![ViaItem { at: via_p, lo, hi }],
+                    nodes: nodes.clone(),
+                    snapped: 0,
+                };
+                self.commit(cp, assembled);
+                for first_n in stubs(na.at, a_n[0]) {
+                    for last_n in stubs(nb.at, b_n[b_n.len() - 1]) {
+                        let run_a = track(&first_n, &a_n, &[via_n]);
+                        let run_b = track(&[via_n], &b_n, &last_n);
+                        if !self.track_is_clear(la, &run_a, &spec_n)
+                            || !self.track_is_clear(lb, &run_b, &spec_n)
+                        {
+                            continue;
+                        }
+                        let routes = vec![
+                            Run {
+                                layer: la,
+                                pts: run_a,
+                            },
+                            Run {
+                                layer: lb,
+                                pts: run_b,
+                            },
+                        ];
+                        let assembled = Assembled {
+                            runs: routes,
+                            vias: vec![ViaItem { at: via_n, lo, hi }],
+                            nodes: Vec::new(),
+                            snapped: 0,
+                        };
+                        self.commit(cn, assembled);
                         return Ok(());
                     }
                 }

@@ -15,7 +15,7 @@
 //! * [`plan`]: the result as one reversible operation of the board (also as a group of operations
 //!   of the editor), judged by the design rules before it is handed out, and a report that is the
 //!   same for the same input;
-//! * [`codes`]: the codes `PHOENIX-AROUTE-001` to `017` with their titles in the eight languages.
+//! * [`codes`]: the codes `PHOENIX-AROUTE-001` to `019` with their titles in the eight languages.
 //!
 //! All arithmetic is integer (nanometres, with 128 bits in the products). The same board, rules
 //! and settings always give the same plan, byte for byte. Tracks that are already on the board
@@ -45,9 +45,11 @@ mod testboard;
 #[cfg(test)]
 mod tests_cases;
 #[cfg(test)]
+mod tests_extra;
+#[cfg(test)]
 mod tests_props;
 
 pub use codes::{registry, title, AutorouteError, LANGUAGES};
 pub use config::{AutorouteConfig, NetOrder};
 pub use engine::{autoroute, autoroute_with_pairs, PairSpec, Request};
-pub use plan::{AutoroutePlan, PlannedTrack, PlannedVia, Report, Unrouted};
+pub use plan::{AutoroutePlan, NetReport, PlannedTrack, PlannedVia, Report, Unrouted};

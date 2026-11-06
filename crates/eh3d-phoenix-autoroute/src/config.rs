@@ -83,6 +83,12 @@ pub struct AutorouteConfig {
     pub zones_block: bool,
     /// Whether a via may be put on a pad.
     pub via_in_pad: bool,
+    /// How far, in nanometres, an existing via of the net may be from the nearest node of the
+    /// grid and still be used as a change of layer (0: only a via exactly on a node).
+    pub via_snap_nm: i64,
+    /// Whether a differential pair that is asked for may cross layers, with one via for each
+    /// track side by side, when the ends of the pair have no layer in common.
+    pub couple_via: bool,
 }
 
 impl Default for AutorouteConfig {
@@ -108,6 +114,8 @@ impl Default for AutorouteConfig {
             terminal_radius_cells: 4,
             zones_block: true,
             via_in_pad: false,
+            via_snap_nm: 0,
+            couple_via: false,
         }
     }
 }
@@ -209,6 +217,8 @@ impl AutorouteConfig {
                 }
                 "zones_block" => c.zones_block = flag(value).ok_or_else(bad)?,
                 "via_in_pad" => c.via_in_pad = flag(value).ok_or_else(bad)?,
+                "via_snap_nm" => c.via_snap_nm = int_in(value, 0, 5_000_000).ok_or_else(bad)?,
+                "couple_via" => c.couple_via = flag(value).ok_or_else(bad)?,
                 _ => return Err(fail(line, &format!("unknown key {key}"))),
             }
         }
@@ -243,6 +253,17 @@ mod tests {
     }
 
     #[test]
+    fn the_snap_distance_and_the_pair_via_are_off_by_default_and_are_read_when_written() {
+        let d = AutorouteConfig::default();
+        assert_eq!(d.via_snap_nm, 0);
+        assert!(!d.couple_via);
+        let c = AutorouteConfig::parse("via_snap_nm = 150000\ncouple_via = true\n").unwrap();
+        assert_eq!(c.via_snap_nm, 150_000);
+        assert!(c.couple_via);
+        assert_eq!(c.grid_nm, d.grid_nm);
+    }
+
+    #[test]
     fn unknown_keys_repeated_keys_and_values_out_of_range_are_refused() {
         for text in [
             "grid = 5\n",
@@ -258,6 +279,10 @@ mod tests {
             "terminal_candidates = 65\n",
             "terminal_radius_cells = 65\n",
             "via_in_pad = 1\n",
+            "via_snap_nm = -1\n",
+            "via_snap_nm = 5000001\n",
+            "via_snap_nm = near\n",
+            "couple_via = 1\n",
             "just words\n",
         ] {
             let e = AutorouteConfig::parse(text).unwrap_err();
