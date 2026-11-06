@@ -6,6 +6,7 @@ use serde_json::{Map, Value};
 
 use crate::calc_board;
 use crate::calc_line;
+use crate::calc_netlist;
 use crate::calc_sim;
 use crate::case::Case;
 use crate::codes::{OracleError, CALC_FAILED, CHECK_UNKNOWN, INPUT_INVALID};
@@ -88,6 +89,8 @@ pub fn compute(case: &Case) -> Result<f64, OracleError> {
         Some(value)
     } else if let Some(value) = calc_sim::run(check, &inputs)? {
         Some(value)
+    } else if let Some(value) = calc_netlist::run(check, &inputs)? {
+        Some(value)
     } else {
         calc_board::run(check, &inputs)?
     };
@@ -127,6 +130,8 @@ pub const CHECKS: &[&str] = &[
     "sim_ac",
     "sim_dc",
     "sim_op",
+    "sim_schematic_ac",
+    "sim_schematic_op",
     "sim_tran",
     "stripline_z0",
     "stripline_zero_exact",

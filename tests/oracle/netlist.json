@@ -1,0 +1,215 @@
+{
+  "format": "phoenix-oracle/1",
+  "suite": "netlist",
+  "title": "Small schematics, written as a few lines, simulated through the netlist that is made from them: dividers with values in the marking of parts, an RC filter, a LED and a diode with a resistor, an NMOS inverter and an inverting amplifier",
+  "cases": [
+    {
+      "id": "ORACLE-NETLIST-001",
+      "title": "Schematic of a voltage divider of 1 kohm and 3 kohm on 10 V",
+      "area": "sim",
+      "check": "sim_schematic_op",
+      "inputs": {
+        "schematic": ["name divider", "symbol P 1 2", "part V1 P 10", "part R1 P 1k", "part R2 P 3k", "net IN V1.1 R1.1", "net OUT R1.2 R2.1", "net GND V1.2 R2.2"],
+        "models": ["refdes R = resistor", "refdes V = vsource"],
+        "probe": "v(out)"
+      },
+      "expected": 7.5,
+      "unit": "V",
+      "tolerance": { "abs": 1e-9 },
+      "tolerance_note": "chosen here: a linear solve of a three-node circuit, so only rounding is accepted",
+      "source": "J. W. Nilsson and S. A. Riedel, Electric Circuits, the voltage-divider circuit: Vout = Vin R2/(R1 + R2)",
+      "status": "cited"
+    },
+    {
+      "id": "ORACLE-NETLIST-002",
+      "title": "Divider with the values written in the marking of parts: 2k2 and 6k8 on 10 V",
+      "area": "sim",
+      "check": "sim_schematic_op",
+      "inputs": {
+        "schematic": ["name divider", "symbol P 1 2", "part V1 P 10", "part R1 P 2k2", "part R2 P 6k8", "net IN V1.1 R1.1", "net OUT R1.2 R2.1", "net GND V1.2 R2.2"],
+        "models": ["refdes R = resistor", "refdes V = vsource"],
+        "probe": "v(out)"
+      },
+      "expected": 7.555555555555555,
+      "unit": "V",
+      "tolerance": { "abs": 1e-9 },
+      "tolerance_note": "chosen here: a linear solve, so only rounding is accepted; the letter of the marking stands for the decimal point, so 2k2 is 2200 ohm and 6k8 is 6800 ohm",
+      "source": "IEC 60062, the code for resistance values with a letter in the place of the decimal point (4K7 is 4.7 kilohm), and J. W. Nilsson and S. A. Riedel, Electric Circuits, the voltage-divider circuit: Vout = Vin R2/(R1 + R2) = 10 x 6800/9000",
+      "status": "cited"
+    },
+    {
+      "id": "ORACLE-NETLIST-003",
+      "title": "Divider with a capital M in the values (2M2 and 4M7 are 2.2 and 4.7 megohm) on 10 V",
+      "area": "sim",
+      "check": "sim_schematic_op",
+      "inputs": {
+        "schematic": ["name divider", "symbol P 1 2", "part V1 P 10", "part R1 P 2M2", "part R2 P 4M7", "net IN V1.1 R1.1", "net OUT R1.2 R2.1", "net GND V1.2 R2.2"],
+        "models": ["upper_m_is_mega = true", "refdes R = resistor", "refdes V = vsource"],
+        "probe": "v(out)"
+      },
+      "expected": 6.811594202898551,
+      "unit": "V",
+      "tolerance": { "abs": 1e-9 },
+      "tolerance_note": "chosen here: a linear solve, so only rounding is accepted; the setting upper_m_is_mega of the table of models is on, so a capital M is mega as on the marking of a resistor",
+      "source": "IEC 60062, the code for resistance values (M for mega), and J. W. Nilsson and S. A. Riedel, Electric Circuits, the voltage-divider circuit: Vout = Vin R2/(R1 + R2) = 10 x 4.7/6.9",
+      "status": "cited"
+    },
+    {
+      "id": "ORACLE-NETLIST-004",
+      "title": "Divider whose lower resistor takes its value from an attribute of the part (SIM.VALUE) and not from its text",
+      "area": "sim",
+      "check": "sim_schematic_op",
+      "inputs": {
+        "schematic": ["name divider", "symbol P 1 2", "part V1 P 10", "part R1 P 1k", "part R2 P not-used", "net IN V1.1 R1.1", "net OUT R1.2 R2.1", "net GND V1.2 R2.2"],
+        "models": ["refdes R = resistor", "refdes V = vsource", "attr R2 SIM.VALUE = 3k"],
+        "probe": "v(out)"
+      },
+      "expected": 7.5,
+      "unit": "V",
+      "tolerance": { "abs": 1e-9 },
+      "tolerance_note": "chosen here: a linear solve, so only rounding is accepted; the attribute is the only place where the value of R2 is a number",
+      "source": "J. W. Nilsson and S. A. Riedel, Electric Circuits, the voltage-divider circuit: Vout = Vin R2/(R1 + R2) with R2 = 3 kohm",
+      "status": "cited"
+    },
+    {
+      "id": "ORACLE-NETLIST-005",
+      "title": "Schematic of a first-order RC low-pass: gain at the corner frequency",
+      "area": "sim",
+      "check": "sim_schematic_ac",
+      "inputs": {
+        "schematic": ["name rc low-pass", "symbol P 1 2", "part V1 P DC 0 AC 1", "part R1 P 1k", "part C1 P 159.15494309189535n", "net IN V1.1 R1.1", "net OUT R1.2 C1.1", "net GND V1.2 C1.2"],
+        "models": ["refdes R = resistor", "refdes C = capacitor", "refdes V = vsource"],
+        "probe": "v(out)",
+        "freq_hz": 1000.0,
+        "quantity": "magnitude"
+      },
+      "expected": 0.7071067811865476,
+      "unit": "",
+      "tolerance": { "rel": 1e-9 },
+      "tolerance_note": "chosen here: C = 1/(2 pi R f) for f = 1 kHz, so |H| = 1/sqrt(2) up to the rounding of C",
+      "source": "J. W. Nilsson and S. A. Riedel, Electric Circuits, frequency response of the first-order low-pass filter: |H(j w_c)| = 1/sqrt(2) at w_c = 1/(R C)",
+      "status": "cited"
+    },
+    {
+      "id": "ORACLE-NETLIST-006",
+      "title": "Schematic of a first-order RC low-pass: phase at the corner frequency",
+      "area": "sim",
+      "check": "sim_schematic_ac",
+      "inputs": {
+        "schematic": ["name rc low-pass", "symbol P 1 2", "part V1 P DC 0 AC 1", "part R1 P 1k", "part C1 P 159.15494309189535n", "net IN V1.1 R1.1", "net OUT R1.2 C1.1", "net GND V1.2 C1.2"],
+        "models": ["refdes R = resistor", "refdes C = capacitor", "refdes V = vsource"],
+        "probe": "v(out)",
+        "freq_hz": 1000.0,
+        "quantity": "phase_deg"
+      },
+      "expected": -45.0,
+      "unit": "deg",
+      "tolerance": { "abs": 1e-6 },
+      "tolerance_note": "chosen here: the phase is -arctan(w R C) = -45 degrees up to the rounding of C",
+      "source": "J. W. Nilsson and S. A. Riedel, Electric Circuits, frequency response of the first-order low-pass filter: phase = -arctan(w/w_c)",
+      "status": "cited"
+    },
+    {
+      "id": "ORACLE-NETLIST-007",
+      "title": "Schematic of a LED (generic model of the settings, IS 1e-17 A, n 2) with a 330 ohm resistor on 5 V: voltage across the LED",
+      "area": "sim",
+      "check": "sim_schematic_op",
+      "inputs": {
+        "schematic": ["name led and resistor", "symbol P 1 2", "symbol LED A K", "part V1 P 5", "part R1 P 330", "part D1 LED led1", "net IN V1.1 R1.1", "net D R1.2 D1.A", "net GND V1.2 D1.K"],
+        "models": ["refdes R = resistor", "refdes V = vsource", "refdes D = led"],
+        "probe": "v(d)"
+      },
+      "expected": 1.7853305611484638,
+      "unit": "V",
+      "tolerance": { "abs": 0.0001 },
+      "tolerance_note": "chosen here: Newton-Raphson stops when the change is below reltol*|v| + vntol twice in a row, which leaves an error of about 1e-5 V on the junction voltage, so 1e-4 V is wider than needed; the LED model is a diode whose IS and n are led_is = 1e-17 and led_n = 2 in config/sim.cfg (values chosen there, not measured on a part), given to the part because its value names no model of the table",
+      "source": "Shockley ideal diode equation I = Is (exp(Vd/(n Vt)) - 1) with Vt = k T / q (k = 1.380649e-23 J/K, q = 1.602176634e-19 C, T = 300.15 K, the temperature of config/sim.cfg), A. S. Sedra and K. C. Smith, Microelectronic Circuits, the diode forward characteristic; the series circuit Vs = I R + Vd has the closed form I = (n Vt / R) W((Is R / (n Vt)) exp((Vs + Is R) / (n Vt))) - Is with W the principal branch of the Lambert W function (R. M. Corless, G. H. Gonnet, D. E. G. Hare, D. J. Jeffrey and D. E. Knuth, On the Lambert W function, Advances in Computational Mathematics 5, 1996)",
+      "status": "cited"
+    },
+    {
+      "id": "ORACLE-NETLIST-008",
+      "title": "Schematic of a diode with a model of the table (IS 1e-14 A, n 1) and a 1 kohm resistor on 5 V: voltage across the diode",
+      "area": "sim",
+      "check": "sim_schematic_op",
+      "inputs": {
+        "schematic": ["name diode and resistor", "symbol P 1 2", "symbol DIODE A K", "part V1 P 5", "part R1 P 1k", "part D1 DIODE 1N-TEST", "net IN V1.1 R1.1", "net D R1.2 D1.A", "net GND V1.2 D1.K"],
+        "models": ["refdes R = resistor", "refdes V = vsource", "refdes D = diode model=dm", ".model dm D(IS=1e-14 N=1)"],
+        "probe": "v(d)"
+      },
+      "expected": 0.6928878323821923,
+      "unit": "V",
+      "tolerance": { "abs": 0.0001 },
+      "tolerance_note": "chosen here: Newton-Raphson stops when the change is below reltol*|v| + vntol twice in a row, which leaves an error of about 1e-5 V on the junction voltage, so 1e-4 V is wider than needed and still far below the 26 mV scale of the junction",
+      "source": "Shockley ideal diode equation I = Is (exp(Vd/(n Vt)) - 1) with Vt = k T / q (k = 1.380649e-23 J/K, q = 1.602176634e-19 C, T = 300.15 K, the temperature of config/sim.cfg), A. S. Sedra and K. C. Smith, Microelectronic Circuits, the diode forward characteristic; the series circuit Vs = I R + Vd has the closed form I = (n Vt / R) W((Is R / (n Vt)) exp((Vs + Is R) / (n Vt))) - Is with W the principal branch of the Lambert W function (R. M. Corless, G. H. Gonnet, D. E. G. Hare, D. J. Jeffrey and D. E. Knuth, On the Lambert W function, Advances in Computational Mathematics 5, 1996)",
+      "status": "cited"
+    },
+    {
+      "id": "ORACLE-NETLIST-009",
+      "title": "Schematic of an NMOS inverter with a 1 kohm load, input 0.5 V (below the threshold of 1 V): the transistor is cut off",
+      "area": "sim",
+      "check": "sim_schematic_op",
+      "inputs": {
+        "schematic": ["name nmos inverter", "symbol P 1 2", "symbol N D G S", "part V1 P 5", "part V2 P 0.5", "part R1 P 1k", "part M1 N NM", "net VDD V1.1 R1.1", "net IN V2.1 M1.G", "net OUT R1.2 M1.D", "net GND V1.2 V2.2 M1.S"],
+        "models": ["refdes R = resistor", "refdes V = vsource", "refdes M = nmos model=nm", ".model nm NMOS(VTO=1 KP=2e-5 W=1e-3 L=1e-5)"],
+        "probe": "v(out)"
+      },
+      "expected": 5.0,
+      "unit": "V",
+      "tolerance": { "abs": 0.0001 },
+      "tolerance_note": "chosen here: the square-law equations are solved by Newton-Raphson, which stops with an error of about 1e-5 V on a 4 V node, so 1e-4 V is wider than needed",
+      "source": "H. Shichman and D. A. Hodges, Modeling and simulation of insulated-gate field-effect transistor switching circuits, IEEE Journal of Solid-State Circuits 3(3), 1968, and A. S. Sedra and K. C. Smith, Microelectronic Circuits, the NMOS inverter with a resistive load; with beta = KP W/L = 2e-3 A/V^2, Vov = Vin - VTO and no channel-length modulation, cut-off for Vov <= 0: no drain current, so the output is the supply, 5 V",
+      "status": "cited"
+    },
+    {
+      "id": "ORACLE-NETLIST-010",
+      "title": "Schematic of an NMOS inverter with a 1 kohm load, input 2.5 V: saturation",
+      "area": "sim",
+      "check": "sim_schematic_op",
+      "inputs": {
+        "schematic": ["name nmos inverter", "symbol P 1 2", "symbol N D G S", "part V1 P 5", "part V2 P 2.5", "part R1 P 1k", "part M1 N NM", "net VDD V1.1 R1.1", "net IN V2.1 M1.G", "net OUT R1.2 M1.D", "net GND V1.2 V2.2 M1.S"],
+        "models": ["refdes R = resistor", "refdes V = vsource", "refdes M = nmos model=nm", ".model nm NMOS(VTO=1 KP=2e-5 W=1e-3 L=1e-5)"],
+        "probe": "v(out)"
+      },
+      "expected": 2.75,
+      "unit": "V",
+      "tolerance": { "abs": 0.0001 },
+      "tolerance_note": "chosen here: the square-law equations are solved by Newton-Raphson, which stops with an error of about 1e-5 V on a 4 V node, so 1e-4 V is wider than needed",
+      "source": "H. Shichman and D. A. Hodges, Modeling and simulation of insulated-gate field-effect transistor switching circuits, IEEE Journal of Solid-State Circuits 3(3), 1968, and A. S. Sedra and K. C. Smith, Microelectronic Circuits, the NMOS inverter with a resistive load; with beta = KP W/L = 2e-3 A/V^2, Vov = Vin - VTO and no channel-length modulation, saturation: Id = beta Vov^2 / 2 = 2.25 mA, Vout = 5 - 2.25 = 2.75 V, which is above Vov = 1.5 V",
+      "status": "cited"
+    },
+    {
+      "id": "ORACLE-NETLIST-011",
+      "title": "Schematic of an NMOS inverter with a 1 kohm load, input 3 V: triode",
+      "area": "sim",
+      "check": "sim_schematic_op",
+      "inputs": {
+        "schematic": ["name nmos inverter", "symbol P 1 2", "symbol N D G S", "part V1 P 5", "part V2 P 3", "part R1 P 1k", "part M1 N NM", "net VDD V1.1 R1.1", "net IN V2.1 M1.G", "net OUT R1.2 M1.D", "net GND V1.2 V2.2 M1.S"],
+        "models": ["refdes R = resistor", "refdes V = vsource", "refdes M = nmos model=nm", ".model nm NMOS(VTO=1 KP=2e-5 W=1e-3 L=1e-5)"],
+        "probe": "v(out)"
+      },
+      "expected": 1.381966011250105,
+      "unit": "V",
+      "tolerance": { "abs": 0.0001 },
+      "tolerance_note": "chosen here: the square-law equations are solved by Newton-Raphson, which stops with an error of about 1e-5 V on a 4 V node, so 1e-4 V is wider than needed",
+      "source": "H. Shichman and D. A. Hodges, Modeling and simulation of insulated-gate field-effect transistor switching circuits, IEEE Journal of Solid-State Circuits 3(3), 1968, and A. S. Sedra and K. C. Smith, Microelectronic Circuits, the NMOS inverter with a resistive load; with beta = KP W/L = 2e-3 A/V^2, Vov = Vin - VTO and no channel-length modulation, triode (Vds < Vov): Id = beta (Vov Vds - Vds^2 / 2) with Vds = 5 - 1 kohm Id gives Vds^2 - 5 Vds + 5 = 0, so Vds = (5 - sqrt(5)) / 2, below Vov = 2 V",
+      "status": "cited"
+    },
+    {
+      "id": "ORACLE-NETLIST-012",
+      "title": "Schematic of an inverting amplifier with 1 kohm and 2 kohm and an op-amp of gain 1e6, input 1 V: output",
+      "area": "sim",
+      "check": "sim_schematic_op",
+      "inputs": {
+        "schematic": ["name inverting amplifier", "symbol P 1 2", "symbol A + - OUT", "part V1 P 1", "part R1 P 1k", "part R2 P 2k", "part U1 A OA", "net IN V1.1 R1.1", "net INN R1.2 R2.1 U1.-", "net OUT R2.2 U1.OUT", "net GND V1.2 U1.+"],
+        "models": ["refdes R = resistor", "refdes V = vsource", "refdes U = opamp model=oa", ".model oa OPAMP(GAIN=1e6 GBW=0 ROUT=1)"],
+        "probe": "v(out)"
+      },
+      "expected": -2.0,
+      "unit": "V",
+      "tolerance": { "abs": 2e-05 },
+      "tolerance_note": "chosen here: the ideal gain is -R2/R1; the finite open-loop gain 1e6 of the model lowers it by the factor 1 + (1 + R2/R1)/A = 1 + 3e-6, which is 6e-6 V at 2 V, so 2e-5 V is wider than that error",
+      "source": "A. S. Sedra and K. C. Smith, Microelectronic Circuits, the inverting configuration of an ideal op-amp: Vout/Vin = -R2/R1",
+      "status": "cited"
+    }
+  ]
+}
