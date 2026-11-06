@@ -1,0 +1,24 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-EAGLE-022",
+  "title": "A board with part attributes and two assembly variants",
+  "kind": "eagle",
+  "input": "variants_board.brd",
+  "how": [
+    "Counted from the file: 4 layer lines; 3 element lines; 1 signal line; 1 embedded library;",
+    "the only routed item is the wire of the signal SIG, so 1. The variantdefs, the attributes and the variant lines are known elements and add no code."
+  ],
+  "expect": {
+    "outcome": "read",
+    "codes": [],
+    "measures": {
+      "kind": "board",
+      "version": "9.6.2",
+      "layers": 4,
+      "parts": 3,
+      "nets": 1,
+      "routed_items": 1,
+      "embedded_libraries": 1
+    }
+  }
+}

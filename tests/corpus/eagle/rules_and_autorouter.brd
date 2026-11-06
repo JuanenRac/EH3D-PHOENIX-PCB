@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE eagle SYSTEM "eagle.dtd">
+<eagle version="9.6.2">
+<drawing>
+<layers>
+<layer number="1" name="Top" color="4" fill="1" visible="yes" active="yes"/>
+<layer number="16" name="Bottom" color="1" fill="1" visible="yes" active="yes"/>
+</layers>
+<board>
+<plain/>
+<classes>
+<class number="0" name="default" width="0" drill="0"/>
+<class number="1" name="power" width="0.5" drill="0.4">
+<clearance class="0" value="0.3"/>
+<clearance class="1" value="0.4"/>
+</class>
+<class number="2" name="fast" width="0.2" drill="0.3"/>
+</classes>
+<designrules name="fab-one">
+<description language="en">Rules for a two layer board</description>
+<description language="de">Regeln fuer eine zweilagige Platine</description>
+<param name="layerSetup" value="(1*16)"/>
+<param name="mtCopper" value="0.035mm 0.035mm"/>
+<param name="mdWireWire" value="8mil"/>
+<param name="mdWirePad" value="10mil"/>
+<param name="msWidth" value="6mil"/>
+<param name="msDrill" value="0.3mm"/>
+<param name="rlMinPadTop" value="10mil"/>
+<param name="psTop" value="-1"/>
+</designrules>
+<autorouter>
+<pass name="Default" refer="Route" active="yes">
+<param name="RoutingGrid" value="50mil"/>
+<param name="Cost" value="1"/>
+</pass>
+<pass name="Follow-me" refer="Follow-me" active="no"/>
+</autorouter>
+<elements>
+<element name="R1" library="hand" package="R0805" value="1k" x="8" y="10"/>
+</elements>
+<signals>
+<signal name="SIG" class="2"/>
+</signals>
+</board>
+</drawing>
+</eagle>

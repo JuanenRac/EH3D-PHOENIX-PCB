@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE eagle SYSTEM "eagle.dtd">
+<eagle version="9.6.2">
+<drawing>
+<layers>
+<layer number="1" name="Top" color="4" fill="1" visible="yes" active="yes"/>
+<layer number="16" name="Bottom" color="1" fill="1" visible="yes" active="yes"/>
+<layer number="20" name="Dimension" color="15" fill="1" visible="yes" active="yes"/>
+<layer number="47" name="Measures" color="7" fill="1" visible="yes" active="yes"/>
+</layers>
+<board>
+<plain>
+<wire x1="0" y1="0" x2="30" y2="0" width="0" layer="20"/>
+<dimension x1="0" y1="0" x2="30" y2="0" x3="15" y3="-3" textsize="1.27" layer="47" dtype="horizontal"/>
+<hole x="3" y="3" drill="3.2"/>
+<hole x="27" y="3" drill="3.2"/>
+</plain>
+<elements>
+<element name="J1" library="hand" package="PIN2" value="HDR" x="5" y="15" rot="R0" smashed="yes"/>
+<element name="J2" library="hand" package="PIN2" value="HDR" x="25" y="15" rot="R180" locked="yes"/>
+</elements>
+<signals>
+<signal name="GND" class="1">
+<contactref element="J1" pad="1"/>
+<wire x1="5" y1="15" x2="5" y2="10" width="0.4" layer="1"/>
+<wire x1="5" y1="10" x2="25" y2="10" width="0.4" layer="16"/>
+<via x="5" y="10" extent="1-16" drill="0.4" diameter="0.8"/>
+<polygon width="0.2" layer="1" isolate="0.3" pour="hatch" thermals="no" orphans="yes" rank="2" spacing="0.8">
+<vertex x="1" y="1"/>
+<vertex x="29" y="1"/>
+<vertex x="29" y="19"/>
+<vertex x="1" y="19"/>
+</polygon>
+<polygon width="0.2" layer="16" pour="cutout">
+<vertex x="10" y="5"/>
+<vertex x="12" y="5"/>
+<vertex x="12" y="7"/>
+</polygon>
+</signal>
+<signal name="VCC" class="0">
+<contactref element="J2" pad="1"/>
+<via x="25" y="10" extent="1-2" drill="0.3" diameter="0.6" shape="square"/>
+</signal>
+</signals>
+</board>
+</drawing>
+</eagle>

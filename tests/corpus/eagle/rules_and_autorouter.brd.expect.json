@@ -1,0 +1,23 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-EAGLE-026",
+  "title": "A board with net classes, design rules and an autorouter setup",
+  "kind": "eagle",
+  "input": "rules_and_autorouter.brd",
+  "how": [
+    "Counted from the file: 2 layer lines; 1 element line; 1 signal line with no wire and no via, so 0 routed items;",
+    "the classes, designrules and autorouter are known elements of a board and add no code."
+  ],
+  "expect": {
+    "outcome": "read",
+    "codes": [],
+    "measures": {
+      "kind": "board",
+      "version": "9.6.2",
+      "layers": 2,
+      "parts": 1,
+      "nets": 1,
+      "routed_items": 0
+    }
+  }
+}

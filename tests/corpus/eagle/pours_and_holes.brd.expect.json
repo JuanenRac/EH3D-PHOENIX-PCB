@@ -1,0 +1,24 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-EAGLE-025",
+  "title": "A board with polygons of several pours, holes, a dimension and elements that are smashed and locked",
+  "kind": "eagle",
+  "input": "pours_and_holes.brd",
+  "how": [
+    "Counted from the file: 4 layer lines; 2 element lines; 2 signal lines;",
+    "routed items are the wires and vias that are direct children of a signal: GND has 2 wires and 1 via, VCC has 1 via, so 4; the polygons are not counted.",
+    "The dimension, the holes and the polygons are not read by this reader and add no code."
+  ],
+  "expect": {
+    "outcome": "read",
+    "codes": [],
+    "measures": {
+      "kind": "board",
+      "version": "9.6.2",
+      "layers": 4,
+      "parts": 2,
+      "nets": 2,
+      "routed_items": 4
+    }
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-EAGLE-023",
+  "title": "A schematic with variants, part attributes and a module instance",
+  "kind": "eagle",
+  "input": "variants_schematic.sch",
+  "how": [
+    "Counted from the file: 3 layer lines; 2 part lines; 1 net line with 1 segment; 1 sheet; 1 embedded library;",
+    "the element modules is not one the reader interprets, so it is counted once (uninterpreted.modules) and noted with PHOENIX-EAGLE-009;",
+    "the variantdefs, attributes, classes and description are known elements and add nothing."
+  ],
+  "expect": {
+    "outcome": "read",
+    "codes": [
+      "PHOENIX-EAGLE-009"
+    ],
+    "measures": {
+      "kind": "schematic",
+      "version": "9.6.2",
+      "layers": 3,
+      "parts": 2,
+      "nets": 1,
+      "routed_items": 1,
+      "sheets": 1,
+      "embedded_libraries": 1,
+      "uninterpreted.modules": 1
+    }
+  }
+}

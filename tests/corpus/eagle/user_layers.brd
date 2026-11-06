@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE eagle SYSTEM "eagle.dtd">
+<eagle version="9.6.2">
+<drawing>
+<layers>
+<layer number="1" name="Top" color="4" fill="1" visible="yes" active="yes"/>
+<layer number="16" name="Bottom" color="1" fill="1" visible="yes" active="yes"/>
+<layer number="20" name="Dimension" color="15" fill="1" visible="yes" active="yes"/>
+<layer number="25" name="Names" color="7" fill="1" visible="yes" active="yes"/>
+<layer number="100" name="Milling2" color="6" fill="1" visible="yes" active="yes"/>
+<layer number="101" name="Notes" color="3" fill="1" visible="yes" active="yes"/>
+<layer number="102" name="Assembly" color="5" fill="1" visible="no" active="yes"/>
+<layer number="1" name="Again" color="4" fill="1" visible="yes" active="yes"/>
+<layer number="300" name="TooFar" color="2" fill="1" visible="yes" active="yes"/>
+</layers>
+<board>
+<plain>
+<wire x1="0" y1="0" x2="20" y2="0" width="0" layer="20"/>
+<wire x1="2" y1="2" x2="18" y2="2" width="0.5" layer="100"/>
+<wire x1="2" y1="4" x2="18" y2="4" width="0.1" layer="101"/>
+</plain>
+</board>
+</drawing>
+</eagle>

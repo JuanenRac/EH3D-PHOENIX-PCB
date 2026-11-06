@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE eagle SYSTEM "eagle.dtd">
+<eagle version="9.6.2">
+<drawing>
+<layers>
+<layer number="1" name="Top" color="4" fill="1" visible="yes" active="yes"/>
+<layer number="16" name="Bottom" color="1" fill="1" visible="yes" active="yes"/>
+</layers>
+<board>
+<plain/>
+<variantdefs>
+<variantdef name="A &amp; B" current="yes"/>
+<variantdef name="A &amp; B"/>
+<variantdef name="Ünï"/>
+</variantdefs>
+<elements>
+<element name="R1" library="l" package="p" value="&lt;1k&gt;" x="0" y="0">
+<attribute name="NOTE" value="line one&#10;line &quot;two&quot; &amp; more" x="0" y="0" size="1" layer="25" display="off"/>
+<attribute name="NOTE" value="" x="0" y="0" size="1" layer="25" display="off"/>
+<variant name="A &amp; B" populate="no"/>
+<variant name="A &amp; B" value="2k"/>
+<variant name="Missing" populate="no"/>
+<variant name="Ünï" value="日本語"/>
+</element>
+<element name="R1" library="l" package="p" value="2k" x="1" y="1"/>
+<element name="C1" library="l" package="p" value="" x="2" y="2">
+<variant name="Ünï" populate="yes" value=""/>
+</element>
+</elements>
+</board>
+</drawing>
+</eagle>

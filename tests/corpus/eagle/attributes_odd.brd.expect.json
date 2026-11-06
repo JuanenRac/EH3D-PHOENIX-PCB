@@ -1,0 +1,23 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-EAGLE-027",
+  "title": "A board with odd attributes and variants: entities, line breaks, non-ASCII names, a name used twice and a variant that is not defined",
+  "kind": "eagle",
+  "input": "attributes_odd.brd",
+  "how": [
+    "Counted from the file: 2 layer lines; 3 element lines (two of them named R1); no signal;",
+    "the entities and the character references are resolved by the XML reader and the contents of the elements are not otherwise looked at, so the file reads without a code."
+  ],
+  "expect": {
+    "outcome": "read",
+    "codes": [],
+    "measures": {
+      "kind": "board",
+      "version": "9.6.2",
+      "layers": 2,
+      "parts": 3,
+      "nets": 0,
+      "routed_items": 0
+    }
+  }
+}

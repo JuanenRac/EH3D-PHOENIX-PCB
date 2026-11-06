@@ -1,0 +1,23 @@
+{
+  "format": "phoenix-corpus/1",
+  "id": "CORPUS-EAGLE-024",
+  "title": "A board with user layers, a layer renamed, a number used twice and a number out of range",
+  "kind": "eagle",
+  "input": "user_layers.brd",
+  "how": [
+    "Counted from the file: 9 layer lines (the reader counts every line, including the repeated number 1 and the number 300);",
+    "no element, no signal. The layers are judged by the deep reading of the layers, not by this reader, so no code is raised here."
+  ],
+  "expect": {
+    "outcome": "read",
+    "codes": [],
+    "measures": {
+      "kind": "board",
+      "version": "9.6.2",
+      "layers": 9,
+      "parts": 0,
+      "nets": 0,
+      "routed_items": 0
+    }
+  }
+}
