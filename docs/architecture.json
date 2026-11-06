@@ -61,7 +61,7 @@
         "crates/eh3d-phoenix-kicad/src/set.rs",
         "crates/eh3d-phoenix-kicad/src/write_pcb.rs",
         "crates/eh3d-phoenix-sanitizer/src/group.rs",
-        "crates/eh3d-phoenix-script/src/exec.rs",
+        "crates/eh3d-phoenix-script/src/exec.rs", "crates/eh3d-phoenix-script/src/v2/interp.rs",
         "crates/eh3d-phoenix-sim/src/tran.rs",
         "crates/eh3d-phoenix-sim/src/schgen.rs", "crates/eh3d-phoenix-sim/src/study.rs",
         "crates/eh3d-phoenix-erc/src/checks.rs",

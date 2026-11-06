@@ -1,5 +1,7 @@
 # EH3D-PHOENIX-PCB: the script interpreter
 
+This page describes the first language, the commands of the previous workflow. The second language, `phoenix-script/2`, has its own reference in `docs/SCRIPT_API.md` and examples in `docs/SCRIPT_EXAMPLES.md`; a script is of the second one when its first significant line is `phoenix-script/2`, and any other script is of the first.
+
 **State: prototype.** The crate `eh3d-phoenix-script` and the commands `phoenix script run`, `phoenix script report` and `phoenix cam-import` read script files and output jobs of the command language of the previous EAGLE-based workflow, carry the scripts out on a board and say, for every command of every script, how well it is covered. It was built from the public description of the language (the names of the commands and their general syntax) and from nothing else: no manual was copied and no script of a third party was used. Every test uses scripts written by hand for it. It has never been compared with the original tool, and it has not yet been run on the author's own scripts and jobs, so the equivalences below are claims about the design of the interpreter and not results of a comparison (requirement PPCB-019; phase F8 of `docs/ROADMAP.md`).
 
 ## The commands

@@ -247,6 +247,32 @@
           }
         },
         {
+          "name": "SCRIPT_API.md",
+          "desc": {
+            "en": "the second script language: reference and limits",
+            "es": "el segundo lenguaje de scripts: referencia y límites",
+            "de": "die zweite Skriptsprache: Referenz und Grenzen",
+            "fr": "le second langage de scripts : référence et limites",
+            "it": "il secondo linguaggio di script: riferimento e limiti",
+            "ja": "第2のスクリプト言語：リファレンスと上限",
+            "zh": "第二种脚本语言：参考与限制",
+            "pt": "a segunda linguagem de scripts: referência e limites"
+          }
+        },
+        {
+          "name": "SCRIPT_EXAMPLES.md",
+          "desc": {
+            "en": "its example scripts with their output",
+            "es": "sus scripts de ejemplo con su salida",
+            "de": "seine Beispielskripte mit ihrer Ausgabe",
+            "fr": "ses scripts d'exemple avec leur sortie",
+            "it": "i suoi script di esempio con il loro output",
+            "ja": "サンプルスクリプトとその出力",
+            "zh": "示例脚本及其输出",
+            "pt": "os seus scripts de exemplo com a sua saída"
+          }
+        },
+        {
           "name": "ERC.md",
           "desc": {
             "en": "electrical rule check and synchronisation",
@@ -816,6 +842,19 @@
             "ja": "設定ファイル（調整する値はすべてここ）",
             "zh": "设置文件（所有调整值）",
             "pt": "o ficheiro de definições (todo o valor ajustado)"
+          }
+        },
+        {
+          "name": "examples/",
+          "desc": {
+            "en": "example scripts and their expected output",
+            "es": "scripts de ejemplo y su salida esperada",
+            "de": "Beispielskripte und ihre erwartete Ausgabe",
+            "fr": "scripts d'exemple et leur sortie attendue",
+            "it": "script di esempio e il loro output atteso",
+            "ja": "サンプルスクリプトと期待される出力",
+            "zh": "示例脚本及其预期输出",
+            "pt": "scripts de exemplo e a sua saída esperada"
           }
         },
         {
