@@ -198,7 +198,7 @@ pub const TITLES: &[(&str, [&str; 8])] = &[
             "No se pudo crear un identificador libre",
             "Es konnte keine freie Kennung erzeugt werden",
             "Aucun identifiant libre n'a pu être créé",
-            "Non è stato possibile creare un identificatore libero",
+            "Impossibile creare un identificatore libero",
             "空いている ID を作れませんでした",
             "无法生成空闲的标识符",
             "Não foi possível criar um identificador livre",
