@@ -17,6 +17,10 @@ use eh3d_phoenix_rules::{
     RuleValues,
 };
 
+/// Said when a KiCad board is checked without a file of limits.
+const KICAD_NEEDS_RULES: &str =
+    "a KiCad board gives no design rules to this command; give the limits with --rules FILE (a JSON rule file)";
+
 /// The largest input file that is read, in bytes.
 const MAX_INPUT_BYTES: u64 = 256 * 1024 * 1024;
 
@@ -267,43 +271,40 @@ pub(crate) fn check(args: &[&str], out: &mut dyn Write, err: &mut dyn Write) -> 
         (profile.rules, NetClasses::default())
     } else {
         match (&options.rules, &options.rules_dru) {
-        (Some(_), Some(_)) => return fail(err, "give --rules or --rules-dru, not both"),
-        (Some(path), None) => {
-            match read_text(path).and_then(|t| RuleFile::from_json(&t).map_err(|e| e.to_string())) {
-                Ok(file) => (file.values, file.classes),
+            (Some(_), Some(_)) => return fail(err, "give --rules or --rules-dru, not both"),
+            (Some(path), None) => {
+                match read_text(path)
+                    .and_then(|t| RuleFile::from_json(&t).map_err(|e| e.to_string()))
+                {
+                    Ok(file) => (file.values, file.classes),
+                    Err(message) => return fail(err, &message),
+                }
+            }
+            (None, Some(path)) => match crate::eagle_deep::dru_values(path, options.lang) {
+                Ok((values, notes)) => {
+                    for note in notes {
+                        let _ = writeln!(err, "note: {note}");
+                    }
+                    (values, NetClasses::default())
+                }
                 Err(message) => return fail(err, &message),
-            }
-        }
-        (None, Some(path)) => match crate::eagle_deep::dru_values(path, options.lang) {
-            Ok((values, notes)) => {
-                for note in notes {
-                    let _ = writeln!(err, "note: {note}");
+            },
+            (None, None) if kicad => return fail(err, KICAD_NEEDS_RULES),
+            (None, None) => match RuleValues::from_eagle_board(&text) {
+                Ok((values, notes)) => {
+                    for note in notes {
+                        let _ = writeln!(err, "note: {}", note.message);
+                    }
+                    (values, NetClasses::default())
                 }
-                (values, NetClasses::default())
-            }
-            Err(message) => return fail(err, &message),
-        },
-        (None, None) if kicad => {
-            return fail(
-                err,
-                "a KiCad board gives no design rules to this command; give the limits with --rules FILE (a JSON rule file)",
-            )
-        }
-        (None, None) => match RuleValues::from_eagle_board(&text) {
-            Ok((values, notes)) => {
-                for note in notes {
-                    let _ = writeln!(err, "note: {}", note.message);
+                Err(error) => {
+                    return fail(
+                        err,
+                        &format!("{error}; give the limits with --rules FILE (a JSON rule file)"),
+                    )
                 }
-                (values, NetClasses::default())
-            }
-            Err(error) => {
-                return fail(
-                    err,
-                    &format!("{error}; give the limits with --rules FILE (a JSON rule file)"),
-                )
-            }
-        },
-    }
+            },
+        }
     };
     let mut new_id = match id_source() {
         Ok(source) => source,
@@ -360,7 +361,10 @@ pub(crate) fn connectivity(args: &[&str], out: &mut dyn Write, err: &mut dyn Wri
     };
     let started = Instant::now();
     if options.dfm.is_some() {
-        return fail(err, "--dfm belongs to the command check, not to connectivity");
+        return fail(
+            err,
+            "--dfm belongs to the command check, not to connectivity",
+        );
     }
     if options.advanced {
         return fail(

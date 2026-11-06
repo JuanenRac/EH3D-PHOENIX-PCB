@@ -228,7 +228,7 @@ pub fn import_bill(text: &str, map: &ImportMap) -> Result<ImportedBill, BomError
             .get(refs_col)
             .map(String::as_str)
             .unwrap_or("")
-            .split(|c| map.reference_separators.contains(&c))
+            .split(|c: char| map.reference_separators.contains(&c))
             .map(str::trim)
             .filter(|r| !r.is_empty())
             .map(str::to_owned)
