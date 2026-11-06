@@ -129,7 +129,7 @@
 <text x="712.67" y="1171" font-family="'Segoe UI','Noto Sans','Noto Sans CJK SC','Microsoft YaHei','Yu Gothic','Helvetica Neue',Helvetica,Arial,sans-serif" font-size="12.8" font-weight="400" fill="#8A97A6" text-anchor="start">Gerber X2 attributes in the export, and their check</text>
 <line x1="392" y1="1179" x2="1118" y2="1179" stroke="#1A2430" stroke-width="1"/>
 <text x="392" y="1198" font-family="'JetBrains Mono','Cascadia Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="14.5" font-weight="600" fill="#E6EDF3" text-anchor="start">PANEL.md</text>
-<text x="712.67" y="1198" font-family="'Segoe UI','Noto Sans','Noto Sans CJK SC','Microsoft YaHei','Yu Gothic','Helvetica Neue',Helvetica,Arial,sans-serif" font-size="12.8" font-weight="400" fill="#8A97A6" text-anchor="start">panelization: matrix, frame, tabs, V-score, fiducials, tooling holes</text>
+<text x="712.67" y="1198" font-family="'Segoe UI','Noto Sans','Noto Sans CJK SC','Microsoft YaHei','Yu Gothic','Helvetica Neue',Helvetica,Arial,sans-serif" font-size="12.8" font-weight="400" fill="#8A97A6" text-anchor="start">panelization: boards, frame, tabs, V-score, fiducials, holes, layers</text>
 <line x1="392" y1="1206" x2="1118" y2="1206" stroke="#1A2430" stroke-width="1"/>
 <text x="392" y="1225" font-family="'JetBrains Mono','Cascadia Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="14.5" font-weight="600" fill="#E6EDF3" text-anchor="start">BOM.md</text>
 <text x="712.67" y="1225" font-family="'Segoe UI','Noto Sans','Noto Sans CJK SC','Microsoft YaHei','Yu Gothic','Helvetica Neue',Helvetica,Arial,sans-serif" font-size="12.8" font-weight="400" fill="#8A97A6" text-anchor="start">bill of materials with costs, CSV, JSON, HTML</text>

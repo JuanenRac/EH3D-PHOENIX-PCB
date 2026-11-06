@@ -80,6 +80,10 @@ phoenix gerber-check [--config FILE] [--json] [--lang CODE] <file or folder> ...
 
 It reads Gerber and Excellon files (an Excellon file is told by `M48` on its first line) and reports, by line, what it finds with the codes `PHOENIX-GX2-001` to `-010` in the eight languages (`docs/ERROR_CODES.md`): the end command (`M02`, `M30`) missing or not last, `.FileFunction` missing (an error) and the other file attributes missing (a warning), an aperture or a tool used without a definition, an aperture defined twice or below `D10`, a `TD` that deletes an attribute that was not set, the shape of the values of the attributes this suite writes, characters an attribute field may not hold, drawing before `FS` and `MO`, and a region opened and not closed. Exit code 0 is done with no error (warnings do not count), 1 a file has an error or could not be read, 2 the arguments are unusable. The files are only read.
 
+## Panels
+
+The layers of a panel of boards (`docs/PANEL.md`, `phoenix panel`) are written by this same export from a board made of the copies of the boards and the marks of the panel, so a profile with `gerber.x2.level` at `full` gives every pad, track, via and zone of every copy the net, the pin and the component it has in the board (the names of the nets and of the references carry the number of the copy when `copy_suffix` is on), the fiducials of the panel carry the aperture function of a fiducial pad, and the drill files of the panel carry the functions of their tools. The panel reads its files back with the import and compares the attributes as `--roundtrip` does. The outline and the V-score lines of the panel are written apart, as in `docs/PANEL.md`.
+
 ## What is not here
 
 See `docs/NOT_YET.md`: the manufacturer and part number attributes, the attributes of components beyond the reference, the pin and the net, blind and buried vias in their own drill files, the aperture functions of the objects the board model lacks, object attributes in the drill files, and the comparison with the files of real CAD programs and with a viewer or CAM program of a manufacturer.

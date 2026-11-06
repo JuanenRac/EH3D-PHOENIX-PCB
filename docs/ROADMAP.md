@@ -34,7 +34,7 @@ Gerber X2 and Excellon from the shared writers, assembly formats confirmed with 
 
 Gate: Output opens in two independent viewers and matches the model; a package is milled through the CAM chain.
 
-Progress: the export, the import of Gerber and Excellon files for review with its round trip against the export (`docs/GERBER_IMPORT.md`) and the panelization of a board (`docs/PANEL.md`) exist as prototypes tried on files and boards made by the tests only, and a window of the viewer shows the imported layers and compares them with a board (`docs/VIEWER.md`); no independent viewer or manufacturer has opened a file of them.
+Progress: the export, the import of Gerber and Excellon files for review with its round trip against the export (`docs/GERBER_IMPORT.md`) and the panelization of boards (`docs/PANEL.md`, with the layers of every copy) exist as prototypes tried on files and boards made by the tests only, and a window of the viewer shows the imported layers and compares them with a board (`docs/VIEWER.md`); no independent viewer or manufacturer has opened a file of them.
 
 ## F5. KiCad reading and public oracle
 

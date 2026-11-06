@@ -470,14 +470,14 @@
         {
           "name": "PANEL.md",
           "desc": {
-            "en": "panelization: matrix, frame, tabs, V-score, fiducials, tooling holes",
-            "es": "panelización: matriz, marco, pestañas, V-score, fiduciales, taladros de herramienta",
-            "de": "Nutzenbildung: Matrix, Rahmen, Stege, V-Ritzen, Fiducials, Werkzeugbohrungen",
-            "fr": "panélisation : matrice, cadre, ponts, rainure en V, repères, trous d'outillage",
-            "it": "panelizzazione: matrice, cornice, linguette, V-score, fiduciali, fori di attrezzaggio",
-            "ja": "パネル化：マトリクス、フレーム、タブ、Vカット、フィデューシャル、工具穴",
-            "zh": "拼板：矩阵、边框、连接桥、V 形槽、基准点、工具孔",
-            "pt": "painelização: matriz, moldura, patilhas, V-score, fiduciais, furos de ferramenta"
+            "en": "panelization: boards, frame, tabs, V-score, fiducials, holes, layers",
+            "es": "panelización: placas, marco, pestañas, V-score, fiduciales, taladros, capas",
+            "de": "Nutzenbildung: Platinen, Rahmen, Stege, V-Ritzen, Fiducials, Bohrungen, Lagen",
+            "fr": "panélisation : cartes, cadre, ponts, rainure en V, repères, outillage, couches",
+            "it": "panelizzazione: schede, cornice, linguette, V-score, fiduciali, fori, strati",
+            "ja": "パネル化：基板、フレーム、タブ、Vカット、フィデューシャル、工具穴、層",
+            "zh": "拼板：电路板、边框、连接桥、V 形槽、基准点、工具孔、各层",
+            "pt": "painelização: placas, moldura, patilhas, V-score, fiduciais, furos, camadas"
           }
         },
         {

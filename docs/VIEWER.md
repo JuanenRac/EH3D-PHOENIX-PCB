@@ -87,6 +87,16 @@ A folder of Gerber and Excellon files is shown read-only (`docs/GERBER_IMPORT.md
 * The measure takes two clicks; a click within `gerber_snap_px` of the centre of a flash or a hole, of an end of a line, an arc or a slot, or of a corner of a region goes to that point. The distance, its parts and its angle are shown in millimetres.
 * *Compare with the board of the project*: type a board file (`.brd` or the JSON of the model) and press *Compare*. The board is exported with the export of this suite (the generic profile) and read back by the same import, so both sides go through the same code. Each layer of the files is compared with the layer of the board that has the same role, cell by cell (`gerber_compare_cell_mm`, larger when the area would need more than `gerber_compare_max_cells`), after the board is moved so that the least corners of the two outlines meet; the shift is shown. The cells covered only by the files and only by the board are marked in two colours with their areas, a layer that agrees is *identical*, and a file whose role no layer of the board has is listed.
 
+## The panel window
+
+A panel of boards (`docs/PANEL.md`) is drawn without a screen by `panel_scene` and shown by `panel_gui`. On the start screen type the board files (one, or several separated by commas) and press *Panel*, or run `phoenix view --panel [--panel-config FILE] [BOARD[,BOARD...]]`; the panel is laid out by the crate `eh3d-phoenix-panel` from the settings file (the defaults when none is given) and nothing is written.
+
+* One layer for each kind of thing, each with a box to show or hide it, a colour swatch and the number of shapes: the frame, the boards (a filled box with its number), the holes of the boards, the routed outline, the V-score lines, the tabs, the mouse bite holes, the tooling holes and the fiducials (the copper circle inside the circle of the solder mask opening, those of the frame and those of the boards).
+* The left panel gives the size of the panel, the number of boards, the part of the area of the panel that the boards take (in per cent with one decimal), one line for each board with its size and whether it is turned or mirrored, and the notes of the layout with their codes in the language.
+* The columns, the rows and the box *V-score instead of mouse bites* lay the panel out again; a layout that the panel crate refuses (`PHOENIX-PANEL-nnn` in the message of `PHOENIX-VIEW-014`) leaves the panel as it was, and the layers that were hidden stay hidden.
+* The drawing zooms with the wheel, moves with a drag and fits with a double click; a click marks the board under the pointer, and the position of the pointer is shown in millimetres.
+* `phoenix view --panel --summary BOARD[,BOARD...]` prints the same measures without a window. The window is a read-only drawing: the files are written by `phoenix panel`.
+
 ## The 3D window
 
 The button *3D view* of the top bar of an open board builds the assembly of the board with the table of models typed beside it (the CSV of `docs/ASSEMBLY3D.md`; with none, only the board is drawn and the findings say that no component has a model). The scene is the one of `eh3d-phoenix-assembly3d`: the board as a prism of the thickness of its stack-up (or the default thickness) and each component as a box; the checks (collisions, height limit, outside the outline) use the default limits of the crate.
@@ -106,11 +116,14 @@ A document is never saved over the file it was read from. The name to save to is
 phoenix view [--settings FILE] [--lang xx] [<board.brd | schematic.sch | board.json>]
 phoenix view --summary [--settings FILE] [--lang xx] <file>
 phoenix view --bench [--settings FILE] [--lang xx]
+phoenix view --panel [--panel-config FILE] [--settings FILE] [--lang xx] [<board>[,<board>...]]
+phoenix view --panel --summary [--panel-config FILE] [--settings FILE] [--lang xx] <board>[,<board>...]
 ```
 
 * `view` opens the window. The window is behind the `gui` feature, which is off by default: `cargo run --release -p eh3d-phoenix-cli --features gui -- view FILE` (or the program `phoenix-gui`, below, which opens it with a start screen). A build without it explains this (code `PHOENIX-VIEW-008`, exit code 2). A file can also be typed in the path box or dropped on the window.
 * `--summary` prints what the file holds without a window: the primitives, the items and the nets, the primitives of each layer and the size in millimetres.
 * `--bench` runs the benchmark below.
+* `--panel` opens the window of the panel of boards (above); with `--summary` it prints the measures of the panel. `--panel-config` is the settings file of the panel (`config/panel.cfg` shows every key).
 
 Exit codes: 0 done, 2 the arguments, the settings or the input are unusable.
 
@@ -145,6 +158,8 @@ The crate `eh3d-phoenix-viewer` holds all of the logic, with no dependency on eg
 | `gerber_gui` (feature `gui`) | The window of the imported files: the list of layers, the measure, the comparison and the canvas |
 | `view3d`, `view3d_text` | The orbiting camera and the projection worked out by hand, the faces of the board and of the components, the order of drawing, the selection under a click, the state of each component, the colours, the assembly built from a board and a table, and the texts of the 3D window in eight languages |
 | `view3d_gui` (feature `gui`) | The 3D window: the canvas that draws the faces with the painter, the side panel and the pointer |
+| `panel_scene`, `panel_text` | The panel of boards as shapes on layers that can be hidden, its measures and the part of its area that the boards take, the session that reads the boards and lays the panel out again, and the texts of the window in eight languages |
+| `panel_gui` (feature `gui`) | The window of the panel: the boxes of the files and of the matrix, the list of layers, the measures and the canvas |
 | `gui` (feature `gui`) | The window: egui on eframe with the theme Forge, the icon of the program and a canvas painted by `Painter` |
 
 The window only passes on what the person does (a pixel under the pointer, a press, a drag, a release, a click, a turn of the wheel, a key) and draws what the state says: the primitives, the ratsnest, the lines of what is in progress, the ring of a finding and the panels. Every rule of editing is in `workspace` and `session`, so replacing egui means replacing `gui.rs`.
@@ -197,4 +212,5 @@ The messages are written in the eight languages of the suite; the registry is in
 * The drawing on a screen and the time of an edit on a large board were not measured.
 * The window of the imported files and the 3D window are written like the rest of the window: their scenes, cameras, selections and comparisons are tested without a screen, and neither has been seen on one or used with a mouse. In the imported files a clear object erases what lies under it in the drawing, also in other layers, and the shapes of one layer that overlap add up when the opacity is below 1; the comparison is made on cells and not on shapes; step and repeat, aperture blocks and the thermal and moire primitives are not drawn because the import skips them; the imported layers are not drawn over the board in one view.
 * In the 3D window the faces are sorted by their middle, so two faces that cross each other can be drawn in the wrong order; the camera must stay away from what it looks at (a face with a corner behind it is not drawn); a component is its box; the checks use the default limits of the crate and not `config/assembly3d.cfg`; the thickness is the default one, as the stack-up is not read.
+* The panel window only draws the panel; it does not write the files, shows no copper of the boards (their boxes and holes only) and has never been seen on a screen.
 * Saving an `.brd` goes through the EAGLE writer, which leaves out what the model does not hold; the file has never been opened in EAGLE.
