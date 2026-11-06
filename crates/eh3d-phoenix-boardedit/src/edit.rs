@@ -27,8 +27,16 @@ use crate::zone_codes::PASTE_REFUSED;
 /// The findings of the design rules, less the overlaps of zones of different nets that have
 /// different priorities: the fill of the zone of the higher priority makes room for the other, so
 /// the overlap is what the person asked for.
-fn rule_findings(board: &Board, ctx: &RuleContext, data: &ZoneData) -> Vec<Finding> {
+fn rule_findings(
+    board: &Board,
+    ctx: &RuleContext,
+    data: &ZoneData,
+    advanced: bool,
+) -> Vec<Finding> {
     let mut found = findings(board, ctx);
+    if advanced {
+        found.extend(advanced_findings(board));
+    }
     let tolerated = data.tolerated_overlaps(board);
     if !tolerated.is_empty() {
         found.retain(|f| {
