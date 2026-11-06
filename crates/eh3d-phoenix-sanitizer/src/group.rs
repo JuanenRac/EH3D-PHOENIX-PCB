@@ -677,7 +677,7 @@ mod tests {
         assert_eq!(g.groups.len(), 1);
         let group = &g.groups[0];
         assert!(!group.exact);
-        assert!(group.score >= 90 && group.score < 100, "{}", group.score);
+        assert!((90..100).contains(&group.score), "{}", group.score);
         assert_eq!(group.members.len(), 2);
         // the top threshold does not group them, the bottom one groups all that share a bucket
         let strict = SanitizerSettings {

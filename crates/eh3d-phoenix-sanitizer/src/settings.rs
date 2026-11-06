@@ -201,10 +201,10 @@ impl SanitizerSettings {
     /// Checks the ranges that the algorithms rely on.
     pub fn validate(&self) -> Result<(), SanError> {
         let fail = |what: &str| Err(SanError::new(SETTINGS_INVALID, what.to_string()));
-        if self.round_nm < 1 || self.round_nm > 1_000_000 {
+        if !(1..=1_000_000).contains(&self.round_nm) {
             return fail("round_nm must be between 1 and 1000000");
         }
-        if self.angle_round_udeg < 1 || self.angle_round_udeg > 90_000_000 {
+        if !(1..=90_000_000).contains(&self.angle_round_udeg) {
             return fail("angle_round_udeg must be between 1 and 90000000");
         }
         if self.threshold > 100 {
