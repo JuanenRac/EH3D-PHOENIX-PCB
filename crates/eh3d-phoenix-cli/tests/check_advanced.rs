@@ -259,7 +259,7 @@ fn the_sarif_layout_lists_the_rules_and_the_results() {
 fn the_advanced_options_are_not_for_the_connectivity_command() {
     let f = Files::new();
     let brd = f.write("b.brd", &write_board(&board()).text);
-    let sch = f.write("s.sch", &write_schematic(&schematic()).text);
+    let sch = f.write("s.sch", &write_schematic(&board(), &schematic()).text);
     let (code, _, err) = call(&["connectivity", "--advanced", sch.as_str(), brd.as_str()]);
     assert_eq!(code, 2);
     assert!(err.contains("belong to the command check"), "{err}");
