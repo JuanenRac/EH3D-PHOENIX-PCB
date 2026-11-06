@@ -1,0 +1,6 @@
+divider with tolerances
+V1 a 0 DC 10
+R1 a b 1k tol=1%
+R2 b 0 1k tol=1%
+.dc V1 10 10 1
+.measure dc vb at v(b) 10

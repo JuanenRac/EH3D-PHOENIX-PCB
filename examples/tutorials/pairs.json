@@ -1,0 +1,6 @@
+{
+  "format": "phoenix-diffpairs/1",
+  "pairs": [
+    {"name": "p", "positive": "D_P", "negative": "D_N", "width_nm": 250000, "gap_nm": 750000}
+  ]
+}

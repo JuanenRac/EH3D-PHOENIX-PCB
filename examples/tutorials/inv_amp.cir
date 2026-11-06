@@ -1,0 +1,6 @@
+inverting amplifier
+.model oa OPAMP(GAIN=1e5 GBW=1e6)
+V1 in 0 DC 1
+R1 in n 1k
+R2 out n 10k
+U1 0 n out oa

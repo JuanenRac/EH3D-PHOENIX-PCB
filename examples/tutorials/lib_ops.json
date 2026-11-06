@@ -1,0 +1,7 @@
+[
+  {"op": "create_package", "name": "HDR1X2"},
+  {"op": "add_item", "target": {"kind": "package", "name": "HDR1X2"},
+   "item": {"type": "pad", "name": "1", "drill": 1000000, "diameter": 1700000, "shape": "square"}},
+  {"op": "add_item", "target": {"kind": "package", "name": "HDR1X2"},
+   "item": {"type": "pad", "name": "2", "x": 2540000, "drill": 1000000, "diameter": 1700000}}
+]
