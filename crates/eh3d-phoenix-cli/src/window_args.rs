@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! The arguments of the program `phoenix-gui`, which opens the window of the viewer: an optional
+//! The options of the window of the program `phoenix`, which opens the viewer: an optional
 //! file (also `--open FILE`), `--settings FILE` and `--lang CODE`, and the picture mode
 //! (`--shot FILE.png` with `--size`, `--theme`, `--wait`, `--window` and `--replace`). They are
 //! read here, and not in the program itself, so that they are tested without a window.
@@ -12,7 +12,7 @@ use eh3d_phoenix_viewer::shot::{
     parse_size, ShotRequest, ShotWindow, DEFAULT_SIZE, DEFAULT_WAIT, WAIT_MAX,
 };
 
-/// What `phoenix-gui` was asked for.
+/// What the window of `phoenix` was asked for.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct WindowArgs {
     /// A board, a schematic or a library to open at once; none shows the start screen.

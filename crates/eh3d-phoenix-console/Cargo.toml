@@ -1,0 +1,8 @@
+[package]
+name = "eh3d-phoenix-console"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "The one place of the workspace with unsafe code: the attachment of a program of the graphical subsystem of Windows to the console of the process that started it, so that the command line of phoenix prints in a terminal; nothing on other systems"

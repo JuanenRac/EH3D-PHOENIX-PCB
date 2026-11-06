@@ -16,20 +16,13 @@ path = "src/lib.rs"
 name = "phoenix"
 path = "src/main.rs"
 
-# the window as a program of its own: it opens with the start screen and, on Windows, without the
-# black console window that the command line keeps
-[[bin]]
-name = "phoenix-gui"
-path = "src/gui_main.rs"
-required-features = ["gui"]
-
 [features]
 default = ["materials"]
 # the materials database of EH3D-COMMON: `phoenix materials` and `phoenix stackup --material`;
 # `--no-default-features` builds without it
 materials = ["eh3d-phoenix-stackup/materials", "dep:eh3d-materials"]
-# the window of the viewer: `cargo run --release -p eh3d-phoenix-cli --features gui --bin phoenix-gui`
-# (or `phoenix view <file>`)
+# the window of the viewer, inside the program `phoenix`: without arguments it opens the start screen,
+# and `phoenix view <file>` or `phoenix <file>` opens a file (`cargo run --release -p eh3d-phoenix-cli --features gui`)
 gui = ["eh3d-phoenix-viewer/gui"]
 
 [dependencies]
@@ -38,6 +31,7 @@ eh3d-phoenix-autoroute = { path = "../eh3d-phoenix-autoroute" }
 eh3d-phoenix-board = { path = "../eh3d-phoenix-board" }
 eh3d-phoenix-boardedit = { path = "../eh3d-phoenix-boardedit" }
 eh3d-phoenix-bom = { path = "../eh3d-phoenix-bom" }
+eh3d-phoenix-console = { path = "../eh3d-phoenix-console" }
 eh3d-phoenix-corpus = { path = "../eh3d-phoenix-corpus" }
 eh3d-phoenix-dxf = { path = "../eh3d-phoenix-dxf" }
 eh3d-phoenix-eagle = { path = "../eh3d-phoenix-eagle" }

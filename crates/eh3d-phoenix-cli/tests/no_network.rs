@@ -51,11 +51,6 @@ fn allowed() -> Vec<(String, String, &'static str)> {
             "ends the program with its exit code",
         ),
         (
-            "crates/eh3d-phoenix-cli/src/gui_main.rs".to_owned(),
-            process.clone(),
-            "the exit code type of the window program",
-        ),
-        (
             "crates/eh3d-phoenix-project/tests/project.rs".to_owned(),
             process.clone(),
             "the number of the process in the name of a temporary folder of a test",

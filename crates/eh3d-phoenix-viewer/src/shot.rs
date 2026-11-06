@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! The picture mode of the window (`phoenix-gui --shot FILE.png`): what is asked for, read and
+//! The picture mode of the window (`phoenix --shot FILE.png`): what is asked for, read and
 //! checked without a screen. The window opens at the size asked, shows the document and the
 //! window asked for, waits a number of frames so that the drawing is complete, saves what it
 //! drew as a PNG file and closes by itself. In this mode the window reads no file of

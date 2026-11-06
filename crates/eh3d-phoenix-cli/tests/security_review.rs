@@ -109,8 +109,8 @@ fn files_below(folder: &Path, found: &mut Vec<PathBuf>) {
 fn allowed() -> Vec<(&'static str, &'static str)> {
     vec![
         (
-            "crates/eh3d-phoenix-cli/src/gui_main.rs",
-            "the error file of the window program, in its own folder of settings",
+            "crates/eh3d-phoenix-cli/src/window_run.rs",
+            "the error file of the window, in its own folder of settings",
         ),
         (
             "crates/eh3d-phoenix-viewer/src/launcher_session.rs",

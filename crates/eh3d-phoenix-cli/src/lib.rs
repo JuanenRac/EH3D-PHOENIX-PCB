@@ -65,6 +65,7 @@ mod ipclib;
 mod kicad;
 mod kicad_export;
 mod kicad_import;
+pub mod launch;
 mod lengths;
 mod libedit;
 mod materials;
@@ -91,6 +92,8 @@ mod stencil;
 mod thermal;
 mod view;
 pub mod window_args;
+#[cfg(feature = "gui")]
+pub mod window_run;
 mod zones;
 
 use eh3d_phoenix_corpus::{inventory, InventoryConfig};
