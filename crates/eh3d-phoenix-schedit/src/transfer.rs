@@ -11,7 +11,10 @@ use eh3d_phoenix_schematic::{Id, Schematic};
 use eh3d_phoenix_sim::{
     generate_netlist, operating_table, ModelTable, NetlistReport, OpTable, SimError, SimSettings,
 };
-use eh3d_phoenix_sync::{plan_forward, ForwardPackage, SyncSettings};
+use eh3d_phoenix_sync::{
+    compare, plan_annotation, plan_forward, AnnotatePlan, AnnotateSettings, DiffReport,
+    ForwardPackage, SyncSettings,
+};
 
 /// The time stamp of the ids that the transfer makes.
 const STAMP_MS: u64 = 1_900_000_000_000;
@@ -77,6 +80,24 @@ pub fn plan_transfer(
     plan_forward(schematic, board, settings, &mut new_id)
 }
 
+/// The dry run of the annotation back into the schematic: what the board would change in the
+/// schematic (references, renumbering by position, values, footprints, swaps of equivalent pins
+/// and gates), each change with its state, as data for a window or a table. Nothing is changed;
+/// the plan is applied to a copy with its confirmation code.
+pub fn plan_reverse_annotation(
+    schematic: &Schematic,
+    board: &Board,
+    settings: &AnnotateSettings,
+) -> AnnotatePlan {
+    plan_annotation(schematic, board, settings)
+}
+
+/// The differences and conflicts between a schematic and a board, in both directions at once, as
+/// data for a window or a table.
+pub fn compare_documents(schematic: &Schematic, board: &Board) -> DiffReport {
+    compare(schematic, board)
+}
+
 /// The net list of a schematic for the simulator, as SPICE text, with the report of what could not
 /// be translated. It is made by the generator of the simulator crate with its built-in table of
 /// models (`config/sim_models.cfg`).
@@ -123,6 +144,21 @@ mod tests {
         assert!(package.is_empty());
         assert_eq!(package.skipped.len(), 2);
         assert!(package.skipped.iter().all(|s| s.code == FOOTPRINT_UNUSABLE));
+    }
+
+    #[test]
+    fn the_plan_of_the_annotation_and_the_comparison_come_as_data_and_change_nothing() {
+        let f = fixture();
+        let before = f.schematic.clone();
+        let board = Board::default();
+        let plan = plan_reverse_annotation(&f.schematic, &board, &AnnotateSettings::default());
+        // both parts have no component on the board: they are listed and nothing is applied
+        assert_eq!(plan.items.len(), 2);
+        assert!(plan.is_empty());
+        let report = compare_documents(&f.schematic, &board);
+        assert_eq!(report.differences(), 2);
+        assert_eq!(report.conflicts(), 0);
+        assert_eq!(f.schematic, before);
     }
 
     #[test]

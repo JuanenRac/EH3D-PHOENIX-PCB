@@ -12,9 +12,10 @@
 //! * [`state`]: the [`SchEdit`] state: the tool, the selection, the drag with the wires that follow
 //!   the pins, the wire in progress, copy and paste, undo and redo, and the electrical rule check
 //!   after each change;
-//! * [`transfer`]: the transfer of the schematic to a board with a preview of the package, and the
-//!   export of the net list to the simulator (made by the generator of the simulator crate from a
-//!   table of models) and the operating point net by net as data;
+//! * [`transfer`]: the transfer of the schematic to a board with a preview of the package, the
+//!   plan of the annotation back into the schematic and the comparison of the two documents (both
+//!   as data), and the export of the net list to the simulator (made by the generator of the
+//!   simulator crate from a table of models) and the operating point net by net as data;
 //! * [`ops_file`]: the file of operations that `phoenix schedit` applies;
 //! * [`codes`]: the codes `PHOENIX-SCHEDIT-<NNN>`.
 //!
@@ -41,4 +42,6 @@ pub use ops_file::{apply_operations, read_operations, ApplyReport};
 pub use palette::{Palette, PaletteEntry};
 pub use settings::SchEditSettings;
 pub use state::{Drag, SchEdit, Tool};
-pub use transfer::{export_netlist, netlist_results, NetlistExport};
+pub use transfer::{
+    compare_documents, export_netlist, netlist_results, plan_reverse_annotation, NetlistExport,
+};
