@@ -235,6 +235,17 @@ dependencies = [
 name = "eh3d-phoenix-corpus"
 version = "0.0.4"
 dependencies = [
+ "eh3d-phoenix-board",
+ "eh3d-phoenix-eagle",
+ "eh3d-phoenix-eagle-board",
+ "eh3d-phoenix-erc",
+ "eh3d-phoenix-export",
+ "eh3d-phoenix-gerber",
+ "eh3d-phoenix-kicad",
+ "eh3d-phoenix-model",
+ "eh3d-phoenix-route",
+ "eh3d-phoenix-rules",
+ "eh3d-phoenix-sim",
  "serde",
  "serde_json",
  "sha2",

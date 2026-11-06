@@ -5,9 +5,20 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "Inventory of a private corpus of design files in redacted mode: only counts, kinds, versions and one fingerprint leave the machine"
+description = "Inventory of a private corpus of design files in redacted mode (only counts, kinds, versions and one fingerprint leave the machine), and the runner of the own corpus: small hand-written boards, schematics, libraries and manufacturing files in every format the suite reads or writes, with expectations, round trips between formats and properties on generated boards"
 
 [dependencies]
+eh3d-phoenix-board = { path = "../eh3d-phoenix-board" }
+eh3d-phoenix-eagle = { path = "../eh3d-phoenix-eagle" }
+eh3d-phoenix-eagle-board = { path = "../eh3d-phoenix-eagle-board" }
+eh3d-phoenix-erc = { path = "../eh3d-phoenix-erc" }
+eh3d-phoenix-export = { path = "../eh3d-phoenix-export" }
+eh3d-phoenix-gerber = { path = "../eh3d-phoenix-gerber" }
+eh3d-phoenix-kicad = { path = "../eh3d-phoenix-kicad" }
+eh3d-phoenix-model = { path = "../eh3d-phoenix-model" }
+eh3d-phoenix-route = { path = "../eh3d-phoenix-route" }
+eh3d-phoenix-rules = { path = "../eh3d-phoenix-rules" }
+eh3d-phoenix-sim = { path = "../eh3d-phoenix-sim" }
 sha2.workspace = true
 serde.workspace = true
 serde_json.workspace = true
