@@ -111,6 +111,8 @@ EH3D-PHOENIX-PCB/
 │   ├── DECISIONS.md STATUS.md                   décisions applicables ici et état honnête
 │   ├── NOT_YET.md RULES.md                      idées pour plus tard et règles d'écriture du code
 │   ├── ROADMAP.md                               la carte des phases, des fondations à la suite tout-en-un
+│   ├── GLOSSARY.md MIGRATION.md                 les termes et le guide pour qui vient d'EAGLE ou de KiCad
+│   ├── tutorials/ glossary/ migration/          tutoriels exécutés par un test, et les traductions
 │   ├── ERROR_CODES.md                           les codes de diagnostic PHOENIX-<ZONE>-<NNN>
 │   ├── STACKUP.md                               calculs d'empilage et de lignes, formules
 │   ├── RF.md                                    outils RF : Touchstone, quadripôles, adaptation, filtres
@@ -166,7 +168,7 @@ EH3D-PHOENIX-PCB/
 ├── deny.toml                                    politique de licences et d'avis des dépendances
 ├── crates/                                      inventaire, modèle, projet, carte, schéma, EAGLE, KiCad, règles, ERC, synchronisation, hub, export, import Gerber, panneau, empilage, RF, simulateur, routeur, zones, longueurs, nomenclature, assemblage 3D, assainisseur, scripts, visionneuse, CLI
 ├── config/                                      le fichier de réglages (chaque valeur ajustée)
-├── examples/                                    scripts d'exemple et leur sortie attendue
+├── examples/                                    scripts d'exemple, leur sortie et les fichiers des tutoriels
 ├── Cargo.toml Cargo.lock                        l'espace de travail Rust et ses dépendances figées
 ├── tools/                                       le contrôle du dépôt, ses tests et les outils des images
 ├── tests/                                       cas de référence et corpus propre de pièces écrites à la main
@@ -209,6 +211,8 @@ Le README et les textes existent en anglais, espagnol, français, italien, allem
 * [Les conventions de la suite](https://github.com/JuanenRac/EH3D-DOCS/blob/main/docs/CONVENTIONS.md)
 * [Journal des modifications](CHANGELOG.md)
 * [Périmètre, exigences, dépendances, modèle de menaces et décisions](docs/SCOPE.md)
+* [Tutoriels](docs/tutorials/fr/README.md) : neuf parcours avec des commandes qu'un test exécute, en huit langues ; `phoenix help` explique chaque thème et chaque commande dans le programme
+* [Glossaire](docs/glossary/fr/GLOSSARY.md) et [guide de migration pour qui vient d'EAGLE ou de KiCad](docs/migration/fr/MIGRATION.md)
 
 ## 🤝 Contribuer et communauté
 

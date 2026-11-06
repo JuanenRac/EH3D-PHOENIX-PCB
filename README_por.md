@@ -111,6 +111,8 @@ EH3D-PHOENIX-PCB/
 │   ├── DECISIONS.md STATUS.md                   decisões que se aplicam aqui e estado honesto
 │   ├── NOT_YET.md RULES.md                      ideias para mais tarde e regras para escrever código
 │   ├── ROADMAP.md                               o mapa de fases, dos alicerces à suite tudo-em-um
+│   ├── GLOSSARY.md MIGRATION.md                 os termos e o guia para quem vem do EAGLE ou do KiCad
+│   ├── tutorials/ glossary/ migration/          tutoriais executados por um teste, e as traduções
 │   ├── ERROR_CODES.md                           os códigos de diagnóstico PHOENIX-<ÁREA>-<NNN>
 │   ├── STACKUP.md                               cálculos de empilhamento e linhas, fórmulas
 │   ├── RF.md                                    ferramentas de RF: Touchstone, dois portos, adaptação, filtros
@@ -166,7 +168,7 @@ EH3D-PHOENIX-PCB/
 ├── deny.toml                                    política de licenças e avisos das dependências
 ├── crates/                                      inventário, modelo, projeto, placa, esquema, EAGLE, KiCad, regras, ERC, sincronização, hub, exportação, importação Gerber, painel, empilhamento, RF, simulador, encaminhador, zonas, comprimentos, lista de materiais, montagem 3D, saneador, scripts, visualizador, CLI
 ├── config/                                      o ficheiro de definições (todo o valor ajustado)
-├── examples/                                    scripts de exemplo e a sua saída esperada
+├── examples/                                    scripts de exemplo, a sua saída e os ficheiros dos tutoriais
 ├── Cargo.toml Cargo.lock                        o espaço de trabalho Rust e as suas dependências fixadas
 ├── tools/                                       a verificação do repositório, os seus testes e as ferramentas das imagens
 ├── tests/                                       casos de referência e o corpus próprio de peças escritas à mão
@@ -209,6 +211,8 @@ O README e os textos existem em inglês, espanhol, francês, italiano, alemão, 
 * [As convenções da suite](https://github.com/JuanenRac/EH3D-DOCS/blob/main/docs/CONVENTIONS.md)
 * [Registo de alterações](CHANGELOG.md)
 * [Âmbito, requisitos, dependências, modelo de ameaças e decisões](docs/SCOPE.md)
+* [Tutoriais](docs/tutorials/pt/README.md): nove fluxos com comandos que um teste executa, em oito idiomas; `phoenix help` explica cada tema e comando no próprio programa
+* [Glossário](docs/glossary/pt/GLOSSARY.md) e [guia de migração para quem vem do EAGLE ou do KiCad](docs/migration/pt/MIGRATION.md)
 
 ## 🤝 Contribuir e comunidade
 

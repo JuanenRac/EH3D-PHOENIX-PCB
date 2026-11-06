@@ -104,6 +104,34 @@
           }
         },
         {
+          "name": "GLOSSARY.md  MIGRATION.md",
+          "tree_name": "GLOSSARY.md MIGRATION.md",
+          "desc": {
+            "en": "the terms and the guide for users of EAGLE and KiCad",
+            "es": "los términos y la guía para quien viene de EAGLE o KiCad",
+            "de": "die Begriffe und der Leitfaden für Umsteiger von EAGLE und KiCad",
+            "fr": "les termes et le guide pour qui vient d'EAGLE ou de KiCad",
+            "it": "i termini e la guida per chi arriva da EAGLE o KiCad",
+            "ja": "用語集と、EAGLE／KiCad から移行する人向けのガイド",
+            "zh": "术语表和面向 EAGLE、KiCad 用户的迁移指南",
+            "pt": "os termos e o guia para quem vem do EAGLE ou do KiCad"
+          }
+        },
+        {
+          "name": "tutorials/  glossary/  migration/",
+          "tree_name": "tutorials/ glossary/ migration/",
+          "desc": {
+            "en": "tutorials run by a test, and the translations",
+            "es": "tutoriales que ejecuta una prueba, y las traducciones",
+            "de": "Anleitungen, die ein Test ausführt, und die Übersetzungen",
+            "fr": "tutoriels exécutés par un test, et les traductions",
+            "it": "tutorial eseguiti da un test, e le traduzioni",
+            "ja": "テストが実行するチュートリアルと翻訳",
+            "zh": "由测试运行的教程及其译文",
+            "pt": "tutoriais executados por um teste, e as traduções"
+          }
+        },
+        {
           "desc": {
             "en": "the diagnostic codes PHOENIX-<AREA>-<NNN>",
             "es": "los códigos de diagnóstico PHOENIX-<ÁREA>-<NNN>",
@@ -860,14 +888,14 @@
         {
           "name": "examples/",
           "desc": {
-            "en": "example scripts and their expected output",
-            "es": "scripts de ejemplo y su salida esperada",
-            "de": "Beispielskripte und ihre erwartete Ausgabe",
-            "fr": "scripts d'exemple et leur sortie attendue",
-            "it": "script di esempio e il loro output atteso",
-            "ja": "サンプルスクリプトと期待される出力",
-            "zh": "示例脚本及其预期输出",
-            "pt": "scripts de exemplo e a sua saída esperada"
+            "en": "example scripts, their output and the tutorial files",
+            "es": "scripts de ejemplo, su salida y los ficheros de los tutoriales",
+            "de": "Beispielskripte, ihre Ausgabe und die Dateien der Anleitungen",
+            "fr": "scripts d'exemple, leur sortie et les fichiers des tutoriels",
+            "it": "script di esempio, il loro output e i file dei tutorial",
+            "ja": "サンプルスクリプトとその出力、チュートリアルのファイル",
+            "zh": "示例脚本及其输出，以及教程用的文件",
+            "pt": "scripts de exemplo, a sua saída e os ficheiros dos tutoriais"
           }
         },
         {

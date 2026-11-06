@@ -111,6 +111,8 @@ EH3D-PHOENIX-PCB/
 │   ├── DECISIONS.md STATUS.md                   適用される決定事項と正直な状況
 │   ├── NOT_YET.md RULES.md                      後回しにしたアイデアとコードの記述規則
 │   ├── ROADMAP.md                               基盤からオールインワン スイートまでのフェーズ マップ
+│   ├── GLOSSARY.md MIGRATION.md                 用語集と、EAGLE／KiCad から移行する人向けのガイド
+│   ├── tutorials/ glossary/ migration/          テストが実行するチュートリアルと翻訳
 │   ├── ERROR_CODES.md                           診断コード PHOENIX-<領域>-<NNN>
 │   ├── STACKUP.md                               スタックアップと線路の計算、式
 │   ├── RF.md                                    RF ツール：Touchstone、2 ポート、整合、フィルタ
@@ -166,7 +168,7 @@ EH3D-PHOENIX-PCB/
 ├── deny.toml                                    依存関係のライセンスと勧告の方針
 ├── crates/                                      棚卸し、モデル、プロジェクト、基板、回路図、EAGLE、KiCad、ルール、ERC、同期、ハブ、書き出し、Gerber 読み込み、パネル、スタックアップ、RF、シミュレータ、ルーター、ゾーン、長さ、部品表、3Dアセンブリ、整理、スクリプト、ビューア、CLI
 ├── config/                                      設定ファイル（調整する値はすべてここ）
-├── examples/                                    サンプルスクリプトと期待される出力
+├── examples/                                    サンプルスクリプトとその出力、チュートリアルのファイル
 ├── Cargo.toml Cargo.lock                        Rust ワークスペースと固定された依存関係
 ├── tools/                                       リポジトリ チェック、そのテスト、画像のツール
 ├── tests/                                       基準ケースと手書きの例による独自のコーパス
@@ -209,6 +211,8 @@ README とテキストは、英語、スペイン語、フランス語、イタ�
 * [スイートの規約](https://github.com/JuanenRac/EH3D-DOCS/blob/main/docs/CONVENTIONS.md)
 * [変更履歴](CHANGELOG.md)
 * [範囲、要件、依存関係、脅威モデル、決定事項](docs/SCOPE.md)
+* [チュートリアル](docs/tutorials/ja/README.md)：テストが実行するコマンド付きの 9 つの流れ（8 言語）。`phoenix help` がプログラム内で各トピックとコマンドを説明します
+* [用語集](docs/glossary/ja/GLOSSARY.md)と [EAGLE／KiCad からの移行ガイド](docs/migration/ja/MIGRATION.md)
 
 ## 🤝 コントリビュートとコミュニティ
 

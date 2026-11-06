@@ -111,6 +111,8 @@ EH3D-PHOENIX-PCB/
 │   ├── DECISIONS.md STATUS.md                   decisiones que se aplican aquí y estado honesto
 │   ├── NOT_YET.md RULES.md                      ideas para más adelante y reglas para escribir código
 │   ├── ROADMAP.md                               el mapa de fases, de los cimientos a la suite todo en uno
+│   ├── GLOSSARY.md MIGRATION.md                 los términos y la guía para quien viene de EAGLE o KiCad
+│   ├── tutorials/ glossary/ migration/          tutoriales que ejecuta una prueba, y las traducciones
 │   ├── ERROR_CODES.md                           los códigos de diagnóstico PHOENIX-<ÁREA>-<NNN>
 │   ├── STACKUP.md                               cálculos de apilado y líneas, fórmulas
 │   ├── RF.md                                    herramientas de RF: Touchstone, bipuertos, adaptación, filtros
@@ -166,7 +168,7 @@ EH3D-PHOENIX-PCB/
 ├── deny.toml                                    política de licencias y avisos de las dependencias
 ├── crates/                                      inventario, modelo, proyecto, placa, esquemático, EAGLE, KiCad, reglas, ERC, sincronización, hub, exportación, importación Gerber, panel, apilado, RF, simulador, enrutador, zonas, longitudes, lista de materiales, ensamblado 3D, saneador, scripts, visor, comandos
 ├── config/                                      el fichero de ajustes (todo valor afinado)
-├── examples/                                    scripts de ejemplo y su salida esperada
+├── examples/                                    scripts de ejemplo, su salida y los ficheros de los tutoriales
 ├── Cargo.toml Cargo.lock                        el espacio de trabajo de Rust y sus dependencias fijadas
 ├── tools/                                       la comprobación del repositorio, sus pruebas y las herramientas de las imágenes
 ├── tests/                                       casos de referencia y el corpus propio de piezas escritas a mano
@@ -209,6 +211,8 @@ El README y los textos existen en inglés, español, francés, italiano, alemán
 * [Las convenciones de la suite](https://github.com/JuanenRac/EH3D-DOCS/blob/main/docs/CONVENTIONS.md)
 * [Registro de cambios](CHANGELOG.md)
 * [Alcance, requisitos, dependencias, modelo de amenazas y decisiones](docs/SCOPE.md)
+* [Tutoriales](docs/tutorials/es/README.md): nueve flujos con comandos que ejecuta una prueba, en ocho idiomas; `phoenix help` explica cada tema y comando en el propio programa
+* [Glosario](docs/glossary/es/GLOSSARY.md) y [guía de migración para quien viene de EAGLE o de KiCad](docs/migration/es/MIGRATION.md)
 
 ## 🤝 Contribuir y comunidad
 

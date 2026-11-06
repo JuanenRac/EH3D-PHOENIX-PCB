@@ -111,6 +111,8 @@ EH3D-PHOENIX-PCB/
 │   ├── DECISIONS.md STATUS.md                   decisions that apply here and the honest status
 │   ├── NOT_YET.md RULES.md                      ideas left for later and rules for writing code
 │   ├── ROADMAP.md                               the map of phases, from foundations to the all-in-one suite
+│   ├── GLOSSARY.md MIGRATION.md                 the terms and the guide for users of EAGLE and KiCad
+│   ├── tutorials/ glossary/ migration/          tutorials run by a test, and the translations
 │   ├── ERROR_CODES.md                           the diagnostic codes PHOENIX-<AREA>-<NNN>
 │   ├── STACKUP.md                               stack-up and line calculations, formulas
 │   ├── RF.md                                    RF tools: Touchstone, two-ports, matching, filters
@@ -166,7 +168,7 @@ EH3D-PHOENIX-PCB/
 ├── deny.toml                                    licence and advisory policy of the dependencies
 ├── crates/                                      inventory, model, project, board, schematic, EAGLE, KiCad, rules, ERC, sync, hub, export, Gerber import, panel, stack-up, RF, simulator, router, zones, lengths, bill of materials, 3D assembly, sanitizer, scripts, viewer, CLI
 ├── config/                                      the settings file (every tuned value)
-├── examples/                                    example scripts and their expected output
+├── examples/                                    example scripts, their output and the tutorial files
 ├── Cargo.toml Cargo.lock                        the Rust workspace and its locked dependencies
 ├── tools/                                       the repository check, its tests and the picture tools
 ├── tests/                                       reference cases and the own corpus of hand-written pieces
@@ -209,6 +211,8 @@ README and texts exist in English, Spanish, French, Italian, German, Chinese, Ja
 * [The conventions of the suite](https://github.com/JuanenRac/EH3D-DOCS/blob/main/docs/CONVENTIONS.md)
 * [Changelog](CHANGELOG.md)
 * [Scope, requirements, dependencies, threat model and decisions](docs/SCOPE.md)
+* [Tutorials](docs/tutorials/README.md): nine flows with commands that a test runs, in eight languages; `phoenix help` explains every topic and command in the program
+* [Glossary](docs/GLOSSARY.md) and [migration guide for users of EAGLE and KiCad](docs/MIGRATION.md)
 
 ## 🤝 Contributing & Community
 
