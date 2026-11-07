@@ -4,6 +4,8 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- Add the pictures of the windows of the published program for Windows 64 bits in `images/screens/`, one folder for each of the eight languages (every window in English, the start screen and the board window in the other seven), show the start screen and the board window in each README in its language, and list the English pictures in `docs/VIEWER.md` with the way to renew them (`LC_ALL` for the language, `--root` to keep a path of the person out of the pictures, `--max-kb 800` for the light board and the panel).
+
 ## [0.0.6] - Islands, rounded pad reliefs, outline arcs, check notices, executable tutorials and synchronised documents
 
 - Merge the window into the one program `phoenix`: the separate program `phoenix-gui` no longer exists. With no arguments `phoenix` opens the window (a build without the `gui` feature prints the help); the options of the window (`--open`, `--shot`, `--size`, `--theme`, `--wait`, `--window`, `--replace`, `--settings`, `--lang`) or the name of an existing file start it, `phoenix view` with picture options hands them to the window (`phoenix view --shot FILE.png --window document --open board.brd`), and every command of the command line runs on the console with the same output and exit codes as before. The decision is made by `launch` from the arguments alone and is tested without a screen. The release archives hold the single program, built with the `gui` feature, for the five platforms, and `tools/make_shots.py`, `docs/VIEWER.md`, the READMEs and the guides name `phoenix` instead of `phoenix-gui`.

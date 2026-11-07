@@ -85,6 +85,11 @@ python -I -m unittest discover -s tools -p "test_*.py"
 
 **ダウンロードしてウィンドウを開く。** リリースのアーカイブ（Windows 64 ビットと 32 ビット、Linux、macOS）には 1 つのプログラム `phoenix` が入っています。コマンドラインであり、引数なしで起動するとビューアー兼エディターのウィンドウになります（以前のバージョンの別プログラム `phoenix-gui` はもうありません）。`phoenix`（Windows では `phoenix.exe`）をダブルクリックすると開始画面が開き、基板、回路図、ライブラリを開いたり、最近使ったファイルを選んだり、ウィンドウにファイルをドロップしたりできます。`phoenix <ファイル>` はファイルをすぐに開きます。Windows ではコンソールウィンドウがないため、開かないときはその理由がユーザーの設定フォルダー（Windows では `%APPDATA%\EH3D-PHOENIX-PCB`、他のシステムでは `~/.config/eh3d-phoenix-pcb`）の `last_error.txt` に書かれます。最近使ったファイルの一覧（`recent.cfg`）も同じフォルダーにあり、保持する数は `config/viewer.cfg` で決めます。コマンド（`phoenix check board.brd`）はこれまでどおりコンソールで動作します。Windows ではターミナルがプログラムの終了を待たないため、終了コードが必要なバッチファイルは `start /wait` で起動してください。ウィンドウはプロトタイプで、マウスでは試されていません（上の状況を参照）。ウィンドウ付きのプログラムをビルドするには: `cargo build --release -p eh3d-phoenix-cli --features gui`。 `phoenix --shot FILE.png [--size WxH] [--theme dark|light|contrast] [--window NAME] [--wait N] [--open FILE]` はウィンドウのスクリーンショットを撮って自動的に閉じます（README の画像はこの方法で作られます）。このモードでは設定も最近使ったファイルの一覧も読み書きしません。
 
+<p align="center">
+  <img src="images/screens/ja/phoenix-pcb-01-start.png" alt="EH3D-PHOENIX-PCB の開始画面" width="49%">
+  <img src="images/screens/ja/phoenix-pcb-02-document.png" alt="EH3D-PHOENIX-PCB の基板ウィンドウ" width="49%">
+</p>
+
 ## 🧪 テスト
 
 コードには 4041 件のテスト（`cargo test`）、基盤には 45 件のテスト（`python -I -m unittest discover -s tools -p "test_*.py"`）があり、すべてコンピューター上で通っています。CI は、リポジトリ チェック、画像のチェック、基盤のテストに加え、Rust コードについては書式チェック、警告をエラーとする clippy、そしてテストを Linux と Windows で実行します。

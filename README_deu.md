@@ -85,6 +85,11 @@ python -I -m unittest discover -s tools -p "test_*.py"
 
 **Herunterladen und das Fenster öffnen.** Das Archiv einer Version (Windows 64 und 32 Bit, Linux und macOS) enthält ein einziges Programm, `phoenix`: die Kommandozeile und, ohne Argumente gestartet, das Fenster des Betrachters und Editors (das eigene Programm `phoenix-gui` früherer Versionen gibt es nicht mehr). Doppelklick auf `phoenix` (`phoenix.exe` unter Windows): Es öffnet einen Startbildschirm, auf dem Sie eine Platine, einen Schaltplan oder eine Bibliothek öffnen, eine der zuletzt geöffneten Dateien wählen oder eine Datei auf das Fenster ziehen; `phoenix <Datei>` öffnet sofort eine Datei. Unter Windows hat es kein Konsolenfenster; öffnet es sich nicht, steht der Grund in `last_error.txt` im Einstellungsordner des Benutzers (`%APPDATA%\EH3D-PHOENIX-PCB` unter Windows, `~/.config/eh3d-phoenix-pcb` auf den anderen Systemen), wo auch die Liste der zuletzt geöffneten Dateien (`recent.cfg`) liegt; `config/viewer.cfg` legt fest, wie viele sie behält. Ein Befehl (`phoenix check board.brd`) arbeitet wie immer auf der Konsole; unter Windows wartet ein Terminal nicht auf das Programm, daher startet eine Batchdatei, die den Exit-Code braucht, es mit `start /wait`. Das Fenster ist ein Prototyp, der nicht mit der Maus erprobt wurde (siehe den Status oben). Das Programm mit dem Fenster bauen: `cargo build --release -p eh3d-phoenix-cli --features gui`. `phoenix --shot FILE.png [--size WxH] [--theme dark|light|contrast] [--window NAME] [--wait N] [--open FILE]` nimmt ein Bild des Fensters auf und schließt sich selbst (so entstehen die Bilder der README); in diesem Modus werden weder die Einstellungen noch die Liste der zuletzt geöffneten Dateien gelesen oder geschrieben.
 
+<p align="center">
+  <img src="images/screens/de/phoenix-pcb-01-start.png" alt="Startbildschirm von EH3D-PHOENIX-PCB" width="49%">
+  <img src="images/screens/de/phoenix-pcb-02-document.png" alt="Platinenfenster von EH3D-PHOENIX-PCB" width="49%">
+</p>
+
 ## 🧪 Tests
 
 Der Code hat 4041 Tests (`cargo test`), die Basis hat 45 (`python -I -m unittest discover -s tools -p "test_*.py"`); alle bestehen auf einem Rechner. Die CI führt die Repository-Prüfung, die Prüfung der Bilder, die Tests der Basis und für den Rust-Code die Formatprüfung, clippy mit Warnungen als Fehlern und die Tests unter Linux und Windows aus.

@@ -85,6 +85,11 @@ python -I -m unittest discover -s tools -p "test_*.py"
 
 **Télécharger et ouvrir la fenêtre.** L'archive d'une version (Windows 64 et 32 bits, Linux et macOS) contient un seul programme, `phoenix` : la ligne de commande et, lancé sans arguments, la fenêtre de la visionneuse et éditeur (le programme séparé `phoenix-gui` des versions précédentes n'existe plus). Double-cliquez sur `phoenix` (`phoenix.exe` sous Windows) : il ouvre un écran d'accueil où vous ouvrez une carte, un schéma ou une bibliothèque, choisissez un des fichiers récents ou déposez un fichier sur la fenêtre ; `phoenix <fichier>` ouvre un fichier tout de suite. Sous Windows il n'a pas de fenêtre de console : s'il ne s'ouvre pas, la raison est écrite dans `last_error.txt`, dans le dossier des réglages de l'utilisateur (`%APPDATA%\EH3D-PHOENIX-PCB` sous Windows, `~/.config/eh3d-phoenix-pcb` sur les autres systèmes), où se trouve aussi la liste des fichiers récents (`recent.cfg`) ; `config/viewer.cfg` fixe combien il en garde. Une commande (`phoenix check board.brd`) travaille sur la console comme toujours ; sous Windows, un terminal n'attend pas le programme : un fichier de commandes qui a besoin du code de sortie le lance avec `start /wait`. La fenêtre est un prototype qui n'a pas été essayé à la souris (voir l'état ci-dessus). Pour compiler le programme avec la fenêtre : `cargo build --release -p eh3d-phoenix-cli --features gui`. `phoenix --shot FILE.png [--size WxH] [--theme dark|light|contrast] [--window NAME] [--wait N] [--open FILE]` prend une capture de la fenêtre et se ferme tout seul (c'est ainsi que sont faites les images du README) ; dans ce mode, ni les préférences ni la liste des fichiers récents ne sont lues ou écrites.
 
+<p align="center">
+  <img src="images/screens/fr/phoenix-pcb-01-start.png" alt="Ecran de demarrage d'EH3D-PHOENIX-PCB" width="49%">
+  <img src="images/screens/fr/phoenix-pcb-02-document.png" alt="Fenetre de carte d'EH3D-PHOENIX-PCB" width="49%">
+</p>
+
 ## 🧪 Tests
 
 Le code a 4041 tests (`cargo test`) et la base en a 45 (`python -I -m unittest discover -s tools -p "test_*.py"`) ; tous réussissent sur un ordinateur. La CI exécute le contrôle du dépôt, celui des images, les tests de la base et, pour le code Rust, la vérification du format, clippy avec les avertissements traités comme des erreurs et les tests sous Linux et Windows.

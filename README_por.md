@@ -85,6 +85,11 @@ python -I -m unittest discover -s tools -p "test_*.py"
 
 **Descarregar e abrir a janela.** O pacote comprimido de uma versão (Windows de 64 e 32 bits, Linux e macOS) contém um só programa, `phoenix`: a linha de comandos e, iniciado sem argumentos, a janela do visualizador e editor (o programa à parte `phoenix-gui` das versões anteriores já não existe). Faça duplo clique em `phoenix` (`phoenix.exe` no Windows): abre um ecrã inicial onde pode abrir uma placa, um esquema ou uma biblioteca, escolher um dos ficheiros recentes ou largar um ficheiro sobre a janela; `phoenix <ficheiro>` abre logo um ficheiro. No Windows não tem janela de consola, por isso, quando não abre, o motivo fica escrito em `last_error.txt`, na pasta de definições do utilizador (`%APPDATA%\EH3D-PHOENIX-PCB` no Windows, `~/.config/eh3d-phoenix-pcb` nos outros sistemas), onde também está a lista de ficheiros recentes (`recent.cfg`); `config/viewer.cfg` define quantos guarda. Uma ordem (`phoenix check board.brd`) trabalha na consola como sempre; no Windows o terminal não espera pelo programa, por isso um ficheiro de lote que precise do código de saída inicia-o com `start /wait`. A janela é um protótipo que não foi experimentado com o rato (veja o estado acima). Para compilar o programa com a janela: `cargo build --release -p eh3d-phoenix-cli --features gui`. `phoenix --shot FILE.png [--size WxH] [--theme dark|light|contrast] [--window NAME] [--wait N] [--open FILE]` tira uma captura da janela e fecha-se sozinho (é assim que se fazem as imagens do README); neste modo não se leem nem se escrevem as preferências nem a lista de ficheiros recentes.
 
+<p align="center">
+  <img src="images/screens/pt/phoenix-pcb-01-start.png" alt="Ecrã inicial do EH3D-PHOENIX-PCB" width="49%">
+  <img src="images/screens/pt/phoenix-pcb-02-document.png" alt="Janela da placa do EH3D-PHOENIX-PCB" width="49%">
+</p>
+
 ## 🧪 Testes
 
 O código tem 4041 testes (`cargo test`) e a base tem 45 (`python -I -m unittest discover -s tools -p "test_*.py"`); todos passam num computador. A CI executa a verificação do repositório, a das imagens, os testes da base e, para o código Rust, a verificação do formato, o clippy com os avisos tratados como erros e os testes em Linux e Windows.

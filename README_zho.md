@@ -85,6 +85,11 @@ python -I -m unittest discover -s tools -p "test_*.py"
 
 **下载并打开窗口。** 发布版的压缩包（Windows 64 位和 32 位、Linux 和 macOS）包含一个程序 `phoenix`：它是命令行，不带参数启动时则是查看器兼编辑器的窗口（早期版本中单独的 `phoenix-gui` 程序已不存在）。双击 `phoenix`（Windows 上为 `phoenix.exe`）会打开开始画面，可以在其中打开电路板、原理图或库，选择最近的文件，或把文件拖放到窗口上；`phoenix <文件>` 会直接打开文件。在 Windows 上它没有控制台窗口，因此打不开时，原因会写入用户设置文件夹中的 `last_error.txt`（Windows 上为 `%APPDATA%\EH3D-PHOENIX-PCB`，其他系统为 `~/.config/eh3d-phoenix-pcb`）；最近文件列表（`recent.cfg`）也保存在那里，保留的数量由 `config/viewer.cfg` 设定。命令（`phoenix check board.brd`）仍像以前一样在控制台中工作；在 Windows 上终端不会等待该程序结束，因此需要退出码的批处理文件应使用 `start /wait` 启动它。该窗口是尚未用鼠标试过的原型（见上面的状态）。构建带窗口的程序：`cargo build --release -p eh3d-phoenix-cli --features gui`。 `phoenix --shot FILE.png [--size WxH] [--theme dark|light|contrast] [--window NAME] [--wait N] [--open FILE]` 会对窗口截图并自动关闭（README 中的图片就是这样生成的）；在此模式下不会读取或写入偏好设置和最近文件列表。
 
+<p align="center">
+  <img src="images/screens/zh/phoenix-pcb-01-start.png" alt="EH3D-PHOENIX-PCB 起始屏幕" width="49%">
+  <img src="images/screens/zh/phoenix-pcb-02-document.png" alt="EH3D-PHOENIX-PCB 电路板窗口" width="49%">
+</p>
+
 ## 🧪 测试
 
 代码有 4041 个测试（`cargo test`），基础部分有 45 个（`python -I -m unittest discover -s tools -p "test_*.py"`）；全部在计算机上通过。CI 运行仓库检查、图片检查、基础部分的测试，并对 Rust 代码在 Linux 和 Windows 上运行格式检查、把警告当作错误的 clippy 以及测试。

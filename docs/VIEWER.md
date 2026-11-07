@@ -92,15 +92,32 @@ The windows `document`, `3d`, `panel` and `gerber` need `--open`, and `start` ca
 
 #### Renewing the pictures at each version
 
-The pictures of the windows live in `images/screens/` and are renewed with every version, from the program of that version and not by hand:
+The pictures of the windows live in `images/screens/`, one folder for each language (`en`, `es`, `de`, `fr`, `it`, `ja`, `zh`, `pt`), and are renewed with every version, from the program of that version and not by hand. The English folder holds every window; the other seven hold the start screen and the board window, which the README files show in their language. The language of a run comes from the environment (`LC_ALL=de`), as for the program itself:
 
 ```
-py -3.14 -I tools/make_shots.py --exe PATH/phoenix.exe --out images/screens
+LC_ALL=de py -3.14 -I tools/make_shots.py --exe PATH/phoenix.exe --out images/screens/de --only start,document
 ```
+
+The picture of the board window in the light theme and the picture of the panel weigh more than the default limit of `--max-kb`, so they are taken with `--max-kb 800`. To keep a path of the person out of the pictures, the example board is copied to a short folder (`--root` names a folder with `examples/tutorials/led_board.brd`).
 
 `tools/make_shots.py` (the standard library only) starts the program once for each window with `--shot`, `--size 1600x900`, `--theme dark` (and `light` for the document), `--wait 12` and, for the windows that show a document, `--open` an example board of the repository (`examples/tutorials/led_board.brd`, else `tut.brd`, else the first board under `examples/`). Without an example board only the start screen, the help, the shortcuts and the appearance are taken; `--gerber FOLDER` adds the window of the imported Gerber files. Each run has its own settings folder inside a temporary folder (`APPDATA`, `HOME` and the other variables point there), so the settings and the recent files of the person are not read or written, and nothing is written on the drive D:. A run that does not finish in `--timeout` seconds (60) is stopped by its own process number and by no other.
 
-The files are named `phoenix-pcb-NN-<window>.png` in the order of the plan (`<window>-light` for the light theme). Each one is checked and the program prints a summary: it must be a PNG that is not empty or of one colour (read with the standard library, 8 bits, RGB or RGBA) and weigh less than `--max-kb` (400). `--only start,document-light` takes some of them, `--dry-run` prints the command lines and runs nothing. The exit code is 0 when every picture is right, 1 when one is missing or wrong and 64 for wrong use. The pure part (the plan, the names, the command lines, the environment and the check of a PNG) is tested in `tools/test_make_shots.py`; the tool itself has not been run against a real program yet.
+The files are named `phoenix-pcb-NN-<window>.png` in the order of the plan (`<window>-light` for the light theme). Each one is checked and the program prints a summary: it must be a PNG that is not empty or of one colour (read with the standard library, 8 bits, RGB or RGBA) and weigh less than `--max-kb` (400). `--only start,document-light` takes some of them, `--dry-run` prints the command lines and runs nothing. The exit code is 0 when every picture is right, 1 when one is missing or wrong and 64 for wrong use. The pure part (the plan, the names, the command lines, the environment and the check of a PNG) is tested in `tools/test_make_shots.py`; the tool has been run against the published program for Windows 64 bits and not yet against the ones for Linux and macOS.
+
+The English pictures, one for each window:
+
+| Window | Picture |
+| --- | --- |
+| Start screen | `images/screens/en/phoenix-pcb-01-start.png` |
+| Board, dark and light theme | `images/screens/en/phoenix-pcb-02-document.png`, `images/screens/en/phoenix-pcb-03-document-light.png` |
+| 3D view | `images/screens/en/phoenix-pcb-04-3d.png` |
+| Panel of boards | `images/screens/en/phoenix-pcb-05-panel.png` |
+| Layer presets, search, help, keyboard shortcuts, appearance | `images/screens/en/phoenix-pcb-06-layers.png`, `-07-search.png`, `-08-help.png`, `-09-shortcuts.png`, `-10-appearance.png` |
+
+<p align="center">
+  <img src="../images/screens/en/phoenix-pcb-02-document.png" alt="The board window" width="49%">
+  <img src="../images/screens/en/phoenix-pcb-05-panel.png" alt="The panel of boards" width="49%">
+</p>
 
 The pictures go into the README of the version by hand, after looking at each one: a picture that is right for the tool can still show a window that is badly drawn.
 

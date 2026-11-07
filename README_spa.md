@@ -85,6 +85,11 @@ python -I -m unittest discover -s tools -p "test_*.py"
 
 **Descargar y abrir la ventana.** El archivo de una versión (Windows de 64 y 32 bits, Linux y macOS) contiene un solo programa, `phoenix`: la línea de comandos y, si se inicia sin argumentos, la ventana del visor y editor (el programa aparte `phoenix-gui` de las versiones anteriores ya no existe). Haga doble clic en `phoenix` (`phoenix.exe` en Windows): abre una pantalla de inicio donde puede abrir una placa, un esquema o una biblioteca, elegir uno de los archivos recientes o soltar un archivo sobre la ventana; `phoenix <archivo>` abre un archivo directamente. En Windows no tiene ventana de consola, así que cuando no se abre el motivo se escribe en `last_error.txt`, en la carpeta de ajustes del usuario (`%APPDATA%\EH3D-PHOENIX-PCB` en Windows, `~/.config/eh3d-phoenix-pcb` en los demás sistemas), donde también se guarda la lista de archivos recientes (`recent.cfg`); `config/viewer.cfg` fija cuántos guarda. Una orden (`phoenix check board.brd`) trabaja en la consola como siempre; en Windows el terminal no espera al programa, así que un archivo por lotes que necesite el código de salida lo inicia con `start /wait`. La ventana es un prototipo que no se ha probado con el ratón (véase el estado más arriba). Para compilar el programa con la ventana: `cargo build --release -p eh3d-phoenix-cli --features gui`. `phoenix --shot FILE.png [--size WxH] [--theme dark|light|contrast] [--window NAME] [--wait N] [--open FILE]` hace una captura de la ventana y se cierra solo (así se hacen las imágenes del README); en ese modo no se leen ni se escriben las preferencias ni la lista de archivos recientes.
 
+<p align="center">
+  <img src="images/screens/es/phoenix-pcb-01-start.png" alt="Pantalla de inicio de EH3D-PHOENIX-PCB" width="49%">
+  <img src="images/screens/es/phoenix-pcb-02-document.png" alt="Ventana de placa de EH3D-PHOENIX-PCB" width="49%">
+</p>
+
 ## 🧪 Pruebas
 
 El código tiene 4041 pruebas (`cargo test`) y la base tiene 45 (`python -I -m unittest discover -s tools -p "test_*.py"`); todas pasan en un ordenador. El CI ejecuta la comprobación del repositorio, la de las imágenes, las pruebas de la base y, para el código Rust, la comprobación de formato, clippy con las advertencias como errores y las pruebas en Linux y Windows.

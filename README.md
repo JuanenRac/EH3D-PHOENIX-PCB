@@ -85,6 +85,11 @@ python -I -m unittest discover -s tools -p "test_*.py"
 
 **Download and open the window.** The archive of a release (Windows 64 and 32 bits, Linux and macOS) holds one program, `phoenix`: the command line and, started with no arguments, the window of the viewer and editor (the separate program `phoenix-gui` of the earlier versions no longer exists). Double-click `phoenix` (`phoenix.exe` on Windows): it opens a start screen where you open a board, a schematic or a library, choose one of the recent files or drop a file on the window; `phoenix <file>` opens a file at once. On Windows it has no console window, so when it does not open the reason is written to `last_error.txt` in the settings folder of the user (`%APPDATA%\EH3D-PHOENIX-PCB` on Windows, `~/.config/eh3d-phoenix-pcb` on the other systems), where the list of recent files (`recent.cfg`) is kept too; `config/viewer.cfg` sets how many it keeps. A command (`phoenix check board.brd`) works on the console as always; on Windows a terminal does not wait for the program, so a batch file that needs the exit code starts it with `start /wait`. The window is a prototype that has not been tried with a mouse (see the status above). To build the program with the window: `cargo build --release -p eh3d-phoenix-cli --features gui`. `phoenix --shot FILE.png [--size WxH] [--theme dark|light|contrast] [--window NAME] [--wait N] [--open FILE]` takes a picture of the window and closes by itself (this is how the pictures of the README are made); in that mode no preferences and no list of recent files are read or written.
 
+<p align="center">
+  <img src="images/screens/en/phoenix-pcb-01-start.png" alt="EH3D-PHOENIX-PCB start screen" width="49%">
+  <img src="images/screens/en/phoenix-pcb-02-document.png" alt="EH3D-PHOENIX-PCB board window" width="49%">
+</p>
+
 ## 🧪 Testing
 
 The code has 4041 tests (`cargo test`) and the base has 45 (`python -I -m unittest discover -s tools -p "test_*.py"`); all pass on a computer. The CI runs the repository check, the check of the pictures, the tests of the base and, for the Rust code, the format check, clippy with warnings as errors and the tests on Linux and Windows.
