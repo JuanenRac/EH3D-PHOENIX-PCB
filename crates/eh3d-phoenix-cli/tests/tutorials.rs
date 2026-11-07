@@ -37,9 +37,34 @@ fn tutorials_folder() -> PathBuf {
     root().join("docs").join("tutorials")
 }
 
+fn guides_folder() -> PathBuf {
+    tutorials_folder().join("guides")
+}
+
 /// The English tutorials: the files `TUTORIAL_*.md` of the folder, by name.
 fn tutorial_names() -> Vec<String> {
-    let mut names: Vec<String> = fs::read_dir(tutorials_folder())
+    names_in(&tutorials_folder())
+}
+
+/// The English guides: the files `TUTORIAL_*.md` of the folder of the guides, by name.
+fn guide_names() -> Vec<String> {
+    names_in(&guides_folder())
+}
+
+/// Every English document with the folder it is in: the tutorials and then the guides.
+fn all_documents() -> Vec<(PathBuf, String)> {
+    let mut documents: Vec<(PathBuf, String)> = Vec::new();
+    for name in tutorial_names() {
+        documents.push((tutorials_folder(), name));
+    }
+    for name in guide_names() {
+        documents.push((guides_folder(), name));
+    }
+    documents
+}
+
+fn names_in(folder: &Path) -> Vec<String> {
+    let mut names: Vec<String> = fs::read_dir(folder)
         .unwrap()
         .map(|entry| entry.unwrap().file_name().to_string_lossy().into_owned())
         .filter(|name| name.starts_with("TUTORIAL_") && name.ends_with(".md"))
@@ -205,13 +230,12 @@ fn check_step(step: &Step, folder: &Path, where_: &str) -> Vec<String> {
     problems
 }
 
-#[test]
-fn the_commands_of_the_tutorials_give_the_documented_output() {
-    let names = tutorial_names();
-    assert!(names.len() >= 9, "{names:?}");
+/// Runs the blocks marked `# test` of the documents `names` of `folder`; each document must have
+/// at least `least` of them.
+fn documented_output(folder: &Path, names: &[String], least: usize) -> Vec<String> {
     let mut problems = Vec::new();
-    for name in &names {
-        let text = fs::read_to_string(tutorials_folder().join(name)).unwrap();
+    for name in names {
+        let text = fs::read_to_string(folder.join(name)).unwrap();
         let folder = tempfile::tempdir().unwrap();
         copy_folder(&root().join("examples"), &folder.path().join("examples"));
         fs::create_dir(folder.path().join("build")).unwrap();
@@ -229,22 +253,56 @@ fn the_commands_of_the_tutorials_give_the_documented_output() {
                 ));
             }
         }
-        assert!(run_blocks >= 2, "{name} has {run_blocks} blocks that run");
+        assert!(
+            run_blocks >= least,
+            "{name} has {run_blocks} blocks that run"
+        );
     }
+    problems
+}
+
+#[test]
+fn the_commands_of_the_tutorials_give_the_documented_output() {
+    let names = tutorial_names();
+    assert!(names.len() >= 9, "{names:?}");
+    let problems = documented_output(&tutorials_folder(), &names, 2);
     assert!(problems.is_empty(), "{}", problems.join("\n"));
+}
+
+#[test]
+fn the_commands_of_the_guides_that_are_marked_give_the_documented_output() {
+    let names = guide_names();
+    assert!(names.len() >= 10, "{names:?}");
+    let problems = documented_output(&guides_folder(), &names, 0);
+    assert!(problems.is_empty(), "{}", problems.join("\n"));
+}
+
+#[test]
+fn several_guides_have_blocks_that_run() {
+    let mut marked = 0;
+    for name in guide_names() {
+        let text = fs::read_to_string(guides_folder().join(&name)).unwrap();
+        if console_blocks(&text)
+            .iter()
+            .any(|(_, lines)| lines.first().map(String::as_str) == Some("# test"))
+        {
+            marked += 1;
+        }
+    }
+    assert!(marked >= 3, "{marked} guides have blocks that run");
 }
 
 #[test]
 fn the_translations_show_the_same_commands_as_the_english_tutorial() {
     let mut problems = Vec::new();
-    for name in tutorial_names() {
-        let english = fs::read_to_string(tutorials_folder().join(&name)).unwrap();
+    for (folder, name) in all_documents() {
+        let english = fs::read_to_string(folder.join(&name)).unwrap();
         let wanted: Vec<Vec<String>> = console_blocks(&english)
             .into_iter()
             .map(|(_, lines)| lines)
             .collect();
         for language in LANGUAGES {
-            let path = tutorials_folder().join(language).join(&name);
+            let path = folder.join(language).join(&name);
             let Ok(text) = fs::read_to_string(&path) else {
                 problems.push(format!("{language}/{name} is missing"));
                 continue;
@@ -270,8 +328,9 @@ fn every_command_that_a_tutorial_shows_is_in_the_table() {
         .collect();
     let mut shown = 0;
     let mut problems = Vec::new();
-    let mut files = vec![tutorials_folder()];
+    let mut files = vec![tutorials_folder(), guides_folder()];
     files.extend(LANGUAGES.iter().map(|l| tutorials_folder().join(l)));
+    files.extend(LANGUAGES.iter().map(|l| guides_folder().join(l)));
     for folder in files {
         for entry in fs::read_dir(&folder).unwrap() {
             let path = entry.unwrap().path();
@@ -299,8 +358,8 @@ fn every_command_that_a_tutorial_shows_is_in_the_table() {
 #[test]
 fn the_files_the_tutorials_name_exist_in_the_examples() {
     let mut problems = Vec::new();
-    for name in tutorial_names() {
-        let text = fs::read_to_string(tutorials_folder().join(&name)).unwrap();
+    for (folder, name) in all_documents() {
+        let text = fs::read_to_string(folder.join(&name)).unwrap();
         for (_, lines) in console_blocks(&text) {
             for line in lines.iter().filter(|l| l.starts_with("$ phoenix ")) {
                 for word in words(line) {

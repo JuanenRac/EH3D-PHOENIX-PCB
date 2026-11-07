@@ -7,7 +7,11 @@ Eseguite i comandi dalla radice del repository; vedere [come eseguire le guide](
 1. Eseguite le regole di un file di regole e scrivete i due rapporti. Ogni opzione scrive un file nuovo: uno esistente non viene mai sostituito e non si scrive nulla se una delle uscite è rifiutata (codice di uscita 2). La pista della scheda è più sottile di quanto chiede il file: un riscontro confermato e il codice di uscita è 1.
 
 ```console
+# test
 $ phoenix check --rules examples/tutorials/rules_strict.json --csv build/check.csv --html build/check.html examples/tutorials/kicad/demo.kicad_pcb
+# exit 1
+~ Confirmed: 1
+~ PHOENIX-CHECK-001
 ```
 
 2. Scrivete gli stessi rapporti in un'altra lingua. La colonna del titolo del CSV e le intestazioni della pagina seguono `--lang`; le chiavi delle colonne, delle categorie e delle gravità restano in inglese perché uno script le legga in ogni lingua.

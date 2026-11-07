@@ -7,13 +7,18 @@ Exécutez les commandes depuis la racine du dépôt ; voir [comment exécuter le
 1. Lisez la hiérarchie en JSON. La clé `buses` compte les bus de la feuille : 1. La liste des problèmes ne contient aucun code de la famille `PHOENIX-BUS`, parce que les deux membres sont utilisés par une entrée.
 
 ```console
+# test
 $ phoenix hier --json examples/guides/bus.sch
+~ "buses": 1
 ```
 
 2. La même chose en texte : la liste des réseaux ne contient que les réseaux qui relient au moins deux broches, ici `MID`, donc les membres `D0` et `D1` du bus, qui n'ont pas de broche, n'y figurent pas, et la dernière ligne dit s'il y a des problèmes.
 
 ```console
+# test
 $ phoenix hier examples/guides/bus.sch
+~ nets:
+~ MID
 ```
 
 3. Écrivez le schéma en fichiers KiCad. Le bus est écrit comme son étiquette et une ligne depuis son ancre à travers les extrémités de ses entrées, et chaque entrée comme un `bus_entry` avec l'étiquette de son membre.

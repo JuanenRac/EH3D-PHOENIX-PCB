@@ -7,13 +7,18 @@ Führen Sie die Befehle im Hauptordner des Repositorys aus; siehe [so führen Si
 1. Lesen Sie die Hierarchie als JSON. Der Schlüssel `buses` zählt die Busse des Blatts: 1. Die Problemliste enthält keinen Code der Familie `PHOENIX-BUS`, weil beide Mitglieder von einem Eintrag benutzt werden.
 
 ```console
+# test
 $ phoenix hier --json examples/guides/bus.sch
+~ "buses": 1
 ```
 
 2. Dasselbe als Text: Die Netzliste enthält nur Netze, die mindestens zwei Pins verbinden, hier `MID`; die Mitglieder `D0` und `D1` des Busses haben keinen Pin und stehen nicht darin. Die letzte Zeile sagt, ob es Probleme gibt.
 
 ```console
+# test
 $ phoenix hier examples/guides/bus.sch
+~ nets:
+~ MID
 ```
 
 3. Schreiben Sie den Schaltplan als KiCad-Dateien. Der Bus wird als sein Label und eine Linie von seinem Anker durch die Enden seiner Einträge geschrieben, jeder Eintrag als `bus_entry` mit dem Label seines Mitglieds.

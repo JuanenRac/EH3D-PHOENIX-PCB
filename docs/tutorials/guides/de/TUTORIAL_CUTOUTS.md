@@ -7,13 +7,18 @@ Führen Sie die Befehle im Hauptordner des Repositorys aus; siehe [so führen Si
 1. Listen Sie auf, was eine DXF-Zeichnung der Platine enthielte. Kontur und Aussparung sind zwei geschlossene Konturen auf der Ebene `OUTLINE`; der Bericht nennt `layer OUTLINE: 2` und dass nichts geschrieben wurde.
 
 ```console
+# test
 $ phoenix dxf-export board examples/guides/cutout.brd
+~ layer OUTLINE: 2
+~ dry run: nothing was written
 ```
 
 2. Schreiben Sie die Zeichnung in eine neue Datei.
 
 ```console
+# test
 $ phoenix dxf-export board examples/guides/cutout.brd --out build/cutout.dxf
+~ written: build/cutout.dxf
 ```
 
 3. Lesen Sie die Zeichnung in die Platine zurück. Die größte Außenkontur ist die Platinenkontur, die darin liegende Kontur bleibt als Aussparung der Kontur erhalten (`PHOENIX-DXF-015`, Information). Die Operation ist ein Probelauf, vor und nach der Ausführung mit den Entwurfsregeln geprüft, daher wird die Regeldatei angegeben.

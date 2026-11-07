@@ -7,7 +7,11 @@ Exécutez les commandes depuis la racine du dépôt ; voir [comment exécuter le
 1. Exécutez les règles d'un fichier de règles et écrivez les deux rapports. Chaque option écrit un nouveau fichier : un fichier existant n'est jamais remplacé, et rien n'est écrit si l'une des sorties est refusée (code de sortie 2). La piste de la carte est plus fine que ce que demande le fichier : un constat confirmé et le code de sortie est 1.
 
 ```console
+# test
 $ phoenix check --rules examples/tutorials/rules_strict.json --csv build/check.csv --html build/check.html examples/tutorials/kicad/demo.kicad_pcb
+# exit 1
+~ Confirmed: 1
+~ PHOENIX-CHECK-001
 ```
 
 2. Écrivez les mêmes rapports dans une autre langue. La colonne du titre du CSV et les titres de la page suivent `--lang` ; les clés des colonnes, des catégories et des gravités restent en anglais pour qu'un script les lise dans toutes les langues.

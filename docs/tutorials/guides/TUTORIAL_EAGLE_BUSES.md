@@ -7,13 +7,18 @@ Run the commands from the root of the repository; see [how to run the guides](RE
 1. Read the hierarchy as JSON. The key `buses` counts the buses of the sheet: 1. The list of problems has no code of the family `PHOENIX-BUS`, because both members are used by an entry.
 
 ```console
+# test
 $ phoenix hier --json examples/guides/bus.sch
+~ "buses": 1
 ```
 
 2. The same as text: the list of nets holds only the nets that join at least two pins, here `MID`, so the members `D0` and `D1` of the bus, which have no pin, are not in it, and the last line says whether there are problems.
 
 ```console
+# test
 $ phoenix hier examples/guides/bus.sch
+~ nets:
+~ MID
 ```
 
 3. Write the schematic as KiCad files. The bus is written as its label and a line from its anchor through the ends of its entries, and each entry as a `bus_entry` with the label of its member.

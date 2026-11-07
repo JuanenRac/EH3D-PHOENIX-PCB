@@ -7,7 +7,11 @@ Ejecute los comandos desde la raíz del repositorio; véase [cómo ejecutar las 
 1. Ejecute las reglas de un fichero de reglas y escriba los dos informes. Cada opción escribe un fichero nuevo: nunca se reemplaza uno que exista, y no se escribe nada si se rechaza alguna de las salidas (código de salida 2). La pista de la placa es más fina de lo que pide el fichero: hay un hallazgo confirmado y el código de salida es 1.
 
 ```console
+# test
 $ phoenix check --rules examples/tutorials/rules_strict.json --csv build/check.csv --html build/check.html examples/tutorials/kicad/demo.kicad_pcb
+# exit 1
+~ Confirmed: 1
+~ PHOENIX-CHECK-001
 ```
 
 2. Escriba los mismos informes en otro idioma. La columna del título del CSV y los encabezados de la página siguen a `--lang`; las claves de las columnas, de las categorías y de las severidades quedan en inglés para que un script las lea en cualquier idioma.

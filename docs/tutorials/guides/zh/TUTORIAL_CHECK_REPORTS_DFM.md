@@ -7,7 +7,11 @@
 1. 运行规则文件中的规则并写出两份报告。每个选项都写入新文件：已存在的文件不会被替换，若有一个输出被拒绝则什么也不写（退出码 2）。电路板的走线比文件要求的细，所以有一条已确认的发现，退出码为 1。
 
 ```console
+# test
 $ phoenix check --rules examples/tutorials/rules_strict.json --csv build/check.csv --html build/check.html examples/tutorials/kicad/demo.kicad_pcb
+# exit 1
+~ Confirmed: 1
+~ PHOENIX-CHECK-001
 ```
 
 2. 用另一种语言写出同样的报告。CSV 的标题列和网页的标题遵循 `--lang`；列、类别和严重程度的键保持英文，脚本因此可以读取任何语言的报告。

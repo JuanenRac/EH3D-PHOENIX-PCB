@@ -7,13 +7,18 @@
 1. 列出该电路板的 DXF 图纸将包含什么。外形和开口是图层 `OUTLINE` 上的两条闭合轮廓；报告显示 `layer OUTLINE: 2`，并说明没有写入任何文件。
 
 ```console
+# test
 $ phoenix dxf-export board examples/guides/cutout.brd
+~ layer OUTLINE: 2
+~ dry run: nothing was written
 ```
 
 2. 把图纸写入一个新文件。
 
 ```console
+# test
 $ phoenix dxf-export board examples/guides/cutout.brd --out build/cutout.dxf
+~ written: build/cutout.dxf
 ```
 
 3. 把图纸读回电路板。最大的外部轮廓成为电路板外形，其内部的轮廓作为外形的开口保留（`PHOENIX-DXF-015`，信息）。该操作是试运行，前后都会用设计规则检查，所以要给出规则文件。

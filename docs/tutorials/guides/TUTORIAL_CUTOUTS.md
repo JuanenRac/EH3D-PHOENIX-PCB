@@ -7,13 +7,18 @@ Run the commands from the root of the repository; see [how to run the guides](RE
 1. List what a DXF drawing of the board would hold. The outline and the opening are two closed contours on the layer `OUTLINE`; the report says `layer OUTLINE: 2` and that nothing was written.
 
 ```console
+# test
 $ phoenix dxf-export board examples/guides/cutout.brd
+~ layer OUTLINE: 2
+~ dry run: nothing was written
 ```
 
 2. Write the drawing to a new file.
 
 ```console
+# test
 $ phoenix dxf-export board examples/guides/cutout.brd --out build/cutout.dxf
+~ written: build/cutout.dxf
 ```
 
 3. Read the drawing back into the board. The largest outer contour is the outline and the contour inside it is kept as a cutout of the outline (`PHOENIX-DXF-015`, information). The operation is a dry run, checked by the design rules before and after, so the rule file is given.

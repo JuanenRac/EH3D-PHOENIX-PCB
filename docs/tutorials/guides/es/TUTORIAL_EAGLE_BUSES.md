@@ -7,13 +7,18 @@ Ejecute los comandos desde la raíz del repositorio; véase [cómo ejecutar las 
 1. Lea la jerarquía como JSON. La clave `buses` cuenta los buses de la hoja: 1. La lista de problemas no tiene ningún código de la familia `PHOENIX-BUS`, porque ambos miembros los usa una entrada.
 
 ```console
+# test
 $ phoenix hier --json examples/guides/bus.sch
+~ "buses": 1
 ```
 
 2. Lo mismo como texto: la lista de redes solo contiene las redes que unen al menos dos pines, aquí `MID`, así que los miembros `D0` y `D1` del bus, que no tienen pin, no aparecen en ella, y la última línea dice si hay problemas.
 
 ```console
+# test
 $ phoenix hier examples/guides/bus.sch
+~ nets:
+~ MID
 ```
 
 3. Escriba el esquema como ficheros de KiCad. El bus se escribe como su etiqueta y una línea desde su ancla por los extremos de sus entradas, y cada entrada como un `bus_entry` con la etiqueta de su miembro.

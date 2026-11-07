@@ -7,7 +7,11 @@ Run the commands from the root of the repository; see [how to run the guides](RE
 1. Run the rules of a rule file and write both reports. Each option writes a new file: a file that exists is never replaced, and nothing is written when one of the outputs is refused (exit code 2). The track of the board is thinner than the file asks, so there is one confirmed finding and the exit code is 1.
 
 ```console
+# test
 $ phoenix check --rules examples/tutorials/rules_strict.json --csv build/check.csv --html build/check.html examples/tutorials/kicad/demo.kicad_pcb
+# exit 1
+~ Confirmed: 1
+~ PHOENIX-CHECK-001
 ```
 
 2. Write the same reports in another language. The title column of the CSV and the headings of the page follow `--lang`; the keys of the columns, of the categories and of the severities stay in English so that a script can read them in any language.

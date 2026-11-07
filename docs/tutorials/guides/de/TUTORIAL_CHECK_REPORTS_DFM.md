@@ -7,7 +7,11 @@ Führen Sie die Befehle im Hauptordner des Repositorys aus; siehe [so führen Si
 1. Führen Sie die Regeln einer Regeldatei aus und schreiben Sie beide Berichte. Jede Option schreibt eine neue Datei: Eine vorhandene wird nie ersetzt, und es wird nichts geschrieben, wenn eine der Ausgaben abgelehnt wird (Exitcode 2). Die Leiterbahn ist dünner als verlangt: ein bestätigter Befund, Exitcode 1.
 
 ```console
+# test
 $ phoenix check --rules examples/tutorials/rules_strict.json --csv build/check.csv --html build/check.html examples/tutorials/kicad/demo.kicad_pcb
+# exit 1
+~ Confirmed: 1
+~ PHOENIX-CHECK-001
 ```
 
 2. Schreiben Sie dieselben Berichte in einer anderen Sprache. Die Titelspalte der CSV-Datei und die Überschriften der Seite folgen `--lang`; die Schlüssel der Spalten, Kategorien und Schweregrade bleiben englisch, damit ein Skript sie in jeder Sprache lesen kann.

@@ -7,13 +7,18 @@ Eseguite i comandi dalla radice del repository; vedere [come eseguire le guide](
 1. Leggete la gerarchia come JSON. La chiave `buses` conta i bus del foglio: 1. L'elenco dei problemi non ha alcun codice della famiglia `PHOENIX-BUS`, perché entrambi i membri sono usati da un ingresso.
 
 ```console
+# test
 $ phoenix hier --json examples/guides/bus.sch
+~ "buses": 1
 ```
 
 2. Lo stesso come testo: l'elenco delle reti contiene solo le reti che uniscono almeno due piedini, qui `MID`, quindi i membri `D0` e `D1` del bus, che non hanno piedini, non vi compaiono, e l'ultima riga dice se ci sono problemi.
 
 ```console
+# test
 $ phoenix hier examples/guides/bus.sch
+~ nets:
+~ MID
 ```
 
 3. Scrivete lo schema come file KiCad. Il bus è scritto come la sua etichetta e una linea dal suo ancoraggio attraverso le estremità dei suoi ingressi, e ogni ingresso come un `bus_entry` con l'etichetta del suo membro.

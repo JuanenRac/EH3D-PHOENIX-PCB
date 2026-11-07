@@ -7,13 +7,18 @@ Exécutez les commandes depuis la racine du dépôt ; voir [comment exécuter le
 1. Listez ce que contiendrait un dessin DXF de la carte. Le contour et l'ouverture sont deux contours fermés sur le calque `OUTLINE` ; le rapport indique `layer OUTLINE: 2` et que rien n'a été écrit.
 
 ```console
+# test
 $ phoenix dxf-export board examples/guides/cutout.brd
+~ layer OUTLINE: 2
+~ dry run: nothing was written
 ```
 
 2. Écrivez le dessin dans un nouveau fichier.
 
 ```console
+# test
 $ phoenix dxf-export board examples/guides/cutout.brd --out build/cutout.dxf
+~ written: build/cutout.dxf
 ```
 
 3. Relisez le dessin dans la carte. Le plus grand contour extérieur est le contour de la carte et celui qui est à l'intérieur est gardé comme découpe du contour (`PHOENIX-DXF-015`, information). L'opération est un essai à blanc, vérifié par les règles de conception avant et après ; le fichier de règles est donc donné.

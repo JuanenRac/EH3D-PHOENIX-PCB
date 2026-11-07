@@ -7,7 +7,11 @@
 1. ルールファイルのルールを実行し、2 つのレポートを書き出します。各オプションは新しいファイルを書き、既存のファイルは置き換えず、出力のどれかが拒否されたときは何も書きません（終了コード 2）。基板のパターンはファイルの要求より細いので、確定した指摘が 1 件あり、終了コードは 1 です。
 
 ```console
+# test
 $ phoenix check --rules examples/tutorials/rules_strict.json --csv build/check.csv --html build/check.html examples/tutorials/kicad/demo.kicad_pcb
+# exit 1
+~ Confirmed: 1
+~ PHOENIX-CHECK-001
 ```
 
 2. 同じレポートを別の言語で書き出します。CSV のタイトル列とページの見出しは `--lang` に従い、列・カテゴリ・重大度のキーは英語のままなので、スクリプトはどの言語でも読めます。

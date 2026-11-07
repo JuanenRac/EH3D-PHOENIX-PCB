@@ -7,13 +7,18 @@ Eseguite i comandi dalla radice del repository; vedere [come eseguire le guide](
 1. Elencate ciò che conterrebbe un disegno DXF della scheda. Il contorno e l'apertura sono due contorni chiusi sul livello `OUTLINE`; il rapporto dice `layer OUTLINE: 2` e che non si è scritto nulla.
 
 ```console
+# test
 $ phoenix dxf-export board examples/guides/cutout.brd
+~ layer OUTLINE: 2
+~ dry run: nothing was written
 ```
 
 2. Scrivete il disegno in un file nuovo.
 
 ```console
+# test
 $ phoenix dxf-export board examples/guides/cutout.brd --out build/cutout.dxf
+~ written: build/cutout.dxf
 ```
 
 3. Rileggete il disegno nella scheda. Il contorno esterno più grande è il contorno della scheda e quello al suo interno viene conservato come ritaglio del contorno (`PHOENIX-DXF-015`, informazione). L'operazione è una prova a vuoto, verificata con le regole di progetto prima e dopo, quindi si dà il file di regole.

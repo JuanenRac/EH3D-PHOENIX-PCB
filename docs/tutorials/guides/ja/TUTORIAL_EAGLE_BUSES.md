@@ -7,13 +7,18 @@
 1. 階層を JSON で読みます。キー `buses` はシートのバスの数で、1 です。両方のメンバーがエントリで使われているので、問題の一覧に `PHOENIX-BUS` 系のコードはありません。
 
 ```console
+# test
 $ phoenix hier --json examples/guides/bus.sch
+~ "buses": 1
 ```
 
 2. 同じ内容をテキストで見ます。ネットの一覧には 2 本以上のピンをつなぐネットだけが載るので、ここでは `MID` だけです。ピンを持たないバスのメンバー `D0` と `D1` は載りません。最後の行に問題の有無が出ます。
 
 ```console
+# test
 $ phoenix hier examples/guides/bus.sch
+~ nets:
+~ MID
 ```
 
 3. 回路図を KiCad のファイルとして書き出します。バスはそのラベルと、アンカーからエントリの端を通る線として、各エントリはメンバーのラベルを持つ `bus_entry` として書かれます。

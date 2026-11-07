@@ -7,13 +7,18 @@ Ejecute los comandos desde la raíz del repositorio; véase [cómo ejecutar las 
 1. Liste lo que tendría un dibujo DXF de la placa. El contorno y la abertura son dos contornos cerrados en la capa `OUTLINE`; el informe dice `layer OUTLINE: 2` y que no se escribió nada.
 
 ```console
+# test
 $ phoenix dxf-export board examples/guides/cutout.brd
+~ layer OUTLINE: 2
+~ dry run: nothing was written
 ```
 
 2. Escriba el dibujo en un fichero nuevo.
 
 ```console
+# test
 $ phoenix dxf-export board examples/guides/cutout.brd --out build/cutout.dxf
+~ written: build/cutout.dxf
 ```
 
 3. Lea el dibujo de vuelta en la placa. El contorno exterior mayor es el contorno de la placa y el que está dentro se conserva como recorte del contorno (`PHOENIX-DXF-015`, información). La operación es un simulacro, comprobado con las reglas de diseño antes y después, por eso se da el fichero de reglas.

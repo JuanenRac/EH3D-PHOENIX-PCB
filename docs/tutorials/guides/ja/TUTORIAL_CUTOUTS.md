@@ -7,13 +7,18 @@
 1. 基板の DXF 図面に何が入るかを一覧します。外形と開口はレイヤー `OUTLINE` の 2 つの閉じた輪郭で、レポートには `layer OUTLINE: 2` と、何も書き込まれていないことが出ます。
 
 ```console
+# test
 $ phoenix dxf-export board examples/guides/cutout.brd
+~ layer OUTLINE: 2
+~ dry run: nothing was written
 ```
 
 2. 図面を新しいファイルに書き出します。
 
 ```console
+# test
 $ phoenix dxf-export board examples/guides/cutout.brd --out build/cutout.dxf
+~ written: build/cutout.dxf
 ```
 
 3. 図面を基板に読み戻します。最大の外側の輪郭が基板の外形になり、その内側の輪郭は外形の開口として残ります（`PHOENIX-DXF-015`、情報）。操作はドライランで、前後に設計ルールで検査されるため、ルールファイルを指定します。

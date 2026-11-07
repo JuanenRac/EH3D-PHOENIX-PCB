@@ -7,13 +7,18 @@ Execute os comandos a partir da raiz do repositório; veja [como executar os gui
 1. Leia a hierarquia como JSON. A chave `buses` conta os barramentos da folha: 1. A lista de problemas não tem nenhum código da família `PHOENIX-BUS`, porque os dois membros são usados por uma entrada.
 
 ```console
+# test
 $ phoenix hier --json examples/guides/bus.sch
+~ "buses": 1
 ```
 
 2. O mesmo em texto: a lista de redes só tem as redes que ligam pelo menos dois pinos, aqui `MID`, pelo que os membros `D0` e `D1` do barramento, que não têm pino, não aparecem nela, e a última linha diz se há problemas.
 
 ```console
+# test
 $ phoenix hier examples/guides/bus.sch
+~ nets:
+~ MID
 ```
 
 3. Escreva o esquema como ficheiros KiCad. O barramento é escrito como a sua etiqueta e uma linha desde a sua âncora pelas extremidades das suas entradas, e cada entrada como um `bus_entry` com a etiqueta do seu membro.

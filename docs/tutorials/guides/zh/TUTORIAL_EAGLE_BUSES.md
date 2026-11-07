@@ -7,13 +7,18 @@
 1. 以 JSON 形式读取层次结构。键 `buses` 统计图页上的总线数：1。两个成员都被总线入口使用，所以问题列表中没有 `PHOENIX-BUS` 系列的代码。
 
 ```console
+# test
 $ phoenix hier --json examples/guides/bus.sch
+~ "buses": 1
 ```
 
 2. 以文本形式查看同样的内容：网络列表只包含连接至少两个引脚的网络，这里只有 `MID`，所以没有引脚的总线成员 `D0` 和 `D1` 不在其中；最后一行说明是否有问题。
 
 ```console
+# test
 $ phoenix hier examples/guides/bus.sch
+~ nets:
+~ MID
 ```
 
 3. 把原理图写成 KiCad 文件。总线被写成它的标签加上一条从锚点穿过各入口端点的线，每个入口写成带有其成员标签的 `bus_entry`。
