@@ -7,6 +7,7 @@ use eh3d_diagnostic::{Category, Diagnostic, Recoverability, Severity};
 use eh3d_phoenix_model::{segments_intersect, Nm, Point};
 
 use crate::model::{Board, Id, LayerKind, Segment};
+use crate::outline_arc::ArcSettings;
 
 /// A reference to a part that does not exist.
 pub const DANGLING: &str = "PHOENIX-BOARD-001";
@@ -236,13 +237,13 @@ impl Board {
         let mut warnings: Vec<Diagnostic> = Vec::new();
 
         if !self.outline.is_empty() {
-            polygon_findings(
-                &self.outline,
-                "the board",
-                max_points,
-                &mut error,
-                &mut warnings,
-            );
+            // an outline with arcs is tested as the polygon its arcs are cut into, so that an arc
+            // that crosses another edge is found
+            let flat = self.outline_polygon(&ArcSettings::default());
+            polygon_findings(&flat, "the board", max_points, &mut error, &mut warnings);
+        }
+        for problem in self.outline_arc_problems() {
+            error(BAD_ARC, problem);
         }
         for (zone_id, zone) in &self.zones {
             for (i, cutout) in zone.cutouts.iter().enumerate() {

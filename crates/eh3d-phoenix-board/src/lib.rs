@@ -7,6 +7,8 @@
 //!   arithmetic;
 //! * [`rules`]: sizes and clearances against a rule set read from a text file, with confirmed and
 //!   inconclusive results kept apart;
+//! * [`outline_arc`]: arcs in the outline of the board, kept apart from its corners, and the polygon
+//!   of straight pieces that they are cut into;
 //! * [`silk`]: text and strokes printed on the silkscreen layers, with a built-in stroke font;
 //! * [`stack`]: the checks of the ordered stack of copper layers;
 //! * [`ops`]: reversible operations with an exact inverse, and an undo/redo history that can be
@@ -21,6 +23,7 @@
 pub mod connectivity;
 pub mod model;
 pub mod ops;
+pub mod outline_arc;
 pub mod rules;
 mod rules_more;
 pub mod silk;
@@ -32,4 +35,5 @@ pub use model::{
     Side, StackFunction, Track, Via, Zone,
 };
 pub use ops::{History, OpError, Operation, Step};
+pub use outline_arc::{ArcSettings, OutlineArc};
 pub use silk::{DrawError, Drawn, SilkItem};

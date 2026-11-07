@@ -46,7 +46,7 @@ Each table repeats the `REGISTRY` of a crate (`eh3d-phoenix-model` in `src/diagn
 | PHOENIX-BOARD-006 | Outline is not a closed polygon | an outline with fewer than three points, repeated points or crossing edges (the crossing test is made on a polygon of at most `max_polygon_points` points, see PHOENIX-BOARD-017) |
 | PHOENIX-BOARD-007 | Layer of the wrong kind | a track, via or zone on a layer that is not copper, or a via that starts and ends on one layer |
 | PHOENIX-BOARD-008 | Duplicate reference designator | two components with the same reference designator |
-| PHOENIX-BOARD-009 | Arc has no shape | an arc piece with a zero sweep or end points that do not fit its sweep |
+| PHOENIX-BOARD-009 | Arc has no shape | an arc piece with a zero sweep or end points that do not fit its sweep; an arc of the outline (`outline_arcs`) that names an edge the outline does not have, has a zero sweep or a full turn or more, or is the second arc of an edge (`docs/OUTLINE_ARCS.md`) |
 | PHOENIX-BOARD-010 | Net is split into islands | a net whose pads, tracks, vias and zones do not all touch: the connections still to route (information, in `src/connectivity.rs`) |
 | PHOENIX-BOARD-011 | Arc judged by its end points only | a track with an arc piece, whose connections are judged by its end points (information, in `src/connectivity.rs`) |
 | PHOENIX-BOARD-012 | Copper stack entry is invalid | an entry of the copper stack that names a layer that does not exist, is not copper or is listed twice (in `src/stack.rs`) |

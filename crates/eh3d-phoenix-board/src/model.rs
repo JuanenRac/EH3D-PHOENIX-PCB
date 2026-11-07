@@ -331,6 +331,11 @@ pub struct Board {
     /// written when empty; a board made before it existed reads as before.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub outline_cutouts: Vec<Vec<Point>>,
+    /// The edges of the outline that are circular arcs and not straight pieces, each the corner
+    /// where the edge starts and a signed sweep (`docs/OUTLINE_ARCS.md`). Not written when empty;
+    /// a board made before it existed reads as before, with straight edges only.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub outline_arcs: Vec<crate::outline_arc::OutlineArc>,
     /// The layers, by id.
     pub layers: BTreeMap<Id, Layer>,
     /// The copper layers from the top of the board to the bottom. Empty when the order is not
