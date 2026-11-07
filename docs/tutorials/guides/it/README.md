@@ -2,7 +2,7 @@
 
 ## Come eseguire le guide
 
-Eseguite ogni comando dalla radice del repository. I comandi scrivono solo nuovi file o una nuova cartella dentro `build/`, che create prima con `mkdir build`; nulla di esistente viene sostituito. Le guide mostrano i comandi e descrivono ciò che contiene l'output. A differenza dei tutorial, non sono eseguite dai test del repository e non citano alcun output; leggete quindi l'output reale con la guida accanto. Tutti gli strumenti di questo programma sono prototipi che non sono stati confrontati con uno strumento di riferimento.
+Eseguite ogni comando dalla radice del repository. I comandi scrivono solo nuovi file o una nuova cartella dentro `build/`, che create prima con `mkdir build`; nulla di esistente viene sostituito. Le guide mostrano i comandi e descrivono ciò che contiene l'output. I blocchi che iniziano con `# test` sono eseguiti dai test del repository, che confrontano l'inizio dell'output (una riga che inizia con `~` deve comparire da qualche parte nell'output); gli altri comandi non vengono eseguiti e non citano alcun output, quindi leggete l'output reale con la guida accanto. Tutti gli strumenti di questo programma sono prototipi che non sono stati confrontati con uno strumento di riferimento.
 
 ## Guide
 
@@ -16,6 +16,7 @@ Eseguite ogni comando dalla radice del repository. I comandi scrivono solo nuovi
 1. [Instradare una scheda con l'autorouter integrato, con una coppia e con le via già presenti sulla scheda](TUTORIAL_AUTOROUTE_NATIVE.md)
 1. [Selezionare più oggetti nell'editor di schede e spostarli, allinearli o eliminarli come un solo passo](TUTORIAL_MULTIPLE_SELECTION.md)
 1. [Fare immagini delle finestre con la modalità immagine di phoenix](TUTORIAL_SCREENSHOTS.md)
+1. [Limitare il lavoro dei controlli con un file di limiti](TUTORIAL_LIMITS.md)
 
 ## Tutorial
 

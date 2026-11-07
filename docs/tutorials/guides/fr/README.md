@@ -2,7 +2,7 @@
 
 ## Comment exécuter les guides
 
-Exécutez chaque commande depuis la racine du dépôt. Les commandes n'écrivent que de nouveaux fichiers ou un nouveau dossier dans `build/`, que vous créez d'abord avec `mkdir build` ; rien d'existant n'est remplacé. Les guides montrent les commandes et décrivent ce que contient la sortie. Contrairement aux tutoriels, ils ne sont pas exécutés par les tests du dépôt et ne citent aucune sortie ; lisez donc la sortie réelle avec le guide à côté. Tous les outils de ce programme sont des prototypes qui n'ont pas été comparés à un outil de référence.
+Exécutez chaque commande depuis la racine du dépôt. Les commandes n'écrivent que de nouveaux fichiers ou un nouveau dossier dans `build/`, que vous créez d'abord avec `mkdir build` ; rien d'existant n'est remplacé. Les guides montrent les commandes et décrivent ce que contient la sortie. Les blocs qui commencent par `# test` sont exécutés par les tests du dépôt, qui comparent le début de la sortie (une ligne qui commence par `~` doit apparaître quelque part dans la sortie) ; les autres commandes ne sont pas exécutées et ne citent aucune sortie, lisez donc la sortie réelle avec le guide à côté. Tous les outils de ce programme sont des prototypes qui n'ont pas été comparés à un outil de référence.
 
 ## Guides
 
@@ -16,6 +16,7 @@ Exécutez chaque commande depuis la racine du dépôt. Les commandes n'écrivent
 1. [Router une carte avec l'autorouteur intégré, avec une paire et avec les vias déjà présents sur la carte](TUTORIAL_AUTOROUTE_NATIVE.md)
 1. [Sélectionner plusieurs objets dans l'éditeur de carte et les déplacer, les aligner ou les supprimer en une seule étape](TUTORIAL_MULTIPLE_SELECTION.md)
 1. [Prendre des images des fenêtres avec le mode image de phoenix](TUTORIAL_SCREENSHOTS.md)
+1. [Borner le travail des vérifications avec un fichier de limites](TUTORIAL_LIMITS.md)
 
 ## Tutoriels
 

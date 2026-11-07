@@ -2,7 +2,7 @@
 
 ## So führen Sie die Funktionsanleitungen aus
 
-Führen Sie jeden Befehl im Hauptordner des Repositorys aus. Die Befehle schreiben nur neue Dateien oder einen neuen Ordner in `build/`, den Sie zuvor mit `mkdir build` anlegen; nichts Vorhandenes wird ersetzt. Die Funktionsanleitungen zeigen die Befehle und beschreiben, was die Ausgabe enthält. Anders als die Anleitungen der Tutorials werden sie von den Tests des Repositorys nicht ausgeführt und zitieren keine Ausgabe; lesen Sie also die tatsächliche Ausgabe mit der Anleitung daneben. Alle Werkzeuge dieses Programms sind Prototypen, die nicht mit einem Referenzwerkzeug verglichen wurden.
+Führen Sie jeden Befehl im Hauptordner des Repositorys aus. Die Befehle schreiben nur neue Dateien oder einen neuen Ordner in `build/`, den Sie zuvor mit `mkdir build` anlegen; nichts Vorhandenes wird ersetzt. Die Funktionsanleitungen zeigen die Befehle und beschreiben, was die Ausgabe enthält. Die Blöcke, die mit `# test` beginnen, führen die Tests des Repositorys aus und vergleichen den Anfang der Ausgabe (eine Zeile mit `~` am Anfang muss irgendwo in der Ausgabe vorkommen); die übrigen Befehle werden nicht ausgeführt und zitieren keine Ausgabe, lesen Sie also die tatsächliche Ausgabe mit der Anleitung daneben. Alle Werkzeuge dieses Programms sind Prototypen, die nicht mit einem Referenzwerkzeug verglichen wurden.
 
 ## Funktionsanleitungen
 
@@ -16,6 +16,7 @@ Führen Sie jeden Befehl im Hauptordner des Repositorys aus. Die Befehle schreib
 1. [Eine Platine mit dem eingebauten Autorouter verdrahten, mit einem Paar und mit den schon vorhandenen Durchkontaktierungen](TUTORIAL_AUTOROUTE_NATIVE.md)
 1. [Mehrere Objekte im Platineneditor auswählen und als einen Schritt verschieben, ausrichten oder löschen](TUTORIAL_MULTIPLE_SELECTION.md)
 1. [Bilder der Fenster mit dem Bildmodus von phoenix aufnehmen](TUTORIAL_SCREENSHOTS.md)
+1. [Die Arbeit der Prüfungen mit einer Grenzwertdatei begrenzen](TUTORIAL_LIMITS.md)
 
 ## Anleitungen
 

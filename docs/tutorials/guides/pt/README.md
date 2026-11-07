@@ -2,7 +2,7 @@
 
 ## Como executar os guias
 
-Execute cada comando a partir da raiz do repositório. Os comandos só escrevem ficheiros novos ou uma pasta nova dentro de `build/`, que se cria antes com `mkdir build`; nada do que existe é substituído. Os guias mostram os comandos e descrevem o que a saída contém. Ao contrário dos tutoriais, não são executados pelos testes do repositório e não citam nenhuma saída; por isso leia a saída real com o guia ao lado. Todas as ferramentas deste programa são protótipos que não foram comparados com uma ferramenta de referência.
+Execute cada comando a partir da raiz do repositório. Os comandos só escrevem ficheiros novos ou uma pasta nova dentro de `build/`, que se cria antes com `mkdir build`; nada do que existe é substituído. Os guias mostram os comandos e descrevem o que a saída contém. Os blocos que começam por `# test` são executados pelos testes do repositório, que comparam o início da saída (uma linha que começa por `~` tem de aparecer algures na saída); os restantes comandos não são executados e não citam nenhuma saída, por isso leia a saída real com o guia ao lado. Todas as ferramentas deste programa são protótipos que não foram comparados com uma ferramenta de referência.
 
 ## Guias
 
@@ -16,6 +16,7 @@ Execute cada comando a partir da raiz do repositório. Os comandos só escrevem 
 1. [Encaminhar uma placa com o encaminhador automático integrado, com um par e com as vias que já existem na placa](TUTORIAL_AUTOROUTE_NATIVE.md)
 1. [Selecionar vários objetos no editor de placas e movê-los, alinhá-los ou apagá-los como um só passo](TUTORIAL_MULTIPLE_SELECTION.md)
 1. [Tirar imagens das janelas com o modo de imagem de phoenix](TUTORIAL_SCREENSHOTS.md)
+1. [Limitar o trabalho das verificações com um ficheiro de limites](TUTORIAL_LIMITS.md)
 
 ## Tutoriais
 

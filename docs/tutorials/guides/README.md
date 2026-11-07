@@ -2,7 +2,7 @@
 
 ## How to run the guides
 
-Run every command from the root of the repository. The commands write only new files or a new folder inside `build/`, which you create first with `mkdir build`; nothing that exists is replaced. The guides show the commands and describe what the output holds. Unlike the tutorials they are not run by the tests of the repository and they quote no output, so read the real output with the guide beside it. Every tool of this program is a prototype that has not been compared with a reference tool.
+Run every command from the root of the repository. The commands write only new files or a new folder inside `build/`, which you create first with `mkdir build`; nothing that exists is replaced. The guides show the commands and describe what the output holds. The blocks that start with `# test` are run by the tests of the repository, which compare the beginning of the output (a line that starts with `~` has to appear somewhere in the output); the other commands are not run and quote no output, so read the real output with the guide beside it. Every tool of this program is a prototype that has not been compared with a reference tool.
 
 ## Guides
 
@@ -16,6 +16,7 @@ Run every command from the root of the repository. The commands write only new f
 1. [Route a board with the built-in autorouter, with a pair and with the vias already on the board](TUTORIAL_AUTOROUTE_NATIVE.md)
 1. [Select several objects in the board editor and move, align or delete them as one step](TUTORIAL_MULTIPLE_SELECTION.md)
 1. [Take pictures of the windows with the picture mode of phoenix](TUTORIAL_SCREENSHOTS.md)
+1. [Bound the work of the checks with a limits file](TUTORIAL_LIMITS.md)
 
 ## Tutorials
 
