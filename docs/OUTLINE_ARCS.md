@@ -26,7 +26,7 @@ tolerance_nm = 1000
 max_pieces = 1024
 ```
 
-A line that is not `key = value`, an unknown key or a value out of range (1 to 1000000 for the tolerance, 1 to 65536 for the pieces) is refused with its line number. The checks that use the polygon take the default; no command reads the file yet.
+A line that is not `key = value`, an unknown key or a value out of range (1 to 1000000 for the tolerance, 1 to 65536 for the pieces) is refused with its line number. Every command reads the two numbers from the option `--limits FILE`, whose file may hold them together with the lines of `config/board.cfg` and `config/eagle_board.cfg` in any order; the rule check, the zone fill, the own autorouter, the window and the writers (KiCad, EAGLE, DXF, Specctra) cut the arcs with them, and without the option the defaults are used.
 
 ## The checks
 

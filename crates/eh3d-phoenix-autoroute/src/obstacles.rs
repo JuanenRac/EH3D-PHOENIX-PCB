@@ -500,7 +500,7 @@ pub(crate) fn build(
     let mut lists: Vec<Vec<Obs>> = (0..=layers).map(|_| Vec::new()).collect();
     let index_of = |layer: Id| copper.iter().position(|l| *l == layer);
     // the arcs of the outline are obstacles as the chords they are cut into
-    let polygon = board.outline_polygon(&ArcSettings::default());
+    let polygon = board.outline_polygon(&ArcSettings::current());
     let outline: Vec<P> = closed(&polygon.iter().map(|p| pair(*p)).collect::<Vec<P>>());
     for list in lists.iter_mut().take(layers) {
         list.push(Obs {

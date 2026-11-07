@@ -448,7 +448,7 @@ pub fn export(
         2,
         &format!(
             "(boundary (path pcb 0{}))",
-            polygon(&board.outline_polygon(&eh3d_phoenix_board::ArcSettings::default()))
+            polygon(&board.outline_polygon(&eh3d_phoenix_board::ArcSettings::current()))
         ),
     );
     // an opening inside the board is a keep-out on every layer

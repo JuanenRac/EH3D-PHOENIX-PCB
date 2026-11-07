@@ -554,7 +554,8 @@ phoenix --limits FILE <command> ...  |  phoenix <command> ... --limits FILE
 
   --limits      every command takes it: the limits of the readers of EAGLE files
                 (max_outline_rings, max_restrict_checks, max_bus_checks of config/eagle_board.cfg)
-                and of the checks of a board (max_polygon_points of config/board.cfg), as
+                of the checks of a board (max_polygon_points of config/board.cfg) and of the cut
+                of the arcs of the outline (tolerance_nm, max_pieces of config/outline_arcs.cfg), as
                 `key = value` lines of one file; without it the defaults of those files are used and
                 no output changes. The file is only read
 ";

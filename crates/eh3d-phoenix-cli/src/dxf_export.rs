@@ -200,7 +200,7 @@ pub(crate) fn board_drawing(board: &Board, settings: &DxfSettings, silk: bool) -
     let mut d = Drawing::new();
     // the arcs of the outline are written as the chords they are cut into
     let outline: Vec<P> = board
-        .outline_polygon(&eh3d_phoenix_board::ArcSettings::default())
+        .outline_polygon(&eh3d_phoenix_board::ArcSettings::current())
         .iter()
         .map(|p| (p.x_nm.get(), p.y_nm.get()))
         .collect();

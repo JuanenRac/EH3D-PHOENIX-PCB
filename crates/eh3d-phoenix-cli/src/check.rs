@@ -57,8 +57,9 @@ phoenix connectivity [--rules FILE] [--limits FILE] [--json] [--csv FILE] [--htm
                 (the files config/dfm_jlcpcb.cfg, config/dfm_pcbway.cfg and config/dfm/example.cfg,
                 whose figures are public guiding numbers of the makers and stay unverified); it
                 cannot be given with --dfm, --rules or --rules-dru
-  --limits FILE the limits of the reader of the EAGLE files (config/eagle_board.cfg) and of the
-                checks of a board (config/board.cfg), as for every command; without it the defaults
+  --limits FILE the limits of the reader of the EAGLE files (config/eagle_board.cfg), of the
+                checks of a board (config/board.cfg) and the cut of the arcs of the outline
+                (config/outline_arcs.cfg), as for every command; without it the defaults
                 are used and the report is the same. check tells, as information that never
                 changes the exit code, each polygon of the board with more points than
                 max_polygon_points (code PHOENIX-BOARD-017): its edges are not tested for crossing

@@ -34,7 +34,7 @@ $ phoenix check --limits examples/guides/limits_small.cfg --rules examples/tutor
 
 ## Como ler o resultado
 
-* `--limits FICHEIRO` é aceite por todos os comandos, antes ou depois do seu nome. O ficheiro tem linhas `chave = valor` de `config/board.cfg` e de `config/eagle_board.cfg` por qualquer ordem; uma linha desconhecida, ou um valor fora do seu intervalo, é recusada com o número da linha e o código de saída 2.
+* `--limits FICHEIRO` é aceite por todos os comandos, antes ou depois do seu nome. O ficheiro tem linhas `chave = valor` de `config/board.cfg` e de `config/eagle_board.cfg` por qualquer ordem; uma linha desconhecida, ou um valor fora do seu intervalo, é recusada com o número da linha e o código de saída 2. As duas chaves de `config/outline_arcs.cfg` (`tolerance_nm` e `max_pieces`, que dizem como os arcos do contorno são cortados em cordas) podem estar no mesmo ficheiro.
 * Um limite só altera o que limita. Com os valores por omissão nenhuma saída muda, e num polígono acima de `max_polygon_points` continuam a verificar-se os pontos repetidos.
 
 ## Ver também

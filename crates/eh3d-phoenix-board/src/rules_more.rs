@@ -435,7 +435,7 @@ impl Board {
     fn edge_pieces(&self) -> Vec<(Point, Point)> {
         let mut edges: Vec<(Point, Point)> = Vec::new();
         // the arcs of the outline are measured as the chords they are cut into
-        let outline = self.outline_polygon(&ArcSettings::default());
+        let outline = self.outline_polygon(&ArcSettings::current());
         for ring in std::iter::once(&outline).chain(self.outline_cutouts.iter()) {
             let n = ring.len();
             if n < 3 {

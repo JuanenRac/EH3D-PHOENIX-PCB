@@ -801,7 +801,7 @@ fn closed_ring(points: &[Point]) -> Vec<Point> {
 fn outline_nodes(board: &Board, ctx: &Ctx, report: &mut ExportReport) -> Vec<Sx> {
     let mut out = Vec::new();
     // the arcs of the outline are written as the chords they are cut into
-    let points = closed_ring(&board.outline_polygon(&eh3d_phoenix_board::ArcSettings::default()));
+    let points = closed_ring(&board.outline_polygon(&eh3d_phoenix_board::ArcSettings::current()));
     if points.is_empty() {
         return out;
     }

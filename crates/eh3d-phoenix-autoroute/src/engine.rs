@@ -651,7 +651,7 @@ pub fn autoroute_with_pairs(
         ));
     }
     // the grid
-    let polygon = board.outline_polygon(&ArcSettings::default());
+    let polygon = board.outline_polygon(&ArcSettings::current());
     let xs: Vec<i64> = polygon.iter().map(|p| p.x_nm.get()).collect();
     let ys: Vec<i64> = polygon.iter().map(|p| p.y_nm.get()).collect();
     let (min_x, max_x) = (

@@ -11,6 +11,7 @@
 //! the same board gives the same polygon on the machines that round the same way; the points of
 //! the corners themselves are never moved.
 
+use std::cell::Cell;
 use std::collections::{BTreeMap, BTreeSet};
 
 use eh3d_phoenix_model::{Arc, Point, Udeg};
@@ -56,7 +57,36 @@ impl Default for ArcSettings {
     }
 }
 
+thread_local! {
+    /// The settings in force for the thread that runs a command or draws the window.
+    static CURRENT: Cell<ArcSettings> = Cell::new(ArcSettings::default());
+}
+
+/// Puts the settings that were in force back when it is dropped; see [`ArcSettings::set_current`].
+#[must_use = "the settings are in force only while the guard lives"]
+pub struct ArcSettingsGuard(ArcSettings);
+
+impl Drop for ArcSettingsGuard {
+    fn drop(&mut self) {
+        CURRENT.with(|cell| cell.set(self.0));
+    }
+}
+
 impl ArcSettings {
+    /// The settings in force for this thread: the ones that `--limits` (or the window) put in
+    /// force with [`ArcSettings::set_current`], and the defaults when nothing did. The fill of
+    /// zones, the router, the scene of the window and the writers cut the arcs of the outline with
+    /// these.
+    pub fn current() -> ArcSettings {
+        CURRENT.with(Cell::get)
+    }
+
+    /// Puts these settings in force for this thread until the guard is dropped, then puts back
+    /// the ones that were. Another thread keeps its own.
+    pub fn set_current(self) -> ArcSettingsGuard {
+        ArcSettingsGuard(CURRENT.with(|cell| cell.replace(self)))
+    }
+
     /// Reads the settings from a text of `key = value` lines. Blank lines and lines that start
     /// with `#` are ignored and a missing key keeps its default; an unknown key, a value that is
     /// not a whole number in its range or a line that is not `key = value` is an error that names
@@ -375,6 +405,52 @@ mod tests {
             plain.outline_polygon(&ArcSettings::default()),
             plain.outline
         );
+    }
+
+    #[test]
+    fn the_settings_in_force_change_the_polygon_and_are_put_back() {
+        let board = rounded_corner_board();
+        assert_eq!(ArcSettings::current(), ArcSettings::default());
+        let default_len = board.outline_polygon(&ArcSettings::current()).len();
+        assert_eq!(default_len, 5 + 24);
+        let loose = ArcSettings {
+            tolerance_nm: 10_000,
+            max_pieces: 1_024,
+        };
+        {
+            let _guard = loose.set_current();
+            assert_eq!(ArcSettings::current(), loose);
+            let coarse = board.outline_polygon(&ArcSettings::current());
+            // radius 2 mm, 10 micrometres: 2 * acos(0.995) = 0.200 rad, ceil(7.85) = 8 chords
+            assert_eq!(coarse.len(), 5 + 7);
+            // a guard inside gives its own, and the outer one is back after it
+            {
+                let cap = ArcSettings {
+                    tolerance_nm: 1_000,
+                    max_pieces: 2,
+                };
+                let _inner = cap.set_current();
+                assert_eq!(board.outline_polygon(&ArcSettings::current()).len(), 5 + 1);
+            }
+            assert_eq!(ArcSettings::current(), loose);
+        }
+        assert_eq!(ArcSettings::current(), ArcSettings::default());
+        assert_eq!(
+            board.outline_polygon(&ArcSettings::current()).len(),
+            default_len
+        );
+    }
+
+    #[test]
+    fn the_settings_in_force_belong_to_the_thread_that_set_them() {
+        let _guard = ArcSettings {
+            tolerance_nm: 5_000,
+            max_pieces: 8,
+        }
+        .set_current();
+        let other = std::thread::spawn(ArcSettings::current).join().unwrap();
+        assert_eq!(other, ArcSettings::default());
+        assert_eq!(ArcSettings::current().max_pieces, 8);
     }
 
     #[test]

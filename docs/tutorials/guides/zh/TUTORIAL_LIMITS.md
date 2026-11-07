@@ -34,7 +34,7 @@ $ phoenix check --limits examples/guides/limits_small.cfg --rules examples/tutor
 
 ## 如何阅读结果
 
-* 每条命令都接受 `--limits 文件`，可放在命令名之前或之后。文件包含 `config/board.cfg` 和 `config/eagle_board.cfg` 中 `键 = 值` 形式的行，顺序不限；未知的行或超出范围的值会被拒绝，并给出行号和退出码 2。
+* 每条命令都接受 `--limits 文件`，可放在命令名之前或之后。文件包含 `config/board.cfg` 和 `config/eagle_board.cfg` 中 `键 = 值` 形式的行，顺序不限；未知的行或超出范围的值会被拒绝，并给出行号和退出码 2。 `config/outline_arcs.cfg` 的两个键（`tolerance_nm` 和 `max_pieces`，决定轮廓圆弧如何切成弦）也可以写在同一个文件中。
 * 限制只改变它所约束的部分。使用默认值时任何输出都不变，超过 `max_polygon_points` 的多边形仍会检查重复点。
 
 ## 另请参阅

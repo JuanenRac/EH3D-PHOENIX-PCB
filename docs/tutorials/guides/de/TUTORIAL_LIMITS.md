@@ -34,7 +34,7 @@ $ phoenix check --limits examples/guides/limits_small.cfg --rules examples/tutor
 
 ## So lesen Sie das Ergebnis
 
-* `--limits DATEI` akzeptiert jeder Befehl, vor oder nach seinem Namen. Die Datei enthält Zeilen `Schlüssel = Wert` aus `config/board.cfg` und `config/eagle_board.cfg` in beliebiger Reihenfolge; eine unbekannte Zeile oder ein Wert außerhalb seines Bereichs wird mit der Zeilennummer und dem Exitcode 2 abgelehnt.
+* `--limits DATEI` akzeptiert jeder Befehl, vor oder nach seinem Namen. Die Datei enthält Zeilen `Schlüssel = Wert` aus `config/board.cfg` und `config/eagle_board.cfg` in beliebiger Reihenfolge; eine unbekannte Zeile oder ein Wert außerhalb seines Bereichs wird mit der Zeilennummer und dem Exitcode 2 abgelehnt. Die beiden Schlüssel von `config/outline_arcs.cfg` (`tolerance_nm` und `max_pieces`, die bestimmen, wie die Bögen der Umrandung in Sehnen zerlegt werden) dürfen in derselben Datei stehen.
 * Ein Grenzwert ändert nur, was er begrenzt. Mit den Standardwerten ändert sich keine Ausgabe, und bei einem Polygon über `max_polygon_points` werden weiterhin die wiederholten Punkte geprüft.
 
 ## Siehe auch

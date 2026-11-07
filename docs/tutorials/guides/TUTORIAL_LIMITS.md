@@ -34,7 +34,7 @@ $ phoenix check --limits examples/guides/limits_small.cfg --rules examples/tutor
 
 ## How to read the result
 
-* `--limits FILE` is accepted by every command, before or after its name. The file holds `key = value` lines of `config/board.cfg` and `config/eagle_board.cfg` in any order; a line that is not known, or a value out of its range, is refused with the number of the line and exit code 2.
+* `--limits FILE` is accepted by every command, before or after its name. The file holds `key = value` lines of `config/board.cfg` and `config/eagle_board.cfg` in any order; a line that is not known, or a value out of its range, is refused with the number of the line and exit code 2. The two keys of `config/outline_arcs.cfg` (`tolerance_nm` and `max_pieces`, which say how the arcs of the outline are cut into chords) may stand in the same file.
 * A limit changes only what is bounded. With the defaults nothing changes in any output, and a polygon over `max_polygon_points` still gets its repeated points checked.
 
 ## See also

@@ -376,7 +376,7 @@ pub fn write_board(board: &Board) -> Written {
     let mut plain = Vec::new();
     // the outline and then each opening inside it, each a closed ring of wires on layer 20
     // the arcs of the outline are written as the chords they are cut into
-    let outline = board.outline_polygon(&eh3d_phoenix_board::ArcSettings::default());
+    let outline = board.outline_polygon(&eh3d_phoenix_board::ArcSettings::current());
     for ring in std::iter::once(&outline).chain(board.outline_cutouts.iter()) {
         let n = ring.len();
         if n < 3 {

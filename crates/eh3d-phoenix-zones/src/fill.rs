@@ -173,7 +173,7 @@ impl<'a> Ctx<'a> {
         items: &'a LayerItems,
     ) -> Ctx<'a> {
         // the arcs of the outline are kept away from as the chords they are cut into
-        let polygon = board.outline_polygon(&ArcSettings::default());
+        let polygon = board.outline_polygon(&ArcSettings::current());
         let board_outline: Vec<P> = if polygon.len() >= 3 {
             polygon
                 .iter()

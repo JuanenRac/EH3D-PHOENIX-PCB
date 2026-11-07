@@ -34,7 +34,8 @@ phoenix corpus check [--dir FOLDER] [--settings FILE] [--lang CODE]
   --filter      only the pieces whose id or kind contains the text
   --settings    a settings file (config/corpus.cfg) with the limits and the number of seeds
   --limits      the limits of the EAGLE readers and of the checks of a board (config/eagle_board.cfg
-                and config/board.cfg), as for every command; without it the defaults are used
+                and config/board.cfg) and the cut of the arcs (config/outline_arcs.cfg), as for
+                every command; without it the defaults are used
   --out         write the JSON report to a new file (an existing file is never replaced)
   --lang CODE   the words and messages in en, es, de, fr, it, ja, zh or pt
 ";

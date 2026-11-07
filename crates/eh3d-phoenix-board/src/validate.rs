@@ -239,7 +239,7 @@ impl Board {
         if !self.outline.is_empty() {
             // an outline with arcs is tested as the polygon its arcs are cut into, so that an arc
             // that crosses another edge is found
-            let flat = self.outline_polygon(&ArcSettings::default());
+            let flat = self.outline_polygon(&ArcSettings::current());
             polygon_findings(&flat, "the board", max_points, &mut error, &mut warnings);
         }
         for problem in self.outline_arc_problems() {

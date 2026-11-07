@@ -34,7 +34,7 @@ $ phoenix check --limits examples/guides/limits_small.cfg --rules examples/tutor
 
 ## 結果の読み方
 
-* `--limits ファイル` はすべてのコマンドが受け付け、コマンド名の前でも後でも使えます。ファイルには `config/board.cfg` と `config/eagle_board.cfg` の `キー = 値` の行を任意の順で書きます。未知の行や範囲外の値は、行番号と終了コード 2 で拒否されます。
+* `--limits ファイル` はすべてのコマンドが受け付け、コマンド名の前でも後でも使えます。ファイルには `config/board.cfg` と `config/eagle_board.cfg` の `キー = 値` の行を任意の順で書きます。未知の行や範囲外の値は、行番号と終了コード 2 で拒否されます。 `config/outline_arcs.cfg` の 2 つのキー（外形の円弧を弦に分割する方法を決める `tolerance_nm` と `max_pieces`）も同じファイルに書けます。
 * 制限が変えるのは、制限した部分だけです。既定値ではどの出力も変わらず、`max_polygon_points` を超えた多角形でも、重複した点のチェックは行われます。
 
 ## 関連項目

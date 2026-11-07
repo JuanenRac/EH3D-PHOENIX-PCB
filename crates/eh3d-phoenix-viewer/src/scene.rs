@@ -510,7 +510,7 @@ impl Scene {
             let item = b.item(ItemKind::Outline, "outline", None);
             // the outline, with its arcs cut into the chords they are drawn as, and then every
             // opening inside it with the same look
-            let outline = board.outline_polygon(&ArcSettings::default());
+            let outline = board.outline_polygon(&ArcSettings::current());
             for ring in std::iter::once(&outline)
                 .chain(board.outline_cutouts.iter().filter(|c| c.len() >= 3))
             {

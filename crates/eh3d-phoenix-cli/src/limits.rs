@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! The option `--limits FILE`, which every command accepts: the limits of the readers of EAGLE
-//! files (`config/eagle_board.cfg`) and of the checks of a board (`config/board.cfg`).
+//! files (`config/eagle_board.cfg`), of the checks of a board (`config/board.cfg`) and the cut of
+//! the arcs of the outline into chords (`config/outline_arcs.cfg`).
 //!
-//! The file holds the keys of both files in any order, one `key = value` on each line; a missing
+//! The file holds the keys of the three files in any order, one `key = value` on each line; a missing
 //! key keeps its default and an unknown key is refused with its line number. Without the option
 //! the defaults are used, so no output changes. The option names a file that is read, never one
 //! that is written.
@@ -10,19 +11,25 @@
 use std::cell::Cell;
 
 use eh3d_phoenix_board::validate::BoardLimits;
+use eh3d_phoenix_board::{ArcSettings, ArcSettingsGuard};
 use eh3d_phoenix_eagle_board::EagleLimits;
 
 /// The name of the option.
 const OPTION: &str = "--limits";
 
-/// The key that belongs to the limits of a board; every other key belongs to the EAGLE readers.
+/// The key that belongs to the limits of a board.
 const BOARD_KEY: &str = "max_polygon_points";
+
+/// The keys of the cut of the arcs of the outline; every key that is neither these nor the board
+/// key belongs to the EAGLE readers.
+const ARC_KEYS: [&str; 2] = ["tolerance_nm", "max_pieces"];
 
 /// The limits that a command reads with.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct Limits {
     pub(crate) board: BoardLimits,
     pub(crate) eagle: EagleLimits,
+    pub(crate) arcs: ArcSettings,
 }
 
 impl Limits {
@@ -30,11 +37,13 @@ impl Limits {
     pub(crate) fn parse(text: &str) -> Result<Limits, String> {
         // each parser gets the whole text with the lines of the other kind blanked, so that a
         // message keeps the number of the line in the file
-        let for_board = blank_foreign(text, true);
-        let for_eagle = blank_foreign(text, false);
+        let for_board = blank_foreign(text, Kind::Board);
+        let for_eagle = blank_foreign(text, Kind::Eagle);
+        let for_arcs = blank_foreign(text, Kind::Arcs);
         Ok(Limits {
             board: BoardLimits::parse(&for_board)?,
             eagle: EagleLimits::parse(&for_eagle)?,
+            arcs: ArcSettings::parse(&for_arcs)?,
         })
     }
 
@@ -46,19 +55,30 @@ impl Limits {
     }
 }
 
+/// The kinds of limits that a file may hold.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Kind {
+    Board,
+    Arcs,
+    Eagle,
+}
+
 /// Keeps the lines that the parser of one kind of limits reads and blanks the others: the parser
-/// of the board gets the blank lines, the comments and the board key, the one of the EAGLE readers
-/// gets every line that is not the board key (so it also refuses a line that is not a limit).
-fn blank_foreign(text: &str, board: bool) -> String {
+/// of the board gets the blank lines, the comments and the board key, the one of the arcs the
+/// blank lines, the comments and the keys of the arcs, the one of the EAGLE readers gets every
+/// line that is neither (so it also refuses a line that is not a limit).
+fn blank_foreign(text: &str, kind: Kind) -> String {
     let mut out = String::new();
     for line in text.lines() {
         let t = line.trim();
         let key = t.split_once('=').map(|(k, _)| k.trim());
         let is_board_key = key == Some(BOARD_KEY);
-        let keep = if board {
-            t.is_empty() || t.starts_with('#') || is_board_key
-        } else {
-            !is_board_key
+        let is_arc_key = key.is_some_and(|k| ARC_KEYS.contains(&k));
+        let plain = t.is_empty() || t.starts_with('#');
+        let keep = match kind {
+            Kind::Board => plain || is_board_key,
+            Kind::Arcs => plain || is_arc_key,
+            Kind::Eagle => !is_board_key && !is_arc_key,
         };
         if keep {
             out.push_str(line);
@@ -78,17 +98,24 @@ pub(crate) fn active() -> Limits {
 }
 
 /// Puts the limits in force until the guard is dropped, then puts back the ones that were.
-pub(crate) struct Guard(Limits);
+pub(crate) struct Guard {
+    previous: Limits,
+    // dropped after `drop` has run, which puts the cut of the arcs back
+    _arcs: ArcSettingsGuard,
+}
 
 impl Guard {
     pub(crate) fn set(limits: Limits) -> Guard {
-        Guard(ACTIVE.with(|cell| cell.replace(limits)))
+        Guard {
+            previous: ACTIVE.with(|cell| cell.replace(limits)),
+            _arcs: limits.arcs.set_current(),
+        }
     }
 }
 
 impl Drop for Guard {
     fn drop(&mut self) {
-        ACTIVE.with(|cell| cell.set(self.0));
+        ACTIVE.with(|cell| cell.set(self.previous));
     }
 }
 
@@ -123,10 +150,14 @@ mod tests {
     fn both_shipped_files_together_are_the_defaults() {
         let board = include_str!("../../../config/board.cfg");
         let eagle = include_str!("../../../config/eagle_board.cfg");
+        let arcs = include_str!("../../../config/outline_arcs.cfg");
         let both = format!("{board}\n{eagle}");
         assert_eq!(Limits::parse(&both), Ok(Limits::default()));
+        let all = format!("{board}\n{eagle}\n{arcs}");
+        assert_eq!(Limits::parse(&all), Ok(Limits::default()));
         assert_eq!(Limits::parse(board), Ok(Limits::default()));
         assert_eq!(Limits::parse(eagle), Ok(Limits::default()));
+        assert_eq!(Limits::parse(arcs), Ok(Limits::default()));
         assert_eq!(Limits::parse(""), Ok(Limits::default()));
     }
 
@@ -177,11 +208,40 @@ mod tests {
                 max_polygon_points: 9,
             },
             eagle: EagleLimits::default(),
+            arcs: ArcSettings {
+                tolerance_nm: 40,
+                max_pieces: 12,
+            },
         };
         {
             let _guard = Guard::set(set);
             assert_eq!(active().board.max_polygon_points, 9);
+            // the cut of the arcs is in force for the code that cuts them
+            assert_eq!(ArcSettings::current().max_pieces, 12);
         }
         assert_eq!(active(), Limits::default());
+        assert_eq!(ArcSettings::current(), ArcSettings::default());
+    }
+
+    #[test]
+    fn the_keys_of_the_arcs_are_read_with_the_others_and_their_range_is_checked() {
+        let l = Limits::parse(
+            "tolerance_nm = 250\nmax_bus_checks = 7\nmax_pieces = 64\nmax_polygon_points = 12\n",
+        )
+        .unwrap();
+        assert_eq!(l.arcs.tolerance_nm, 250);
+        assert_eq!(l.arcs.max_pieces, 64);
+        assert_eq!(l.eagle.max_bus_checks, 7);
+        assert_eq!(l.board.max_polygon_points, 12);
+        for (text, line) in [
+            ("tolerance_nm = 0\n", "line 1:"),
+            ("max_bus_checks = 7\ntolerance_nm = 1000001\n", "line 2:"),
+            ("\nmax_pieces = 0\n", "line 2:"),
+            ("max_pieces = 65537\n", "line 1:"),
+            ("max_pieces = many\n", "line 1:"),
+        ] {
+            let e = Limits::parse(text).unwrap_err();
+            assert!(e.starts_with(line), "{text}: {e}");
+        }
     }
 }

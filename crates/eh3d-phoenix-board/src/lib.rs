@@ -35,5 +35,5 @@ pub use model::{
     Side, StackFunction, Track, Via, Zone,
 };
 pub use ops::{History, OpError, Operation, Step};
-pub use outline_arc::{ArcSettings, OutlineArc};
+pub use outline_arc::{ArcSettings, ArcSettingsGuard, OutlineArc};
 pub use silk::{DrawError, Drawn, SilkItem};
