@@ -157,6 +157,7 @@ impl Group {
 
 /// The objects of `all` that are not in `selected`, in the order of `all`.
 pub fn inverted(all: &[Item], selected: &[Item]) -> Vec<Item> {
+    let selected: BTreeSet<&Item> = selected.iter().collect();
     all.iter()
         .filter(|item| !selected.contains(item))
         .copied()
