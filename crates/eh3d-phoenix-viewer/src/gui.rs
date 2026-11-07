@@ -370,10 +370,8 @@ impl App {
                     self.sch = None;
                     self.brd = None;
                 }
-                if ui.button(CfgMsg::Title.tr(lang)).clicked() {
-                    if self.rules.take().is_none() {
-                        self.rules = Some(CfgEditor::new(&self.settings));
-                    }
+                if ui.button(CfgMsg::Title.tr(lang)).clicked() && self.rules.take().is_none() {
+                    self.rules = Some(CfgEditor::new(&self.settings));
                 }
                 let has_scene = self.workspace.is_some();
                 if ui
