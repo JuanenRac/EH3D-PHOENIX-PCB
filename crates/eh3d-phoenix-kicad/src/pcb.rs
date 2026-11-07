@@ -787,24 +787,17 @@ impl Reader {
                     "outline pieces not used (cut-outs and pieces that do not close)",
                     unused,
                 );
-                // the edges of the outline that are arcs are kept as arcs
-                let corners = ring.len();
-                let mut outline_arcs: Vec<OutlineArc> = Vec::new();
-                for i in 0..corners {
-                    let (p, q) = (ring[i], ring[(i + 1) % corners]);
-                    if let Some(sweep) = arcs.iter().find_map(|arc| arc.sweep_from(p, q)) {
-                        outline_arcs.push(OutlineArc {
-                            edge: i as u32,
-                            sweep,
-                        });
-                    }
-                }
+                // the edges of the outline that are arcs are kept as arcs; the arcs are looked up
+                // by the pair of points they join, so that the time does not grow with the number
+                // of corners times the number of arcs
+                let by_pair = index_arcs(&arcs);
+                let outline_arcs = outline_arcs_of(&ring, &arcs, &by_pair);
                 // the arcs of the openings are cut into straight pieces
                 let mut cut_arcs = 0usize;
                 let cutouts: Vec<Vec<Point>> = cutouts
                     .into_iter()
                     .map(|opening| {
-                        let (points, cut) = cut_arcs_of(&opening, &arcs, steps);
+                        let (points, cut) = cut_arcs_of(&opening, &arcs, &by_pair, steps);
                         cut_arcs += cut;
                         points
                     })
@@ -867,19 +860,72 @@ impl KeptArc {
     }
 }
 
+/// The kept arcs by the pair of points they join (the places in the list, in its order), the same
+/// key in both directions.
+type ArcIndex = BTreeMap<PointPair, Vec<usize>>;
+
+/// The index of the kept arcs by the pair of points they join.
+fn index_arcs(arcs: &[KeptArc]) -> ArcIndex {
+    let mut by_pair: ArcIndex = BTreeMap::new();
+    for (i, arc) in arcs.iter().enumerate() {
+        by_pair
+            .entry(pair_key(&arc.from, &arc.to))
+            .or_default()
+            .push(i);
+    }
+    by_pair
+}
+
+/// The first arc that joins `p` and `q`, in either direction.
+fn arc_between<'a>(
+    arcs: &'a [KeptArc],
+    by_pair: &ArcIndex,
+    p: Point,
+    q: Point,
+) -> Option<&'a KeptArc> {
+    by_pair
+        .get(&pair_key(&p, &q))?
+        .iter()
+        .map(|i| &arcs[*i])
+        .find(|arc| (arc.from == p && arc.to == q) || (arc.from == q && arc.to == p))
+}
+
+/// The edges of a ring that are arcs, each with the sweep as it is traced from the corner where the
+/// edge starts.
+fn outline_arcs_of(ring: &[Point], arcs: &[KeptArc], by_pair: &ArcIndex) -> Vec<OutlineArc> {
+    let corners = ring.len();
+    let mut out: Vec<OutlineArc> = Vec::new();
+    for i in 0..corners {
+        let (p, q) = (ring[i], ring[(i + 1) % corners]);
+        let candidates = by_pair.get(&pair_key(&p, &q)).into_iter().flatten();
+        if let Some(sweep) = candidates
+            .map(|k| &arcs[*k])
+            .find_map(|a| a.sweep_from(p, q))
+        {
+            out.push(OutlineArc {
+                edge: i as u32,
+                sweep,
+            });
+        }
+    }
+    out
+}
+
 /// The corners of a ring with the arcs between them cut into straight pieces, and how many arcs
 /// were cut.
-fn cut_arcs_of(ring: &[Point], arcs: &[KeptArc], steps: usize) -> (Vec<Point>, usize) {
+fn cut_arcs_of(
+    ring: &[Point],
+    arcs: &[KeptArc],
+    by_pair: &ArcIndex,
+    steps: usize,
+) -> (Vec<Point>, usize) {
     let n = ring.len();
     let mut out: Vec<Point> = Vec::with_capacity(n);
     let mut cut = 0usize;
     for i in 0..n {
         let (p, q) = (ring[i], ring[(i + 1) % n]);
         out.push(p);
-        if let Some(arc) = arcs
-            .iter()
-            .find(|arc| (arc.from == p && arc.to == q) || (arc.from == q && arc.to == p))
-        {
+        if let Some(arc) = arc_between(arcs, by_pair, p, q) {
             let mut inner = arc.geometry.inner_points(steps);
             if arc.from != p {
                 inner.reverse();
@@ -1611,5 +1657,105 @@ pub(crate) mod tests {
             ),
             Some(1)
         );
+    }
+
+    /// The search of the arcs as it was before the index: every arc is looked at for every edge.
+    fn linear_outline_arcs(ring: &[Point], arcs: &[KeptArc]) -> Vec<OutlineArc> {
+        let n = ring.len();
+        let mut out = Vec::new();
+        for i in 0..n {
+            let (p, q) = (ring[i], ring[(i + 1) % n]);
+            if let Some(sweep) = arcs.iter().find_map(|arc| arc.sweep_from(p, q)) {
+                out.push(OutlineArc {
+                    edge: i as u32,
+                    sweep,
+                });
+            }
+        }
+        out
+    }
+
+    fn linear_cut(ring: &[Point], arcs: &[KeptArc], steps: usize) -> (Vec<Point>, usize) {
+        let n = ring.len();
+        let mut out: Vec<Point> = Vec::with_capacity(n);
+        let mut cut = 0usize;
+        for i in 0..n {
+            let (p, q) = (ring[i], ring[(i + 1) % n]);
+            out.push(p);
+            if let Some(arc) = arcs
+                .iter()
+                .find(|arc| (arc.from == p && arc.to == q) || (arc.from == q && arc.to == p))
+            {
+                let mut inner = arc.geometry.inner_points(steps);
+                if arc.from != p {
+                    inner.reverse();
+                }
+                out.extend(inner);
+                cut += 1;
+            }
+        }
+        (out, cut)
+    }
+
+    #[test]
+    fn the_index_of_the_arcs_gives_what_the_search_of_every_arc_gave() {
+        const MM: i64 = 1_000_000;
+        let pt = |i: i64| Point::from_nm(i * MM, ((i * i) % 23) * MM).unwrap();
+        let ring: Vec<Point> = (0..120).map(pt).collect();
+        let geometry = ArcGeom::from_centre((0, 0), (10 * MM, 0), 90_000_000).unwrap();
+        let mut arcs: Vec<KeptArc> = Vec::new();
+        for i in (0..120i64).step_by(3) {
+            let (a, b) = (pt(i), pt((i + 1) % 120));
+            // every third arc is drawn the other way round
+            let (from, to) = if i % 2 == 0 { (a, b) } else { (b, a) };
+            arcs.push(KeptArc {
+                from,
+                to,
+                geometry,
+                sweep: Udeg::new((i + 1) * 1_000).unwrap(),
+            });
+        }
+        // a second arc between the same points: the first one is the one that counts
+        arcs.push(KeptArc {
+            from: pt(0),
+            to: pt(1),
+            geometry,
+            sweep: Udeg::new(7_000_000).unwrap(),
+        });
+        // arcs between points that are not neighbours in the ring, and one that joins a point to itself
+        arcs.push(KeptArc {
+            from: pt(5),
+            to: pt(50),
+            geometry,
+            sweep: Udeg::new(9_000_000).unwrap(),
+        });
+        arcs.push(KeptArc {
+            from: pt(9),
+            to: pt(9),
+            geometry,
+            sweep: Udeg::new(9_000_000).unwrap(),
+        });
+        let by_pair = index_arcs(&arcs);
+        let found = outline_arcs_of(&ring, &arcs, &by_pair);
+        assert_eq!(found, linear_outline_arcs(&ring, &arcs));
+        assert_eq!(found.len(), 40);
+        // the arc of edge 0 is the first one, not the one added later between the same points
+        assert_eq!(found[0].sweep.get(), 1_000);
+        // an arc drawn from the far corner has the opposite sweep
+        let odd = found.iter().find(|a| a.edge == 3).unwrap();
+        assert_eq!(odd.sweep.get(), -4_000);
+        for steps in [1usize, 4, 16] {
+            assert_eq!(
+                cut_arcs_of(&ring, &arcs, &by_pair, steps),
+                linear_cut(&ring, &arcs, steps),
+                "{steps}"
+            );
+        }
+        // a ring that no arc joins, and no arcs at all
+        let other: Vec<Point> = (200..210).map(pt).collect();
+        assert!(outline_arcs_of(&other, &arcs, &by_pair).is_empty());
+        let none = index_arcs(&[]);
+        assert!(outline_arcs_of(&ring, &[], &none).is_empty());
+        assert_eq!(cut_arcs_of(&ring, &[], &none, 4), (ring.clone(), 0));
     }
 }
