@@ -243,6 +243,15 @@ pub struct ViewerSettings {
     pub drc_sort: DrcSort,
     /// Whether the step to the next problem goes round past the last one.
     pub drc_wrap: bool,
+    /// The folder the editor of the settings files reads them from.
+    pub rules_config_dir: String,
+    /// The most halvings on each side with which the editor of the settings files looks for the
+    /// range that the program allows for a number.
+    pub rules_probe_steps: usize,
+    /// How far from its value the editor of the settings files looks for the range of a number.
+    pub rules_probe_span: f64,
+    /// The largest settings file the editor reads, in bytes.
+    pub rules_max_file_bytes: u64,
     /// The ending of the name of the copy that is made before a saved file is replaced.
     pub backup_suffix: String,
     /// How many recent files the start screen of the window keeps.
@@ -388,6 +397,10 @@ impl Default for ViewerSettings {
             drc_hidden_categories: Vec::new(),
             drc_sort: DrcSort::Severity,
             drc_wrap: true,
+            rules_config_dir: "config".to_string(),
+            rules_probe_steps: 80,
+            rules_probe_span: 1.0e15,
+            rules_max_file_bytes: 1_048_576,
             backup_suffix: ".bak".to_string(),
             recent_max: 10,
             recent_file: "recent.cfg".to_string(),
@@ -702,6 +715,30 @@ impl ViewerSettings {
                     })?;
                 }
                 "drc_wrap" => s.drc_wrap = flag(value, line, key)?,
+                "rules_config_dir" => {
+                    if value.is_empty() {
+                        return Err(invalid(line, format!("{key}: must not be empty")));
+                    }
+                    s.rules_config_dir = value.to_string();
+                }
+                "rules_probe_steps" => {
+                    let steps = count(value, line, key)?;
+                    if !(10..=200).contains(&steps) {
+                        return Err(invalid(line, format!("{key}: must be from 10 to 200")));
+                    }
+                    s.rules_probe_steps = steps;
+                }
+                "rules_probe_span" => {
+                    let span = number(value, line, key)?;
+                    if !(1.0..=9.0e15).contains(&span) {
+                        return Err(invalid(
+                            line,
+                            format!("{key}: must be from 1 to 9000000000000000"),
+                        ));
+                    }
+                    s.rules_probe_span = span;
+                }
+                "rules_max_file_bytes" => s.rules_max_file_bytes = whole(value, line, key)?,
                 "backup_suffix" => {
                     if value.is_empty() || value.contains(['/', '\\']) {
                         return Err(invalid(
@@ -903,6 +940,33 @@ mod tests {
         }
         let error = ViewerSettings::parse("\ndrc_sort = no\n").unwrap_err();
         assert!(error.detail.starts_with("line 2"), "{}", error.detail);
+    }
+
+    #[test]
+    fn the_settings_of_the_editor_of_the_settings_files_are_read_and_checked() {
+        let s = ViewerSettings::parse(
+            "rules_config_dir = my/config\nrules_probe_steps = 40\nrules_probe_span = 1e6\nrules_max_file_bytes = 4096\n",
+        )
+        .unwrap();
+        assert_eq!(s.rules_config_dir, "my/config");
+        assert_eq!(s.rules_probe_steps, 40);
+        assert_eq!(s.rules_probe_span, 1.0e6_f64);
+        assert_eq!(s.rules_max_file_bytes, 4096);
+        for text in [
+            "rules_config_dir =",
+            "rules_probe_steps = 9",
+            "rules_probe_steps = 201",
+            "rules_probe_steps = x",
+            "rules_probe_span = 0.5",
+            "rules_probe_span = 1e16",
+            "rules_probe_span = nan",
+            "rules_max_file_bytes = 0",
+        ] {
+            let error = ViewerSettings::parse(text).unwrap_err();
+            assert_eq!(error.code, SETTINGS_INVALID, "{text}");
+        }
+        let error = ViewerSettings::parse("\n\nrules_probe_steps = 1\n").unwrap_err();
+        assert!(error.detail.starts_with("line 3"), "{}", error.detail);
     }
 
     #[test]

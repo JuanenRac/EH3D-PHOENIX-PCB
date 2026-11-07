@@ -101,6 +101,12 @@
 //! * [`prefs`]: the preferences that the window remembers between runs, read strictly and written
 //!   to a side file that is renamed over the old one (the window of these parts is in `window_gui`,
 //!   behind the `gui` feature);
+//! * [`cfg_edit`], [`cfg_kinds`] and [`cfg_text`]: the editor of the settings files (`config/*.cfg` and
+//!   the profiles of the board makers): the settings of a file with their value, default, range and
+//!   comment, the change of a value without touching the rest of the text, the validation by the very
+//!   readers that the commands use, the range found by offering numbers to those readers, the writing
+//!   of the result in one piece and never over a file that was not ordered to be replaced, and its
+//!   texts in the eight languages (the window is in `cfg_gui`, behind the `gui` feature);
 //! * [`help_text`] and [`window_text`]: the help of each mode and the texts of these parts in the
 //!   eight languages;
 //! * [`settings`], [`codes`], [`msg`] and [`editmsg`]: the settings file, the codes
@@ -137,6 +143,11 @@ pub mod board_zone;
 #[cfg(feature = "gui")]
 pub mod board_zone_gui;
 pub mod board_zone_text;
+pub mod cfg_edit;
+#[cfg(feature = "gui")]
+pub mod cfg_gui;
+pub mod cfg_kinds;
+pub mod cfg_text;
 pub mod codes;
 #[cfg(feature = "gui")]
 pub mod drc_gui;
