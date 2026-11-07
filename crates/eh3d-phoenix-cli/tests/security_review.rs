@@ -121,6 +121,10 @@ fn allowed() -> Vec<(&'static str, &'static str)> {
             "the save of a file that the window saved before, after a copy of it",
         ),
         (
+            "crates/eh3d-phoenix-viewer/src/cfg_edit.rs",
+            "the save of a settings file by the rules window, into a side file that is then renamed, and never over a file without the order of the person",
+        ),
+        (
             "crates/eh3d-phoenix-route/src/autorouter.rs",
             "files of the external autorouter, in a folder that was made new for the run",
         ),

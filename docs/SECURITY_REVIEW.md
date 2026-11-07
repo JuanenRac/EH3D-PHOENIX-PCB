@@ -130,6 +130,7 @@ These calls do not follow those ways and are on purpose:
 
 * the error file of the window (`window_run.rs`) and the list of recent files (`launcher_session.rs`): small files of the window in its own folder of settings;
 * the save of a file by the window (`session.rs`): it writes over a file only when the window itself saved it before, and makes a copy first;
+* the save of a settings file by the rules window (`cfg_edit.rs`): it writes a side file next to the destination and renames it, the default destination is never the input, and a file that is already there is replaced only when the person asks for it (with a copy of the old one);
 * the files of the external autorouter (`autorouter.rs`): created in a folder that was made new for the run.
 
 The value of `--out`, `--dir`, `--into`, `--svg` and `--csv` is looked at before any command runs (SR-8). A `..` in a path is accepted: the person who types it chooses where the output goes. In the places that were reviewed, a name that comes from a file is not used as a path: the names of the files that are written are made from letters, digits and a few signs (SR-7). The path where a package of the manufacturing files is written to (`--eh3dproj`, `--package`) is written by the shared library of EH3D-COMMON and was not reviewed here.
