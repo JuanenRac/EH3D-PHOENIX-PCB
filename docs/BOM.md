@@ -68,7 +68,7 @@ Every estimate says so (`PHOENIX-BOM-018`). The total of the batch is the parts 
 ## The command
 
 ```
-phoenix bom [--config FILE] [--prices FILE] [--parts FILE] [--import FILE [--import-map FILE]] [--parts-out FILE] [--parts-db PATH] [--schematic FILE]
+phoenix bom [--config FILE] [--prices FILE] [--parts FILE] [--import FILE [--import-format NAME] [--import-map FILE]] [--parts-out FILE] [--parts-db PATH] [--schematic FILE]
             [--stackup FILE] [--boards N] [--csv FILE] [--json-file FILE] [--html FILE] [--json] [--lang CODE]
             <board>
 ```
@@ -87,7 +87,19 @@ The columns of the CSV file, and their order, are the `csv_columns` of `config/c
 
 ## Importing the bill of another program
 
-`--import FILE` reads a CSV bill written by another program and uses what it says about the parts of the board. `--import-map FILE` (default `config/bom_import.cfg` when it exists) says how to read it: the delimiter (comma, semicolon or tab), the names of the columns for the references, value, footprint, maker, part number and quantity (several names for one column are separated by a bar, the first one the file has is used, case does not matter), a column that says the part is fitted and one that says it is not to be fitted (with the cells that mean so), and the characters that separate several references in one cell. Only the references are required. The names that come with the program are common English names written as a guess: they are not the layout of any program, no file of any program was compared, and the map is meant to be copied and changed.
+`--import FILE` reads the bill of materials that another program wrote and uses what it says about the parts of the board. `--import-format NAME` says which format it is (the default `auto` looks at the file):
+
+| Format | The file | How it is read |
+|---|---|---|
+| `auto` | any of the following | an EAGLE partlist (it starts with its title line `Partlist exported from`, or with a header line `Part Value ...`) is `eagle`; an XML file (it starts with `<?xml` or `<export`) is `kicad-xml`; every other text is `csv` |
+| `csv` | a generic CSV file | with the map of columns of `--import-map FILE` (default `config/bom_import.cfg` when it exists): the delimiter (comma, semicolon or tab), the names of the columns for the references, value, footprint, maker, part number and quantity (several names for one column are separated by a bar, case does not matter, and for each line the first of those columns that has a cell is used), a column that says the part is fitted and one that says it is not to be fitted (with the cells that mean so), and the characters that separate several references in one cell. Only the references are required |
+| `eagle` | the partlist that the EAGLE schematic editor writes as text | in columns of a fixed width: each cell starts where the name of its column starts in the header line (`Part`, `Value`, `Device`, `Package`, `MF`, `MPN` and the other attributes). The part is the reference; the value, the footprint (the first column called `Package`), the maker (`MF`, else `MANUF`) and the part number (`MPN`, else `MP`) are read, and a column `DNP` marks parts not to be fitted. A file that is not UTF-8 is read one byte for each character |
+| `kicad-csv` | the CSV bill of KiCad | the columns `Reference`, `Refs`, `Reference(s)` or `Designator`, `Value`, `Footprint`, `Qty` or `Quantity`, `Manufacturer`, `MPN` and `DNP`; the delimiter (comma, semicolon or tab) is taken from the header line, and the block of information that an older export writes before the header is left out |
+| `kicad-xml` | the XML bill of KiCad | the elements `comp` (attribute `ref`), `value`, `footprint`, the `field` elements of `fields` (`Manufacturer`, `MPN`) and the `property` elements named `dnp` or `exclude_from_bom`, which make the part not fitted. The five named entities and the numeric ones are decoded; entity declarations are refused and nothing is expanded or fetched |
+
+The formats other than `csv` have the column names written above, which the map does not change; from the map they take the limits (`max_rows`, `max_range`, `max_references`), the characters that separate references and the cells that mean not fitted. The EAGLE reader was tried on two partlists that EAGLE wrote (they are not in the repository), on all their lines; a partlist of another version of EAGLE, or a file edited by hand so that a cell does not start under its header, is read as it is and may give wrong cells. The KiCad formats are written from the public description of the files and have not been compared with a file of every version of KiCad.
+
+A cell of references may hold single references and ranges. `R1-R5` is `R1`, `R2`, `R3`, `R4` and `R5`, and `R1-5` is the same; `C08-C10` keeps the width of its first number (`C08`, `C09`, `C10`); spaces around the dash are allowed (`R1 - R5`). A text with a dash that does not start like a part (`TP-1`) is a reference as it is. A range is refused, and the import stops with the line in the message, when it is badly formed (`R1-`, `R1-C5`, `R1-A`: `PHOENIX-BOM-022`), when it ends below its start (`R5-R1`: `PHOENIX-BOM-023`) or when it names more parts than `max_range` (1000 by default: `PHOENIX-BOM-024`); the references of all the lines together are limited by `max_references` (`PHOENIX-BOM-017`). The quantity of a line is compared with the references after the ranges are expanded.
 
 What is done with the bill:
 
@@ -95,7 +107,7 @@ What is done with the bill:
 * the report gets the findings `PHOENIX-BOM-019` (a quantity that is not the number of references of its line), `PHOENIX-BOM-020` (a reference in two lines, the first is used) and `PHOENIX-BOM-021` (a part that is in the bill and not on the board, on the board and not in the bill, or whose value differs, compared without regard to case); all are warnings and change nothing;
 * `--parts-out FILE` writes the data as a file of part data, one line for each reference that has a maker, a part number or is not fitted (a new file; one that exists is never replaced), to be used later as `--parts`.
 
-A reference range such as `R1-R5` is not expanded. Nothing is fetched from a network.
+Nothing is fetched from a network.
 
 ## Completing the bill from the parts base
 
@@ -109,11 +121,11 @@ The CSV file of a face has the columns `references`, `quantity_board`, `quantity
 
 ## The codes
 
-`PHOENIX-BOM-001` to `PHOENIX-BOM-021`, with their titles in the eight languages; the table is in `docs/ERROR_CODES.md`.
+`PHOENIX-BOM-001` to `PHOENIX-BOM-024`, with their titles in the eight languages; the table is in `docs/ERROR_CODES.md`.
 
 ## What it does not do
 
 * It does not fetch prices, stock or part numbers from a supplier, and it does not order anything.
 * It does not merge lines of equivalent parts, split a quantity between suppliers or choose by stock or lead time.
 * It does not know the real tariff of any maker: the cost of the boards is the shape of a quote, with the numbers you put in the settings.
-* It reads a bill of another program only through a map of columns that you write; it does not know the format of any program.
+* It reads the bills of EAGLE and KiCad and, through a map of columns that you write, any other CSV bill; it does not read the formats of other programs, nor spreadsheets (`.xlsx`).

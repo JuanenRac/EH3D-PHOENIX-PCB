@@ -37,7 +37,7 @@ $ phoenix bom --config examples/guides/bom_costs_split.cfg --parts build/parts_f
 ## 如何阅读结果
 
 * 默认的设置文件是 `config/costs.cfg`，默认的映射表是 `config/bom_import.cfg`（如果存在）。映射表指定分隔符（逗号、分号或制表符），并为每一列给出它在文件中可能使用的名称；只有位号是必需的。程序自带的名称只是猜测，不是任何程序的格式：请复制该文件并写入你自己文件中的列名。
-* 代码 `PHOENIX-BOM-019`、`PHOENIX-BOM-020` 和 `PHOENIX-BOM-021` 是警告，不会改变任何内容：数量与所在行的位号数不符、同一位号出现在两行（采用第一行）、只有一侧有的零件或值不同的零件。`R1-R5` 这样的范围不会被展开。`--parts` 的内容优先于导入的清单。
+* 代码 `PHOENIX-BOM-019`、`PHOENIX-BOM-020` 和 `PHOENIX-BOM-021` 是警告，不会改变任何内容：数量与所在行的位号数不符、同一位号出现在两行（采用第一行）、只有一侧有的零件或值不同的零件。`R1-R5` 这样的范围会被展开为单个元件；格式错误、顺序颠倒或超过 `max_range` 的范围会中止导入（`PHOENIX-BOM-022` 至 `PHOENIX-BOM-024`）。`--import-format` 还能读取 EAGLE 的元件清单和 KiCad 的物料清单（`docs/BOM.md`）。`--parts` 的内容优先于导入的清单。
 * 不带 `--csv`、`--json-file` 和 `--html` 时，命令不写任何文件。退出码：正常完成为 0，某个元件引用了电路板上没有的封装为 1，参数或输入无法使用为 2。
 
 ## 另见

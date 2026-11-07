@@ -37,7 +37,7 @@ $ phoenix bom --config examples/guides/bom_costs_split.cfg --parts build/parts_f
 ## Cómo leer el resultado
 
 * El fichero de ajustes por defecto es `config/costs.cfg` y el mapa por defecto es `config/bom_import.cfg`, si existen. Un mapa indica el delimitador (coma, punto y coma o tabulador) y, para cada columna, los nombres que puede tener en el fichero; solo las referencias son obligatorias. Los nombres que trae el programa son una suposición y no son el formato de ningún programa: copie el fichero y escriba los nombres de su propio fichero.
-* Los códigos `PHOENIX-BOM-019`, `PHOENIX-BOM-020` y `PHOENIX-BOM-021` son avisos y no cambian nada: una cantidad que no es el número de referencias de su línea, una referencia en dos líneas (se usa la primera) y una pieza que solo tiene un lado o cuyo valor difiere. Un rango como `R1-R5` no se expande. Lo que dice `--parts` prevalece sobre la lista importada.
+* Los códigos `PHOENIX-BOM-019`, `PHOENIX-BOM-020` y `PHOENIX-BOM-021` son avisos y no cambian nada: una cantidad que no es el número de referencias de su línea, una referencia en dos líneas (se usa la primera) y una pieza que solo tiene un lado o cuyo valor difiere. Un rango como `R1-R5` se expande a sus piezas sueltas; un rango mal formado, invertido o más largo que `max_range` detiene la importación (`PHOENIX-BOM-022` a `PHOENIX-BOM-024`). `--import-format` también lee una lista de piezas de EAGLE o una lista de KiCad (`docs/BOM.md`). Lo que dice `--parts` prevalece sobre la lista importada.
 * Sin `--csv`, `--json-file` y `--html` el comando no escribe nada. El código de salida es 0 si termina bien, 1 si un componente nombra una huella que no está en la placa y 2 si los argumentos o la entrada no son utilizables.
 
 ## Véase también

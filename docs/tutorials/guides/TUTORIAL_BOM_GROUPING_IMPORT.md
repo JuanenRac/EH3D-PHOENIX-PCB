@@ -37,7 +37,7 @@ $ phoenix bom --config examples/guides/bom_costs_split.cfg --parts build/parts_f
 ## How to read the result
 
 * The default settings file is `config/costs.cfg` and the default map is `config/bom_import.cfg`, when they exist. A map names the delimiter (comma, semicolon or tab) and, for each column, the names it may have in the file; only the references are required. The names that come with the program are a guess and are not the layout of any program: copy the file and write the names of your own file.
-* The codes `PHOENIX-BOM-019`, `PHOENIX-BOM-020` and `PHOENIX-BOM-021` are warnings and change nothing: a quantity that is not the number of references of its line, a reference in two lines (the first is used) and a part that only one side has or whose value differs. A range such as `R1-R5` is not expanded. What `--parts` says wins over the imported bill.
+* The codes `PHOENIX-BOM-019`, `PHOENIX-BOM-020` and `PHOENIX-BOM-021` are warnings and change nothing: a quantity that is not the number of references of its line, a reference in two lines (the first is used) and a part that only one side has or whose value differs. A range such as `R1-R5` is expanded to its single parts; a range badly formed, upside down or longer than `max_range` stops the import (`PHOENIX-BOM-022` to `PHOENIX-BOM-024`). `--import-format` also reads an EAGLE partlist or a KiCad bill (`docs/BOM.md`). What `--parts` says wins over the imported bill.
 * Without `--csv`, `--json-file` and `--html` the command writes nothing. The exit code is 0 when done, 1 when a component names a footprint that is not on the board and 2 when the arguments or the input are unusable.
 
 ## See also
