@@ -11,7 +11,8 @@
 use eframe::egui;
 use eh3d_phoenix_rules::Lang;
 
-use crate::cfg_edit::{CfgEditor, CfgNote, KINDS};
+use crate::cfg_edit::{CfgEditor, CfgNote};
+use crate::cfg_kinds::KINDS;
 use crate::cfg_text::CfgMsg;
 use crate::gui::{ui_accent, ui_danger, ui_dim, ui_ok};
 
