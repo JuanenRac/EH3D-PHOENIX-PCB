@@ -2,7 +2,7 @@
 
 A check that compares every object of a board with every other one does work that grows with the square of the number of objects: a board with a few thousand tracks makes millions of comparisons, almost all of them between objects that are far apart. The crate `eh3d-phoenix-spatial` finds the neighbours of a box without those comparisons, and `phoenix perf` shows how much work each check does with it and without it.
 
-**State: prototype.** The index has been compared with the search of every pair on boards and boxes made by the tests from fixed seeds, never on the boards of real designs. The counts say how many comparisons are made; they say nothing about seconds, and no time was measured.
+**State: prototype.** The index has been compared with the search of every pair on boards and boxes made by the tests from fixed seeds, never on the boards of real designs. The counts say how many comparisons are made; they say nothing about seconds, and no time was measured. The benchmarks of the readers and of the rule check, with a time limit that is a setting, are described in `docs/PERFORMANCE.md`.
 
 ## The rule that keeps the results the same
 
