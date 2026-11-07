@@ -1072,7 +1072,7 @@ The titles of these codes also exist in the eight languages of the suite (`TITLE
 | PHOENIX-BOM-019 | A quantity of the imported bill differs from its references | `phoenix bom --import`: a line states a quantity that is not the number of references in its cell (warning) |
 | PHOENIX-BOM-020 | A reference is in two lines of the imported bill | `phoenix bom --import`: the first line that names it is used (warning) |
 | PHOENIX-BOM-021 | The imported bill and the board disagree about a part | `phoenix bom --import`: a part on one side only, or a value that differs (warning); nothing is changed |
-| PHOENIX-BOM-022 | A range of references in the imported bill is badly formed | `phoenix bom --import`: a range such as `R1-` with no end, `R1-C5` with two prefixes, `R1-A` whose end is not a number, or a number of more than nine digits; the import stops (the detail gives the line) |
+| PHOENIX-BOM-022 | A range of references in the imported bill is badly formed | `phoenix bom --import`: a range such as `R1-` with no end, `R1-C5` with two prefixes, or a number of more than nine digits; the import stops (the detail gives the line). As a warning: a dash after a part name whose end is neither a number nor a reference (`C1-A`, `J1-B`), which is kept as one reference |
 | PHOENIX-BOM-023 | A range of references in the imported bill ends below its start | `phoenix bom --import`: a range such as `R5-R1`; the import stops |
 | PHOENIX-BOM-024 | A range of references in the imported bill names too many parts | `phoenix bom --import`: a range of more than `max_range` parts of `config/bom_import.cfg` (1000 by default); the import stops |
 

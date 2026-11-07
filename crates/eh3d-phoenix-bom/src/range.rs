@@ -5,7 +5,8 @@
 //! with a dash that does not start like a part, is a reference as it is.
 //!
 //! A range that is badly formed, upside down or longer than the limit is an error with a code of
-//! its own, never a silent guess.
+//! its own, never a silent guess. A dash after a part name whose end is neither a number nor a
+//! reference (`C1-A`) is not a range: it is one reference as it is, and the import warns about it.
 
 use crate::codes::{BomError, RANGE_INVERTED, RANGE_MALFORMED, RANGE_TOO_LARGE};
 
@@ -58,11 +59,18 @@ fn number(digits: &str) -> Option<u64> {
 /// Expands one reference of a cell: the reference itself, or the parts of a range. `max_range` is
 /// the most parts one range may name.
 pub fn expand(token: &str, max_range: usize) -> Result<Vec<String>, BomError> {
+    expand_noted(token, max_range).map(|(parts, _)| parts)
+}
+
+/// Like [`expand`], and says whether the token has a dash after a part name whose end is neither a
+/// number nor a reference (`C1-A`, `J1-B`): such a token is one reference as it is, and the second
+/// value tells the caller to warn about it.
+pub fn expand_noted(token: &str, max_range: usize) -> Result<(Vec<String>, bool), BomError> {
     let Some((left, right)) = token.split_once('-') else {
-        return Ok(vec![token.to_owned()]);
+        return Ok((vec![token.to_owned()], false));
     };
     let Some((prefix, start_digits)) = split_name(left) else {
-        return Ok(vec![token.to_owned()]);
+        return Ok((vec![token.to_owned()], false));
     };
     let malformed = |why: &str| BomError::new(RANGE_MALFORMED, format!("{token}: {why}"));
     if right.is_empty() {
@@ -74,7 +82,7 @@ pub fn expand(token: &str, max_range: usize) -> Result<Vec<String>, BomError> {
         match split_name(right) {
             Some((p, d)) if p == prefix => d,
             Some(_) => return Err(malformed("the two ends have different prefixes")),
-            None => return Err(malformed("the end is not a number or a reference")),
+            None => return Ok((vec![token.to_owned()], true)),
         }
     };
     let (Some(start), Some(end)) = (number(start_digits), number(end_digits)) else {
@@ -99,9 +107,10 @@ pub fn expand(token: &str, max_range: usize) -> Result<Vec<String>, BomError> {
     } else {
         0
     };
-    Ok((start..=end)
+    let parts = (start..=end)
         .map(|n| format!("{prefix}{n:0width$}"))
-        .collect())
+        .collect();
+    Ok((parts, false))
 }
 
 #[cfg(test)]
@@ -136,15 +145,27 @@ mod tests {
         for (text, needle) in [
             ("R1-", "missing"),
             ("R1-C5", "different prefixes"),
-            ("R1-A", "not a number"),
-            ("R1-5x", "not a number"),
-            ("R1-R2-R3", "not a number"),
             ("R1-1234567890", "nine digits"),
         ] {
             let e = expand(text, 100).unwrap_err();
             assert_eq!(e.code, RANGE_MALFORMED, "{text}");
             assert!(e.detail.contains(needle), "{text}: {}", e.detail);
         }
+    }
+
+    #[test]
+    fn a_dash_and_an_end_that_is_not_a_number_is_one_reference_with_a_note() {
+        for text in ["C1-A", "J1-B", "R1-5x", "R1-R2-R3"] {
+            assert_eq!(
+                expand_noted(text, 100).unwrap(),
+                (vec![text.to_owned()], true),
+                "{text}"
+            );
+            assert_eq!(expand(text, 100).unwrap(), [text], "{text}");
+        }
+        // a real range and a plain reference carry no note
+        assert!(!expand_noted("R1-R3", 100).unwrap().1);
+        assert!(!expand_noted("TP-1", 100).unwrap().1);
     }
 
     #[test]

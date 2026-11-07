@@ -16,10 +16,10 @@ use std::collections::{BTreeMap, BTreeSet};
 use crate::bom::natural_key;
 use crate::codes::{
     BomError, Finding, Severity, IMPORT_DISAGREES, IMPORT_DUPLICATE, IMPORT_QUANTITY,
-    LIMIT_EXCEEDED, PARTS_INVALID, SETTINGS_INVALID,
+    LIMIT_EXCEEDED, PARTS_INVALID, RANGE_MALFORMED, SETTINGS_INVALID,
 };
 use crate::parts::{PartData, PartsFile};
-use crate::range::{collapse_dashes, expand};
+use crate::range::{collapse_dashes, expand_noted};
 use crate::text::{csv_text, parse_table_with, Table};
 
 /// The most lines an imported file may have.
@@ -291,8 +291,19 @@ pub fn bill_from_table(table: &Table, map: &ImportMap) -> Result<ImportedBill, B
             .map(str::trim)
             .filter(|r| !r.is_empty())
         {
-            let parts = expand(token, map.max_range)
+            let (parts, odd_end) = expand_noted(token, map.max_range)
                 .map_err(|e| BomError::new(e.code, format!("line {line}: {}", e.detail)))?;
+            if odd_end {
+                findings.push(Finding::new(
+                    RANGE_MALFORMED,
+                    Severity::Warning,
+                    Some(token),
+                    format!(
+                        "line {line}: the end after the dash is not a number or a reference; \
+                         the text is kept as one reference"
+                    ),
+                ));
+            }
             total += parts.len();
             if total > map.max_references {
                 return Err(BomError::new(
@@ -682,6 +693,32 @@ R3;10k;R0603;1;;;x\n";
             "{}",
             e.detail
         );
+    }
+
+    #[test]
+    fn a_reference_with_a_dash_and_a_text_end_is_kept_and_warned_about() {
+        let text = "references,quantity\n\"C1-A, J1-B\",2\nR1-R2,2\n";
+        let bill = import_bill(text, &ImportMap::default()).unwrap();
+        assert_eq!(bill.lines[0].references, ["C1-A", "J1-B"]);
+        assert_eq!(bill.lines[1].references, ["R1", "R2"]);
+        let notes: Vec<&Finding> = bill
+            .findings
+            .iter()
+            .filter(|f| f.code == RANGE_MALFORMED)
+            .collect();
+        assert_eq!(notes.len(), 2);
+        assert!(notes.iter().all(|f| f.severity == Severity::Warning));
+        assert_eq!(notes[0].subject.as_deref(), Some("C1-A"));
+        assert_eq!(notes[1].subject.as_deref(), Some("J1-B"));
+        assert!(
+            notes[0].detail.starts_with("line 2:"),
+            "{}",
+            notes[0].detail
+        );
+        // the quantity matches the two references, so nothing else is said
+        assert_eq!(bill.findings.len(), 2);
+        // a range that is really broken still stops the import
+        assert!(import_bill("references\nR1-\n", &ImportMap::default()).is_err());
     }
 
     #[test]

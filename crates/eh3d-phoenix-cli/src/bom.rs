@@ -56,7 +56,9 @@ phoenix bom [--config FILE] [--prices FILE] [--parts FILE] [--import FILE [--imp
                 (default: config/bom_import.cfg when it exists); nothing is read from a network.
                 A cell of references may hold a range such as R1-R5, which is expanded to the
                 single parts (a range badly formed, upside down or longer than max_range of the
-                map is refused, PHOENIX-BOM-022 to 024)
+                map is refused, PHOENIX-BOM-022 to 024; a dash after a part name with an end that
+                is no number, such as C1-A, is kept as one reference and warned about with
+                PHOENIX-BOM-022)
   --import-format
                 the format of the imported bill: auto (the default: an EAGLE partlist, a KiCad XML
                 file or else a CSV file), csv (the columns named in the map), eagle (the partlist
