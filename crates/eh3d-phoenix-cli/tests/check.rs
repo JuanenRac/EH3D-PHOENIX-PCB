@@ -411,3 +411,41 @@ fn check_against_a_capability_profile_judges_the_limits_and_the_layers() {
     assert_eq!(code, 2);
     assert!(err.contains("line 2"), "{err}");
 }
+
+#[test]
+fn check_with_the_profile_of_a_maker_that_comes_with_the_program() {
+    let f = Files::new();
+    let brd = f.write("b.brd", &write_board(&board()).text);
+    // the track of 0.10 mm is the narrowest both makers build, so only the note remains
+    for name in ["jlcpcb", "pcbway", "JLCPCB"] {
+        let (code, out, err) = call(&["check", "--dfm-profile", name, brd.as_str()]);
+        assert_eq!(code, 0, "{name}: {out}{err}");
+        assert!(out.contains("PHOENIX-DFM-006"), "{name}: {out}");
+        for other in ["001", "002", "003", "004", "005"] {
+            assert!(
+                !out.contains(&format!("PHOENIX-DFM-{other}")),
+                "{name}: {out}"
+            );
+        }
+    }
+    // a name that is not one of them lists the ones that are
+    let (code, _, err) = call(&["check", "--dfm-profile", "nobody", brd.as_str()]);
+    assert_eq!(code, 2);
+    assert!(err.contains("no profile is called nobody"), "{err}");
+    assert!(err.contains("example, jlcpcb, pcbway"), "{err}");
+    // it cannot be mixed with the other ways to give the limits
+    let open = f.write("open.cfg", "name = example\n");
+    let rules = f.write("r.json", RULES);
+    for other in [["--dfm", open.as_str()], ["--rules", rules.as_str()]] {
+        let (code, _, err) = call(&[
+            "check",
+            "--dfm-profile",
+            "jlcpcb",
+            other[0],
+            other[1],
+            brd.as_str(),
+        ]);
+        assert_eq!(code, 2);
+        assert!(err.contains("only one of them"), "{err}");
+    }
+}

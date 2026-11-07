@@ -5,3 +5,6 @@
 *.sh text eol=lf
 *.bat text eol=crlf
 *.cmd text eol=crlf
+
+# The profiles of board makers keep their bytes as they are on every platform.
+config/dfm_*.cfg -text

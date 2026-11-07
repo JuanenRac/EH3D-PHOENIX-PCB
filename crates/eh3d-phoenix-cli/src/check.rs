@@ -14,9 +14,9 @@ use std::time::Instant;
 use eh3d_phoenix_eagle_board::{read_board_with_limits, read_schematic_with_limits};
 use eh3d_phoenix_model::{DeterministicRandom, IdGenerator, Nm, ObjectId, StepClock};
 use eh3d_phoenix_rules::{
-    board_notes, check_advanced, check_board, check_classes, check_connectivity, dfm_findings,
-    report_csv, report_html, to_sarif, AdvancedConfig, DfmProfile, Lang, NetClasses, Report,
-    RuleFile, RuleValues,
+    board_notes, builtin_names, builtin_profile, check_advanced, check_board, check_classes,
+    check_connectivity, dfm_findings, report_csv, report_html, to_sarif, AdvancedConfig,
+    DfmProfile, Lang, NetClasses, Report, RuleFile, RuleValues,
 };
 
 /// Said when a KiCad board is checked without a file of limits.
@@ -27,7 +27,7 @@ const KICAD_NEEDS_RULES: &str =
 const MAX_INPUT_BYTES: u64 = 256 * 1024 * 1024;
 
 pub(crate) const USAGE: &str = "\
-phoenix check [--rules FILE | --rules-dru FILE | --dfm FILE] [--advanced] [--drc-config FILE] [--limits FILE] [--json | --sarif] [--csv FILE] [--html FILE] [--time] [--lang CODE] <board.brd>
+phoenix check [--rules FILE | --rules-dru FILE | --dfm FILE | --dfm-profile NAME] [--advanced] [--drc-config FILE] [--limits FILE] [--json | --sarif] [--csv FILE] [--html FILE] [--time] [--lang CODE] <board.brd>
 
   check         run the design rules on an EAGLE board. The limits come from FILE (a JSON rule
                 file, format phoenix-rules/1 or phoenix-rules/2, which adds net classes with
@@ -52,6 +52,11 @@ phoenix connectivity [--rules FILE] [--limits FILE] [--json] [--csv FILE] [--htm
                 docs/DFM.md and config/dfm/example.cfg): its limits replace the rules of the board
                 and it also judges the copper layers, the size of the board, the largest drill and
                 the number of holes. The example profile is not verified against any maker
+  --dfm-profile NAME
+                the same with a profile that comes with the program: jlcpcb, pcbway or example
+                (the files config/dfm_jlcpcb.cfg, config/dfm_pcbway.cfg and config/dfm/example.cfg,
+                whose figures are public guiding numbers of the makers and stay unverified); it
+                cannot be given with --dfm, --rules or --rules-dru
   --limits FILE the limits of the reader of the EAGLE files (config/eagle_board.cfg) and of the
                 checks of a board (config/board.cfg), as for every command; without it the defaults
                 are used and the report is the same. check tells, as information that never
@@ -72,6 +77,7 @@ struct Options {
     advanced: bool,
     drc_config: Option<String>,
     dfm: Option<String>,
+    dfm_profile: Option<String>,
     csv: Option<String>,
     html: Option<String>,
     lang: Lang,
@@ -88,6 +94,7 @@ fn parse_options(args: &[&str]) -> Result<Options, String> {
         advanced: false,
         drc_config: None,
         dfm: None,
+        dfm_profile: None,
         csv: None,
         html: None,
         lang: Lang::En,
@@ -110,6 +117,12 @@ fn parse_options(args: &[&str]) -> Result<Options, String> {
             "--dfm" => {
                 let path = iter.next().ok_or("--dfm needs a profile file")?;
                 options.dfm = Some((*path).to_owned());
+            }
+            "--dfm-profile" => {
+                let name = iter
+                    .next()
+                    .ok_or("--dfm-profile needs the name of a profile")?;
+                options.dfm_profile = Some((*name).to_owned());
             }
             "--csv" => {
                 let path = iter.next().ok_or("--csv needs a file to write")?;
@@ -257,8 +270,32 @@ pub(crate) fn check(args: &[&str], out: &mut dyn Write, err: &mut dyn Write) -> 
             Err(message) => return fail(err, &message),
         }
     };
-    let dfm = match &options.dfm {
-        Some(path) => {
+    if options.dfm.is_some() && options.dfm_profile.is_some() {
+        return fail(err, "give --dfm or --dfm-profile, only one of them");
+    }
+    let dfm = match (&options.dfm, &options.dfm_profile) {
+        (None, Some(name)) => {
+            if options.rules.is_some() || options.rules_dru.is_some() {
+                return fail(
+                    err,
+                    "give --dfm-profile or --rules or --rules-dru, only one of them",
+                );
+            }
+            let Some(text) = builtin_profile(name) else {
+                return fail(
+                    err,
+                    &format!(
+                        "no profile is called {name} (the profiles that come with the program: {})",
+                        builtin_names()
+                    ),
+                );
+            };
+            match DfmProfile::parse(text) {
+                Ok(profile) => Some(profile),
+                Err(e) => return fail(err, &format!("{name}: {e}")),
+            }
+        }
+        (Some(path), _) => {
             if options.rules.is_some() || options.rules_dru.is_some() {
                 return fail(
                     err,
@@ -272,7 +309,7 @@ pub(crate) fn check(args: &[&str], out: &mut dyn Write, err: &mut dyn Write) -> 
                 Err(message) => return fail(err, &message),
             }
         }
-        None => None,
+        (None, None) => None,
     };
     let (rules, classes) = if let Some(profile) = &dfm {
         (profile.rules, NetClasses::default())
@@ -370,10 +407,10 @@ pub(crate) fn connectivity(args: &[&str], out: &mut dyn Write, err: &mut dyn Wri
         }
     };
     let started = Instant::now();
-    if options.dfm.is_some() {
+    if options.dfm.is_some() || options.dfm_profile.is_some() {
         return fail(
             err,
-            "--dfm belongs to the command check, not to connectivity",
+            "--dfm and --dfm-profile belong to the command check, not to connectivity",
         );
     }
     if options.advanced {

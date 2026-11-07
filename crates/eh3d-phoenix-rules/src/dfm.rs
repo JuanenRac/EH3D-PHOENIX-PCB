@@ -271,6 +271,31 @@ impl DfmProfile {
     }
 }
 
+/// The profiles that come with the program: their names and the text of their files in `config/`.
+/// The figures are in those files and nowhere else; the program only reads them.
+pub const BUILTIN: &[(&str, &str)] = &[
+    ("example", include_str!("../../../config/dfm/example.cfg")),
+    ("jlcpcb", include_str!("../../../config/dfm_jlcpcb.cfg")),
+    ("pcbway", include_str!("../../../config/dfm_pcbway.cfg")),
+];
+
+/// The text of a profile that comes with the program, by name (without regard to case).
+pub fn builtin_profile(name: &str) -> Option<&'static str> {
+    BUILTIN
+        .iter()
+        .find(|(n, _)| n.eq_ignore_ascii_case(name))
+        .map(|(_, text)| *text)
+}
+
+/// The names of the profiles that come with the program, joined for a message.
+pub fn builtin_names() -> String {
+    BUILTIN
+        .iter()
+        .map(|(n, _)| *n)
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
 /// The box of the outline as its short and its long side, in nanometres.
 fn sides(board: &Board) -> Option<(i64, i64)> {
     let xs = board.outline.iter().map(|p| p.x_nm.get());
@@ -614,6 +639,96 @@ mod tests {
                 .find(|l| l.starts_with(&format!("| {code} |")))
                 .unwrap_or_else(|| panic!("{code} is not documented"));
             assert!(row.contains(english), "{code}: {row}");
+        }
+    }
+
+    fn limits(p: &DfmProfile) -> [i64; 8] {
+        let r = &p.rules;
+        [
+            r.min_track_width.get(),
+            r.min_clearance.get(),
+            r.min_drill.get(),
+            r.min_via_diameter.get(),
+            r.min_annular_ring.get(),
+            r.min_edge_clearance.get(),
+            r.min_mask_bridge.get(),
+            r.min_drill_spacing.get(),
+        ]
+    }
+
+    #[test]
+    fn the_profiles_that_come_with_the_program_hold_the_figures_of_their_files() {
+        assert_eq!(builtin_profile("JLCPCB"), Some(BUILTIN[1].1));
+        assert_eq!(builtin_profile("nobody"), None);
+        assert_eq!(builtin_names(), "example, jlcpcb, pcbway");
+        let jlc = DfmProfile::parse(builtin_profile("jlcpcb").unwrap()).unwrap();
+        assert_eq!(jlc.name, "JLCPCB standard rigid FR-4");
+        assert!(jlc.source.starts_with("https://jlcpcb.com/"));
+        assert!(!jlc.verified);
+        assert_eq!(
+            limits(&jlc),
+            [100_000, 100_000, 150_000, 250_000, 50_000, 200_000, 100_000, 200_000]
+        );
+        assert_eq!(jlc.max_copper_layers, 32);
+        assert_eq!(
+            (
+                jlc.min_board_short_nm,
+                jlc.max_board_short_nm,
+                jlc.max_board_long_nm
+            ),
+            (3_000_000, 600_000_000, 670_000_000)
+        );
+        assert_eq!((jlc.max_drill_nm, jlc.max_holes), (6_300_000, 0));
+        let pcbway = DfmProfile::parse(builtin_profile("pcbway").unwrap()).unwrap();
+        assert_eq!(pcbway.name, "PCBWay standard rigid FR-4");
+        assert!(pcbway.source.starts_with("https://www.pcbway.com/"));
+        assert!(!pcbway.verified);
+        assert_eq!(
+            limits(&pcbway),
+            [100_000, 100_000, 150_000, 0, 150_000, 250_000, 101_600, 279_400]
+        );
+        assert_eq!(pcbway.max_copper_layers, 14);
+        assert_eq!(
+            (pcbway.max_board_short_nm, pcbway.max_board_long_nm),
+            (560_000_000, 1_150_000_000)
+        );
+        assert_eq!(pcbway.max_drill_nm, 6_000_000);
+    }
+
+    #[test]
+    fn a_board_is_judged_against_each_maker_with_the_figures_of_its_file() {
+        // the board of these tests has two copper layers and is 25 x 40 mm: it fits both makers
+        for name in ["jlcpcb", "pcbway"] {
+            let profile = DfmProfile::parse(builtin_profile(name).unwrap()).unwrap();
+            assert_eq!(
+                codes(&dfm_findings(&board(), &profile)),
+                [UNVERIFIED],
+                "{name}"
+            );
+        }
+        // a maker that builds fewer layers than the board has is refused
+        let mut small = DfmProfile::parse(builtin_profile("pcbway").unwrap()).unwrap();
+        small.max_copper_layers = 1;
+        assert_eq!(codes(&dfm_findings(&board(), &small)), [LAYERS, UNVERIFIED]);
+    }
+
+    #[test]
+    fn the_profiles_keep_their_bytes_and_say_where_the_figures_came_from() {
+        for (name, text) in BUILTIN {
+            // the files of the makers are not converted by git; the example is
+            assert!(
+                *name == "example" || !text.contains('\r'),
+                "{name} has carriage returns"
+            );
+            let profile = DfmProfile::parse(text).unwrap();
+            assert!(
+                !profile.name.is_empty() && !profile.source.is_empty(),
+                "{name}"
+            );
+            // every length is a whole number of micrometres
+            for nm in limits(&profile) {
+                assert_eq!(nm % 100, 0, "{name}");
+            }
         }
     }
 }
