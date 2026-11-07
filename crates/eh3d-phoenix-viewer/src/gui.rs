@@ -13,6 +13,9 @@ use eh3d_phoenix_rules::Lang;
 use crate::appearance;
 use crate::board_gui::{self, BoardEditUi};
 use crate::board_text::BoardMsg;
+use crate::cfg_edit::CfgEditor;
+use crate::cfg_gui;
+use crate::cfg_text::CfgMsg;
 use crate::codes::{ViewError, FILE_UNUSABLE, WINDOW_FAILED};
 use crate::drc_gui;
 use crate::editmsg::EditMsg;
@@ -125,6 +128,8 @@ struct App {
     /// The search, the measures, the layers, the history, the appearance, the shortcuts, the help
     /// and the preferences that are remembered.
     win: WindowUi,
+    /// The window of the settings files, while it is open.
+    rules: Option<CfgEditor>,
     /// The actions whose keys were pressed in this frame.
     actions: Vec<Action>,
     /// The picture mode, while the window is there only to be photographed.
@@ -183,6 +188,7 @@ impl App {
             models_text: String::new(),
             print: PrintUi::new(),
             win,
+            rules: None,
             actions: Vec::new(),
             shot: None,
         };
@@ -363,6 +369,11 @@ impl App {
                     self.workspace = None;
                     self.sch = None;
                     self.brd = None;
+                }
+                if ui.button(CfgMsg::Title.tr(lang)).clicked() {
+                    if self.rules.take().is_none() {
+                        self.rules = Some(CfgEditor::new(&self.settings));
+                    }
                 }
                 let has_scene = self.workspace.is_some();
                 if ui
@@ -1200,6 +1211,12 @@ impl eframe::App for App {
         self.body(ui);
         let ctx = ui.ctx().clone();
         self.common(&ctx);
+        let lang = self.lang;
+        if let Some(editor) = self.rules.as_mut() {
+            if !cfg_gui::window(&ctx, editor, lang) {
+                self.rules = None;
+            }
+        }
     }
 }
 
