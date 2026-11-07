@@ -14,6 +14,7 @@ use eh3d_phoenix_route::{Element, Mode, RouteRequest, RouteSettings};
 use eh3d_phoenix_rules::{Lang, Severity};
 
 use crate::codes::ViewError;
+use crate::drc_panel::{DrcPanel, FindingKey};
 use crate::editmsg::EditMsg;
 use crate::load::{self, Document, Loaded};
 use crate::prim::P;
@@ -332,6 +333,9 @@ pub struct Workspace {
     pub note: Option<Note>,
     /// True after Ctrl+S: the window should ask where to save. The window clears it.
     pub want_save: bool,
+    /// The panel of the problems found by the design rules of a board: the filters, the order and
+    /// the problem that was gone to last.
+    pub drc: DrcPanel,
 }
 
 impl Workspace {
@@ -357,6 +361,7 @@ impl Workspace {
             )?)),
         };
         let active_width_mm = route.default_width_nm as f64 / 1_000_000.0;
+        let drc = DrcPanel::from_settings(&settings);
         Ok(Workspace {
             viewer: Viewer::new(scene, settings),
             doc,
@@ -370,6 +375,7 @@ impl Workspace {
             marker: None,
             note: None,
             want_save: false,
+            drc,
         })
     }
 
@@ -995,6 +1001,30 @@ impl Workspace {
                 false
             }
         }
+    }
+
+    /// Goes to the next problem of the panel of problems (or the previous one) that is shown and
+    /// has a place on the board, and makes it the current one. When no problem shown has a place
+    /// the status bar says so.
+    pub fn drc_step(&mut self, forward: bool) -> bool {
+        let place = match &self.doc {
+            Doc::Board(session) => self.drc.step(&session.findings, forward),
+            Doc::Schematic(_) => None,
+        };
+        match place {
+            Some(_) => self.jump_to_place(place),
+            None => {
+                self.info(EditMsg::NoteNoPlace);
+                false
+            }
+        }
+    }
+
+    /// Makes a problem of the panel the current one and goes to its place, given in nanometres; a
+    /// problem with no place says so.
+    pub fn drc_go_to(&mut self, key: FindingKey, at_nm: Option<[i64; 2]>) -> bool {
+        self.drc.current = Some(key);
+        self.jump_to_place(at_nm)
     }
 
     /// Goes to the pin, the net or the part that a location of a report names: the item is
@@ -1642,6 +1672,81 @@ mod tests {
             w.note,
             Some(Note::Info(EditMsg::NoteNoPlace, String::new()))
         );
+    }
+
+    fn problem(
+        code: &'static str,
+        severity: Severity,
+        at_nm: Option<[i64; 2]>,
+    ) -> eh3d_phoenix_rules::Finding {
+        eh3d_phoenix_rules::Finding {
+            rank: 0,
+            rule: "x",
+            code,
+            severity,
+            location: code.to_owned(),
+            at_nm,
+            measured_nm: None,
+            limit_nm: None,
+            detail: String::new(),
+        }
+    }
+
+    #[test]
+    fn the_steps_of_the_panel_of_problems_go_to_the_places_of_the_findings() {
+        use eh3d_phoenix_rules::codes;
+        let mut w = board_workspace();
+        w.board_session_mut().unwrap().findings = vec![
+            problem(
+                codes::TRACK_NARROW,
+                Severity::Warning,
+                Some([20_000_000, 10_000_000]),
+            ),
+            problem(codes::SILK_OVER_PAD, Severity::Info, None),
+            problem(
+                codes::CLEARANCE,
+                Severity::Error,
+                Some([15_000_000, 15_000_000]),
+            ),
+        ];
+        // by severity the error comes first, then the warning; the information has no place
+        assert!(w.drc_step(true));
+        assert_eq!(w.marker, Some(P::new(15.0, 15.0)));
+        assert!(w.drc_step(true));
+        assert_eq!(w.marker, Some(P::new(20.0, 10.0)));
+        assert_eq!(w.viewer.view.centre, P::new(20.0, 10.0));
+        // past the last it goes round, and backwards it returns
+        assert!(w.drc_step(true));
+        assert_eq!(w.marker, Some(P::new(15.0, 15.0)));
+        assert!(w.drc_step(false));
+        assert_eq!(w.marker, Some(P::new(20.0, 10.0)));
+        // a problem picked from the list is the current one
+        let key = FindingKey::of(&w.board_session().unwrap().findings[2]);
+        assert!(w.drc_go_to(key, Some([1_000_000, 2_000_000])));
+        assert_eq!(w.marker, Some(P::new(1.0, 2.0)));
+        assert!(w.drc.is_current(&w.board_session().unwrap().findings[2]));
+        assert!(w.drc_step(true));
+        assert_eq!(w.marker, Some(P::new(20.0, 10.0)));
+        // with every error hidden the step has only the warning
+        w.drc.filter.errors = false;
+        assert!(w.drc_step(true));
+        assert_eq!(w.marker, Some(P::new(20.0, 10.0)));
+    }
+
+    #[test]
+    fn the_steps_say_so_when_there_is_nothing_to_go_to() {
+        let mut w = board_workspace();
+        w.board_session_mut().unwrap().findings = Vec::new();
+        w.marker = None;
+        assert!(!w.drc_step(true));
+        assert!(w.marker.is_none());
+        assert_eq!(
+            w.note,
+            Some(Note::Info(EditMsg::NoteNoPlace, String::new()))
+        );
+        let mut s = schematic_workspace();
+        assert!(!s.drc_step(false));
+        assert!(s.marker.is_none());
     }
 
     #[test]

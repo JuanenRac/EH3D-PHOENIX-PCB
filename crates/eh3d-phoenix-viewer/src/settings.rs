@@ -4,8 +4,11 @@
 
 use std::collections::BTreeMap;
 
+use eh3d_phoenix_rules::report_export::CATEGORIES;
+
 use crate::appearance::{Theme, FONT_MAX, FONT_MIN, SCALE_MAX, SCALE_MIN};
 use crate::codes::{ViewError, SETTINGS_INVALID};
+use crate::drc_panel::DrcSort;
 use crate::keymap::Keymap;
 use crate::measure_set::{format_length, Unit};
 
@@ -226,6 +229,20 @@ pub struct ViewerSettings {
     pub marker_radius_px: f64,
     /// The most findings that a panel lists.
     pub findings_shown: usize,
+    /// Whether the panel of problems starts by showing the errors.
+    pub drc_show_errors: bool,
+    /// Whether the panel of problems starts by showing the warnings.
+    pub drc_show_warnings: bool,
+    /// Whether the panel of problems starts by showing the information.
+    pub drc_show_information: bool,
+    /// The categories of the reports (`size`, `clearance`, `edge`, `mask_silk`, `zones`,
+    /// `connectivity`, `advanced`, `capability`, `other`) that the panel of problems starts
+    /// without.
+    pub drc_hidden_categories: Vec<String>,
+    /// The order in which the panel of problems starts.
+    pub drc_sort: DrcSort,
+    /// Whether the step to the next problem goes round past the last one.
+    pub drc_wrap: bool,
     /// The ending of the name of the copy that is made before a saved file is replaced.
     pub backup_suffix: String,
     /// How many recent files the start screen of the window keeps.
@@ -365,6 +382,12 @@ impl Default for ViewerSettings {
             ratsnest_width_px: 1.0,
             marker_radius_px: 14.0,
             findings_shown: 500,
+            drc_show_errors: true,
+            drc_show_warnings: true,
+            drc_show_information: true,
+            drc_hidden_categories: Vec::new(),
+            drc_sort: DrcSort::Severity,
+            drc_wrap: true,
             backup_suffix: ".bak".to_string(),
             recent_max: 10,
             recent_file: "recent.cfg".to_string(),
@@ -461,6 +484,26 @@ fn flag(value: &str, line: usize, key: &str) -> Result<bool, ViewError> {
         "false" => Ok(false),
         _ => Err(invalid(line, format!("{key}: expected true or false"))),
     }
+}
+
+/// A list of categories of the reports separated by `|`; an empty text is an empty list.
+fn categories(value: &str, line: usize, key: &str) -> Result<Vec<String>, ViewError> {
+    let mut out: Vec<String> = Vec::new();
+    for name in value.split('|').map(str::trim).filter(|n| !n.is_empty()) {
+        if !CATEGORIES.contains(&name) {
+            return Err(invalid(
+                line,
+                format!(
+                    "{key}: unknown category {name} (one of {})",
+                    CATEGORIES.join(", ")
+                ),
+            ));
+        }
+        if !out.iter().any(|c| c == name) {
+            out.push(name.to_owned());
+        }
+    }
+    Ok(out)
 }
 
 fn file_name(value: &str, line: usize, key: &str) -> Result<String, ViewError> {
@@ -647,6 +690,18 @@ impl ViewerSettings {
                 "ratsnest_width_px" => s.ratsnest_width_px = number(value, line, key)?,
                 "marker_radius_px" => s.marker_radius_px = number(value, line, key)?,
                 "findings_shown" => s.findings_shown = count(value, line, key)?,
+                "drc_show_errors" => s.drc_show_errors = flag(value, line, key)?,
+                "drc_show_warnings" => s.drc_show_warnings = flag(value, line, key)?,
+                "drc_show_information" => s.drc_show_information = flag(value, line, key)?,
+                "drc_hidden_categories" => {
+                    s.drc_hidden_categories = categories(value, line, key)?;
+                }
+                "drc_sort" => {
+                    s.drc_sort = DrcSort::from_key(value).ok_or_else(|| {
+                        invalid(line, format!("{key}: expected severity, category or found"))
+                    })?;
+                }
+                "drc_wrap" => s.drc_wrap = flag(value, line, key)?,
                 "backup_suffix" => {
                     if value.is_empty() || value.contains(['/', '\\']) {
                         return Err(invalid(
@@ -820,6 +875,34 @@ mod tests {
         }
         let error = ViewerSettings::parse("\n\nbad").unwrap_err();
         assert!(error.detail.starts_with("line 3"), "{}", error.detail);
+    }
+
+    #[test]
+    fn the_settings_of_the_panel_of_problems_are_read_and_checked() {
+        let s = ViewerSettings::parse(
+            "drc_show_errors = false\ndrc_show_warnings = true\ndrc_show_information = false\n\
+             drc_hidden_categories = zones | edge|zones\ndrc_sort = found\ndrc_wrap = false\n",
+        )
+        .unwrap();
+        assert!(!s.drc_show_errors && s.drc_show_warnings && !s.drc_show_information);
+        assert_eq!(s.drc_hidden_categories, ["zones", "edge"]);
+        assert_eq!(s.drc_sort, DrcSort::Found);
+        assert!(!s.drc_wrap);
+        // an empty list is allowed
+        let none = ViewerSettings::parse("drc_hidden_categories =\n").unwrap();
+        assert!(none.drc_hidden_categories.is_empty());
+        for text in [
+            "drc_show_errors = yes",
+            "drc_hidden_categories = size|colours",
+            "drc_sort = newest",
+            "drc_sort = ",
+            "drc_wrap = 1",
+        ] {
+            let error = ViewerSettings::parse(text).unwrap_err();
+            assert_eq!(error.code, SETTINGS_INVALID, "{text}");
+        }
+        let error = ViewerSettings::parse("\ndrc_sort = no\n").unwrap_err();
+        assert!(error.detail.starts_with("line 2"), "{}", error.detail);
     }
 
     #[test]

@@ -138,6 +138,10 @@ pub mod board_zone;
 pub mod board_zone_gui;
 pub mod board_zone_text;
 pub mod codes;
+#[cfg(feature = "gui")]
+pub mod drc_gui;
+pub mod drc_panel;
+pub mod drc_text;
 pub mod editmsg;
 #[cfg(feature = "gui")]
 pub mod gerber_gui;

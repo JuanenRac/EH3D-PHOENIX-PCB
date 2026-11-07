@@ -14,6 +14,7 @@ use crate::appearance;
 use crate::board_gui::{self, BoardEditUi};
 use crate::board_text::BoardMsg;
 use crate::codes::{ViewError, FILE_UNUSABLE, WINDOW_FAILED};
+use crate::drc_gui;
 use crate::editmsg::EditMsg;
 use crate::gerber_gui::GerberUi;
 use crate::help_text::HelpMode;
@@ -793,26 +794,12 @@ fn board_panel(ui: &mut egui::Ui, workspace: &mut Workspace, rules_text: &mut St
                 });
             });
         }
-        ui.separator();
-        let total = session.findings.len();
-        ui.label(heading(&format!(
-            "{} ({total})",
-            EditMsg::RuleFindings.tr(lang)
-        )));
-        if total == 0 {
-            ui.label(dim(EditMsg::NoFindings.tr(lang)));
-        }
-        for (i, finding) in session.findings.iter().take(shown).enumerate() {
-            ui.push_id(("finding", i), |ui| {
-                finding_row(ui, &finding_line(finding, lang), ui_text(), lang, || {
-                    jump = Some(finding.at_nm);
-                });
-            });
-        }
     }
     if let Some(place) = jump {
         workspace.jump_to_place(place);
     }
+    // the problems of the rules with their filters, their order and the steps between them
+    drc_gui::section(ui, workspace, lang);
     ui.separator();
     ui.label(heading(EditMsg::NetList.tr(lang)));
     let highlighted = workspace.viewer.highlight;
