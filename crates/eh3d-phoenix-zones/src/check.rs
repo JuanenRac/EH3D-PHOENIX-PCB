@@ -25,7 +25,7 @@ use crate::geom::{
 };
 use crate::items::collect;
 use crate::rules::ZoneRules;
-use crate::settings::ZoneSettings;
+use crate::settings::{IslandAction, ZoneSettings};
 
 /// The largest coordinate a polygon may have, as for the rest of the design.
 const COORD_LIMIT: i64 = (1 << 30) - 1;
@@ -231,7 +231,7 @@ pub fn check_fill(
                     format!("an island of {} pieces", info.members.len()),
                 ));
             }
-            if !info.connected && !settings.keep_unconnected_islands {
+            if !info.connected && settings.island_action() != IslandAction::Keep {
                 findings.push(Finding::new(
                     ISLAND_UNCONNECTED,
                     Severity::Warning,

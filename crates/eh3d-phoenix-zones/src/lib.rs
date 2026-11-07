@@ -15,7 +15,7 @@
 //!   the limits of single zones;
 //! * [`settings`]: every radius, width and limit, read from `config/zones.cfg`;
 //! * [`report`]: the text and JSON of a fill and of a check;
-//! * [`codes`]: the codes `PHOENIX-ZONE-001` to `PHOENIX-ZONE-019` with their titles in the eight
+//! * [`codes`]: the codes `PHOENIX-ZONE-001` to `PHOENIX-ZONE-020` with their titles in the eight
 //!   languages.
 //!
 //! **State: prototype.** It has been tried on boards made by hand and by the tests only. Pads
@@ -42,4 +42,4 @@ pub use codes::{title, Finding, Severity, ZoneError};
 pub use fill::{fill_board, FillFile, FillReport, FilledZone, ZoneStats, FILL_FORMAT};
 pub use report::{fill_file_json, fill_json, fill_text, findings_text, CheckReport};
 pub use rules::{ZoneEntry, ZoneFile, ZoneRules, ZONES_FORMAT};
-pub use settings::{Connection, ZoneSettings};
+pub use settings::{Connection, IslandAction, ZoneSettings};

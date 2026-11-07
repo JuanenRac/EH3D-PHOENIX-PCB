@@ -8,12 +8,12 @@ use eh3d_phoenix_board::{
 };
 use eh3d_phoenix_model::{Nm, Point, Udeg};
 use eh3d_phoenix_zones::codes::{
-    CLEARANCE_VIOLATED, FILL_EMPTY, OUTSIDE_OUTLINE, PRIORITY_TIE, RELIEF_IMPOSSIBLE,
-    ZONE_FILE_INVALID, ZONE_NOT_FOUND,
+    CLEARANCE_VIOLATED, FILL_EMPTY, ISLAND_KEPT, ISLAND_UNCONNECTED, OUTSIDE_OUTLINE, PRIORITY_TIE,
+    RELIEF_IMPOSSIBLE, ZONE_FILE_INVALID, ZONE_NOT_FOUND,
 };
 use eh3d_phoenix_zones::{
-    check_fill, fill_board, fill_file_json, fill_json, has_errors, FillReport, ZoneFile, ZoneRules,
-    ZoneSettings,
+    check_fill, fill_board, fill_file_json, fill_json, has_errors, FillReport, IslandAction,
+    ZoneFile, ZoneRules, ZoneSettings,
 };
 
 const MM: i64 = 1_000_000;
@@ -532,4 +532,46 @@ fn a_zone_of_the_file_has_its_own_thermal_relief() {
     let report = fill_board(&board, &rules(), &strict, Some(&file)).unwrap();
     assert!(report.findings.iter().any(|f| f.code == RELIEF_IMPOSSIBLE));
     assert!(covered(&report, 10 * MM + 400_000, 10 * MM + 400_000));
+}
+
+#[test]
+fn an_island_with_no_copper_of_the_net_is_kept_with_a_warning_that_gives_its_place() {
+    let mut board = base_board();
+    let zone = add_zone(&mut board, 10, NET_A, square(MM, MM, 19 * MM, 19 * MM));
+    let warn = ZoneSettings {
+        min_island_area_nm2: 0,
+        unconnected_island_action: IslandAction::Warn,
+        ..ZoneSettings::default()
+    };
+    let report = fill_board(&board, &rules(), &warn, None).unwrap();
+    // the whole zone stays: 18 mm by 18 mm
+    assert_eq!(report.fill.zones[0].area_nm2, 324_000_000_000_000);
+    assert_eq!(report.stats[0].islands_kept, 1);
+    assert_eq!(report.stats[0].islands_removed, 0);
+    let kept: Vec<_> = report
+        .findings
+        .iter()
+        .filter(|f| f.code == ISLAND_KEPT)
+        .collect();
+    assert_eq!(kept.len(), 1);
+    assert_eq!(kept[0].zone, Some(zone));
+    // the mean of the four corners of the square is its centre, (10 mm, 10 mm)
+    assert!(
+        kept[0].detail.contains("(10000000, 10000000)"),
+        "{}",
+        kept[0].detail
+    );
+    assert!(kept[0].detail.contains("324000000000000 square nm"));
+    // the check warns about the same island, and the other two actions say what they did
+    let findings = check_fill(&board, &rules(), &warn, &report.fill).unwrap();
+    assert!(findings.iter().any(|f| f.code == ISLAND_UNCONNECTED));
+    let keep = ZoneSettings {
+        unconnected_island_action: IslandAction::Keep,
+        ..warn.clone()
+    };
+    let report = fill_board(&board, &rules(), &keep, None).unwrap();
+    assert!(report.findings.iter().all(|f| f.code != ISLAND_KEPT));
+    assert_eq!(report.fill.zones[0].area_nm2, 324_000_000_000_000);
+    let findings = check_fill(&board, &rules(), &keep, &report.fill).unwrap();
+    assert!(findings.iter().all(|f| f.code != ISLAND_UNCONNECTED));
 }

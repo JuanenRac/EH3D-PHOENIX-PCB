@@ -893,7 +893,7 @@ The titles of these codes also exist in the eight languages of the suite (`TITLE
 | PHOENIX-ZONE-007 | Fill lies outside the zone or the board | check: a polygon with a point beyond the outline of the zone or of the board |
 | PHOENIX-ZONE-008 | Copper island narrower than the minimum width | fill: information, the island is dropped; check: error, an island whose convex hull is narrower than the minimum width |
 | PHOENIX-ZONE-009 | Copper island smaller than the minimum area | fill: information, the island is dropped; check: error, an island with less area than the minimum |
-| PHOENIX-ZONE-010 | Copper island not connected to its net | fill: information, the island is dropped unless `keep_unconnected_islands` is on; check: warning |
+| PHOENIX-ZONE-010 | Copper island not connected to its net | fill: information, the island is dropped when `unconnected_island_action` is `drop` (the default; `keep_unconnected_islands` turns `drop` into `keep`); check: warning unless the action is `keep` |
 | PHOENIX-ZONE-011 | Thermal relief cannot be made | warning: spokes too wide for the ring around a pad, which is then joined solid |
 | PHOENIX-ZONE-012 | Zones of different nets share a priority and overlap | warning: two zones of different nets on one layer with the same priority whose outlines overlap |
 | PHOENIX-ZONE-013 | Arc kept away from with a safe margin | information: an arc of a track near the zone, kept away from as short pieces widened by their sagitta |
@@ -903,6 +903,7 @@ The titles of these codes also exist in the eight languages of the suite (`TITLE
 | PHOENIX-ZONE-017 | Board, rule or fill file cannot be read | a board, rule, zone or fill file that cannot be opened, is too large or is not valid |
 | PHOENIX-ZONE-018 | A coordinate is out of range | check: a polygon of a fill file with a coordinate outside the design range |
 | PHOENIX-ZONE-019 | The fill file does not match the board | check: a fill with another format or for a board of another name, a zone that is not on the board or whose net or layer changed, a polygon with fewer than three points |
+| PHOENIX-ZONE-020 | Isolated copper island kept | fill: warning, with `unconnected_island_action = warn`: an island that touches no copper of its net was kept; the detail gives its pieces, its area and a point inside it |
 
 ## Lengths and pairs (`eh3d-phoenix-lengths`, `src/codes.rs`)
 

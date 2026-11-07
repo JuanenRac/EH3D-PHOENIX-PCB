@@ -41,6 +41,39 @@ impl Connection {
     }
 }
 
+/// What the fill does with an island of copper that touches no copper of its net.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum IslandAction {
+    /// The island is left out of the fill and the report says so (information).
+    Drop,
+    /// The island is kept and the report warns, with the place of the island.
+    Warn,
+    /// The island is kept and nothing is said.
+    Keep,
+}
+
+impl IslandAction {
+    /// The word used in the files.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            IslandAction::Drop => "drop",
+            IslandAction::Warn => "warn",
+            IslandAction::Keep => "keep",
+        }
+    }
+
+    /// Reads the word.
+    pub fn from_word(word: &str) -> Option<IslandAction> {
+        match word {
+            "drop" => Some(IslandAction::Drop),
+            "warn" => Some(IslandAction::Warn),
+            "keep" => Some(IslandAction::Keep),
+            _ => None,
+        }
+    }
+}
+
 /// The radii, widths, limits and defaults of one run. Lengths are in nanometres.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ZoneSettings {
@@ -54,6 +87,9 @@ pub struct ZoneSettings {
     pub min_island_area_nm2: i64,
     /// Keep the islands that touch no copper of the net.
     pub keep_unconnected_islands: bool,
+    /// What to do with an island that touches no copper of the net: leave it out, keep it and
+    /// warn, or keep it silently. `keep_unconnected_islands = true` raises `drop` to `keep`.
+    pub unconnected_island_action: IslandAction,
     /// How a pad of the net is joined.
     pub pad_connection: Connection,
     /// How a via of the net is joined.
@@ -89,6 +125,7 @@ impl Default for ZoneSettings {
             min_width_nm: 150_000,
             min_island_area_nm2: 100_000_000_000,
             keep_unconnected_islands: false,
+            unconnected_island_action: IslandAction::Drop,
             pad_connection: Connection::Thermal,
             via_connection: Connection::Solid,
             thermal_gap_nm: 250_000,
@@ -114,6 +151,16 @@ fn parse_bool(value: &str) -> Option<bool> {
 }
 
 impl ZoneSettings {
+    /// What is done with an island that touches no copper of its net: the action asked for, with
+    /// `keep_unconnected_islands = true` raising `drop` to `keep` (a `warn` stays a `warn`).
+    pub fn island_action(&self) -> IslandAction {
+        if self.keep_unconnected_islands && self.unconnected_island_action == IslandAction::Drop {
+            IslandAction::Keep
+        } else {
+            self.unconnected_island_action
+        }
+    }
+
     /// Parses a settings text. Blank lines and lines starting with `#` are ignored.
     pub fn parse(text: &str) -> Result<ZoneSettings, ZoneError> {
         let mut s = ZoneSettings::default();
@@ -142,6 +189,9 @@ impl ZoneSettings {
                 }
                 "keep_unconnected_islands" => {
                     s.keep_unconnected_islands = parse_bool(value).ok_or_else(bad)?
+                }
+                "unconnected_island_action" => {
+                    s.unconnected_island_action = IslandAction::from_word(value).ok_or_else(bad)?
                 }
                 "pad_connection" => {
                     s.pad_connection = Connection::from_word(value).ok_or_else(bad)?
@@ -259,6 +309,32 @@ mod tests {
         assert_eq!(Connection::Thermal.as_str(), "thermal");
         assert_eq!(Connection::from_word("none"), Some(Connection::None));
         assert_eq!(Connection::from_word("star"), None);
+    }
+
+    #[test]
+    fn the_island_action_is_read_and_the_old_switch_raises_drop_to_keep() {
+        let default = ZoneSettings::default();
+        assert_eq!(default.island_action(), IslandAction::Drop);
+        let warn = ZoneSettings::parse("unconnected_island_action = warn\n").unwrap();
+        assert_eq!(warn.island_action(), IslandAction::Warn);
+        // the old switch turns drop into keep and leaves warn alone
+        let old = ZoneSettings::parse("keep_unconnected_islands = true\n").unwrap();
+        assert_eq!(old.island_action(), IslandAction::Keep);
+        let both = ZoneSettings::parse(
+            "keep_unconnected_islands = true\nunconnected_island_action = warn\n",
+        )
+        .unwrap();
+        assert_eq!(both.island_action(), IslandAction::Warn);
+        assert_eq!(IslandAction::Keep.as_str(), "keep");
+        assert_eq!(IslandAction::from_word("drop"), Some(IslandAction::Drop));
+        assert_eq!(IslandAction::from_word("ignore"), None);
+        let bad = ZoneSettings::parse("unconnected_island_action = ignore\n").unwrap_err();
+        assert_eq!(bad.code, SETTINGS_INVALID);
+        assert!(
+            bad.detail.contains("unconnected_island_action"),
+            "{}",
+            bad.detail
+        );
     }
 
     #[test]

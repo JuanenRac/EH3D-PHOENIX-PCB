@@ -13,7 +13,8 @@
 //!    net, leaving the spokes;
 //! 5. pieces outside the board are dropped, the rest are grouped into islands by the borders they
 //!    share, and an island is dropped when it is smaller than the minimum area, narrower than the
-//!    minimum width or touches no copper of the net.
+//!    minimum width, or touches no copper of the net (`unconnected_island_action` chooses between
+//!    leaving that island out, keeping it with a warning that gives its place, and keeping it).
 //!
 //! The width test uses the convex hull of the island, so it only finds islands that are narrow as
 //! a whole (a strip, a sliver); a narrow neck inside a wide island is not found.
@@ -25,9 +26,9 @@ use eh3d_phoenix_board::{Board, Id, Zone};
 use serde::{Deserialize, Serialize};
 
 use crate::codes::{
-    Finding, Severity, ZoneError, ARC_CAUTIOUS, FILL_EMPTY, ISLAND_NARROW, ISLAND_SMALL,
-    ISLAND_UNCONNECTED, LIMIT_EXCEEDED, OUTLINE_UNUSABLE, PRIORITY_TIE, RELIEF_IMPOSSIBLE,
-    ZONE_NOT_FOUND,
+    Finding, Severity, ZoneError, ARC_CAUTIOUS, FILL_EMPTY, ISLAND_KEPT, ISLAND_NARROW,
+    ISLAND_SMALL, ISLAND_UNCONNECTED, LIMIT_EXCEEDED, OUTLINE_UNUSABLE, PRIORITY_TIE,
+    RELIEF_IMPOSSIBLE, ZONE_NOT_FOUND,
 };
 use crate::geom::{
     area2, bbox, bbox_grow, bbox_overlap, convex_hull, drop_collinear, grown_hull, inside_convex,
@@ -36,7 +37,7 @@ use crate::geom::{
 };
 use crate::items::{collect, copper_layers, half_up, Item, Kind, LayerItems};
 use crate::rules::{ZoneEntry, ZoneFile, ZoneRules};
-use crate::settings::{Connection, ZoneSettings};
+use crate::settings::{Connection, IslandAction, ZoneSettings};
 
 /// The name of the format of the file of filled zones.
 pub const FILL_FORMAT: &str = "phoenix-zone-fill/1";
@@ -646,7 +647,7 @@ fn fill_one(
             Some((ISLAND_SMALL, "smaller than the minimum area"))
         } else if info.narrow {
             Some((ISLAND_NARROW, "narrower than the minimum width"))
-        } else if !info.connected && !ctx.settings.keep_unconnected_islands {
+        } else if !info.connected && ctx.settings.island_action() == IslandAction::Drop {
             Some((ISLAND_UNCONNECTED, "touches no copper of the net"))
         } else {
             None
@@ -668,6 +669,21 @@ fn fill_one(
             }
             None => {
                 stats.islands_kept += 1;
+                if !info.connected && ctx.settings.island_action() == IslandAction::Warn {
+                    let (x, y) = vertex_mean(&current[info.members[0]]);
+                    findings.push(Finding::new(
+                        ISLAND_KEPT,
+                        Severity::Warning,
+                        Some(z.id),
+                        format!(
+                            "island of {} pieces and {} square nm kept at ({}, {}): it touches no copper of the net",
+                            info.members.len(),
+                            area,
+                            x,
+                            y
+                        ),
+                    ));
+                }
                 for m in info.members {
                     kept.push(current[m].clone());
                 }

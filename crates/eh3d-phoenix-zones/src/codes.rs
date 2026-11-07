@@ -47,6 +47,8 @@ pub const INPUT_UNREADABLE: &str = "PHOENIX-ZONE-017";
 pub const OUT_OF_RANGE: &str = "PHOENIX-ZONE-018";
 /// The fill file does not match the board.
 pub const FILL_MISMATCH: &str = "PHOENIX-ZONE-019";
+/// A copper island that touches no copper of its net was kept.
+pub const ISLAND_KEPT: &str = "PHOENIX-ZONE-020";
 
 /// Code, then the title in English, Spanish, German, French, Italian, Japanese, Chinese and
 /// European Portuguese.
@@ -296,6 +298,19 @@ pub const TITLES: &[(&str, [&str; 8])] = &[
             "塗りつぶしファイルが基板と一致しません",
             "填充文件与电路板不匹配",
             "O ficheiro de preenchimento não corresponde à placa",
+        ],
+    ),
+    (
+        ISLAND_KEPT,
+        [
+            "Isolated copper island kept",
+            "Isla de cobre aislada conservada",
+            "Isolierte Kupferinsel beibehalten",
+            "Îlot de cuivre isolé conservé",
+            "Isola di rame isolata conservata",
+            "孤立した銅の島を残しました",
+            "已保留孤立的铜岛",
+            "Ilha de cobre isolada mantida",
         ],
     ),
 ];

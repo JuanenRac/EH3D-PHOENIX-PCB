@@ -38,7 +38,7 @@ The rules of the board call two zones of different nets that overlap on one laye
 Every operation of the fill carries notes with stable codes, and `BoardEdit::zone_issues` gives the report of the board as it is now:
 
 * `PHOENIX-BZONE-007`: a zone with no fill (it is written as its outline);
-* `PHOENIX-BZONE-006`: an island that the fill dropped (too small, too narrow, joined to no copper of its net) or a zone that is empty after the fill;
+* `PHOENIX-BZONE-006`: an island that the fill dropped (too small, too narrow, joined to no copper of its net) or a zone that is empty after the fill; with `unconnected_island_action = warn` an island joined to no copper of its net is kept and comes with the warning `PHOENIX-ZONE-020` of the fill, which the editor passes on as it is;
 * `PHOENIX-BZONE-005`: a proven break: copper that was added after the fill and lies inside it or nearer than the clearance, a polygon outside the zone or the board; the notes of a fill add two zones of one priority that overlap. A fill that is kept never short-circuits two nets: the check of the fill proves that no pad, track or via of another net is inside a polygon or nearer than the clearance, and a fill that fails is refused. The report shows what a later edit broke, until the fill is made again.
 
 ## Copy and paste
