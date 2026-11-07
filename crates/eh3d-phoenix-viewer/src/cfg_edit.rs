@@ -360,9 +360,8 @@ pub fn probe(kind: &CfgKind, defaults: &str, entry: &Entry, steps: usize, span: 
 pub fn probe_all(kind: &CfgKind, steps: usize, span: f64) -> BTreeMap<String, Range> {
     let mut out = BTreeMap::new();
     for entry in entries(kind.defaults) {
-        if !out.contains_key(&entry.key) {
-            let range = probe(kind, kind.defaults, &entry, steps, span);
-            out.insert(entry.key, range);
+        if let std::collections::btree_map::Entry::Vacant(slot) = out.entry(entry.key.clone()) {
+            slot.insert(probe(kind, kind.defaults, &entry, steps, span));
         }
     }
     out
