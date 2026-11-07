@@ -223,6 +223,15 @@ fn is_off(value: Nm) -> bool {
 impl Board {
     /// Checks the board against `rules`, in a fixed order.
     pub fn check_rules(&self, rules: &RuleSet) -> RuleReport {
+        self.check_rules_with(rules, true)
+    }
+
+    /// Like [`Board::check_rules`], with a choice for the clearance between tracks and between a
+    /// track and a via: with `track_pairs` false that pass over every pair is left out (it takes
+    /// time with the square of the number of tracks) and every other finding is the same as with
+    /// it. A caller that measures those clearances itself, as the engine of `eh3d-phoenix-rules`
+    /// does with its spatial index, leaves it out.
+    pub fn check_rules_with(&self, rules: &RuleSet, track_pairs: bool) -> RuleReport {
         let mut report = RuleReport::default();
 
         if !is_off(rules.min_track_width) {
@@ -301,7 +310,7 @@ impl Board {
             }
         }
 
-        if !is_off(rules.min_clearance) {
+        if track_pairs && !is_off(rules.min_clearance) {
             self.check_clearances(rules, &mut report);
         }
         self.check_more_rules(rules, &mut report);
@@ -546,6 +555,67 @@ mod tests {
                 .len(),
             1
         );
+    }
+
+    #[test]
+    fn leaving_out_the_pass_over_every_pair_of_tracks_and_vias_leaves_nothing_else_out() {
+        let (mut b, top, n1, n2) = two_nets();
+        // two tracks that cross and a via close to the first one
+        b.tracks.insert(
+            id(10),
+            Track {
+                net: n1,
+                layer: top,
+                width: nm(200_000),
+                path: vec![line((0, 0), (10_000_000, 10_000_000))],
+            },
+        );
+        b.tracks.insert(
+            id(11),
+            Track {
+                net: n2,
+                layer: top,
+                width: nm(200_000),
+                path: vec![line((0, 10_000_000), (10_000_000, 0))],
+            },
+        );
+        b.vias.insert(
+            id(12),
+            Via {
+                net: n2,
+                at: pt(2_000_000, 2_100_000),
+                drill: nm(300_000),
+                diameter: nm(600_000),
+                from_layer: top,
+                to_layer: top,
+            },
+        );
+        let r = rules("min_clearance = 0.1\nmin_track_width = 0.3\nmin_via_diameter = 0.7\n");
+        let with = b.check_rules(&r);
+        let same = b.check_rules_with(&r, true);
+        assert_eq!(with.confirmed.len(), same.confirmed.len());
+        assert_eq!(with.inconclusive.len(), same.inconclusive.len());
+        // the sizes are still checked: two narrow tracks and a small via; the clearances are gone
+        let without = b.check_rules_with(&r, false);
+        assert_eq!(without.confirmed.len(), 3);
+        assert!(without
+            .confirmed
+            .iter()
+            .all(|d| d.code.as_deref() != Some(CLEARANCE_VIOLATED)));
+        assert!(with
+            .confirmed
+            .iter()
+            .any(|d| d.code.as_deref() == Some(CLEARANCE_VIOLATED)));
+        // everything that is not a clearance between tracks and vias is in both, in the same order
+        let rest = |report: &RuleReport| -> Vec<String> {
+            report
+                .confirmed
+                .iter()
+                .filter(|d| d.code.as_deref() != Some(CLEARANCE_VIOLATED))
+                .map(|d| d.message.clone())
+                .collect()
+        };
+        assert_eq!(rest(&with), rest(&without));
     }
 
     #[test]

@@ -319,12 +319,14 @@ impl Board {
                 let arc_unsure = arcs
                     .iter()
                     .any(|(a, b, sweep)| !arc_clear_of_pad(pad, *a, *b, *sweep, w));
-                push(
-                    report,
-                    verdict,
-                    (code, format!("item {sid} over {}", pad.label)),
-                    format!("silkscreen item {sid} and {}", pad.label),
-                );
+                if verdict != Verdict::Fine {
+                    push(
+                        report,
+                        verdict,
+                        (code, format!("item {sid} over {}", pad.label)),
+                        format!("silkscreen item {sid} and {}", pad.label),
+                    );
+                }
                 if arc_unsure && verdict == Verdict::Fine {
                     report.inconclusive.push(make(
                         CLEARANCE_INCONCLUSIVE,
@@ -353,18 +355,27 @@ impl Board {
 
     fn pad_clearances(&self, clearance: Nm, all_pads: &[PadInfo], report: &mut RuleReport) {
         let c2 = 2 * i128::from(clearance.get());
+        // the straight pieces of every track, made once and not again for every pad
+        let track_lines: Vec<_> = self
+            .tracks
+            .iter()
+            .map(|(tid, t)| (tid, t, lines(&t.path)))
+            .collect();
         for (i, a) in all_pads.iter().enumerate() {
             for b in &all_pads[i + 1..] {
-                if (a.net.is_some() && a.net == b.net)
-                    || !share_layer(&a.layers, &b.layers, |l| is_copper(self, l))
-                {
-                    continue;
-                }
+                // the cheap test of the distance first; only a pair that is not far enough
+                // apart gets the net and layer tests and a message
                 let verdict = gap_points(
                     centre_distance2x4(a.at, b.at),
                     c2 + a.ins2 + b.ins2,
                     c2 + a.circ2 + b.circ2,
                 );
+                if verdict == Verdict::Fine
+                    || (a.net.is_some() && a.net == b.net)
+                    || !share_layer(&a.layers, &b.layers, |l| is_copper(self, l))
+                {
+                    continue;
+                }
                 push(
                     report,
                     verdict,
@@ -372,17 +383,20 @@ impl Board {
                     format!("{} and {}", a.label, b.label),
                 );
             }
-            for (tid, t) in &self.tracks {
+            for (tid, t, pieces) in &track_lines {
                 if (a.net.is_some() && a.net == Some(t.net)) || !a.layers.contains(&t.layer) {
                     continue;
                 }
                 let w = i128::from(t.width.get());
                 let mut verdict = Verdict::Fine;
-                for (s, e) in lines(&t.path) {
+                for (s, e) in pieces {
                     verdict = worst(
                         verdict,
-                        gap_segment(a.at, s, e, c2 + w + a.ins2, c2 + w + a.circ2),
+                        gap_segment(a.at, *s, *e, c2 + w + a.ins2, c2 + w + a.circ2),
                     );
+                }
+                if verdict == Verdict::Fine {
+                    continue;
                 }
                 push(
                     report,
@@ -403,6 +417,9 @@ impl Board {
                     c2 + d + a.ins2,
                     c2 + d + a.circ2,
                 );
+                if verdict == Verdict::Fine {
+                    continue;
+                }
                 push(
                     report,
                     verdict,
@@ -494,14 +511,16 @@ impl Board {
         let b2 = 2 * i128::from(bridge.get());
         for (i, a) in all_pads.iter().enumerate() {
             for b in &all_pads[i + 1..] {
-                if !share_layer(&a.layers, &b.layers, |l| is_mask(self, l)) {
-                    continue;
-                }
                 let verdict = gap_points(
                     centre_distance2x4(a.at, b.at),
                     b2 + a.ins2 + b.ins2,
                     b2 + a.circ2 + b.circ2,
                 );
+                if verdict == Verdict::Fine
+                    || !share_layer(&a.layers, &b.layers, |l| is_mask(self, l))
+                {
+                    continue;
+                }
                 push(
                     report,
                     verdict,

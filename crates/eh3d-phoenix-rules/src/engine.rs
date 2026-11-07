@@ -529,7 +529,9 @@ impl Run<'_> {
             silkscreen_over_pads: r.silkscreen_over_pads,
             silkscreen_over_mask_openings: r.silkscreen_over_mask_openings,
         };
-        let result = self.board.check_rules(&set);
+        // the clearances of tracks and vias are measured above with the index, and the findings of
+        // the pass over every pair would be dropped below, so that pass is not made
+        let result = self.board.check_rules_with(&set, false);
         for d in &result.confirmed {
             if let Some(finding) = self.confirmed_from(d) {
                 self.report.confirmed.push(finding);
