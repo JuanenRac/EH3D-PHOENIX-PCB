@@ -221,7 +221,11 @@ impl Space {
             }
         }
         let outline: Vec<P> = if board.outline.len() >= 3 {
-            board.outline.iter().map(|p| pair(*p)).collect()
+            board
+                .outline_polygon(&eh3d_phoenix_board::ArcSettings::default())
+                .iter()
+                .map(|p| pair(*p))
+                .collect()
         } else {
             Vec::new()
         };

@@ -198,8 +198,9 @@ fn pad_outline(drawing: &mut Drawing, layer: &str, shape: &PadShape, centre: P, 
 /// the silkscreen.
 pub(crate) fn board_drawing(board: &Board, settings: &DxfSettings, silk: bool) -> Drawing {
     let mut d = Drawing::new();
+    // the arcs of the outline are written as the chords they are cut into
     let outline: Vec<P> = board
-        .outline
+        .outline_polygon(&eh3d_phoenix_board::ArcSettings::default())
         .iter()
         .map(|p| (p.x_nm.get(), p.y_nm.get()))
         .collect();

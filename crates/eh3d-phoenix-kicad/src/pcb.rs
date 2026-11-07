@@ -16,7 +16,8 @@ use std::collections::BTreeMap;
 use eh3d_diagnostic::Diagnostic;
 use eh3d_phoenix_board::connectivity::point_in_polygon;
 use eh3d_phoenix_board::{
-    Board, Component, Id, LayerKind, Net, PadNet, Segment, Side, SilkItem, Track, Via, Zone,
+    Board, Component, Id, LayerKind, Net, OutlineArc, PadNet, Segment, Side, SilkItem, Track, Via,
+    Zone,
 };
 use eh3d_phoenix_hub::QualityReport;
 use eh3d_phoenix_model::{Nm, Point, Udeg};
@@ -702,13 +703,37 @@ impl Reader {
     fn outline(&mut self, ctx: &mut Ctx) {
         let steps = ctx.settings.outline_arc_steps_per_quarter;
         let pieces = std::mem::take(&mut self.edge);
+        // how many pieces join each pair of points: an arc that is the only piece between its
+        // two end points is kept as an arc of the outline (its end points are corners), any
+        // other arc is cut into straight pieces
+        let mut joins: BTreeMap<PointPair, usize> = BTreeMap::new();
+        for shape in &pieces {
+            if let Shape::Line(a, b) | Shape::Arc(_, a, b) = shape {
+                *joins.entry(pair_key(a, b)).or_default() += 1;
+            }
+        }
         let mut rings: Vec<Vec<Point>> = Vec::new();
         let mut segments: Vec<(Point, Point)> = Vec::new();
+        let mut arcs: Vec<KeptArc> = Vec::new();
         for shape in pieces {
             match shape {
                 Shape::Ring(points) => rings.push(points),
                 Shape::Line(a, b) => segments.push((a, b)),
                 Shape::Arc(geometry, a, b) => {
+                    let alone = joins.get(&pair_key(&a, &b)) == Some(&1);
+                    let sweep = geometry
+                        .sweep_udeg()
+                        .filter(|s| s.get() != 0 && s.get().abs() < 360_000_000);
+                    if let (true, true, Some(sweep)) = (alone, a != b, sweep) {
+                        segments.push((a, b));
+                        arcs.push(KeptArc {
+                            from: a,
+                            to: b,
+                            geometry,
+                            sweep,
+                        });
+                        continue;
+                    }
                     let mut previous = a;
                     for p in geometry.inner_points(steps) {
                         segments.push((previous, p));
@@ -762,11 +787,40 @@ impl Reader {
                     "outline pieces not used (cut-outs and pieces that do not close)",
                     unused,
                 );
+                // the edges of the outline that are arcs are kept as arcs
+                let corners = ring.len();
+                let mut outline_arcs: Vec<OutlineArc> = Vec::new();
+                for i in 0..corners {
+                    let (p, q) = (ring[i], ring[(i + 1) % corners]);
+                    if let Some(sweep) = arcs.iter().find_map(|arc| arc.sweep_from(p, q)) {
+                        outline_arcs.push(OutlineArc {
+                            edge: i as u32,
+                            sweep,
+                        });
+                    }
+                }
+                // the arcs of the openings are cut into straight pieces
+                let mut cut_arcs = 0usize;
+                let cutouts: Vec<Vec<Point>> = cutouts
+                    .into_iter()
+                    .map(|opening| {
+                        let (points, cut) = cut_arcs_of(&opening, &arcs, steps);
+                        cut_arcs += cut;
+                        points
+                    })
+                    .collect();
+                if cut_arcs > 0 {
+                    ctx.transform("arcs of the outline (cut into straight pieces)", cut_arcs);
+                }
                 ctx.keep("outline points", ring.len());
+                if !outline_arcs.is_empty() {
+                    ctx.keep("outline arcs", outline_arcs.len());
+                }
                 if !cutouts.is_empty() {
                     ctx.keep("outline cutouts", cutouts.len());
                 }
                 self.board.outline = ring;
+                self.board.outline_arcs = outline_arcs;
                 self.board.outline_cutouts = cutouts;
             }
             None => {
@@ -776,6 +830,65 @@ impl Reader {
             }
         }
     }
+}
+
+/// Two points of a drawing in nanometres, the smaller first.
+type PointPair = ((i64, i64), (i64, i64));
+
+/// The key of the piece between two points, the same in both directions.
+fn pair_key(a: &Point, b: &Point) -> PointPair {
+    let (p, q) = ((a.x_nm.get(), a.y_nm.get()), (b.x_nm.get(), b.y_nm.get()));
+    if p <= q {
+        (p, q)
+    } else {
+        (q, p)
+    }
+}
+
+/// An arc drawn on the edge layer that is the only piece between its end points.
+struct KeptArc {
+    from: Point,
+    to: Point,
+    geometry: ArcGeom,
+    sweep: Udeg,
+}
+
+impl KeptArc {
+    /// The sweep of the arc when it is traced from `p` to `q`: as it is drawn when `p` is where it
+    /// starts, the opposite when it is traced the other way, none when it joins other points.
+    fn sweep_from(&self, p: Point, q: Point) -> Option<Udeg> {
+        if self.from == p && self.to == q {
+            Some(self.sweep)
+        } else if self.from == q && self.to == p {
+            Udeg::new(-self.sweep.get()).ok()
+        } else {
+            None
+        }
+    }
+}
+
+/// The corners of a ring with the arcs between them cut into straight pieces, and how many arcs
+/// were cut.
+fn cut_arcs_of(ring: &[Point], arcs: &[KeptArc], steps: usize) -> (Vec<Point>, usize) {
+    let n = ring.len();
+    let mut out: Vec<Point> = Vec::with_capacity(n);
+    let mut cut = 0usize;
+    for i in 0..n {
+        let (p, q) = (ring[i], ring[(i + 1) % n]);
+        out.push(p);
+        if let Some(arc) = arcs
+            .iter()
+            .find(|arc| (arc.from == p && arc.to == q) || (arc.from == q && arc.to == p))
+        {
+            let mut inner = arc.geometry.inner_points(steps);
+            if arc.from != p {
+                inner.reverse();
+            }
+            out.extend(inner);
+            cut += 1;
+        }
+    }
+    (out, cut)
 }
 
 /// Every closed ring that the segments make when joined end to end, and the number of groups of segments that do not close.
@@ -1413,6 +1526,71 @@ pub(crate) mod tests {
             count(&r.quality.dropped, "outline pieces that do not close"),
             Some(2)
         );
+    }
+
+    #[test]
+    fn the_rounded_corners_of_an_outline_are_kept_as_arcs_of_the_outline() {
+        // a board of 40 by 20 mm with corners of radius 2 mm: four lines and four quarter circles
+        // (the file's y axis points down). The arc at the top right goes from (38, 0) through
+        // (38 + sqrt 2, 2 - sqrt 2) = (39.414214, 0.585786) to (40, 2), clockwise on the screen,
+        // which is a sweep of -90 degrees in the model whose y axis points up
+        let text = r#"(kicad_pcb (version 20221018) (generator pcbnew)
+  (layers (0 "F.Cu" signal) (44 "Edge.Cuts" user))
+  (gr_line (start 2 0) (end 38 0) (layer "Edge.Cuts") (width 0.1))
+  (gr_arc (start 38 0) (mid 39.414214 0.585786) (end 40 2) (layer "Edge.Cuts") (width 0.1))
+  (gr_line (start 40 2) (end 40 18) (layer "Edge.Cuts") (width 0.1))
+  (gr_arc (start 40 18) (mid 39.414214 19.414214) (end 38 20) (layer "Edge.Cuts") (width 0.1))
+  (gr_line (start 38 20) (end 2 20) (layer "Edge.Cuts") (width 0.1))
+  (gr_arc (start 2 20) (mid 0.585786 19.414214) (end 0 18) (layer "Edge.Cuts") (width 0.1))
+  (gr_line (start 0 18) (end 0 2) (layer "Edge.Cuts") (width 0.1))
+  (gr_arc (start 0 2) (mid 0.585786 0.585786) (end 2 0) (layer "Edge.Cuts") (width 0.1))
+)"#;
+        let r = read(text);
+        let b = &r.board;
+        // the eight end points are the corners and the four arcs are kept as arcs
+        assert_eq!(b.outline.len(), 8);
+        assert_eq!(b.outline_arcs.len(), 4);
+        assert_eq!(count(&r.quality.kept, "outline arcs"), Some(4));
+        for arc in &b.outline_arcs {
+            assert!(
+                (arc.sweep.get() + 90_000_000).abs() < 1_000,
+                "{}",
+                arc.sweep.get()
+            );
+        }
+        assert!(b.outline_arc_problems().is_empty());
+        // the points that cut the corner at the top right into chords lie on the circle of radius
+        // 2 mm about (38, -2) mm, 24 of them (25 chords for a tolerance of 1 micrometre)
+        let flat = b.outline_polygon(&eh3d_phoenix_board::ArcSettings::default());
+        let corner: Vec<&Point> = flat
+            .iter()
+            .filter(|p| {
+                p.x_nm.get() > 38_000_000
+                    && p.x_nm.get() < 40_000_000
+                    && p.y_nm.get() > -2_000_000
+                    && p.y_nm.get() < 0
+            })
+            .collect();
+        assert_eq!(corner.len(), 24);
+        for p in corner {
+            let d = ((p.x_nm.get() - 38_000_000) as f64).hypot((p.y_nm.get() + 2_000_000) as f64);
+            assert!((d - 2_000_000.0).abs() <= 20.0, "{d}");
+        }
+        assert_eq!(flat.len(), 8 + 4 * 24);
+    }
+
+    #[test]
+    fn an_arc_with_the_end_points_of_another_piece_is_still_cut_into_straight_pieces() {
+        // two half circles with the same end points make a circle of two corners: no ring of
+        // corners can hold them, so both are cut as before
+        let text = r#"(kicad_pcb (version 20221018) (generator pcbnew)
+  (layers (0 "F.Cu" signal) (44 "Edge.Cuts" user))
+  (gr_arc (start 10 0) (mid 0 -10) (end -10 0) (layer "Edge.Cuts") (width 0.1))
+  (gr_arc (start -10 0) (mid 0 10) (end 10 0) (layer "Edge.Cuts") (width 0.1))
+)"#;
+        let r = read(text);
+        assert!(r.board.outline_arcs.is_empty());
+        assert!(r.board.outline.len() > 20);
     }
 
     #[test]

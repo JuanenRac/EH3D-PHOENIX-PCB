@@ -38,12 +38,13 @@ A line that is not `key = value`, an unknown key or a value out of range (1 to 1
 * **Rule check:** the distance of tracks, vias and pads to the edge of the board is measured against the polygon of straight pieces.
 * **Zone fill:** the edge of the board that the fill keeps away from, and the test that a piece of copper is inside the board, use the same polygon.
 * **Own autorouter:** the obstacle of the board edge and the size of the grid use the same polygon.
+* **KiCad reader:** an arc drawn on `Edge.Cuts` that is the only piece between its two end points is read as an arc of the outline with the sweep computed from its three points; a circle, an arc of an opening and an arc that shares its end points with another piece (two half circles that make a circle, a half disc) are cut into straight pieces as before (`docs/KICAD.md`).
 * **Viewer:** the drawing of the board (`Scene::from_board`) draws the outline as the same polygon.
 
 ## Limits
 
 * There is no editing operation and no tool of the window for the arcs of the outline: the field is set by a reader or by the code that builds the board. The drawing of the editor window (`board_gui`) and the printed scenes still draw the outline by its corners.
-* The writers of KiCad, EAGLE, Specctra and DXF files, the panel, the placement file, the 3D views and the bill of materials read the corners only, so an arc becomes a straight edge in them.
+* The writers of KiCad, EAGLE, Specctra and DXF files write the outline as the polygon of straight pieces that the arcs are cut into, so the arc is not an arc in them; the router space of `phoenix route` uses the same polygon. The panel, the placement file, the 3D views and the bill of materials read the corners only, so an arc becomes a straight edge in them.
 * The cutouts inside the outline are polygons of straight pieces; they have no arcs.
 * The cut is made with floating point and rounded to the nanometre; it is the same on the machines that round the same way and has not been compared on several.
 * Nothing has been compared with the outline that another tool draws for the same arc.
