@@ -696,6 +696,41 @@ mod tests {
     }
 
     #[test]
+    fn a_row_of_pads_gives_one_finding_for_each_close_neighbour_and_none_for_the_far_ones() {
+        // 40 pads of 1 mm in a row, centres 1.2 mm apart: 0.2 mm between the edges of
+        // neighbours (39 pairs) and 1.4 mm between the next ones; one more pad far away
+        let mut specs: Vec<(i64, i64, PadShape)> = (0..40)
+            .map(|k| (k * 1_200_000, 0, round(1_000_000)))
+            .collect();
+        specs.push((500_000_000, 500_000_000, round(1_000_000)));
+        let (b, ..) = board_with_pads(&specs);
+        assert_eq!(
+            counts(&b.check_rules(&rules("min_clearance = 0.2\n"))),
+            (0, 0)
+        );
+        let clearance = b.check_rules(&rules("min_clearance = 0.25\n"));
+        assert_eq!(counts(&clearance), (39, 0));
+        assert!(clearance
+            .confirmed
+            .iter()
+            .all(|d| d.code.as_deref() == Some(CLEARANCE_VIOLATED)));
+        // the mask bridge is the same distance test on the mask layer
+        let both = b.check_rules(&rules("min_clearance = 0.25\nmin_mask_bridge = 0.25\n"));
+        assert_eq!(counts(&both), (78, 0));
+        let bridges = both
+            .confirmed
+            .iter()
+            .filter(|d| d.code.as_deref() == Some(MASK_BRIDGE_THIN))
+            .count();
+        assert_eq!(bridges, 39);
+        // 1.4 mm between the edges of the pads that are two places apart
+        assert_eq!(
+            counts(&b.check_rules(&rules("min_clearance = 1.41\n"))),
+            (39 + 38, 0)
+        );
+    }
+
+    #[test]
     fn a_rectangular_pad_in_the_grey_zone_is_inconclusive_not_a_failure() {
         // a 1 x 3 mm pad: its inscribed circle is 1 mm, the circle around it about 3.16 mm
         let (b, ..) = board_with_pads(&[
