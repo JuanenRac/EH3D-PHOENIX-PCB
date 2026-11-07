@@ -540,6 +540,15 @@ pub fn extract_outline(
             if contours[j].points.len() > settings.max_check_edges {
                 continue;
             }
+            // two contours whose boxes do not meet cannot cross, so their edges are not compared
+            // (the time would grow with the square of the number of cutouts)
+            if contours[j].high.0 < contours[k].low.0
+                || contours[k].high.0 < contours[j].low.0
+                || contours[j].high.1 < contours[k].low.1
+                || contours[k].high.1 < contours[j].low.1
+            {
+                continue;
+            }
             let both = crossings(&contours[k].points, Some(&contours[j].points));
             if let Some(&first) = both.first() {
                 report.push(Finding::new(
@@ -819,6 +828,38 @@ mod tests {
             .findings
             .iter()
             .any(|f| f.code == CONTOUR_CROSSES && f.detail.contains("another 2 times")));
+    }
+
+    #[test]
+    fn many_cutouts_apart_from_each_other_leave_the_crossings_between_the_close_ones_alone() {
+        // a plate with 300 small squares in rows, and one more that crosses the hundredth
+        let mut d = Drawing::new();
+        d.polygon("A", &[p(0, 0), p(2000, 0), p(2000, 2000), p(0, 2000)]);
+        for k in 0..300_i64 {
+            let (x, y) = (10 + (k % 30) * 20, 10 + (k / 30) * 20);
+            if k == 100 {
+                d.polygon(
+                    "A",
+                    &[
+                        p(x + 2, y + 2),
+                        p(x + 7, y + 2),
+                        p(x + 7, y + 7),
+                        p(x + 2, y + 7),
+                    ],
+                );
+            }
+            d.polygon("A", &[p(x, y), p(x + 5, y), p(x + 5, y + 5), p(x, y + 5)]);
+        }
+        let o = run(&d, None, 0);
+        assert_eq!(o.holes.len(), 301);
+        let crossing: Vec<&Finding> = o
+            .report
+            .findings
+            .iter()
+            .filter(|f| f.code == CONTOUR_CROSSES)
+            .collect();
+        assert_eq!(crossing.len(), 1, "{crossing:?}");
+        assert!(crossing[0].detail.contains("another 2 times"));
     }
 
     #[test]
