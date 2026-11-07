@@ -740,3 +740,60 @@ fn the_gaps_of_a_pad_with_rounded_corners_follow_its_corners() {
     let far = diagonal_reach(text);
     assert!((far - 1.0656854).abs() < 1e-5, "{far}");
 }
+
+#[test]
+fn an_arc_of_the_outline_is_written_as_an_arc_and_the_other_edges_as_lines() {
+    use eh3d_phoenix_board::OutlineArc;
+    let mut b = base();
+    // the edge from (20, 0) to (20, 10) turned counter-clockwise by 180 degrees is a half circle
+    // of radius 5 mm about (20, 5) that bulges to the right
+    b.outline_arcs = vec![OutlineArc {
+        edge: 1,
+        sweep: Udeg::new(180_000_000).unwrap(),
+    }];
+    let set = build(&b, &Profile::default()).unwrap();
+    let text = layer_text(&set, id(6));
+    let read = eh3d_parser_gerber::parse(text);
+    assert!(read.is_clean());
+    let lines = read
+        .commands
+        .iter()
+        .filter(|c| matches!(c.op, Operation::Line { .. }))
+        .count();
+    assert_eq!(lines, 3);
+    let arcs: Vec<_> = read
+        .commands
+        .iter()
+        .filter_map(|c| match &c.op {
+            Operation::Arc {
+                from,
+                to,
+                center_offset,
+                clockwise,
+                ..
+            } => Some((from.x, from.y, to.x, to.y, *center_offset, *clockwise)),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(arcs.len(), 1);
+    let (from_x, from_y, to_x, to_y, offset, clockwise) = arcs[0];
+    assert!((from_x - 20.0).abs() < 1e-9 && from_y.abs() < 1e-9);
+    assert!((to_x - 20.0).abs() < 1e-9 && (to_y - 10.0).abs() < 1e-9);
+    // the centre is (20, 5), which is (0, 5) from the start
+    assert!(
+        offset.0.abs() < 1e-9 && (offset.1 - 5.0).abs() < 1e-9,
+        "{offset:?}"
+    );
+    assert!(!clockwise);
+    // the check of the export counts three lines and one arc
+    assert!(verify(&b, &Profile::default(), &set).is_empty());
+    // an arc that cannot be used is written as the straight edge
+    b.outline_arcs[0].sweep = Udeg::ZERO;
+    let set = build(&b, &Profile::default()).unwrap();
+    let read = eh3d_parser_gerber::parse(layer_text(&set, id(6)));
+    assert!(read
+        .commands
+        .iter()
+        .all(|c| !matches!(c.op, Operation::Arc { .. })));
+    assert!(verify(&b, &Profile::default(), &set).is_empty());
+}

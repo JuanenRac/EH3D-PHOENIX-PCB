@@ -13,7 +13,7 @@ mod snap_tests;
 pub use couple::PairSpec;
 
 use eh3d_phoenix_board::connectivity::Item;
-use eh3d_phoenix_board::{Board, Id, PadShape};
+use eh3d_phoenix_board::{ArcSettings, Board, Id, PadShape};
 use eh3d_phoenix_model::Point;
 use eh3d_phoenix_route::{copper_layers, item_label, ratsnest, track_width, via_size};
 use eh3d_phoenix_route::{RouteSettings, RuleContext};
@@ -651,8 +651,9 @@ pub fn autoroute_with_pairs(
         ));
     }
     // the grid
-    let xs: Vec<i64> = board.outline.iter().map(|p| p.x_nm.get()).collect();
-    let ys: Vec<i64> = board.outline.iter().map(|p| p.y_nm.get()).collect();
+    let polygon = board.outline_polygon(&ArcSettings::default());
+    let xs: Vec<i64> = polygon.iter().map(|p| p.x_nm.get()).collect();
+    let ys: Vec<i64> = polygon.iter().map(|p| p.y_nm.get()).collect();
     let (min_x, max_x) = (
         xs.iter().copied().min().unwrap_or(0),
         xs.iter().copied().max().unwrap_or(0),

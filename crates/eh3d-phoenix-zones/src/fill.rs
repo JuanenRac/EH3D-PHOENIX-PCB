@@ -22,7 +22,7 @@
 use std::cmp::Reverse;
 use std::collections::BTreeMap;
 
-use eh3d_phoenix_board::{Board, Id, Zone};
+use eh3d_phoenix_board::{ArcSettings, Board, Id, Zone};
 use serde::{Deserialize, Serialize};
 
 use crate::codes::{
@@ -172,9 +172,10 @@ impl<'a> Ctx<'a> {
         settings: &'a ZoneSettings,
         items: &'a LayerItems,
     ) -> Ctx<'a> {
-        let board_outline: Vec<P> = if board.outline.len() >= 3 {
-            board
-                .outline
+        // the arcs of the outline are kept away from as the chords they are cut into
+        let polygon = board.outline_polygon(&ArcSettings::default());
+        let board_outline: Vec<P> = if polygon.len() >= 3 {
+            polygon
                 .iter()
                 .map(|p| (p.x_nm.get(), p.y_nm.get()))
                 .collect()

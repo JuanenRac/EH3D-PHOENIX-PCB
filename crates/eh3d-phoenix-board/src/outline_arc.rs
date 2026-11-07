@@ -175,6 +175,27 @@ pub fn arc_interior(start: Point, end: Point, sweep: Udeg, settings: &ArcSetting
 }
 
 impl Board {
+    /// The arcs of the outline that can be used, by the index of the corner where the edge starts:
+    /// for each edge the first arc that has a shape (see [`arc_problem`]).
+    pub fn usable_outline_arcs(&self) -> BTreeMap<usize, Udeg> {
+        let n = self.outline.len();
+        let mut out: BTreeMap<usize, Udeg> = BTreeMap::new();
+        if n < 3 {
+            return out;
+        }
+        for arc in &self.outline_arcs {
+            let edge = arc.edge as usize;
+            if edge >= n || out.contains_key(&edge) {
+                continue;
+            }
+            let (start, end) = (self.outline[edge], self.outline[(edge + 1) % n]);
+            if arc_problem(n, arc, Some(start), Some(end)).is_none() {
+                out.insert(edge, arc.sweep);
+            }
+        }
+        out
+    }
+
     /// The outline as a polygon of straight edges: the corners of `outline` with the points of
     /// each arc of `outline_arcs` between the two corners of its edge. An arc that cannot be used
     /// (see [`arc_problem`]) is left as the straight edge. The outline itself when it has no arcs.
@@ -183,18 +204,13 @@ impl Board {
         if self.outline_arcs.is_empty() || n < 3 {
             return self.outline.clone();
         }
-        let mut by_edge: BTreeMap<u32, &OutlineArc> = BTreeMap::new();
-        for arc in &self.outline_arcs {
-            by_edge.entry(arc.edge).or_insert(arc);
-        }
+        let arcs = self.usable_outline_arcs();
         let mut out: Vec<Point> = Vec::with_capacity(n);
         for i in 0..n {
             let (start, end) = (self.outline[i], self.outline[(i + 1) % n]);
             out.push(start);
-            if let Some(arc) = by_edge.get(&(i as u32)) {
-                if arc_problem(n, arc, Some(start), Some(end)).is_none() {
-                    out.extend(arc_interior(start, end, arc.sweep, settings));
-                }
+            if let Some(sweep) = arcs.get(&i) {
+                out.extend(arc_interior(start, end, *sweep, settings));
             }
         }
         out

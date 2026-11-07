@@ -7,7 +7,7 @@ use std::collections::{BTreeMap, HashMap};
 
 use eh3d_phoenix_board::connectivity::pad_position;
 use eh3d_phoenix_board::{
-    Board, Id, LayerKind, PadRef, PadShape, Segment, Side, SilkItem, StackFunction,
+    ArcSettings, Board, Id, LayerKind, PadRef, PadShape, Segment, Side, SilkItem, StackFunction,
 };
 use eh3d_phoenix_model::{Nm, Point, Udeg};
 use eh3d_phoenix_schematic::{Id as SchId, NetPin, Schematic};
@@ -508,8 +508,10 @@ impl Scene {
         // the outline
         if board.outline.len() >= 2 {
             let item = b.item(ItemKind::Outline, "outline", None);
-            // the outline, and then every opening inside it with the same look
-            for ring in std::iter::once(&board.outline)
+            // the outline, with its arcs cut into the chords they are drawn as, and then every
+            // opening inside it with the same look
+            let outline = board.outline_polygon(&ArcSettings::default());
+            for ring in std::iter::once(&outline)
                 .chain(board.outline_cutouts.iter().filter(|c| c.len() >= 3))
             {
                 b.push(
@@ -1027,6 +1029,31 @@ mod tests {
     fn count(scene: &Scene, role: Role) -> usize {
         let layer = scene.layer_of_role(role).unwrap();
         scene.prims.iter().filter(|p| p.layer == layer).count()
+    }
+
+    #[test]
+    fn the_arcs_of_the_outline_are_drawn_as_the_chords_they_are_cut_into() {
+        // a strip of 10 by 2 mm whose first edge is a half circle of radius 5 mm: with the
+        // tolerance of 1 micrometre that is 79 chords, so 78 points besides the 4 corners
+        let mm = |x: i64, y: i64| Point::from_nm(x * 1_000_000, y * 1_000_000).unwrap();
+        let mut board = sample::board();
+        board.outline = vec![mm(0, 0), mm(10, 0), mm(10, 2), mm(0, 2)];
+        board.outline_cutouts.clear();
+        board.outline_arcs = vec![eh3d_phoenix_board::OutlineArc {
+            edge: 0,
+            sweep: Udeg::new(180_000_000).unwrap(),
+        }];
+        let scene = Scene::from_board(&board, &ViewerSettings::default()).unwrap();
+        let layer = scene.layer_of_role(Role::Outline).unwrap();
+        let points = scene
+            .prims
+            .iter()
+            .filter(|p| p.layer == layer)
+            .find_map(|p| match &p.shape {
+                Shape::Polygon { points } => Some(points.len()),
+                _ => None,
+            });
+        assert_eq!(points, Some(82));
     }
 
     #[test]

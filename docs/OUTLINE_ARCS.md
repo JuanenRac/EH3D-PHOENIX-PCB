@@ -2,7 +2,7 @@
 
 The outline of a board (`Board::outline`) is a closed polygon of corners. An edge of that polygon may be a circular arc instead of a straight piece: the board keeps the arcs apart, in `Board::outline_arcs`, and the corners stay as they were.
 
-**State: prototype.** It has been tried on boards made by the tests only. The Gerber outline file writes the arcs as arcs; the checks of distance, the pour of the zones and the router see the polygon that the arcs are cut into; the writers of the other formats, the board editor and the window do not know the arcs yet (see the limits).
+**State: prototype.** It has been tried on boards made by the tests only. The Gerber outline file writes the arcs as arcs; the checks of distance, the pour of the zones and the router see the polygon that the arcs are cut into; the viewer draws them as the chords they are cut into; the writers of the other formats and the board editor do not know the arcs yet (see the limits).
 
 ## The model
 
@@ -38,10 +38,11 @@ A line that is not `key = value`, an unknown key or a value out of range (1 to 1
 * **Rule check:** the distance of tracks, vias and pads to the edge of the board is measured against the polygon of straight pieces.
 * **Zone fill:** the edge of the board that the fill keeps away from, and the test that a piece of copper is inside the board, use the same polygon.
 * **Own autorouter:** the obstacle of the board edge and the size of the grid use the same polygon.
+* **Viewer:** the drawing of the board (`Scene::from_board`) draws the outline as the same polygon.
 
 ## Limits
 
-* There is no editing operation, no tool of the window and no drawing of the arcs of the outline: the field is set by a reader or by the code that builds the board. The window draws the outline by its corners.
+* There is no editing operation and no tool of the window for the arcs of the outline: the field is set by a reader or by the code that builds the board. The drawing of the editor window (`board_gui`) and the printed scenes still draw the outline by its corners.
 * The writers of KiCad, EAGLE, Specctra and DXF files, the panel, the placement file, the 3D views and the bill of materials read the corners only, so an arc becomes a straight edge in them.
 * The cutouts inside the outline are polygons of straight pieces; they have no arcs.
 * The cut is made with floating point and rounded to the nanometre; it is the same on the machines that round the same way and has not been compared on several.

@@ -11,7 +11,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use eh3d_phoenix_board::connectivity::pad_position;
-use eh3d_phoenix_board::{Board, Id, PadRef, PadShape, Segment};
+use eh3d_phoenix_board::{ArcSettings, Board, Id, PadRef, PadShape, Segment};
 use eh3d_phoenix_model::Point;
 use eh3d_phoenix_spatial::{Index, SpatialConfig};
 
@@ -499,7 +499,9 @@ pub(crate) fn build(
     let layers = copper.len();
     let mut lists: Vec<Vec<Obs>> = (0..=layers).map(|_| Vec::new()).collect();
     let index_of = |layer: Id| copper.iter().position(|l| *l == layer);
-    let outline: Vec<P> = closed(&board.outline.iter().map(|p| pair(*p)).collect::<Vec<P>>());
+    // the arcs of the outline are obstacles as the chords they are cut into
+    let polygon = board.outline_polygon(&ArcSettings::default());
+    let outline: Vec<P> = closed(&polygon.iter().map(|p| pair(*p)).collect::<Vec<P>>());
     for list in lists.iter_mut().take(layers) {
         list.push(Obs {
             net: None,

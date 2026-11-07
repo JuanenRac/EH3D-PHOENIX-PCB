@@ -18,6 +18,7 @@ use eh3d_phoenix_model::{segments_intersect, Nm, Point};
 
 use crate::connectivity::{near_segment_exact, pad_position, point_in_polygon};
 use crate::model::{Board, Id, LayerKind, PadRef, PadShape, Segment, Side};
+use crate::outline_arc::ArcSettings;
 use crate::rules::{
     make, RuleReport, RuleSet, CLEARANCE_INCONCLUSIVE, CLEARANCE_VIOLATED, EDGE_TOO_CLOSE,
     MASK_BRIDGE_THIN, NOT_CHECKABLE, PAD_SHAPE_UNSURE, SILK_OVER_MASK, SILK_OVER_PAD,
@@ -416,7 +417,9 @@ impl Board {
     /// fewer than three points is not an edge.
     fn edge_pieces(&self) -> Vec<(Point, Point)> {
         let mut edges: Vec<(Point, Point)> = Vec::new();
-        for ring in std::iter::once(&self.outline).chain(self.outline_cutouts.iter()) {
+        // the arcs of the outline are measured as the chords they are cut into
+        let outline = self.outline_polygon(&ArcSettings::default());
+        for ring in std::iter::once(&outline).chain(self.outline_cutouts.iter()) {
             let n = ring.len();
             if n < 3 {
                 continue;
@@ -750,6 +753,37 @@ mod tests {
             counts(&b.check_rules(&rules("min_clearance = 0.11\n"))),
             (1, 0)
         );
+    }
+
+    #[test]
+    fn an_arc_in_the_outline_is_the_edge_that_the_copper_keeps_away_from() {
+        // a square of 10 mm whose bottom edge is a half circle of radius 5 mm about (5, 0) that
+        // bulges into the board, up to (5, 5) mm; a pad of 1 mm at (5, 5.9) mm is 0.4 mm above
+        // the arc (0.401 mm from the chords the arc is cut into) and 3.6 mm or more from the
+        // other edges
+        let (mut b, ..) = board_with_pads(&[(5_000_000, 5_900_000, round(1_000_000))]);
+        b.outline = vec![
+            pt(0, 0),
+            pt(10_000_000, 0),
+            pt(10_000_000, 10_000_000),
+            pt(0, 10_000_000),
+        ];
+        // without the arc the nearest edge is the left or the right one, 4.5 mm away
+        assert_eq!(
+            counts(&b.check_rules(&rules("min_edge_clearance = 0.5\n"))),
+            (0, 0)
+        );
+        b.outline_arcs = vec![crate::outline_arc::OutlineArc {
+            edge: 0,
+            sweep: eh3d_phoenix_model::Udeg::new(-180_000_000).unwrap(),
+        }];
+        assert_eq!(
+            counts(&b.check_rules(&rules("min_edge_clearance = 0.4\n"))),
+            (0, 0)
+        );
+        let r = b.check_rules(&rules("min_edge_clearance = 0.5\n"));
+        assert_eq!(counts(&r), (1, 0));
+        assert_eq!(r.confirmed[0].code.as_deref(), Some(EDGE_TOO_CLOSE));
     }
 
     #[test]

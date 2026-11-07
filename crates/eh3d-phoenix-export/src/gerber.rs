@@ -129,6 +129,24 @@ fn gp(p: Point) -> GPoint {
     }
 }
 
+/// How many edges of the outline of the board are written as arcs: the arcs that can be used and
+/// have a centre.
+pub(crate) fn outline_arc_count(board: &Board) -> usize {
+    let n = board.outline.len();
+    board
+        .usable_outline_arcs()
+        .iter()
+        .filter(|(edge, sweep)| {
+            arc_centre(
+                board.outline[**edge],
+                board.outline[(**edge + 1) % n],
+                sweep.get(),
+            )
+            .is_some()
+        })
+        .count()
+}
+
 /// The offsets `(I, J)` from the start of an arc to its centre, in millimetres, and whether it runs
 /// clockwise. `None` when the arc has no computable centre.
 pub(crate) fn arc_centre(start: Point, end: Point, sweep_udeg: i64) -> Option<((f64, f64), bool)> {
@@ -610,16 +628,30 @@ fn collect(
     if kind == LayerKind::Outline {
         // the profile is the outline and then every opening inside it, each a closed contour
         let line = ap(ApKey::Circle(outline_width), ApFunction::Profile);
-        for ring in std::iter::once(&board.outline).chain(board.outline_cutouts.iter()) {
+        for (r, ring) in std::iter::once(&board.outline)
+            .chain(board.outline_cutouts.iter())
+            .enumerate()
+        {
             let n = ring.len();
             if n < 3 {
                 continue;
             }
+            // only the outline itself has arcs; each is written as a circular interpolation
+            let arcs = if r == 0 {
+                board.usable_outline_arcs()
+            } else {
+                BTreeMap::new()
+            };
             for i in 0..n {
-                draws.push((
-                    Draw::Line(line, ring[i], ring[(i + 1) % n]),
-                    ObjectSet::default(),
-                ));
+                let (from, to) = (ring[i], ring[(i + 1) % n]);
+                let arc = arcs
+                    .get(&i)
+                    .and_then(|sweep| arc_centre(from, to, sweep.get()));
+                let draw = match arc {
+                    Some((offset, clockwise)) => Draw::Arc(line, from, to, offset, clockwise),
+                    None => Draw::Line(line, from, to),
+                };
+                draws.push((draw, ObjectSet::default()));
             }
         }
     }

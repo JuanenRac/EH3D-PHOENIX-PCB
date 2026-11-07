@@ -575,3 +575,34 @@ fn an_island_with_no_copper_of_the_net_is_kept_with_a_warning_that_gives_its_pla
     let findings = check_fill(&board, &rules(), &keep, &report.fill).unwrap();
     assert!(findings.iter().all(|f| f.code != ISLAND_UNCONNECTED));
 }
+
+#[test]
+fn an_arc_in_the_outline_of_the_board_is_kept_away_from_by_the_fill() {
+    use eh3d_phoenix_board::OutlineArc;
+    let mut board = base_board();
+    // the bottom edge, from (0, 0) to (20, 0), is an arc turned clockwise by 180 degrees: a half
+    // circle of radius 10 mm about (10, 0) that bulges into the board up to (10, 10), so the part
+    // of the square under the arc is not board
+    board.outline_arcs = vec![OutlineArc {
+        edge: 0,
+        sweep: Udeg::new(-180_000_000).unwrap(),
+    }];
+    add_zone(&mut board, 10, NET_A, square(MM, MM, 19 * MM, 19 * MM));
+    let rules = ZoneRules {
+        min_edge_clearance_nm: 500_000,
+        ..rules()
+    };
+    let report = fill_board(&board, &rules, &settings(), None).unwrap();
+    // inside the half circle (5 mm and 9.8 mm above the middle of the old edge): no copper
+    assert!(!covered(&report, 10 * MM, 5 * MM));
+    assert!(!covered(&report, 10 * MM, 9 * MM + 800_000));
+    // on the board but 0.3 mm from the arc, closer than the 0.5 mm of the edge clearance
+    assert!(!covered(&report, 10 * MM, 10 * MM + 300_000));
+    // 0.6 mm from the arc and far from the other edges: copper
+    assert!(covered(&report, 10 * MM, 10 * MM + 600_000));
+    assert!(covered(&report, 10 * MM, 15 * MM));
+    assert!(covered(&report, 18 * MM, 18 * MM));
+    // the fill that was made keeps the clearance to the edge it was made with
+    let findings = check_fill(&board, &rules, &settings(), &report.fill).unwrap();
+    assert!(!has_errors(&findings), "{findings:?}");
+}

@@ -222,13 +222,16 @@ fn check_layer(
                     .filter(|c| c.len() >= 3)
                     .map(Vec::len)
                     .sum();
+                // an edge of the outline that is an arc is written as an arc and not as a line
+                let arc_edges = crate::gerber::outline_arc_count(board);
                 compare(
                     out,
                     file,
                     "lines",
-                    board.outline.len() + cutout_lines,
+                    board.outline.len() - arc_edges + cutout_lines,
                     lines,
                 );
+                compare(out, file, "arcs", arc_edges, arcs);
                 let xs = board.outline.iter().map(|p| p.x_nm.get());
                 let ys = board.outline.iter().map(|p| p.y_nm.get());
                 let to_mm = |v: Option<i64>| v.unwrap_or(0) as f64 / 1_000_000.0;
