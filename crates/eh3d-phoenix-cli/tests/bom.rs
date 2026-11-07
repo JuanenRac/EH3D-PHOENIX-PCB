@@ -327,6 +327,87 @@ fn assembly3d_refuses_what_it_cannot_use() {
 }
 
 #[test]
+fn a_bill_of_eagle_or_kicad_is_imported_by_its_format_and_ranges_are_expanded() {
+    let dir = tempfile::tempdir().unwrap();
+    let board = write_board(dir.path(), (6 * MM, 6 * MM));
+    let eagle = dir.path().join("partlist.txt");
+    fs::write(
+        &eagle,
+        "Partlist exported from x\n\nPart  Value  Device  Package  MF    MPN\n\
+R1    10k    R       R0603    Acme  AC-1\n",
+    )
+    .unwrap();
+    let kicad = dir.path().join("bill.xml");
+    fs::write(
+        &kicad,
+        "<export><components><comp ref=\"R1\"><fields><field name=\"MPN\">Z-9</field></fields></comp></components></export>",
+    )
+    .unwrap();
+    let ranges = dir.path().join("ranges.csv");
+    fs::write(&ranges, "Refs,Value,Qty\n\"R1-R3\",10k,3\n").unwrap();
+    for (name, path, format, expected) in [
+        ("eagle", &eagle, "auto", "R1,Acme,AC-1,yes\n"),
+        ("eagle", &eagle, "eagle", "R1,Acme,AC-1,yes\n"),
+        ("kicad", &kicad, "auto", "R1,,Z-9,yes\n"),
+        ("kicad", &kicad, "kicad-xml", "R1,,Z-9,yes\n"),
+        ("ranges", &ranges, "kicad-csv", ""),
+    ] {
+        let parts = dir.path().join(format!("{name}_{format}_parts.csv"));
+        let (code, out, err) = command(&[
+            "bom",
+            "--import",
+            path.to_str().unwrap(),
+            "--import-format",
+            format,
+            "--parts-out",
+            parts.to_str().unwrap(),
+            board.as_str(),
+        ]);
+        assert_eq!((code, err.as_str()), (0, ""), "{name} {format}: {out}");
+        assert_eq!(
+            fs::read_to_string(&parts).unwrap(),
+            format!("match,manufacturer,mpn,fitted\n{expected}"),
+            "{name} {format}"
+        );
+        if name == "ranges" {
+            // the range names R1, R2 and R3: R3 is not on the board and the quantity is right
+            assert!(
+                out.contains("[R3]: in the imported bill, not on the board"),
+                "{out}"
+            );
+            assert!(!out.contains("PHOENIX-BOM-019"), "{out}");
+        }
+    }
+    // a range upside down stops the import with its code
+    let upside = dir.path().join("upside.csv");
+    fs::write(&upside, "references\nR9-R2\n").unwrap();
+    let (code, _, err) = command(&["bom", "--import", upside.to_str().unwrap(), board.as_str()]);
+    assert_eq!(code, 2);
+    assert!(err.contains("PHOENIX-BOM-023"), "{err}");
+    // a name that is not a format lists the formats
+    let (code, _, err) = command(&[
+        "bom",
+        "--import",
+        upside.to_str().unwrap(),
+        "--import-format",
+        "excel",
+        board.as_str(),
+    ]);
+    assert_eq!(code, 2);
+    assert!(err.contains("PHOENIX-BOM-014"), "{err}");
+    assert!(
+        err.contains("auto, csv, eagle, kicad-csv, kicad-xml"),
+        "{err}"
+    );
+    // a file in Latin-1 (one byte for the micro sign) is read
+    let latin = dir.path().join("latin1.csv");
+    fs::write(&latin, b"references,value\nR1,10\xb5F\n").unwrap();
+    let (code, out, err) = command(&["bom", "--import", latin.to_str().unwrap(), board.as_str()]);
+    assert_eq!((code, err.as_str()), (0, ""), "{out}");
+    assert!(out.contains("the bill says 10\u{b5}F"), "{out}");
+}
+
+#[test]
 fn an_imported_bill_completes_the_parts_and_is_compared_with_the_board() {
     let dir = tempfile::tempdir().unwrap();
     let board = write_board(dir.path(), (6 * MM, 6 * MM));

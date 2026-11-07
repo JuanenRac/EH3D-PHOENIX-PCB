@@ -1054,7 +1054,7 @@ The titles of these codes also exist in the eight languages of the suite (`TITLE
 | PHOENIX-BOM-001 | Cost settings are not valid | a line of `config/costs.cfg` that is not `key = value`, an unknown key, a number that cannot be read or a value out of range |
 | PHOENIX-BOM-002 | Input file is larger than the limit | a price, part data, schematic, stack-up or settings file with more bytes than `max_file_bytes` (or than the limit of a settings file); the file is not read |
 | PHOENIX-BOM-003 | Price file is not valid | a CSV or JSON price file with a missing column, a row without a supplier, without a part number and a value, with a quantity break that is not a whole number from 1 or a price that is not a decimal, JSON that cannot be read, or more rows than `max_items` |
-| PHOENIX-BOM-004 | File of part data is not valid | a CSV with no `match` column, an empty match, a `fitted` that is not yes or no, a match given twice, or more lines than `max_items` |
+| PHOENIX-BOM-004 | File of part data is not valid | a CSV with no `match` column, an empty match, a `fitted` that is not yes or no, a match given twice, or more lines than `max_items`; also a bill given to `--import` that cannot be read in its format (no column of references, a quantity that is not a whole number, an EAGLE partlist without its header line, an XML bill that is not closed or has no `components`) |
 | PHOENIX-BOM-005 | Part has no price | warning: no row of the price file is for the part (by part number, or by value and footprint) in the currency of the run; the part costs nothing in the totals and the totals say they are not complete |
 | PHOENIX-BOM-006 | Part has no footprint | warning: a part whose footprint has no name, or that the schematic gives no footprint |
 | PHOENIX-BOM-007 | Price in another currency was ignored | warning: rows of the price file in a currency other than the one of the settings |
@@ -1067,11 +1067,14 @@ The titles of these codes also exist in the eight languages of the suite (`TITLE
 | PHOENIX-BOM-014 | A command option is not valid | an option of `phoenix bom` that the command does not know or needs a value for, an unknown language code, `--boards` out of range, `--schematic` that is not a JSON file, a number of board files other than one |
 | PHOENIX-BOM-015 | The output file exists or cannot be written | a file named by `--csv`, `--json-file` or `--html` that exists, is named twice or cannot be created (nothing is written then) |
 | PHOENIX-BOM-016 | An input file cannot be read | the board, a price file, a file of part data, a schematic, a stack-up or a settings file that cannot be opened or read |
-| PHOENIX-BOM-017 | A limit of the bill of materials was exceeded | more components than `max_items` |
+| PHOENIX-BOM-017 | A limit of the bill of materials was exceeded | more components than `max_items`, or more references in an imported bill than `max_references` of `config/bom_import.cfg` (ranges expanded) |
 | PHOENIX-BOM-018 | The PCB cost is an estimate from the tariffs of the settings | information, always given with a PCB cost: the tariffs are an example and not the prices of any maker |
 | PHOENIX-BOM-019 | A quantity of the imported bill differs from its references | `phoenix bom --import`: a line states a quantity that is not the number of references in its cell (warning) |
 | PHOENIX-BOM-020 | A reference is in two lines of the imported bill | `phoenix bom --import`: the first line that names it is used (warning) |
 | PHOENIX-BOM-021 | The imported bill and the board disagree about a part | `phoenix bom --import`: a part on one side only, or a value that differs (warning); nothing is changed |
+| PHOENIX-BOM-022 | A range of references in the imported bill is badly formed | `phoenix bom --import`: a range such as `R1-` with no end, `R1-C5` with two prefixes, `R1-A` whose end is not a number, or a number of more than nine digits; the import stops (the detail gives the line) |
+| PHOENIX-BOM-023 | A range of references in the imported bill ends below its start | `phoenix bom --import`: a range such as `R5-R1`; the import stops |
+| PHOENIX-BOM-024 | A range of references in the imported bill names too many parts | `phoenix bom --import`: a range of more than `max_range` parts of `config/bom_import.cfg` (1000 by default); the import stops |
 
 ## Parts base (`eh3d-phoenix-parts`, `src/codes.rs`)
 

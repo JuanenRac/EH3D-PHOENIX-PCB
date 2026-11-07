@@ -17,7 +17,10 @@
 //!   and the escaping of HTML;
 //! * [`import`]: the bill of another program read with a map of columns, written as part data or
 //!   compared with a board;
-//! * [`codes`]: the codes `PHOENIX-BOM-001` to `PHOENIX-BOM-021` with their titles in the eight
+//! * [`formats`]: the formats of that bill (a generic CSV, the partlist of EAGLE, and the CSV and
+//!   the XML bills of KiCad), told apart by [`detect`] and read by [`import_as`];
+//! * [`range`]: the ranges of references (`R1-R5`) of a cell of a bill, expanded to single parts;
+//! * [`codes`]: the codes `PHOENIX-BOM-001` to `PHOENIX-BOM-024` with their titles in the eight
 //!   languages.
 //!
 //! **State: prototype.** It has been tried on small boards made by the tests only. The tariffs of
@@ -30,18 +33,21 @@
 pub mod assembly;
 pub mod bom;
 pub mod codes;
+pub mod formats;
 pub mod import;
 pub mod money;
 pub mod parts;
 pub mod pcb;
 pub mod prices;
+pub mod range;
 pub mod report;
 pub mod settings;
 pub mod text;
 
 pub use bom::{build_bom, natural_key, Bom, BomInputs, BomLine, Purchase};
 pub use codes::{title, BomError, Finding, Severity};
-pub use import::{import_bill, ImportMap, ImportedBill, ImportedLine};
+pub use formats::{detect, import_as, ImportFormat};
+pub use import::{bill_from_table, import_bill, ImportMap, ImportedBill, ImportedLine};
 pub use parts::{PartData, PartsFile};
 pub use pcb::{pcb_cost, polygon_area, PcbCost};
 pub use prices::{PriceBook, PriceRow};

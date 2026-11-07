@@ -48,6 +48,12 @@ pub const IMPORT_QUANTITY: &str = "PHOENIX-BOM-019";
 pub const IMPORT_DUPLICATE: &str = "PHOENIX-BOM-020";
 /// An imported bill and the board disagree about a part.
 pub const IMPORT_DISAGREES: &str = "PHOENIX-BOM-021";
+/// A range of references in an imported bill is badly formed.
+pub const RANGE_MALFORMED: &str = "PHOENIX-BOM-022";
+/// A range of references in an imported bill ends below where it starts.
+pub const RANGE_INVERTED: &str = "PHOENIX-BOM-023";
+/// A range of references in an imported bill names more parts than the limit allows.
+pub const RANGE_TOO_LARGE: &str = "PHOENIX-BOM-024";
 
 /// Code, then the title in English, Spanish, German, French, Italian, Japanese, Chinese and
 /// European Portuguese.
@@ -323,6 +329,45 @@ pub const TITLES: &[(&str, [&str; 8])] = &[
             "インポートした部品表と基板で部品が一致しません",
             "导入的物料清单与电路板在某个元件上不一致",
             "A lista importada e a placa não concordam sobre uma peça",
+        ],
+    ),
+    (
+        RANGE_MALFORMED,
+        [
+            "A range of references in the imported bill is badly formed",
+            "Un rango de referencias de la lista importada está mal formado",
+            "Ein Bereich von Referenzen in der importierten Stückliste ist fehlerhaft",
+            "Une plage de références de la nomenclature importée est mal formée",
+            "Un intervallo di riferimenti della distinta importata è malformato",
+            "インポートした部品表の参照範囲の形式が正しくありません",
+            "导入的物料清单中的位号范围格式不正确",
+            "Um intervalo de referências da lista importada está mal formado",
+        ],
+    ),
+    (
+        RANGE_INVERTED,
+        [
+            "A range of references in the imported bill ends below its start",
+            "Un rango de referencias de la lista importada termina antes de empezar",
+            "Ein Bereich von Referenzen in der importierten Stückliste endet unter seinem Anfang",
+            "Une plage de références de la nomenclature importée finit avant son début",
+            "Un intervallo di riferimenti della distinta importata termina prima del suo inizio",
+            "インポートした部品表の参照範囲の終点が始点より小さくなっています",
+            "导入的物料清单中的位号范围终点小于起点",
+            "Um intervalo de referências da lista importada termina antes do seu início",
+        ],
+    ),
+    (
+        RANGE_TOO_LARGE,
+        [
+            "A range of references in the imported bill names too many parts",
+            "Un rango de referencias de la lista importada nombra demasiadas piezas",
+            "Ein Bereich von Referenzen in der importierten Stückliste nennt zu viele Bauteile",
+            "Une plage de références de la nomenclature importée désigne trop de composants",
+            "Un intervallo di riferimenti della distinta importata indica troppi componenti",
+            "インポートした部品表の参照範囲が指す部品が多すぎます",
+            "导入的物料清单中的位号范围包含的元件过多",
+            "Um intervalo de referências da lista importada nomeia demasiadas peças",
         ],
     ),
 ];

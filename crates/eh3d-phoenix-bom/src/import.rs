@@ -3,24 +3,30 @@
 //! names, a delimiter of its own and several references in one cell, read into lines of the
 //! structure of this bill with a map of columns from a settings file (`config/bom_import.cfg`).
 //!
-//! The map holds the names of the columns, not a format of any program: nothing here claims to
-//! read the files of a particular program, and no real file has been compared. What is read is
-//! the references, the value, the footprint, the maker, the part number, the quantity and whether
-//! the part is fitted. The result can be written as a file of part data (`match,manufacturer,mpn,
-//! fitted`, one line for each reference), or compared with the parts of a board.
+//! The map holds the names of the columns of a generic CSV file. The partlist of EAGLE and the two
+//! bills of KiCad are read by `crate::formats`, which fills a table of columns and hands it to
+//! [`bill_from_table`], so that every format behaves in the same way. What is read is the
+//! references (a cell may hold several, and ranges such as `R1-R5`), the value, the footprint, the
+//! maker, the part number, the quantity and whether the part is fitted. The result can be written
+//! as a file of part data (`match,manufacturer,mpn,fitted`, one line for each reference), or
+//! compared with the parts of a board.
 
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::bom::natural_key;
 use crate::codes::{
     BomError, Finding, Severity, IMPORT_DISAGREES, IMPORT_DUPLICATE, IMPORT_QUANTITY,
-    PARTS_INVALID, SETTINGS_INVALID,
+    LIMIT_EXCEEDED, PARTS_INVALID, SETTINGS_INVALID,
 };
 use crate::parts::{PartData, PartsFile};
-use crate::text::{csv_text, parse_table_with};
+use crate::range::{collapse_dashes, expand};
+use crate::text::{csv_text, parse_table_with, Table};
 
 /// The most lines an imported file may have.
 const MAX_ROWS_LIMIT: usize = 1_000_000;
+
+/// The most parts a single range of references may be allowed to name.
+const MAX_RANGE_LIMIT: usize = 100_000;
 
 /// How to read the bill of another program.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -51,6 +57,10 @@ pub struct ImportMap {
     pub dnp_values: Vec<String>,
     /// The most lines read.
     pub max_rows: usize,
+    /// The most parts one range of references (`R1-R5`) may name.
+    pub max_range: usize,
+    /// The most references all the lines may name together, ranges expanded.
+    pub max_references: usize,
 }
 
 fn names(list: &[&str]) -> Vec<String> {
@@ -62,7 +72,15 @@ impl Default for ImportMap {
     fn default() -> Self {
         ImportMap {
             delimiter: ',',
-            references: names(&["references", "reference", "designator", "refdes", "ref"]),
+            references: names(&[
+                "references",
+                "reference",
+                "refs",
+                "reference(s)",
+                "designator",
+                "refdes",
+                "ref",
+            ]),
             value: names(&["value", "val", "comment"]),
             footprint: names(&["footprint", "package", "pattern"]),
             manufacturer: names(&["manufacturer", "maker", "mfr"]),
@@ -74,6 +92,8 @@ impl Default for ImportMap {
             not_fitted_values: names(&["no", "n", "false", "0", "dnp"]),
             dnp_values: names(&["yes", "y", "true", "1", "x", "dnp"]),
             max_rows: 100_000,
+            max_range: 1_000,
+            max_references: 200_000,
         }
     }
 }
@@ -141,6 +161,20 @@ impl ImportMap {
                         .filter(|n| (1..=MAX_ROWS_LIMIT).contains(n))
                         .ok_or_else(bad)?
                 }
+                "max_range" => {
+                    map.max_range = value
+                        .parse()
+                        .ok()
+                        .filter(|n| (1..=MAX_RANGE_LIMIT).contains(n))
+                        .ok_or_else(bad)?
+                }
+                "max_references" => {
+                    map.max_references = value
+                        .parse()
+                        .ok()
+                        .filter(|n| (1..=MAX_ROWS_LIMIT * 10).contains(n))
+                        .ok_or_else(bad)?
+                }
                 _ => {
                     return Err(BomError::new(
                         SETTINGS_INVALID,
@@ -187,15 +221,34 @@ fn invalid(what: String) -> BomError {
     BomError::new(PARTS_INVALID, what)
 }
 
+/// The columns of the header that carry one of the wanted names, one for each name, in the order
+/// of the names.
+fn find_columns(header: &[String], wanted: &[String]) -> Vec<usize> {
+    let mut found = Vec::new();
+    for name in wanted {
+        if let Some(at) = header.iter().position(|h| h == name) {
+            if !found.contains(&at) {
+                found.push(at);
+            }
+        }
+    }
+    found
+}
+
 fn find_column(header: &[String], wanted: &[String]) -> Option<usize> {
-    wanted
-        .iter()
-        .find_map(|name| header.iter().position(|h| h == name))
+    find_columns(header, wanted).first().copied()
 }
 
 /// Reads the bill of another program with a map of columns.
 pub fn import_bill(text: &str, map: &ImportMap) -> Result<ImportedBill, BomError> {
     let table = parse_table_with(text, map.delimiter).map_err(invalid)?;
+    bill_from_table(&table, map)
+}
+
+/// Reads a bill from a table of columns, whatever file the table came from: the cells of the
+/// references are split and their ranges expanded, the other columns are found by the names of the
+/// map (when several columns carry names of the map, the first with a cell for the line wins).
+pub fn bill_from_table(table: &Table, map: &ImportMap) -> Result<ImportedBill, BomError> {
     let refs_col = find_column(&table.header, &map.references).ok_or_else(|| {
         invalid(format!(
             "no column holds the references (looked for {}; the file has {})",
@@ -215,28 +268,47 @@ pub fn import_bill(text: &str, map: &ImportMap) -> Result<ImportedBill, BomError
         &map.fitted,
         &map.dnp,
     ]
-    .map(|names| find_column(&table.header, names));
+    .map(|names| find_columns(&table.header, names));
     let [value_col, footprint_col, maker_col, mpn_col, qty_col, fitted_col, dnp_col] = columns;
+    let mut total = 0usize;
     let mut lines = Vec::new();
     let mut findings = Vec::new();
     let mut seen: BTreeMap<String, usize> = BTreeMap::new();
     for (line, cells) in &table.rows {
-        let cell = |col: Option<usize>| -> String {
-            col.and_then(|i| cells.get(i)).cloned().unwrap_or_default()
+        // the first of the columns that has a cell for this line
+        let cell = |cols: &[usize]| -> String {
+            cols.iter()
+                .filter_map(|i| cells.get(*i))
+                .map(|c| c.trim())
+                .find(|c| !c.is_empty())
+                .map(str::to_owned)
+                .unwrap_or_default()
         };
-        let references: Vec<String> = cells
-            .get(refs_col)
-            .map(String::as_str)
-            .unwrap_or("")
+        let mut references: Vec<String> = Vec::new();
+        let text = collapse_dashes(cells.get(refs_col).map(String::as_str).unwrap_or(""));
+        for token in text
             .split(|c: char| map.reference_separators.contains(&c))
             .map(str::trim)
             .filter(|r| !r.is_empty())
-            .map(str::to_owned)
-            .collect();
+        {
+            let parts = expand(token, map.max_range)
+                .map_err(|e| BomError::new(e.code, format!("line {line}: {}", e.detail)))?;
+            total += parts.len();
+            if total > map.max_references {
+                return Err(BomError::new(
+                    LIMIT_EXCEEDED,
+                    format!(
+                        "line {line}: more than {} references in the bill",
+                        map.max_references
+                    ),
+                ));
+            }
+            references.extend(parts);
+        }
         if references.is_empty() {
             continue;
         }
-        let quantity = match cell(qty_col).trim() {
+        let quantity = match cell(&qty_col[..qty_col.len().min(1)]).trim() {
             "" => None,
             text => Some(text.parse::<u64>().map_err(|_| {
                 invalid(format!(
@@ -245,14 +317,18 @@ pub fn import_bill(text: &str, map: &ImportMap) -> Result<ImportedBill, BomError
             })?),
         };
         let mut fitted = true;
-        if fitted_col.is_some()
+        if !fitted_col.is_empty()
             && map
                 .not_fitted_values
-                .contains(&cell(fitted_col).to_ascii_lowercase())
+                .contains(&cell(&fitted_col[..1]).to_ascii_lowercase())
         {
             fitted = false;
         }
-        if dnp_col.is_some() && map.dnp_values.contains(&cell(dnp_col).to_ascii_lowercase()) {
+        if !dnp_col.is_empty()
+            && map
+                .dnp_values
+                .contains(&cell(&dnp_col[..1]).to_ascii_lowercase())
+        {
             fitted = false;
         }
         if let Some(q) = quantity {
@@ -281,10 +357,10 @@ pub fn import_bill(text: &str, map: &ImportMap) -> Result<ImportedBill, BomError
         lines.push(ImportedLine {
             line: *line,
             references,
-            value: cell(value_col),
-            footprint: cell(footprint_col),
-            manufacturer: cell(maker_col),
-            mpn: cell(mpn_col),
+            value: cell(&value_col),
+            footprint: cell(&footprint_col),
+            manufacturer: cell(&maker_col),
+            mpn: cell(&mpn_col),
             quantity,
             fitted,
         });
@@ -530,5 +606,89 @@ R3;10k;R0603;1;;;x\n";
         }
         let shipped = include_str!("../../../config/bom_import.cfg");
         assert_eq!(ImportMap::parse(shipped).unwrap(), ImportMap::default());
+    }
+
+    #[test]
+    fn the_limits_of_the_ranges_are_read_and_refused_out_of_range() {
+        let m = ImportMap::parse("max_range = 7\nmax_references = 50\n").unwrap();
+        assert_eq!((m.max_range, m.max_references), (7, 50));
+        let defaults = ImportMap::default();
+        assert_eq!(
+            (defaults.max_range, defaults.max_references),
+            (1_000, 200_000)
+        );
+        for text in [
+            "max_range = 0\n",
+            "max_range = 100001\n",
+            "max_range = many\n",
+            "max_references = 0\n",
+            "max_references = 10000001\n",
+        ] {
+            let e = ImportMap::parse(text).unwrap_err();
+            assert_eq!(e.code, SETTINGS_INVALID, "{text}");
+        }
+    }
+
+    #[test]
+    fn ranges_in_a_cell_are_expanded_and_counted_against_the_quantity() {
+        let text = "references,qty,value\n\"R1-R3, C1\",4,10k\nU1 - U2,2,x\n";
+        let bill = import_bill(text, &ImportMap::default()).unwrap();
+        assert!(bill.findings.is_empty(), "{:?}", bill.findings);
+        assert_eq!(bill.lines[0].references, ["R1", "R2", "R3", "C1"]);
+        assert_eq!(bill.lines[1].references, ["U1", "U2"]);
+        // a quantity that is not the number of parts the range names is the usual warning
+        let off = import_bill("references,qty\nR1-R3,2\n", &ImportMap::default()).unwrap();
+        assert_eq!(off.findings.len(), 1);
+        assert_eq!(off.findings[0].code, IMPORT_QUANTITY);
+        assert!(off.findings[0]
+            .detail
+            .contains("quantity is 2, the references are 3"));
+        // a range that overlaps another line names a reference twice
+        let dup = import_bill("references\nR1-R3\nR2\n", &ImportMap::default()).unwrap();
+        assert_eq!(dup.findings.len(), 1);
+        assert_eq!(dup.findings[0].code, IMPORT_DUPLICATE);
+        assert_eq!(dup.findings[0].subject.as_deref(), Some("R2"));
+        assert!(dup.findings[0].detail.contains("lines 2 and 3"));
+    }
+
+    #[test]
+    fn a_range_badly_formed_inverted_or_excessive_stops_the_import_with_its_line() {
+        use crate::codes::{RANGE_INVERTED, RANGE_MALFORMED, RANGE_TOO_LARGE};
+        for (text, code, needle) in [
+            ("references\nR1-\n", RANGE_MALFORMED, "line 2: R1-: the end"),
+            ("references\nR1-C5\n", RANGE_MALFORMED, "line 2: R1-C5"),
+            ("references\nR1\nR9-R2\n", RANGE_INVERTED, "line 3: R9-R2"),
+            (
+                "references\nR1-R1001\n",
+                RANGE_TOO_LARGE,
+                "the limit is 1000",
+            ),
+        ] {
+            let e = import_bill(text, &ImportMap::default()).unwrap_err();
+            assert_eq!(e.code, code, "{text}");
+            assert!(e.detail.contains(needle), "{text}: {}", e.detail);
+        }
+        let short = ImportMap::parse("max_range = 3\n").unwrap();
+        assert!(import_bill("references\nR1-R3\n", &short).is_ok());
+        let e = import_bill("references\nR1-R4\n", &short).unwrap_err();
+        assert_eq!(e.code, RANGE_TOO_LARGE);
+        // all the ranges together are limited too
+        let few = ImportMap::parse("max_references = 4\n").unwrap();
+        assert!(import_bill("references\nR1-R3\nC1\n", &few).is_ok());
+        let e = import_bill("references\nR1-R3\nC1-C2\n", &few).unwrap_err();
+        assert_eq!(e.code, LIMIT_EXCEEDED);
+        assert!(
+            e.detail.contains("line 3: more than 4 references"),
+            "{}",
+            e.detail
+        );
+    }
+
+    #[test]
+    fn of_several_columns_with_a_name_of_the_map_the_first_with_a_cell_is_used() {
+        let text = "references,mpn,manufacturer part number\nR1,,ABC\nR2,XYZ,DEF\n";
+        let bill = import_bill(text, &ImportMap::default()).unwrap();
+        assert_eq!(bill.lines[0].mpn, "ABC");
+        assert_eq!(bill.lines[1].mpn, "XYZ");
     }
 }

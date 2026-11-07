@@ -14,8 +14,8 @@ use std::path::Path;
 use eh3d_phoenix_bom::codes::{FILE_TOO_LARGE, INPUT_UNREADABLE, OPTION_INVALID, OUTPUT_FAILED};
 use eh3d_phoenix_bom::report::counts;
 use eh3d_phoenix_bom::{
-    bom_csv_with, bom_html, bom_json, bom_text, build_bom, import_bill, BomError, BomInputs,
-    CostSettings, ImportMap, PartsFile, PriceBook,
+    bom_csv_with, bom_html, bom_json, bom_text, build_bom, import_as, BomError, BomInputs,
+    CostSettings, ImportFormat, ImportMap, PartsFile, PriceBook,
 };
 use eh3d_phoenix_parts::{entries_of, link_bom, load as load_parts, PartsSettings};
 use eh3d_phoenix_rules::Lang;
@@ -32,7 +32,7 @@ const DEFAULT_CONFIG: &str = "config/costs.cfg";
 const DEFAULT_IMPORT_MAP: &str = "config/bom_import.cfg";
 
 pub(crate) const USAGE: &str = "\
-phoenix bom [--config FILE] [--prices FILE] [--parts FILE] [--import FILE [--import-map FILE]] [--parts-out FILE] [--parts-db PATH] [--schematic FILE]
+phoenix bom [--config FILE] [--prices FILE] [--parts FILE] [--import FILE [--import-format NAME] [--import-map FILE]] [--parts-out FILE] [--parts-db PATH] [--schematic FILE]
             [--stackup FILE] [--boards N] [--variant NAME [--variant-file FILE]] [--csv FILE] [--json-file FILE] [--html FILE] [--json] [--lang CODE]
             <board>
 
@@ -48,12 +48,20 @@ phoenix bom [--config FILE] [--prices FILE] [--parts FILE] [--import FILE [--imp
   --config      the rates, percentages and limits (default: config/costs.cfg when it exists)
   --prices      the file of prices by quantity break
   --parts       a CSV with the maker, the part number and the parts that are not fitted
-  --import      the bill of materials of another program, a CSV file: its maker, part number and
+  --import      the bill of materials of another program (see --import-format): its maker, part number and
                 parts that are not fitted are used for the references that --parts does not name,
                 and the report lists the parts that the bill and the board disagree about (a part
                 on one side only, a value that differs), a quantity that is not the number of its
                 references and a reference in two lines. --import-map is the map of the columns
-                (default: config/bom_import.cfg when it exists); nothing is read from a network
+                (default: config/bom_import.cfg when it exists); nothing is read from a network.
+                A cell of references may hold a range such as R1-R5, which is expanded to the
+                single parts (a range badly formed, upside down or longer than max_range of the
+                map is refused, PHOENIX-BOM-022 to 024)
+  --import-format
+                the format of the imported bill: auto (the default: an EAGLE partlist, a KiCad XML
+                file or else a CSV file), csv (the columns named in the map), eagle (the partlist
+                that EAGLE writes), kicad-csv or kicad-xml (the bills of KiCad); the other formats
+                have their own column names and take only the limits and the separators from the map
   --parts-out   write the data of the imported bill as a file of part data (a new file), to use
                 later as --parts
   --parts-db    the local parts base (a file or a folder, see `phoenix parts`): the maker, the part
@@ -78,6 +86,7 @@ struct Options {
     parts: Option<String>,
     import: Option<String>,
     import_map: Option<String>,
+    import_format: Option<String>,
     parts_out: Option<String>,
     parts_db: Option<String>,
     schematic: Option<String>,
@@ -100,6 +109,7 @@ fn parse_options(args: &[&str]) -> Result<Options, BomError> {
         parts: None,
         import: None,
         import_map: None,
+        import_format: None,
         parts_out: None,
         parts_db: None,
         schematic: None,
@@ -131,6 +141,9 @@ fn parse_options(args: &[&str]) -> Result<Options, BomError> {
             "--parts" => options.parts = Some(value("--parts needs a file")?),
             "--import" => options.import = Some(value("--import needs a file")?),
             "--import-map" => options.import_map = Some(value("--import-map needs a file")?),
+            "--import-format" => {
+                options.import_format = Some(value("--import-format needs a format name")?)
+            }
             "--parts-out" => options.parts_out = Some(value("--parts-out needs a file")?),
             "--parts-db" => options.parts_db = Some(value("--parts-db needs a path")?),
             "--schematic" => options.schematic = Some(value("--schematic needs a file")?),
@@ -172,6 +185,24 @@ fn read_limited(path: &str, limit: u64) -> Result<String, BomError> {
         ));
     }
     std::fs::read_to_string(path).map_err(unreadable)
+}
+
+/// Reads a text file that is UTF-8 or else one byte for each character (Latin-1), as the programs
+/// that write a bill of materials leave it.
+fn read_limited_any(path: &str, limit: u64) -> Result<String, BomError> {
+    let unreadable = |e: std::io::Error| BomError::new(INPUT_UNREADABLE, format!("{path}: {e}"));
+    let size = std::fs::metadata(path).map_err(unreadable)?.len();
+    if size > limit {
+        return Err(BomError::new(
+            FILE_TOO_LARGE,
+            format!("{path} is {size} bytes, the limit is {limit}"),
+        ));
+    }
+    let bytes = std::fs::read(path).map_err(unreadable)?;
+    Ok(match String::from_utf8(bytes) {
+        Ok(text) => text,
+        Err(e) => e.into_bytes().iter().map(|b| char::from(*b)).collect(),
+    })
 }
 
 fn load_settings(path: Option<&str>) -> Result<CostSettings, BomError> {
@@ -265,12 +296,28 @@ fn bom(options: &Options, out: &mut dyn Write) -> Result<i32, BomError> {
         )?,
         None => PartsFile::default(),
     };
-    if (options.import_map.is_some() || options.parts_out.is_some()) && options.import.is_none() {
+    if (options.import_map.is_some()
+        || options.import_format.is_some()
+        || options.parts_out.is_some())
+        && options.import.is_none()
+    {
         return Err(BomError::new(
             OPTION_INVALID,
-            "--import-map and --parts-out need --import",
+            "--import-map, --import-format and --parts-out need --import",
         ));
     }
+    let format = match &options.import_format {
+        Some(name) => ImportFormat::parse(name).ok_or_else(|| {
+            BomError::new(
+                OPTION_INVALID,
+                format!(
+                    "unknown import format {name} (the formats: {})",
+                    ImportFormat::NAMES
+                ),
+            )
+        })?,
+        None => ImportFormat::Auto,
+    };
     let imported = match &options.import {
         Some(path) => {
             let map_path = options.import_map.as_deref().or_else(|| {
@@ -282,7 +329,11 @@ fn bom(options: &Options, out: &mut dyn Write) -> Result<i32, BomError> {
                 Some(p) => ImportMap::parse(&read_limited(p, 1024 * 1024)?)?,
                 None => ImportMap::default(),
             };
-            let bill = import_bill(&read_limited(path, settings.max_file_bytes)?, &map)?;
+            let bill = import_as(
+                &read_limited_any(path, settings.max_file_bytes)?,
+                format,
+                &map,
+            )?;
             parts.merge_missing(&bill.parts_file());
             Some(bill)
         }
