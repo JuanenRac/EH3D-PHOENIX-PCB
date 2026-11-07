@@ -26,7 +26,7 @@
 //! first unit. A symbol that is mirrored gets a mirrored copy of its symbol. A rotation that is not
 //! a right angle is rounded.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use eh3d_diagnostic::Diagnostic;
 use eh3d_phoenix_board::Id;
@@ -643,7 +643,7 @@ impl State {
             return;
         };
         let mut pins = BTreeMap::new();
-        let mut seen: Vec<(String, P)> = Vec::new();
+        let mut seen: BTreeSet<(String, P)> = BTreeSet::new();
         let part_id = ctx.id();
         let mut records: Vec<PinRecord> = Vec::new();
         let origin = first.at;
@@ -651,10 +651,9 @@ impl State {
             let (_, infos) = build_symbol(def, &part.lib_id, Some(part.unit), part.mirror, ctx);
             for info in infos {
                 let abs = placed(part.at, part.quarters, info.at);
-                if seen.contains(&(info.number.clone(), abs)) {
+                if !seen.insert((info.number.clone(), abs)) {
                     continue;
                 }
-                seen.push((info.number.clone(), abs));
                 let offset = (abs.0 - origin.0, -(abs.1 - origin.1));
                 let pin_id = ctx.id();
                 pins.insert(
@@ -733,26 +732,42 @@ impl State {
     }
 }
 
-/// The text of a label at `p`, or of a label at the other end of a wire that ends at `p`.
-fn member_label(parsed: &Parsed, p: P) -> Option<&str> {
-    let at = |q: P| {
-        parsed
-            .labels
-            .iter()
-            .find(|l| l.at == q)
-            .map(|l| l.text.as_str())
-    };
-    at(p).or_else(|| {
-        parsed.wires.iter().find_map(|&(a, b)| {
-            if a == p {
-                at(b)
-            } else if b == p {
-                at(a)
-            } else {
-                None
+/// Where the labels of a sheet are and which wires end where, looked up in a map so that a sheet
+/// with many bus entries does not search every label and wire for each of them.
+struct MemberLabels<'a> {
+    /// The text of the first label at each place.
+    label_at: BTreeMap<P, &'a str>,
+    /// For each place, the other ends of the wires that end there, in the order of the wires.
+    wire_ends: BTreeMap<P, Vec<P>>,
+}
+
+impl<'a> MemberLabels<'a> {
+    fn new(parsed: &'a Parsed) -> MemberLabels<'a> {
+        let mut label_at: BTreeMap<P, &'a str> = BTreeMap::new();
+        for l in &parsed.labels {
+            label_at.entry(l.at).or_insert(l.text.as_str());
+        }
+        let mut wire_ends: BTreeMap<P, Vec<P>> = BTreeMap::new();
+        for &(a, b) in &parsed.wires {
+            wire_ends.entry(a).or_default().push(b);
+            if b != a {
+                wire_ends.entry(b).or_default().push(a);
             }
+        }
+        MemberLabels {
+            label_at,
+            wire_ends,
+        }
+    }
+
+    /// The text of a label at `p`, or of a label at the other end of a wire that ends at `p`.
+    fn at(&self, p: P) -> Option<&'a str> {
+        self.label_at.get(&p).copied().or_else(|| {
+            self.wire_ends
+                .get(&p)
+                .and_then(|ends| ends.iter().find_map(|q| self.label_at.get(q).copied()))
         })
-    })
+    }
 }
 
 /// The buses of a sheet: a bus for each label that names one and can be expanded, and an entry
@@ -780,18 +795,23 @@ fn add_buses(st: &mut State, ctx: &mut Ctx, parsed: &Parsed, sheet: Id) {
             _ => ctx.lose("bus labels that cannot be expanded", 1),
         }
     }
+    let labels = MemberLabels::new(parsed);
+    // the first bus that has each member
+    let mut bus_of: BTreeMap<&str, Id> = BTreeMap::new();
+    for (bus, members) in &buses {
+        for m in members {
+            bus_of.entry(m.as_str()).or_insert(*bus);
+        }
+    }
     for (start, end) in &parsed.bus_entries {
         let found = [*end, *start]
             .into_iter()
-            .find_map(|p| member_label(parsed, p).map(|name| (p, name)));
+            .find_map(|p| labels.at(p).map(|name| (p, name)));
         let Some((place, member)) = found else {
             ctx.lose("bus entries with no net label at their end", 1);
             continue;
         };
-        let Some((bus, _)) = buses
-            .iter()
-            .find(|(_, members)| members.iter().any(|m| m == member))
-        else {
+        let Some(bus) = bus_of.get(member) else {
             ctx.lose("bus entries whose member is in no bus of the sheet", 1);
             continue;
         };
