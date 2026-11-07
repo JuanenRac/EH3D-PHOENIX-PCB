@@ -9,10 +9,11 @@
 //! and the largest board (the short and the long side), the largest drill and the most holes.
 //! A limit of zero turns that line off.
 //!
-//! No profile of a real maker comes with the program. The one in the repository is an example of
-//! the form with invented round numbers, marked `verified = false`; every check against a profile
-//! that is not verified says so with `PHOENIX-DFM-006`. Put the figures of the maker you use in a
-//! copy of the file, with where you read them in `source`, and mark it verified yourself.
+//! The program carries an example of the form with invented round numbers and the public figures
+//! of two makers (see [`BUILTIN`]), all marked `verified = false` because nothing compares them
+//! with the maker; every check against a profile that is not verified says so with
+//! `PHOENIX-DFM-006`. Put the figures of the maker you use in a copy of the file, with where you
+//! read them in `source`, and mark it verified yourself.
 
 use eh3d_phoenix_board::Board;
 use eh3d_phoenix_model::Nm;
