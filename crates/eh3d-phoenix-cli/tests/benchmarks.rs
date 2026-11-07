@@ -365,11 +365,11 @@ fn dxf_drawing(n: usize) -> String {
     };
     polyline(
         &mut t,
-        [(0.0, 0.0), (1200.0, 0.0), (1200.0, 1200.0), (0.0, 1200.0)],
+        [(0.0, 0.0), (900.0, 0.0), (900.0, 900.0), (0.0, 900.0)],
     );
-    // n squares of 4 mm, 10 mm apart: 60 to a row
+    // n squares of 4 mm, 10 mm apart: 60 to a row (all inside 900 mm, the range of a length is about 1073 mm)
     for k in 0..n {
-        let (x, y) = (10.0 + (k % 60) as f64 * 12.0, 10.0 + (k / 60) as f64 * 12.0);
+        let (x, y) = (10.0 + (k % 60) as f64 * 10.0, 10.0 + (k / 60) as f64 * 10.0);
         polyline(
             &mut t,
             [(x, y), (x + 4.0, y), (x + 4.0, y + 4.0), (x, y + 4.0)],
