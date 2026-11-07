@@ -11,7 +11,7 @@
 //! the same board gives the same polygon on the machines that round the same way; the points of
 //! the corners themselves are never moved.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use eh3d_phoenix_model::{Arc, Point, Udeg};
 use serde::{Deserialize, Serialize};
@@ -222,7 +222,7 @@ impl Board {
     pub fn outline_arc_problems(&self) -> Vec<String> {
         let n = self.outline.len();
         let mut out: Vec<String> = Vec::new();
-        let mut seen: Vec<u32> = Vec::new();
+        let mut seen: BTreeSet<u32> = BTreeSet::new();
         for (i, arc) in self.outline_arcs.iter().enumerate() {
             let at = |k: usize| self.outline.get(k).copied();
             let (start, end) = (
@@ -238,7 +238,7 @@ impl Board {
                     arc.edge
                 ));
             }
-            seen.push(arc.edge);
+            seen.insert(arc.edge);
         }
         out
     }
