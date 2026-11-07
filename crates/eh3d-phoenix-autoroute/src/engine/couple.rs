@@ -723,7 +723,7 @@ impl Engine<'_> {
                 _ => groups.push((n.slot, vec![at])),
             }
         }
-        let changes = groups.len() - 1;
+        let changes = groups.len().saturating_sub(1);
         if changes == 0 {
             return Err("the pair does not need to change layer".to_owned());
         }
