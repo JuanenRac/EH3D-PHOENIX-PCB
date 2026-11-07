@@ -23,6 +23,10 @@ pub enum ReliefShape {
     Rect(i64, i64),
     /// A rectangle with round ends, of the width and the height.
     Obround(i64, i64),
+    /// A rectangle with rounded corners (the `roundness` of a pad): the width, the height and the
+    /// radius of the corners, which is at most half of the shorter side. The ring of the relief
+    /// keeps the corners round: grown by the gap, the corners have the radius plus the gap.
+    Rounded(i64, i64, i64),
 }
 
 /// Drops a point equal to the one before it.
@@ -37,10 +41,30 @@ fn dedup(points: &mut Vec<Xy>) {
 }
 
 /// The convex outline of the pad grown by `grow` on every side, about the origin.
-fn outline(shape: ReliefShape, grow: f64) -> Vec<Xy> {
+pub(crate) fn outline(shape: ReliefShape, grow: f64) -> Vec<Xy> {
     let quarter = std::f64::consts::FRAC_PI_2;
     let mut points: Vec<Xy> = Vec::new();
     match shape {
+        ReliefShape::Rounded(w, h, radius) => {
+            // the corners are arcs of the radius about the points a radius in from the corners,
+            // cut into the same number of pieces as the corners of the pad itself, so that a gap
+            // of 0 would follow the pad; counter clockwise from the lower right corner
+            let radius = radius.clamp(0, w.min(h) / 2) as f64;
+            let (hx, hy) = (w as f64 / 2.0 - radius, h as f64 / 2.0 - radius);
+            let big = radius + grow;
+            let steps = crate::gerber::CORNER_STEPS as usize;
+            for (cx, cy, start) in [
+                (hx, -hy, -quarter),
+                (hx, hy, 0.0),
+                (-hx, hy, quarter),
+                (-hx, -hy, 2.0 * quarter),
+            ] {
+                for k in 0..=steps {
+                    let a = start + quarter * k as f64 / steps as f64;
+                    points.push((cx + big * a.cos(), cy + big * a.sin()));
+                }
+            }
+        }
         ReliefShape::Circle(d) => {
             let r = d as f64 / 2.0 + grow;
             let total = 4 * ARC_STEPS;
@@ -133,7 +157,9 @@ pub fn relief_gaps(
 ) -> Vec<Vec<Point>> {
     let narrow = match shape {
         ReliefShape::Circle(d) => d,
-        ReliefShape::Rect(w, h) | ReliefShape::Obround(w, h) => w.min(h),
+        ReliefShape::Rect(w, h) | ReliefShape::Obround(w, h) | ReliefShape::Rounded(w, h, _) => {
+            w.min(h)
+        }
     };
     if gap <= 0 || spoke <= 0 || spoke >= narrow {
         return Vec::new();
@@ -319,6 +345,94 @@ mod tests {
                 assert!(p.y_nm.get().abs() >= 124_999);
             }
         }
+    }
+
+    #[test]
+    fn a_rounded_rectangle_keeps_its_round_corners_in_each_gap_of_four_spokes() {
+        // a pad of 1 by 0.6 mm with corners of 0.1 mm, a gap of 0.25 mm and spokes of 0.25 mm. In
+        // the upper right quadrant the gap lies between the pad (corner arc of 0.1 mm about
+        // (0.4, 0.2)) and the ring (corner arc of 0.35 mm about the same point), cut at x = 0.125
+        // and y = 0.125. The straight parts meet the cuts at (0.125, 0.3), (0.5, 0.125),
+        // (0.125, 0.55) and (0.75, 0.125); no arc reaches a cut, because 0.4 and 0.2 are both
+        // beyond 0.125. With true arcs the area is the L of the sharp rectangle, 0.2 mm2, less
+        // (1 - pi/4) * (0.35^2 - 0.1^2) mm2 = 0.024143 mm2 for the corner: 0.175857 mm2. The
+        // corners are cut into 6 chords, which takes a little more (0.57 percent): the area
+        // worked out again for the chords, with the cuts and the rounding of each point to the
+        // nanometre left out, is 174 851 427 722 nm2
+        let gaps = relief_gaps(
+            ReliefShape::Rounded(1_000_000, 600_000, 100_000),
+            pt(AT.0, AT.1),
+            250_000,
+            250_000,
+            4,
+        );
+        assert_eq!(gaps.len(), 4);
+        for ring in &gaps {
+            let a = area(ring);
+            assert!((a - 174_851_427_722.0).abs() < 2_000_000.0, "{a}");
+            assert!((a - 175_857_293_382.0).abs() < 2_000_000_000.0, "{a}");
+        }
+        let first: Vec<(i64, i64)> = gaps[0]
+            .iter()
+            .map(|p| (p.x_nm.get() - AT.0, p.y_nm.get() - AT.1))
+            .collect();
+        for corner in [
+            (125_000, 300_000),
+            (500_000, 125_000),
+            (125_000, 550_000),
+            (750_000, 125_000),
+        ] {
+            assert!(first.contains(&corner), "{corner:?} in {first:?}");
+        }
+        // no point of the ring is inside a spoke
+        assert!(first.iter().all(|p| p.0 >= 125_000 && p.1 >= 125_000));
+    }
+
+    #[test]
+    fn a_rounded_rectangle_with_two_spokes_has_a_gap_above_and_a_gap_below() {
+        // the same pad, two spokes of 0.25 mm along x: the pieces are the ring above y = 0.125 mm
+        // and below -0.125 mm, worked out again for the chords: 412 202 855 444 nm2
+        let gaps = relief_gaps(
+            ReliefShape::Rounded(1_000_000, 600_000, 100_000),
+            pt(AT.0, AT.1),
+            250_000,
+            250_000,
+            2,
+        );
+        assert_eq!(gaps.len(), 2);
+        for ring in &gaps {
+            let a = area(ring);
+            assert!((a - 412_202_855_444.0).abs() < 4_000_000.0, "{a}");
+            assert!(ring.iter().all(|p| (p.y_nm.get() - AT.1).abs() >= 125_000));
+        }
+    }
+
+    #[test]
+    fn the_inner_edge_of_the_ring_is_the_edge_of_the_pad_as_the_export_draws_it() {
+        // the pad is written as a region with corners of 6 chords; the ring starts from the same
+        // points, so no sliver of the pour is left between the pad and the gap
+        let origin = pt(0, 0);
+        let pad = crate::gerber::rounded_rectangle(origin, 1_000_000, 600_000, 100_000);
+        let inner = outline(ReliefShape::Rounded(1_000_000, 600_000, 100_000), 0.0);
+        assert_eq!(pad.len(), 28);
+        assert_eq!(inner.len(), 28);
+        for (p, q) in pad.iter().zip(&inner) {
+            assert!((p.x_nm.get() as f64 - q.0).abs() <= 1.0, "{p:?} {q:?}");
+            assert!((p.y_nm.get() as f64 - q.1).abs() <= 1.0, "{p:?} {q:?}");
+        }
+        // a radius larger than half the shorter side is the half
+        let big = outline(ReliefShape::Rounded(1_000_000, 600_000, 900_000), 0.0);
+        let half = outline(ReliefShape::Rounded(1_000_000, 600_000, 300_000), 0.0);
+        assert_eq!(big, half);
+        // and a spoke as wide as the shorter side makes no relief
+        assert!(relief_gaps(
+            ReliefShape::Rounded(1_000_000, 600_000, 100_000),
+            origin,
+            250_000,
+            600_000,
+            4
+        )
+        .is_empty());
     }
 
     #[test]

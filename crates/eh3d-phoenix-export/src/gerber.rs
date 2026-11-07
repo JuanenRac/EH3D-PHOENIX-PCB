@@ -71,7 +71,7 @@ enum Draw {
 }
 
 /// How many straight pieces make the quarter of a circle at the corner of a rounded pad.
-const CORNER_STEPS: i64 = 6;
+pub(crate) const CORNER_STEPS: i64 = 6;
 
 /// True when the export writes the pad as a region and not as a flash: a pad with rounded
 /// corners whose angle on the board is a right angle (at any other angle the pad is flashed
@@ -84,7 +84,7 @@ pub fn pad_is_region(pad: &Pad, component_rotation: Udeg) -> bool {
 /// The corners of a rectangle of `width` by `height` about `at` with corners of `radius`, counter
 /// clockwise, the corner arcs cut into `CORNER_STEPS` pieces each. The radius is at most half of
 /// the shorter side.
-fn rounded_rectangle(at: Point, width: i64, height: i64, radius: i64) -> Vec<Point> {
+pub(crate) fn rounded_rectangle(at: Point, width: i64, height: i64, radius: i64) -> Vec<Point> {
     let radius = radius.clamp(0, width.min(height) / 2);
     let (cx, cy) = (at.x_nm.get(), at.y_nm.get());
     let (hx, hy) = (width / 2 - radius, height / 2 - radius);
@@ -427,7 +427,11 @@ fn zone_clearing(
                             continue;
                         }
                         match pad_key(pad.shape, (total / 90_000_000) % 2 == 1) {
-                            ApKey::Rect(w, h) => ReliefShape::Rect(w, h),
+                            // a pad with rounded corners keeps them in the ring of the relief
+                            ApKey::Rect(w, h) => match pad.corner_radius_nm() {
+                                Some(radius) => ReliefShape::Rounded(w, h, radius),
+                                None => ReliefShape::Rect(w, h),
+                            },
                             ApKey::Obround(w, h) => ReliefShape::Obround(w, h),
                             ApKey::Circle(d) => ReliefShape::Circle(d),
                         }

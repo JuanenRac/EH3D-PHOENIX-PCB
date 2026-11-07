@@ -688,3 +688,55 @@ fn the_new_options_of_the_pour_ask_for_a_valid_profile() {
     profile.gerber.zone_island_min_area_nm2 = 0;
     assert!(profile.validate().is_ok());
 }
+
+/// The pour with a pad of 1 by 0.6 mm whose corners have the given roundness (a radius of
+/// `shorter side * roundness / 2000`, so 500 is 0.15 mm).
+fn with_a_rounded_pad(roundness: u16) -> Board {
+    let mut b = with_a_rectangular_pad(0);
+    b.footprints
+        .get_mut(&id(40))
+        .unwrap()
+        .pads
+        .get_mut(&id(41))
+        .unwrap()
+        .roundness = roundness;
+    b
+}
+
+/// The largest sum of the distances along x and along y from the pad at (16, 7) mm to a corner of
+/// a region near it.
+fn diagonal_reach(text: &str) -> f64 {
+    let read = eh3d_parser_gerber::parse(text);
+    let mut far = 0.0_f64;
+    let mut in_region = false;
+    for command in &read.commands {
+        match &command.op {
+            Operation::RegionStart => in_region = true,
+            Operation::RegionEnd => in_region = false,
+            Operation::Line { to, .. } if in_region => {
+                let (dx, dy) = ((to.x - 16.0).abs(), (to.y - 7.0).abs());
+                if dx < 1.0 && dy < 1.0 {
+                    far = far.max(dx + dy);
+                }
+            }
+            _ => {}
+        }
+    }
+    far
+}
+
+#[test]
+fn the_gaps_of_a_pad_with_rounded_corners_follow_its_corners() {
+    let profile = thermal_profile(4, true);
+    // square corners: the gap reaches the corner (0.75, 0.55) mm of the ring, 0.75 + 0.55 = 1.3
+    let sharp = build(&with_a_rounded_pad(0), &profile).unwrap();
+    let far = diagonal_reach(layer_text(&sharp, id(1)));
+    assert!((far - 1.3).abs() < 1e-5, "{far}");
+    // roundness 500 is a radius of 0.15 mm; the ring has corners of 0.15 + 0.25 = 0.4 mm about
+    // (0.35, 0.15), and its chord at 45 degrees ends at 0.35 + 0.15 + 0.4 * sqrt(2) = 1.0656854
+    let round = build(&with_a_rounded_pad(500), &profile).unwrap();
+    let text = layer_text(&round, id(1));
+    assert!(eh3d_parser_gerber::parse(text).is_clean());
+    let far = diagonal_reach(text);
+    assert!((far - 1.0656854).abs() < 1e-5, "{far}");
+}

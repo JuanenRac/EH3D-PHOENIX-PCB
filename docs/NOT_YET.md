@@ -8,7 +8,7 @@ The table below is in the order the ideas were written down. This is the order t
 
 1. Arcs in the outline of the board (the cutouts are kept now; an arc is still cut into straight pieces) and slots as a shape of the model.
 2. Chamfered, trapezoidal and custom pads, and slots, in the model (the roundness and the plating of a pad are in the model now): the Gerber and Excellon files cannot say what the model cannot hold.
-3. The join of the other pads of its own net in a pour made by the export itself, and the removal of the islands that the clearing cuts off inside one zone (the cutouts, the keep-away around other nets, the reliefs of round pads with two or four spokes and those of rectangular and oblong pads are cleared with clear polarity now, and a zone or a group of zones smaller than a minimum is left out).
+3. The join of the other pads of its own net in a pour made by the export itself, and the removal of the islands that the clearing cuts off inside one zone (the cutouts, the keep-away around other nets, the reliefs of round pads with two or four spokes and those of rectangular, rounded-corner and oblong pads are cleared with clear polarity now, and a zone or a group of zones smaller than a minimum is left out).
 4. Back drilling (the drill files of blind and buried vias are written, one for each pair of layers).
 5. The priority and the relief of a zone in the model instead of the data of the editor, so that the KiCad and Specctra writers can carry them (the cutouts are in the model now).
 6. The drawing of the bus, the buses in the EAGLE writer, and the join of the members through bus labels between sheets (the KiCad reader and writer and the EAGLE reader carry the buses and their entries now).
