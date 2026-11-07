@@ -140,3 +140,7 @@ The codes `PHOENIX-CORPUS-001` to `PHOENIX-CORPUS-012` are in `ERROR_CODES.md` w
 * It does not compare anything with EAGLE, KiCad, a CAM program or a SPICE program, and it holds no file of a maker. Its answers are the answers of this repository to files of this repository.
 * It does not run the readers on files bigger than a few kilobytes; the sizes that break a reader are tried through the limits, not through large files.
 * The schematics are read and checked (the electrical rule check of an EAGLE schematic is in it), but they are not yet taken through the writers; the properties work on boards only.
+
+## The inventory of a private folder
+
+`phoenix inventory` (the same crate, module `inventory`) counts the design files of a folder that must not be shown, in redacted form: files by extension, kind and declared version, and one fingerprint of the content, never a name or a value. Its limits are a plain `key = value` file given with `phoenix --config FILE inventory <folder>`: `max_files`, `max_depth`, `sniff_bytes`, `max_file_bytes` and `fingerprint`. `config/phoenix.cfg` holds the default values; a missing line keeps its default and a file of more than 1 MiB is refused (`PHOENIX-SEC-003`).
