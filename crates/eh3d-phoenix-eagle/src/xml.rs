@@ -50,6 +50,10 @@ impl fmt::Display for XmlError {
 
 impl std::error::Error for XmlError {}
 
+/// How many attributes of a tag are compared one by one for a repeated name; from this many on a
+/// set of the names is used.
+const ATTRS_COMPARED_ONE_BY_ONE: usize = 32;
+
 /// One element with its attributes (in file order), its text and its child elements.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Element {
@@ -323,6 +327,7 @@ pub fn parse(text: &str, limits: &Limits) -> Result<Element, XmlError> {
                 name,
                 ..Element::default()
             };
+            let mut seen_names: Option<std::collections::BTreeSet<String>> = None;
             loop {
                 p.skip_space();
                 match p.s.get(p.i) {
@@ -362,7 +367,17 @@ pub fn parse(text: &str, limits: &Limits) -> Result<Element, XmlError> {
                         p.i += 1;
                         p.skip_space();
                         let value = p.attr_value()?;
-                        if el.attrs.iter().any(|(k, _)| *k == key) {
+                        // a few attributes are compared one by one; a tag with many gets a set of
+                        // the names, so that the time does not grow with the square of their number
+                        let twice = if el.attrs.len() < ATTRS_COMPARED_ONE_BY_ONE {
+                            el.attrs.iter().any(|(k, _)| *k == key)
+                        } else {
+                            let seen = seen_names.get_or_insert_with(|| {
+                                el.attrs.iter().map(|(k, _)| k.clone()).collect()
+                            });
+                            !seen.insert(key.clone())
+                        };
+                        if twice {
                             return p.bad("an attribute name used once");
                         }
                         el.attrs.push((key, value));
@@ -495,6 +510,42 @@ mod tests {
         assert_eq!(e.child("a").unwrap().attr("x"), Some("1&2"));
         assert_eq!(e.child("b").unwrap().text, "t<1");
         assert_eq!(e.count(), 3);
+    }
+
+    /// A tag `<r a0="0" a1="1" ...>` of `count` distinct attributes, one name repeated at the end
+    /// when `again` names one.
+    fn many_attributes(count: usize, again: Option<usize>) -> String {
+        let mut text = String::from("<r");
+        for k in 0..count {
+            text.push_str(&format!(" a{k}=\"{k}\""));
+        }
+        if let Some(k) = again {
+            text.push_str(&format!(" a{k}=\"x\""));
+        }
+        text.push_str("/>");
+        text
+    }
+
+    #[test]
+    fn a_tag_with_many_attributes_keeps_them_all_in_order_and_still_refuses_a_repeat() {
+        // below, at and above the number that is compared one by one
+        for count in [1, 31, 32, 33, 100, 5000] {
+            let e = p(&many_attributes(count, None)).unwrap();
+            assert_eq!(e.attrs.len(), count);
+            assert_eq!(e.attrs[0], ("a0".to_owned(), "0".to_owned()));
+            let last = count - 1;
+            assert_eq!(e.attr(&format!("a{last}")), Some(last.to_string().as_str()));
+            // a name used again, whether it was among the first ones or among the later ones
+            for again in [0, last / 2, last] {
+                assert!(
+                    matches!(
+                        p(&many_attributes(count, Some(again))),
+                        Err(XmlError::Malformed { .. })
+                    ),
+                    "{count} attributes, a{again} again"
+                );
+            }
+        }
     }
 
     #[test]
