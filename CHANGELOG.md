@@ -4,6 +4,8 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **The ZIP library is updated to 9.5.1 in the lock file:** the lock file pinned the `zip` crate at 2.6.1, which has known security advisories (fixed in 9.0.0 and 9.0.5); it now resolves to 9.5.1 through the shared container libraries, which already require 9.0.5 or later, and the lock file lists the current workspace again.
+
 ## [0.0.7] - Faster readers and rule checks, assembly benchmarks and BOM import
 
 - Add benchmarks of the readers and the rule check, `crates/eh3d-phoenix-cli/tests/benchmarks.rs`: boards and files of 5000 and of 20000 objects made by the test from fixed formulas (a KiCad board and schematic with a bus of many entries, an EAGLE board, a Gerber layer, an Excellon file, a board for the copper clearance check, a DXF drawing with 4000 contours), each run several times, failing when the large run takes longer than `max_ms` or more than `max_growth_percent` of the small one. The limits are in the new `config/performance.cfg` (`small_size`, `large_size`, `repeats`, `max_ms`, `max_growth_percent`, `min_ms_for_growth`, `dxf_contours`, `max_candidates_per_item`), which is the built-in default of the test, can be replaced with `PHOENIX_BENCH_CFG`, and has every line required and checked; the clearance check is also counted (the candidates of the index for each track stay under `max_candidates_per_item`) and gives the same report with the index as without it. The results, the limits that bound the work and what still grows with the square of a count are in the new `docs/PERFORMANCE.md`
