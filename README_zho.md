@@ -181,6 +181,7 @@ EH3D-PHOENIX-PCB/
 ├── config/                                      设置文件（所有调整值）
 ├── examples/                                    示例脚本及其输出，以及教程和指南用的文件
 ├── Cargo.toml Cargo.lock                        Rust 工作区及其锁定的依赖
+├── rust-toolchain.toml                          固定的 Rust 工具链
 ├── tools/                                       仓库检查、其测试以及图片工具
 ├── tests/                                       基准用例以及手写样例的自有语料库
 ├── images/                                      横幅图以及架构和仓库结构图片

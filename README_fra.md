@@ -181,6 +181,7 @@ EH3D-PHOENIX-PCB/
 ├── config/                                      le fichier de réglages (chaque valeur ajustée)
 ├── examples/                                    scripts d'exemple, leur sortie, fichiers des tutoriels et guides
 ├── Cargo.toml Cargo.lock                        l'espace de travail Rust et ses dépendances figées
+├── rust-toolchain.toml                          la toolchain Rust épinglée
 ├── tools/                                       le contrôle du dépôt, ses tests et les outils des images
 ├── tests/                                       cas de référence et corpus propre de pièces écrites à la main
 ├── images/                                      bannière et images d'Architecture et de Structure du dépôt
