@@ -2,7 +2,7 @@
   "schema_version": "1.1",
   "ecosystem": "EH3D",
   "name": "EH3D-PHOENIX-PCB",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "role": "tool",
   "stack": "rust",
   "technologies": [
@@ -21,7 +21,7 @@
     "EH3D-CORE-LIBS"
   ],
   "build": "cargo build --release; cargo test",
-  "notes": "Scaffolding v0.0.6: early code. EDA environment planned as schematic capture, PCB layout, verification tools, circuit simulation and specialized modules for switch-mode power supplies and RF; it is the main project of the PHOENIX family. What exists is a Rust workspace: a redacted inventory of a private corpus, the design model foundations, the .phoenixproj project file, the board model with silkscreen and reversible operations, connectivity and rule checks, the schematic model with a drawing, a reader of EAGLE XML with a measured read rate, a writer and reader of boards as EAGLE XML, the contract for pairs of EAGLE binary files, the Gerber and Excellon export, a viewer and editor prototype whose window has never been seen on a screen, and a command line. All of it has been tried on generated or hand-made data only; the editors, the readers of foreign designs and the reader of the EAGLE binary files are not written and nothing has been run on a machine.",
+  "notes": "Scaffolding v0.0.7: early code. EDA environment planned as schematic capture, PCB layout, verification tools, circuit simulation and specialized modules for switch-mode power supplies and RF; it is the main project of the PHOENIX family. What exists is a Rust workspace: a redacted inventory of a private corpus, the design model foundations, the .phoenixproj project file, the board model with silkscreen and reversible operations, connectivity and rule checks, the schematic model with a drawing, a reader of EAGLE XML with a measured read rate, a writer and reader of boards as EAGLE XML, the contract for pairs of EAGLE binary files, the Gerber and Excellon export, a viewer and editor prototype whose window has never been seen on a screen, and a command line. All of it has been tried on generated or hand-made data only; the editors, the readers of foreign designs and the reader of the EAGLE binary files are not written and nothing has been run on a machine.",
   "native_version": {
     "file": "VERSION",
     "pattern": "^(\\d+\\.\\d+\\.\\d+)"

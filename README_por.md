@@ -12,7 +12,7 @@
   <img src="https://img.shields.io/badge/Stack-Rust%20%2B%20Python-blue.svg" alt="Rust and Python">
   <img src="https://img.shields.io/badge/Languages-8-00E5FF.svg" alt="Languages">
   <img src="https://img.shields.io/badge/Tests-4134-2EA043.svg" alt="Tests">
-  <img src="https://img.shields.io/badge/Version-0.0.6-0f6cbd.svg" alt="Version">
+  <img src="https://img.shields.io/badge/Version-0.0.7-0f6cbd.svg" alt="Version">
   <img src="https://img.shields.io/badge/Maturity-scaffolding-FFB020.svg" alt="Maturity">
 </p>
 
@@ -28,7 +28,7 @@
 
 | | |
 |---|---|
-| Versão | `0.0.6` |
+| Versão | `0.0.7` |
 | Maturidade | Estrutura inicial |
 | Testes | 4134 |
 | Tecnologias | Rust, Python 3.10+ |
