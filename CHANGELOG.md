@@ -4,6 +4,7 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **A pull request must say what it changes:** the validation runs `tools/changelog_pr_check.py` on a pull request (it fails when the CHANGELOG has no new line under [Unreleased]; the label `no-changelog` skips it), the same check as the other repositories of the suite.
 - **The Rust toolchain is pinned:** `rust-toolchain.toml` fixes the version of Rust (the same one in every repository of the suite) with `rustfmt` and `clippy`, the workflows install that version and not `stable`, so a new release of Rust cannot turn the CI red by itself.
 - **The ZIP library is updated to 9.5.1 in the lock file:** the lock file pinned the `zip` crate at 2.6.1, which has known security advisories (fixed in 9.0.0 and 9.0.5); it now resolves to 9.5.1 through the shared container libraries, which already require 9.0.5 or later, and the lock file lists the current workspace again.
 
