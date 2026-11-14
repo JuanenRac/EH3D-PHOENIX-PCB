@@ -4,6 +4,8 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **The test count is the one the CI measures:** the READMEs and `docs/STATUS.md` said 4134 tests, which was counted on a computer; the Linux job of the Rust CI runs 4130, and `CONTRIBUTING.md` now says that the count is always measured in the CI.
+
 ## [0.0.8] - Updated ZIP library and a split CI with a pinned toolchain
 
 - **The shared validation tools are updated:** the validator also runs the workflow and lessons checks of the suite with their latest rules, including a check to run before every push.

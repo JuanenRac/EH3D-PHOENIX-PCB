@@ -6,3 +6,4 @@ Thank you for looking. This repository is at its first steps, so a contribution 
 2. **Before a pull request:** `python -I tools/ci_validate.py` and the tests of the base (`python -I -m unittest discover -s tools -p "test_*.py"`) must pass.
 3. **Texts exist in eight languages** (English, Spanish, French, Italian, German, Chinese, Japanese and European Portuguese) in the README files, which keep the same structure.
 4. Commits are written in English, small and about one thing.
+5. **The number of tests is measured in the CI, never on a computer.** The count in the READMEs and in `docs/STATUS.md` is the sum of the `test result` lines of the `cargo test` step of the Linux job of the Rust CI on `main`; a local count can differ because of features and platforms.
