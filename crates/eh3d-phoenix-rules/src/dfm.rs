@@ -217,6 +217,11 @@ pub struct DfmProfile {
     /// The least distance from the wall of a hole (a via or a drilled pad) to the straight pieces
     /// of the outline; 0 turns the line off.
     pub min_hole_edge_nm: i64,
+    /// The least smaller side of the box of a cutout of the outline (a slot or a window that the
+    /// milling bit of the maker has to cut); 0 turns the line off.
+    pub min_cutout_nm: i64,
+    /// The least drill of a hole that is not plated; 0 turns the line off.
+    pub min_unplated_drill_nm: i64,
 }
 
 fn length(value: &str) -> Option<Nm> {
@@ -319,6 +324,8 @@ impl DfmProfile {
                 "min_smd_pad_nm" => p.min_smd_pad_nm = len()?.get(),
                 "min_pad_ring_nm" => p.min_pad_ring_nm = len()?.get(),
                 "min_hole_edge_nm" => p.min_hole_edge_nm = len()?.get(),
+                "min_cutout_nm" => p.min_cutout_nm = len()?.get(),
+                "min_unplated_drill_nm" => p.min_unplated_drill_nm = len()?.get(),
                 "max_drill_sizes" => {
                     p.max_drill_sizes = value
                         .parse::<u32>()

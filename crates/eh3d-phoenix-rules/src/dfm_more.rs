@@ -42,6 +42,10 @@ pub const SMD_PAD_SMALL: &str = "PHOENIX-DFM-015";
 pub const PAD_RING_THIN: &str = "PHOENIX-DFM-016";
 /// A hole closer to the edge of the board than the profile accepts.
 pub const HOLE_EDGE_CLOSE: &str = "PHOENIX-DFM-017";
+/// A cutout of the outline narrower than the profile accepts.
+pub const CUTOUT_NARROW: &str = "PHOENIX-DFM-018";
+/// A hole that is not plated, smaller than the profile accepts.
+pub const UNPLATED_DRILL_SMALL: &str = "PHOENIX-DFM-019";
 
 /// Every code of this module with its English title, in order.
 pub const REGISTRY: &[(&str, &str)] = &[
@@ -88,6 +92,11 @@ pub const REGISTRY: &[(&str, &str)] = &[
     (
         HOLE_EDGE_CLOSE,
         "Hole closer to the board edge than the profile accepts",
+    ),
+    (CUTOUT_NARROW, "Cutout narrower than the profile accepts"),
+    (
+        UNPLATED_DRILL_SMALL,
+        "Unplated hole smaller than the profile accepts",
     ),
 ];
 
@@ -235,6 +244,32 @@ const TITLES: &[(&str, [&str; 8])] = &[
             "Furo mais perto do limite da placa do que o perfil aceita",
         ],
     ),
+    (
+        CUTOUT_NARROW,
+        [
+            "Cutout narrower than the profile accepts",
+            "Recorte más estrecho de lo que acepta el perfil",
+            "Ausschnitt schmaler, als das Profil zulässt",
+            "Découpe plus étroite que ce que le profil accepte",
+            "Ritaglio più stretto di quanto accetti il profilo",
+            "切り欠きがプロファイルの許容より狭い",
+            "开槽窄于配置文件允许的宽度",
+            "Recorte mais estreito do que o perfil aceita",
+        ],
+    ),
+    (
+        UNPLATED_DRILL_SMALL,
+        [
+            "Unplated hole smaller than the profile accepts",
+            "Agujero no metalizado más pequeño de lo que acepta el perfil",
+            "Nicht durchkontaktiertes Loch kleiner, als das Profil zulässt",
+            "Trou non métallisé plus petit que ce que le profil accepte",
+            "Foro non metallizzato più piccolo di quanto accetti il profilo",
+            "メッキなし穴がプロファイルの許容より小さい",
+            "非金属化孔小于配置文件允许的尺寸",
+            "Furo não metalizado mais pequeno do que o perfil aceita",
+        ],
+    ),
 ];
 
 /// The title of a code of this module in a language; `None` for any other code.
@@ -269,6 +304,8 @@ pub(crate) fn findings(board: &Board, profile: &DfmProfile, name: &str, out: &mu
     smd_pads(board, profile, out);
     pad_rings(board, profile, out);
     hole_edges(board, profile, out);
+    cutouts(board, profile, out);
+    unplated_drills(board, profile, out);
     blind_vias(board, profile, out);
     board_proportion(board, profile, out);
     even_layers(board, profile, out);
@@ -673,6 +710,69 @@ fn hole_edges(board: &Board, profile: &DfmProfile, out: &mut Vec<Finding>) {
                 )
                 .at(at.x_nm.get(), at.y_nm.get())
                 .values(gap, least),
+            );
+        }
+    }
+}
+
+/// The smaller side of the box of each cutout of the outline against the least that the profile
+/// accepts (the milling bit of the maker cannot cut a slot or a window narrower than it is). The
+/// box is never narrower than the cutout, so a cutout that is reported is certainly too narrow.
+fn cutouts(board: &Board, profile: &DfmProfile, out: &mut Vec<Finding>) {
+    let least = profile.min_cutout_nm;
+    if least <= 0 {
+        return;
+    }
+    for (index, ring) in board.outline_cutouts.iter().enumerate() {
+        if ring.len() < 3 {
+            continue;
+        }
+        let xs = ring.iter().map(|p| p.x_nm.get());
+        let ys = ring.iter().map(|p| p.y_nm.get());
+        let (Some(x0), Some(x1), Some(y0), Some(y1)) =
+            (xs.clone().min(), xs.max(), ys.clone().min(), ys.max())
+        else {
+            continue;
+        };
+        let narrow = (x1 - x0).min(y1 - y0);
+        if narrow < least {
+            out.push(
+                Finding::new(
+                    57,
+                    "dfm_cutout_narrow",
+                    CUTOUT_NARROW,
+                    Severity::Error,
+                    format!("cutout {}", index + 1),
+                )
+                .at(x0 + (x1 - x0) / 2, y0 + (y1 - y0) / 2)
+                .values(narrow, least),
+            );
+        }
+    }
+}
+
+/// The drill of the holes that are not plated (mounting holes) against the least that the profile
+/// accepts for them.
+fn unplated_drills(board: &Board, profile: &DfmProfile, out: &mut Vec<Finding>) {
+    let least = profile.min_unplated_drill_nm;
+    if least <= 0 {
+        return;
+    }
+    for pad in placed_pads(board).iter().filter(|p| !p.plated) {
+        let Some(drill) = pad.drill else {
+            continue;
+        };
+        if drill.get() < least {
+            out.push(
+                Finding::new(
+                    58,
+                    "dfm_unplated_drill_small",
+                    UNPLATED_DRILL_SMALL,
+                    Severity::Error,
+                    pad.label.clone(),
+                )
+                .at(pad.at.x_nm.get(), pad.at.y_nm.get())
+                .values(drill.get(), least),
             );
         }
     }
@@ -1343,6 +1443,78 @@ mod tests {
     }
 
     #[test]
+    fn a_cutout_narrower_than_the_bit_is_reported_with_its_width_and_its_number() {
+        use crate::dfm::tests::pt;
+        let mut board = crate::dfm::tests::board();
+        let rectangle = |x0: i64, y0: i64, x1: i64, y1: i64| {
+            vec![pt(x0, y0), pt(x1, y0), pt(x1, y1), pt(x0, y1)]
+        };
+        // a slot of 0.6 mm by 3 mm, a window of 5 mm by 5 mm and a ring of two points
+        board
+            .outline_cutouts
+            .push(rectangle(2_000_000, 2_000_000, 2_600_000, 5_000_000));
+        board
+            .outline_cutouts
+            .push(rectangle(10_000_000, 10_000_000, 15_000_000, 15_000_000));
+        board
+            .outline_cutouts
+            .push(vec![pt(1_000_000, 1_000_000), pt(1_100_000, 1_100_000)]);
+        assert_eq!(
+            codes(&board, "min_cutout_nm = 600000\n"),
+            Vec::<&str>::new()
+        );
+        assert_eq!(codes(&board, "min_cutout_nm = 0\n"), Vec::<&str>::new());
+        let profile = DfmProfile::parse("verified = true\nmin_cutout_nm = 600001\n").unwrap();
+        let report = dfm_findings(&board, &profile);
+        assert_eq!(report.confirmed.len(), 1, "{:?}", report.confirmed);
+        let finding = &report.confirmed[0];
+        assert_eq!(finding.code, CUTOUT_NARROW);
+        assert_eq!(finding.location, "cutout 1");
+        assert_eq!(
+            (finding.measured_nm, finding.limit_nm),
+            (Some(600_000), Some(600_001))
+        );
+        assert_eq!(finding.at_nm, Some([2_300_000, 3_500_000]));
+        // a limit above the window reports both, the ring of two points never
+        let both = codes(&board, "min_cutout_nm = 5000001\n");
+        assert_eq!(both, [CUTOUT_NARROW, CUTOUT_NARROW]);
+        assert!(DfmProfile::parse("min_cutout_nm = -1\n").is_err());
+    }
+
+    #[test]
+    fn a_hole_that_is_not_plated_is_judged_by_its_own_least_drill() {
+        use crate::dfm::tests::id;
+        let mut board = crate::dfm::tests::board();
+        // both pads drill 1.0 mm and are plated: nothing to judge
+        assert_eq!(
+            codes(&board, "min_unplated_drill_nm = 2000000\n"),
+            Vec::<&str>::new()
+        );
+        let footprint = board.footprints.get_mut(&id(40)).unwrap();
+        footprint.pads.get_mut(&id(42)).unwrap().plated = false;
+        assert_eq!(
+            codes(&board, "min_unplated_drill_nm = 1000000\n"),
+            Vec::<&str>::new()
+        );
+        assert_eq!(
+            codes(&board, "min_unplated_drill_nm = 0\n"),
+            Vec::<&str>::new()
+        );
+        let profile =
+            DfmProfile::parse("verified = true\nmin_unplated_drill_nm = 1000100\n").unwrap();
+        let report = dfm_findings(&board, &profile);
+        assert_eq!(report.confirmed.len(), 1, "{:?}", report.confirmed);
+        let finding = &report.confirmed[0];
+        assert_eq!(finding.code, UNPLATED_DRILL_SMALL);
+        assert_eq!(finding.at_nm, Some([22_540_000, 12_000_000]));
+        assert_eq!(
+            (finding.measured_nm, finding.limit_nm),
+            (Some(1_000_000), Some(1_000_100))
+        );
+        assert!(DfmProfile::parse("min_unplated_drill_nm = big\n").is_err());
+    }
+
+    #[test]
     fn the_example_profile_names_every_further_line_and_leaves_it_off() {
         let text = include_str!("../../../config/dfm/example.cfg");
         for key in [
@@ -1358,6 +1530,8 @@ mod tests {
             "min_smd_pad_nm",
             "min_pad_ring_nm",
             "min_hole_edge_nm",
+            "min_cutout_nm",
+            "min_unplated_drill_nm",
         ] {
             assert!(text.contains(&format!("\n{key} = ")), "{key}");
         }
@@ -1372,6 +1546,10 @@ mod tests {
         assert_eq!(profile.max_board_aspect_x10, 0);
         assert_eq!(profile.min_smd_pad_nm, 0);
         assert_eq!((profile.min_pad_ring_nm, profile.min_hole_edge_nm), (0, 0));
+        assert_eq!(
+            (profile.min_cutout_nm, profile.min_unplated_drill_nm),
+            (0, 0)
+        );
         // every code of this module is a finding of the check and none is the information
         for (code, _) in REGISTRY {
             assert!(code.starts_with("PHOENIX-DFM-"), "{code}");

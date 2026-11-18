@@ -250,6 +250,8 @@ The checks of `phoenix check --advanced`, with the limits and the levels of `con
 | PHOENIX-DFM-015 | Surface-mount pad smaller than the profile accepts | `phoenix check --dfm`: the smaller side of a pad without a drill is below `min_smd_pad_nm` of the capability profile |
 | PHOENIX-DFM-016 | Annular ring of a drilled pad thinner than the profile accepts | `phoenix check --dfm`: half of the smaller side of a plated drilled pad less its drill is below `min_pad_ring_nm` of the capability profile |
 | PHOENIX-DFM-017 | Hole closer to the board edge than the profile accepts | `phoenix check --dfm`: the wall of a via or of a drilled pad is closer than `min_hole_edge_nm` to a straight piece of the outline or of a cutout |
+| PHOENIX-DFM-018 | Cutout narrower than the profile accepts | `phoenix check --dfm`: the smaller side of the box of a cutout of the outline is below `min_cutout_nm` of the capability profile |
+| PHOENIX-DFM-019 | Unplated hole smaller than the profile accepts | `phoenix check --dfm`: the drill of a pad whose hole is not plated is below `min_unplated_drill_nm` of the capability profile |
 
 Titles of the same codes in the other seven languages (Portuguese is the Portuguese of Portugal):
 
