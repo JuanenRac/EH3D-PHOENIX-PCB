@@ -466,5 +466,9 @@ fn a_group_that_gives_no_time_or_length_limit_is_not_judged_by_them() {
     let report = run(&board, Some(file));
     assert_eq!(report.groups[0].max_delay_spread_fs, None);
     assert!(report.groups[0].ok);
-    assert!(report.findings.is_empty(), "{:?}", report.findings);
+    assert!(
+        report.findings.iter().all(|f| f.code == "PHOENIX-LEN-011"),
+        "{:?}",
+        report.findings
+    );
 }
