@@ -1,0 +1,16 @@
+[package]
+name = "eh3d-phoenix-ipc2581"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Writer of IPC-2581 files (prototype, write only): the layers, the outline and cutouts, the pads with their padstacks, the vias, the tracks, the outlines of the zones, the nets and a basic bill of materials of a board, as an XML document that is the same every time"
+
+[dependencies]
+eh3d-phoenix-board = { path = "../eh3d-phoenix-board" }
+eh3d-phoenix-eagle = { path = "../eh3d-phoenix-eagle" }
+eh3d-phoenix-model = { path = "../eh3d-phoenix-model" }
+eh3d-phoenix-rules = { path = "../eh3d-phoenix-rules" }
+serde.workspace = true
+serde_json.workspace = true

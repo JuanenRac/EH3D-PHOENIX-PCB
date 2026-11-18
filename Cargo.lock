@@ -737,6 +737,7 @@ dependencies = [
  "eh3d-phoenix-export",
  "eh3d-phoenix-field2d",
  "eh3d-phoenix-gerber",
+ "eh3d-phoenix-ipc2581",
  "eh3d-phoenix-ipclib",
  "eh3d-phoenix-kicad",
  "eh3d-phoenix-lengths",
@@ -894,6 +895,18 @@ name = "eh3d-phoenix-hub"
 version = "0.0.8"
 dependencies = [
  "eh3d-diagnostic",
+]
+
+[[package]]
+name = "eh3d-phoenix-ipc2581"
+version = "0.0.8"
+dependencies = [
+ "eh3d-phoenix-board",
+ "eh3d-phoenix-eagle",
+ "eh3d-phoenix-model",
+ "eh3d-phoenix-rules",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

@@ -118,12 +118,12 @@ Two limits are fixed in the code and have no line in the settings; the test `the
 
 ## How the files are written
 
-The commands write new files and new folders and refuse a name that exists; only the three that go through a side file (second row) replace a result of the same name. The way is one of these; the test `the_code_of_production_writes_only_in_the_ways_of_the_document` searches the source for the calls that do not follow them and fails on one that is not in the list below.
+The commands write new files and new folders and refuse a name that exists; only the ones that go through a side file (second row) replace a result of the same name. The way is one of these; the test `the_code_of_production_writes_only_in_the_ways_of_the_document` searches the source for the calls that do not follow them and fails on one that is not in the list below.
 
 | Way | Where |
 |---|---|
 | The file is created with `create_new` (the call fails when something is at the name, a link included) | the commands of the command line, the export folders, the package of manufacturing files, the library editor, the parts base, the printing, the sanitizer when it applies a plan, the files that a script writes |
-| A side file created with `create_new`, then a rename over the old file; one side file that is already there stops the write | `sync --out`, `netlist --out`, the reports of the sanitizer, the results of the simulator (the old result of the same name is replaced on purpose: a run is repeated) |
+| A side file created with `create_new`, then a rename over the old file; one side file that is already there stops the write | `sync --out`, `netlist --out`, the reports of the sanitizer, the results of the simulator (the old result of the same name is replaced on purpose: a run is repeated), and `ipc2581 --out` (a file that exists is replaced only when `--overwrite` is given, and never the input board, a link or a folder) |
 | A side file that an interrupted save left is removed, and the file is then created with `create_new` and renamed | the preferences of the window |
 
 These calls do not follow those ways and are on purpose:

@@ -13,7 +13,7 @@
 //! hand-written pieces adds `corpus`. The signal integrity estimates add `si`. The two-dimensional
 //! field solver of the cross section of a line adds `field2d`, and the heating of tracks and vias
 //! by the current of their net adds `thermal`, and the statistics of a board add `stats`.
-//! The test points of a board add `testpoints`.
+//! The test points of a board add `testpoints`, and the IPC-2581 file of a board adds `ipc2581`.
 //! The writing of boards, schematics and libraries as KiCad 8 files adds `kicad-export`.
 //! The simulation netlist of a schematic, made from a table of models, adds `netlist`.
 //! The annotation back into the schematic, as a plan that is read before it is applied, adds
@@ -63,6 +63,7 @@ mod gerber_import;
 mod help;
 mod help_topics;
 mod hier;
+mod ipc2581;
 mod ipclib;
 mod kicad;
 mod kicad_export;
@@ -438,6 +439,16 @@ phoenix testpoints [--config FILE] [--json] [--lang xx] <board>
                 on the side that is probed, and the test points that are too small, too close to
                 each other or too near the edge, with the codes PHOENIX-TP-<NNN>; read-only, a
                 prototype, run `phoenix testpoints` alone for its options
+
+phoenix ipc2581 [--config FILE] [--out FILE [--overwrite]] [--json] [--lang xx] <board>
+
+  ipc2581       a board as an IPC-2581 file (revision C, a subset): the layers, the outline and
+                its cutouts, the pads with their padstacks, the vias, the tracks, the outlines of
+                the zones, the nets and a basic bill of materials, as an XML document that is the
+                same every time, with the list of what it leaves out, with the codes
+                PHOENIX-IPC2581-<NNN>; a dry run unless --out names the file, which is replaced
+                only with --overwrite, a prototype that no viewer has opened, run
+                `phoenix ipc2581` alone for its options
 
 phoenix bom [--config FILE] [--prices FILE] [--parts FILE] [--schematic FILE] [--stackup FILE]
             [--boards N] [--variant NAME [--variant-file FILE]] [--csv FILE] [--json-file FILE]

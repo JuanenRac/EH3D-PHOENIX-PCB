@@ -41,6 +41,7 @@ eh3d-phoenix-erc = { path = "../eh3d-phoenix-erc" }
 eh3d-phoenix-export = { path = "../eh3d-phoenix-export" }
 eh3d-phoenix-field2d = { path = "../eh3d-phoenix-field2d" }
 eh3d-phoenix-gerber = { path = "../eh3d-phoenix-gerber" }
+eh3d-phoenix-ipc2581 = { path = "../eh3d-phoenix-ipc2581" }
 eh3d-phoenix-ipclib = { path = "../eh3d-phoenix-ipclib" }
 eh3d-phoenix-kicad = { path = "../eh3d-phoenix-kicad" }
 eh3d-phoenix-lengths = { path = "../eh3d-phoenix-lengths" }

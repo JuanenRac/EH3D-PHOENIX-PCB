@@ -654,6 +654,19 @@
           }
         },
         {
+          "name": "IPC2581.md",
+          "desc": {
+            "en": "IPC-2581 export: layers, outline, pads, vias, nets, basic bill",
+            "es": "exportación IPC-2581: capas, contorno, pads, vías, redes, lista básica",
+            "de": "IPC-2581-Export: Lagen, Kontur, Pads, Durchkontaktierungen, Netze, einfache Stückliste",
+            "fr": "export IPC-2581 : couches, contour, pastilles, vias, réseaux, nomenclature de base",
+            "it": "esportazione IPC-2581: strati, contorno, piazzole, via, reti, distinta semplice",
+            "ja": "IPC-2581 出力：層、外形、パッド、ビア、ネット、簡易部品表",
+            "zh": "IPC-2581 导出：层、轮廓、焊盘、过孔、网络、基本物料清单",
+            "pt": "exportação IPC-2581: camadas, contorno, pastilhas, vias, redes, lista básica"
+          }
+        },
+        {
           "name": "LENGTHS.md",
           "desc": {
             "en": "lengths, matching groups and differential pairs",

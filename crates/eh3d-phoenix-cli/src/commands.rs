@@ -381,6 +381,13 @@ pub static COMMANDS: &[Command] = &[
         run: Some(crate::testpoints::testpoints_command),
     },
     Command {
+        name: "ipc2581",
+        topic: Topic::Manufacturing,
+        doc: "docs/IPC2581.md",
+        summary: ["write a board as an IPC-2581 file: layers, outline, pads, vias, tracks, nets and a basic bill of materials", "escribe una placa como archivo IPC-2581: capas, contorno, pads, vías, pistas, redes y una lista de materiales básica", "schreibt eine Platine als IPC-2581-Datei: Lagen, Kontur, Pads, Durchkontaktierungen, Leiterbahnen, Netze und eine einfache Stückliste", "écrit une carte en fichier IPC-2581 : couches, contour, pastilles, vias, pistes, réseaux et une nomenclature de base", "scrive una scheda come file IPC-2581: strati, contorno, piazzole, via, piste, reti e una distinta base semplice", "基板を IPC-2581 ファイルとして書き出す：層、外形、パッド、ビア、配線、ネット、簡易部品表", "将电路板写成 IPC-2581 文件：层、轮廓、焊盘、过孔、走线、网络和基本物料清单", "escreve uma placa como ficheiro IPC-2581: camadas, contorno, pastilhas, vias, pistas, redes e uma lista de materiais básica"],
+        run: Some(crate::ipc2581::ipc2581_command),
+    },
+    Command {
         name: "thermal",
         topic: Topic::Board,
         doc: "docs/THERMAL.md",
