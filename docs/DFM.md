@@ -37,6 +37,7 @@ All lengths are in nanometres (1 mm is 1000000). A line that is missing, or has 
 | `forbid_via_in_pad` | `true` refuses a via whose centre is inside the largest circle of a pad of a part, on a layer both reach (the maker does not fill and cap such vias); the default is `false` |
 | `min_silk_text_height_nm` | the least height of a silkscreen letter |
 | `min_silk_stroke_nm` | the least width of a printed silkscreen line, of a text and of a stroke |
+| `require_even_layers` | `true` refuses a stack of three or more copper layers with an odd count (makers press the cores in pairs); the default is `false` |
 
 ## The findings
 
@@ -53,6 +54,7 @@ All lengths are in nanometres (1 mm is 1000000). A line that is missing, or has 
 | `PHOENIX-DFM-009` | a via inside a pad while `forbid_via_in_pad` is `true` (the location is the pad, the place is the via) |
 | `PHOENIX-DFM-010` | the height of a silkscreen text is below `min_silk_text_height_nm` |
 | `PHOENIX-DFM-011` | the width of a printed silkscreen line, of a text or a stroke, is below `min_silk_stroke_nm` |
+| `PHOENIX-DFM-012` | an odd number (three or more) of copper layers while `require_even_layers` is `true` |
 
 The first five are errors and make the exit code 1; the sixth is information. The titles are in the eight languages (`--lang`) and the findings go in the same report as the others, with `--json`, `--sarif`, `--csv` and `--html` (the category `capability` in the tables, `docs/DRC_ADVANCED.md`).
 

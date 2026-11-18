@@ -244,6 +244,7 @@ The checks of `phoenix check --advanced`, with the limits and the levels of `con
 | PHOENIX-DFM-009 | Via inside a pad, which the profile does not allow | `phoenix check --dfm`: a via is placed inside a pad of a part while `forbid_via_in_pad` is `true` in the capability profile |
 | PHOENIX-DFM-010 | Silkscreen text smaller than the profile accepts | `phoenix check --dfm`: the height of a silkscreen text is below `min_silk_text_height_nm` of the capability profile |
 | PHOENIX-DFM-011 | Silkscreen line thinner than the profile accepts | `phoenix check --dfm`: the width of a printed silkscreen line, of a text or a stroke, is below `min_silk_stroke_nm` of the capability profile |
+| PHOENIX-DFM-012 | Odd number of copper layers, which the profile does not build | `phoenix check --dfm`: the board has three or more copper layers, an odd count, while `require_even_layers` is `true` in the capability profile |
 
 Titles of the same codes in the other seven languages (Portuguese is the Portuguese of Portugal):
 

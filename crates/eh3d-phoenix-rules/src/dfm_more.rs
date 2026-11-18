@@ -29,6 +29,8 @@ pub const VIA_IN_PAD: &str = "PHOENIX-DFM-009";
 pub const SILK_TEXT_SMALL: &str = "PHOENIX-DFM-010";
 /// A silkscreen line thinner than the profile accepts.
 pub const SILK_LINE_THIN: &str = "PHOENIX-DFM-011";
+/// An odd number of copper layers.
+pub const ODD_LAYERS: &str = "PHOENIX-DFM-012";
 
 /// Every code of this module with its English title, in order.
 pub const REGISTRY: &[(&str, &str)] = &[
@@ -51,6 +53,10 @@ pub const REGISTRY: &[(&str, &str)] = &[
     (
         SILK_LINE_THIN,
         "Silkscreen line thinner than the profile accepts",
+    ),
+    (
+        ODD_LAYERS,
+        "Odd number of copper layers, which the profile does not build",
     ),
 ];
 
@@ -120,6 +126,19 @@ const TITLES: &[(&str, [&str; 8])] = &[
             "Traço de serigrafia mais fino do que o perfil aceita",
         ],
     ),
+    (
+        ODD_LAYERS,
+        [
+            "Odd number of copper layers, which the profile does not build",
+            "Número impar de capas de cobre, que el perfil no fabrica",
+            "Ungerade Anzahl von Kupferlagen, die das Profil nicht fertigt",
+            "Nombre impair de couches de cuivre, que le profil ne fabrique pas",
+            "Numero dispari di strati di rame, che il profilo non produce",
+            "プロファイルが製造しない奇数の銅層数",
+            "配置文件不制造的奇数铜层",
+            "Número ímpar de camadas de cobre, que o perfil não fabrica",
+        ],
+    ),
 ];
 
 /// The title of a code of this module in a language; `None` for any other code.
@@ -151,6 +170,7 @@ fn drills(board: &Board) -> Vec<i64> {
 /// The findings of the lines of this module; `name` is the name of the profile for the words.
 pub(crate) fn findings(board: &Board, profile: &DfmProfile, name: &str, out: &mut Vec<Finding>) {
     drill_sizes(board, profile, name, out);
+    even_layers(board, profile, out);
     silk_size(board, profile, out);
     via_in_pad(board, profile, out);
     hole_aspect(board, profile, out);
@@ -305,6 +325,27 @@ fn silk_size(board: &Board, profile: &DfmProfile, out: &mut Vec<Finding>) {
             out.push(finding);
         }
     }
+}
+
+/// A stack of three or more copper layers with an odd count, which a maker that presses cores in
+/// pairs does not build. A board of one layer is not judged: it has no stack to balance.
+fn even_layers(board: &Board, profile: &DfmProfile, out: &mut Vec<Finding>) {
+    let layers = board.copper_stack.len();
+    if !profile.require_even_layers || layers < 3 || layers & 1 == 0 {
+        return;
+    }
+    out.push(
+        Finding::new(
+            51,
+            "dfm_odd_layers",
+            ODD_LAYERS,
+            Severity::Error,
+            "board".to_owned(),
+        )
+        .why(&format!(
+            "{layers} copper layers, the profile accepts an even number"
+        )),
+    );
 }
 
 #[cfg(test)]
@@ -537,6 +578,38 @@ mod tests {
             codes(&Board::default(), "min_silk_text_height_nm = 900000\n"),
             Vec::<&str>::new()
         );
+    }
+
+    fn with_layers(count: u32) -> Board {
+        use crate::dfm::tests::id;
+        let mut board = crate::dfm::tests::board();
+        board.copper_stack = (1..=count).map(id).collect();
+        board
+    }
+
+    #[test]
+    fn an_odd_stack_of_three_or_more_layers_is_refused_when_the_line_is_on() {
+        let on = "require_even_layers = true\n";
+        for (count, expected) in [
+            (1, Vec::<&str>::new()),
+            (2, Vec::new()),
+            (3, vec![ODD_LAYERS]),
+            (4, Vec::new()),
+            (5, vec![ODD_LAYERS]),
+        ] {
+            assert_eq!(codes(&with_layers(count), on), expected, "{count} layers");
+        }
+        // off by default and when it says false
+        assert_eq!(codes(&with_layers(3), ""), Vec::<&str>::new());
+        assert_eq!(
+            codes(&with_layers(3), "require_even_layers = false\n"),
+            Vec::<&str>::new()
+        );
+        let profile = DfmProfile::parse(&format!("verified = true\n{on}")).unwrap();
+        let report = dfm_findings(&with_layers(3), &profile);
+        assert!(report.confirmed[0].detail.starts_with("3 copper layers"));
+        assert!(!report.passes());
+        assert!(DfmProfile::parse("require_even_layers = 1\n").is_err());
     }
 
     #[test]
