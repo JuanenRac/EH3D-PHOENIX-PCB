@@ -760,6 +760,7 @@ dependencies = [
  "eh3d-phoenix-stackup",
  "eh3d-phoenix-stats",
  "eh3d-phoenix-sync",
+ "eh3d-phoenix-testpoints",
  "eh3d-phoenix-viewer",
  "eh3d-phoenix-zones",
  "serde",
@@ -1193,6 +1194,17 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror 2.0.21",
+]
+
+[[package]]
+name = "eh3d-phoenix-testpoints"
+version = "0.0.8"
+dependencies = [
+ "eh3d-phoenix-board",
+ "eh3d-phoenix-model",
+ "eh3d-phoenix-rules",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

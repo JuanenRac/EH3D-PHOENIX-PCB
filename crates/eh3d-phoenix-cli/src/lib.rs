@@ -13,6 +13,7 @@
 //! hand-written pieces adds `corpus`. The signal integrity estimates add `si`. The two-dimensional
 //! field solver of the cross section of a line adds `field2d`, and the heating of tracks and vias
 //! by the current of their net adds `thermal`, and the statistics of a board add `stats`.
+//! The test points of a board add `testpoints`.
 //! The writing of boards, schematics and libraries as KiCad 8 files adds `kicad-export`.
 //! The simulation netlist of a schematic, made from a table of models, adds `netlist`.
 //! The annotation back into the schematic, as a plan that is read before it is applied, adds
@@ -92,6 +93,7 @@ mod si;
 mod sim;
 mod stats;
 mod stencil;
+mod testpoints;
 mod thermal;
 mod view;
 pub mod window_args;
@@ -428,6 +430,14 @@ phoenix stats [--config FILE] [--json] [--lang xx] <board>
                 density per square centimetre, with the codes
                 PHOENIX-STATS-<NNN>; read-only, a prototype whose copper is an upper bound, run
                 `phoenix stats` alone for its options
+
+phoenix testpoints [--config FILE] [--json] [--lang xx] <board>
+
+  testpoints    the test points of a board: the pads of the parts whose reference starts with TP
+                or whose footprint is named as a test point, the nets that no test point reaches
+                on the side that is probed, and the test points that are too small, too close to
+                each other or too near the edge, with the codes PHOENIX-TP-<NNN>; read-only, a
+                prototype, run `phoenix testpoints` alone for its options
 
 phoenix bom [--config FILE] [--prices FILE] [--parts FILE] [--schematic FILE] [--stackup FILE]
             [--boards N] [--variant NAME [--variant-file FILE]] [--csv FILE] [--json-file FILE]

@@ -1,0 +1,15 @@
+[package]
+name = "eh3d-phoenix-testpoints"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Test points of a board (prototype): the pads of the parts that are test points, the nets that no test point reaches, the nets whose only test points are on the side that is not probed, and test points that are too small, too close to each other or too close to the edge, with every limit in a settings file"
+
+[dependencies]
+eh3d-phoenix-board = { path = "../eh3d-phoenix-board" }
+eh3d-phoenix-model = { path = "../eh3d-phoenix-model" }
+eh3d-phoenix-rules = { path = "../eh3d-phoenix-rules" }
+serde.workspace = true
+serde_json.workspace = true

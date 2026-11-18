@@ -374,6 +374,13 @@ pub static COMMANDS: &[Command] = &[
         run: Some(crate::stats::stats_command),
     },
     Command {
+        name: "testpoints",
+        topic: Topic::Manufacturing,
+        doc: "docs/TESTPOINTS.md",
+        summary: ["test points of a board and the nets that no probe can reach", "puntos de prueba de una placa y redes a las que ninguna sonda llega", "Testpunkte einer Platine und Netze, die keine Nadel erreicht", "points de test d'une carte et réseaux qu'aucune sonde n'atteint", "punti di test di una scheda e reti che nessuna sonda raggiunge", "基板のテストポイントと、プローブが届かないネット", "电路板测试点及探针无法接触的网络", "pontos de teste de uma placa e redes que nenhuma sonda alcança"],
+        run: Some(crate::testpoints::testpoints_command),
+    },
+    Command {
         name: "thermal",
         topic: Topic::Board,
         doc: "docs/THERMAL.md",

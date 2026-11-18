@@ -2,7 +2,7 @@
 
 Codes have the form `PHOENIX-<AREA>-<NNN>`. A code is stable: it never changes its meaning and is never reused. Programs show the text through the key `diag.<code>`; the codes themselves are never translated. The object identity (UUID v7) is the one of the shared container, with its own codes `EH3D-ID-001` and `EH3D-ID-002`. The container codes `EH3D-PKG-001` to `EH3D-PKG-014` belong to the shared container and are listed in the registry of the documentation repository.
 
-Each table repeats the `REGISTRY` of a crate (`eh3d-phoenix-model` in `src/diagnostic.rs`, `eh3d-phoenix-project` and `eh3d-phoenix-eagle` in `src/codes.rs`, `eh3d-phoenix-hub` in `src/lib.rs`, `eh3d-phoenix-export` in `src/codes.rs` and `src/fabcodes.rs`, `eh3d-phoenix-schematic` in `src/model.rs`, `src/draw.rs`, `src/edit.rs`, `src/link.rs`, `src/hier.rs` and `src/bus.rs`, `eh3d-phoenix-board` in `src/validate.rs`, `src/connectivity.rs` and `src/rules.rs`, `eh3d-phoenix-rules` in `src/codes.rs` and `src/advanced/codes.rs`, `eh3d-phoenix-stackup` and `eh3d-phoenix-rf` in `src/error.rs`, `eh3d-phoenix-viewer`, `eh3d-phoenix-sanitizer`, `eh3d-phoenix-erc`, `eh3d-phoenix-sync`, `eh3d-phoenix-schedit`, `eh3d-phoenix-boardedit` (also in `src/pair_codes.rs`, `src/shove_codes.rs` and `src/zone_codes.rs`), `eh3d-phoenix-libedit`, `eh3d-phoenix-zones`, `eh3d-phoenix-autoroute`, `eh3d-phoenix-lengths`, `eh3d-phoenix-stats`, `eh3d-phoenix-gerber`, `eh3d-phoenix-panel`, `eh3d-phoenix-bom`, `eh3d-phoenix-assembly3d`, `eh3d-phoenix-si`, `eh3d-phoenix-eagle-deep` and `eh3d-phoenix-oracle` in `src/codes.rs`, `eh3d-phoenix-corpus` in `src/suite/codes.rs`); a test of each crate checks that every code of its registry is in the table with the same title.
+Each table repeats the `REGISTRY` of a crate (`eh3d-phoenix-model` in `src/diagnostic.rs`, `eh3d-phoenix-project` and `eh3d-phoenix-eagle` in `src/codes.rs`, `eh3d-phoenix-hub` in `src/lib.rs`, `eh3d-phoenix-export` in `src/codes.rs` and `src/fabcodes.rs`, `eh3d-phoenix-schematic` in `src/model.rs`, `src/draw.rs`, `src/edit.rs`, `src/link.rs`, `src/hier.rs` and `src/bus.rs`, `eh3d-phoenix-board` in `src/validate.rs`, `src/connectivity.rs` and `src/rules.rs`, `eh3d-phoenix-rules` in `src/codes.rs` and `src/advanced/codes.rs`, `eh3d-phoenix-stackup` and `eh3d-phoenix-rf` in `src/error.rs`, `eh3d-phoenix-viewer`, `eh3d-phoenix-sanitizer`, `eh3d-phoenix-erc`, `eh3d-phoenix-sync`, `eh3d-phoenix-schedit`, `eh3d-phoenix-boardedit` (also in `src/pair_codes.rs`, `src/shove_codes.rs` and `src/zone_codes.rs`), `eh3d-phoenix-libedit`, `eh3d-phoenix-zones`, `eh3d-phoenix-autoroute`, `eh3d-phoenix-lengths`, `eh3d-phoenix-stats`, `eh3d-phoenix-testpoints`, `eh3d-phoenix-gerber`, `eh3d-phoenix-panel`, `eh3d-phoenix-bom`, `eh3d-phoenix-assembly3d`, `eh3d-phoenix-si`, `eh3d-phoenix-eagle-deep` and `eh3d-phoenix-oracle` in `src/codes.rs`, `eh3d-phoenix-corpus` in `src/suite/codes.rs`); a test of each crate checks that every code of its registry is in the table with the same title.
 
 ## Model foundations
 
@@ -958,6 +958,23 @@ The titles of these codes also exist in the eight languages of the suite (`TITLE
 | PHOENIX-STATS-007 | The board outline encloses no area | warning: the area is zero, so the coverage and the density are zero |
 | PHOENIX-STATS-008 | Layers that mirror each other carry copper that differs by more than allowed | the severity of `balance_severity` (a warning by default): the coverage of two layers that mirror each other differs by more than `balance_max_difference_x100` |
 | PHOENIX-STATS-009 | The layers are paired in the order of their ids, the board gives no order | information: the board has two or more copper layers and no `copper_stack`, so the pairs of the balance may not be the real ones |
+
+## Test points of a board (`eh3d-phoenix-testpoints`, `src/codes.rs`)
+
+| Code | Title | Raised by |
+|---|---|---|
+| PHOENIX-TP-001 | Test point settings are not valid | a line of `config/testpoints.cfg` that is not `key = value`, an unknown key, a number or a word that cannot be read or a value out of range |
+| PHOENIX-TP-002 | A command option is not valid | an option of `phoenix testpoints` that is not known, lacks its value or has a value that is not valid, or a number of files other than one |
+| PHOENIX-TP-003 | An input file cannot be read | a board or a settings file that cannot be opened, is too large or is not valid |
+| PHOENIX-TP-004 | The output file exists or cannot be written | an output file that already exists (an existing file is never replaced) or cannot be created |
+| PHOENIX-TP-005 | A limit of the report was exceeded | error: a board with more objects than `max_items` of the settings |
+| PHOENIX-TP-006 | Net has no test point | the severity of `uncovered_severity` (a warning by default): a net asked to have a test point has fewer probed test points than `required_per_net` |
+| PHOENIX-TP-007 | Test points of the net are all on the side that is not probed | the severity of `uncovered_severity`: the net has test points but none on the side `probe_side` names |
+| PHOENIX-TP-008 | Test point is smaller than the probe can touch | warning: the smallest side of a test point is below `min_pad_nm` |
+| PHOENIX-TP-009 | Test points are closer together than the probes can reach | warning: two test points on the same side are closer than `min_spacing_nm` between their centres |
+| PHOENIX-TP-010 | Test point is too close to the edge of the board | warning: the centre of a test point is closer than `min_edge_nm` to the outline or to a cutout |
+| PHOENIX-TP-011 | Test point is on no net | warning: a pad of a test point that no net names |
+| PHOENIX-TP-012 | No pad of the board was recognised as a test point | warning: no part matched `testpoint_prefixes` or `testpoint_footprint_words`, so no net is judged one by one |
 
 ## Signal integrity (`eh3d-phoenix-si`, `src/codes.rs`)
 

@@ -641,6 +641,19 @@
           }
         },
         {
+          "name": "TESTPOINTS.md",
+          "desc": {
+            "en": "test points: nets without access, size, spacing, edge",
+            "es": "puntos de prueba: redes sin acceso, tamaño, separación, borde",
+            "de": "Testpunkte: Netze ohne Zugang, Größe, Abstand, Rand",
+            "fr": "points de test : réseaux sans accès, taille, écart, bord",
+            "it": "punti di test: reti senza accesso, dimensione, distanza, bordo",
+            "ja": "テストポイント：アクセスできないネット、大きさ、間隔、端",
+            "zh": "测试点：无法接触的网络、尺寸、间距、边缘",
+            "pt": "pontos de teste: redes sem acesso, tamanho, separação, borda"
+          }
+        },
+        {
           "name": "LENGTHS.md",
           "desc": {
             "en": "lengths, matching groups and differential pairs",
