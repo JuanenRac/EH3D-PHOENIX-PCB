@@ -7,7 +7,10 @@ use eh3d_phoenix_board::{
 };
 use eh3d_phoenix_model::{Nm, ObjectId, Point, Udeg};
 use eh3d_phoenix_rules::Lang;
-use eh3d_phoenix_stats::codes::{LIMIT_EXCEEDED, NO_BOARD_AREA, ZONE_OUTLINE_COUNTED};
+use eh3d_phoenix_stats::codes::{
+    Severity, LAYER_UNBALANCED, LIMIT_EXCEEDED, NO_BOARD_AREA, STACK_ORDER_UNKNOWN,
+    ZONE_OUTLINE_COUNTED,
+};
 use eh3d_phoenix_stats::{compute, report_json, report_text, StatsSettings};
 
 const MM: i64 = 1_000_000;
@@ -389,4 +392,75 @@ fn the_json_is_the_same_every_time() {
     let s = compute(&board(), &StatsSettings::default()).unwrap();
     assert_eq!(report_json(&s), report_json(&s.clone()));
     assert!(report_json(&s).ends_with('\n'));
+}
+
+#[test]
+fn the_layers_that_mirror_each_other_are_compared() {
+    let s = compute(&board(), &StatsSettings::default()).unwrap();
+    let [pair] = s.balance.as_slice() else {
+        panic!("{} pairs", s.balance.len());
+    };
+    assert_eq!(
+        (pair.layer_a.as_str(), pair.layer_b.as_str()),
+        ("Top", "Bottom")
+    );
+    assert_eq!((pair.coverage_a_x100, pair.coverage_b_x100), (345, 9_093));
+    assert_eq!(pair.difference_x100, 8_748);
+    assert_eq!(pair.limit_x100, 1_500);
+    assert!(!pair.balanced);
+    let finding = s
+        .findings
+        .iter()
+        .find(|f| f.code == LAYER_UNBALANCED)
+        .unwrap();
+    assert_eq!(finding.severity, Severity::Warning);
+    assert_eq!(finding.subject.as_deref(), Some("Top / Bottom"));
+    assert!(!s.has_errors());
+}
+
+#[test]
+fn the_balance_can_be_off_or_strict() {
+    let off = StatsSettings {
+        balance_check: false,
+        ..StatsSettings::default()
+    };
+    let s = compute(&board(), &off).unwrap();
+    assert!(s.balance.is_empty());
+    assert!(s.findings.iter().all(|f| f.code != LAYER_UNBALANCED));
+    let strict = StatsSettings {
+        balance_severity: Severity::Error,
+        ..StatsSettings::default()
+    };
+    assert!(compute(&board(), &strict).unwrap().has_errors());
+    let loose = StatsSettings {
+        balance_max_difference_x100: 10_000,
+        ..StatsSettings::default()
+    };
+    let s = compute(&board(), &loose).unwrap();
+    assert!(s.balance[0].balanced);
+    assert!(s.findings.iter().all(|f| f.code != LAYER_UNBALANCED));
+}
+
+#[test]
+fn a_board_without_the_order_of_its_layers_is_paired_by_id_and_says_so() {
+    let mut b = board();
+    b.copper_stack.clear();
+    let s = compute(&b, &StatsSettings::default()).unwrap();
+    assert_eq!(s.balance.len(), 1);
+    assert!(s.layers.iter().all(|l| l.position == 0));
+    assert!(s.findings.iter().any(|f| f.code == STACK_ORDER_UNKNOWN));
+}
+
+#[test]
+fn the_text_lists_the_pairs_in_the_language_asked_for() {
+    let s = compute(&board(), &StatsSettings::default()).unwrap();
+    let en = report_text(&s, Lang::En);
+    assert!(en.contains("Copper balance:\n"), "{en}");
+    assert!(
+        en.contains("  Top / Bottom: 3.45 % against 90.93 %, difference 87.48 points\n"),
+        "{en}"
+    );
+    assert!(en.contains("warning: PHOENIX-STATS-008"), "{en}");
+    assert!(report_text(&s, Lang::De).contains("Kupferbalance:\n"));
+    assert!(report_text(&s, Lang::Pt).contains("Equilíbrio do cobre:\n"));
 }

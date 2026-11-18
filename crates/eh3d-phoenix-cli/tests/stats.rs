@@ -4,7 +4,7 @@
 use std::fs;
 use std::path::Path;
 
-use eh3d_phoenix_board::{Board, Id, Layer, LayerKind, Net, Segment, Track, Via};
+use eh3d_phoenix_board::{Board, Id, Layer, LayerKind, Net, Segment, Track, Via, Zone};
 use eh3d_phoenix_cli::run;
 use eh3d_phoenix_model::{Nm, ObjectId, Point};
 
@@ -94,7 +94,13 @@ fn the_statistics_of_a_board_are_printed_and_nothing_is_written() {
     let path = write_board(dir.path(), &board());
     let (code, out, err) = command(&["stats", &path]);
     assert_eq!(code, 0, "{err}");
-    assert!(out.starts_with("Board statistics: stats\n"), "{out}");
+    assert!(
+        out.starts_with(
+            "Board statistics: stats
+"
+        ),
+        "{out}"
+    );
     assert!(
         out.contains("Board: 20.000000 x 20.000000 mm; 400.000000 mm2"),
         "{out}"
@@ -130,12 +136,18 @@ fn the_titles_come_in_the_language_asked_for() {
     let (code, out, _) = command(&["stats", "--lang", "es", &path]);
     assert_eq!(code, 0);
     assert!(
-        out.starts_with("Estadísticas de la placa: stats\n"),
+        out.starts_with(
+            "Estadísticas de la placa: stats
+"
+        ),
         "{out}"
     );
     let (_, pt_out, _) = command(&["stats", "--lang", "pt-PT", &path]);
     assert!(
-        pt_out.starts_with("Estatísticas da placa: stats\n"),
+        pt_out.starts_with(
+            "Estatísticas da placa: stats
+"
+        ),
         "{pt_out}"
     );
 }
@@ -144,11 +156,21 @@ fn the_titles_come_in_the_language_asked_for() {
 fn the_settings_file_limits_the_report() {
     let dir = tempfile::tempdir().unwrap();
     let path = write_board(dir.path(), &board());
-    let config = write_text(dir.path(), "stats.cfg", "max_items = 1\n");
+    let config = write_text(
+        dir.path(),
+        "stats.cfg",
+        "max_items = 1
+",
+    );
     let (code, _, err) = command(&["stats", "--config", &config, &path]);
     assert_eq!(code, 2);
     assert!(err.contains("PHOENIX-STATS-005"), "{err}");
-    let bad = write_text(dir.path(), "bad.cfg", "max_items = x\n");
+    let bad = write_text(
+        dir.path(),
+        "bad.cfg",
+        "max_items = x
+",
+    );
     let (code, _, err) = command(&["stats", "--config", &bad, &path]);
     assert_eq!(code, 2);
     assert!(err.contains("PHOENIX-STATS-001"), "{err}");
@@ -174,4 +196,56 @@ fn the_help_of_the_command_is_in_the_table() {
     let (code, out, _) = command(&["help", "stats", "--lang", "de"]);
     assert_eq!(code, 0);
     assert!(out.contains("phoenix stats"), "{out}");
+}
+
+/// The board with a second copper layer that a zone covers from edge to edge.
+fn uneven_board() -> Board {
+    let mut b = board();
+    b.layers.insert(
+        id(3),
+        Layer {
+            name: "Bottom".into(),
+            kind: LayerKind::Copper,
+            side: None,
+        },
+    );
+    b.copper_stack = vec![id(1), id(3)];
+    b.zones.insert(
+        id(12),
+        Zone {
+            net: id(2),
+            layer: id(3),
+            outline: vec![
+                pt(0, 0),
+                pt(20 * MM, 0),
+                pt(20 * MM, 20 * MM),
+                pt(0, 20 * MM),
+            ],
+            clearance: Nm::new(200_000).unwrap(),
+            cutouts: Vec::new(),
+        },
+    );
+    b
+}
+
+#[test]
+fn layers_with_uneven_copper_are_reported_and_the_severity_sets_the_exit_code() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = write_board(dir.path(), &uneven_board());
+    let (code, out, err) = command(&["stats", &path]);
+    assert_eq!(code, 0, "{err}");
+    assert!(out.contains("Copper balance:"), "{out}");
+    assert!(
+        out.contains("  Top / Bottom: 0.69 % against 100.00 %, difference 99.31 points"),
+        "{out}"
+    );
+    assert!(out.contains("warning: PHOENIX-STATS-008"), "{out}");
+    let strict = write_text(dir.path(), "strict.cfg", "balance_severity = error\n");
+    let (code, out, _) = command(&["stats", "--config", &strict, &path]);
+    assert_eq!(code, 1, "{out}");
+    assert!(out.contains("error: PHOENIX-STATS-008"), "{out}");
+    let off = write_text(dir.path(), "off.cfg", "balance_check = false\n");
+    let (code, out, _) = command(&["stats", "--config", &off, &path]);
+    assert_eq!(code, 0);
+    assert!(!out.contains("Copper balance"), "{out}");
 }

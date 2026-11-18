@@ -956,6 +956,8 @@ The titles of these codes also exist in the eight languages of the suite (`TITLE
 | PHOENIX-STATS-005 | A limit of the report was exceeded | error: a board with more objects than `max_items` of the settings |
 | PHOENIX-STATS-006 | Zone copper is counted as the whole outline, before clearances | information: the board has zones and `count_zones` is true, so their copper is an upper bound |
 | PHOENIX-STATS-007 | The board outline encloses no area | warning: the area is zero, so the coverage and the density are zero |
+| PHOENIX-STATS-008 | Layers that mirror each other carry copper that differs by more than allowed | the severity of `balance_severity` (a warning by default): the coverage of two layers that mirror each other differs by more than `balance_max_difference_x100` |
+| PHOENIX-STATS-009 | The layers are paired in the order of their ids, the board gives no order | information: the board has two or more copper layers and no `copper_stack`, so the pairs of the balance may not be the real ones |
 
 ## Signal integrity (`eh3d-phoenix-si`, `src/codes.rs`)
 

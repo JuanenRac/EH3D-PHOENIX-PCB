@@ -49,6 +49,14 @@ pub enum Label {
     Copper,
     /// The share of the board covered.
     Coverage,
+    /// The comparison of the layers that mirror each other.
+    Balance,
+    /// "against", between the coverage of two layers.
+    Against,
+    /// The difference of two coverages.
+    Difference,
+    /// Percentage points.
+    Points,
     /// The drills.
     Drills,
     /// The plated pads of a drill.
@@ -295,6 +303,58 @@ const LABELS: &[(Label, [&str; 8])] = &[
         ],
     ),
     (
+        Label::Balance,
+        [
+            "Copper balance",
+            "Equilibrio del cobre",
+            "Kupferbalance",
+            "Équilibre du cuivre",
+            "Equilibrio del rame",
+            "銅箔バランス",
+            "铜箔平衡",
+            "Equilíbrio do cobre",
+        ],
+    ),
+    (
+        Label::Against,
+        [
+            "against",
+            "frente a",
+            "gegenüber",
+            "contre",
+            "contro",
+            "対",
+            "对比",
+            "contra",
+        ],
+    ),
+    (
+        Label::Difference,
+        [
+            "difference",
+            "diferencia",
+            "Differenz",
+            "écart",
+            "differenza",
+            "差",
+            "差值",
+            "diferença",
+        ],
+    ),
+    (
+        Label::Points,
+        [
+            "points",
+            "puntos",
+            "Punkte",
+            "points",
+            "punti",
+            "ポイント",
+            "个百分点",
+            "pontos",
+        ],
+    ),
+    (
         Label::Drills,
         [
             "Drills",
@@ -497,6 +557,22 @@ pub fn report_text(stats: &BoardStats, lang: Lang) -> String {
             hundredths(layer.coverage_x100)
         ));
     }
+    if !stats.balance.is_empty() {
+        out.push_str(&format!("{}:\n", l(Label::Balance)));
+        for pair in &stats.balance {
+            out.push_str(&format!(
+                "  {} / {}: {} % {} {} %, {} {} {}\n",
+                pair.layer_a,
+                pair.layer_b,
+                hundredths(pair.coverage_a_x100),
+                l(Label::Against),
+                hundredths(pair.coverage_b_x100),
+                l(Label::Difference),
+                hundredths(pair.difference_x100),
+                l(Label::Points)
+            ));
+        }
+    }
     out.push_str(&format!("{}:\n", l(Label::Drills)));
     if stats.drills.is_empty() {
         out.push_str(&format!("  {}\n", l(Label::None)));
@@ -550,7 +626,7 @@ mod tests {
                 assert!(!text.is_empty(), "{which:?} column {column}");
             }
         }
-        assert_eq!(LABELS.len(), 26);
+        assert_eq!(LABELS.len(), 30);
         assert_eq!(label(Label::Title, Lang::Es), "Estadísticas de la placa");
         assert_eq!(label(Label::Bottom, Lang::Pt), "em baixo");
     }

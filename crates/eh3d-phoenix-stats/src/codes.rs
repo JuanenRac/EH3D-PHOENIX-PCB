@@ -21,6 +21,10 @@ pub const LIMIT_EXCEEDED: &str = "PHOENIX-STATS-005";
 pub const ZONE_OUTLINE_COUNTED: &str = "PHOENIX-STATS-006";
 /// The board outline encloses no area.
 pub const NO_BOARD_AREA: &str = "PHOENIX-STATS-007";
+/// Two layers that mirror each other carry copper that differs by more than allowed.
+pub const LAYER_UNBALANCED: &str = "PHOENIX-STATS-008";
+/// The layers are paired in the order of their ids because the board gives no order.
+pub const STACK_ORDER_UNKNOWN: &str = "PHOENIX-STATS-009";
 
 /// Code, then the title in English, Spanish, German, French, Italian, Japanese, Chinese and
 /// European Portuguese.
@@ -114,6 +118,32 @@ pub const TITLES: &[(&str, [&str; 8])] = &[
             "基板の外形が面積を囲んでいません",
             "电路板轮廓没有围成任何面积",
             "O contorno da placa não delimita nenhuma área",
+        ],
+    ),
+    (
+        LAYER_UNBALANCED,
+        [
+            "Layers that mirror each other carry copper that differs by more than allowed",
+            "Las capas que se reflejan llevan cobre que difiere más de lo permitido",
+            "Spiegelbildliche Lagen tragen Kupfer, das mehr als erlaubt abweicht",
+            "Les couches symétriques portent un cuivre qui diffère plus que permis",
+            "Gli strati speculari portano un rame che differisce più del consentito",
+            "対称な層の銅量の差が許容値を超えています",
+            "对称层的铜量差超过允许值",
+            "As camadas simétricas têm cobre que difere mais do que o permitido",
+        ],
+    ),
+    (
+        STACK_ORDER_UNKNOWN,
+        [
+            "The layers are paired in the order of their ids, the board gives no order",
+            "Las capas se emparejan por el orden de sus identificadores, la placa no da orden",
+            "Die Lagen werden nach der Reihenfolge ihrer Kennungen gepaart, die Platine gibt keine Reihenfolge an",
+            "Les couches sont appariées dans l'ordre de leurs identifiants, la carte ne donne pas d'ordre",
+            "Gli strati sono accoppiati nell'ordine dei loro identificatori, la scheda non dà un ordine",
+            "層は識別子の順に組み合わせています。基板には層の順序がありません",
+            "各层按标识符顺序配对，电路板未给出层序",
+            "As camadas são emparelhadas pela ordem dos identificadores, a placa não indica a ordem",
         ],
     ),
 ];

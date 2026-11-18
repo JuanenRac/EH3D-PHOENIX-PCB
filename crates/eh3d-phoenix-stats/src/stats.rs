@@ -11,6 +11,7 @@
 //!   above the area of the board.
 //! * **Coverage** is the copper of the layer over the area of the board, in hundredths of a
 //!   percent.
+//! * **Balance** compares the coverage of the layers that mirror each other, see [`crate::balance`].
 //! * **Drills** are counted by diameter: the vias, the plated pads and the holes that are not
 //!   plated.
 //!
@@ -22,6 +23,7 @@ use std::collections::BTreeMap;
 use eh3d_phoenix_board::{Board, Id, LayerKind, Side};
 use serde::Serialize;
 
+use crate::balance::{judge, BalancePair};
 use crate::codes::{
     Finding, Severity, StatsError, LIMIT_EXCEEDED, NO_BOARD_AREA, ZONE_OUTLINE_COUNTED,
 };
@@ -153,6 +155,9 @@ pub struct BoardStats {
     pub drills: Vec<DrillStats>,
     /// How tightly it is filled.
     pub density: Density,
+    /// The pairs of layers that mirror each other and the difference of their copper; empty when
+    /// the check is off or the board has fewer than two copper layers.
+    pub balance: Vec<BalancePair>,
     /// What the report did on its own that the user may want to know.
     pub findings: Vec<Finding>,
 }
@@ -422,6 +427,9 @@ pub fn compute(board: &Board, settings: &StatsSettings) -> Result<BoardStats, St
         ));
     }
 
+    let (balance, balance_findings) = judge(&layers, !board.copper_stack.is_empty(), settings);
+    findings.extend(balance_findings);
+
     Ok(BoardStats {
         format: FORMAT,
         name: board.name.clone(),
@@ -430,6 +438,7 @@ pub fn compute(board: &Board, settings: &StatsSettings) -> Result<BoardStats, St
         layers,
         drills: drills.into_values().collect(),
         density,
+        balance,
         findings,
     })
 }

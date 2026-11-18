@@ -16,6 +16,7 @@ The board is a `.json` board, an EAGLE `.brd` or a KiCad `.kicad_pcb`, as for th
 * **The counts**: the placed components (and how many are on each side), the nets, the pads (without a drill, with a plated drill, and the holes that are not plated), the tracks with their pieces and total length, the vias, the zones and the items of the silkscreen.
 * **The copper of each layer**, from the top of the stack: the pads with copper on it, the tracks, the vias that cross it and the zones, each with its area, and the sum of the four with the share of the board it covers.
 * **The drills**, by diameter from the smallest: the vias, the plated pads and the holes that are not plated that have each diameter.
+* **The balance**: for each pair of layers that mirror each other, the coverage of both and the difference.
 * **The density**: the components, the pads and the holes (vias and drilled pads) per square centimetre of board.
 
 ## The copper of a layer
@@ -29,6 +30,12 @@ The copper of a layer is the sum of four parts:
 
 The four parts overlap where a track ends on a pad or a zone surrounds both, and the overlap is not taken away, so the sum is an upper bound. The copper of a layer is never counted above the area of the board, so the coverage is at most 100 %.
 
+## The balance of the copper
+
+A board whose copper is uneven across the middle of the stack bends when it is heated, so the layers that mirror each other should carry about the same share of copper. The layers are paired from the outside in: the first with the last, the second with the one before the last, and so on; the layer in the middle of an odd stack has no pair. The difference of a pair is the difference of the coverage of its two layers, in percentage points.
+
+A pair whose difference is above `balance_max_difference_x100` (in hundredths of a point, 1500 by default) gives `PHOENIX-STATS-008`. Its severity is the one that `balance_severity` names: `warning` by default, `info` to only note it, `error` to make `phoenix stats` exit with 1. `balance_check = false` leaves the comparison out. Without the order of the copper layers on the board the pairs follow the order of the layer ids, and `PHOENIX-STATS-009` says so. The coverage comes from the copper of the layers, so it has the limits of that number (zones as their whole outline, no overlap taken away).
+
 ## The numbers
 
 Lengths are integer nanometres and areas are integer square micrometres; the text shows millimetres and square millimetres with six decimals, exactly, and the coverage in percent with two decimals. The density is shown per square centimetre with two decimals; in the JSON it is the integer times 100. The text has its titles in the eight languages (`--lang`); the JSON keeps its keys. The same board gives the same bytes every time.
@@ -38,13 +45,14 @@ Lengths are integer nanometres and areas are integer square micrometres; the tex
 `config/stats.cfg` holds the limit and the choices, and is also the built-in default:
 
 * `max_items`: the most objects (parts, tracks, vias, zones, connected pads and silkscreen items) a board may hold for the report to be made; above it the command stops with `PHOENIX-STATS-005`;
-* `count_zones`: whether the area of the zones is counted as copper.
+* `count_zones`: whether the area of the zones is counted as copper;
+* `balance_check`, `balance_max_difference_x100` and `balance_severity`: the comparison of the layers that mirror each other, its limit and how serious a pair above it is.
 
 A line that is not `key = value`, an unknown key or a value out of range is refused with its line number (`PHOENIX-STATS-001`).
 
 ## Codes
 
-`PHOENIX-STATS-001` to `PHOENIX-STATS-007`, with titles in the eight languages (`src/codes.rs`) and the table in `docs/ERROR_CODES.md`.
+`PHOENIX-STATS-001` to `PHOENIX-STATS-009`, with titles in the eight languages (`src/codes.rs`) and the table in `docs/ERROR_CODES.md`.
 
 ## Limits
 

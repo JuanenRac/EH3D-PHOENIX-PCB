@@ -424,7 +424,8 @@ phoenix stats [--config FILE] [--json] [--lang xx] <board>
 
   stats         the statistics of a board: its size and area, the counts of parts, pads, tracks,
                 vias and zones, the copper of each layer and the share of the board it covers, the
-                drills by diameter and the density per square centimetre, with the codes
+                balance of the layers that mirror each other, the drills by diameter and the
+                density per square centimetre, with the codes
                 PHOENIX-STATS-<NNN>; read-only, a prototype whose copper is an upper bound, run
                 `phoenix stats` alone for its options
 

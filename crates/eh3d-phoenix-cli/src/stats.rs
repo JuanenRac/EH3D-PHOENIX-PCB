@@ -22,7 +22,8 @@ phoenix stats [--config FILE] [--json] [--lang CODE] <board>
 
   stats         the statistics of a board: its size and area, the counts of parts, pads, tracks,
                 vias and zones, the copper of each layer (pads, tracks, vias and zones, and the
-                share of the board it covers), the drills by diameter and the density per square
+                share of the board it covers), the balance of the copper of the layers that
+                mirror each other, the drills by diameter and the density per square
                 centimetre. Read-only: the report goes to the output and nothing is written; a
                 prototype whose copper is an upper bound
   --config      the limit and the choices of the report (default: config/stats.cfg when it exists)
