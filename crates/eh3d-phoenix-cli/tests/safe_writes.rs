@@ -148,7 +148,8 @@ fn the_output_options_are_the_ones_the_commands_use() {
             "--svg",
             "--csv",
             "--html",
-            "--parts-out"
+            "--parts-out",
+            "--assembler-file"
         ]
     );
 }

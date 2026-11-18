@@ -452,7 +452,8 @@ phoenix ipc2581 [--config FILE] [--out FILE [--overwrite]] [--json] [--lang xx] 
 
 phoenix bom [--config FILE] [--prices FILE] [--parts FILE] [--schematic FILE] [--stackup FILE]
             [--boards N] [--variant NAME [--variant-file FILE]] [--csv FILE] [--json-file FILE]
-            [--html FILE] [--json] [--lang xx] <board>
+            [--html FILE] [--assembler NAME --assembler-file FILE [--assembler-config FILE]]
+            [--json] [--lang xx] <board>
 phoenix assembly3d [--config FILE] --models FILE [--stackup FILE] [--obj FILE] [--step FILE]
                    [--json-file FILE] [--json] [--lang xx] <board>
 
@@ -592,7 +593,7 @@ phoenix --limits FILE <command> ...  |  phoenix <command> ... --limits FILE
 ";
 
 /// The options whose value is a path that a command writes to (or a folder it writes in).
-pub const OUTPUT_OPTIONS: [&str; 7] = [
+pub const OUTPUT_OPTIONS: [&str; 8] = [
     "--out",
     "--dir",
     "--into",
@@ -600,6 +601,7 @@ pub const OUTPUT_OPTIONS: [&str; 7] = [
     "--csv",
     "--html",
     "--parts-out",
+    "--assembler-file",
 ];
 
 /// The message for the first value of an output option that is not an acceptable path to write

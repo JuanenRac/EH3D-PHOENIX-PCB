@@ -456,3 +456,94 @@ fn an_imported_bill_completes_the_parts_and_is_compared_with_the_board() {
     assert_eq!(code, 2);
     assert!(err.contains("need --import"), "{err}");
 }
+
+#[test]
+fn bom_writes_the_file_of_an_assembler_in_a_format_of_the_settings() {
+    let dir = tempfile::tempdir().unwrap();
+    let board = write_board(dir.path(), (6 * MM, 6 * MM));
+    let prices = dir.path().join("prices.csv");
+    fs::write(
+        &prices,
+        "value,footprint,supplier,supplier_code,min_qty,unit_price\n10k,R0603,LCSC,C25804,1,0.01\n",
+    )
+    .unwrap();
+    let prices = prices.to_str().unwrap();
+    let out = dir.path().join("jlc.csv");
+    let out = out.to_str().unwrap();
+    let (code, text, err) = command(&[
+        "bom",
+        "--prices",
+        prices,
+        "--assembler",
+        "jlcpcb",
+        "--assembler-file",
+        out,
+        board.as_str(),
+    ]);
+    assert_eq!((code, err.as_str()), (0, ""), "{text}");
+    assert!(text.contains(&format!("written: {out}\n")));
+    assert_eq!(
+        fs::read_to_string(out).unwrap(),
+        "Comment,Designator,Footprint,LCSC Part #\n10k,\"R1,R2\",R0603,C25804\n"
+    );
+
+    // the file exists now: it is never replaced
+    let (code, _, err) = command(&[
+        "bom",
+        "--assembler",
+        "jlcpcb",
+        "--assembler-file",
+        out,
+        board.as_str(),
+    ]);
+    assert_eq!(code, 2);
+    assert!(err.contains("PHOENIX-BOM-015"), "{err}");
+
+    // a format of the settings file of the test
+    let config = dir.path().join("assembler.cfg");
+    fs::write(
+        &config,
+        "format.mine = Ref=references|Qty=quantity\ndelimiter = semicolon\n",
+    )
+    .unwrap();
+    let mine = dir.path().join("mine.csv");
+    let mine = mine.to_str().unwrap();
+    let (code, _, err) = command(&[
+        "bom",
+        "--assembler",
+        "mine",
+        "--assembler-file",
+        mine,
+        "--assembler-config",
+        config.to_str().unwrap(),
+        board.as_str(),
+    ]);
+    assert_eq!((code, err.as_str()), (0, ""));
+    assert_eq!(fs::read_to_string(mine).unwrap(), "Ref;Qty\nR1,R2;2\n");
+}
+
+#[test]
+fn bom_refuses_a_wrong_use_of_the_assembler_options() {
+    let dir = tempfile::tempdir().unwrap();
+    let board = write_board(dir.path(), (6 * MM, 6 * MM));
+    let out = dir.path().join("a.csv");
+    let out = out.to_str().unwrap();
+    for args in [
+        vec!["bom", "--assembler", "jlcpcb", board.as_str()],
+        vec!["bom", "--assembler-file", out, board.as_str()],
+        vec!["bom", "--assembler-config", "x.cfg", board.as_str()],
+        vec![
+            "bom",
+            "--assembler",
+            "nope",
+            "--assembler-file",
+            out,
+            board.as_str(),
+        ],
+    ] {
+        let (code, _, err) = command(&args);
+        assert_eq!(code, 2, "{args:?}");
+        assert!(err.contains("PHOENIX-BOM-014"), "{args:?}: {err}");
+    }
+    assert!(!Path::new(out).exists());
+}

@@ -11,6 +11,7 @@ use std::fs::OpenOptions;
 use std::io::Write;
 use std::path::Path;
 
+use eh3d_phoenix_bom::assembler::{assembler_csv, AssemblerSettings};
 use eh3d_phoenix_bom::codes::{FILE_TOO_LARGE, INPUT_UNREADABLE, OPTION_INVALID, OUTPUT_FAILED};
 use eh3d_phoenix_bom::report::counts;
 use eh3d_phoenix_bom::{
@@ -31,9 +32,14 @@ const DEFAULT_CONFIG: &str = "config/costs.cfg";
 /// the file exists.
 const DEFAULT_IMPORT_MAP: &str = "config/bom_import.cfg";
 
+/// The formats of the files for an assembler that are read when `--assembler-config` is not given
+/// and the file exists.
+const DEFAULT_ASSEMBLER_CONFIG: &str = "config/assembler.cfg";
+
 pub(crate) const USAGE: &str = "\
 phoenix bom [--config FILE] [--prices FILE] [--parts FILE] [--import FILE [--import-format NAME] [--import-map FILE]] [--parts-out FILE] [--parts-db PATH] [--schematic FILE]
-            [--stackup FILE] [--boards N] [--variant NAME [--variant-file FILE]] [--csv FILE] [--json-file FILE] [--html FILE] [--json] [--lang CODE]
+            [--stackup FILE] [--boards N] [--variant NAME [--variant-file FILE]] [--csv FILE] [--json-file FILE] [--html FILE]
+            [--assembler NAME --assembler-file FILE [--assembler-config FILE]] [--json] [--lang CODE]
             <board>
 
   bom           the bill of materials of a board: the parts grouped by value, footprint, maker and
@@ -77,6 +83,11 @@ phoenix bom [--config FILE] [--prices FILE] [--parts FILE] [--import FILE [--imp
   --variant     an assembly variant of an EAGLE file: the parts it does not fit are left out and the
                 values it changes replace the values of the board; the variants are read from the
                 board file when it is an EAGLE .brd or .sch, otherwise from --variant-file
+  --assembler   also write the bill as the CSV file an assembler asks for, in the format of that
+                name from the settings (jlcpcb and pcbway come with the program; they have never
+                been sent to an assembler and are not verified), to the new file of
+                --assembler-file; --assembler-config is the file of the formats (default:
+                config/assembler.cfg when it exists)
   --lang CODE   the messages in en, es, de, fr, it, ja, zh or pt
 ";
 
@@ -99,6 +110,9 @@ struct Options {
     csv: Option<String>,
     json_file: Option<String>,
     html: Option<String>,
+    assembler: Option<String>,
+    assembler_file: Option<String>,
+    assembler_config: Option<String>,
     files: Vec<String>,
 }
 
@@ -122,6 +136,9 @@ fn parse_options(args: &[&str]) -> Result<Options, BomError> {
         csv: None,
         json_file: None,
         html: None,
+        assembler: None,
+        assembler_file: None,
+        assembler_config: None,
         files: Vec::new(),
     };
     let bad = |what: &str| BomError::new(OPTION_INVALID, what.to_owned());
@@ -164,6 +181,13 @@ fn parse_options(args: &[&str]) -> Result<Options, BomError> {
             "--csv" => options.csv = Some(value("--csv needs a file")?),
             "--json-file" => options.json_file = Some(value("--json-file needs a file")?),
             "--html" => options.html = Some(value("--html needs a file")?),
+            "--assembler" => options.assembler = Some(value("--assembler needs a format name")?),
+            "--assembler-file" => {
+                options.assembler_file = Some(value("--assembler-file needs a file")?)
+            }
+            "--assembler-config" => {
+                options.assembler_config = Some(value("--assembler-config needs a file")?)
+            }
             other if other.starts_with("--") => {
                 return Err(BomError::new(
                     OPTION_INVALID,
@@ -222,6 +246,18 @@ fn load_settings(path: Option<&str>) -> Result<CostSettings, BomError> {
     }
 }
 
+fn load_assembler_settings(path: Option<&str>) -> Result<AssemblerSettings, BomError> {
+    let path = path.or_else(|| {
+        Path::new(DEFAULT_ASSEMBLER_CONFIG)
+            .is_file()
+            .then_some(DEFAULT_ASSEMBLER_CONFIG)
+    });
+    match path {
+        None => Ok(AssemblerSettings::default()),
+        Some(path) => AssemblerSettings::parse(&read_limited(path, 1024 * 1024)?),
+    }
+}
+
 fn fail(err: &mut dyn Write, error: &BomError, lang: Lang) -> i32 {
     let _ = writeln!(err, "error: {}", error.message(lang));
     2
@@ -259,6 +295,30 @@ fn bom(options: &Options, out: &mut dyn Write) -> Result<i32, BomError> {
     let [board_path] = options.files.as_slice() else {
         return Err(BomError::new(OPTION_INVALID, "give exactly one board file"));
     };
+    if options.assembler.is_some() != options.assembler_file.is_some()
+        || (options.assembler_config.is_some() && options.assembler.is_none())
+    {
+        return Err(BomError::new(
+            OPTION_INVALID,
+            "--assembler and --assembler-file go together, and --assembler-config needs them",
+        ));
+    }
+    let assembler = if options.assembler.is_some() {
+        load_assembler_settings(options.assembler_config.as_deref())?
+    } else {
+        AssemblerSettings::default()
+    };
+    if let Some(name) = &options.assembler {
+        if assembler.format(name).is_none() {
+            return Err(BomError::new(
+                OPTION_INVALID,
+                format!(
+                    "unknown assembler format {name} (the formats: {})",
+                    assembler.names()
+                ),
+            ));
+        }
+    }
     let mut settings = load_settings(options.config.as_deref())?;
     if let Some(boards) = options.boards {
         settings.boards = boards;
@@ -409,6 +469,11 @@ fn bom(options: &Options, out: &mut dyn Write) -> Result<i32, BomError> {
     if let Some(path) = &options.html {
         files.push((path.as_str(), bom_html(&bom, options.lang)));
     }
+    if let (Some(name), Some(path)) = (&options.assembler, &options.assembler_file) {
+        if let Some(format) = assembler.format(name) {
+            files.push((path.as_str(), assembler_csv(&bom.lines, format, &assembler)));
+        }
+    }
     write_new_files(&files)?;
 
     let text = if options.json {
@@ -467,6 +532,9 @@ mod tests {
             vec!["--lang", "xx"],
             vec!["--nope"],
             vec!["--csv"],
+            vec!["--assembler"],
+            vec!["--assembler-file"],
+            vec!["--assembler-config"],
         ] {
             let e = parse_options(&bad).err().unwrap();
             assert_eq!(e.code, OPTION_INVALID, "{bad:?}");

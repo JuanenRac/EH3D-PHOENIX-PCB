@@ -5,6 +5,9 @@
 //!   value, footprint, maker and part number, the quantity and the references of each line, the
 //!   cheapest supplier for the quantity of the batch with the waste, and the cost per board and
 //!   per batch;
+//! * [`assembler`]: the bill as the CSV file an assembler asks for, in a format of columns read
+//!   from `config/assembler.cfg` (two come with the program and have never been sent to an
+//!   assembler);
 //! * [`assembly`]: the bills of the top face, the bottom face and the whole board, with the
 //!   quantities of a board and of a panel and the parts that are not fitted listed apart;
 //! * [`prices`] and [`parts`]: the local files that hold the prices by quantity break and the
@@ -30,6 +33,7 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
+pub mod assembler;
 pub mod assembly;
 pub mod bom;
 pub mod codes;

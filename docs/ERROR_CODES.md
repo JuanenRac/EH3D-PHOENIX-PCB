@@ -1125,7 +1125,7 @@ The titles of these codes also exist in the eight languages of the suite (`TITLE
 | PHOENIX-BOM-012 | Board cannot give a PCB cost | warning: an outline of fewer than three points or with no area, no copper layer, or a number of copper layers that has no tariff in the settings |
 | PHOENIX-BOM-013 | Two prices for one quantity of one part disagree | warning: two rows of one supplier for the same part and the same quantity break with different prices; the lower is used |
 | PHOENIX-BOM-014 | A command option is not valid | an option of `phoenix bom` that the command does not know or needs a value for, an unknown language code, `--boards` out of range, `--schematic` that is not a JSON file, a number of board files other than one |
-| PHOENIX-BOM-015 | The output file exists or cannot be written | a file named by `--csv`, `--json-file` or `--html` that exists, is named twice or cannot be created (nothing is written then) |
+| PHOENIX-BOM-015 | The output file exists or cannot be written | a file named by `--csv`, `--json-file`, `--html` or `--assembler-file` that exists, is named twice or cannot be created (nothing is written then) |
 | PHOENIX-BOM-016 | An input file cannot be read | the board, a price file, a file of part data, a schematic, a stack-up or a settings file that cannot be opened or read |
 | PHOENIX-BOM-017 | A limit of the bill of materials was exceeded | more components than `max_items`, or more references in an imported bill than `max_references` of `config/bom_import.cfg` (ranges expanded) |
 | PHOENIX-BOM-018 | The PCB cost is an estimate from the tariffs of the settings | information, always given with a PCB cost: the tariffs are an example and not the prices of any maker |

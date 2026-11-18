@@ -69,7 +69,8 @@ Every estimate says so (`PHOENIX-BOM-018`). The total of the batch is the parts 
 
 ```
 phoenix bom [--config FILE] [--prices FILE] [--parts FILE] [--import FILE [--import-format NAME] [--import-map FILE]] [--parts-out FILE] [--parts-db PATH] [--schematic FILE]
-            [--stackup FILE] [--boards N] [--csv FILE] [--json-file FILE] [--html FILE] [--json] [--lang CODE]
+            [--stackup FILE] [--boards N] [--csv FILE] [--json-file FILE] [--html FILE]
+            [--assembler NAME --assembler-file FILE [--assembler-config FILE]] [--json] [--lang CODE]
             <board>
 ```
 
@@ -119,6 +120,14 @@ A manufacturer that fits the two faces in two passes asks for one list for each 
 
 The CSV file of a face has the columns `references`, `quantity_board`, `quantity_panel`, `value`, `footprint`, `manufacturer`, `mpn`, `supplier`, `supplier_code`, `unit_price`, `quantity_to_buy` and `status`. The quantity of the panel is the quantity of a board times the boards in the panel (`--panel-boards`, 1 when there is no panel). `status` is `fitted`, `no_footprint` or `dnp`: the parts that the file of part data says are not fitted come after the others, each group with the status `dnp`, so that the assembler sees them. The JSON file (`phoenix-assembly-bom/1`) holds the three views with their lines, their parts that are not fitted and their findings. The same input always gives the same bytes.
 
+## The file of an assembler
+
+An assembler asks for the bill in its own columns. `--assembler NAME --assembler-file FILE` also writes the lines of the bill (the parts that are fitted, grouped as above) as a CSV file in the format of that name, to a new file that is never replaced; `--assembler-config FILE` names the file of the formats (default `config/assembler.cfg` when it exists, else the defaults that are in the program).
+
+A format is one line `format.NAME = Header=field|Header=field|...` of `config/assembler.cfg`: each column has the header that the assembler wants and the field of the bill that fills it (`item`, `references`, `quantity`, `value`, `footprint`, `manufacturer`, `mpn`, `supplier`, `supplier_code`, `matched_code` or `blank`). Two formats come with the program, `jlcpcb` (`Comment`, `Designator`, `Footprint`, `LCSC Part #`) and `pcbway` (`Item #`, `Designator`, `Qty`, `Manufacturer`, `Mfg Part #`, `Description / Value`, `Package/Footprint`); a line with the name of one of them replaces it and a new name adds a format. `delimiter` (comma, semicolon or tab) and `references_separator` (comma, semicolon, space or tab) are settings of the file too, and `code_supplier` (default `LCSC`) is the supplier whose code the field `matched_code` writes: the code comes from the offer that was chosen for the line, so a line priced at another supplier gets an empty cell there, and an empty `code_supplier` writes the code of any supplier.
+
+**The two formats are not verified.** They are written from the headers that the author knows those assemblers ask for; they have never been sent to an assembler, and the template that the assembler gives you wins over them. A cell that holds the delimiter, a quote or a line break is quoted, and a text cell that a spreadsheet could run as a formula gets a quote mark in front. A settings line that is not valid is `PHOENIX-BOM-001` with its number, a format that does not exist or an option used alone is `PHOENIX-BOM-014`, and the file that exists is `PHOENIX-BOM-015`.
+
 ## The codes
 
 `PHOENIX-BOM-001` to `PHOENIX-BOM-024`, with their titles in the eight languages; the table is in `docs/ERROR_CODES.md`.
@@ -126,6 +135,7 @@ The CSV file of a face has the columns `references`, `quantity_board`, `quantity
 ## What it does not do
 
 * It does not fetch prices, stock or part numbers from a supplier, and it does not order anything.
+* It does not write the files of an assembler for the placement (see `docs/PNP.md`), and the formats of the assemblers are not verified.
 * It does not merge lines of equivalent parts, split a quantity between suppliers or choose by stock or lead time.
 * It does not know the real tariff of any maker: the cost of the boards is the shape of a quote, with the numbers you put in the settings.
 * It reads the bills of EAGLE and KiCad and, through a map of columns that you write, any other CSV bill; it does not read the formats of other programs, nor spreadsheets (`.xlsx`).
