@@ -11,12 +11,13 @@
 
 use std::collections::BTreeSet;
 
-use eh3d_phoenix_board::{Board, Id, SilkItem, Via};
+use eh3d_phoenix_board::{Board, Id, PadShape, SilkItem, Via};
+use eh3d_phoenix_model::Point;
 
 use crate::codes::Lang;
 use crate::dfm::{sides, DfmProfile};
 use crate::geometry::pad_min_side;
-use crate::items::placed_pads;
+use crate::items::{placed_pads, PlacedPad};
 use crate::report::{Finding, Severity};
 
 /// More different drill sizes than the profile accepts.
@@ -309,8 +310,62 @@ fn via_layers(board: &Board, via: &Via) -> Vec<Id> {
     }
 }
 
-/// A via whose centre is inside the largest circle that fits in a pad of a part, on a layer both
-/// reach. A via at the corner of a rectangular pad is not found: the test never says yes wrongly.
+/// Whether a point is inside the copper of a pad, with the real shape of the pad: the circle, the
+/// rectangle with its rounded corners or the stadium of an oblong pad, turned by the angle of the
+/// pad on the board. At a right angle the test is exact in whole nanometres; at any other angle the
+/// point is turned into the frame of the pad and rounded to the nanometre.
+fn point_in_pad(pad: &PlacedPad, p: Point) -> bool {
+    let dx = i128::from(p.x_nm.get()) - i128::from(pad.at.x_nm.get());
+    let dy = i128::from(p.y_nm.get()) - i128::from(pad.at.y_nm.get());
+    let (u, v) = match pad.angle_udeg {
+        0 | 180_000_000 => (dx.abs(), dy.abs()),
+        90_000_000 | 270_000_000 => (dy.abs(), dx.abs()),
+        angle => {
+            let rad = (angle as f64) / 1_000_000.0 * std::f64::consts::PI / 180.0;
+            let (s, c) = rad.sin_cos();
+            let (fx, fy) = (dx as f64, dy as f64);
+            (
+                ((fx * c + fy * s).round() as i128).abs(),
+                ((fy * c - fx * s).round() as i128).abs(),
+            )
+        }
+    };
+    // every length is multiplied by 2000 so that the half sides and the radius of the corners are
+    // whole numbers
+    let (big_u, big_v) = (2000 * u, 2000 * v);
+    match pad.shape {
+        PadShape::Circle { diameter } => {
+            let d = i128::from(diameter.get());
+            4 * (u * u + v * v) <= d * d
+        }
+        PadShape::Rect { width, height } => {
+            let (w, h) = (i128::from(width.get()), i128::from(height.get()));
+            let (half_u, half_v) = (1000 * w, 1000 * h);
+            let round = i128::from(pad.roundness.min(1000)) * w.min(h);
+            big_u <= half_u
+                && big_v <= half_v
+                && (big_u <= half_u - round
+                    || big_v <= half_v - round
+                    || (big_u - (half_u - round)).pow(2) + (big_v - (half_v - round)).pow(2)
+                        <= round * round)
+        }
+        PadShape::Oblong { width, height } => {
+            let (w, h) = (i128::from(width.get()), i128::from(height.get()));
+            // the stadium: the distance to the middle line of the long side is at most the radius
+            if w >= h {
+                let along = (big_u - 1000 * (w - h)).max(0);
+                along * along + big_v * big_v <= (1000 * h).pow(2)
+            } else {
+                let along = (big_v - 1000 * (h - w)).max(0);
+                along * along + big_u * big_u <= (1000 * w).pow(2)
+            }
+        }
+    }
+}
+
+/// A via whose centre is inside a pad of a part, with the real shape and angle of the pad, on a
+/// layer both reach. Only the centre of the via counts, so a via that overlaps the edge of a pad
+/// with its centre outside is not reported.
 fn via_in_pad(board: &Board, profile: &DfmProfile, out: &mut Vec<Finding>) {
     if !profile.forbid_via_in_pad {
         return;
@@ -319,8 +374,7 @@ fn via_in_pad(board: &Board, profile: &DfmProfile, out: &mut Vec<Finding>) {
     for via in board.vias.values() {
         let layers = via_layers(board, via);
         for pad in &pads {
-            let side = pad_min_side(pad.shape);
-            if 4 * via.at.distance_squared(pad.at) > side * side {
+            if !point_in_pad(pad, via.at) {
                 continue;
             }
             if !pad.layers.iter().any(|l| layers.contains(l)) {
@@ -648,6 +702,152 @@ mod tests {
             Vec::<&str>::new()
         );
         assert!(DfmProfile::parse("forbid_via_in_pad = maybe\n").is_err());
+    }
+
+    /// The board of the tests with one pad at (20 mm, 12 mm), of the given shape, turned and on the
+    /// given side, on the layers 1 and 2.
+    fn with_shaped_pad(
+        shape: PadShape,
+        roundness: u16,
+        pad_rotation: i64,
+        part_rotation: i64,
+        side: eh3d_phoenix_board::Side,
+    ) -> Board {
+        use crate::dfm::tests::id;
+        use eh3d_phoenix_model::Udeg;
+        let mut board = crate::dfm::tests::board();
+        let footprint = board.footprints.get_mut(&id(40)).unwrap();
+        footprint.pads.remove(&id(42));
+        let pad = footprint.pads.get_mut(&id(41)).unwrap();
+        pad.shape = shape;
+        pad.roundness = roundness;
+        pad.rotation = Udeg::new(pad_rotation).unwrap();
+        let part = board.components.get_mut(&id(50)).unwrap();
+        part.rotation = Udeg::new(part_rotation).unwrap();
+        part.side = side;
+        board
+    }
+
+    /// Whether a via on the layer 1 at the given place (in micrometres from the origin) is found
+    /// inside a pad.
+    fn via_found(board: &Board, x_um: i64, y_um: i64) -> bool {
+        use crate::dfm::tests::{id, pt};
+        let mut board = board.clone();
+        let mut via = board.vias.values().next().unwrap().clone();
+        via.at = pt(x_um * 1000, y_um * 1000);
+        via.from_layer = id(1);
+        via.to_layer = id(1);
+        board.vias.insert(id(60), via);
+        codes(&board, "forbid_via_in_pad = true\n").contains(&VIA_IN_PAD)
+    }
+
+    fn rect(w: i64, h: i64) -> PadShape {
+        use eh3d_phoenix_model::Nm;
+        PadShape::Rect {
+            width: Nm::new(w).unwrap(),
+            height: Nm::new(h).unwrap(),
+        }
+    }
+
+    fn oblong(w: i64, h: i64) -> PadShape {
+        use eh3d_phoenix_model::Nm;
+        PadShape::Oblong {
+            width: Nm::new(w).unwrap(),
+            height: Nm::new(h).unwrap(),
+        }
+    }
+
+    #[test]
+    fn a_via_in_the_corner_of_a_rectangular_pad_is_found_and_one_outside_it_is_not() {
+        use eh3d_phoenix_board::Side;
+        // a pad of 3 mm by 1 mm centred at (20 mm, 12 mm): the circle inside it has a radius of
+        // 0.5 mm, but the pad reaches 1.5 mm along x and 0.5 mm along y
+        let flat = with_shaped_pad(rect(3_000_000, 1_000_000), 0, 0, 0, Side::Top);
+        assert!(via_found(&flat, 21_400, 12_000));
+        assert!(via_found(&flat, 21_400, 12_400));
+        assert!(via_found(&flat, 18_600, 11_600));
+        // the edge counts, one micrometre beyond does not
+        assert!(via_found(&flat, 21_500, 12_500));
+        assert!(!via_found(&flat, 21_501, 12_000));
+        assert!(!via_found(&flat, 20_000, 12_501));
+        assert!(!via_found(&flat, 21_500, 12_501));
+        // the same pad turned a quarter: it is long along y
+        let upright = with_shaped_pad(rect(3_000_000, 1_000_000), 0, 90_000_000, 0, Side::Top);
+        assert!(via_found(&upright, 20_000, 13_400));
+        assert!(!via_found(&upright, 21_400, 12_000));
+        // the turn of the part adds to the turn of the pad: 90 + 90 is flat again
+        let both = with_shaped_pad(
+            rect(3_000_000, 1_000_000),
+            0,
+            90_000_000,
+            90_000_000,
+            Side::Top,
+        );
+        assert!(via_found(&both, 21_400, 12_000));
+        assert!(!via_found(&both, 20_000, 13_400));
+        // on the bottom side the turn of the pad is mirrored: 90 - 90 is flat, and a part turned
+        // a quarter with a pad that is not turned is upright
+        let bottom = with_shaped_pad(
+            rect(3_000_000, 1_000_000),
+            0,
+            90_000_000,
+            90_000_000,
+            Side::Bottom,
+        );
+        assert!(via_found(&bottom, 21_400, 12_000));
+        let bottom_upright =
+            with_shaped_pad(rect(3_000_000, 1_000_000), 0, 0, 90_000_000, Side::Bottom);
+        assert!(via_found(&bottom_upright, 20_000, 13_400));
+        assert!(!via_found(&bottom_upright, 21_400, 12_000));
+        // a full turn and a turn of 180 degrees change nothing
+        let half = with_shaped_pad(rect(3_000_000, 1_000_000), 0, 180_000_000, 0, Side::Top);
+        assert!(via_found(&half, 21_400, 12_400));
+        assert!(!via_found(&half, 20_000, 12_600));
+    }
+
+    #[test]
+    fn a_pad_turned_by_any_angle_is_judged_in_its_own_frame() {
+        use eh3d_phoenix_board::Side;
+        // 3 mm by 1 mm turned 45 degrees (by the pad, then by the part): the long axis points
+        // up and to the right, so (20.98995, 12.98995) is 1.4 mm along it
+        for (pad, part) in [(45_000_000, 0), (0, 45_000_000)] {
+            let board = with_shaped_pad(rect(3_000_000, 1_000_000), 0, pad, part, Side::Top);
+            assert!(via_found(&board, 20_990, 12_990), "{pad} {part}");
+            assert!(via_found(&board, 19_010, 11_010), "{pad} {part}");
+            // the same distance along the other diagonal is across the pad, 1.4 mm from its axis
+            assert!(!via_found(&board, 20_990, 11_010), "{pad} {part}");
+            // 0.8 mm to the right of the centre is 0.57 mm across the axis: outside
+            assert!(!via_found(&board, 20_800, 12_000), "{pad} {part}");
+        }
+    }
+
+    #[test]
+    fn an_oblong_pad_and_a_rounded_corner_do_not_reach_the_corner_of_their_box() {
+        use eh3d_phoenix_board::Side;
+        // an oblong of 3 mm by 1 mm is a bar with a half circle at each end (radius 0.5 mm, centres
+        // at 1.0 mm from the middle)
+        let bar = with_shaped_pad(oblong(3_000_000, 1_000_000), 0, 0, 0, Side::Top);
+        assert!(via_found(&bar, 21_400, 12_000));
+        assert!(via_found(&bar, 21_300, 12_300));
+        assert!(via_found(&bar, 20_500, 12_500));
+        assert!(!via_found(&bar, 21_400, 12_400));
+        assert!(!via_found(&bar, 21_501, 12_000));
+        // one that is taller than it is wide
+        let tall = with_shaped_pad(oblong(1_000_000, 3_000_000), 0, 0, 0, Side::Top);
+        assert!(via_found(&tall, 20_000, 13_400));
+        assert!(!via_found(&tall, 20_400, 13_400));
+        assert!(!via_found(&tall, 20_501, 12_000));
+        // a rectangle with square corners reaches the corner of its box, a fully rounded one does
+        // not, and one half rounded (radius 0.25 mm) reaches it only up to its curve
+        let square = with_shaped_pad(rect(3_000_000, 1_000_000), 0, 0, 0, Side::Top);
+        assert!(via_found(&square, 21_450, 12_450));
+        let round = with_shaped_pad(rect(3_000_000, 1_000_000), 1000, 0, 0, Side::Top);
+        assert!(!via_found(&round, 21_400, 12_400));
+        assert!(via_found(&round, 21_300, 12_300));
+        let half = with_shaped_pad(rect(3_000_000, 1_000_000), 500, 0, 0, Side::Top);
+        assert!(via_found(&half, 21_400, 12_400));
+        assert!(!via_found(&half, 21_450, 12_450));
+        assert!(via_found(&half, 21_500, 12_250));
     }
 
     fn with_silkscreen() -> Board {

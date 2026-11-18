@@ -3,7 +3,7 @@
 //! components.
 
 use eh3d_phoenix_board::connectivity::pad_position;
-use eh3d_phoenix_board::{Board, Id, PadRef, PadShape, Segment, Track, Via};
+use eh3d_phoenix_board::{Board, Id, PadRef, PadShape, Segment, Side, Track, Via};
 use eh3d_phoenix_model::{Nm, Point};
 
 use crate::geometry::{pad_diameters, Prim};
@@ -27,6 +27,11 @@ pub(crate) struct PlacedPad {
     pub drill: Option<Nm>,
     /// The layers it appears on.
     pub layers: Vec<Id>,
+    /// The angle of the pad on the board, in micro-degrees in `[0, 360)`: the rotation of the
+    /// component with the rotation of the pad, which a component on the bottom side mirrors.
+    pub angle_udeg: i64,
+    /// How round the corners of a rectangular pad are (`Pad::roundness`).
+    pub roundness: u16,
 }
 
 /// Every pad of every component that has a footprint, in a fixed order.
@@ -44,6 +49,12 @@ pub(crate) fn placed_pads(board: &Board) -> Vec<PlacedPad> {
             let Some(at) = pad_position(board, pad_ref) else {
                 continue;
             };
+            let turned = if component.side == Side::Bottom {
+                component.rotation.get() - pad.rotation.get()
+            } else {
+                component.rotation.get() + pad.rotation.get()
+            };
+            let angle_udeg = turned.rem_euclid(360_000_000);
             out.push(PlacedPad {
                 refdes: component.refdes.clone(),
                 label: format!("{} pad {}", component.refdes, pad.number),
@@ -53,6 +64,8 @@ pub(crate) fn placed_pads(board: &Board) -> Vec<PlacedPad> {
                 shape: pad.shape,
                 drill: pad.drill,
                 layers: pad.layers.clone(),
+                angle_udeg,
+                roundness: pad.roundness,
             });
         }
     }

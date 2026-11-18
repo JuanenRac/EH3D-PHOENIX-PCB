@@ -36,7 +36,7 @@ All lengths are in nanometres (1 mm is 1000000). A line that is missing, or has 
 | `max_drill_sizes` | the most different drill sizes (each size costs a tool change at the maker) |
 | `board_thickness_nm` | the finished thickness of the board that the maker builds; used only for the aspect ratio of the holes |
 | `max_hole_aspect_x10` | the greatest ratio of the thickness to the drill, in tenths (`50` is 5 to 1); the line needs `board_thickness_nm` too |
-| `forbid_via_in_pad` | `true` refuses a via whose centre is inside the largest circle of a pad of a part, on a layer both reach (the maker does not fill and cap such vias); the default is `false` |
+| `forbid_via_in_pad` | `true` refuses a via whose centre is inside a pad of a part, with the real shape of the pad (circle, rectangle with its rounded corners, oblong) turned by the rotation of the pad and of the part, on a layer both reach (the maker does not fill and cap such vias); the default is `false` |
 | `min_silk_text_height_nm` | the least height of a silkscreen letter |
 | `min_silk_stroke_nm` | the least width of a printed silkscreen line, of a text and of a stroke |
 | `require_even_layers` | `true` refuses a stack of three or more copper layers with an odd count (makers press the cores in pairs); the default is `false` |
@@ -71,4 +71,4 @@ Every finding is an error and makes the exit code 1, except `PHOENIX-DFM-006`, w
 * It does not know any maker beyond the figures of the files. Capability is whatever the file says, and nothing checks the file against a maker or an order.
 * The board is the box of its outline: the sides of a board that is not a rectangle are those of its box, and a slot or a cutout is not looked at.
 * It does not take the thickness of the board from a stack-up: the aspect ratio of the holes uses the `board_thickness_nm` written in the profile. It does not judge the price.
-* A via inside a pad is found when its centre is inside the largest circle that fits in the pad, so a via at the corner of a rectangular pad is not found. An odd number of copper layers is judged only for a stack of three or more.
+* A via inside a pad is found when its centre is inside the copper of the pad, whatever its shape and angle; a via whose centre is outside the pad but whose copper overlaps its edge is not found. An odd number of copper layers is judged only for a stack of three or more.
