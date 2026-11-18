@@ -749,6 +749,37 @@ pub(crate) mod tests {
             (560_000_000, 1_150_000_000)
         );
         assert_eq!(pcbway.max_drill_nm, 6_000_000);
+        // the further lines: what each page says, and off where it says nothing
+        assert_eq!(
+            (
+                jlc.max_drill_sizes,
+                jlc.board_thickness_nm,
+                jlc.max_hole_aspect_x10,
+                jlc.forbid_via_in_pad,
+                jlc.min_silk_text_height_nm,
+                jlc.min_silk_stroke_nm,
+                jlc.require_even_layers,
+                jlc.max_board_aspect_x10,
+                jlc.forbid_blind_vias,
+                jlc.min_smd_pad_nm,
+            ),
+            (0, 1_600_000, 0, false, 1_000_000, 150_000, false, 0, false, 250_000)
+        );
+        assert_eq!(
+            (
+                pcbway.max_drill_sizes,
+                pcbway.board_thickness_nm,
+                pcbway.max_hole_aspect_x10,
+                pcbway.forbid_via_in_pad,
+                pcbway.min_silk_text_height_nm,
+                pcbway.min_silk_stroke_nm,
+                pcbway.require_even_layers,
+                pcbway.max_board_aspect_x10,
+                pcbway.forbid_blind_vias,
+                pcbway.min_smd_pad_nm,
+            ),
+            (0, 1_600_000, 100, false, 800_000, 150_000, false, 0, false, 0)
+        );
     }
 
     #[test]
