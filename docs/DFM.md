@@ -32,6 +32,8 @@ All lengths are in nanometres (1 mm is 1000000). A line that is missing, or has 
 | `max_drill_nm` | the largest drill of the vias and the drilled pads |
 | `max_holes` | the most holes (vias and drilled pads of the placed components) |
 | `max_drill_sizes` | the most different drill sizes (each size costs a tool change at the maker) |
+| `board_thickness_nm` | the finished thickness of the board that the maker builds; used only for the aspect ratio of the holes |
+| `max_hole_aspect_x10` | the greatest ratio of the thickness to the drill, in tenths (`50` is 5 to 1); the line needs `board_thickness_nm` too |
 
 ## The findings
 
@@ -44,6 +46,7 @@ All lengths are in nanometres (1 mm is 1000000). A line that is missing, or has 
 | `PHOENIX-DFM-005` | more holes than `max_holes` |
 | `PHOENIX-DFM-006` | information, given while the profile says `verified = false` |
 | `PHOENIX-DFM-007` | more different drill sizes than `max_drill_sizes` |
+| `PHOENIX-DFM-008` | the board thickness divided by the smallest drill is above `max_hole_aspect_x10` (the measured value is the smallest drill, the limit is the least drill that passes) |
 
 The first five are errors and make the exit code 1; the sixth is information. The titles are in the eight languages (`--lang`) and the findings go in the same report as the others, with `--json`, `--sarif`, `--csv` and `--html` (the category `capability` in the tables, `docs/DRC_ADVANCED.md`).
 

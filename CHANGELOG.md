@@ -6,6 +6,7 @@ All notable changes to this project are documented here.
 
 - **The test count is the one the CI measures:** the READMEs and `docs/STATUS.md` said 4134 tests, which was counted on a computer; the Linux job of the Rust CI runs 4130, and `CONTRIBUTING.md` now says that the count is always measured in the CI.
 - **Capability profiles limit the number of different drill sizes:** the new line `max_drill_sizes` of a profile (off at 0) makes `phoenix check --dfm` report `PHOENIX-DFM-007` when the vias and the drilled pads use more drill sizes than the maker accepts, in the eight languages.
+- **Capability profiles limit the aspect ratio of the holes:** the new lines `board_thickness_nm` and `max_hole_aspect_x10` of a profile (off at 0) make `phoenix check --dfm` report `PHOENIX-DFM-008` when the thickness divided by the smallest drill is above the limit, with the least drill that passes, in the eight languages.
 
 ## [0.0.8] - Updated ZIP library and a split CI with a pinned toolchain
 

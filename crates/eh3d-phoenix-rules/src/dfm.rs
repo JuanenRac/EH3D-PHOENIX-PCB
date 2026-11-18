@@ -189,6 +189,11 @@ pub struct DfmProfile {
     pub max_holes: u64,
     /// The most different drill sizes; 0 turns the line off.
     pub max_drill_sizes: u32,
+    /// The finished thickness of the board that the maker builds, for the aspect ratio of the
+    /// holes; 0 turns that line off.
+    pub board_thickness_nm: i64,
+    /// The greatest ratio of the thickness to the drill, in tenths (50 is 5 to 1); 0 turns it off.
+    pub max_hole_aspect_x10: u32,
 }
 
 fn length(value: &str) -> Option<Nm> {
@@ -268,6 +273,14 @@ impl DfmProfile {
                 "max_board_long_nm" => p.max_board_long_nm = big()?,
                 "max_drill_nm" => p.max_drill_nm = big()?,
                 "max_holes" => p.max_holes = big()?.unsigned_abs(),
+                "board_thickness_nm" => p.board_thickness_nm = len()?.get(),
+                "max_hole_aspect_x10" => {
+                    p.max_hole_aspect_x10 = value
+                        .parse::<u32>()
+                        .ok()
+                        .filter(|v| *v <= 1000)
+                        .ok_or_else(bad)?
+                }
                 "max_drill_sizes" => {
                     p.max_drill_sizes = value
                         .parse::<u32>()

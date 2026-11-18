@@ -19,26 +19,49 @@ use crate::report::{Finding, Severity};
 
 /// More different drill sizes than the profile accepts.
 pub const DRILL_SIZES: &str = "PHOENIX-DFM-007";
+/// A hole whose depth is too large for its drill.
+pub const HOLE_ASPECT: &str = "PHOENIX-DFM-008";
 
 /// Every code of this module with its English title, in order.
-pub const REGISTRY: &[(&str, &str)] = &[(
-    DRILL_SIZES,
-    "More different drill sizes than the profile accepts",
-)];
-
-const TITLES: &[(&str, [&str; 8])] = &[(
-    DRILL_SIZES,
-    [
+pub const REGISTRY: &[(&str, &str)] = &[
+    (
+        DRILL_SIZES,
         "More different drill sizes than the profile accepts",
-        "Más tamaños de taladro distintos de los que acepta el perfil",
-        "Mehr verschiedene Bohrdurchmesser, als das Profil zulässt",
-        "Plus de diamètres de perçage différents que le profil n'en accepte",
-        "Più diametri di foratura diversi di quanti ne accetti il profilo",
-        "異なるドリル径の種類がプロファイルの許容を超えています",
-        "不同钻孔尺寸的数量超过配置文件允许的数量",
-        "Mais tamanhos de broca diferentes do que o perfil aceita",
-    ],
-)];
+    ),
+    (
+        HOLE_ASPECT,
+        "Hole aspect ratio above the limit of the profile",
+    ),
+];
+
+const TITLES: &[(&str, [&str; 8])] = &[
+    (
+        DRILL_SIZES,
+        [
+            "More different drill sizes than the profile accepts",
+            "Más tamaños de taladro distintos de los que acepta el perfil",
+            "Mehr verschiedene Bohrdurchmesser, als das Profil zulässt",
+            "Plus de diamètres de perçage différents que le profil n'en accepte",
+            "Più diametri di foratura diversi di quanti ne accetti il profilo",
+            "異なるドリル径の種類がプロファイルの許容を超えています",
+            "不同钻孔尺寸的数量超过配置文件允许的数量",
+            "Mais tamanhos de broca diferentes do que o perfil aceita",
+        ],
+    ),
+    (
+        HOLE_ASPECT,
+        [
+            "Hole aspect ratio above the limit of the profile",
+            "Relación de aspecto de un agujero por encima del límite del perfil",
+            "Aspektverhältnis einer Bohrung über dem Grenzwert des Profils",
+            "Rapport d'aspect d'un perçage supérieur à la limite du profil",
+            "Rapporto di forma di un foro superiore al limite del profilo",
+            "穴のアスペクト比がプロファイルの上限を超えています",
+            "孔的纵横比超过配置文件的限值",
+            "Relação de aspeto de um furo acima do limite do perfil",
+        ],
+    ),
+];
 
 /// The title of a code of this module in a language; `None` for any other code.
 pub fn title(code: &str, lang: Lang) -> Option<&'static str> {
@@ -69,6 +92,7 @@ fn drills(board: &Board) -> Vec<i64> {
 /// The findings of the lines of this module; `name` is the name of the profile for the words.
 pub(crate) fn findings(board: &Board, profile: &DfmProfile, name: &str, out: &mut Vec<Finding>) {
     drill_sizes(board, profile, name, out);
+    hole_aspect(board, profile, out);
 }
 
 fn drill_sizes(board: &Board, profile: &DfmProfile, name: &str, out: &mut Vec<Finding>) {
@@ -89,6 +113,44 @@ fn drill_sizes(board: &Board, profile: &DfmProfile, name: &str, out: &mut Vec<Fi
                 "{} different drill sizes, the profile {name} accepts {}",
                 sizes.len(),
                 profile.max_drill_sizes
+            )),
+        );
+    }
+}
+
+/// The smallest drill that the board thickness of the profile allows at the aspect ratio limit,
+/// rounded up to a whole nanometre: `thickness / drill <= max_x10 / 10`.
+fn least_drill_nm(thickness_nm: i64, max_aspect_x10: u32) -> i64 {
+    let thickness = u128::try_from(thickness_nm).unwrap_or(0) * 10;
+    let max = u128::from(max_aspect_x10).max(1);
+    i64::try_from(thickness.div_ceil(max)).unwrap_or(i64::MAX)
+}
+
+fn hole_aspect(board: &Board, profile: &DfmProfile, out: &mut Vec<Finding>) {
+    if profile.board_thickness_nm <= 0 || profile.max_hole_aspect_x10 == 0 {
+        return;
+    }
+    let Some(smallest) = drills(board).into_iter().filter(|d| *d > 0).min() else {
+        return;
+    };
+    let needed = least_drill_nm(profile.board_thickness_nm, profile.max_hole_aspect_x10);
+    if smallest < needed {
+        let tenths = i128::from(profile.board_thickness_nm) * 10 / i128::from(smallest);
+        out.push(
+            Finding::new(
+                47,
+                "dfm_hole_aspect",
+                HOLE_ASPECT,
+                Severity::Error,
+                "holes".to_owned(),
+            )
+            .values(smallest, needed)
+            .why(&format!(
+                "aspect ratio {}.{}:1 for the smallest drill, the limit is {}.{}:1",
+                tenths / 10,
+                tenths % 10,
+                profile.max_hole_aspect_x10 / 10,
+                profile.max_hole_aspect_x10 % 10
             )),
         );
     }
@@ -141,6 +203,45 @@ mod tests {
         ] {
             assert!(DfmProfile::parse(text).is_err(), "{text}");
         }
+    }
+
+    #[test]
+    fn a_hole_deeper_than_the_aspect_limit_is_reported_with_the_drill_that_would_pass() {
+        // the smallest drill is 0.3 mm and the board is 1.6 mm thick: 5.3 to 1
+        let board = crate::dfm::tests::board();
+        let text = "board_thickness_nm = 1600000\nmax_hole_aspect_x10 = 50\n";
+        assert_eq!(codes(&board, text), [HOLE_ASPECT]);
+        let profile = DfmProfile::parse(&format!("verified = true\n{text}")).unwrap();
+        let finding = dfm_findings(&board, &profile).confirmed.remove(0);
+        // 16 mm / 5 = 0.32 mm is the least drill that passes
+        assert_eq!(
+            (finding.measured_nm, finding.limit_nm),
+            (Some(300_000), Some(320_000))
+        );
+        assert!(finding.detail.starts_with("aspect ratio 5.3:1"));
+        assert!(finding.detail.ends_with("is 5.0:1"));
+        // 6 to 1 accepts it, and the line is off when either figure is 0
+        let wide = "board_thickness_nm = 1600000\nmax_hole_aspect_x10 = 60\n";
+        assert_eq!(codes(&board, wide), Vec::<&str>::new());
+        for off in [
+            "board_thickness_nm = 0\nmax_hole_aspect_x10 = 10\n",
+            "board_thickness_nm = 1600000\nmax_hole_aspect_x10 = 0\n",
+            "board_thickness_nm = 1600000\n",
+        ] {
+            assert_eq!(codes(&board, off), Vec::<&str>::new(), "{off}");
+        }
+    }
+
+    #[test]
+    fn the_aspect_limit_is_exact_at_the_edge_and_never_overflows() {
+        // exactly 0.32 mm at 5.0 to 1 passes, one nanometre less does not
+        assert_eq!(least_drill_nm(1_600_000, 50), 320_000);
+        assert_eq!(least_drill_nm(1_600_001, 50), 320_001);
+        assert_eq!(least_drill_nm(1_000_000_000_000, 1), 10_000_000_000_000);
+        assert_eq!(least_drill_nm(1, 0), 10);
+        assert!(DfmProfile::parse("board_thickness_nm = -1\n").is_err());
+        assert!(DfmProfile::parse("max_hole_aspect_x10 = 1001\n").is_err());
+        assert!(DfmProfile::parse("max_hole_aspect_x10 = 1000\n").is_ok());
     }
 
     #[test]
