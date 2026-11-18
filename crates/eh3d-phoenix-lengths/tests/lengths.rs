@@ -3,9 +3,9 @@
 
 use eh3d_phoenix_board::{Board, Id, Layer, LayerKind, Net, Segment, Track, Via};
 use eh3d_phoenix_lengths::codes::{
-    ARC_ESTIMATED, GROUP_MISMATCH, GROUP_TARGET, LAYER_NO_DELAY, NET_NOT_FOUND, NET_NO_COPPER,
-    PAIR_DELAY_SKEW, PAIR_GAP_SMALL, PAIR_NOT_COUPLED, PAIR_SKEW, PAIR_UNCOUPLED, PAIR_WIDTH,
-    STACKUP_FALLBACK,
+    ARC_ESTIMATED, GROUP_DELAY_SPREAD, GROUP_MISMATCH, GROUP_TARGET, LAYER_NO_DELAY, NET_NOT_FOUND,
+    NET_NO_COPPER, NET_TOO_LONG, PAIR_DELAY_SKEW, PAIR_GAP_SMALL, PAIR_NOT_COUPLED, PAIR_SKEW,
+    PAIR_UNCOUPLED, PAIR_WIDTH, STACKUP_FALLBACK,
 };
 use eh3d_phoenix_lengths::{
     analyse, report_json, report_text, LengthFile, LengthReport, LengthSettings,
@@ -403,4 +403,68 @@ fn the_delay_budget_of_the_settings_covers_a_pair_that_names_none() {
     let report = analyse(&board, &on, None, Some(&file)).unwrap();
     assert_eq!(report.pairs[0].max_delay_skew_fs, Some(1_500));
     assert!(report.findings.iter().any(|f| f.code == PAIR_DELAY_SKEW));
+}
+
+const MATCH_TIME: &str = r#"{"format":"phoenix-lengths/1","groups":[{"name":"bus","nets":["D0","D1"],"tolerance_nm":5000000,"max_delay_spread_fs":1000,"max_length_nm":9000000}]}"#;
+
+#[test]
+fn a_group_can_be_judged_in_time_and_by_its_longest_net() {
+    let mut board = base_board();
+    add_track(
+        &mut board,
+        20,
+        NET_A,
+        150_000,
+        vec![line((0, 0), (8 * MM, 0))],
+    );
+    add_track(
+        &mut board,
+        21,
+        NET_B,
+        150_000,
+        vec![line((0, MM), (10 * MM, MM))],
+    );
+    let report = run(&board, Some(MATCH_TIME));
+    let g = &report.groups[0];
+    // 2 mm at 6 ps per mm is 12 000 fs
+    assert_eq!(g.delay_spread_fs, 12_000);
+    assert_eq!(g.max_delay_spread_fs, Some(1_000));
+    assert_eq!(g.max_length_nm, Some(9_000_000));
+    assert!(!g.ok);
+    assert!(report.findings.iter().any(|f| f.code == GROUP_DELAY_SPREAD));
+    let long: Vec<_> = report
+        .findings
+        .iter()
+        .filter(|f| f.code == NET_TOO_LONG)
+        .collect();
+    assert_eq!(long.len(), 1);
+    assert!(
+        long[0].detail.starts_with("D1 is 10000000 nm long"),
+        "{}",
+        long[0].detail
+    );
+}
+
+#[test]
+fn a_group_that_gives_no_time_or_length_limit_is_not_judged_by_them() {
+    let mut board = base_board();
+    add_track(
+        &mut board,
+        20,
+        NET_A,
+        150_000,
+        vec![line((0, 0), (8 * MM, 0))],
+    );
+    add_track(
+        &mut board,
+        21,
+        NET_B,
+        150_000,
+        vec![line((0, MM), (10 * MM, MM))],
+    );
+    let file = r#"{"format":"phoenix-lengths/1","groups":[{"name":"bus","nets":["D0","D1"],"tolerance_nm":5000000}]}"#;
+    let report = run(&board, Some(file));
+    assert_eq!(report.groups[0].max_delay_spread_fs, None);
+    assert!(report.groups[0].ok);
+    assert!(report.findings.is_empty(), "{:?}", report.findings);
 }

@@ -20,9 +20,9 @@ use eh3d_phoenix_stackup::StackupJob;
 use serde::{Deserialize, Serialize};
 
 use crate::codes::{
-    Finding, LengthError, Severity, FILE_INVALID, GROUP_MISMATCH, GROUP_TARGET, LIMIT_EXCEEDED,
-    NET_NOT_FOUND, NET_NO_COPPER, PAIR_DELAY_SKEW, PAIR_GAP_LARGE, PAIR_GAP_SMALL,
-    PAIR_NOT_COUPLED, PAIR_SKEW, PAIR_UNCOUPLED, PAIR_WIDTH,
+    Finding, LengthError, Severity, FILE_INVALID, GROUP_DELAY_SPREAD, GROUP_MISMATCH, GROUP_TARGET,
+    LIMIT_EXCEEDED, NET_NOT_FOUND, NET_NO_COPPER, NET_TOO_LONG, PAIR_DELAY_SKEW, PAIR_GAP_LARGE,
+    PAIR_GAP_SMALL, PAIR_NOT_COUPLED, PAIR_SKEW, PAIR_UNCOUPLED, PAIR_WIDTH,
 };
 use crate::geom::{seg_dist, seg_len, P};
 use crate::measure::{measure_nets, NetLength};
@@ -45,6 +45,13 @@ pub struct GroupSpec {
     /// The length every net must have, in nanometres, within the tolerance.
     #[serde(default)]
     pub target_nm: Option<i64>,
+    /// The most the delays of the nets may differ, in femtoseconds; the delay is not judged when
+    /// missing.
+    #[serde(default)]
+    pub max_delay_spread_fs: Option<i64>,
+    /// The longest length any net of the group may have, in nanometres; not judged when missing.
+    #[serde(default)]
+    pub max_length_nm: Option<i64>,
 }
 
 /// A differential pair.
@@ -119,9 +126,14 @@ impl LengthFile {
             if g.nets.len() < needed {
                 return bad(format!("the group {} needs at least {needed} nets", g.name));
             }
-            if [g.tolerance_nm, g.target_nm]
-                .iter()
-                .any(|v| v.is_some_and(|x| x < 0))
+            if [
+                g.tolerance_nm,
+                g.target_nm,
+                g.max_delay_spread_fs,
+                g.max_length_nm,
+            ]
+            .iter()
+            .any(|v| v.is_some_and(|x| x < 0))
             {
                 return bad(format!("the group {} has a negative length", g.name));
             }
@@ -180,6 +192,12 @@ pub struct GroupResult {
     pub tolerance_nm: i64,
     /// The target length, when the group has one.
     pub target_nm: Option<i64>,
+    /// The longest delay minus the shortest, in femtoseconds.
+    pub delay_spread_fs: i64,
+    /// The spread of the delays that was allowed, in femtoseconds, when a limit was given.
+    pub max_delay_spread_fs: Option<i64>,
+    /// The longest length allowed, in nanometres, when a limit was given.
+    pub max_length_nm: Option<i64>,
     /// True when the group is within its tolerance.
     pub ok: bool,
 }
@@ -398,6 +416,34 @@ fn judge_group(
             }
         }
     }
+    let delay_min = nets.iter().map(|n| n.delay_fs).min().unwrap_or(0);
+    let delay_max = nets.iter().map(|n| n.delay_fs).max().unwrap_or(0);
+    let delay_spread_fs = delay_max - delay_min;
+    if let Some(most) = g.max_delay_spread_fs {
+        if delay_spread_fs > most {
+            ok = false;
+            findings.push(Finding::new(
+                GROUP_DELAY_SPREAD,
+                Severity::Error,
+                Some(g.name.as_str()),
+                format!("the delays differ by {delay_spread_fs} fs, at most {most} fs is allowed"),
+            ));
+        }
+    }
+    if let Some(most) = g.max_length_nm {
+        for n in nets.iter().filter(|n| n.length_nm > most) {
+            ok = false;
+            findings.push(Finding::new(
+                NET_TOO_LONG,
+                Severity::Error,
+                Some(g.name.as_str()),
+                format!(
+                    "{} is {} nm long, at most {most} nm is allowed",
+                    n.name, n.length_nm
+                ),
+            ));
+        }
+    }
     Some(GroupResult {
         name: g.name.clone(),
         nets,
@@ -406,6 +452,9 @@ fn judge_group(
         spread_nm,
         tolerance_nm,
         target_nm: g.target_nm,
+        delay_spread_fs,
+        max_delay_spread_fs: g.max_delay_spread_fs,
+        max_length_nm: g.max_length_nm,
         ok,
     })
 }

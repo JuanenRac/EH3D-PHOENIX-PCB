@@ -10,7 +10,7 @@
 //!   uncoupled, and the report that holds it all;
 //! * [`settings`]: every delay, tolerance and limit, read from `config/lengths.cfg`;
 //! * [`report`]: the text and JSON of a report, the same every time;
-//! * [`codes`]: the codes `PHOENIX-LEN-001` to `PHOENIX-LEN-020` with their titles in the eight
+//! * [`codes`]: the codes `PHOENIX-LEN-001` to `PHOENIX-LEN-022` with their titles in the eight
 //!   languages.
 //!
 //! **State: prototype.** It has been tried on boards made by hand and by the tests only. The length

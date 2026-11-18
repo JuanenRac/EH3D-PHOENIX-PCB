@@ -26,6 +26,8 @@ The delay of a via is its length times `via_delay_ps_per_mm`. Delays are whole f
 
 A group names nets and a tolerance. Without a target the longest and the shortest net may differ by at most the tolerance (`PHOENIX-LEN-004`); with a target every net must be within the tolerance of the target (`PHOENIX-LEN-018`). A group that gives no tolerance uses `default_group_tolerance_nm`.
 
+A group may also give `max_delay_spread_fs`, the most the delays of its nets may differ (`PHOENIX-LEN-021`), which matches the nets in time and not in length when they run on layers of different speed, and `max_length_nm`, the longest any of its nets may be (`PHOENIX-LEN-022`). Both work with or without a target and are not judged when missing.
+
 ## Pairs
 
 A pair names the positive and the negative net and may say:
@@ -71,7 +73,7 @@ Every delay, tolerance and limit is in `config/lengths.cfg`, which is also the b
 
 ## Codes
 
-`PHOENIX-LEN-001` to `PHOENIX-LEN-020`, with titles in the eight languages (`src/codes.rs`) and the table in `docs/ERROR_CODES.md`.
+`PHOENIX-LEN-001` to `PHOENIX-LEN-022`, with titles in the eight languages (`src/codes.rs`) and the table in `docs/ERROR_CODES.md`.
 
 ## Limits
 

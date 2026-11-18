@@ -47,6 +47,10 @@ pub const GROUP_TARGET: &str = "PHOENIX-LEN-018";
 pub const PAIR_NOT_COUPLED: &str = "PHOENIX-LEN-019";
 /// The two nets of a pair differ in delay by more than allowed.
 pub const PAIR_DELAY_SKEW: &str = "PHOENIX-LEN-020";
+/// The delays of the nets of a group differ by more than allowed.
+pub const GROUP_DELAY_SPREAD: &str = "PHOENIX-LEN-021";
+/// A net of a group is longer than the longest length allowed.
+pub const NET_TOO_LONG: &str = "PHOENIX-LEN-022";
 
 /// Code, then the title in English, Spanish, German, French, Italian, Japanese, Chinese and
 /// European Portuguese.
@@ -309,6 +313,32 @@ pub const TITLES: &[(&str, [&str; 8])] = &[
             "ペアの遅延差が許容値を超えています",
             "差分对的延迟差超过允许值",
             "O par difere no atraso mais do que o permitido",
+        ],
+    ),
+    (
+        GROUP_DELAY_SPREAD,
+        [
+            "Nets of a group differ in delay by more than allowed",
+            "Las redes de un grupo difieren en retardo más de lo permitido",
+            "Die Netze einer Gruppe weichen in der Laufzeit stärker ab als erlaubt",
+            "Les réseaux d'un groupe diffèrent en retard plus que permis",
+            "Le reti di un gruppo differiscono nel ritardo più del consentito",
+            "グループのネットの遅延差が許容値を超えています",
+            "分组中网络的延迟差超过允许值",
+            "As redes de um grupo diferem no atraso mais do que o permitido",
+        ],
+    ),
+    (
+        NET_TOO_LONG,
+        [
+            "Net is longer than the longest length allowed",
+            "La red es más larga que la longitud máxima permitida",
+            "Das Netz ist länger als die größte erlaubte Länge",
+            "Le réseau est plus long que la longueur maximale permise",
+            "La rete è più lunga della lunghezza massima consentita",
+            "ネットが許容される最大の長さを超えています",
+            "网络长度超过允许的最大长度",
+            "A rede é mais longa do que o comprimento máximo permitido",
         ],
     ),
 ];
