@@ -16,7 +16,7 @@ use eh3d_phoenix_model::Point;
 
 use crate::codes::Lang;
 use crate::dfm::{sides, DfmProfile};
-use crate::geometry::pad_min_side;
+use crate::geometry::{pad_min_side, point_segment};
 use crate::items::{placed_pads, PlacedPad};
 use crate::report::{Finding, Severity};
 
@@ -38,6 +38,10 @@ pub const BOARD_PROPORTION: &str = "PHOENIX-DFM-013";
 pub const BLIND_VIA: &str = "PHOENIX-DFM-014";
 /// A surface-mount pad smaller than the profile accepts.
 pub const SMD_PAD_SMALL: &str = "PHOENIX-DFM-015";
+/// The annular ring of a drilled pad thinner than the profile accepts.
+pub const PAD_RING_THIN: &str = "PHOENIX-DFM-016";
+/// A hole closer to the edge of the board than the profile accepts.
+pub const HOLE_EDGE_CLOSE: &str = "PHOENIX-DFM-017";
 
 /// Every code of this module with its English title, in order.
 pub const REGISTRY: &[(&str, &str)] = &[
@@ -76,6 +80,14 @@ pub const REGISTRY: &[(&str, &str)] = &[
     (
         SMD_PAD_SMALL,
         "Surface-mount pad smaller than the profile accepts",
+    ),
+    (
+        PAD_RING_THIN,
+        "Annular ring of a drilled pad thinner than the profile accepts",
+    ),
+    (
+        HOLE_EDGE_CLOSE,
+        "Hole closer to the board edge than the profile accepts",
     ),
 ];
 
@@ -197,6 +209,32 @@ const TITLES: &[(&str, [&str; 8])] = &[
             "Pad de montagem em superfície mais pequeno do que o perfil aceita",
         ],
     ),
+    (
+        PAD_RING_THIN,
+        [
+            "Annular ring of a drilled pad thinner than the profile accepts",
+            "Anillo anular de un pad taladrado más fino de lo que acepta el perfil",
+            "Restring eines gebohrten Pads dünner, als das Profil zulässt",
+            "Anneau d'une pastille percée plus fin que ce que le profil accepte",
+            "Anello di un pad forato più sottile di quanto accetti il profilo",
+            "穴あきパッドのアニュラリングがプロファイルの許容より細い",
+            "钻孔焊盘的环宽小于配置文件允许的宽度",
+            "Anel de um pad furado mais fino do que o perfil aceita",
+        ],
+    ),
+    (
+        HOLE_EDGE_CLOSE,
+        [
+            "Hole closer to the board edge than the profile accepts",
+            "Agujero más cerca del borde de la placa de lo que acepta el perfil",
+            "Bohrung näher am Platinenrand, als das Profil zulässt",
+            "Perçage plus proche du bord de la carte que ce que le profil accepte",
+            "Foro più vicino al bordo della scheda di quanto accetti il profilo",
+            "穴が基板端にプロファイルの許容より近い",
+            "孔距板边小于配置文件允许的距离",
+            "Furo mais perto do limite da placa do que o perfil aceita",
+        ],
+    ),
 ];
 
 /// The title of a code of this module in a language; `None` for any other code.
@@ -229,6 +267,8 @@ fn drills(board: &Board) -> Vec<i64> {
 pub(crate) fn findings(board: &Board, profile: &DfmProfile, name: &str, out: &mut Vec<Finding>) {
     drill_sizes(board, profile, name, out);
     smd_pads(board, profile, out);
+    pad_rings(board, profile, out);
+    hole_edges(board, profile, out);
     blind_vias(board, profile, out);
     board_proportion(board, profile, out);
     even_layers(board, profile, out);
@@ -547,6 +587,92 @@ fn smd_pads(board: &Board, profile: &DfmProfile, out: &mut Vec<Finding>) {
                 )
                 .at(pad.at.x_nm.get(), pad.at.y_nm.get())
                 .values(side, least),
+            );
+        }
+    }
+}
+
+/// The annular ring of the plated drilled pads against the least that the profile accepts for the
+/// pads of parts (half of the smaller side less the drill, as the rule check measures it).
+fn pad_rings(board: &Board, profile: &DfmProfile, out: &mut Vec<Finding>) {
+    let least = profile.min_pad_ring_nm;
+    if least <= 0 {
+        return;
+    }
+    for pad in placed_pads(board).iter().filter(|p| p.plated) {
+        let Some(drill) = pad.drill else {
+            continue;
+        };
+        let ring2 = pad_min_side(pad.shape) - i128::from(drill.get());
+        if ring2 < 2 * i128::from(least) {
+            let ring = i64::try_from(ring2.div_euclid(2).max(0)).unwrap_or(0);
+            out.push(
+                Finding::new(
+                    55,
+                    "dfm_pad_ring_thin",
+                    PAD_RING_THIN,
+                    Severity::Error,
+                    pad.label.clone(),
+                )
+                .at(pad.at.x_nm.get(), pad.at.y_nm.get())
+                .values(ring, least),
+            );
+        }
+    }
+}
+
+/// The distance from the wall of every hole to the straight pieces of the outline and of its
+/// cutouts. The arcs of an outline are not looked at, and a distance that does not fit the exact
+/// test is not reported.
+fn hole_edges(board: &Board, profile: &DfmProfile, out: &mut Vec<Finding>) {
+    let least = profile.min_hole_edge_nm;
+    if least <= 0 {
+        return;
+    }
+    let rings: Vec<&Vec<Point>> = std::iter::once(&board.outline)
+        .chain(board.outline_cutouts.iter())
+        .filter(|ring| ring.len() >= 3)
+        .collect();
+    if rings.is_empty() {
+        return;
+    }
+    let mut holes: Vec<(String, Point, i64)> = board
+        .vias
+        .iter()
+        .map(|(vid, via)| (format!("via {vid}"), via.at, via.drill.get()))
+        .collect();
+    for pad in placed_pads(board) {
+        if let Some(drill) = pad.drill {
+            holes.push((pad.label.clone(), pad.at, drill.get()));
+        }
+    }
+    let doubled_least = 2 * i128::from(least);
+    for (label, at, drill) in holes {
+        let mut broken = false;
+        let mut nearest = f64::MAX;
+        for ring in &rings {
+            for (a, b) in ring.iter().zip(ring.iter().cycle().skip(1)) {
+                let Some(d) = point_segment(at, *a, *b) else {
+                    continue;
+                };
+                nearest = nearest.min(d.nm_f64());
+                if d.doubled_below(doubled_least + i128::from(drill)) == Some(true) {
+                    broken = true;
+                }
+            }
+        }
+        if broken {
+            let gap = (nearest - drill as f64 / 2.0).round().max(0.0) as i64;
+            out.push(
+                Finding::new(
+                    56,
+                    "dfm_hole_edge_close",
+                    HOLE_EDGE_CLOSE,
+                    Severity::Error,
+                    label,
+                )
+                .at(at.x_nm.get(), at.y_nm.get())
+                .values(gap, least),
             );
         }
     }
@@ -1109,6 +1235,114 @@ mod tests {
     }
 
     #[test]
+    fn the_ring_of_a_plated_drilled_pad_is_judged_by_its_own_limit() {
+        use crate::dfm::tests::id;
+        // the pads are circles of 1.8 mm with a drill of 1.0 mm: a ring of 0.4 mm
+        let mut board = crate::dfm::tests::board();
+        assert_eq!(
+            codes(&board, "min_pad_ring_nm = 400000\n"),
+            Vec::<&str>::new()
+        );
+        assert_eq!(codes(&board, "min_pad_ring_nm = 0\n"), Vec::<&str>::new());
+        assert_eq!(
+            codes(&board, "min_pad_ring_nm = 400100\n"),
+            [PAD_RING_THIN, PAD_RING_THIN]
+        );
+        let profile = DfmProfile::parse("verified = true\nmin_pad_ring_nm = 500000\n").unwrap();
+        let report = dfm_findings(&board, &profile);
+        for finding in &report.confirmed {
+            assert_eq!(finding.location, "J1 pad 1");
+            assert_eq!(
+                (finding.measured_nm, finding.limit_nm),
+                (Some(400_000), Some(500_000))
+            );
+        }
+        let mut places: Vec<_> = report.confirmed.iter().map(|f| f.at_nm).collect();
+        places.sort();
+        assert_eq!(
+            places,
+            [
+                Some([20_000_000, 12_000_000]),
+                Some([22_540_000, 12_000_000])
+            ]
+        );
+        // a hole that is not plated has no ring, and a pad turned into a smaller one is measured
+        // by its smaller side
+        let footprint = board.footprints.get_mut(&id(40)).unwrap();
+        footprint.pads.get_mut(&id(42)).unwrap().plated = false;
+        footprint.pads.get_mut(&id(41)).unwrap().shape = oblong(3_000_000, 1_400_000);
+        let found = codes(&board, "min_pad_ring_nm = 250000\n");
+        assert_eq!(found, [PAD_RING_THIN]);
+        let report = dfm_findings(
+            &board,
+            &DfmProfile::parse("verified = true\nmin_pad_ring_nm = 250000\n").unwrap(),
+        );
+        // (1.4 mm - 1.0 mm) / 2 = 0.2 mm
+        assert_eq!(report.confirmed[0].measured_nm, Some(200_000));
+    }
+
+    #[test]
+    fn a_hole_too_near_the_edge_of_the_board_or_of_a_cutout_is_reported_with_its_gap() {
+        use crate::dfm::tests::pt;
+        let mut board = crate::dfm::tests::board();
+        // the board is 40 mm by 25 mm; the vias at 5 mm from two edges have drills of 0.3 mm and
+        // 0.8 mm, so the walls are 4.85 mm and 4.6 mm from the edge
+        assert_eq!(
+            codes(&board, "min_hole_edge_nm = 4600000\n"),
+            Vec::<&str>::new()
+        );
+        assert_eq!(codes(&board, "min_hole_edge_nm = 0\n"), Vec::<&str>::new());
+        let profile = DfmProfile::parse("verified = true\nmin_hole_edge_nm = 4600001\n").unwrap();
+        let report = dfm_findings(&board, &profile);
+        assert_eq!(report.confirmed.len(), 1, "{:?}", report.confirmed);
+        let finding = &report.confirmed[0];
+        assert_eq!(finding.code, HOLE_EDGE_CLOSE);
+        assert!(finding.location.starts_with("via "), "{}", finding.location);
+        assert_eq!(
+            (finding.measured_nm, finding.limit_nm),
+            (Some(4_600_000), Some(4_600_001))
+        );
+        assert_eq!(finding.at_nm, Some([9_000_000, 5_000_000]));
+        // the pads are 12 mm from the nearest edge, so their walls are 11.5 mm away: with 11.6 mm
+        // all four holes are too near
+        assert_eq!(codes(&board, "min_hole_edge_nm = 11600000\n").len(), 4);
+        // a cutout is an edge too: a square from (19 mm, 11 mm) to (21 mm, 13 mm) is 1 mm from the
+        // centre of the first pad, so the wall of its drill is 0.5 mm away
+        board.outline_cutouts.push(vec![
+            pt(19_000_000, 11_000_000),
+            pt(21_000_000, 11_000_000),
+            pt(21_000_000, 13_000_000),
+            pt(19_000_000, 13_000_000),
+        ]);
+        let profile = DfmProfile::parse("verified = true\nmin_hole_edge_nm = 600000\n").unwrap();
+        let report = dfm_findings(&board, &profile);
+        assert_eq!(report.confirmed.len(), 1, "{:?}", report.confirmed);
+        assert_eq!(report.confirmed[0].location, "J1 pad 1");
+        assert_eq!(report.confirmed[0].measured_nm, Some(500_000));
+    }
+
+    #[test]
+    fn the_new_lines_are_lengths_and_a_board_without_an_outline_is_not_judged_by_the_edge() {
+        for text in [
+            "min_pad_ring_nm = -1\n",
+            "min_pad_ring_nm = wide\n",
+            "min_hole_edge_nm = -1\n",
+            "min_hole_edge_nm = 1.5\n",
+        ] {
+            assert!(DfmProfile::parse(text).is_err(), "{text}");
+        }
+        let mut board = crate::dfm::tests::board();
+        board.outline.clear();
+        assert_eq!(
+            codes(&board, "min_hole_edge_nm = 90000000\n"),
+            Vec::<&str>::new()
+        );
+        // the profile of JLCPCB asks 0.15 mm of the ring of the pads of parts
+        let jlc = DfmProfile::parse(crate::dfm::builtin_profile("jlcpcb").unwrap()).unwrap();
+        assert_eq!((jlc.min_pad_ring_nm, jlc.min_hole_edge_nm), (150_000, 0));
+    }
+
+    #[test]
     fn the_example_profile_names_every_further_line_and_leaves_it_off() {
         let text = include_str!("../../../config/dfm/example.cfg");
         for key in [
@@ -1122,6 +1356,8 @@ mod tests {
             "max_board_aspect_x10",
             "forbid_blind_vias",
             "min_smd_pad_nm",
+            "min_pad_ring_nm",
+            "min_hole_edge_nm",
         ] {
             assert!(text.contains(&format!("\n{key} = ")), "{key}");
         }
@@ -1135,6 +1371,7 @@ mod tests {
         assert_eq!(profile.min_silk_stroke_nm, 0);
         assert_eq!(profile.max_board_aspect_x10, 0);
         assert_eq!(profile.min_smd_pad_nm, 0);
+        assert_eq!((profile.min_pad_ring_nm, profile.min_hole_edge_nm), (0, 0));
         // every code of this module is a finding of the check and none is the information
         for (code, _) in REGISTRY {
             assert!(code.starts_with("PHOENIX-DFM-"), "{code}");

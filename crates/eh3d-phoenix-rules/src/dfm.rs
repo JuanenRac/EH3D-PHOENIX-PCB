@@ -210,6 +210,13 @@ pub struct DfmProfile {
     pub forbid_blind_vias: bool,
     /// The least smaller side of a pad without a drill; 0 turns the line off.
     pub min_smd_pad_nm: i64,
+    /// The least annular ring of a plated drilled pad (half of its smaller side less the drill);
+    /// 0 turns the line off. The rule check has one limit for the ring of vias and pads together;
+    /// this line is for makers that ask more of the pads of the parts.
+    pub min_pad_ring_nm: i64,
+    /// The least distance from the wall of a hole (a via or a drilled pad) to the straight pieces
+    /// of the outline; 0 turns the line off.
+    pub min_hole_edge_nm: i64,
 }
 
 fn length(value: &str) -> Option<Nm> {
@@ -310,6 +317,8 @@ impl DfmProfile {
                 }
                 "forbid_blind_vias" => p.forbid_blind_vias = flag(value).ok_or_else(bad)?,
                 "min_smd_pad_nm" => p.min_smd_pad_nm = len()?.get(),
+                "min_pad_ring_nm" => p.min_pad_ring_nm = len()?.get(),
+                "min_hole_edge_nm" => p.min_hole_edge_nm = len()?.get(),
                 "max_drill_sizes" => {
                     p.max_drill_sizes = value
                         .parse::<u32>()

@@ -16,7 +16,8 @@
 //!   the width of the tracks and the size of the vias of their nets;
 //! * [`dfm_more`]: further lines of the capability profile (drill sizes, aspect ratio of the holes,
 //!   vias in pads, the silkscreen, the copper layers, the proportion of the board, blind vias and
-//!   surface-mount pads) with the codes `PHOENIX-DFM-007` to `PHOENIX-DFM-015`;
+//!   surface-mount pads, the ring of drilled pads and the distance from a hole to the edge) with the
+//!   codes `PHOENIX-DFM-007` to `PHOENIX-DFM-017`;
 //! * [`dfm`]: a capability profile of a board maker read from a text file, its limits for the rule
 //!   check and the checks of the layers, the size of the board and the holes (`PHOENIX-DFM-<NNN>`);
 //! * [`notes`]: the notes of the consistency checks of a board that a report carries as information

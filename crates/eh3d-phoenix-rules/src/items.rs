@@ -32,6 +32,8 @@ pub(crate) struct PlacedPad {
     pub angle_udeg: i64,
     /// How round the corners of a rectangular pad are (`Pad::roundness`).
     pub roundness: u16,
+    /// Whether the hole of the pad is plated (`Pad::plated`); meaningless without a drill.
+    pub plated: bool,
 }
 
 /// Every pad of every component that has a footprint, in a fixed order.
@@ -66,6 +68,7 @@ pub(crate) fn placed_pads(board: &Board) -> Vec<PlacedPad> {
                 layers: pad.layers.clone(),
                 angle_udeg,
                 roundness: pad.roundness,
+                plated: pad.plated,
             });
         }
     }

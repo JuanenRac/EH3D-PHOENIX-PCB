@@ -248,6 +248,8 @@ The checks of `phoenix check --advanced`, with the limits and the levels of `con
 | PHOENIX-DFM-013 | Board too long for its width, beyond the proportion the profile accepts | `phoenix check --dfm`: the long side of the box of the outline is more than `max_board_aspect_x10` tenths of the short side in the capability profile |
 | PHOENIX-DFM-014 | Blind or buried via, which the profile does not build | `phoenix check --dfm`: a via does not join the first and the last copper layer while `forbid_blind_vias` is `true` in the capability profile |
 | PHOENIX-DFM-015 | Surface-mount pad smaller than the profile accepts | `phoenix check --dfm`: the smaller side of a pad without a drill is below `min_smd_pad_nm` of the capability profile |
+| PHOENIX-DFM-016 | Annular ring of a drilled pad thinner than the profile accepts | `phoenix check --dfm`: half of the smaller side of a plated drilled pad less its drill is below `min_pad_ring_nm` of the capability profile |
+| PHOENIX-DFM-017 | Hole closer to the board edge than the profile accepts | `phoenix check --dfm`: the wall of a via or of a drilled pad is closer than `min_hole_edge_nm` to a straight piece of the outline or of a cutout |
 
 Titles of the same codes in the other seven languages (Portuguese is the Portuguese of Portugal):
 
