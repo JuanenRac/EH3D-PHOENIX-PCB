@@ -5,10 +5,10 @@ The crate `eh3d-phoenix-stats` and the command `phoenix stats` give the numbers 
 **State: prototype.** It has been tried on boards made by hand and by the tests only, never on a real board. The numbers the tests expect were worked out on paper. The copper of a layer is an upper bound, as explained below.
 
 ```
-phoenix stats [--config FILE] [--json] [--lang CODE] <board>
+phoenix stats [--config FILE] [--out FILE] [--json] [--lang CODE] <board>
 ```
 
-The board is a `.json` board, an EAGLE `.brd` or a KiCad `.kicad_pcb`, as for the other commands. The command only reads: the report goes to the output and nothing is written. The exit code is 0 when the report is made, 1 when a finding of the report is an error and 2 when the arguments or the input are unusable.
+The board is a `.json` board, an EAGLE `.brd` or a KiCad `.kicad_pcb`, as for the other commands. The report goes to the output and nothing is written unless `--out` names a new file: it gets the JSON report, created exclusively, and a file that exists is never replaced (`PHOENIX-STATS-004`). The exit code is 0 when the report is made, 1 when a finding of the report is an error and 2 when the arguments or the input are unusable.
 
 ## What the report holds
 

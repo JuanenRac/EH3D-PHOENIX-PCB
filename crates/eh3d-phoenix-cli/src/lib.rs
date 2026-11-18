@@ -423,22 +423,22 @@ phoenix thermal --currents FILE [--stackup FILE] [--net NAME] [--settings FILE] 
                 PHOENIX-HEAT-<NNN>; a prototype, a dry run unless --out names a new file, run
                 `phoenix thermal` alone for its options
 
-phoenix stats [--config FILE] [--json] [--lang xx] <board>
+phoenix stats [--config FILE] [--out FILE] [--json] [--lang xx] <board>
 
   stats         the statistics of a board: its size and area, the counts of parts, pads, tracks,
                 vias and zones, the copper of each layer and the share of the board it covers, the
                 balance of the layers that mirror each other, the drills by diameter and the
-                density per square centimetre, with the codes
-                PHOENIX-STATS-<NNN>; read-only, a prototype whose copper is an upper bound, run
+                density per square centimetre, with the codes PHOENIX-STATS-<NNN>; a dry run
+                unless --out names a new file, a prototype whose copper is an upper bound, run
                 `phoenix stats` alone for its options
 
-phoenix testpoints [--config FILE] [--json] [--lang xx] <board>
+phoenix testpoints [--config FILE] [--out FILE] [--json] [--lang xx] <board>
 
   testpoints    the test points of a board: the pads of the parts whose reference starts with TP
                 or whose footprint is named as a test point, the nets that no test point reaches
                 on the side that is probed, and the test points that are too small, too close to
-                each other or too near the edge, with the codes PHOENIX-TP-<NNN>; read-only, a
-                prototype, run `phoenix testpoints` alone for its options
+                each other or too near the edge, with the codes PHOENIX-TP-<NNN>; a dry run unless
+                --out names a new file, a prototype, run `phoenix testpoints` alone for its options
 
 phoenix ipc2581 [--config FILE] [--out FILE [--overwrite]] [--json] [--lang xx] <board>
 

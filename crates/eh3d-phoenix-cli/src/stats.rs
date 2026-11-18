@@ -3,13 +3,15 @@
 //! diameter, the counts, the area and the density.
 //!
 //! Exit codes: 0 done, 1 a finding of the report is an error, 2 the arguments or the input are
-//! unusable. Nothing is written: the report goes to the output stream.
+//! unusable. Nothing is written unless `--out` names a new file: the report goes to the output stream,
+//! and an existing file is never replaced.
 
+use std::fs::OpenOptions;
 use std::io::Write;
 use std::path::Path;
 
 use eh3d_phoenix_rules::Lang;
-use eh3d_phoenix_stats::codes::{INPUT_UNREADABLE, OPTION_INVALID};
+use eh3d_phoenix_stats::codes::{INPUT_UNREADABLE, OPTION_INVALID, OUTPUT_FAILED};
 use eh3d_phoenix_stats::{compute, report_json, report_text, StatsError, StatsSettings};
 
 use crate::export::read_board_file;
@@ -18,15 +20,16 @@ use crate::export::read_board_file;
 const DEFAULT_CONFIG: &str = "config/stats.cfg";
 
 pub(crate) const USAGE: &str = "\
-phoenix stats [--config FILE] [--json] [--lang CODE] <board>
+phoenix stats [--config FILE] [--out FILE] [--json] [--lang CODE] <board>
 
   stats         the statistics of a board: its size and area, the counts of parts, pads, tracks,
                 vias and zones, the copper of each layer (pads, tracks, vias and zones, and the
                 share of the board it covers), the balance of the copper of the layers that
                 mirror each other, the drills by diameter and the density per square
-                centimetre. Read-only: the report goes to the output and nothing is written; a
-                prototype whose copper is an upper bound
+                centimetre. A dry run unless --out names a new file, which gets the JSON report
+                (an existing file is never replaced); a prototype whose copper is an upper bound
   --config      the limit and the choices of the report (default: config/stats.cfg when it exists)
+  --out FILE    write the JSON report to a new file
   --json        print the report as JSON, the same every time
   --lang CODE   the titles in en, es, de, fr, it, ja, zh or pt
 ";
@@ -35,6 +38,7 @@ struct Options {
     json: bool,
     lang: Lang,
     config: Option<String>,
+    out: Option<String>,
     files: Vec<String>,
 }
 
@@ -43,6 +47,7 @@ fn parse_options(args: &[&str]) -> Result<Options, StatsError> {
         json: false,
         lang: Lang::En,
         config: None,
+        out: None,
         files: Vec::new(),
     };
     let bad = |what: &str| StatsError::new(OPTION_INVALID, what.to_owned());
@@ -60,6 +65,7 @@ fn parse_options(args: &[&str]) -> Result<Options, StatsError> {
                 options.lang = Lang::from_tag(&tag).ok_or_else(|| bad("unknown language code"))?;
             }
             "--config" => options.config = Some(value("--config needs a file")?),
+            "--out" => options.out = Some(value("--out needs a file")?),
             other if other.starts_with("--") => {
                 return Err(StatsError::new(
                     OPTION_INVALID,
@@ -88,6 +94,17 @@ fn load_settings(path: Option<&str>) -> Result<StatsSettings, StatsError> {
     }
 }
 
+/// Writes a new file. An existing file is never replaced.
+fn write_new(path: &str, text: &str) -> Result<(), StatsError> {
+    let failed = |e: std::io::Error| StatsError::new(OUTPUT_FAILED, format!("{path}: {e}"));
+    let mut file = OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(path)
+        .map_err(failed)?;
+    file.write_all(text.as_bytes()).map_err(failed)
+}
+
 fn fail(err: &mut dyn Write, error: &StatsError, lang: Lang) -> i32 {
     let _ = writeln!(err, "error: {}", error.message(lang));
     2
@@ -103,11 +120,17 @@ fn stats(options: &Options, out: &mut dyn Write) -> Result<i32, StatsError> {
     let board = read_board_file(board_path).map_err(|e| StatsError::new(INPUT_UNREADABLE, e))?;
     let settings = load_settings(options.config.as_deref())?;
     let report = compute(&board, &settings)?;
-    let text = if options.json {
+    if let Some(path) = &options.out {
+        write_new(path, &report_json(&report))?;
+    }
+    let mut text = if options.json {
         report_json(&report)
     } else {
         report_text(&report, options.lang)
     };
+    if let (Some(path), false) = (&options.out, options.json) {
+        text.push_str(&format!("written: {path}\n"));
+    }
     let _ = out.write_all(text.as_bytes());
     Ok(i32::from(report.has_errors()))
 }

@@ -249,3 +249,24 @@ fn layers_with_uneven_copper_are_reported_and_the_severity_sets_the_exit_code() 
     assert_eq!(code, 0);
     assert!(!out.contains("Copper balance"), "{out}");
 }
+
+#[test]
+fn the_json_report_is_written_to_a_new_file_and_never_over_an_old_one() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = write_board(dir.path(), &board());
+    let target = dir.path().join("stats.json");
+    let target = target.to_str().unwrap();
+    let (code, out, err) = command(&["stats", "--out", target, &path]);
+    assert_eq!(code, 0, "{err}");
+    assert!(out.contains(&format!("written: {target}")), "{out}");
+    let text = fs::read_to_string(target).unwrap();
+    assert!(text.contains("\"format\": \"phoenix-stats/1\""), "{text}");
+    let (json_code, json_out, _) = command(&["stats", "--json", &path]);
+    assert_eq!(json_code, 0);
+    assert_eq!(json_out, text);
+    let (again, _, err) = command(&["stats", "--out", target, &path]);
+    assert_eq!(again, 2);
+    assert!(err.contains("PHOENIX-STATS-004"), "{err}");
+    assert_eq!(fs::read_to_string(target).unwrap(), text);
+    assert_eq!(fs::read_dir(dir.path()).unwrap().count(), 2);
+}

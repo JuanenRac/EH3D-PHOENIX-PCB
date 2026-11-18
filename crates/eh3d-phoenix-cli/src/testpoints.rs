@@ -4,13 +4,15 @@
 //! the edge of the board.
 //!
 //! Exit codes: 0 done, 1 a finding of the report is an error, 2 the arguments or the input are
-//! unusable. Nothing is written: the report goes to the output stream.
+//! unusable. Nothing is written unless `--out` names a new file: the report goes to the output stream,
+//! and an existing file is never replaced.
 
+use std::fs::OpenOptions;
 use std::io::Write;
 use std::path::Path;
 
 use eh3d_phoenix_rules::Lang;
-use eh3d_phoenix_testpoints::codes::{INPUT_UNREADABLE, OPTION_INVALID};
+use eh3d_phoenix_testpoints::codes::{INPUT_UNREADABLE, OPTION_INVALID, OUTPUT_FAILED};
 use eh3d_phoenix_testpoints::{
     analyse, report_json, report_text, TestPointError, TestPointSettings,
 };
@@ -20,16 +22,19 @@ use crate::export::read_board_file;
 /// The settings file that is read when `--config` is not given and the file exists.
 const DEFAULT_CONFIG: &str = "config/testpoints.cfg";
 
-pub(crate) const USAGE: &str = "phoenix testpoints [--config FILE] [--json] [--lang CODE] <board>
+pub(crate) const USAGE: &str =
+    "phoenix testpoints [--config FILE] [--out FILE] [--json] [--lang CODE] <board>
 
   testpoints    the test points of a board: the pads of the parts whose reference starts with TP
                 or whose footprint is named as a test point, the nets that have none on the side
                 that is probed (and the nets whose test points are all on the other side), and
                 the test points that are smaller than the probe touches, closer to each other
                 than the probes reach or too near the edge, with the codes PHOENIX-TP-<NNN>.
-                Read-only: the report goes to the output and nothing is written; a prototype
+                A dry run unless --out names a new file, which gets the JSON report (an
+                existing file is never replaced); a prototype
   --config      what counts as a test point, the side probed and the limits (default:
                 config/testpoints.cfg when it exists)
+  --out FILE    write the JSON report to a new file
   --json        print the report as JSON, the same every time
   --lang CODE   the titles in en, es, de, fr, it, ja, zh or pt
 ";
@@ -38,6 +43,7 @@ struct Options {
     json: bool,
     lang: Lang,
     config: Option<String>,
+    out: Option<String>,
     files: Vec<String>,
 }
 
@@ -46,6 +52,7 @@ fn parse_options(args: &[&str]) -> Result<Options, TestPointError> {
         json: false,
         lang: Lang::En,
         config: None,
+        out: None,
         files: Vec::new(),
     };
     let bad = |what: &str| TestPointError::new(OPTION_INVALID, what.to_owned());
@@ -63,6 +70,7 @@ fn parse_options(args: &[&str]) -> Result<Options, TestPointError> {
                 options.lang = Lang::from_tag(&tag).ok_or_else(|| bad("unknown language code"))?;
             }
             "--config" => options.config = Some(value("--config needs a file")?),
+            "--out" => options.out = Some(value("--out needs a file")?),
             other if other.starts_with("--") => {
                 return Err(TestPointError::new(
                     OPTION_INVALID,
@@ -91,6 +99,17 @@ fn load_settings(path: Option<&str>) -> Result<TestPointSettings, TestPointError
     }
 }
 
+/// Writes a new file. An existing file is never replaced.
+fn write_new(path: &str, text: &str) -> Result<(), TestPointError> {
+    let failed = |e: std::io::Error| TestPointError::new(OUTPUT_FAILED, format!("{path}: {e}"));
+    let mut file = OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(path)
+        .map_err(failed)?;
+    file.write_all(text.as_bytes()).map_err(failed)
+}
+
 fn fail(err: &mut dyn Write, error: &TestPointError, lang: Lang) -> i32 {
     let _ = writeln!(err, "error: {}", error.message(lang));
     2
@@ -107,11 +126,17 @@ fn testpoints(options: &Options, out: &mut dyn Write) -> Result<i32, TestPointEr
         read_board_file(board_path).map_err(|e| TestPointError::new(INPUT_UNREADABLE, e))?;
     let settings = load_settings(options.config.as_deref())?;
     let report = analyse(&board, &settings)?;
-    let text = if options.json {
+    if let Some(path) = &options.out {
+        write_new(path, &report_json(&report))?;
+    }
+    let mut text = if options.json {
         report_json(&report)
     } else {
         report_text(&report, options.lang)
     };
+    if let (Some(path), false) = (&options.out, options.json) {
+        text.push_str(&format!("written: {path}\n"));
+    }
     let _ = out.write_all(text.as_bytes());
     Ok(i32::from(report.has_errors()))
 }
