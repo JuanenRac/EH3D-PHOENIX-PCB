@@ -121,6 +121,10 @@
 
 pub mod appearance;
 pub mod bench;
+pub mod board_analysis;
+#[cfg(feature = "gui")]
+pub mod board_analysis_gui;
+pub mod board_analysis_text;
 pub mod board_autoroute;
 #[cfg(feature = "gui")]
 pub mod board_autoroute_gui;

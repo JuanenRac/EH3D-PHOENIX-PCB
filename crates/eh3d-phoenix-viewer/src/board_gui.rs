@@ -17,6 +17,7 @@ use eh3d_phoenix_model::Point;
 use eh3d_phoenix_route::copper_layers;
 use eh3d_phoenix_rules::{Lang, Severity};
 
+use crate::board_analysis::AnalysisTool;
 use crate::board_autoroute::AutorouteTool;
 use crate::board_pair::PairTool;
 use crate::board_select::{self, Group, GroupCommand, GroupKeys};
@@ -54,6 +55,7 @@ pub struct BoardEditUi {
     length_mm: Option<f64>,
     target_mm: f64,
     pair: PairTool,
+    analysis: AnalysisTool,
     shove: ShoveTool,
     zone: ZoneTool,
     autoroute: AutorouteTool,
@@ -151,6 +153,7 @@ pub fn start(workspace: &Workspace) -> Option<BoardEditUi> {
         length_mm: None,
         target_mm: 0.0,
         pair: PairTool::default(),
+        analysis: AnalysisTool::default(),
         shove: ShoveTool::default(),
         zone: ZoneTool::default(),
         autoroute: AutorouteTool::with_config(crate::board_autoroute::load_config()),
@@ -1152,6 +1155,7 @@ pub fn tools_panel(ui: &mut egui::Ui, st: &mut BoardEditUi, lang: Lang) -> bool 
     crate::board_shove_gui::panel(ui, &mut st.shove, &mut st.state, lang);
     crate::board_autoroute_gui::panel(ui, &mut st.autoroute, &mut st.state, lang);
     crate::board_zone_gui::panel(ui, &mut st.zone, &mut st.state, lang);
+    crate::board_analysis_gui::panel(ui, &mut st.analysis, st.state.edit.board(), lang);
 
     ui.separator();
     ui.horizontal(|ui| {
