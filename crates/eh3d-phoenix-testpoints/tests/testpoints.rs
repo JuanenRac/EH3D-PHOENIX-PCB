@@ -7,8 +7,8 @@ use eh3d_phoenix_board::{
 use eh3d_phoenix_model::{Nm, ObjectId, Point, Udeg};
 use eh3d_phoenix_rules::Lang;
 use eh3d_phoenix_testpoints::codes::{
-    Severity, LIMIT_EXCEEDED, NEAR_EDGE, NET_NO_TESTPOINT, NET_WRONG_SIDE, NONE_RECOGNISED, NO_NET,
-    PAD_SMALL, TOO_CLOSE,
+    Severity, LIMIT_EXCEEDED, NEAR_EDGE, NET_NO_TESTPOINT, NET_WRONG_SIDE, NONE_RECOGNISED,
+    NO_MASK_OPENING, NO_NET, PAD_SMALL, TOO_CLOSE,
 };
 use eh3d_phoenix_testpoints::{
     analyse, report_json, report_text, ProbeSide, TestPointReport, TestPointSettings,
@@ -466,4 +466,102 @@ fn a_mark_that_names_a_pad_the_board_no_longer_has_is_ignored() {
     });
     let r = analyse(&b, &TestPointSettings::default()).unwrap();
     assert_eq!(r.test_points.len(), 5);
+}
+
+/// The board with two solder mask layers: one of the top side, that the pad of the footprint of
+/// TP1, TP2 and TP4 lists, and one of no side, that the pad of the footprint of X1 lists. The pad of
+/// the footprint of TP3 lists none.
+fn board_with_masks() -> Board {
+    let mut b = board();
+    for (n, name, side) in [(7, "Mask top", Some(Side::Top)), (8, "Mask", None)] {
+        b.layers.insert(
+            id(n),
+            Layer {
+                name: name.into(),
+                kind: LayerKind::SolderMask,
+                side,
+            },
+        );
+    }
+    b.footprints
+        .get_mut(&id(13))
+        .unwrap()
+        .pads
+        .get_mut(&id(14))
+        .unwrap()
+        .layers
+        .push(id(7));
+    b.footprints
+        .get_mut(&id(17))
+        .unwrap()
+        .pads
+        .get_mut(&id(18))
+        .unwrap()
+        .layers
+        .push(id(8));
+    b
+}
+
+#[test]
+fn a_test_point_without_a_solder_mask_opening_on_its_side_is_reported_only_when_asked() {
+    let b = board_with_masks();
+    // off by default: nothing about the mask
+    let plain = analyse(&b, &TestPointSettings::default()).unwrap();
+    assert!(!codes_of(&plain).contains(&NO_MASK_OPENING));
+    let asked = TestPointSettings {
+        require_mask_opening: true,
+        ..TestPointSettings::default()
+    };
+    let r = analyse(&b, &asked).unwrap();
+    let subjects: Vec<String> = r
+        .findings
+        .iter()
+        .filter(|f| f.code == NO_MASK_OPENING)
+        .map(|f| f.subject.clone().unwrap())
+        .collect();
+    // TP2 is on the bottom side and its pad lists a mask layer of the top side only; TP3's pad
+    // lists none; TP1 and TP4 have the layer of the top side and X1 one of no side
+    assert_eq!(subjects, vec!["TP2:1", "TP3:1"]);
+    let f = r
+        .findings
+        .iter()
+        .find(|f| f.code == NO_MASK_OPENING)
+        .unwrap();
+    assert_eq!(f.severity, Severity::Warning);
+    assert!(f.detail.contains("bottom side"), "{}", f.detail);
+    // the board without any mask layer has the finding for every test point
+    let none = analyse(&board(), &asked).unwrap();
+    assert_eq!(
+        none.findings
+            .iter()
+            .filter(|f| f.code == NO_MASK_OPENING)
+            .count(),
+        5
+    );
+}
+
+#[test]
+fn a_through_hole_test_point_shows_on_both_sides_and_a_mask_layer_of_either_will_do() {
+    let mut b = board_with_masks();
+    // give the pad of the footprint of TP3 a drill and a mask layer of the top side, and put the
+    // part on the bottom side
+    let pad = b
+        .footprints
+        .get_mut(&id(15))
+        .unwrap()
+        .pads
+        .get_mut(&id(16))
+        .unwrap();
+    pad.drill = Some(Nm::new(500_000).unwrap());
+    pad.layers.push(id(7));
+    b.components.get_mut(&id(32)).unwrap().side = Side::Bottom;
+    let asked = TestPointSettings {
+        require_mask_opening: true,
+        ..TestPointSettings::default()
+    };
+    let r = analyse(&b, &asked).unwrap();
+    assert!(!r
+        .findings
+        .iter()
+        .any(|f| f.code == NO_MASK_OPENING && f.subject.as_deref() == Some("TP3:1")));
 }

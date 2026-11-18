@@ -23,13 +23,13 @@
 use std::collections::BTreeMap;
 
 use eh3d_phoenix_board::connectivity::pad_position;
-use eh3d_phoenix_board::{Board, Id, PadRef, PadShape, Side};
+use eh3d_phoenix_board::{Board, Id, LayerKind, Pad, PadRef, PadShape, Side};
 use eh3d_phoenix_model::Point;
 use serde::Serialize;
 
 use crate::codes::{
     Finding, Severity, TestPointError, LIMIT_EXCEEDED, NEAR_EDGE, NET_NO_TESTPOINT, NET_WRONG_SIDE,
-    NONE_RECOGNISED, NO_NET, PAD_SMALL, TOO_CLOSE,
+    NONE_RECOGNISED, NO_MASK_OPENING, NO_NET, PAD_SMALL, TOO_CLOSE,
 };
 use crate::settings::{ProbeSide, TestPointSettings};
 
@@ -106,6 +106,8 @@ impl TestPointReport {
 struct Raw {
     point: TestPoint,
     net_id: Option<Id>,
+    /// Whether the pad lists a solder mask layer that opens it on its side.
+    mask_open: bool,
 }
 
 fn side_word(side: Side) -> &'static str {
@@ -139,6 +141,17 @@ fn has_word(footprint: &str, words: &[String]) -> bool {
     words
         .iter()
         .any(|w| !w.is_empty() && low.contains(&w.to_ascii_lowercase()))
+}
+
+/// True when a layer of the pad is a solder mask layer of the side of the part (or of no side);
+/// a through-hole pad shows on both sides, so a mask layer of either one will do.
+fn has_mask_opening(board: &Board, pad: &Pad, side: Side) -> bool {
+    pad.layers.iter().any(|id| {
+        board.layers.get(id).is_some_and(|layer| {
+            layer.kind == LayerKind::SolderMask
+                && (pad.drill.is_some() || layer.side.is_none() || layer.side == Some(side))
+        })
+    })
 }
 
 fn smallest_side(shape: &PadShape) -> i64 {
@@ -231,6 +244,7 @@ fn find_test_points(board: &Board, settings: &TestPointSettings) -> Vec<Raw> {
                     probed: is_probed(component.side, settings.probe_side),
                 },
                 net_id,
+                mask_open: has_mask_opening(board, pad, component.side),
             });
         }
     }
@@ -291,6 +305,17 @@ pub fn analyse(
         let name = format!("{}:{}", p.refdes, p.pad);
         if p.net.is_none() {
             findings.push(Finding::new(NO_NET, Severity::Warning, Some(&name), ""));
+        }
+        if settings.require_mask_opening && !raw.mask_open {
+            findings.push(Finding::new(
+                NO_MASK_OPENING,
+                Severity::Warning,
+                Some(&name),
+                format!(
+                    "no solder mask layer of the {} side among the layers of the pad",
+                    p.side
+                ),
+            ));
         }
         if settings.min_pad_nm > 0 && p.size_nm < settings.min_pad_nm {
             findings.push(Finding::new(

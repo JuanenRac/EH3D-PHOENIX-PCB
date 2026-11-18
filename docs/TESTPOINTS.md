@@ -38,6 +38,7 @@ The report also gives the share of the nets asked that are covered. When no pad 
 * `PHOENIX-TP-009`: two test points on the same side are closer than `min_spacing_nm` between their centres (1.27 mm by default).
 * `PHOENIX-TP-010`: the centre is closer than `min_edge_nm` to the outline or to a cutout (1 mm by default).
 * `PHOENIX-TP-011`: the pad is on no net.
+* `PHOENIX-TP-013`: the pad has no opening in the solder mask on its side, so the mask would cover it. It is judged only with `require_mask_opening = true` (off by default): the pad must list a solder mask layer of the side of its part or of no side (a through-hole pad, which shows on both sides, will do with a mask layer of either side).
 
 A limit of 0 leaves that judgement out. The defaults are common values for probes and fixtures and are not the rules of any maker: set the ones of your fixture.
 
@@ -47,15 +48,15 @@ The text lists the test points (reference and pad, net, side, place and size), t
 
 ## Settings
 
-`config/testpoints.cfg` holds every value and is also the built-in default: `testpoint_prefixes`, `testpoint_footprint_words`, `use_marks` and `use_names` (which of the two ways of recognising a test point count, both on by default), `probe_side`, `required_per_net`, `min_pads_for_test`, `ignore_nets`, `min_pad_nm`, `min_spacing_nm`, `min_edge_nm`, `uncovered_severity` and `max_items` (the most parts, connected pads and nets a board may hold for the check to run, `PHOENIX-TP-005`). A line that is not `key = value`, an unknown key or a value out of range is refused with its line number (`PHOENIX-TP-001`).
+`config/testpoints.cfg` holds every value and is also the built-in default: `testpoint_prefixes`, `testpoint_footprint_words`, `use_marks` and `use_names` (which of the two ways of recognising a test point count, both on by default), `require_mask_opening`, `probe_side`, `required_per_net`, `min_pads_for_test`, `ignore_nets`, `min_pad_nm`, `min_spacing_nm`, `min_edge_nm`, `uncovered_severity` and `max_items` (the most parts, connected pads and nets a board may hold for the check to run, `PHOENIX-TP-005`). A line that is not `key = value`, an unknown key or a value out of range is refused with its line number (`PHOENIX-TP-001`).
 
 ## Codes
 
-`PHOENIX-TP-001` to `PHOENIX-TP-012`, with titles in the eight languages (`src/codes.rs`) and the table in `docs/ERROR_CODES.md`.
+`PHOENIX-TP-001` to `PHOENIX-TP-013`, with titles in the eight languages (`src/codes.rs`) and the table in `docs/ERROR_CODES.md`.
 
 ## Limits
 
-* The access to a pad is not judged: the solder mask over it, a part on the other side in the way of the probe and the height of the parts around it are not looked at.
+* The access to a pad is judged by its solder mask opening only (`PHOENIX-TP-013`, off by default); a part on the other side in the way and the height of the parts around it are not looked at, and the size of the opening is not compared with the pad.
 * Only the centre of the test point is checked against the edge, and only the centres against each other.
 * A pad of a through-hole part is on the side of the part.
 * A mark is on one pad; the other pads of its part are not test points unless the part is recognised by its name.

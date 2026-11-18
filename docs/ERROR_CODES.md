@@ -975,6 +975,7 @@ The titles of these codes also exist in the eight languages of the suite (`TITLE
 | PHOENIX-TP-010 | Test point is too close to the edge of the board | warning: the centre of a test point is closer than `min_edge_nm` to the outline or to a cutout |
 | PHOENIX-TP-011 | Test point is on no net | warning: a pad of a test point that no net names |
 | PHOENIX-TP-012 | No pad of the board was recognised as a test point | warning: no part matched `testpoint_prefixes` or `testpoint_footprint_words`, so no net is judged one by one |
+| PHOENIX-TP-013 | Test point has no solder mask opening | warning, only with `require_mask_opening = true`: none of the layers of the pad is a solder mask layer of the side of its part (or of no side), so the mask would cover it |
 
 ## IPC-2581 writer (`eh3d-phoenix-ipc2581`, `src/codes.rs`)
 

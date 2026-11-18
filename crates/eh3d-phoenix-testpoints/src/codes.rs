@@ -31,6 +31,8 @@ pub const NEAR_EDGE: &str = "PHOENIX-TP-010";
 pub const NO_NET: &str = "PHOENIX-TP-011";
 /// No pad of the board was recognised as a test point.
 pub const NONE_RECOGNISED: &str = "PHOENIX-TP-012";
+/// A test point has no solder mask opening on its side.
+pub const NO_MASK_OPENING: &str = "PHOENIX-TP-013";
 
 /// Code, then the title in English, Spanish, German, French, Italian, Japanese, Chinese and
 /// European Portuguese.
@@ -189,6 +191,19 @@ pub const TITLES: &[(&str, [&str; 8])] = &[
             "テストポイントとして認識されたパッドがありません",
             "没有焊盘被识别为测试点",
             "Nenhuma pastilha da placa foi reconhecida como ponto de teste",
+        ],
+    ),
+    (
+        NO_MASK_OPENING,
+        [
+            "Test point has no solder mask opening",
+            "El punto de prueba no tiene apertura en la máscara de soldadura",
+            "Der Testpunkt hat keine Öffnung im Lötstopplack",
+            "Le point de test n'a pas d'ouverture dans le masque de soudure",
+            "Il punto di test non ha un'apertura nella maschera di saldatura",
+            "テストポイントにソルダーマスクの開口がありません",
+            "测试点没有阻焊开窗",
+            "O ponto de teste não tem abertura na máscara de soldadura",
         ],
     ),
 ];

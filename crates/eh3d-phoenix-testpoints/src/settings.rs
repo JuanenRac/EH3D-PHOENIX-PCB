@@ -41,6 +41,10 @@ pub struct TestPointSettings {
     /// Whether the prefixes and the footprint words recognise test points. With both off nothing
     /// is recognised.
     pub use_names: bool,
+    /// Whether a test point must have an opening in the solder mask on its side (a solder mask
+    /// layer of its side, or of no side, among the layers of its pad); one that has none gets
+    /// `PHOENIX-TP-013`.
+    pub require_mask_opening: bool,
     /// The side the probes touch.
     pub probe_side: ProbeSide,
     /// The test points every net must have on the probed side.
@@ -75,6 +79,7 @@ impl Default for TestPointSettings {
             ],
             use_marks: true,
             use_names: true,
+            require_mask_opening: false,
             probe_side: ProbeSide::Both,
             required_per_net: 1,
             min_pads_for_test: 2,
@@ -130,6 +135,9 @@ impl TestPointSettings {
                 "testpoint_footprint_words" => s.footprint_words = parse_list(value),
                 "use_marks" => s.use_marks = parse_bool(value).ok_or_else(bad)?,
                 "use_names" => s.use_names = parse_bool(value).ok_or_else(bad)?,
+                "require_mask_opening" => {
+                    s.require_mask_opening = parse_bool(value).ok_or_else(bad)?
+                }
                 "probe_side" => {
                     s.probe_side = match value {
                         "both" => ProbeSide::Both,
@@ -241,7 +249,16 @@ mod tests {
         assert!(s.use_marks && s.use_names);
         let off = TestPointSettings::parse("use_marks = false\nuse_names = false\n").unwrap();
         assert!(!off.use_marks && !off.use_names);
-        for text in ["use_marks = yes\n", "use_names = 1\n", "use_marks =\n"] {
+        // the opening of the solder mask is not asked for unless the settings say so
+        assert!(!s.require_mask_opening);
+        let masked = TestPointSettings::parse("require_mask_opening = true\n").unwrap();
+        assert!(masked.require_mask_opening);
+        for text in [
+            "use_marks = yes\n",
+            "use_names = 1\n",
+            "use_marks =\n",
+            "require_mask_opening = on\n",
+        ] {
             assert!(TestPointSettings::parse(text).is_err(), "{text}");
         }
     }
