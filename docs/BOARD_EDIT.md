@@ -79,6 +79,7 @@ The window offers it too (`board_select` of the viewer crate, see *The window*),
 * **Drag:** the selected components follow the pointer on the grid; `drag_preview` gives the board as it would be, and letting go makes one step in which the tracks on their pads follow.
 * **Active layer, lit net and ratsnest:** tracks are drawn on the active copper layer; the lit net is the one of the last thing picked; the ratsnest is the list of connections that the nets of the pads call for and no copper joins yet, so the nets that a transfer from the schematic gave are drawn as lines to route.
 * **Turn, mirror, lock and delete** of the selection, and the placing of a footprint with the reference and the value asked for.
+* **Mark / unmark test points**: the button marks every pad of the selected components as a test point (`test_point`), or takes the marks off when every one of those pads is marked already; one step, which a lock does not stop. The marks are read by `phoenix testpoints` and by the Gerber X2 function `TestPad` (`docs/TESTPOINTS.md`).
 
 ### Settings
 

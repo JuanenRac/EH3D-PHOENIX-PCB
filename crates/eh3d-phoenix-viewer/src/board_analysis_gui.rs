@@ -33,6 +33,9 @@ pub fn panel(ui: &mut egui::Ui, tool: &mut AnalysisTool, board: &Board, lang: La
         if ui.button(AnalysisMsg::Bom.tr(lang)).clicked() {
             tool.run(AnalysisKind::Bom, board, lang);
         }
+        if ui.button(AnalysisMsg::Dimensions.tr(lang)).clicked() {
+            tool.run(AnalysisKind::Dimensions, board, lang);
+        }
         if tool.shown.is_some() && ui.button(AnalysisMsg::Close.tr(lang)).clicked() {
             tool.clear();
         }

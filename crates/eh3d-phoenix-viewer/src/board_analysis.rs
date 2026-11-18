@@ -7,12 +7,16 @@
 //! as the text of a language until the next one is asked for or the report is closed. The window
 //! shows this text in `board_analysis_gui`, behind the `gui` feature.
 
-use eh3d_phoenix_board::Board;
+use std::fmt::Write as _;
+
+use eh3d_phoenix_board::{mm_text, Board, DimensionKind};
 use eh3d_phoenix_bom::{bom_text, build_bom, BomInputs, CostSettings, PartsFile, PriceBook};
 use eh3d_phoenix_lengths::{analyse as analyse_lengths, LengthSettings};
 use eh3d_phoenix_rules::Lang;
 use eh3d_phoenix_stats::{compute, report_text as stats_report_text, StatsSettings};
 use eh3d_phoenix_testpoints::{analyse, report_text as testpoints_report_text, TestPointSettings};
+
+use crate::board_analysis_text::AnalysisMsg;
 
 /// The settings file of the statistics.
 const STATS_CONFIG: &str = "config/stats.cfg";
@@ -40,6 +44,8 @@ pub enum AnalysisKind {
     Lengths,
     /// The parts of the board grouped by value and footprint, without prices.
     Bom,
+    /// The dimensions of the board: kind, measure, layer and the two points.
+    Dimensions,
 }
 
 /// The settings of the reports.
@@ -112,6 +118,7 @@ pub fn report_for(
             Ok(report) => eh3d_phoenix_lengths::report_text(&report, lang),
             Err(error) => error.message(lang),
         },
+        AnalysisKind::Dimensions => dimensions_text(board, lang),
         AnalysisKind::Bom => {
             let (parts, prices) = (PartsFile::default(), PriceBook::default());
             let inputs = BomInputs {
@@ -128,6 +135,41 @@ pub fn report_for(
             }
         }
     }
+}
+
+/// The list of the dimensions of a board in a language, in the order of their ids: the number,
+/// and for each its kind, its measure in millimetres, its layer and the two points it measures.
+pub fn dimensions_text(board: &Board, lang: Lang) -> String {
+    if board.dimensions.is_empty() {
+        return AnalysisMsg::DimensionsNone.tr(lang).to_owned();
+    }
+    let mut out = format!(
+        "{}: {}\n",
+        AnalysisMsg::Dimensions.tr(lang),
+        board.dimensions.len()
+    );
+    for dimension in board.dimensions.values() {
+        let kind = match dimension.kind {
+            DimensionKind::Aligned => AnalysisMsg::KindAligned,
+            DimensionKind::Horizontal => AnalysisMsg::KindHorizontal,
+            DimensionKind::Vertical => AnalysisMsg::KindVertical,
+        };
+        let layer = board
+            .layers
+            .get(&dimension.layer)
+            .map_or("?", |l| l.name.as_str());
+        let _ = writeln!(
+            out,
+            "{}: {} mm, {layer}, ({}, {}) -> ({}, {}) mm",
+            kind.tr(lang),
+            dimension.measure_text(),
+            mm_text(dimension.from.x_nm.get()),
+            mm_text(dimension.from.y_nm.get()),
+            mm_text(dimension.to.x_nm.get()),
+            mm_text(dimension.to.y_nm.get())
+        );
+    }
+    out
 }
 
 impl AnalysisTool {
@@ -147,11 +189,12 @@ impl AnalysisTool {
 mod tests {
     use super::*;
 
-    const KINDS: [AnalysisKind; 4] = [
+    const KINDS: [AnalysisKind; 5] = [
         AnalysisKind::Stats,
         AnalysisKind::TestPoints,
         AnalysisKind::Lengths,
         AnalysisKind::Bom,
+        AnalysisKind::Dimensions,
     ];
 
     #[test]
@@ -167,6 +210,69 @@ mod tests {
         assert_eq!(tool.shown.as_ref().unwrap().0, AnalysisKind::Lengths);
         tool.clear();
         assert!(tool.shown.is_none());
+    }
+
+    #[test]
+    fn the_dimensions_are_listed_in_the_language_with_their_numbers() {
+        use eh3d_phoenix_board::{Dimension, Layer, LayerKind};
+        use eh3d_phoenix_model::{Nm, Point};
+        let mut board = Board::default();
+        assert_eq!(
+            dimensions_text(&board, Lang::En),
+            "The board has no dimensions"
+        );
+        assert_eq!(dimensions_text(&board, Lang::Es), "La placa no tiene cotas");
+        let layer = eh3d_phoenix_model::ObjectId::from_parts(1_700_000_000_000, 1, 1).unwrap();
+        board.layers.insert(
+            layer,
+            Layer {
+                name: "Notes".to_string(),
+                kind: LayerKind::Documentation,
+                side: None,
+            },
+        );
+        let point = |x: i64, y: i64| Point::from_nm(x, y).unwrap();
+        for (n, kind, from, to) in [
+            (
+                2,
+                DimensionKind::Aligned,
+                point(0, 0),
+                point(3_000_000, 4_000_000),
+            ),
+            (
+                3,
+                DimensionKind::Horizontal,
+                point(-1_500_000, 0),
+                point(11_000_000, 2_000_000),
+            ),
+        ] {
+            board.dimensions.insert(
+                eh3d_phoenix_model::ObjectId::from_parts(1_700_000_000_000, n, u64::from(n))
+                    .unwrap(),
+                Dimension {
+                    layer,
+                    kind,
+                    from,
+                    to,
+                    offset: Nm::new(1_000_000).unwrap(),
+                    text_height: Nm::new(1_000_000).unwrap(),
+                    stroke: Nm::new(100_000).unwrap(),
+                },
+            );
+        }
+        assert_eq!(
+            dimensions_text(&board, Lang::En),
+            "Dimensions: 2\nAligned: 5 mm, Notes, (0, 0) -> (3, 4) mm\nHorizontal: 12.5 mm, Notes, (-1.5, 0) -> (11, 2) mm\n"
+        );
+        assert!(dimensions_text(&board, Lang::De).starts_with("Bemaßungen: 2\nAusgerichtet: 5 mm"));
+        assert!(dimensions_text(&board, Lang::Ja).starts_with("寸法: 2\n平行: 5 mm"));
+        let mut tool = AnalysisTool::default();
+        tool.run(AnalysisKind::Dimensions, &board, Lang::Pt);
+        assert!(tool
+            .shown
+            .unwrap()
+            .1
+            .starts_with("Cotas: 2\nAlinhada: 5 mm"));
     }
 
     #[test]

@@ -5,7 +5,7 @@
 use std::collections::BTreeSet;
 
 use eh3d_phoenix_board::connectivity::pad_position;
-use eh3d_phoenix_board::{Board, Id, LayerKind, Operation};
+use eh3d_phoenix_board::{Board, Id, LayerKind, Operation, PadRef};
 use eh3d_phoenix_model::Point;
 use eh3d_phoenix_route::{copper_layers, RatLine};
 
@@ -315,6 +315,39 @@ impl EditState {
                 } else {
                     EditOp::Lock { id }
                 }
+            })
+            .collect();
+        self.run(&EditOp::Group { ops })
+    }
+
+    /// Marks every pad of the selected components as a test point, or takes the marks off when
+    /// every one of those pads is marked already; one step. A lock does not stop it, as it changes
+    /// neither the place nor the shape of a component.
+    pub fn toggle_test_points_selection(&mut self) -> bool {
+        let board = self.board();
+        let mut pads: Vec<PadRef> = Vec::new();
+        for component in self.selected_components() {
+            let Some(footprint) = board
+                .components
+                .get(&component)
+                .and_then(|c| board.footprints.get(&c.footprint))
+            else {
+                continue;
+            };
+            pads.extend(footprint.pads.keys().map(|pad| PadRef {
+                component,
+                pad: *pad,
+            }));
+        }
+        if pads.is_empty() {
+            return false;
+        }
+        let all_marked = pads.iter().all(|pad| board.is_test_point(*pad));
+        let ops: Vec<EditOp> = pads
+            .into_iter()
+            .map(|pad| EditOp::TestPoint {
+                pad,
+                marked: !all_marked,
             })
             .collect();
         self.run(&EditOp::Group { ops })

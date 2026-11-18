@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! Tests of the editing tool: snapping, picking, the drag, the rectangle, the tools and the keys.
 
-use eh3d_phoenix_board::{Component, Side};
+use eh3d_phoenix_board::{Component, PadRef, Side};
 use eh3d_phoenix_model::{Point, Udeg};
 
 use crate::codes::{COMPONENT_LOCKED, OPERATION_REFUSED};
 use crate::edit::BoardEdit;
 use crate::hit::Picked;
+use crate::ops::EditOp;
 use crate::settings::BoardEditSettings;
 use crate::testutil::{fixture, id, strict_rules, Fixture};
 use crate::tool::{EditState, Tool};
@@ -235,6 +236,42 @@ fn the_selection_is_turned_and_mirrored_as_one_step_each() {
     assert!(s.mirror_selection());
     assert_eq!(s.board().components[&part].side, Side::Bottom);
     assert_eq!(s.edit.steps(), 2);
+}
+
+#[test]
+fn the_pads_of_the_selected_parts_are_marked_as_test_points_and_unmarked_by_the_same_button() {
+    let mut f = fixture();
+    let part = with_free_part(&mut f);
+    let (pad1, pad2) = (f.pad1, f.pad2);
+    let mark = |pad| PadRef {
+        component: part,
+        pad,
+    };
+    let mut s = state(&f);
+    // nothing selected, nothing done
+    assert!(!s.toggle_test_points_selection());
+    s.selection.insert(Picked::Component(part));
+    // a lock does not stop it
+    assert!(s.edit.apply(&EditOp::Lock { id: part }).is_ok());
+    assert!(s.toggle_test_points_selection());
+    assert!(s.board().is_test_point(mark(pad1)) && s.board().is_test_point(mark(pad2)));
+    assert_eq!(s.board().test_points.len(), 2);
+    // all marked: the same button takes the marks off
+    assert!(s.toggle_test_points_selection());
+    assert!(s.board().test_points.is_empty());
+    // one pad marked: the button marks the rest
+    assert!(s
+        .edit
+        .apply(&EditOp::TestPoint {
+            pad: mark(pad1),
+            marked: true
+        })
+        .is_ok());
+    assert!(s.toggle_test_points_selection());
+    assert_eq!(s.board().test_points.len(), 2);
+    // each press is one step and undo gives back the state before it
+    assert!(s.undo());
+    assert_eq!(s.board().test_points, vec![mark(pad1)]);
 }
 
 #[test]

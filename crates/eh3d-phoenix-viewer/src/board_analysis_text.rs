@@ -20,6 +20,16 @@ pub enum AnalysisMsg {
     Lengths,
     /// The button that makes the bill of materials.
     Bom,
+    /// The button that makes the list of the dimensions, and its title.
+    Dimensions,
+    /// What the list says when the board has no dimension.
+    DimensionsNone,
+    /// The name of an aligned dimension in the list.
+    KindAligned,
+    /// The name of a horizontal dimension in the list.
+    KindHorizontal,
+    /// The name of a vertical dimension in the list.
+    KindVertical,
     /// The button that closes the report.
     Close,
     /// What is said under the title: the reports are of the board as it is now.
@@ -90,6 +100,71 @@ const TABLE: [(AnalysisMsg, [&str; 8]); AnalysisMsg::COUNT] = [
             "部品表",
             "物料清单",
             "Lista de materiais",
+        ],
+    ),
+    (
+        AnalysisMsg::Dimensions,
+        [
+            "Dimensions",
+            "Cotas",
+            "Bemaßungen",
+            "Cotes",
+            "Quote",
+            "寸法",
+            "尺寸标注",
+            "Cotas",
+        ],
+    ),
+    (
+        AnalysisMsg::DimensionsNone,
+        [
+            "The board has no dimensions",
+            "La placa no tiene cotas",
+            "Die Platine hat keine Bemaßungen",
+            "La carte n'a pas de cotes",
+            "La scheda non ha quote",
+            "この基板には寸法がありません",
+            "电路板没有尺寸标注",
+            "A placa não tem cotas",
+        ],
+    ),
+    (
+        AnalysisMsg::KindAligned,
+        [
+            "Aligned",
+            "Alineada",
+            "Ausgerichtet",
+            "Alignée",
+            "Allineata",
+            "平行",
+            "对齐",
+            "Alinhada",
+        ],
+    ),
+    (
+        AnalysisMsg::KindHorizontal,
+        [
+            "Horizontal",
+            "Horizontal",
+            "Horizontal",
+            "Horizontale",
+            "Orizzontale",
+            "水平",
+            "水平",
+            "Horizontal",
+        ],
+    ),
+    (
+        AnalysisMsg::KindVertical,
+        [
+            "Vertical",
+            "Vertical",
+            "Vertikal",
+            "Verticale",
+            "Verticale",
+            "垂直",
+            "垂直",
+            "Vertical",
         ],
     ),
     (
@@ -182,6 +257,8 @@ mod tests {
             AnalysisMsg::TestPoints,
             AnalysisMsg::Lengths,
             AnalysisMsg::Bom,
+            AnalysisMsg::Dimensions,
+            AnalysisMsg::DimensionsNone,
             AnalysisMsg::Close,
             AnalysisMsg::Hint,
         ] {

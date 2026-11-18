@@ -1127,6 +1127,9 @@ pub fn tools_panel(ui: &mut egui::Ui, st: &mut BoardEditUi, lang: Lang) -> bool 
         if ui.button(BoardMsg::LockToggle.tr(lang)).clicked() {
             st.state.toggle_lock_selection();
         }
+        if ui.button(BoardMsg::TestPointToggle.tr(lang)).clicked() {
+            st.state.toggle_test_points_selection();
+        }
         if ui.button(BoardMsg::Delete.tr(lang)).clicked() {
             delete_group(st);
         }

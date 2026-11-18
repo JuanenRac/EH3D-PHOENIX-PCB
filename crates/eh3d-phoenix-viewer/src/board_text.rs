@@ -34,6 +34,9 @@ pub enum BoardMsg {
     Mirror,
     /// The button that locks or unlocks the selected components.
     LockToggle,
+    /// The button that marks the pads of the selected components as test points, or takes the
+    /// marks off.
+    TestPointToggle,
     /// The button that deletes the selection.
     Delete,
     /// The label of the active layer.
@@ -234,6 +237,19 @@ const TABLE: [(BoardMsg, [&str; 8]); BoardMsg::COUNT] = [
             "ロック / 解除",
             "锁定 / 解锁",
             "Bloquear / desbloquear",
+        ],
+    ),
+    (
+        BoardMsg::TestPointToggle,
+        [
+            "Mark / unmark test points",
+            "Marcar / desmarcar puntos de prueba",
+            "Testpunkte markieren / aufheben",
+            "Marquer / démarquer les points de test",
+            "Segna / rimuovi punti di test",
+            "テストポイントを指定 / 解除",
+            "标记 / 取消测试点",
+            "Marcar / desmarcar pontos de teste",
         ],
     ),
     (

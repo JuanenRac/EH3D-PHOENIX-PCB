@@ -107,6 +107,20 @@ fn point(x: i128, y: i128) -> Result<Point, DimensionError> {
     Point::from_nm(x, y).map_err(|_| DimensionError::Range)
 }
 
+/// A length in nanometres as text in millimetres, rounded to the micrometre, with the zeros at
+/// the end of the decimals left out (`12.5`, `3`, `-0.025`).
+pub fn mm_text(nm: i64) -> String {
+    let um = (nm.unsigned_abs() + 500) / 1000;
+    let (whole, frac) = (um / 1000, um % 1000);
+    let sign = if nm < 0 && um > 0 { "-" } else { "" };
+    if frac == 0 {
+        format!("{sign}{whole}")
+    } else {
+        let frac = format!("{frac:03}");
+        format!("{sign}{whole}.{}", frac.trim_end_matches('0'))
+    }
+}
+
 impl Dimension {
     /// The measure in nanometres, rounded to the nearest nanometre.
     pub fn length_nm(&self) -> i64 {
@@ -123,14 +137,7 @@ impl Dimension {
     /// The measure as text in millimetres, rounded to the micrometre, with the zeros at the end
     /// of the decimals left out (`12.5`, `3`, `0.025`).
     pub fn measure_text(&self) -> String {
-        let um = (self.length_nm().unsigned_abs() + 500) / 1000;
-        let (whole, frac) = (um / 1000, um % 1000);
-        if frac == 0 {
-            whole.to_string()
-        } else {
-            let frac = format!("{frac:03}");
-            format!("{whole}.{}", frac.trim_end_matches('0'))
-        }
+        mm_text(self.length_nm().abs())
     }
 
     /// A point of the dimension line (the end next to `from`), for the file formats that give the
@@ -399,6 +406,16 @@ mod tests {
         assert_eq!(at(25_000).measure_text(), "0.025");
         assert_eq!(at(100_000_000).measure_text(), "100");
         assert_eq!(at(-7_000_000).measure_text(), "7");
+    }
+
+    #[test]
+    fn a_length_is_written_in_millimetres_with_its_sign() {
+        assert_eq!(mm_text(0), "0");
+        assert_eq!(mm_text(1_500_000), "1.5");
+        assert_eq!(mm_text(-1_500_000), "-1.5");
+        assert_eq!(mm_text(-400), "0");
+        assert_eq!(mm_text(-25_000), "-0.025");
+        assert_eq!(mm_text(999_600), "1");
     }
 
     #[test]
