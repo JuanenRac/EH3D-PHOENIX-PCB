@@ -281,6 +281,7 @@ impl DfmProfile {
                         .filter(|v| *v <= 1000)
                         .ok_or_else(bad)?
                 }
+                "forbid_via_in_pad" => p.forbid_via_in_pad = flag(value).ok_or_else(bad)?,
                 "max_drill_sizes" => {
                     p.max_drill_sizes = value
                         .parse::<u32>()

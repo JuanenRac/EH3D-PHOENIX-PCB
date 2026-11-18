@@ -11,16 +11,20 @@
 
 use std::collections::BTreeSet;
 
-use eh3d_phoenix_board::Board;
+use eh3d_phoenix_board::{Board, Id, Via};
 
 use crate::codes::Lang;
 use crate::dfm::DfmProfile;
+use crate::geometry::pad_min_side;
+use crate::items::placed_pads;
 use crate::report::{Finding, Severity};
 
 /// More different drill sizes than the profile accepts.
 pub const DRILL_SIZES: &str = "PHOENIX-DFM-007";
 /// A hole whose depth is too large for its drill.
 pub const HOLE_ASPECT: &str = "PHOENIX-DFM-008";
+/// A via placed inside a pad.
+pub const VIA_IN_PAD: &str = "PHOENIX-DFM-009";
 
 /// Every code of this module with its English title, in order.
 pub const REGISTRY: &[(&str, &str)] = &[
@@ -31,6 +35,10 @@ pub const REGISTRY: &[(&str, &str)] = &[
     (
         HOLE_ASPECT,
         "Hole aspect ratio above the limit of the profile",
+    ),
+    (
+        VIA_IN_PAD,
+        "Via inside a pad, which the profile does not allow",
     ),
 ];
 
@@ -59,6 +67,19 @@ const TITLES: &[(&str, [&str; 8])] = &[
             "穴のアスペクト比がプロファイルの上限を超えています",
             "孔的纵横比超过配置文件的限值",
             "Relação de aspeto de um furo acima do limite do perfil",
+        ],
+    ),
+    (
+        VIA_IN_PAD,
+        [
+            "Via inside a pad, which the profile does not allow",
+            "Vía dentro de un pad, que el perfil no permite",
+            "Durchkontaktierung in einem Pad, die das Profil nicht zulässt",
+            "Via dans une pastille, que le profil n'autorise pas",
+            "Via dentro un pad, che il profilo non consente",
+            "プロファイルが許可していないパッド内のビア",
+            "配置文件不允许的焊盘内过孔",
+            "Via dentro de um pad, que o perfil não permite",
         ],
     ),
 ];
@@ -92,6 +113,7 @@ fn drills(board: &Board) -> Vec<i64> {
 /// The findings of the lines of this module; `name` is the name of the profile for the words.
 pub(crate) fn findings(board: &Board, profile: &DfmProfile, name: &str, out: &mut Vec<Finding>) {
     drill_sizes(board, profile, name, out);
+    via_in_pad(board, profile, out);
     hole_aspect(board, profile, out);
 }
 
@@ -153,6 +175,50 @@ fn hole_aspect(board: &Board, profile: &DfmProfile, out: &mut Vec<Finding>) {
                 profile.max_hole_aspect_x10 % 10
             )),
         );
+    }
+}
+
+/// The copper layers a via joins: those of the stack from its first layer to its last, or just
+/// the two it names when they are not both in the stack.
+fn via_layers(board: &Board, via: &Via) -> Vec<Id> {
+    let stack = &board.copper_stack;
+    let first = stack.iter().position(|l| *l == via.from_layer);
+    let last = stack.iter().position(|l| *l == via.to_layer);
+    match (first, last) {
+        (Some(a), Some(b)) => stack[a.min(b)..=a.max(b)].to_vec(),
+        _ => vec![via.from_layer, via.to_layer],
+    }
+}
+
+/// A via whose centre is inside the largest circle that fits in a pad of a part, on a layer both
+/// reach. A via at the corner of a rectangular pad is not found: the test never says yes wrongly.
+fn via_in_pad(board: &Board, profile: &DfmProfile, out: &mut Vec<Finding>) {
+    if !profile.forbid_via_in_pad {
+        return;
+    }
+    let pads = placed_pads(board);
+    for via in board.vias.values() {
+        let layers = via_layers(board, via);
+        for pad in &pads {
+            let side = pad_min_side(pad.shape);
+            if 4 * via.at.distance_squared(pad.at) > side * side {
+                continue;
+            }
+            if !pad.layers.iter().any(|l| layers.contains(l)) {
+                continue;
+            }
+            out.push(
+                Finding::new(
+                    48,
+                    "dfm_via_in_pad",
+                    VIA_IN_PAD,
+                    Severity::Error,
+                    pad.label.clone(),
+                )
+                .at(via.at.x_nm.get(), via.at.y_nm.get())
+                .why("a via is placed inside this pad"),
+            );
+        }
     }
 }
 
@@ -242,6 +308,70 @@ mod tests {
         assert!(DfmProfile::parse("board_thickness_nm = -1\n").is_err());
         assert!(DfmProfile::parse("max_hole_aspect_x10 = 1001\n").is_err());
         assert!(DfmProfile::parse("max_hole_aspect_x10 = 1000\n").is_ok());
+    }
+
+    fn with_via(at: (i64, i64), layer: u32) -> Board {
+        use crate::dfm::tests::{id, pt};
+        let mut board = crate::dfm::tests::board();
+        let mut via = board.vias.values().next().unwrap().clone();
+        via.at = pt(at.0, at.1);
+        via.from_layer = id(layer);
+        via.to_layer = id(layer);
+        board.vias.insert(id(60), via);
+        board
+    }
+
+    #[test]
+    fn a_via_inside_a_pad_is_reported_where_it_is() {
+        // the first pad is a circle of 1.8 mm at (20 mm, 12 mm) on the layers 1 and 2
+        let inside = with_via((20_400_000, 12_000_000), 2);
+        let profile = DfmProfile::parse("verified = true\nforbid_via_in_pad = true\n").unwrap();
+        let report = dfm_findings(&inside, &profile);
+        assert_eq!(report.confirmed.len(), 1, "{:?}", report.confirmed);
+        let finding = &report.confirmed[0];
+        assert_eq!(finding.code, VIA_IN_PAD);
+        assert_eq!(finding.location, "J1 pad 1");
+        assert_eq!(finding.at_nm, Some([20_400_000, 12_000_000]));
+        assert!(!report.passes());
+        // the line is off unless it is switched on
+        assert_eq!(
+            codes(&inside, "forbid_via_in_pad = false\n"),
+            Vec::<&str>::new()
+        );
+        // the vias of the plain board are far from the pads
+        let plain = crate::dfm::tests::board();
+        assert_eq!(
+            codes(&plain, "forbid_via_in_pad = true\n"),
+            Vec::<&str>::new()
+        );
+    }
+
+    #[test]
+    fn a_via_just_outside_the_pad_or_on_another_layer_is_not_in_it() {
+        // the radius of the pad is 0.9 mm: 0.9 mm away is inside (the edge counts), 0.91 is not
+        assert_eq!(
+            codes(
+                &with_via((20_900_000, 12_000_000), 1),
+                "forbid_via_in_pad = true\n"
+            ),
+            [VIA_IN_PAD]
+        );
+        assert_eq!(
+            codes(
+                &with_via((20_910_000, 12_000_000), 1),
+                "forbid_via_in_pad = true\n"
+            ),
+            Vec::<&str>::new()
+        );
+        // a via on a layer that the pad does not reach
+        assert_eq!(
+            codes(
+                &with_via((20_000_000, 12_000_000), 3),
+                "forbid_via_in_pad = true\n"
+            ),
+            Vec::<&str>::new()
+        );
+        assert!(DfmProfile::parse("forbid_via_in_pad = maybe\n").is_err());
     }
 
     #[test]

@@ -241,6 +241,7 @@ The checks of `phoenix check --advanced`, with the limits and the levels of `con
 | PHOENIX-DFM-006 | The capability profile is not verified against the maker | `phoenix check --dfm`: information, given while the profile says `verified = false`; the profile that comes with the program is an example with invented figures |
 | PHOENIX-DFM-007 | More different drill sizes than the profile accepts | `phoenix check --dfm`: the vias and the drilled pads use more different drill sizes than `max_drill_sizes` of the capability profile |
 | PHOENIX-DFM-008 | Hole aspect ratio above the limit of the profile | `phoenix check --dfm`: the thickness of the board divided by the smallest drill is above `max_hole_aspect_x10` (tenths) of the capability profile |
+| PHOENIX-DFM-009 | Via inside a pad, which the profile does not allow | `phoenix check --dfm`: a via is placed inside a pad of a part while `forbid_via_in_pad` is `true` in the capability profile |
 
 Titles of the same codes in the other seven languages (Portuguese is the Portuguese of Portugal):
 
