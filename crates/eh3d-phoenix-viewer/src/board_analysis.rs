@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! The reports of the board editor, without a screen: the statistics of the board as it is now
 //! (`phoenix stats`), its test points (`phoenix testpoints`) and the lengths of its nets
-//! (`phoenix lengths`), made with the settings of `config/stats.cfg`, `config/testpoints.cfg` and
-//! `config/lengths.cfg` when those files are there and good, else with the built-in ones, and kept
+//! (`phoenix lengths`) and its bill of materials (`phoenix bom`, without prices), made with the
+//! settings of `config/stats.cfg`, `config/testpoints.cfg`, `config/lengths.cfg` and
+//! `config/costs.cfg` when those files are there and good, else with the built-in ones, and kept
 //! as the text of a language until the next one is asked for or the report is closed. The window
 //! shows this text in `board_analysis_gui`, behind the `gui` feature.
 
 use eh3d_phoenix_board::Board;
+use eh3d_phoenix_bom::{bom_text, build_bom, BomInputs, CostSettings, PartsFile, PriceBook};
 use eh3d_phoenix_lengths::{analyse as analyse_lengths, LengthSettings};
 use eh3d_phoenix_rules::Lang;
 use eh3d_phoenix_stats::{compute, report_text as stats_report_text, StatsSettings};
@@ -21,6 +23,9 @@ const TESTPOINTS_CONFIG: &str = "config/testpoints.cfg";
 /// The settings file of the lengths.
 const LENGTHS_CONFIG: &str = "config/lengths.cfg";
 
+/// The settings file of the bill of materials.
+const COSTS_CONFIG: &str = "config/costs.cfg";
+
 /// The largest settings file that is read, in bytes.
 const MAX_CONFIG_BYTES: u64 = 1 << 20;
 
@@ -33,9 +38,11 @@ pub enum AnalysisKind {
     TestPoints,
     /// The copper length of each net and the findings of the lengths.
     Lengths,
+    /// The parts of the board grouped by value and footprint, without prices.
+    Bom,
 }
 
-/// The settings of the three reports.
+/// The settings of the reports.
 #[derive(Debug, Clone, Default)]
 pub struct AnalysisSettings {
     /// The settings of the statistics.
@@ -44,6 +51,8 @@ pub struct AnalysisSettings {
     pub testpoints: TestPointSettings,
     /// The settings of the lengths.
     pub lengths: LengthSettings,
+    /// The settings of the bill of materials.
+    pub costs: CostSettings,
 }
 
 /// The state of the reports of the board editor.
@@ -75,6 +84,9 @@ impl AnalysisSettings {
             lengths: read_config(LENGTHS_CONFIG)
                 .and_then(|text| LengthSettings::parse(&text).ok())
                 .unwrap_or_default(),
+            costs: read_config(COSTS_CONFIG)
+                .and_then(|text| CostSettings::parse(&text).ok())
+                .unwrap_or_default(),
         }
     }
 }
@@ -100,6 +112,21 @@ pub fn report_for(
             Ok(report) => eh3d_phoenix_lengths::report_text(&report, lang),
             Err(error) => error.message(lang),
         },
+        AnalysisKind::Bom => {
+            let (parts, prices) = (PartsFile::default(), PriceBook::default());
+            let inputs = BomInputs {
+                board,
+                schematic: None,
+                parts: &parts,
+                prices: &prices,
+                settings: &settings.costs,
+                stackup: None,
+            };
+            match build_bom(&inputs) {
+                Ok(bom) => bom_text(&bom, lang),
+                Err(error) => error.message(lang),
+            }
+        }
     }
 }
 
@@ -120,10 +147,11 @@ impl AnalysisTool {
 mod tests {
     use super::*;
 
-    const KINDS: [AnalysisKind; 3] = [
+    const KINDS: [AnalysisKind; 4] = [
         AnalysisKind::Stats,
         AnalysisKind::TestPoints,
         AnalysisKind::Lengths,
+        AnalysisKind::Bom,
     ];
 
     #[test]

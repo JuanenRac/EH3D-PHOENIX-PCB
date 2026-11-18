@@ -18,6 +18,8 @@ pub enum AnalysisMsg {
     TestPoints,
     /// The button that makes the report of the lengths of the nets.
     Lengths,
+    /// The button that makes the bill of materials.
+    Bom,
     /// The button that closes the report.
     Close,
     /// What is said under the title: the reports are of the board as it is now.
@@ -75,6 +77,19 @@ const TABLE: [(AnalysisMsg, [&str; 8]); AnalysisMsg::COUNT] = [
             "ネット長",
             "网络长度",
             "Comprimentos das redes",
+        ],
+    ),
+    (
+        AnalysisMsg::Bom,
+        [
+            "Bill of materials",
+            "Lista de materiales",
+            "Stückliste",
+            "Nomenclature",
+            "Distinta base",
+            "部品表",
+            "物料清单",
+            "Lista de materiais",
         ],
     ),
     (
@@ -166,6 +181,7 @@ mod tests {
             AnalysisMsg::Statistics,
             AnalysisMsg::TestPoints,
             AnalysisMsg::Lengths,
+            AnalysisMsg::Bom,
             AnalysisMsg::Close,
             AnalysisMsg::Hint,
         ] {
