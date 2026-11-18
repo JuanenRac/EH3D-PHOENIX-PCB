@@ -628,6 +628,19 @@
           }
         },
         {
+          "name": "STATS.md",
+          "desc": {
+            "en": "statistics of a board: copper per layer, drills, counts, density",
+            "es": "estadísticas de una placa: cobre por capa, taladros, recuentos, densidad",
+            "de": "Statistik einer Platine: Kupfer je Lage, Bohrungen, Zählungen, Dichte",
+            "fr": "statistiques d'une carte : cuivre par couche, perçages, comptages, densité",
+            "it": "statistiche di una scheda: rame per strato, fori, conteggi, densità",
+            "ja": "基板の統計：層ごとの銅、ドリル、個数、密度",
+            "zh": "电路板统计：各层铜面积、钻孔、数量、密度",
+            "pt": "estatísticas de uma placa: cobre por camada, furos, contagens, densidade"
+          }
+        },
+        {
           "name": "LENGTHS.md",
           "desc": {
             "en": "lengths, matching groups and differential pairs",

@@ -1,0 +1,15 @@
+[package]
+name = "eh3d-phoenix-stats"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Statistics of a board (prototype): the copper of each layer by pads, tracks, vias and zones, the drills by diameter, the counts of parts, pads, tracks, vias and zones, the area and the density, in a report that is the same every time"
+
+[dependencies]
+eh3d-phoenix-board = { path = "../eh3d-phoenix-board" }
+eh3d-phoenix-model = { path = "../eh3d-phoenix-model" }
+eh3d-phoenix-rules = { path = "../eh3d-phoenix-rules" }
+serde.workspace = true
+serde_json.workspace = true

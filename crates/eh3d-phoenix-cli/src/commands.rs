@@ -367,6 +367,13 @@ pub static COMMANDS: &[Command] = &[
         run: Some(crate::field2d::field2d_command),
     },
     Command {
+        name: "stats",
+        topic: Topic::Board,
+        doc: "docs/STATS.md",
+        summary: ["statistics of a board: copper of each layer, drills by diameter, counts, area and density", "estadísticas de una placa: cobre de cada capa, taladros por diámetro, recuentos, área y densidad", "Statistik einer Platine: Kupfer je Lage, Bohrungen nach Durchmesser, Zählungen, Fläche und Dichte", "statistiques d'une carte : cuivre de chaque couche, perçages par diamètre, comptages, surface et densité", "statistiche di una scheda: rame di ogni strato, fori per diametro, conteggi, area e densità", "基板の統計：層ごとの銅、径別のドリル、個数、面積、密度", "电路板统计：各层铜面积、按孔径统计钻孔、数量、面积与密度", "estatísticas de uma placa: cobre de cada camada, furos por diâmetro, contagens, área e densidade"],
+        run: Some(crate::stats::stats_command),
+    },
+    Command {
         name: "thermal",
         topic: Topic::Board,
         doc: "docs/THERMAL.md",

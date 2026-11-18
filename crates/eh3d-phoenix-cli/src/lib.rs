@@ -12,7 +12,7 @@
 //! the reference cases of the calculations adds `oracle`, and the run of the own corpus of small
 //! hand-written pieces adds `corpus`. The signal integrity estimates add `si`. The two-dimensional
 //! field solver of the cross section of a line adds `field2d`, and the heating of tracks and vias
-//! by the current of their net adds `thermal`.
+//! by the current of their net adds `thermal`, and the statistics of a board add `stats`.
 //! The writing of boards, schematics and libraries as KiCad 8 files adds `kicad-export`.
 //! The simulation netlist of a schematic, made from a table of models, adds `netlist`.
 //! The annotation back into the schematic, as a plan that is read before it is applied, adds
@@ -90,6 +90,7 @@ mod script;
 pub mod sec_codes;
 mod si;
 mod sim;
+mod stats;
 mod stencil;
 mod thermal;
 mod view;
@@ -418,6 +419,14 @@ phoenix thermal --currents FILE [--stackup FILE] [--net NAME] [--settings FILE] 
                 EH3D-THERMAL-LAB, with a warning above a limit of the settings and the codes
                 PHOENIX-HEAT-<NNN>; a prototype, a dry run unless --out names a new file, run
                 `phoenix thermal` alone for its options
+
+phoenix stats [--config FILE] [--json] [--lang xx] <board>
+
+  stats         the statistics of a board: its size and area, the counts of parts, pads, tracks,
+                vias and zones, the copper of each layer and the share of the board it covers, the
+                drills by diameter and the density per square centimetre, with the codes
+                PHOENIX-STATS-<NNN>; read-only, a prototype whose copper is an upper bound, run
+                `phoenix stats` alone for its options
 
 phoenix bom [--config FILE] [--prices FILE] [--parts FILE] [--schematic FILE] [--stackup FILE]
             [--boards N] [--variant NAME [--variant-file FILE]] [--csv FILE] [--json-file FILE]

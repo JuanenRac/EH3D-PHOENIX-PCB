@@ -2,7 +2,7 @@
 
 Codes have the form `PHOENIX-<AREA>-<NNN>`. A code is stable: it never changes its meaning and is never reused. Programs show the text through the key `diag.<code>`; the codes themselves are never translated. The object identity (UUID v7) is the one of the shared container, with its own codes `EH3D-ID-001` and `EH3D-ID-002`. The container codes `EH3D-PKG-001` to `EH3D-PKG-014` belong to the shared container and are listed in the registry of the documentation repository.
 
-Each table repeats the `REGISTRY` of a crate (`eh3d-phoenix-model` in `src/diagnostic.rs`, `eh3d-phoenix-project` and `eh3d-phoenix-eagle` in `src/codes.rs`, `eh3d-phoenix-hub` in `src/lib.rs`, `eh3d-phoenix-export` in `src/codes.rs` and `src/fabcodes.rs`, `eh3d-phoenix-schematic` in `src/model.rs`, `src/draw.rs`, `src/edit.rs`, `src/link.rs`, `src/hier.rs` and `src/bus.rs`, `eh3d-phoenix-board` in `src/validate.rs`, `src/connectivity.rs` and `src/rules.rs`, `eh3d-phoenix-rules` in `src/codes.rs` and `src/advanced/codes.rs`, `eh3d-phoenix-stackup` and `eh3d-phoenix-rf` in `src/error.rs`, `eh3d-phoenix-viewer`, `eh3d-phoenix-sanitizer`, `eh3d-phoenix-erc`, `eh3d-phoenix-sync`, `eh3d-phoenix-schedit`, `eh3d-phoenix-boardedit` (also in `src/pair_codes.rs`, `src/shove_codes.rs` and `src/zone_codes.rs`), `eh3d-phoenix-libedit`, `eh3d-phoenix-zones`, `eh3d-phoenix-autoroute`, `eh3d-phoenix-lengths`, `eh3d-phoenix-gerber`, `eh3d-phoenix-panel`, `eh3d-phoenix-bom`, `eh3d-phoenix-assembly3d`, `eh3d-phoenix-si`, `eh3d-phoenix-eagle-deep` and `eh3d-phoenix-oracle` in `src/codes.rs`, `eh3d-phoenix-corpus` in `src/suite/codes.rs`); a test of each crate checks that every code of its registry is in the table with the same title.
+Each table repeats the `REGISTRY` of a crate (`eh3d-phoenix-model` in `src/diagnostic.rs`, `eh3d-phoenix-project` and `eh3d-phoenix-eagle` in `src/codes.rs`, `eh3d-phoenix-hub` in `src/lib.rs`, `eh3d-phoenix-export` in `src/codes.rs` and `src/fabcodes.rs`, `eh3d-phoenix-schematic` in `src/model.rs`, `src/draw.rs`, `src/edit.rs`, `src/link.rs`, `src/hier.rs` and `src/bus.rs`, `eh3d-phoenix-board` in `src/validate.rs`, `src/connectivity.rs` and `src/rules.rs`, `eh3d-phoenix-rules` in `src/codes.rs` and `src/advanced/codes.rs`, `eh3d-phoenix-stackup` and `eh3d-phoenix-rf` in `src/error.rs`, `eh3d-phoenix-viewer`, `eh3d-phoenix-sanitizer`, `eh3d-phoenix-erc`, `eh3d-phoenix-sync`, `eh3d-phoenix-schedit`, `eh3d-phoenix-boardedit` (also in `src/pair_codes.rs`, `src/shove_codes.rs` and `src/zone_codes.rs`), `eh3d-phoenix-libedit`, `eh3d-phoenix-zones`, `eh3d-phoenix-autoroute`, `eh3d-phoenix-lengths`, `eh3d-phoenix-stats`, `eh3d-phoenix-gerber`, `eh3d-phoenix-panel`, `eh3d-phoenix-bom`, `eh3d-phoenix-assembly3d`, `eh3d-phoenix-si`, `eh3d-phoenix-eagle-deep` and `eh3d-phoenix-oracle` in `src/codes.rs`, `eh3d-phoenix-corpus` in `src/suite/codes.rs`); a test of each crate checks that every code of its registry is in the table with the same title.
 
 ## Model foundations
 
@@ -944,6 +944,18 @@ The titles of these codes also exist in the eight languages of the suite (`TITLE
 | PHOENIX-LEN-020 | Pair differs in delay by more than allowed | error: the two nets of a pair differ in delay by more than `max_delay_skew_fs` of the pair or `pair_delay_skew_fs` of the settings |
 | PHOENIX-LEN-021 | Nets of a group differ in delay by more than allowed | error: the longest and the shortest delay of the nets of a group differ by more than its `max_delay_spread_fs` |
 | PHOENIX-LEN-022 | Net is longer than the longest length allowed | error: a net of a group is longer than the `max_length_nm` of the group |
+
+## Statistics of a board (`eh3d-phoenix-stats`, `src/codes.rs`)
+
+| Code | Title | Raised by |
+|---|---|---|
+| PHOENIX-STATS-001 | Statistics settings are not valid | a line of `config/stats.cfg` that is not `key = value`, an unknown key, a number that cannot be read or a value out of range |
+| PHOENIX-STATS-002 | A command option is not valid | an option of `phoenix stats` that is not known, lacks its value or has a value that is not valid, or a number of files other than one |
+| PHOENIX-STATS-003 | An input file cannot be read | a board or a settings file that cannot be opened, is too large or is not valid |
+| PHOENIX-STATS-004 | The output file exists or cannot be written | an output file that already exists (an existing file is never replaced) or cannot be created |
+| PHOENIX-STATS-005 | A limit of the report was exceeded | error: a board with more objects than `max_items` of the settings |
+| PHOENIX-STATS-006 | Zone copper is counted as the whole outline, before clearances | information: the board has zones and `count_zones` is true, so their copper is an upper bound |
+| PHOENIX-STATS-007 | The board outline encloses no area | warning: the area is zero, so the coverage and the density are zero |
 
 ## Signal integrity (`eh3d-phoenix-si`, `src/codes.rs`)
 
