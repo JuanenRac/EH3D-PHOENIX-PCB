@@ -38,6 +38,7 @@ All lengths are in nanometres (1 mm is 1000000). A line that is missing, or has 
 | `min_silk_text_height_nm` | the least height of a silkscreen letter |
 | `min_silk_stroke_nm` | the least width of a printed silkscreen line, of a text and of a stroke |
 | `require_even_layers` | `true` refuses a stack of three or more copper layers with an odd count (makers press the cores in pairs); the default is `false` |
+| `max_board_aspect_x10` | the greatest ratio of the long side to the short side of the box of the outline, in tenths (`30` is 3 to 1) |
 
 ## The findings
 
@@ -55,6 +56,7 @@ All lengths are in nanometres (1 mm is 1000000). A line that is missing, or has 
 | `PHOENIX-DFM-010` | the height of a silkscreen text is below `min_silk_text_height_nm` |
 | `PHOENIX-DFM-011` | the width of a printed silkscreen line, of a text or a stroke, is below `min_silk_stroke_nm` |
 | `PHOENIX-DFM-012` | an odd number (three or more) of copper layers while `require_even_layers` is `true` |
+| `PHOENIX-DFM-013` | the long side is longer than `max_board_aspect_x10` tenths of the short side (the limit in the finding is the longest side that passes) |
 
 The first five are errors and make the exit code 1; the sixth is information. The titles are in the eight languages (`--lang`) and the findings go in the same report as the others, with `--json`, `--sarif`, `--csv` and `--html` (the category `capability` in the tables, `docs/DRC_ADVANCED.md`).
 

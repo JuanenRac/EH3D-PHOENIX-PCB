@@ -285,6 +285,13 @@ impl DfmProfile {
                 "min_silk_text_height_nm" => p.min_silk_text_height_nm = len()?.get(),
                 "min_silk_stroke_nm" => p.min_silk_stroke_nm = len()?.get(),
                 "require_even_layers" => p.require_even_layers = flag(value).ok_or_else(bad)?,
+                "max_board_aspect_x10" => {
+                    p.max_board_aspect_x10 = value
+                        .parse::<u32>()
+                        .ok()
+                        .filter(|v| *v <= 10_000)
+                        .ok_or_else(bad)?
+                }
                 "max_drill_sizes" => {
                     p.max_drill_sizes = value
                         .parse::<u32>()
@@ -325,7 +332,7 @@ pub fn builtin_names() -> String {
 }
 
 /// The box of the outline as its short and its long side, in nanometres.
-fn sides(board: &Board) -> Option<(i64, i64)> {
+pub(crate) fn sides(board: &Board) -> Option<(i64, i64)> {
     let xs = board.outline.iter().map(|p| p.x_nm.get());
     let ys = board.outline.iter().map(|p| p.y_nm.get());
     let width = xs.clone().max()? - xs.min()?;

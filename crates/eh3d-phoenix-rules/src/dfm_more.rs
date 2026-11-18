@@ -14,7 +14,7 @@ use std::collections::BTreeSet;
 use eh3d_phoenix_board::{Board, Id, SilkItem, Via};
 
 use crate::codes::Lang;
-use crate::dfm::DfmProfile;
+use crate::dfm::{sides, DfmProfile};
 use crate::geometry::pad_min_side;
 use crate::items::placed_pads;
 use crate::report::{Finding, Severity};
@@ -31,6 +31,8 @@ pub const SILK_TEXT_SMALL: &str = "PHOENIX-DFM-010";
 pub const SILK_LINE_THIN: &str = "PHOENIX-DFM-011";
 /// An odd number of copper layers.
 pub const ODD_LAYERS: &str = "PHOENIX-DFM-012";
+/// A board longer for its width than the profile accepts.
+pub const BOARD_PROPORTION: &str = "PHOENIX-DFM-013";
 
 /// Every code of this module with its English title, in order.
 pub const REGISTRY: &[(&str, &str)] = &[
@@ -57,6 +59,10 @@ pub const REGISTRY: &[(&str, &str)] = &[
     (
         ODD_LAYERS,
         "Odd number of copper layers, which the profile does not build",
+    ),
+    (
+        BOARD_PROPORTION,
+        "Board too long for its width, beyond the proportion the profile accepts",
     ),
 ];
 
@@ -139,6 +145,19 @@ const TITLES: &[(&str, [&str; 8])] = &[
             "Número ímpar de camadas de cobre, que o perfil não fabrica",
         ],
     ),
+    (
+        BOARD_PROPORTION,
+        [
+            "Board too long for its width, beyond the proportion the profile accepts",
+            "Placa demasiado alargada para la proporción que acepta el perfil",
+            "Platine zu langgestreckt für das vom Profil zugelassene Seitenverhältnis",
+            "Carte trop allongée pour la proportion que le profil accepte",
+            "Scheda troppo allungata rispetto alla proporzione accettata dal profilo",
+            "基板がプロファイルの許容する縦横比より細長い",
+            "电路板过于细长，超出配置文件允许的比例",
+            "Placa demasiado alongada para a proporção que o perfil aceita",
+        ],
+    ),
 ];
 
 /// The title of a code of this module in a language; `None` for any other code.
@@ -170,6 +189,7 @@ fn drills(board: &Board) -> Vec<i64> {
 /// The findings of the lines of this module; `name` is the name of the profile for the words.
 pub(crate) fn findings(board: &Board, profile: &DfmProfile, name: &str, out: &mut Vec<Finding>) {
     drill_sizes(board, profile, name, out);
+    board_proportion(board, profile, out);
     even_layers(board, profile, out);
     silk_size(board, profile, out);
     via_in_pad(board, profile, out);
@@ -346,6 +366,42 @@ fn even_layers(board: &Board, profile: &DfmProfile, out: &mut Vec<Finding>) {
             "{layers} copper layers, the profile accepts an even number"
         )),
     );
+}
+
+/// The long side of the box of the outline against the short side: a board that is much longer
+/// than it is wide bends in the press and the reflow oven.
+fn board_proportion(board: &Board, profile: &DfmProfile, out: &mut Vec<Finding>) {
+    if profile.max_board_aspect_x10 == 0 {
+        return;
+    }
+    let Some((short, long)) = sides(board) else {
+        return;
+    };
+    if short <= 0 {
+        return;
+    }
+    let max = i128::from(profile.max_board_aspect_x10);
+    if i128::from(long) * 10 > i128::from(short) * max {
+        let allowed = i128::from(short) * max / 10;
+        let tenths = i128::from(long) * 10 / i128::from(short);
+        out.push(
+            Finding::new(
+                52,
+                "dfm_board_proportion",
+                BOARD_PROPORTION,
+                Severity::Error,
+                "board".to_owned(),
+            )
+            .values(long, i64::try_from(allowed).unwrap_or(i64::MAX))
+            .why(&format!(
+                "the long side is {}.{} times the short side, the limit is {}.{}",
+                tenths / 10,
+                tenths % 10,
+                max / 10,
+                max % 10
+            )),
+        );
+    }
 }
 
 #[cfg(test)]
@@ -610,6 +666,50 @@ mod tests {
         assert!(report.confirmed[0].detail.starts_with("3 copper layers"));
         assert!(!report.passes());
         assert!(DfmProfile::parse("require_even_layers = 1\n").is_err());
+    }
+
+    #[test]
+    fn a_board_longer_than_the_proportion_is_reported_with_the_longest_side_allowed() {
+        // 40 mm by 25 mm is 1.6 to 1
+        let board = crate::dfm::tests::board();
+        let tight = "max_board_aspect_x10 = 15\n";
+        assert_eq!(codes(&board, tight), [BOARD_PROPORTION]);
+        let profile = DfmProfile::parse(&format!("verified = true\n{tight}")).unwrap();
+        let finding = dfm_findings(&board, &profile).confirmed.remove(0);
+        // 25 mm times 1.5 is 37.5 mm
+        assert_eq!(
+            (finding.measured_nm, finding.limit_nm),
+            (Some(40_000_000), Some(37_500_000))
+        );
+        assert!(finding.detail.starts_with("the long side is 1.6 times"));
+        assert!(finding.detail.ends_with("the limit is 1.5"));
+        // exactly 1.6 passes; 0 is off
+        assert_eq!(
+            codes(&board, "max_board_aspect_x10 = 16\n"),
+            Vec::<&str>::new()
+        );
+        assert_eq!(
+            codes(&board, "max_board_aspect_x10 = 0\n"),
+            Vec::<&str>::new()
+        );
+    }
+
+    #[test]
+    fn a_board_without_an_outline_or_with_no_width_is_not_judged_for_its_proportion() {
+        assert_eq!(
+            codes(&Board::default(), "max_board_aspect_x10 = 10\n"),
+            Vec::<&str>::new()
+        );
+        let mut flat = crate::dfm::tests::board();
+        flat.outline = vec![
+            crate::dfm::tests::pt(0, 0),
+            crate::dfm::tests::pt(40_000_000, 0),
+        ];
+        assert_eq!(
+            codes(&flat, "max_board_aspect_x10 = 10\n"),
+            Vec::<&str>::new()
+        );
+        assert!(DfmProfile::parse("max_board_aspect_x10 = 10001\n").is_err());
     }
 
     #[test]
