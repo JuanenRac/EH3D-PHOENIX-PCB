@@ -293,6 +293,7 @@ impl DfmProfile {
                         .ok_or_else(bad)?
                 }
                 "forbid_blind_vias" => p.forbid_blind_vias = flag(value).ok_or_else(bad)?,
+                "min_smd_pad_nm" => p.min_smd_pad_nm = len()?.get(),
                 "max_drill_sizes" => {
                     p.max_drill_sizes = value
                         .parse::<u32>()

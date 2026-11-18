@@ -35,6 +35,8 @@ pub const ODD_LAYERS: &str = "PHOENIX-DFM-012";
 pub const BOARD_PROPORTION: &str = "PHOENIX-DFM-013";
 /// A blind or buried via.
 pub const BLIND_VIA: &str = "PHOENIX-DFM-014";
+/// A surface-mount pad smaller than the profile accepts.
+pub const SMD_PAD_SMALL: &str = "PHOENIX-DFM-015";
 
 /// Every code of this module with its English title, in order.
 pub const REGISTRY: &[(&str, &str)] = &[
@@ -69,6 +71,10 @@ pub const REGISTRY: &[(&str, &str)] = &[
     (
         BLIND_VIA,
         "Blind or buried via, which the profile does not build",
+    ),
+    (
+        SMD_PAD_SMALL,
+        "Surface-mount pad smaller than the profile accepts",
     ),
 ];
 
@@ -177,6 +183,19 @@ const TITLES: &[(&str, [&str; 8])] = &[
             "Via cega ou enterrada, que o perfil não fabrica",
         ],
     ),
+    (
+        SMD_PAD_SMALL,
+        [
+            "Surface-mount pad smaller than the profile accepts",
+            "Pad de montaje superficial más pequeño de lo que acepta el perfil",
+            "SMD-Pad kleiner, als das Profil zulässt",
+            "Pastille CMS plus petite que ce que le profil accepte",
+            "Pad SMD più piccolo di quanto accetti il profilo",
+            "表面実装パッドがプロファイルの許容より小さい",
+            "表贴焊盘小于配置文件允许的尺寸",
+            "Pad de montagem em superfície mais pequeno do que o perfil aceita",
+        ],
+    ),
 ];
 
 /// The title of a code of this module in a language; `None` for any other code.
@@ -208,6 +227,7 @@ fn drills(board: &Board) -> Vec<i64> {
 /// The findings of the lines of this module; `name` is the name of the profile for the words.
 pub(crate) fn findings(board: &Board, profile: &DfmProfile, name: &str, out: &mut Vec<Finding>) {
     drill_sizes(board, profile, name, out);
+    smd_pads(board, profile, out);
     blind_vias(board, profile, out);
     board_proportion(board, profile, out);
     even_layers(board, profile, out);
@@ -449,6 +469,30 @@ fn blind_vias(board: &Board, profile: &DfmProfile, out: &mut Vec<Finding>) {
                 )
                 .at(via.at.x_nm.get(), via.at.y_nm.get())
                 .why("the via does not join the first and the last copper layer"),
+            );
+        }
+    }
+}
+
+/// The smaller side of the pads without a drill against the least that the profile accepts.
+fn smd_pads(board: &Board, profile: &DfmProfile, out: &mut Vec<Finding>) {
+    let least = profile.min_smd_pad_nm;
+    if least <= 0 {
+        return;
+    }
+    for pad in placed_pads(board).iter().filter(|p| p.drill.is_none()) {
+        let side = i64::try_from(pad_min_side(pad.shape)).unwrap_or(i64::MAX);
+        if side < least {
+            out.push(
+                Finding::new(
+                    54,
+                    "dfm_smd_pad_small",
+                    SMD_PAD_SMALL,
+                    Severity::Error,
+                    pad.label.clone(),
+                )
+                .at(pad.at.x_nm.get(), pad.at.y_nm.get())
+                .values(side, least),
             );
         }
     }
@@ -800,6 +844,68 @@ mod tests {
             Vec::<&str>::new()
         );
         assert!(DfmProfile::parse("forbid_blind_vias = yes\n").is_err());
+    }
+
+    fn with_smd_pads() -> Board {
+        use crate::dfm::tests::{id, pt};
+        use eh3d_phoenix_board::{Pad, PadShape};
+        use eh3d_phoenix_model::{Nm, Udeg};
+        let mut board = crate::dfm::tests::board();
+        let footprint = board.footprints.get_mut(&id(40)).unwrap();
+        for (n, width, height, number) in [(43, 150_000, 500_000, "3"), (44, 600_000, 900_000, "4")]
+        {
+            footprint.pads.insert(
+                id(n),
+                Pad {
+                    number: number.into(),
+                    shape: PadShape::Rect {
+                        width: Nm::new(width).unwrap(),
+                        height: Nm::new(height).unwrap(),
+                    },
+                    at: pt(0, 3_000_000),
+                    rotation: Udeg::new(0).unwrap(),
+                    drill: None,
+                    layers: vec![id(1)],
+                    roundness: 0,
+                    plated: false,
+                },
+            );
+        }
+        board
+    }
+
+    #[test]
+    fn a_surface_mount_pad_below_the_least_side_is_reported_with_its_size() {
+        let board = with_smd_pads();
+        let profile = DfmProfile::parse("verified = true\nmin_smd_pad_nm = 200000\n").unwrap();
+        let report = dfm_findings(&board, &profile);
+        // only the pad of 0.15 mm by 0.5 mm; the drilled pads are not surface-mount pads
+        assert_eq!(report.confirmed.len(), 1, "{:?}", report.confirmed);
+        let finding = &report.confirmed[0];
+        assert_eq!(finding.code, SMD_PAD_SMALL);
+        assert_eq!(finding.location, "J1 pad 3");
+        assert_eq!(
+            (finding.measured_nm, finding.limit_nm),
+            (Some(150_000), Some(200_000))
+        );
+        assert_eq!(finding.at_nm, Some([20_000_000, 15_000_000]));
+        // a limit equal to the side passes; 0 is off
+        assert_eq!(
+            codes(&board, "min_smd_pad_nm = 150000\n"),
+            Vec::<&str>::new()
+        );
+        assert_eq!(codes(&board, "min_smd_pad_nm = 0\n"), Vec::<&str>::new());
+        assert_eq!(codes(&board, "min_smd_pad_nm = 700000\n").len(), 2);
+    }
+
+    #[test]
+    fn a_board_without_surface_mount_pads_gives_nothing_for_that_line() {
+        let board = crate::dfm::tests::board();
+        assert_eq!(
+            codes(&board, "min_smd_pad_nm = 5000000\n"),
+            Vec::<&str>::new()
+        );
+        assert!(DfmProfile::parse("min_smd_pad_nm = -1\n").is_err());
     }
 
     #[test]
