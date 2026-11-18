@@ -194,6 +194,22 @@ pub struct DfmProfile {
     pub board_thickness_nm: i64,
     /// The greatest ratio of the thickness to the drill, in tenths (50 is 5 to 1); 0 turns it off.
     pub max_hole_aspect_x10: u32,
+    /// Whether a via inside a pad is refused (the maker does not fill or cap such vias).
+    pub forbid_via_in_pad: bool,
+    /// The least height of a silkscreen letter; 0 turns the line off.
+    pub min_silk_text_height_nm: i64,
+    /// The least width of a printed silkscreen line, of a text or a stroke; 0 turns it off.
+    pub min_silk_stroke_nm: i64,
+    /// Whether a stack of three or more copper layers must have an even count.
+    pub require_even_layers: bool,
+    /// The greatest ratio of the long side of the board to the short one, in tenths (30 is 3 to
+    /// 1); 0 turns the line off.
+    pub max_board_aspect_x10: u32,
+    /// Whether blind and buried vias (those that do not join the first and the last copper
+    /// layer) are refused.
+    pub forbid_blind_vias: bool,
+    /// The least smaller side of a pad without a drill; 0 turns the line off.
+    pub min_smd_pad_nm: i64,
 }
 
 fn length(value: &str) -> Option<Nm> {
