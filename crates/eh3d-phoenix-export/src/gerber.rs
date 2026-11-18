@@ -225,8 +225,17 @@ fn adjust(key: ApKey, delta: i64) -> ApKey {
     }
 }
 
+/// True when the reference starts with one of the prefixes and goes on with anything but a letter.
+fn is_test_reference(refdes: &str, prefixes: &[String]) -> bool {
+    let up = refdes.to_ascii_uppercase();
+    prefixes.iter().any(|prefix| {
+        up.strip_prefix(&prefix.to_ascii_uppercase())
+            .is_some_and(|rest| !rest.starts_with(|c: char| c.is_ascii_alphabetic()))
+    })
+}
+
 /// The function of the aperture of a pad.
-fn pad_function(pad: &Pad, footprint_name: &str, x2: &X2Profile) -> ApFunction {
+fn pad_function(pad: &Pad, footprint_name: &str, refdes: &str, x2: &X2Profile) -> ApFunction {
     let name = footprint_name.to_lowercase();
     if x2
         .fiducial_names
@@ -240,6 +249,13 @@ fn pad_function(pad: &Pad, footprint_name: &str, x2: &X2Profile) -> ApFunction {
         .any(|number| number.eq_ignore_ascii_case(&pad.number))
     {
         ApFunction::HeatsinkPad
+    } else if is_test_reference(refdes, &x2.testpoint_prefixes)
+        || x2
+            .testpoint_names
+            .iter()
+            .any(|word| name.contains(&word.to_lowercase()))
+    {
+        ApFunction::TestPad
     } else if pad.drill.is_some() {
         ApFunction::ComponentPad
     } else {
@@ -409,7 +425,7 @@ fn zone_clearing(
                     ApKey::Rect(w, h) | ApKey::Obround(w, h) => w.max(h),
                 };
                 if near(at, reach) {
-                    let function = pad_function(pad, &footprint.name, x2);
+                    let function = pad_function(pad, &footprint.name, &component.refdes, x2);
                     clear.push((Draw::Flash(ap(key, function), at), none()));
                 }
             }
@@ -710,7 +726,7 @@ fn collect(
                     continue;
                 }
             }
-            let function = pad_function(pad, &footprint.name, x2);
+            let function = pad_function(pad, &footprint.name, &component.refdes, x2);
             draws.push((
                 Draw::Flash(ap(adjust(pad_key(pad.shape, swapped), delta), function), at),
                 set,

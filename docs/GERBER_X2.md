@@ -44,11 +44,12 @@ From the level `aperture` each aperture is defined after the `TA` of its functio
 | Pad without a drill | `SMDPad,CuDef` |
 | Pad whose number is in `gerber.x2.heatsink_pad_numbers` (`EP`) | `HeatsinkPad` |
 | Pad of a footprint whose name holds a word of `gerber.x2.fiducial_names` (`fiducial`) | `FiducialPad,Local` or `FiducialPad,Global` (`gerber.x2.fiducial_scope`) |
+| Pad of a part whose reference starts with a word of `gerber.x2.testpoint_prefixes` (`TP`) and goes on with anything but a letter, or of a footprint whose name holds a word of `gerber.x2.testpoint_names` (`testpoint`) | `TestPad` |
 | Pad of a via | `ViaPad` |
 | Track | `Conductor` |
 | Outline | `Profile` |
 
-The strokes of the legend have no function. Pads on the solder mask and paste layers get the function of the pad. A zone has no aperture; it is a region and carries only object attributes. Not written because the board model has no such thing: test points, castellated pads, thermal reliefs, washers, anti-pads, copper balancing, the component outlines and the rest of the list of the specification.
+The strokes of the legend have no function. Pads on the solder mask and paste layers get the function of the pad. A zone has no aperture; it is a region and carries only object attributes. Not written because the board model has no such thing: castellated pads, thermal reliefs, washers, anti-pads, copper balancing, the component outlines and the rest of the list of the specification.
 
 In a drill file the tools carry `; #@! TA.AperFunction,Plated,PTH,ViaDrill` (a via), `...,Plated,PTH,ComponentDrill` (a drilled pad on copper) or `; #@! TA.AperFunction,NonPlated,NPTH,MechanicalDrill` (a drilled pad on no copper layer) before their definition, and `; #@! TD.AperFunction` after the last one. A via and a pad with the same diameter are two tools.
 

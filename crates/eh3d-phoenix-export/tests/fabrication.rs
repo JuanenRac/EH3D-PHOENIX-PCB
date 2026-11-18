@@ -901,6 +901,60 @@ fn pads_that_are_fiducials_or_heatsinks_get_their_function() {
     assert!(file(&set, "layers/02_top_copper.gbr").contains("%TA.AperFunction,HeatsinkPad*%"));
 }
 
+/// The fixture with the reference of the part C2 changed.
+fn with_reference(refdes: &str) -> Board {
+    let mut f = fixture();
+    for c in f.components.values_mut() {
+        if c.refdes == "C2" {
+            c.refdes = refdes.into();
+        }
+    }
+    f
+}
+
+#[test]
+fn pads_of_test_points_get_their_function() {
+    let f = with_reference("TP2");
+    let profile = with_level(X2Level::Aperture);
+    let set = build(&f, &profile).unwrap();
+    let top = file(&set, "layers/02_top_copper.gbr");
+    assert!(top.contains("%TA.AperFunction,TestPad*%"), "{top}");
+    assert!(verify(&f, &profile, &set).is_empty());
+    let read = eh3d_parser_gerber::parse(top);
+    assert!(read.is_clean(), "{:?}", read.diagnostics);
+    // the board without a test point has no such function
+    let plain = build(&fixture(), &profile).unwrap();
+    assert!(!file(&plain, "layers/02_top_copper.gbr").contains("TestPad"));
+    // a letter after the prefix: a chip and not a test point
+    let chip = build(&with_reference("TPS5"), &profile).unwrap();
+    assert!(!file(&chip, "layers/02_top_copper.gbr").contains("TestPad"));
+    // below the level of the aperture attributes nothing is written
+    let legacy = build(&f, &Profile::default()).unwrap();
+    assert!(!file(&legacy, "layers/02_top_copper.gbr").contains("TestPad"));
+    // the words of the profile decide, and an empty list switches the function off
+    let mut other = with_level(X2Level::Aperture);
+    other.gerber.x2.testpoint_prefixes = vec!["J".to_owned()];
+    assert!(!file(&build(&f, &other).unwrap(), "layers/02_top_copper.gbr").contains("TestPad"));
+    assert!(file(
+        &build(&with_reference("J4"), &other).unwrap(),
+        "layers/02_top_copper.gbr"
+    )
+    .contains("%TA.AperFunction,TestPad*%"));
+    let mut off = with_level(X2Level::Aperture);
+    off.gerber.x2.testpoint_prefixes = Vec::new();
+    assert!(!file(&build(&f, &off).unwrap(), "layers/02_top_copper.gbr").contains("TestPad"));
+}
+
+#[test]
+fn pads_of_a_footprint_named_as_a_test_point_get_their_function() {
+    let mut f = fixture();
+    f.footprints.get_mut(&id(11)).unwrap().name = "TestPoint_Pad_1.5mm".into();
+    let profile = with_level(X2Level::Aperture);
+    let set = build(&f, &profile).unwrap();
+    assert!(file(&set, "layers/02_top_copper.gbr").contains("%TA.AperFunction,TestPad*%"));
+    assert!(verify(&f, &profile, &set).is_empty());
+}
+
 #[test]
 fn the_drill_tools_get_a_function_and_equal_diameters_get_two_tools() {
     let mut f = fixture();
@@ -987,12 +1041,15 @@ fn the_x2_choices_of_a_profile_file_are_checked() {
         "level": "full", "object_attributes": ["net", "pin"], "strict": true,
         "creation_date": "2000-01-01T00:00:00Z", "project_revision": "B",
         "same_coordinates": "", "fiducial_names": ["fid"], "fiducial_scope": "global",
-        "heatsink_pad_numbers": ["EP", "TAB"]}}}]}"#;
+        "heatsink_pad_numbers": ["EP", "TAB"],
+        "testpoint_prefixes": ["TP", "J"], "testpoint_names": ["tp pad"]}}}]}"#;
     let set = ProfileSet::from_json(ok).unwrap();
     let x2 = &set.get("a").unwrap().gerber.x2;
     assert_eq!(x2.level, X2Level::Full);
     assert!(x2.strict && x2.writes(ObjectAttribute::Pin) && !x2.writes(ObjectAttribute::Component));
     assert_eq!(x2.fiducial_scope, FiducialScope::Global);
+    assert_eq!(x2.testpoint_prefixes, vec!["TP".to_owned(), "J".to_owned()]);
+    assert_eq!(x2.testpoint_names, vec!["tp pad".to_owned()]);
     for text in [
         r#"{"level": "everything"}"#,
         r#"{"unknown": 1}"#,
@@ -1005,6 +1062,8 @@ fn the_x2_choices_of_a_profile_file_are_checked() {
         r#"{"object_attributes": ["colour"]}"#,
         r#"{"fiducial_names": [" "]}"#,
         r#"{"heatsink_pad_numbers": [""]}"#,
+        r#"{"testpoint_prefixes": [""]}"#,
+        r#"{"testpoint_names": [" "]}"#,
     ] {
         let json = format!(
             r#"{{"format": "phoenix-export/1", "profiles": [{{"name": "a", "gerber": {{"x2": {text}}}}}]}}"#

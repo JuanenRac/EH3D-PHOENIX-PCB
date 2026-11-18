@@ -72,6 +72,7 @@ A profile file is JSON: `{"format": "phoenix-export/1", "profiles": [...]}`. `co
 | `gerber.x2` | `level`, `object_attributes`, `strict` | `legacy`, `x1`, `file`, `aperture` or `full` (`legacy`); the object attributes `net`, `pin`, `component` of the level `full` (all three); refuse instead of escaping text a field cannot hold (false) |
 | | `creation_date`, `project_id`, `project_revision`, `same_coordinates` | `.CreationDate` (not written unless given), the UUID of `.ProjectId` (derived from the name of the board), its revision (`1`) and the identifier of `.SameCoordinates` (`Original`) |
 | | `fiducial_names`, `fiducial_scope`, `heatsink_pad_numbers` | Words of a footprint name that make its pads fiducials (`fiducial`), `local` or `global` (`local`) and the pad numbers that are heatsink pads (`EP`) |
+| | `testpoint_prefixes`, `testpoint_names` | Words that start the reference of a part (`TP`; the next character is not a letter) or that a footprint name holds (`testpoint`) and make its pads test pads, `TestPad` at the levels `aperture` and `full`; an empty list switches that way off |
 | `drill` | `style`, `decimals` | `decimal` or `fixed`, and the decimals of the decimal style (`decimal`, 6) |
 | | `fixed_integer_digits`, `fixed_decimal_digits` | The fixed format (3 and 3) |
 | | `plated_file`, `non_plated_file`, `oblong_as_slot` | File names and slots for oblong pads (`drill_pth.drl`, `drill_npth.drl`, false) |

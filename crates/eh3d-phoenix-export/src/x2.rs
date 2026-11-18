@@ -42,6 +42,8 @@ pub enum ApFunction {
     SmdPad,
     /// A heatsink or exposed pad.
     HeatsinkPad,
+    /// A pad of a test point.
+    TestPad,
     /// A fiducial that serves the area around it.
     FiducialLocal,
     /// A fiducial that serves the whole board.
@@ -60,6 +62,7 @@ impl ApFunction {
             ApFunction::ComponentPad => &["ComponentPad"],
             ApFunction::SmdPad => &["SMDPad", "CuDef"],
             ApFunction::HeatsinkPad => &["HeatsinkPad"],
+            ApFunction::TestPad => &["TestPad"],
             ApFunction::FiducialLocal => &["FiducialPad", "Local"],
             ApFunction::FiducialGlobal => &["FiducialPad", "Global"],
             ApFunction::Conductor => &["Conductor"],

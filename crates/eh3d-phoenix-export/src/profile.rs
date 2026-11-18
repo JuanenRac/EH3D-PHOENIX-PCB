@@ -136,6 +136,11 @@ pub struct X2Profile {
     pub fiducial_scope: FiducialScope,
     /// A pad with one of these numbers (any case) is a heatsink pad.
     pub heatsink_pad_numbers: Vec<String>,
+    /// A pad of a part whose reference starts with one of these words (any case) and goes on with
+    /// anything but a letter is a test pad: `TP1` and `TP_GND` are, `TPS5` is not.
+    pub testpoint_prefixes: Vec<String>,
+    /// A pad of a footprint whose name holds one of these words (any case) is a test pad.
+    pub testpoint_names: Vec<String>,
 }
 
 impl Default for X2Profile {
@@ -155,6 +160,8 @@ impl Default for X2Profile {
             fiducial_names: vec!["fiducial".to_owned()],
             fiducial_scope: FiducialScope::Local,
             heatsink_pad_numbers: vec!["EP".to_owned()],
+            testpoint_prefixes: vec!["TP".to_owned()],
+            testpoint_names: vec!["testpoint".to_owned()],
         }
     }
 }
@@ -208,6 +215,16 @@ impl X2Profile {
         {
             return Err(bad(format!(
                 "{name}: gerber.x2.heatsink_pad_numbers holds an empty number"
+            )));
+        }
+        if self.testpoint_prefixes.iter().any(|n| n.trim().is_empty()) {
+            return Err(bad(format!(
+                "{name}: gerber.x2.testpoint_prefixes holds an empty word"
+            )));
+        }
+        if self.testpoint_names.iter().any(|n| n.trim().is_empty()) {
+            return Err(bad(format!(
+                "{name}: gerber.x2.testpoint_names holds an empty word"
             )));
         }
         Ok(())
