@@ -282,6 +282,8 @@ impl DfmProfile {
                         .ok_or_else(bad)?
                 }
                 "forbid_via_in_pad" => p.forbid_via_in_pad = flag(value).ok_or_else(bad)?,
+                "min_silk_text_height_nm" => p.min_silk_text_height_nm = len()?.get(),
+                "min_silk_stroke_nm" => p.min_silk_stroke_nm = len()?.get(),
                 "max_drill_sizes" => {
                     p.max_drill_sizes = value
                         .parse::<u32>()

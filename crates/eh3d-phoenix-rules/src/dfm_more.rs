@@ -11,7 +11,7 @@
 
 use std::collections::BTreeSet;
 
-use eh3d_phoenix_board::{Board, Id, Via};
+use eh3d_phoenix_board::{Board, Id, SilkItem, Via};
 
 use crate::codes::Lang;
 use crate::dfm::DfmProfile;
@@ -25,6 +25,10 @@ pub const DRILL_SIZES: &str = "PHOENIX-DFM-007";
 pub const HOLE_ASPECT: &str = "PHOENIX-DFM-008";
 /// A via placed inside a pad.
 pub const VIA_IN_PAD: &str = "PHOENIX-DFM-009";
+/// A silkscreen text smaller than the profile accepts.
+pub const SILK_TEXT_SMALL: &str = "PHOENIX-DFM-010";
+/// A silkscreen line thinner than the profile accepts.
+pub const SILK_LINE_THIN: &str = "PHOENIX-DFM-011";
 
 /// Every code of this module with its English title, in order.
 pub const REGISTRY: &[(&str, &str)] = &[
@@ -39,6 +43,14 @@ pub const REGISTRY: &[(&str, &str)] = &[
     (
         VIA_IN_PAD,
         "Via inside a pad, which the profile does not allow",
+    ),
+    (
+        SILK_TEXT_SMALL,
+        "Silkscreen text smaller than the profile accepts",
+    ),
+    (
+        SILK_LINE_THIN,
+        "Silkscreen line thinner than the profile accepts",
     ),
 ];
 
@@ -82,6 +94,32 @@ const TITLES: &[(&str, [&str; 8])] = &[
             "Via dentro de um pad, que o perfil não permite",
         ],
     ),
+    (
+        SILK_TEXT_SMALL,
+        [
+            "Silkscreen text smaller than the profile accepts",
+            "Texto de serigrafía más pequeño de lo que acepta el perfil",
+            "Bestückungsdrucktext kleiner, als das Profil zulässt",
+            "Texte de sérigraphie plus petit que ce que le profil accepte",
+            "Testo di serigrafia più piccolo di quanto accetti il profilo",
+            "シルク文字がプロファイルの許容より小さい",
+            "丝印文字小于配置文件允许的尺寸",
+            "Texto de serigrafia mais pequeno do que o perfil aceita",
+        ],
+    ),
+    (
+        SILK_LINE_THIN,
+        [
+            "Silkscreen line thinner than the profile accepts",
+            "Línea de serigrafía más fina de lo que acepta el perfil",
+            "Bestückungsdruck-Linie dünner, als das Profil zulässt",
+            "Trait de sérigraphie plus fin que ce que le profil accepte",
+            "Tratto di serigrafia più sottile di quanto accetti il profilo",
+            "シルク線がプロファイルの許容より細い",
+            "丝印线条细于配置文件允许的宽度",
+            "Traço de serigrafia mais fino do que o perfil aceita",
+        ],
+    ),
 ];
 
 /// The title of a code of this module in a language; `None` for any other code.
@@ -113,6 +151,7 @@ fn drills(board: &Board) -> Vec<i64> {
 /// The findings of the lines of this module; `name` is the name of the profile for the words.
 pub(crate) fn findings(board: &Board, profile: &DfmProfile, name: &str, out: &mut Vec<Finding>) {
     drill_sizes(board, profile, name, out);
+    silk_size(board, profile, out);
     via_in_pad(board, profile, out);
     hole_aspect(board, profile, out);
 }
@@ -218,6 +257,52 @@ fn via_in_pad(board: &Board, profile: &DfmProfile, out: &mut Vec<Finding>) {
                 .at(via.at.x_nm.get(), via.at.y_nm.get())
                 .why("a via is placed inside this pad"),
             );
+        }
+    }
+}
+
+/// The height of the letters and the width of the printed lines of the silkscreen against the
+/// least that the profile accepts.
+fn silk_size(board: &Board, profile: &DfmProfile, out: &mut Vec<Finding>) {
+    let (least_height, least_width) = (profile.min_silk_text_height_nm, profile.min_silk_stroke_nm);
+    if least_height <= 0 && least_width <= 0 {
+        return;
+    }
+    for (sid, item) in &board.silkscreen {
+        let label = format!("silk {sid}");
+        let (height, width, at) = match item {
+            SilkItem::Text {
+                at, height, stroke, ..
+            } => (Some(height.get()), stroke.get(), Some(*at)),
+            SilkItem::Stroke { width, .. } => (None, width.get(), None),
+        };
+        if let Some(h) = height.filter(|h| least_height > 0 && *h < least_height) {
+            let mut finding = Finding::new(
+                49,
+                "dfm_silk_text_small",
+                SILK_TEXT_SMALL,
+                Severity::Error,
+                label.clone(),
+            )
+            .values(h, least_height);
+            if let Some(p) = at {
+                finding = finding.at(p.x_nm.get(), p.y_nm.get());
+            }
+            out.push(finding);
+        }
+        if least_width > 0 && width < least_width {
+            let mut finding = Finding::new(
+                50,
+                "dfm_silk_line_thin",
+                SILK_LINE_THIN,
+                Severity::Error,
+                label,
+            )
+            .values(width, least_width);
+            if let Some(p) = at {
+                finding = finding.at(p.x_nm.get(), p.y_nm.get());
+            }
+            out.push(finding);
         }
     }
 }
@@ -372,6 +457,86 @@ mod tests {
             Vec::<&str>::new()
         );
         assert!(DfmProfile::parse("forbid_via_in_pad = maybe\n").is_err());
+    }
+
+    fn with_silkscreen() -> Board {
+        use crate::dfm::tests::{id, pt};
+        use eh3d_phoenix_model::{Nm, Udeg};
+        let mut board = crate::dfm::tests::board();
+        board.silkscreen.insert(
+            id(70),
+            SilkItem::Text {
+                layer: id(71),
+                at: pt(3_000_000, 4_000_000),
+                text: "R1".into(),
+                height: Nm::new(800_000).unwrap(),
+                stroke: Nm::new(100_000).unwrap(),
+                rotation: Udeg::new(0).unwrap(),
+                mirrored: false,
+            },
+        );
+        board.silkscreen.insert(
+            id(72),
+            SilkItem::Stroke {
+                layer: id(71),
+                width: Nm::new(80_000).unwrap(),
+                path: Vec::new(),
+            },
+        );
+        board
+    }
+
+    #[test]
+    fn small_letters_and_thin_lines_of_the_silkscreen_are_reported_with_their_figures() {
+        let board = with_silkscreen();
+        let profile = DfmProfile::parse(
+            "verified = true\nmin_silk_text_height_nm = 1000000\nmin_silk_stroke_nm = 150000\n",
+        )
+        .unwrap();
+        let report = dfm_findings(&board, &profile);
+        let mut found: Vec<_> = report
+            .confirmed
+            .iter()
+            .map(|f| (f.code, f.measured_nm, f.limit_nm))
+            .collect();
+        found.sort();
+        // the text is 0.8 mm high (limit 1.0 mm) and 0.1 mm wide (limit 0.15 mm); the stroke is
+        // 0.08 mm wide
+        assert_eq!(
+            found,
+            [
+                (SILK_TEXT_SMALL, Some(800_000), Some(1_000_000)),
+                (SILK_LINE_THIN, Some(80_000), Some(150_000)),
+                (SILK_LINE_THIN, Some(100_000), Some(150_000)),
+            ]
+        );
+        let text = report.confirmed.iter().find(|f| f.code == SILK_TEXT_SMALL);
+        assert_eq!(text.unwrap().at_nm, Some([3_000_000, 4_000_000]));
+        let strokes = report.confirmed.iter().filter(|f| f.at_nm.is_none());
+        assert_eq!(strokes.count(), 1);
+        assert!(!report.passes());
+    }
+
+    #[test]
+    fn silkscreen_that_meets_the_limits_or_lines_that_are_off_give_nothing() {
+        let board = with_silkscreen();
+        for text in [
+            "min_silk_text_height_nm = 800000\nmin_silk_stroke_nm = 80000\n",
+            "min_silk_text_height_nm = 0\nmin_silk_stroke_nm = 0\n",
+            "",
+        ] {
+            assert_eq!(codes(&board, text), Vec::<&str>::new(), "{text}");
+        }
+        // only the height is limited: the stroke is not judged
+        assert_eq!(
+            codes(&board, "min_silk_text_height_nm = 900000\n"),
+            [SILK_TEXT_SMALL]
+        );
+        // a board without silkscreen has nothing to judge
+        assert_eq!(
+            codes(&Board::default(), "min_silk_text_height_nm = 900000\n"),
+            Vec::<&str>::new()
+        );
     }
 
     #[test]

@@ -8,6 +8,7 @@ All notable changes to this project are documented here.
 - **Capability profiles limit the number of different drill sizes:** the new line `max_drill_sizes` of a profile (off at 0) makes `phoenix check --dfm` report `PHOENIX-DFM-007` when the vias and the drilled pads use more drill sizes than the maker accepts, in the eight languages.
 - **Capability profiles limit the aspect ratio of the holes:** the new lines `board_thickness_nm` and `max_hole_aspect_x10` of a profile (off at 0) make `phoenix check --dfm` report `PHOENIX-DFM-008` when the thickness divided by the smallest drill is above the limit, with the least drill that passes, in the eight languages.
 - **Capability profiles can refuse vias placed in pads:** the new line `forbid_via_in_pad` of a profile (off by default) makes `phoenix check --dfm` report `PHOENIX-DFM-009` for every via whose centre is inside a pad of a part on a layer both reach, with the place of the via, in the eight languages.
+- **Capability profiles limit the size of the silkscreen:** the new lines `min_silk_text_height_nm` and `min_silk_stroke_nm` of a profile (off at 0) make `phoenix check --dfm` report `PHOENIX-DFM-010` for letters that are too small and `PHOENIX-DFM-011` for printed lines that are too thin, with the measured and the limit values, in the eight languages.
 
 ## [0.0.8] - Updated ZIP library and a split CI with a pinned toolchain
 

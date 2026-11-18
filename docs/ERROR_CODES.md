@@ -242,6 +242,8 @@ The checks of `phoenix check --advanced`, with the limits and the levels of `con
 | PHOENIX-DFM-007 | More different drill sizes than the profile accepts | `phoenix check --dfm`: the vias and the drilled pads use more different drill sizes than `max_drill_sizes` of the capability profile |
 | PHOENIX-DFM-008 | Hole aspect ratio above the limit of the profile | `phoenix check --dfm`: the thickness of the board divided by the smallest drill is above `max_hole_aspect_x10` (tenths) of the capability profile |
 | PHOENIX-DFM-009 | Via inside a pad, which the profile does not allow | `phoenix check --dfm`: a via is placed inside a pad of a part while `forbid_via_in_pad` is `true` in the capability profile |
+| PHOENIX-DFM-010 | Silkscreen text smaller than the profile accepts | `phoenix check --dfm`: the height of a silkscreen text is below `min_silk_text_height_nm` of the capability profile |
+| PHOENIX-DFM-011 | Silkscreen line thinner than the profile accepts | `phoenix check --dfm`: the width of a printed silkscreen line, of a text or a stroke, is below `min_silk_stroke_nm` of the capability profile |
 
 Titles of the same codes in the other seven languages (Portuguese is the Portuguese of Portugal):
 

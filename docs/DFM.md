@@ -35,6 +35,8 @@ All lengths are in nanometres (1 mm is 1000000). A line that is missing, or has 
 | `board_thickness_nm` | the finished thickness of the board that the maker builds; used only for the aspect ratio of the holes |
 | `max_hole_aspect_x10` | the greatest ratio of the thickness to the drill, in tenths (`50` is 5 to 1); the line needs `board_thickness_nm` too |
 | `forbid_via_in_pad` | `true` refuses a via whose centre is inside the largest circle of a pad of a part, on a layer both reach (the maker does not fill and cap such vias); the default is `false` |
+| `min_silk_text_height_nm` | the least height of a silkscreen letter |
+| `min_silk_stroke_nm` | the least width of a printed silkscreen line, of a text and of a stroke |
 
 ## The findings
 
@@ -49,6 +51,8 @@ All lengths are in nanometres (1 mm is 1000000). A line that is missing, or has 
 | `PHOENIX-DFM-007` | more different drill sizes than `max_drill_sizes` |
 | `PHOENIX-DFM-008` | the board thickness divided by the smallest drill is above `max_hole_aspect_x10` (the measured value is the smallest drill, the limit is the least drill that passes) |
 | `PHOENIX-DFM-009` | a via inside a pad while `forbid_via_in_pad` is `true` (the location is the pad, the place is the via) |
+| `PHOENIX-DFM-010` | the height of a silkscreen text is below `min_silk_text_height_nm` |
+| `PHOENIX-DFM-011` | the width of a printed silkscreen line, of a text or a stroke, is below `min_silk_stroke_nm` |
 
 The first five are errors and make the exit code 1; the sixth is information. The titles are in the eight languages (`--lang`) and the findings go in the same report as the others, with `--json`, `--sarif`, `--csv` and `--html` (the category `capability` in the tables, `docs/DRC_ADVANCED.md`).
 
