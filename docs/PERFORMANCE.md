@@ -16,6 +16,7 @@ This page says how the time of the readers (KiCad, EAGLE, DXF, Gerber and Excell
 | Gerber layer | as many draws and flashes as the count, three apertures | a Gerber file |
 | Excellon file | as many holes as the count, three tools | a drill file |
 | Rule check | tracks on a lattice in two nets, written as a board file, read and checked with the copper clearance | at least half the tracks, and no error |
+| Rule check with pads | one pad for each part on a lattice 2 mm by 3 mm, half as many short tracks and an eighth as many vias between the rows, written as a board file, read and checked with the copper clearance and the bridge of solder mask | all the parts, and no error |
 | DXF outline | a large outline with `dxf_contours` small squares inside it, read and searched for the outline | all the squares found as cutouts |
 
 A run that found less than it should would be fast and prove nothing, so the test fails on it.
@@ -44,6 +45,8 @@ The tests of the benchmarks run one at a time (a lock in the test file), so that
 
 A time is noisy; a count is not. The copper clearance check is also tested by counting (`clearance_work`, the same count as `phoenix perf`): on the lattice board of the test, at both sizes, the candidates the index hands out stay below `max_candidates_per_item` for each track, and below one hundredth of the pairs a pass over every pair would compare. The same test requires that the check with the index and the check of every pair (`IndexMode::Naive`) give the same report, byte for byte in the JSON, on a board whose rows of tracks are too close.
 
+The checks of the pads are counted the same way (`Board::pad_check_work`): on the board of pads, at both sizes, the pads, tracks and vias that the grids hand out stay below `max_candidates_per_item` for each pad and below one hundredth of the comparisons of the pass over every pair, and a clearance whose reach is too large for a grid (`pad_check_work` gives nothing) is checked by the pass over every pair. The same test requires that the grids and the pass over every pair give the same report, byte for byte in the JSON, on a board whose pads are too close.
+
 ## Work that grew with the square of a count, and was changed
 
 Each change keeps the results: the order and the text of the findings do not move. The tests that cover them are named in the changelog.
@@ -52,6 +55,7 @@ Each change keeps the results: the order and the text of the findings do not mov
 |---|---|---|
 | Rule check (`check_board`) | the board library's own pass over every pair of tracks and of a track and a via ran as well, and its findings were dropped because the engine measures the same clearances with the spatial index | `Board::check_rules_with(rules, false)` leaves that pass out; `Board::check_rules` is unchanged |
 | Pad clearance, mask bridge and silkscreen over pads (`Board::check_rules`) | a message was built for every pair of a pad and another object, even for a pair far apart that gives no finding; the straight pieces of every track were collected again for every pad | the distance test comes first and a message is built only for a finding; the pieces of every track are collected once |
+| Pad checks (`Board::check_rules`) | each pad was compared with every other pad (clearance and bridge of solder mask), with every track and with every via, which is how a board of several thousand pads took seconds | the pads and the vias are looked up in a grid of cells as wide as the reach of the rule, the pieces of the tracks in the cells their box grown by the reach covers (a piece that would need more than 256 cells is tried for every pad); everything left out is certainly too far to give a finding, so the findings, their order and their text are those of the pass over every pair, which is still made when the reach is above `2^28` nanometres. The unit tests compare the two on random boards, with long slanted pieces and pads that are not round |
 | EAGLE XML reader | the test for an attribute name used twice compared each new name with all the earlier ones of the tag | from 32 attributes on, a set of the names is used |
 | KiCad schematic reader | each bus entry searched every label, every wire and every bus; each pin of a symbol was compared with the earlier pins of the symbol | the labels, the ends of the wires and the members of the buses are looked up in maps built once, and the pins in a set |
 | DXF outline search | the edges of every cutout were compared with the edges of every cutout after it, whatever their distance | contours whose boxes do not meet are not compared; the crossings found are the same, because edges of contours whose boxes do not meet cannot cross |
@@ -74,7 +78,7 @@ Each change keeps the results: the order and the text of the findings do not mov
 
 These parts compare every object with every other one or with every object of another kind. They were read, not changed, and the benchmark does not cover them:
 
-* the pad checks of the board library (pad against pad, pad against track, pad against via, the mask bridge between pads, silkscreen against pads), which are exact and need the whole list of pads;
+* the silkscreen against the pads, and the pads, tracks and vias against the pieces of the edge of the board (each against each);
 * the overlap of zones of different nets on one layer, and the tracks, vias and pads against the edges of the board;
 * the depth of the contours of a DXF drawing (which contour holds which), which compares the boxes of all contours and is bounded by `max_contours`;
 * the arcs of the outline of a KiCad board, matched to the corners of the ring one by one;

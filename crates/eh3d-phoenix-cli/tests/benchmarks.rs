@@ -2,7 +2,7 @@
 //! Benchmarks of the readers and of the rule check on boards and files made by the test itself
 //! from fixed formulas (nothing large is kept in the repository): the KiCad board and schematic
 //! readers, the EAGLE board reader, the DXF reader and its outline search, the Gerber and Excellon
-//! readers and the copper clearance check. Each run is made on a small and on a large input (four
+//! readers, the copper clearance check and the checks of the pads. Each run is made on a small and on a large input (four
 //! times as many objects); the test fails when a run takes longer than the limit of
 //! `config/performance.cfg`, or when the large run takes much more than four times as long as the
 //! small one, which is what work that grows with the square of the object count does.
@@ -18,9 +18,12 @@ use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
-use eh3d_phoenix_board::{Board, Layer, LayerKind, Net, Segment, Track};
+use eh3d_phoenix_board::{
+    Board, Component, Footprint, Layer, LayerKind, Net, Pad, PadNet, PadShape, Segment, Side,
+    Track, Via,
+};
 use eh3d_phoenix_corpus::suite::facts::id_source;
-use eh3d_phoenix_model::{Nm, ObjectId, Point};
+use eh3d_phoenix_model::{Nm, ObjectId, Point, Udeg};
 use eh3d_phoenix_rules::{check_board_with, clearance_work, IndexMode, RuleValues, Severity};
 use eh3d_phoenix_spatial::SpatialConfig;
 
@@ -476,6 +479,125 @@ fn track_board(n: usize, columns: usize, dx_mm: f64, dy_mm: f64) -> Board {
     board
 }
 
+/// A board with `n` parts of one round pad of 0.8 mm each, 2 mm apart along a row of 100 and 3 mm
+/// from row to row, in two nets that alternate from row to row. Half as many short tracks and
+/// an eighth as many vias lie between the rows, each of the net of the row above it. Nothing is
+/// closer than the clearance of `pad_rule_values`, so the rule check finds nothing.
+fn pad_board(n: usize) -> Board {
+    let mut board = Board::default();
+    for (k, name, kind) in [
+        (1, "Top", LayerKind::Copper),
+        (2, "Mask", LayerKind::SolderMask),
+    ] {
+        board.layers.insert(
+            id(k),
+            Layer {
+                name: name.to_owned(),
+                kind,
+                side: None,
+            },
+        );
+    }
+    board.copper_stack = vec![id(1)];
+    for k in 0..2 {
+        board.nets.insert(
+            id(10 + k),
+            Net {
+                name: format!("N{k}"),
+            },
+        );
+    }
+    let mut pads = BTreeMap::new();
+    pads.insert(
+        id(20),
+        Pad {
+            number: "1".to_owned(),
+            shape: PadShape::Circle {
+                diameter: Nm::new(800_000).unwrap(),
+            },
+            at: pt(0, 0),
+            rotation: Udeg::ZERO,
+            drill: None,
+            layers: vec![id(1), id(2)],
+            roundness: 0,
+            plated: true,
+        },
+    );
+    board.footprints.insert(
+        id(21),
+        Footprint {
+            name: "PAD".to_owned(),
+            pads,
+        },
+    );
+    let at = |col: usize, row: usize| (5 * MM + col as i64 * 2 * MM, 5 * MM + row as i64 * 3 * MM);
+    for k in 0..n {
+        let (col, row) = (k % 100, k / 100);
+        let (x, y) = at(col, row);
+        let component = id(10_000 + k);
+        board.components.insert(
+            component,
+            Component {
+                refdes: format!("P{k}"),
+                value: String::new(),
+                symbol: None,
+                footprint: id(21),
+                at: pt(x, y),
+                rotation: Udeg::ZERO,
+                side: Side::Top,
+            },
+        );
+        board.pad_nets.push(PadNet {
+            component,
+            pad: id(20),
+            net: id(10 + row % 2),
+        });
+    }
+    board.pad_nets.sort_by_key(PadNet::pad_ref);
+    for k in 0..n / 2 {
+        let (col, row) = (k % 100, k / 100);
+        let (x, y) = at(col, row);
+        board.tracks.insert(
+            id(100_000 + k),
+            Track {
+                net: id(10 + row % 2),
+                layer: id(1),
+                width: Nm::new(250_000).unwrap(),
+                path: vec![Segment::Line {
+                    start: pt(x + 200_000, y + 3 * MM / 2),
+                    end: pt(x + 700_000, y + 3 * MM / 2),
+                }],
+            },
+        );
+    }
+    for k in 0..n / 8 {
+        let (col, row) = (k % 100, k / 100);
+        let (x, y) = at(col, row);
+        board.vias.insert(
+            id(200_000 + k),
+            Via {
+                net: id(10 + row % 2),
+                at: pt(x + 3 * MM / 2, y + 3 * MM / 2),
+                drill: Nm::new(300_000).unwrap(),
+                diameter: Nm::new(600_000).unwrap(),
+                from_layer: id(1),
+                to_layer: id(2),
+            },
+        );
+    }
+    board
+}
+
+/// The rules for the board of pads: a clearance, a bridge of solder mask and the width of a track.
+fn pad_rule_values() -> RuleValues {
+    RuleValues {
+        min_clearance: Nm::new(200_000).unwrap(),
+        min_mask_bridge: Nm::new(100_000).unwrap(),
+        min_track_width: Nm::new(100_000).unwrap(),
+        ..RuleValues::default()
+    }
+}
+
 fn rule_values() -> RuleValues {
     RuleValues {
         min_clearance: Nm::new(200_000).unwrap(),
@@ -593,6 +715,18 @@ fn cases() -> Vec<Case> {
                 board.tracks.len()
             },
             least: |n| n / 2,
+            linear: true,
+        },
+        Case {
+            name: "rule check of a board with pads, tracks and vias",
+            make: |n| pad_board(n).to_bytes().unwrap(),
+            run: |b| {
+                let board = Board::from_bytes(b).unwrap();
+                let report = check_board_with(&board, &pad_rule_values(), IndexMode::Grid);
+                assert!(report.passes(), "{}", report.to_json());
+                board.components.len()
+            },
+            least: |n| n,
             linear: true,
         },
     ]
@@ -797,4 +931,41 @@ fn the_index_hands_each_track_a_few_candidates_and_gives_the_report_of_the_pass_
         assert!(grid.count(Severity::Error) > 0);
         assert_eq!(grid.to_json(), naive.to_json());
     }
+}
+
+#[test]
+fn the_grids_hand_each_pad_a_few_candidates_and_the_report_is_that_of_the_pass_over_every_pair() {
+    let _alone = ONE_AT_A_TIME.lock().unwrap_or_else(|e| e.into_inner());
+    let settings = settings();
+    let rules = pad_rule_values();
+    // counted and not timed: the objects handed to the pads stay in proportion to the pads at both
+    // sizes, and are a small share of what the pass over every pair compares
+    for n in [settings.small_size, settings.large_size] {
+        let board = pad_board(n);
+        let work = board.pad_check_work(rules.min_clearance).unwrap();
+        assert_eq!((work.pads, work.tracks, work.vias), (n, n / 2, n / 8));
+        assert!(
+            work.candidates <= settings.max_candidates_per_item * n as u64,
+            "{} candidates for {n} pads",
+            work.candidates
+        );
+        assert!(work.candidates as u128 * 100 < work.all_pairs as u128);
+    }
+    // the same report with the grids and with the pass over every pair (a reach too large for a
+    // grid), on a board with violations: pads 2 mm apart with a clearance of 1.4 mm leave 1.2 mm
+    // between their edges, which is too little
+    let crowded = pad_board(400);
+    let tight = RuleValues {
+        min_clearance: Nm::new(1_400_000).unwrap(),
+        min_mask_bridge: Nm::new(1_300_000).unwrap(),
+        ..pad_rule_values()
+    };
+    let grid = check_board_with(&crowded, &tight, IndexMode::Grid);
+    assert!(!grid.passes());
+    assert!(grid.count(Severity::Error) > 100);
+    let naive = check_board_with(&crowded, &tight, IndexMode::Naive);
+    assert_eq!(grid.to_json(), naive.to_json());
+    // a clearance whose reach is larger than a grid takes is checked by the pass over every pair
+    let huge = Nm::new(1 << 29).unwrap();
+    assert_eq!(crowded.pad_check_work(huge), None);
 }

@@ -12,12 +12,21 @@
 //! show on the side of the silkscreen layer; what cannot be judged (a layer without a side, a
 //! board without a copper stack and a pad without a drill, an arc of a stroke) is said once with
 //! `PHOENIX-RULE-010`, never as a failure.
+//!
+//! The checks of a pad against the other pads, the tracks and the vias would compare every pad with
+//! every object; they look the neighbours up in a grid of cells as large as the reach of the rule
+//! instead (see [`Grid`]), so that the time grows with the number of objects and not with its
+//! square. The grid only leaves out the objects that are certainly too far to give a finding, so the
+//! findings, their order and their text are those of the pass over every pair, which stays for the
+//! boards whose reach is too large for a grid and for the tests that compare the two.
+
+use std::collections::HashMap;
 
 use eh3d_diagnostic::Severity;
 use eh3d_phoenix_model::{segments_intersect, Nm, Point};
 
 use crate::connectivity::{near_segment_exact, pad_position, point_in_polygon};
-use crate::model::{Board, Id, LayerKind, PadRef, PadShape, Segment, Side};
+use crate::model::{Board, Id, LayerKind, PadRef, PadShape, Segment, Side, Track, Via};
 use crate::outline_arc::ArcSettings;
 use crate::rules::{
     make, RuleReport, RuleSet, CLEARANCE_INCONCLUSIVE, CLEARANCE_VIOLATED, EDGE_TOO_CLOSE,
@@ -231,6 +240,138 @@ fn worst(a: Verdict, b: Verdict) -> Verdict {
     }
 }
 
+/// The work of the clearance check of the pads on a board, counted (see
+/// [`Board::pad_check_work`]).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PadCheckWork {
+    /// The pads that show copper.
+    pub pads: usize,
+    /// The tracks.
+    pub tracks: usize,
+    /// The vias.
+    pub vias: usize,
+    /// The pads after a pad, the tracks and the vias that the grids hand out to the pads, added
+    /// up: the objects the exact test is made for.
+    pub candidates: u64,
+    /// The comparisons of the pass over every pair: each pad with each later pad, each track and
+    /// each via.
+    pub all_pairs: u64,
+}
+
+/// A track with the straight pieces of its path.
+type TrackPieces<'a> = (&'a Id, &'a Track, Vec<(Point, Point)>);
+
+/// What the clearance check of the pads looks things up in.
+struct PadIndex<'a> {
+    pads: Grid,
+    vias: Grid,
+    via_list: Vec<(&'a Id, &'a Via)>,
+    track_grid: Grid,
+    /// The tracks with a piece that is too long for the cells, tried for every pad.
+    long: Vec<usize>,
+    tracks: Vec<TrackPieces<'a>>,
+}
+
+impl PadIndex<'_> {
+    /// The tracks that can be near a point, in increasing order, once each.
+    fn tracks_near(&self, p: Point) -> Vec<usize> {
+        let mut near = self.track_grid.at(p);
+        near.extend(self.long.iter().copied());
+        near.sort_unstable();
+        near.dedup();
+        near
+    }
+}
+
+/// The largest reach, in nanometres, for which the grid is used. A larger one (a clearance of
+/// hundreds of millimetres) makes every cell hold most of the board, and the exact tests could not
+/// fit their numbers any more, so the pass over every pair is made.
+const GRID_LIMIT_NM: i128 = 1 << 28;
+
+/// The most cells one piece of track may be put in; a longer piece is kept apart and tried for
+/// every pad.
+const MAX_CELLS_PER_PIECE: i64 = 256;
+
+/// A grid of square cells over the board, to find what is near a point without looking at
+/// everything. A cell is as large as the reach of the rule (the distance beyond which two objects
+/// are certainly clear of each other), so everything within the reach of a point is in the nine
+/// cells around it (for points) or in its own cell (for pieces put in every cell their box, grown
+/// by the reach, covers). Cells are looked up by key: the order of a hash map never shows, because
+/// the indexes found are sorted before use.
+struct Grid {
+    cell: i64,
+    cells: HashMap<(i64, i64), Vec<usize>>,
+}
+
+impl Grid {
+    /// A grid of cells `reach` wide; `None` when the reach is not above zero or above the limit.
+    fn new(reach: i128) -> Option<Grid> {
+        if !(1..=GRID_LIMIT_NM).contains(&reach) {
+            return None;
+        }
+        Some(Grid {
+            cell: i64::try_from(reach).ok()?,
+            cells: HashMap::new(),
+        })
+    }
+
+    fn index_of(&self, v: i64) -> i64 {
+        v.div_euclid(self.cell)
+    }
+
+    fn add_point(&mut self, p: Point, index: usize) {
+        let key = (self.index_of(p.x_nm.get()), self.index_of(p.y_nm.get()));
+        self.cells.entry(key).or_default().push(index);
+    }
+
+    /// Puts a straight piece in every cell its box, grown by `reach`, covers. False (and nothing
+    /// put) when that would be more than [`MAX_CELLS_PER_PIECE`] cells.
+    fn add_piece(&mut self, s: Point, e: Point, reach: i128, index: usize) -> bool {
+        let reach = i64::try_from(reach).unwrap_or(i64::MAX / 4);
+        let lo = |a: i64, b: i64| a.min(b).saturating_sub(reach);
+        let hi = |a: i64, b: i64| a.max(b).saturating_add(reach);
+        let (x0, x1) = (
+            self.index_of(lo(s.x_nm.get(), e.x_nm.get())),
+            self.index_of(hi(s.x_nm.get(), e.x_nm.get())),
+        );
+        let (y0, y1) = (
+            self.index_of(lo(s.y_nm.get(), e.y_nm.get())),
+            self.index_of(hi(s.y_nm.get(), e.y_nm.get())),
+        );
+        if (x1 - x0 + 1).saturating_mul(y1 - y0 + 1) > MAX_CELLS_PER_PIECE {
+            return false;
+        }
+        for x in x0..=x1 {
+            for y in y0..=y1 {
+                self.cells.entry((x, y)).or_default().push(index);
+            }
+        }
+        true
+    }
+
+    /// The indexes in the nine cells around a point, in increasing order, once each.
+    fn around(&self, p: Point) -> Vec<usize> {
+        let (cx, cy) = (self.index_of(p.x_nm.get()), self.index_of(p.y_nm.get()));
+        let mut found = Vec::new();
+        for x in cx - 1..=cx + 1 {
+            for y in cy - 1..=cy + 1 {
+                if let Some(list) = self.cells.get(&(x, y)) {
+                    found.extend_from_slice(list);
+                }
+            }
+        }
+        found.sort_unstable();
+        found.dedup();
+        found
+    }
+
+    /// The indexes in the cell of a point, unsorted and with repeats.
+    fn at(&self, p: Point) -> Vec<usize> {
+        let key = (self.index_of(p.x_nm.get()), self.index_of(p.y_nm.get()));
+        self.cells.get(&key).cloned().unwrap_or_default()
+    }
+}
+
 impl Board {
     /// The checks of pads, the edge of the board, the mask and zones. Called by `check_rules`.
     pub(crate) fn check_more_rules(&self, rules: &RuleSet, report: &mut RuleReport) {
@@ -353,7 +494,178 @@ impl Board {
         }
     }
 
+    /// The grids of the clearance check of the pads: the pads, the vias and the pieces of track.
+    /// `None` when the reach of the rule is too large for a grid.
+    fn pad_index<'a>(&'a self, clearance: Nm, all_pads: &[PadInfo]) -> Option<PadIndex<'a>> {
+        let c2 = 2 * i128::from(clearance.get());
+        let max_circ = all_pads.iter().map(|p| p.circ2).max().unwrap_or(0);
+        let max_via = self
+            .vias
+            .values()
+            .map(|v| i128::from(v.diameter.get()))
+            .max()
+            .unwrap_or(0);
+        let max_width = self
+            .tracks
+            .values()
+            .map(|t| i128::from(t.width.get()))
+            .max()
+            .unwrap_or(0);
+        // two pads, a pad and a via, a pad and a piece of track are certainly clear of each other
+        // when their centres (or the centre and the piece) are this far apart, in nanometres
+        let reach_pad = (c2 + 2 * max_circ) / 2 + 1;
+        let reach_via = (c2 + max_via + max_circ) / 2 + 1;
+        let reach_track = (c2 + max_width + max_circ) / 2 + 1;
+        let mut pads = Grid::new(reach_pad)?;
+        let mut via_grid = Grid::new(reach_via)?;
+        let mut track_grid = Grid::new(reach_track)?;
+        for (i, p) in all_pads.iter().enumerate() {
+            pads.add_point(p.at, i);
+        }
+        let vias: Vec<_> = self.vias.iter().collect();
+        for (k, (_, v)) in vias.iter().enumerate() {
+            via_grid.add_point(v.at, k);
+        }
+        // the straight pieces of every track, made once and not again for every pad
+        let tracks: Vec<_> = self
+            .tracks
+            .iter()
+            .map(|(tid, t)| (tid, t, lines(&t.path)))
+            .collect();
+        let mut long: Vec<usize> = Vec::new();
+        for (k, (_, _, pieces)) in tracks.iter().enumerate() {
+            let mut in_cells = true;
+            for (s, e) in pieces {
+                in_cells &= track_grid.add_piece(*s, *e, reach_track, k);
+            }
+            if !in_cells {
+                long.push(k);
+            }
+        }
+        Some(PadIndex {
+            pads,
+            vias: via_grid,
+            via_list: vias,
+            track_grid,
+            long,
+            tracks,
+        })
+    }
+
+    /// The clearance of the pads to each other, to the tracks and to the vias, with the
+    /// neighbours looked up in grids; the pass over every pair when the reach is too large.
     fn pad_clearances(&self, clearance: Nm, all_pads: &[PadInfo], report: &mut RuleReport) {
+        let Some(index) = self.pad_index(clearance, all_pads) else {
+            self.pad_clearances_all(clearance, all_pads, report);
+            return;
+        };
+        let c2 = 2 * i128::from(clearance.get());
+        for (i, a) in all_pads.iter().enumerate() {
+            for j in index.pads.around(a.at) {
+                if j <= i {
+                    continue;
+                }
+                let b = &all_pads[j];
+                let verdict = gap_points(
+                    centre_distance2x4(a.at, b.at),
+                    c2 + a.ins2 + b.ins2,
+                    c2 + a.circ2 + b.circ2,
+                );
+                if verdict == Verdict::Fine
+                    || (a.net.is_some() && a.net == b.net)
+                    || !share_layer(&a.layers, &b.layers, |l| is_copper(self, l))
+                {
+                    continue;
+                }
+                push(
+                    report,
+                    verdict,
+                    (CLEARANCE_VIOLATED, format!("{} and {}", a.label, b.label)),
+                    format!("{} and {}", a.label, b.label),
+                );
+            }
+            for k in index.tracks_near(a.at) {
+                let (tid, t, pieces) = &index.tracks[k];
+                if (a.net.is_some() && a.net == Some(t.net)) || !a.layers.contains(&t.layer) {
+                    continue;
+                }
+                let w = i128::from(t.width.get());
+                let mut verdict = Verdict::Fine;
+                for (s, e) in pieces {
+                    verdict = worst(
+                        verdict,
+                        gap_segment(a.at, *s, *e, c2 + w + a.ins2, c2 + w + a.circ2),
+                    );
+                }
+                if verdict == Verdict::Fine {
+                    continue;
+                }
+                push(
+                    report,
+                    verdict,
+                    (CLEARANCE_VIOLATED, format!("{} and track {tid}", a.label)),
+                    format!("{} and track {tid}", a.label),
+                );
+            }
+            for k in index.vias.around(a.at) {
+                let (vid, v) = index.via_list[k];
+                if (a.net.is_some() && a.net == Some(v.net))
+                    || !(a.layers.contains(&v.from_layer) || a.layers.contains(&v.to_layer))
+                {
+                    continue;
+                }
+                let d = i128::from(v.diameter.get());
+                let verdict = gap_points(
+                    centre_distance2x4(a.at, v.at),
+                    c2 + d + a.ins2,
+                    c2 + d + a.circ2,
+                );
+                if verdict == Verdict::Fine {
+                    continue;
+                }
+                push(
+                    report,
+                    verdict,
+                    (CLEARANCE_VIOLATED, format!("{} and via {vid}", a.label)),
+                    format!("{} and via {vid}", a.label),
+                );
+            }
+        }
+    }
+
+    /// How much work the clearance check of the pads does on this board with this clearance,
+    /// counted and not timed, so it is the same on every computer: how many objects the grids hand
+    /// out to the pads (the other pads after it, the tracks and the vias) against the number of
+    /// comparisons of the pass over every pair. `None` when the clearance is not above zero or its
+    /// reach is too large for a grid (the pass over every pair is made then).
+    pub fn pad_check_work(&self, clearance: Nm) -> Option<PadCheckWork> {
+        if clearance.get() <= 0 {
+            return None;
+        }
+        let all_pads = pads(self);
+        let index = self.pad_index(clearance, &all_pads)?;
+        let mut candidates = 0u64;
+        for (i, a) in all_pads.iter().enumerate() {
+            candidates += index.pads.around(a.at).iter().filter(|j| **j > i).count() as u64;
+            candidates += index.tracks_near(a.at).len() as u64;
+            candidates += index.vias.around(a.at).len() as u64;
+        }
+        let (p, t, v) = (
+            all_pads.len() as u64,
+            self.tracks.len() as u64,
+            self.vias.len() as u64,
+        );
+        Some(PadCheckWork {
+            pads: all_pads.len(),
+            tracks: self.tracks.len(),
+            vias: self.vias.len(),
+            candidates,
+            all_pairs: p * p.saturating_sub(1) / 2 + p * t + p * v,
+        })
+    }
+
+    /// The same clearances by comparing every pad with every other pad, track and via.
+    fn pad_clearances_all(&self, clearance: Nm, all_pads: &[PadInfo], report: &mut RuleReport) {
         let c2 = 2 * i128::from(clearance.get());
         // the straight pieces of every track, made once and not again for every pad
         let track_lines: Vec<_> = self
@@ -507,7 +819,46 @@ impl Board {
         }
     }
 
+    /// The mask bridge between pads, with the neighbours looked up in a grid; the pass over every
+    /// pair when the reach is too large.
     fn mask_bridges(&self, bridge: Nm, all_pads: &[PadInfo], report: &mut RuleReport) {
+        let b2 = 2 * i128::from(bridge.get());
+        let max_circ = all_pads.iter().map(|p| p.circ2).max().unwrap_or(0);
+        let Some(mut grid) = Grid::new((b2 + 2 * max_circ) / 2 + 1) else {
+            self.mask_bridges_all(bridge, all_pads, report);
+            return;
+        };
+        for (i, p) in all_pads.iter().enumerate() {
+            grid.add_point(p.at, i);
+        }
+        for (i, a) in all_pads.iter().enumerate() {
+            for j in grid.around(a.at) {
+                if j <= i {
+                    continue;
+                }
+                let b = &all_pads[j];
+                let verdict = gap_points(
+                    centre_distance2x4(a.at, b.at),
+                    b2 + a.ins2 + b.ins2,
+                    b2 + a.circ2 + b.circ2,
+                );
+                if verdict == Verdict::Fine
+                    || !share_layer(&a.layers, &b.layers, |l| is_mask(self, l))
+                {
+                    continue;
+                }
+                push(
+                    report,
+                    verdict,
+                    (MASK_BRIDGE_THIN, format!("{} and {}", a.label, b.label)),
+                    format!("mask between {} and {}", a.label, b.label),
+                );
+            }
+        }
+    }
+
+    /// The same bridges by comparing every pad with every other pad.
+    fn mask_bridges_all(&self, bridge: Nm, all_pads: &[PadInfo], report: &mut RuleReport) {
         let b2 = 2 * i128::from(bridge.get());
         for (i, a) in all_pads.iter().enumerate() {
             for b in &all_pads[i + 1..] {
@@ -693,6 +1044,153 @@ mod tests {
         let r = b.check_rules(&rules("min_clearance = 0.21\n"));
         assert_eq!(counts(&r), (1, 0));
         assert_eq!(r.confirmed[0].code.as_deref(), Some(CLEARANCE_VIOLATED));
+    }
+
+    /// The next number of a generator that is always the same, from 0 to 999999.
+    fn next(seed: &mut u64) -> i64 {
+        *seed = seed
+            .wrapping_mul(6_364_136_223_846_793_005)
+            .wrapping_add(1_442_695_040_888_963_407);
+        ((*seed >> 33) % 1_000_000) as i64
+    }
+
+    /// A board of 40 by 25 mm with `count` pads of three shapes at places that the generator
+    /// chooses, and tracks (some of them long and slanted), and vias among them.
+    fn crowded_board(count: usize, seed: &mut u64) -> Board {
+        use crate::model::Via;
+        let mut specs = Vec::new();
+        for i in 0..count {
+            let (x, y) = (next(seed) * 40, next(seed) * 25);
+            let shape = match i % 3 {
+                0 => round(800_000),
+                1 => PadShape::Rect {
+                    width: nm(1_200_000),
+                    height: nm(700_000),
+                },
+                _ => PadShape::Oblong {
+                    width: nm(1_500_000),
+                    height: nm(600_000),
+                },
+            };
+            specs.push((x, y, shape));
+        }
+        let (mut b, top, mask) = board_with_pads(&specs);
+        for k in 0..(count / 2) {
+            let (x, y) = (next(seed) * 40, next(seed) * 25);
+            let (dx, dy) = if k % 17 == 0 {
+                // a long slanted piece, which does not fit the cells of the grid
+                (35_000_000 - x / 2, 20_000_000 - y / 2)
+            } else {
+                (
+                    next(seed) % 6_000_000 - 3_000_000,
+                    next(seed) % 6_000_000 - 3_000_000,
+                )
+            };
+            let end = ((x + dx).clamp(0, 40_000_000), (y + dy).clamp(0, 25_000_000));
+            b.tracks.insert(
+                id(1000 + k as u16),
+                Track {
+                    net: id(200 + (k % 7) as u16),
+                    layer: top,
+                    width: nm(150_000 + 50_000 * (k % 3) as i64),
+                    path: vec![Segment::Line {
+                        start: pt(x, y),
+                        end: pt(end.0, end.1),
+                    }],
+                },
+            );
+        }
+        for k in 0..(count / 5) {
+            b.vias.insert(
+                id(3000 + k as u16),
+                Via {
+                    net: id(200 + (k % 5) as u16),
+                    at: pt(next(seed) * 40, next(seed) * 25),
+                    drill: nm(300_000),
+                    diameter: nm(600_000),
+                    from_layer: top,
+                    to_layer: mask,
+                },
+            );
+        }
+        b
+    }
+
+    #[test]
+    fn the_grid_gives_the_findings_of_the_pass_over_every_pair() {
+        let mut seed = 11;
+        let b = crowded_board(300, &mut seed);
+        let all_pads = pads(&b);
+        for text in [
+            "min_clearance = 0.1\nmin_mask_bridge = 0.1\n",
+            "min_clearance = 0.35\nmin_mask_bridge = 0.3\n",
+            "min_clearance = 1.5\nmin_mask_bridge = 1\n",
+        ] {
+            let r = rules(text);
+            let mut indexed = RuleReport::default();
+            b.pad_clearances(r.min_clearance, &all_pads, &mut indexed);
+            b.mask_bridges(r.min_mask_bridge, &all_pads, &mut indexed);
+            let mut every = RuleReport::default();
+            b.pad_clearances_all(r.min_clearance, &all_pads, &mut every);
+            b.mask_bridges_all(r.min_mask_bridge, &all_pads, &mut every);
+            // the same findings in the same order, and enough of them to mean something
+            assert_eq!(indexed, every, "{text}");
+            assert!(
+                indexed.confirmed.len() > 20,
+                "{text}: {}",
+                indexed.confirmed.len()
+            );
+        }
+        // the inconclusive ones (the pads that are not round) are in the comparison too
+        let r = rules("min_clearance = 0.35\n");
+        let mut indexed = RuleReport::default();
+        b.pad_clearances(r.min_clearance, &all_pads, &mut indexed);
+        assert!(!indexed.inconclusive.is_empty());
+    }
+
+    #[test]
+    fn a_reach_too_large_for_the_grid_falls_back_to_the_pass_over_every_pair() {
+        assert!(Grid::new(0).is_none());
+        assert!(Grid::new(GRID_LIMIT_NM + 1).is_none());
+        assert!(Grid::new(GRID_LIMIT_NM).is_some());
+        let mut seed = 3;
+        let b = crowded_board(40, &mut seed);
+        let r = RuleSet {
+            min_clearance: nm(1 << 29),
+            min_mask_bridge: nm(1 << 29),
+            ..RuleSet::default()
+        };
+        let all_pads = pads(&b);
+        let mut grid_way = RuleReport::default();
+        b.pad_clearances(r.min_clearance, &all_pads, &mut grid_way);
+        b.mask_bridges(r.min_mask_bridge, &all_pads, &mut grid_way);
+        let mut every = RuleReport::default();
+        b.pad_clearances_all(r.min_clearance, &all_pads, &mut every);
+        b.mask_bridges_all(r.min_mask_bridge, &all_pads, &mut every);
+        assert_eq!(grid_way, every);
+        assert!(!every.confirmed.is_empty());
+    }
+
+    #[test]
+    fn the_cells_of_the_grid_find_the_neighbours_across_zero_and_leave_the_far_ones() {
+        let mut grid = Grid::new(10).unwrap();
+        // 10 nm cells: -1 is in the cell -1, 9 in 0, 19 in 1, 35 in 3
+        for (index, x) in [-1, 9, 19, 35].into_iter().enumerate() {
+            grid.add_point(pt(x, 0), index);
+        }
+        assert_eq!(grid.around(pt(0, 0)), vec![0, 1, 2]);
+        assert_eq!(grid.around(pt(20, 5)), vec![2, 3]);
+        assert_eq!(grid.around(pt(30, 5)), vec![3]);
+        assert!(grid.around(pt(0, 100)).is_empty());
+        // a piece is in every cell its box grown by the reach covers
+        let mut pieces = Grid::new(10).unwrap();
+        assert!(pieces.add_piece(pt(0, 0), pt(25, 0), 10, 7));
+        assert_eq!(pieces.at(pt(-9, 5)), vec![7]);
+        assert_eq!(pieces.at(pt(34, -9)), vec![7]);
+        assert!(pieces.at(pt(45, 0)).is_empty());
+        // a long slanted one is refused and left to the caller
+        assert!(!pieces.add_piece(pt(0, 0), pt(1000, 1000), 10, 8));
+        assert!(pieces.at(pt(500, 500)).is_empty());
     }
 
     #[test]
