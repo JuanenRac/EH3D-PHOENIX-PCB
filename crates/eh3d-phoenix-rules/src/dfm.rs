@@ -135,6 +135,7 @@ pub fn title(code: &str, lang: Lang) -> Option<&'static str> {
         .iter()
         .find(|(c, _)| *c == code)
         .map(|(_, texts)| texts[lang.column()])
+        .or_else(|| crate::dfm_more::title(code, lang))
 }
 
 /// A profile that cannot be read: the line of the file and what is wrong with it.
@@ -186,6 +187,8 @@ pub struct DfmProfile {
     pub max_drill_nm: i64,
     /// The most holes (vias and drilled pads).
     pub max_holes: u64,
+    /// The most different drill sizes; 0 turns the line off.
+    pub max_drill_sizes: u32,
 }
 
 fn length(value: &str) -> Option<Nm> {
@@ -265,6 +268,13 @@ impl DfmProfile {
                 "max_board_long_nm" => p.max_board_long_nm = big()?,
                 "max_drill_nm" => p.max_drill_nm = big()?,
                 "max_holes" => p.max_holes = big()?.unsigned_abs(),
+                "max_drill_sizes" => {
+                    p.max_drill_sizes = value
+                        .parse::<u32>()
+                        .ok()
+                        .filter(|v| *v <= 10_000)
+                        .ok_or_else(bad)?
+                }
                 _ => return Err(fail(format!("unknown key {key}"))),
             }
         }
@@ -432,29 +442,32 @@ pub fn dfm_findings(board: &Board, profile: &DfmProfile) -> Report {
         });
         report.confirmed.push(finding);
     }
+    let mut more = Vec::new();
+    crate::dfm_more::findings(board, profile, name, &mut more);
+    report.confirmed.extend(more);
     report.finish();
     report
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
     use eh3d_phoenix_board::{
         Component, Footprint, Id, Layer, LayerKind, Net, Pad, PadShape, Side, Via,
     };
     use eh3d_phoenix_model::{ObjectId, Point, Udeg};
 
-    fn id(n: u32) -> Id {
+    pub(crate) fn id(n: u32) -> Id {
         ObjectId::from_parts(1_700_000_000_000, (n & 0xfff) as u16, u64::from(n)).unwrap()
     }
 
-    fn pt(x: i64, y: i64) -> Point {
+    pub(crate) fn pt(x: i64, y: i64) -> Point {
         Point::from_nm(x, y).unwrap()
     }
 
     /// A board of 40 mm by 25 mm with two copper layers, two vias with drills of 0.3 mm and
     /// 0.8 mm and one part with two drilled pads of 1.0 mm.
-    fn board() -> Board {
+    pub(crate) fn board() -> Board {
         let mut b = Board::default();
         for (n, name) in [(1, "Top"), (2, "Bottom")] {
             b.layers.insert(

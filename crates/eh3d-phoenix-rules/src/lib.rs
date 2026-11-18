@@ -37,6 +37,7 @@ pub mod classes;
 pub mod codes;
 pub mod connectivity;
 pub mod dfm;
+pub mod dfm_more;
 pub mod engine;
 mod geometry;
 mod items;

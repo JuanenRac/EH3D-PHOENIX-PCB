@@ -5,6 +5,7 @@ All notable changes to this project are documented here.
 ## [Unreleased]
 
 - **The test count is the one the CI measures:** the READMEs and `docs/STATUS.md` said 4134 tests, which was counted on a computer; the Linux job of the Rust CI runs 4130, and `CONTRIBUTING.md` now says that the count is always measured in the CI.
+- **Capability profiles limit the number of different drill sizes:** the new line `max_drill_sizes` of a profile (off at 0) makes `phoenix check --dfm` report `PHOENIX-DFM-007` when the vias and the drilled pads use more drill sizes than the maker accepts, in the eight languages.
 
 ## [0.0.8] - Updated ZIP library and a split CI with a pinned toolchain
 
