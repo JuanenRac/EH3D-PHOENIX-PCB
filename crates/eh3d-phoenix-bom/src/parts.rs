@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! The data of the parts that the board and the schematic do not hold: the maker, the part number
 //! and whether the part is fitted. A CSV file with a header line and the columns `match`,
-//! `manufacturer`, `mpn` and `fitted`. `match` is a reference (`R1`) or a value and a footprint
+//! `manufacturer`, `mpn` and `fitted`, and the optional column `alternatives`: the part numbers that
+//! can be fitted in place of `mpn`, separated by semicolons. `match` is a reference (`R1`) or a value and a footprint
 //! joined by a bar (`10k|R0603`); the line of a reference wins over the line of a value and a
 //! footprint. `fitted` is `yes` (also when empty) or `no`.
 
@@ -19,6 +20,36 @@ pub struct PartData {
     pub mpn: String,
     /// Whether the part is fitted.
     pub fitted: bool,
+    /// The part numbers that can be fitted in place of `mpn`, in the order of the file and with
+    /// no repeats; empty when the file does not say.
+    pub alternatives: Vec<String>,
+}
+
+/// The most alternatives a line of the file may name, and the longest one in characters.
+pub const MAX_ALTERNATIVES: usize = 32;
+/// The longest alternative, in characters.
+pub const MAX_ALTERNATIVE_CHARS: usize = 128;
+
+/// Reads the cell of alternatives: part numbers separated by semicolons, trimmed, with the empty
+/// ones and the repeated ones left out.
+fn parse_alternatives(cell: &str, line: usize) -> Result<Vec<String>, BomError> {
+    let mut out: Vec<String> = Vec::new();
+    for word in cell.split(';').map(str::trim).filter(|w| !w.is_empty()) {
+        if word.chars().count() > MAX_ALTERNATIVE_CHARS || word.chars().any(char::is_control) {
+            return Err(invalid(format!(
+                "line {line}: an alternative is longer than {MAX_ALTERNATIVE_CHARS} characters or holds a control character"
+            )));
+        }
+        if !out.iter().any(|w| w == word) {
+            out.push(word.to_owned());
+        }
+    }
+    if out.len() > MAX_ALTERNATIVES {
+        return Err(invalid(format!(
+            "line {line}: more than {MAX_ALTERNATIVES} alternatives"
+        )));
+    }
+    Ok(out)
 }
 
 /// The lines of a file of part data.
@@ -70,6 +101,7 @@ impl PartsFile {
                 manufacturer: get("manufacturer"),
                 mpn: get("mpn"),
                 fitted,
+                alternatives: parse_alternatives(&get("alternatives"), *line)?,
             };
             let duplicate = match matched.split_once('|') {
                 Some((value, footprint)) => file
@@ -111,6 +143,54 @@ mod tests {
 R1,Acme,AC-R1,\n\
 10k|R0603,Yageo,RC0603,yes\n\
 C9,,,no\n";
+
+    #[test]
+    fn the_alternatives_are_split_at_semicolons_and_cleaned() {
+        let f = PartsFile::parse(
+            "match,mpn,alternatives\nR1,A,\" B ; C;;B ;A\"\nR2,A,\nR3,A\n",
+            10,
+        )
+        .unwrap();
+        // the repeats and the empty words go, the order of the file stays
+        assert_eq!(f.find("R1", "", "").unwrap().alternatives, ["B", "C", "A"]);
+        assert!(f.find("R2", "", "").unwrap().alternatives.is_empty());
+        assert!(f.find("R3", "", "").unwrap().alternatives.is_empty());
+        // a file with no such column reads as before
+        assert!(PartsFile::parse(FILE, 10)
+            .unwrap()
+            .find("R1", "", "")
+            .unwrap()
+            .alternatives
+            .is_empty());
+    }
+
+    #[test]
+    fn too_many_or_too_long_alternatives_are_refused() {
+        let many: Vec<String> = (0..=MAX_ALTERNATIVES).map(|i| format!("P{i}")).collect();
+        let text = format!("match,alternatives\nR1,{}\n", many.join(";"));
+        let e = PartsFile::parse(&text, 10).unwrap_err();
+        assert_eq!(e.code, PARTS_INVALID);
+        assert!(
+            e.detail.contains("more than 32 alternatives"),
+            "{}",
+            e.detail
+        );
+        let fits: Vec<String> = (0..MAX_ALTERNATIVES).map(|i| format!("P{i}")).collect();
+        let text = format!("match,alternatives\nR1,{}\n", fits.join(";"));
+        assert_eq!(
+            PartsFile::parse(&text, 10)
+                .unwrap()
+                .find("R1", "", "")
+                .unwrap()
+                .alternatives
+                .len(),
+            MAX_ALTERNATIVES
+        );
+        let long = "x".repeat(MAX_ALTERNATIVE_CHARS + 1);
+        let e = PartsFile::parse(&format!("match,alternatives\nR1,{long}\n"), 10).unwrap_err();
+        assert_eq!(e.code, PARTS_INVALID);
+        assert!(e.detail.contains("line 2"), "{}", e.detail);
+    }
 
     #[test]
     fn the_lines_are_read_and_a_reference_wins_over_a_kind() {

@@ -28,7 +28,7 @@ use crate::text::{csv_raw, csv_text};
 pub const FORMAT: &str = "phoenix-assembly-bom/1";
 
 /// The columns of the CSV file.
-pub const COLUMNS: [&str; 12] = [
+pub const COLUMNS: [&str; 13] = [
     "references",
     "quantity_board",
     "quantity_panel",
@@ -41,6 +41,7 @@ pub const COLUMNS: [&str; 12] = [
     "unit_price",
     "quantity_to_buy",
     "status",
+    "alternatives",
 ];
 
 /// A group of parts that are not fitted.
@@ -181,7 +182,7 @@ pub fn build_assembly(inputs: &BomInputs, boards_per_panel: u64) -> Result<Assem
     })
 }
 
-fn row(cells: [String; 12], numeric: &[usize]) -> String {
+fn row(cells: [String; 13], numeric: &[usize]) -> String {
     let text: Vec<String> = cells
         .iter()
         .enumerate()
@@ -233,6 +234,7 @@ pub fn assembly_csv(face: &AssemblyFace, boards_per_panel: u64) -> String {
                 unit,
                 buy,
                 status.to_owned(),
+                line.alternatives.join(";"),
             ],
             &[1, 2, 9, 10],
         ));
@@ -253,6 +255,7 @@ pub fn assembly_csv(face: &AssemblyFace, boards_per_panel: u64) -> String {
                 String::new(),
                 String::new(),
                 "dnp".to_owned(),
+                String::new(),
             ],
             &[1, 2],
         ));
@@ -269,6 +272,7 @@ fn line_json(line: &BomLine, panel: u64) -> Value {
         "footprint": line.footprint,
         "manufacturer": line.manufacturer,
         "mpn": line.mpn,
+        "alternatives": line.alternatives,
         "supplier": line.purchase.as_ref().map(|p| p.supplier.clone()),
         "supplier_code": line.purchase.as_ref().map(|p| p.supplier_code.clone()),
         "unit_price": line.purchase.as_ref().map(|p| format_micro(i128::from(p.unit_price_micro))),
@@ -429,13 +433,40 @@ mod tests {
         let csv = assembly_csv(&bom.faces[0], bom.boards_per_panel);
         assert_eq!(
             csv,
-            "references,quantity_board,quantity_panel,value,footprint,manufacturer,mpn,supplier,supplier_code,unit_price,quantity_to_buy,status\n\
-             R1 R2,2,8,10k,R0603,,,,,,,fitted\n\
-             R4,1,4,4k7,R0603,,,,,,,dnp\n"
+            "references,quantity_board,quantity_panel,value,footprint,manufacturer,mpn,supplier,supplier_code,unit_price,quantity_to_buy,status,alternatives\n\
+             R1 R2,2,8,10k,R0603,,,,,,,fitted,\n\
+             R4,1,4,4k7,R0603,,,,,,,dnp,\n"
         );
         // no panel: the quantity of the panel is the quantity of the board
         let single = assembly_csv(&bom.faces[0], 0);
         assert!(single.contains("R1 R2,2,2,10k"));
+    }
+
+    #[test]
+    fn the_alternatives_are_the_last_column_of_the_csv_and_a_list_in_the_json() {
+        let b = board();
+        let parts = PartsFile::parse(
+            "match,mpn,alternatives,fitted\nR1,A,B;C,\nR2,A,C;D,\nR4,A,E,no\n",
+            10,
+        )
+        .unwrap();
+        let prices = PriceBook::default();
+        let settings = CostSettings::default();
+        let bom = build_assembly(&inputs(&b, &parts, &prices, &settings), 1).unwrap();
+        let csv = assembly_csv(&bom.faces[0], 1);
+        assert!(csv
+            .lines()
+            .next()
+            .unwrap()
+            .ends_with(",status,alternatives"));
+        assert!(csv.contains(",fitted,B;C;D\n"), "{csv}");
+        // a part that is not fitted has an empty cell
+        assert!(csv.contains(",dnp,\n"), "{csv}");
+        let value: Value = serde_json::from_str(&assembly_json(&bom)).unwrap();
+        assert_eq!(
+            value["faces"][0]["lines"][0]["alternatives"],
+            serde_json::json!(["B", "C", "D"])
+        );
     }
 
     #[test]

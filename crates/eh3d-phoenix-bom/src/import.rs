@@ -394,6 +394,7 @@ impl ImportedBill {
                     manufacturer: line.manufacturer.clone(),
                     mpn: line.mpn.clone(),
                     fitted: line.fitted,
+                    alternatives: Vec::new(),
                 });
             }
         }

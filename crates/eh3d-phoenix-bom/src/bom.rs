@@ -73,6 +73,9 @@ pub struct BomLine {
     pub manufacturer: String,
     /// The part number; empty when it is not known.
     pub mpn: String,
+    /// The part numbers that can be fitted in place of `mpn`: those that the file of part data
+    /// gives for the parts of the line, with no repeats, in alphabetical order.
+    pub alternatives: Vec<String>,
     /// The references, in natural order (`R2` before `R10`).
     pub references: Vec<String>,
     /// The quantity in one board.
@@ -335,6 +338,7 @@ pub fn build_bom(inputs: &BomInputs) -> Result<Bom, BomError> {
     // the parts, grouped
     type Key = (String, String, String, String);
     let mut groups: BTreeMap<Key, Vec<String>> = BTreeMap::new();
+    let mut alternatives_of: BTreeMap<Key, BTreeSet<String>> = BTreeMap::new();
     for entry in collect(inputs, &mut findings) {
         let data = inputs
             .parts
@@ -365,17 +369,26 @@ pub fn build_bom(inputs: &BomInputs) -> Result<Bom, BomError> {
         } else {
             String::new()
         };
-        groups
-            .entry((entry.value, entry.footprint, manufacturer, mpn))
-            .or_default()
-            .push(entry.reference);
+        let key = (entry.value, entry.footprint, manufacturer, mpn);
+        if let Some(data) = data {
+            alternatives_of
+                .entry(key.clone())
+                .or_default()
+                .extend(data.alternatives.iter().cloned());
+        }
+        groups.entry(key).or_default().push(entry.reference);
     }
 
     let boards = settings.boards;
     let whole = 100 * i128::from(MICRO);
     let factor = whole + i128::from(settings.parts_waste_percent_micro);
     let mut lines = Vec::new();
-    for ((value, footprint, manufacturer, mpn), mut references) in groups {
+    for (key, mut references) in groups {
+        let alternatives: Vec<String> = alternatives_of
+            .remove(&key)
+            .map(|set| set.into_iter().filter(|a| *a != key.3).collect())
+            .unwrap_or_default();
+        let (value, footprint, manufacturer, mpn) = key;
         references.sort_by_key(|r| natural_key(r));
         let qty = references.len() as u64;
         let needed = div_ceil(i128::from(qty) * i128::from(boards) * factor, whole) as u64;
@@ -410,6 +423,7 @@ pub fn build_bom(inputs: &BomInputs) -> Result<Bom, BomError> {
             footprint,
             manufacturer,
             mpn,
+            alternatives,
             references,
             qty,
             needed,

@@ -171,6 +171,62 @@ fn the_lines_quantities_and_offers_follow_the_hand_calculation() {
     assert_eq!(bom.parts_per_board_micro, 132_000);
 }
 
+const ALTERNATIVES: &str = "match,manufacturer,mpn,alternatives\n\
+R1,Acme,RC-10K,ALT-A;ALT-B\n\
+R2,Acme,RC-10K,ALT-B;ALT-C\n\
+R3,Acme,RC-10K,RC-10K\n";
+
+#[test]
+fn a_line_carries_the_alternatives_of_all_its_parts_without_splitting_the_line() {
+    let bom = run(&board(), ALTERNATIVES, PRICES, &CostSettings::default());
+    // the three resistors stay one line: the alternatives do not tell lines apart
+    let r = bom.lines.iter().find(|l| l.value == "10k").unwrap();
+    assert_eq!(r.references, vec!["R1", "R2", "R3"]);
+    assert_eq!(r.mpn, "RC-10K");
+    // all of them, once, in alphabetical order, and never the number of the line itself
+    assert_eq!(r.alternatives, vec!["ALT-A", "ALT-B", "ALT-C"]);
+    assert!(bom
+        .lines
+        .iter()
+        .filter(|l| l.value != "10k")
+        .all(|l| l.alternatives.is_empty()));
+    // a file without the column gives none
+    let plain = run(&board(), "match\n", PRICES, &CostSettings::default());
+    assert!(plain.lines.iter().all(|l| l.alternatives.is_empty()));
+}
+
+#[test]
+fn the_alternatives_are_in_the_csv_the_json_the_html_and_the_text() {
+    let bom = run(&board(), ALTERNATIVES, PRICES, &CostSettings::default());
+    let csv = bom_csv(&bom);
+    assert!(csv
+        .lines()
+        .next()
+        .unwrap()
+        .ends_with(",status,alternatives"));
+    assert!(
+        csv.lines().any(|l| l.ends_with(",ALT-A;ALT-B;ALT-C")),
+        "{csv}"
+    );
+    let value: serde_json::Value = serde_json::from_str(&bom_json(&bom)).unwrap();
+    let lines = value["lines"].as_array().unwrap();
+    let r = lines.iter().find(|l| l["value"] == "10k").unwrap();
+    assert_eq!(
+        r["alternatives"],
+        serde_json::json!(["ALT-A", "ALT-B", "ALT-C"])
+    );
+    let c = lines.iter().find(|l| l["value"] == "100n").unwrap();
+    assert_eq!(c["alternatives"], serde_json::json!([]));
+    let html = bom_html(&bom, Lang::En);
+    assert!(html.contains("<th>alternatives</th>"));
+    assert!(html.contains("<td>ALT-A;ALT-B;ALT-C</td>"));
+    assert!(bom_text(&bom, Lang::En).contains("  alternatives: ALT-A; ALT-B; ALT-C\n"));
+    // the column can be left out of the CSV like any other
+    let settings = CostSettings::parse("csv_columns = references,alternatives\n").unwrap();
+    let narrow = eh3d_phoenix_bom::bom_csv_with(&bom, &settings.csv_columns);
+    assert!(narrow.starts_with("references,alternatives\n"), "{narrow}");
+}
+
 #[test]
 fn the_boards_cost_follows_the_tariff_of_the_settings() {
     let bom = run(&board(), "match\n", PRICES, &CostSettings::default());

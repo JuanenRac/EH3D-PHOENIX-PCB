@@ -131,7 +131,7 @@ fn bom_costs_the_parts_and_the_boards_and_writes_new_files_only() {
 
     let csv_text = fs::read_to_string(csv).unwrap();
     assert!(csv_text.contains(
-        "R1 R2,2,10k,R0603,,,Shop A,A-10K,0.010000,1,21,0.210000,0.021000,1:0.010000,ok\n"
+        "R1 R2,2,10k,R0603,,,Shop A,A-10K,0.010000,1,21,0.210000,0.021000,1:0.010000,ok,\n"
     ));
     let json: serde_json::Value = serde_json::from_str(&fs::read_to_string(jf).unwrap()).unwrap();
     assert_eq!(json["total"]["batch"], "20.710000");
@@ -520,6 +520,53 @@ fn bom_writes_the_file_of_an_assembler_in_a_format_of_the_settings() {
     ]);
     assert_eq!((code, err.as_str()), (0, ""));
     assert_eq!(fs::read_to_string(mine).unwrap(), "Ref;Qty\nR1,R2;2\n");
+}
+
+#[test]
+fn the_alternatives_of_the_file_of_parts_reach_the_csv_and_the_file_of_an_assembler() {
+    let dir = tempfile::tempdir().unwrap();
+    let board = write_board(dir.path(), (6 * MM, 6 * MM));
+    let parts = dir.path().join("parts.csv");
+    fs::write(
+        &parts,
+        "match,manufacturer,mpn,alternatives\nR1,Acme,RC-10K,ALT-B; ALT-A\nR2,Acme,RC-10K,ALT-C\n",
+    )
+    .unwrap();
+    let config = dir.path().join("assembler.cfg");
+    fs::write(
+        &config,
+        "format.alt = Ref=references|Mfg Part=mpn|Alternatives=alternatives\nalternatives_separator = space\n",
+    )
+    .unwrap();
+    let (csv, alt) = (dir.path().join("bom.csv"), dir.path().join("alt.csv"));
+    let (csv, alt) = (csv.to_str().unwrap(), alt.to_str().unwrap());
+    let (code, text, err) = command(&[
+        "bom",
+        "--parts",
+        parts.to_str().unwrap(),
+        "--csv",
+        csv,
+        "--assembler",
+        "alt",
+        "--assembler-file",
+        alt,
+        "--assembler-config",
+        config.to_str().unwrap(),
+        board.as_str(),
+    ]);
+    assert_eq!((code, err.as_str()), (0, ""), "{text}");
+    let csv_text = fs::read_to_string(csv).unwrap();
+    assert!(csv_text
+        .lines()
+        .next()
+        .unwrap()
+        .ends_with(",status,alternatives"));
+    assert!(csv_text.contains(",ALT-A;ALT-B;ALT-C\n"), "{csv_text}");
+    assert_eq!(
+        fs::read_to_string(alt).unwrap(),
+        "Ref,Mfg Part,Alternatives\n\"R1,R2\",RC-10K,ALT-A ALT-B ALT-C\n"
+    );
+    assert!(text.contains("alternatives: ALT-A; ALT-B; ALT-C"), "{text}");
 }
 
 #[test]

@@ -314,6 +314,7 @@ pub fn link_bom(
                         ),
                         mpn: pick(existing.map(|d| d.mpn.as_str()), &part.mpn),
                         fitted: existing.is_none_or(|d| d.fitted),
+                        alternatives: existing.map(|d| d.alternatives.clone()).unwrap_or_default(),
                     },
                 );
                 used.entry(id.clone())

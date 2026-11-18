@@ -20,8 +20,10 @@ use crate::codes::{BomError, SETTINGS_INVALID};
 /// * `supplier`, `supplier_code`: the offer that was chosen (empty when there is none);
 /// * `matched_code`: the code of the offer only when its supplier is the one named by
 ///   `code_supplier` in the settings (compared without regard to case), else empty;
+/// * `alternatives`: the part numbers that can be fitted in place of `mpn`, joined by the
+///   separator of the settings (`alternatives_separator`), empty when the line has none;
 /// * `blank`: an empty cell, for a column that the assembler asks for and the bill does not hold.
-pub const FIELDS: [&str; 10] = [
+pub const FIELDS: [&str; 11] = [
     "item",
     "references",
     "quantity",
@@ -32,6 +34,7 @@ pub const FIELDS: [&str; 10] = [
     "supplier",
     "supplier_code",
     "matched_code",
+    "alternatives",
 ];
 
 /// The fields of a column of a placement file.
@@ -76,6 +79,8 @@ pub struct AssemblerSettings {
     pub references_separator: char,
     /// The supplier whose code `matched_code` writes; empty for any supplier.
     pub code_supplier: String,
+    /// The character between the alternatives of one cell.
+    pub alternatives_separator: char,
 }
 
 fn format_of(name: &str, columns: &[(&str, &str)]) -> AssemblerFormat {
@@ -141,6 +146,7 @@ impl Default for AssemblerSettings {
             delimiter: ',',
             references_separator: ',',
             code_supplier: "LCSC".to_owned(),
+            alternatives_separator: ';',
         }
     }
 }
@@ -239,6 +245,9 @@ impl AssemblerSettings {
                 "references_separator" => {
                     s.references_separator = separator_char(value).ok_or_else(bad)?
                 }
+                "alternatives_separator" => {
+                    s.alternatives_separator = separator_char(value).ok_or_else(bad)?
+                }
                 "code_supplier" => {
                     if value.chars().count() > 64 || value.chars().any(char::is_control) {
                         return Err(bad());
@@ -316,6 +325,9 @@ fn field_value(line: &BomLine, number: usize, field: &str, s: &AssemblerSettings
         "footprint" => line.footprint.clone(),
         "manufacturer" => line.manufacturer.clone(),
         "mpn" => line.mpn.clone(),
+        "alternatives" => line
+            .alternatives
+            .join(&s.alternatives_separator.to_string()),
         "supplier" => line
             .purchase
             .as_ref()
@@ -382,6 +394,7 @@ mod tests {
             footprint: footprint.to_owned(),
             manufacturer: "Acme".to_owned(),
             mpn: "AC-1".to_owned(),
+            alternatives: Vec::new(),
             references: refs.iter().map(|r| (*r).to_owned()).collect(),
             qty: refs.len() as u64,
             needed: refs.len() as u64,
@@ -459,6 +472,29 @@ mod tests {
     }
 
     #[test]
+    fn the_alternatives_fill_a_column_joined_by_their_own_separator() {
+        let mut with = line(&["R1"], "10k", "R0603", None);
+        with.alternatives = vec!["AC-2".to_owned(), "AC-3".to_owned()];
+        let none = line(&["R2"], "10k", "R0603", None);
+        let s = AssemblerSettings::parse("format.alt = Ref=references|Alt=alternatives\n").unwrap();
+        let csv = assembler_csv(&[with.clone(), none.clone()], s.format("alt").unwrap(), &s);
+        assert_eq!(csv, "Ref,Alt\nR1,AC-2;AC-3\nR2,\n");
+        let s = AssemblerSettings::parse(
+            "format.alt = Ref=references|Alt=alternatives\nalternatives_separator = tab\ndelimiter = semicolon\n",
+        )
+        .unwrap();
+        assert_eq!(s.alternatives_separator, '\t');
+        let csv = assembler_csv(&[with], s.format("alt").unwrap(), &s);
+        assert_eq!(csv, "Ref;Alt\nR1;AC-2\tAC-3\n");
+        // the formats that come with the program do not write them
+        let d = AssemblerSettings::default();
+        assert!(d
+            .formats
+            .iter()
+            .all(|f| f.columns.iter().all(|(_, field)| field != "alternatives")));
+    }
+
+    #[test]
     fn a_line_adds_or_replaces_a_format_of_the_placement() {
         let s = AssemblerSettings::parse(
             "placement.mine = Ref=ref|Side=side\nplacement.jlcpcb = Name=ref\n",
@@ -511,6 +547,7 @@ mod tests {
             ("delimiter = space\n", "delimiter"),
             ("delimiter = pipe\n", "delimiter"),
             ("references_separator = dot\n", "references_separator"),
+            ("alternatives_separator = dot\n", "alternatives_separator"),
         ] {
             let e = AssemblerSettings::parse(text).unwrap_err();
             assert_eq!(e.code, SETTINGS_INVALID, "{text}");

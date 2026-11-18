@@ -14,7 +14,7 @@ A part without a footprint is listed and flagged (`PHOENIX-BOM-006`); a componen
 
 ### The file of part data
 
-A CSV with a header line and the columns `match`, `manufacturer`, `mpn` and `fitted`.
+A CSV with a header line and the columns `match`, `manufacturer`, `mpn` and `fitted`, and the optional column `alternatives`.
 
 ```
 match,manufacturer,mpn,fitted
@@ -22,6 +22,8 @@ R1,Acme,AC-R1,
 10k|R0603,Yageo,RC0603FR-0710KL,yes
 C9,,,no
 ```
+
+The column `alternatives` names the part numbers that can be fitted in place of `mpn`, separated by semicolons (`RC0603FR-0710KL;ERJ-3EKF1002V`). Blanks around a number and repeated numbers are dropped, a line may name up to 32 and a number may have up to 128 characters, and a file with more or longer ones is refused (`PHOENIX-BOM-004`). A line of the bill holds the alternatives of all its parts, without repeats, in alphabetical order, and never the part number of the line itself; they do not tell lines apart, so two parts with the same value, footprint, maker and part number stay one line whatever their alternatives. The CSV, JSON, HTML and text of the bill, the bills of the faces (`phoenix fabpack`) and the field `alternatives` of the formats of an assembler write them. A file without the column reads as before.
 
 `match` is a reference (`R1`) or a value and a footprint joined by a bar (`10k|R0603`); the line of a reference wins over the line of a value and a footprint. `fitted` is `yes` (also when empty) or `no`; a part that is not fitted is left out of the bill and listed as information (`PHOENIX-BOM-009`).
 
@@ -80,8 +82,8 @@ It is a dry run: without `--csv`, `--json-file` and `--html` nothing is written,
 
 The same input always gives the same bytes: the order is fixed, money is written as decimals with six places, and nothing depends on the time or the machine.
 
-* **CSV**: one line for each bill line with the columns `references`, `quantity`, `value`, `footprint`, `manufacturer`, `mpn`, `supplier`, `supplier_code`, `unit_price`, `price_break`, `quantity_to_buy`, `line_cost_batch`, `line_cost_per_board`, `price_breaks` and `status` (`ok`, `no_price`, `no_footprint` or two of them joined by `+`). A text cell is quoted when it holds a comma, a quote or a line break, and a cell that a spreadsheet would run as a formula (it starts with `=`, `+`, `-` or `@`) gets a quote mark in front.
-The columns of the CSV file, and their order, are the `csv_columns` of `config/costs.cfg` (all fifteen by default; a name that is not in the list, or one named twice, is refused with `PHOENIX-BOM-001`). The HTML page and the JSON file keep all of them.
+* **CSV**: one line for each bill line with the columns `references`, `quantity`, `value`, `footprint`, `manufacturer`, `mpn`, `supplier`, `supplier_code`, `unit_price`, `price_break`, `quantity_to_buy`, `line_cost_batch`, `line_cost_per_board`, `price_breaks`, `status` (`ok`, `no_price`, `no_footprint` or two of them joined by `+`) and `alternatives` (the part numbers joined by semicolons). A text cell is quoted when it holds a comma, a quote or a line break, and a cell that a spreadsheet would run as a formula (it starts with `=`, `+`, `-` or `@`) gets a quote mark in front.
+The columns of the CSV file, and their order, are the `csv_columns` of `config/costs.cfg` (all sixteen by default; a name that is not in the list, or one named twice, is refused with `PHOENIX-BOM-001`). The HTML page and the JSON file keep all of them.
 
 * **JSON** (`phoenix-bom/1`): the lines with their offers and price breaks, the totals of the parts, the estimate of the boards, the total, whether it is complete and the findings; money is a string with six decimals.
 * **HTML**: one page with a table, the totals and the findings, with no script and no outside file; every text that comes from a file is escaped.
@@ -118,13 +120,13 @@ With `--parts-db PATH` (a file or a folder of the local parts base, `docs/PARTS.
 
 A manufacturer that fits the two faces in two passes asks for one list for each pass. The module `assembly` of the crate `eh3d-phoenix-bom` (used by `phoenix fabpack`) makes three bills with the same grouping, prices and parts that are not fitted as the plain bill: the top face, the bottom face and the whole board. Each face is a bill of a copy of the board that holds only the components of that face; the schematic is used for the whole board only, because its parts have no face. The cost of the bare boards is left out.
 
-The CSV file of a face has the columns `references`, `quantity_board`, `quantity_panel`, `value`, `footprint`, `manufacturer`, `mpn`, `supplier`, `supplier_code`, `unit_price`, `quantity_to_buy` and `status`. The quantity of the panel is the quantity of a board times the boards in the panel (`--panel-boards`, 1 when there is no panel). `status` is `fitted`, `no_footprint` or `dnp`: the parts that the file of part data says are not fitted come after the others, each group with the status `dnp`, so that the assembler sees them. The JSON file (`phoenix-assembly-bom/1`) holds the three views with their lines, their parts that are not fitted and their findings. The same input always gives the same bytes.
+The CSV file of a face has the columns `references`, `quantity_board`, `quantity_panel`, `value`, `footprint`, `manufacturer`, `mpn`, `supplier`, `supplier_code`, `unit_price`, `quantity_to_buy`, `status` and `alternatives`. The quantity of the panel is the quantity of a board times the boards in the panel (`--panel-boards`, 1 when there is no panel). `status` is `fitted`, `no_footprint` or `dnp`: the parts that the file of part data says are not fitted come after the others, each group with the status `dnp`, so that the assembler sees them. The JSON file (`phoenix-assembly-bom/1`) holds the three views with their lines, their parts that are not fitted and their findings. The same input always gives the same bytes.
 
 ## The file of an assembler
 
 An assembler asks for the bill in its own columns. `--assembler NAME --assembler-file FILE` also writes the lines of the bill (the parts that are fitted, grouped as above) as a CSV file in the format of that name, to a new file that is never replaced; `--assembler-config FILE` names the file of the formats (default `config/assembler.cfg` when it exists, else the defaults that are in the program).
 
-A format is one line `format.NAME = Header=field|Header=field|...` of `config/assembler.cfg`: each column has the header that the assembler wants and the field of the bill that fills it (`item`, `references`, `quantity`, `value`, `footprint`, `manufacturer`, `mpn`, `supplier`, `supplier_code`, `matched_code` or `blank`). Two formats come with the program, `jlcpcb` (`Comment`, `Designator`, `Footprint`, `LCSC Part #`) and `pcbway` (`Item #`, `Designator`, `Qty`, `Manufacturer`, `Mfg Part #`, `Description / Value`, `Package/Footprint`); a line with the name of one of them replaces it and a new name adds a format. `delimiter` (comma, semicolon or tab) and `references_separator` (comma, semicolon, space or tab) are settings of the file too, and `code_supplier` (default `LCSC`) is the supplier whose code the field `matched_code` writes: the code comes from the offer that was chosen for the line, so a line priced at another supplier gets an empty cell there, and an empty `code_supplier` writes the code of any supplier.
+A format is one line `format.NAME = Header=field|Header=field|...` of `config/assembler.cfg`: each column has the header that the assembler wants and the field of the bill that fills it (`item`, `references`, `quantity`, `value`, `footprint`, `manufacturer`, `mpn`, `supplier`, `supplier_code`, `matched_code`, `alternatives` or `blank`). Two formats come with the program, `jlcpcb` (`Comment`, `Designator`, `Footprint`, `LCSC Part #`) and `pcbway` (`Item #`, `Designator`, `Qty`, `Manufacturer`, `Mfg Part #`, `Description / Value`, `Package/Footprint`); a line with the name of one of them replaces it and a new name adds a format. `delimiter` (comma, semicolon or tab), `references_separator` and `alternatives_separator` (comma, semicolon, space or tab; semicolon by default for the alternatives) are settings of the file too, and `code_supplier` (default `LCSC`) is the supplier whose code the field `matched_code` writes: the code comes from the offer that was chosen for the line, so a line priced at another supplier gets an empty cell there, and an empty `code_supplier` writes the code of any supplier.
 
 The same file holds the formats of the placement (`placement.NAME`), which `phoenix pnp --assembler` writes (`docs/PNP.md`).
 

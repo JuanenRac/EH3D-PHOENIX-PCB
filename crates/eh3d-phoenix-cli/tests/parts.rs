@@ -364,7 +364,7 @@ fn the_bill_of_materials_is_completed_from_the_base() {
     );
     let csv_text = fs::read_to_string(csv).unwrap();
     assert!(
-        csv_text.contains("R1 R2,2,10k,R0603,Acme,AC-10K,Shop A,A-1,0.010000,1,21,0.210000,0.021000,1:0.010000,ok\n"),
+        csv_text.contains("R1 R2,2,10k,R0603,Acme,AC-10K,Shop A,A-1,0.010000,1,21,0.210000,0.021000,1:0.010000,ok,\n"),
         "{csv_text}"
     );
 }

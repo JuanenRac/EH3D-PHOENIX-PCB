@@ -40,8 +40,8 @@ fn breaks_text(line: &BomLine) -> String {
 
 /// The cells of a line, as plain text: references, quantity, value, footprint, maker, part number,
 /// supplier, supplier code, unit price, price break, quantity to buy, cost of the batch, cost per
-/// board, price breaks and state.
-fn cells(line: &BomLine) -> [String; 15] {
+/// board, price breaks, state and alternatives (joined by semicolons).
+fn cells(line: &BomLine) -> [String; 16] {
     let (supplier, code, unit, tier, buy, batch) = match &line.purchase {
         Some(p) => (
             p.supplier.clone(),
@@ -81,11 +81,12 @@ fn cells(line: &BomLine) -> [String; 15] {
         per_board,
         breaks_text(line),
         line_status(line),
+        line.alternatives.join(";"),
     ]
 }
 
 /// The names of the columns.
-pub const COLUMNS: [&str; 15] = [
+pub const COLUMNS: [&str; 16] = [
     "references",
     "quantity",
     "value",
@@ -101,6 +102,7 @@ pub const COLUMNS: [&str; 15] = [
     "line_cost_per_board",
     "price_breaks",
     "status",
+    "alternatives",
 ];
 
 /// The columns that hold numbers worked out by the program (not text from a file).
@@ -163,6 +165,7 @@ pub fn bom_json(bom: &Bom) -> String {
             map.insert("footprint".into(), json!(l.footprint));
             map.insert("manufacturer".into(), json!(l.manufacturer));
             map.insert("mpn".into(), json!(l.mpn));
+            map.insert("alternatives".into(), json!(l.alternatives));
             map.insert("quantity_needed".into(), json!(l.needed));
             map.insert("status".into(), json!(line_status(l)));
             let offer = match &l.purchase {
@@ -342,6 +345,9 @@ pub fn bom_text(bom: &Bom, lang: Lang) -> String {
             l.mpn,
             offer
         ));
+        if !l.alternatives.is_empty() {
+            out.push_str(&format!("  alternatives: {}\n", l.alternatives.join("; ")));
+        }
     }
     out.push_str(&format!(
         "parts: {} for the batch, {} for one board\n",
