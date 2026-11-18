@@ -11,6 +11,7 @@ All notable changes to this project are documented here.
 - **Capability profiles limit the size of the silkscreen:** the new lines `min_silk_text_height_nm` and `min_silk_stroke_nm` of a profile (off at 0) make `phoenix check --dfm` report `PHOENIX-DFM-010` for letters that are too small and `PHOENIX-DFM-011` for printed lines that are too thin, with the measured and the limit values, in the eight languages.
 - **Capability profiles can refuse an odd number of copper layers:** the new line `require_even_layers` of a profile (off by default) makes `phoenix check --dfm` report `PHOENIX-DFM-012` for a stack of three or more copper layers with an odd count, in the eight languages.
 - **Capability profiles limit the proportion of the board:** the new line `max_board_aspect_x10` of a profile (off at 0) makes `phoenix check --dfm` report `PHOENIX-DFM-013` for a board whose long side is too many times its short side, with the longest side that would pass, in the eight languages.
+- **Capability profiles can refuse blind and buried vias:** the new line `forbid_blind_vias` of a profile (off by default) makes `phoenix check --dfm` report `PHOENIX-DFM-014` for each via that does not join the first and the last copper layer, with its place, in the eight languages.
 
 ## [0.0.8] - Updated ZIP library and a split CI with a pinned toolchain
 

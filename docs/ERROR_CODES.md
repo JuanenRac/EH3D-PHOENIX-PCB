@@ -246,6 +246,7 @@ The checks of `phoenix check --advanced`, with the limits and the levels of `con
 | PHOENIX-DFM-011 | Silkscreen line thinner than the profile accepts | `phoenix check --dfm`: the width of a printed silkscreen line, of a text or a stroke, is below `min_silk_stroke_nm` of the capability profile |
 | PHOENIX-DFM-012 | Odd number of copper layers, which the profile does not build | `phoenix check --dfm`: the board has three or more copper layers, an odd count, while `require_even_layers` is `true` in the capability profile |
 | PHOENIX-DFM-013 | Board too long for its width, beyond the proportion the profile accepts | `phoenix check --dfm`: the long side of the box of the outline is more than `max_board_aspect_x10` tenths of the short side in the capability profile |
+| PHOENIX-DFM-014 | Blind or buried via, which the profile does not build | `phoenix check --dfm`: a via does not join the first and the last copper layer while `forbid_blind_vias` is `true` in the capability profile |
 
 Titles of the same codes in the other seven languages (Portuguese is the Portuguese of Portugal):
 

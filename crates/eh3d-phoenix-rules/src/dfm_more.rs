@@ -33,6 +33,8 @@ pub const SILK_LINE_THIN: &str = "PHOENIX-DFM-011";
 pub const ODD_LAYERS: &str = "PHOENIX-DFM-012";
 /// A board longer for its width than the profile accepts.
 pub const BOARD_PROPORTION: &str = "PHOENIX-DFM-013";
+/// A blind or buried via.
+pub const BLIND_VIA: &str = "PHOENIX-DFM-014";
 
 /// Every code of this module with its English title, in order.
 pub const REGISTRY: &[(&str, &str)] = &[
@@ -63,6 +65,10 @@ pub const REGISTRY: &[(&str, &str)] = &[
     (
         BOARD_PROPORTION,
         "Board too long for its width, beyond the proportion the profile accepts",
+    ),
+    (
+        BLIND_VIA,
+        "Blind or buried via, which the profile does not build",
     ),
 ];
 
@@ -158,6 +164,19 @@ const TITLES: &[(&str, [&str; 8])] = &[
             "Placa demasiado alongada para a proporção que o perfil aceita",
         ],
     ),
+    (
+        BLIND_VIA,
+        [
+            "Blind or buried via, which the profile does not build",
+            "Vía ciega o enterrada, que el perfil no fabrica",
+            "Sackloch- oder vergrabene Durchkontaktierung, die das Profil nicht fertigt",
+            "Via borgne ou enterré, que le profil ne fabrique pas",
+            "Via cieca o interrata, che il profilo non produce",
+            "プロファイルが製造しないブラインドまたはベリードビア",
+            "配置文件不制造的盲孔或埋孔",
+            "Via cega ou enterrada, que o perfil não fabrica",
+        ],
+    ),
 ];
 
 /// The title of a code of this module in a language; `None` for any other code.
@@ -189,6 +208,7 @@ fn drills(board: &Board) -> Vec<i64> {
 /// The findings of the lines of this module; `name` is the name of the profile for the words.
 pub(crate) fn findings(board: &Board, profile: &DfmProfile, name: &str, out: &mut Vec<Finding>) {
     drill_sizes(board, profile, name, out);
+    blind_vias(board, profile, out);
     board_proportion(board, profile, out);
     even_layers(board, profile, out);
     silk_size(board, profile, out);
@@ -401,6 +421,36 @@ fn board_proportion(board: &Board, profile: &DfmProfile, out: &mut Vec<Finding>)
                 max % 10
             )),
         );
+    }
+}
+
+/// The vias that do not join the first and the last copper layer of the stack.
+fn blind_vias(board: &Board, profile: &DfmProfile, out: &mut Vec<Finding>) {
+    if !profile.forbid_blind_vias {
+        return;
+    }
+    let (Some(top), Some(bottom)) = (board.copper_stack.first(), board.copper_stack.last()) else {
+        return;
+    };
+    if top == bottom {
+        return;
+    }
+    for (vid, via) in &board.vias {
+        let through = (via.from_layer == *top && via.to_layer == *bottom)
+            || (via.from_layer == *bottom && via.to_layer == *top);
+        if !through {
+            out.push(
+                Finding::new(
+                    53,
+                    "dfm_blind_via",
+                    BLIND_VIA,
+                    Severity::Error,
+                    format!("via {vid}"),
+                )
+                .at(via.at.x_nm.get(), via.at.y_nm.get())
+                .why("the via does not join the first and the last copper layer"),
+            );
+        }
     }
 }
 
@@ -710,6 +760,46 @@ mod tests {
             Vec::<&str>::new()
         );
         assert!(DfmProfile::parse("max_board_aspect_x10 = 10001\n").is_err());
+    }
+
+    #[test]
+    fn only_the_vias_that_do_not_cross_the_whole_stack_are_blind_or_buried() {
+        use crate::dfm::tests::id;
+        // four layers: the via 30 goes from 1 to 4, the via 31 from 1 to 2
+        let mut board = with_layers(4);
+        board.vias.get_mut(&id(30)).unwrap().to_layer = id(4);
+        let on = "forbid_blind_vias = true\n";
+        let profile = DfmProfile::parse(&format!("verified = true\n{on}")).unwrap();
+        let report = dfm_findings(&board, &profile);
+        assert_eq!(report.confirmed.len(), 1, "{:?}", report.confirmed);
+        assert_eq!(report.confirmed[0].code, BLIND_VIA);
+        assert!(report.confirmed[0].location.starts_with("via "));
+        assert_eq!(report.confirmed[0].at_nm, Some([9_000_000, 5_000_000]));
+        // a via written from the last layer to the first is a through via too
+        let via = board.vias.get_mut(&id(31)).unwrap();
+        via.from_layer = id(4);
+        via.to_layer = id(1);
+        assert_eq!(codes(&board, on), Vec::<&str>::new());
+        // off by default
+        assert_eq!(codes(&with_layers(4), ""), Vec::<&str>::new());
+        // the two-layer board of the tests has only through vias
+        assert_eq!(codes(&with_layers(2), on), Vec::<&str>::new());
+    }
+
+    #[test]
+    fn a_board_without_a_stack_has_no_blind_vias() {
+        let mut board = with_layers(4);
+        board.copper_stack.clear();
+        assert_eq!(
+            codes(&board, "forbid_blind_vias = true\n"),
+            Vec::<&str>::new()
+        );
+        board.copper_stack = vec![crate::dfm::tests::id(1)];
+        assert_eq!(
+            codes(&board, "forbid_blind_vias = true\n"),
+            Vec::<&str>::new()
+        );
+        assert!(DfmProfile::parse("forbid_blind_vias = yes\n").is_err());
     }
 
     #[test]
