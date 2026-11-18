@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! The test points of a board and the nets they reach.
 //!
-//! A **test point** is a pad of a part that the settings recognise: a part whose reference starts
+//! A **test point** is a pad that the board marks or a pad of a part that the settings recognise: a part whose reference starts
 //! with one of `testpoint_prefixes` (and goes on with a digit, a mark or nothing, so `TP12` and
 //! `TP_GND` are test points and `TPS5` is not) or whose footprint name holds one of
 //! `testpoint_footprint_words`. It is **probed** when it is on the side the settings name.
@@ -13,6 +13,9 @@
 //! Each test point is also judged: its smallest side against `min_pad_nm`, its distance to the
 //! edge of the board against `min_edge_nm`, and its distance to the other test points on the same
 //! side against `min_spacing_nm`. A test point on no net is reported.
+//!
+//! A pad the designer marked as a test point (`Board::test_points`) is one too, whatever its part is
+//! called; `use_marks` and `use_names` of the settings switch each way of recognising them on or off.
 //!
 //! The report is the same every time: the test points come in the order of their reference and
 //! pad, the nets in the order of their names, and every number is an integer.
@@ -196,9 +199,10 @@ fn find_test_points(board: &Board, settings: &TestPointSettings) -> Vec<Raw> {
         let Some(footprint) = board.footprints.get(&component.footprint) else {
             continue;
         };
-        if !has_prefix(&component.refdes, &settings.prefixes)
-            && !has_word(&footprint.name, &settings.footprint_words)
-        {
+        let by_name = settings.use_names
+            && (has_prefix(&component.refdes, &settings.prefixes)
+                || has_word(&footprint.name, &settings.footprint_words));
+        if !by_name && !(settings.use_marks && !board.test_points.is_empty()) {
             continue;
         }
         for (pad_id, pad) in &footprint.pads {
@@ -206,6 +210,9 @@ fn find_test_points(board: &Board, settings: &TestPointSettings) -> Vec<Raw> {
                 component: *component_id,
                 pad: *pad_id,
             };
+            if !by_name && !board.is_test_point(pad_ref) {
+                continue;
+            }
             let Some(at) = pad_position(board, pad_ref) else {
                 continue;
             };

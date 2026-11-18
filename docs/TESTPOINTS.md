@@ -12,7 +12,9 @@ The board is a `.json` board, an EAGLE `.brd` or a KiCad `.kicad_pcb`, as for th
 
 ## What is a test point
 
-A test point is a pad of a part that the settings recognise:
+A test point is a pad that the board marks or a pad of a part that the settings recognise:
+
+* the designer marked the pad as a test point: the list `test_points` of the board names it (`docs/BOARD_EDIT.md`, the operation `SetTestPoint`); a board made before the list existed has none, and a part called `TP1` is still recognised by its name;
 
 * the reference of the part starts with one of `testpoint_prefixes` (`TP` by default) and goes on with a digit, a mark or nothing, so `TP12` and `TP_GND` are test points and `TPS5` (a chip) is not;
 * or the name of the footprint holds one of `testpoint_footprint_words` in any case (`testpoint`, `test_point` and `test-point` by default).
@@ -45,7 +47,7 @@ The text lists the test points (reference and pad, net, side, place and size), t
 
 ## Settings
 
-`config/testpoints.cfg` holds every value and is also the built-in default: `testpoint_prefixes`, `testpoint_footprint_words`, `probe_side`, `required_per_net`, `min_pads_for_test`, `ignore_nets`, `min_pad_nm`, `min_spacing_nm`, `min_edge_nm`, `uncovered_severity` and `max_items` (the most parts, connected pads and nets a board may hold for the check to run, `PHOENIX-TP-005`). A line that is not `key = value`, an unknown key or a value out of range is refused with its line number (`PHOENIX-TP-001`).
+`config/testpoints.cfg` holds every value and is also the built-in default: `testpoint_prefixes`, `testpoint_footprint_words`, `use_marks` and `use_names` (which of the two ways of recognising a test point count, both on by default), `probe_side`, `required_per_net`, `min_pads_for_test`, `ignore_nets`, `min_pad_nm`, `min_spacing_nm`, `min_edge_nm`, `uncovered_severity` and `max_items` (the most parts, connected pads and nets a board may hold for the check to run, `PHOENIX-TP-005`). A line that is not `key = value`, an unknown key or a value out of range is refused with its line number (`PHOENIX-TP-001`).
 
 ## Codes
 
@@ -56,4 +58,5 @@ The text lists the test points (reference and pad, net, side, place and size), t
 * The access to a pad is not judged: the solder mask over it, a part on the other side in the way of the probe and the height of the parts around it are not looked at.
 * Only the centre of the test point is checked against the edge, and only the centres against each other.
 * A pad of a through-hole part is on the side of the part.
+* A mark is on one pad; the other pads of its part are not test points unless the part is recognised by its name.
 * Nothing has been compared with the rules of a test fixture maker or with another tool.

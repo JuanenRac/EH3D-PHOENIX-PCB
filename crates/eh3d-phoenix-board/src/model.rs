@@ -362,6 +362,12 @@ pub struct Board {
     /// board made before it existed reads as before.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub silkscreen: BTreeMap<Id, crate::silk::SilkItem>,
+    /// The pads the designer marked as test points, sorted by pad and without repeats. A marked
+    /// pad is a test point whatever the reference of its part or the name of its footprint say;
+    /// a pad that is not marked is still recognised by those, as before. Not written when empty;
+    /// a board made before it existed reads as before.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub test_points: Vec<PadRef>,
 }
 
 /// The place of a copper layer in the stack.
@@ -399,6 +405,34 @@ impl Board {
     /// errors; whether the references hold is a separate check ([`Board::validate`]).
     pub fn from_bytes(bytes: &[u8]) -> Result<Board, serde_json::Error> {
         serde_json::from_slice(bytes)
+    }
+
+    /// Whether the pad is marked as a test point (see [`Board::test_points`]).
+    pub fn is_test_point(&self, pad: PadRef) -> bool {
+        self.test_points.binary_search(&pad).is_ok()
+    }
+
+    /// Marks a pad as a test point, keeping the list sorted. Returns false when the pad was
+    /// already marked. Whether the pad exists is for [`Board::validate`].
+    pub fn mark_test_point(&mut self, pad: PadRef) -> bool {
+        match self.test_points.binary_search(&pad) {
+            Ok(_) => false,
+            Err(i) => {
+                self.test_points.insert(i, pad);
+                true
+            }
+        }
+    }
+
+    /// Takes the mark off a pad. Returns false when the pad was not marked.
+    pub fn unmark_test_point(&mut self, pad: PadRef) -> bool {
+        match self.test_points.binary_search(&pad) {
+            Ok(i) => {
+                self.test_points.remove(i);
+                true
+            }
+            Err(_) => false,
+        }
     }
 
     /// The net of a pad, if it has one.

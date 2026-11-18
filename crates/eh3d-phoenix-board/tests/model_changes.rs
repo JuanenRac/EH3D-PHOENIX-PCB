@@ -4,9 +4,10 @@
 
 use std::collections::BTreeMap;
 
-use eh3d_phoenix_board::validate::BAD_OUTLINE;
+use eh3d_phoenix_board::validate::{BAD_OUTLINE, DANGLING, PAD_NET_CONFLICT};
 use eh3d_phoenix_board::{
-    Board, Footprint, History, Id, Layer, LayerKind, Operation, Pad, PadShape, Zone,
+    Board, Component, Footprint, History, Id, Layer, LayerKind, OpError, Operation, Pad, PadRef,
+    PadShape, Side, Zone,
 };
 use eh3d_phoenix_model::{Nm, ObjectId, Point, Udeg};
 
@@ -225,4 +226,161 @@ fn a_cutout_that_crosses_itself_or_a_pad_without_a_drill_that_is_not_plated_is_r
         None,
     ));
     assert_eq!(d.validate().len(), 1);
+}
+
+/// The board of the fixture with one component, J1, of its footprint.
+fn with_component() -> Board {
+    let mut b = board(plain_pad());
+    b.components.insert(
+        id(30),
+        Component {
+            refdes: "J1".into(),
+            value: String::new(),
+            symbol: None,
+            footprint: id(11),
+            at: pt(5, 5),
+            rotation: Udeg::ZERO,
+            side: Side::Top,
+        },
+    );
+    b
+}
+
+fn mark() -> PadRef {
+    PadRef {
+        component: id(30),
+        pad: id(10),
+    }
+}
+
+#[test]
+fn the_test_point_marks_are_written_only_when_there_are_some_and_read_back() {
+    let mut b = with_component();
+    let plain = String::from_utf8(b.to_bytes().unwrap()).unwrap();
+    assert!(!plain.contains("test_points"), "{plain}");
+    assert!(!b.is_test_point(mark()));
+    assert!(b.mark_test_point(mark()));
+    assert!(!b.mark_test_point(mark()));
+    assert!(b.is_test_point(mark()));
+    assert!(b.validate().is_empty(), "{:?}", b.validate());
+    let text = String::from_utf8(b.to_bytes().unwrap()).unwrap();
+    assert!(text.contains("test_points"), "{text}");
+    assert_eq!(Board::from_bytes(text.as_bytes()).unwrap(), b);
+    assert!(b.unmark_test_point(mark()));
+    assert!(!b.unmark_test_point(mark()));
+    assert_eq!(b.to_bytes().unwrap(), plain.as_bytes());
+}
+
+#[test]
+fn the_marks_stay_sorted_by_pad() {
+    let mut b = with_component();
+    let second = PadRef {
+        component: id(30),
+        pad: id(9),
+    };
+    b.footprints
+        .get_mut(&id(11))
+        .unwrap()
+        .pads
+        .insert(id(9), plain_pad());
+    assert!(b.mark_test_point(mark()));
+    assert!(b.mark_test_point(second));
+    assert_eq!(b.test_points, vec![second, mark()]);
+    assert!(b.validate().is_empty(), "{:?}", b.validate());
+}
+
+#[test]
+fn marking_a_pad_is_an_operation_with_an_exact_inverse() {
+    let mut b = with_component();
+    let before = b.to_bytes().unwrap();
+    let mut history = History::new();
+    history
+        .execute(
+            &mut b,
+            Operation::SetTestPoint {
+                pad: mark(),
+                marked: true,
+            },
+        )
+        .unwrap();
+    assert!(b.is_test_point(mark()));
+    // the same mark again changes nothing and undoes to the state before it
+    let marked_bytes = b.to_bytes().unwrap();
+    history
+        .execute(
+            &mut b,
+            Operation::SetTestPoint {
+                pad: mark(),
+                marked: true,
+            },
+        )
+        .unwrap();
+    assert_eq!(b.to_bytes().unwrap(), marked_bytes);
+    assert!(history.undo(&mut b));
+    assert_eq!(b.to_bytes().unwrap(), marked_bytes);
+    assert!(history.undo(&mut b));
+    assert_eq!(b.to_bytes().unwrap(), before);
+    let text = serde_json::to_string(&Operation::SetTestPoint {
+        pad: mark(),
+        marked: false,
+    })
+    .unwrap();
+    assert!(text.starts_with(r#"{"op":"set_test_point""#), "{text}");
+}
+
+#[test]
+fn a_mark_on_a_pad_that_does_not_exist_is_refused() {
+    let mut b = with_component();
+    let no_pad = PadRef {
+        component: id(30),
+        pad: id(99),
+    };
+    let no_component = PadRef {
+        component: id(98),
+        pad: id(10),
+    };
+    for (pad, expected) in [(no_pad, id(99)), (no_component, id(98))] {
+        let err = b
+            .apply(&Operation::SetTestPoint { pad, marked: true })
+            .unwrap_err();
+        assert_eq!(err, OpError::Missing(expected));
+    }
+    assert!(b.test_points.is_empty());
+}
+
+#[test]
+fn removing_a_component_takes_its_marks_and_undo_gives_them_back() {
+    let mut b = with_component();
+    b.mark_test_point(mark());
+    let before = b.to_bytes().unwrap();
+    let mut history = History::new();
+    history
+        .execute(&mut b, Operation::RemoveComponent { id: id(30) })
+        .unwrap();
+    assert!(b.test_points.is_empty());
+    assert!(b.validate().is_empty(), "{:?}", b.validate());
+    assert!(history.undo(&mut b));
+    assert_eq!(b.to_bytes().unwrap(), before);
+}
+
+#[test]
+fn a_mark_that_repeats_or_names_a_missing_pad_is_reported() {
+    let mut b = with_component();
+    b.test_points = vec![mark(), mark()];
+    let codes: Vec<String> = b
+        .validate()
+        .iter()
+        .filter_map(|d| d.code.as_ref().map(|c| c.to_string()))
+        .collect();
+    assert_eq!(codes, vec![PAD_NET_CONFLICT.to_owned()]);
+    b.test_points = vec![PadRef {
+        component: id(30),
+        pad: id(99),
+    }];
+    let codes: Vec<String> = b
+        .validate()
+        .iter()
+        .filter_map(|d| d.code.as_ref().map(|c| c.to_string()))
+        .collect();
+    assert_eq!(codes, vec![DANGLING.to_owned()]);
 }

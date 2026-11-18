@@ -154,6 +154,47 @@ fn moving_a_component_drags_the_track_ends_on_its_pads_unless_told_not_to() {
 }
 
 #[test]
+fn a_pad_is_marked_as_a_test_point_by_an_operation_and_undo_gives_the_same_bytes() {
+    let f = fixture();
+    let mut e = editor(&f);
+    let before = bytes(&e);
+    let pad = f.pad(f.r1, f.pad1);
+    let out = e.apply(&EditOp::TestPoint { pad, marked: true }).unwrap();
+    assert!(out.changed && !out.drc.adds_error());
+    assert!(e.board().is_test_point(pad));
+    assert!(!e.board().is_test_point(f.pad(f.r1, f.pad2)));
+    let marked = bytes(&e);
+    assert!(e.undo());
+    assert_eq!(bytes(&e), before);
+    assert!(e.redo());
+    assert_eq!(bytes(&e), marked);
+    // taking the mark off leaves the board as it was
+    e.apply(&EditOp::TestPoint { pad, marked: false }).unwrap();
+    assert_eq!(bytes(&e), before);
+    // a pad the board does not have is refused and changes nothing
+    let missing = f.pad(f.r1, id(99));
+    let error = e
+        .apply(&EditOp::TestPoint {
+            pad: missing,
+            marked: true,
+        })
+        .unwrap_err();
+    assert_eq!(error.code, OPERATION_REFUSED);
+    assert_eq!(bytes(&e), before);
+}
+
+#[test]
+fn the_mark_of_a_test_point_is_true_when_the_file_of_operations_leaves_it_out() {
+    let text = format!(
+        r#"{{"op":"test_point","pad":{{"component":"{}","pad":"{}"}}}}"#,
+        id(1),
+        id(2)
+    );
+    let op: EditOp = serde_json::from_str(&text).unwrap();
+    assert!(matches!(op, EditOp::TestPoint { marked: true, .. }));
+}
+
+#[test]
 fn a_locked_component_is_refused_and_unlocking_frees_it() {
     let f = fixture();
     let mut e = editor(&f);

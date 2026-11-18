@@ -234,8 +234,15 @@ fn is_test_reference(refdes: &str, prefixes: &[String]) -> bool {
     })
 }
 
-/// The function of the aperture of a pad.
-fn pad_function(pad: &Pad, footprint_name: &str, refdes: &str, x2: &X2Profile) -> ApFunction {
+/// The function of the aperture of a pad. A pad the designer marked as a test point is a test pad
+/// whatever the words of the profile say.
+fn pad_function(
+    pad: &Pad,
+    footprint_name: &str,
+    refdes: &str,
+    marked: bool,
+    x2: &X2Profile,
+) -> ApFunction {
     let name = footprint_name.to_lowercase();
     if x2
         .fiducial_names
@@ -249,7 +256,8 @@ fn pad_function(pad: &Pad, footprint_name: &str, refdes: &str, x2: &X2Profile) -
         .any(|number| number.eq_ignore_ascii_case(&pad.number))
     {
         ApFunction::HeatsinkPad
-    } else if is_test_reference(refdes, &x2.testpoint_prefixes)
+    } else if marked
+        || is_test_reference(refdes, &x2.testpoint_prefixes)
         || x2
             .testpoint_names
             .iter()
@@ -425,7 +433,13 @@ fn zone_clearing(
                     ApKey::Rect(w, h) | ApKey::Obround(w, h) => w.max(h),
                 };
                 if near(at, reach) {
-                    let function = pad_function(pad, &footprint.name, &component.refdes, x2);
+                    let function = pad_function(
+                        pad,
+                        &footprint.name,
+                        &component.refdes,
+                        board.is_test_point(pad_ref),
+                        x2,
+                    );
                     clear.push((Draw::Flash(ap(key, function), at), none()));
                 }
             }
@@ -726,7 +740,13 @@ fn collect(
                     continue;
                 }
             }
-            let function = pad_function(pad, &footprint.name, &component.refdes, x2);
+            let function = pad_function(
+                pad,
+                &footprint.name,
+                &component.refdes,
+                board.is_test_point(pad_ref),
+                x2,
+            );
             draws.push((
                 Draw::Flash(ap(adjust(pad_key(pad.shape, swapped), delta), function), at),
                 set,

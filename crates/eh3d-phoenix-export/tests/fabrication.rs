@@ -6,8 +6,8 @@ use std::collections::BTreeMap;
 
 use eh3d_parser_gerber::Aperture;
 use eh3d_phoenix_board::{
-    Board, Component, Footprint, Id, Layer, LayerKind, Net, Pad, PadShape, Segment, Side, Track,
-    Via, Zone,
+    Board, Component, Footprint, Id, Layer, LayerKind, Net, Pad, PadRef, PadShape, Segment, Side,
+    Track, Via, Zone,
 };
 use eh3d_phoenix_export::assembly::parse_csv;
 use eh3d_phoenix_export::profile::{BottomRotation, FiducialScope, ObjectAttribute, X2Level};
@@ -943,6 +943,31 @@ fn pads_of_test_points_get_their_function() {
     let mut off = with_level(X2Level::Aperture);
     off.gerber.x2.testpoint_prefixes = Vec::new();
     assert!(!file(&build(&f, &off).unwrap(), "layers/02_top_copper.gbr").contains("TestPad"));
+}
+
+#[test]
+fn a_pad_the_board_marks_gets_the_test_pad_function_whatever_its_part_is_called() {
+    let mut f = fixture();
+    let (component, footprint) = f
+        .components
+        .iter()
+        .find(|(_, c)| c.refdes == "C2")
+        .map(|(id, c)| (*id, c.footprint))
+        .unwrap();
+    let pad = *f.footprints[&footprint].pads.keys().next().unwrap();
+    assert!(f.mark_test_point(PadRef { component, pad }));
+    // an empty list of words does not switch off a pad that is marked
+    let mut profile = with_level(X2Level::Aperture);
+    profile.gerber.x2.testpoint_prefixes = Vec::new();
+    profile.gerber.x2.testpoint_names = Vec::new();
+    let set = build(&f, &profile).unwrap();
+    let top = file(&set, "layers/02_top_copper.gbr");
+    assert!(top.contains("%TA.AperFunction,TestPad*%"), "{top}");
+    assert!(verify(&f, &profile, &set).is_empty());
+    // the same board without the mark has no such function
+    f.unmark_test_point(PadRef { component, pad });
+    let plain = build(&f, &profile).unwrap();
+    assert!(!file(&plain, "layers/02_top_copper.gbr").contains("TestPad"));
 }
 
 #[test]

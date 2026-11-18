@@ -76,6 +76,13 @@ pub enum Operation {
         /// The net, or none to disconnect.
         net: Option<Id>,
     },
+    /// Marks a pad as a test point, or takes the mark off (`Board::test_points`).
+    SetTestPoint {
+        /// The pad, which the board must have.
+        pad: PadRef,
+        /// True to mark it, false to take the mark off.
+        marked: bool,
+    },
     /// Adds a track.
     AddTrack {
         /// The new id.
@@ -266,6 +273,16 @@ impl Board {
                     });
                 }
                 self.pad_nets.retain(|p| p.component != *id);
+                for pad in self
+                    .test_points
+                    .iter()
+                    .filter(|p| p.component == *id)
+                    .copied()
+                    .collect::<Vec<_>>()
+                {
+                    undo.push(Operation::SetTestPoint { pad, marked: true });
+                }
+                self.test_points.retain(|p| p.component != *id);
                 self.components.remove(id);
                 Ok(Operation::Batch { ops: undo })
             }
@@ -305,6 +322,28 @@ impl Board {
                 })
             }
             Operation::SetPadNet { pad, net } => set_pad_net(self, *pad, *net),
+            Operation::SetTestPoint { pad, marked } => {
+                let component = self
+                    .components
+                    .get(&pad.component)
+                    .ok_or(OpError::Missing(pad.component))?;
+                let has = self
+                    .footprints
+                    .get(&component.footprint)
+                    .is_some_and(|f| f.pads.contains_key(&pad.pad));
+                if !has {
+                    return Err(OpError::Missing(pad.pad));
+                }
+                let before = if *marked {
+                    !self.mark_test_point(*pad)
+                } else {
+                    self.unmark_test_point(*pad)
+                };
+                Ok(Operation::SetTestPoint {
+                    pad: *pad,
+                    marked: before,
+                })
+            }
             Operation::AddTrack { id, track } => {
                 if self.tracks.contains_key(id) {
                     return Err(OpError::Exists(*id));

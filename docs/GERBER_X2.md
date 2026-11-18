@@ -44,7 +44,7 @@ From the level `aperture` each aperture is defined after the `TA` of its functio
 | Pad without a drill | `SMDPad,CuDef` |
 | Pad whose number is in `gerber.x2.heatsink_pad_numbers` (`EP`) | `HeatsinkPad` |
 | Pad of a footprint whose name holds a word of `gerber.x2.fiducial_names` (`fiducial`) | `FiducialPad,Local` or `FiducialPad,Global` (`gerber.x2.fiducial_scope`) |
-| Pad of a part whose reference starts with a word of `gerber.x2.testpoint_prefixes` (`TP`) and goes on with anything but a letter, or of a footprint whose name holds a word of `gerber.x2.testpoint_names` (`testpoint`) | `TestPad` |
+| Pad of a part whose reference starts with a word of `gerber.x2.testpoint_prefixes` (`TP`) and goes on with anything but a letter, or of a footprint whose name holds a word of `gerber.x2.testpoint_names` (`testpoint`), or a pad that the board marks as a test point (`test_points`, whatever the words say) | `TestPad` |
 | Pad of a via | `ViaPad` |
 | Track | `Conductor` |
 | Outline | `Profile` |

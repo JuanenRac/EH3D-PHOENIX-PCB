@@ -285,6 +285,23 @@ pub fn plan(
             }
             Ok(single(Operation::RemoveVia { id: *via }))
         }
+        EditOp::TestPoint { pad, marked } => {
+            let has = board
+                .components
+                .get(&pad.component)
+                .and_then(|c| board.footprints.get(&c.footprint))
+                .is_some_and(|f| f.pads.contains_key(&pad.pad));
+            if !has {
+                return Err(refused(format!(
+                    "no pad {} on component {}",
+                    pad.pad, pad.component
+                )));
+            }
+            Ok(single(Operation::SetTestPoint {
+                pad: *pad,
+                marked: *marked,
+            }))
+        }
         EditOp::DeleteNet { net } => delete_net(board, *net),
         EditOp::RouteBetween {
             from,

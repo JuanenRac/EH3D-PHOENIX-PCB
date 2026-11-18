@@ -14,8 +14,8 @@
 use std::collections::BTreeMap;
 
 use eh3d_phoenix_board::{
-    Board, Component, Footprint, Id, Layer, LayerKind, Net, Pad, PadNet, PadShape, Segment, Side,
-    SilkItem, Track, Via, Zone,
+    Board, Component, Footprint, Id, Layer, LayerKind, Net, Pad, PadNet, PadRef, PadShape, Segment,
+    Side, SilkItem, Track, Via, Zone,
 };
 use eh3d_phoenix_model::{Nm, ObjectId, Point, Udeg};
 
@@ -472,6 +472,7 @@ pub fn compose(
     let mut ids = Ids { next: 0 };
     let mut footprint_ids: BTreeMap<(usize, Id, bool), Id> = BTreeMap::new();
     let mut pad_nets: Vec<PadNet> = Vec::new();
+    let mut test_points: Vec<PadRef> = Vec::new();
     for (index, copy) in plan.copies.iter().enumerate() {
         let source = boards.get(copy.board).ok_or_else(|| {
             PanelError::new(
@@ -578,6 +579,14 @@ pub fn compose(
                 });
             }
         }
+        for mark in &source.test_points {
+            if let Some(component) = component_ids.get(&mark.component) {
+                test_points.push(PadRef {
+                    component: *component,
+                    pad: mark.pad,
+                });
+            }
+        }
         for track in source.tracks.values() {
             let net = net_for(&mut net_ids, &mut ids, track.net)?;
             let id = ids.make()?;
@@ -658,6 +667,8 @@ pub fn compose(
     }
     pad_nets.sort_by_key(PadNet::pad_ref);
     out.pad_nets = pad_nets;
+    test_points.sort();
+    out.test_points = test_points;
 
     if hardware {
         let mut parts = Hardware {
@@ -947,6 +958,38 @@ mod tests {
         // the same plan gives the same panel
         let again = compose(&[board], &plan, &settings, 50_000, false).unwrap();
         assert_eq!(panel, again);
+    }
+
+    #[test]
+    fn the_test_point_marks_go_to_every_copy() {
+        let mut board = sample("one");
+        let (component, footprint) = board
+            .components
+            .iter()
+            .next()
+            .map(|(id, c)| (*id, c.footprint))
+            .unwrap();
+        let pad = *board.footprints[&footprint].pads.keys().next().unwrap();
+        assert!(board.mark_test_point(PadRef { component, pad }));
+        let (settings, plan) = panel_of(&board, "columns = 3\nrows = 2\n");
+        let panel = compose(
+            std::slice::from_ref(&board),
+            &plan,
+            &settings,
+            50_000,
+            false,
+        )
+        .unwrap();
+        assert_eq!(panel.test_points.len(), 6);
+        assert!(panel.test_points.windows(2).all(|w| w[0] < w[1]));
+        for mark in &panel.test_points {
+            let has = panel
+                .components
+                .get(&mark.component)
+                .and_then(|c| panel.footprints.get(&c.footprint))
+                .is_some_and(|f| f.pads.contains_key(&mark.pad));
+            assert!(has, "{mark:?}");
+        }
     }
 
     #[test]

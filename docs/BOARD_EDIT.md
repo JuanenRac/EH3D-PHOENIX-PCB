@@ -11,7 +11,8 @@ An operation is one change that is asked for. It is a value (`EditOp`) that can 
 | `place` | Places a new component of a footprint the board has, at a point, turned, on the top or the bottom side. The reference must not be used by another component. |
 | `move`, `rotate`, `mirror` | Moves (and turns), turns or puts a component on the other side (mirrored about the vertical axis). The ends of the tracks that were on its pads follow them (`follow`, by default the setting `follow_tracks`), so a drag keeps the connections. |
 | `lock`, `unlock` | Locks a component: moving, turning, mirroring and removing it is refused (`PHOENIX-BEDIT-006`). The locks belong to the editor and are not saved in the board. |
-| `remove` | Removes a component with the nets of its pads. |
+| `remove` | Removes a component with the nets of its pads (and the test point marks of its pads). |
+| `test_point` | Marks a pad as a test point (`marked`, true by default) or takes the mark off (`"marked": false`); the mark is the list `test_points` of the board, read by `phoenix testpoints` and by the Gerber X2 function `TestPad` (`docs/TESTPOINTS.md`). A pad that does not exist is refused. |
 | `route` | Draws a track of a net on a copper layer through two or more points, with horizontal and vertical pieces and, with the shape `diagonal`, 45-degree pieces. Between two points that are not in line there is one corner; both orders of the corner are tried when `horizontal_first` is left out. The width is the one of the net class (never below the narrowest track of the rules) unless `width_nm` is given. |
 | `via` | Adds a via of a net, sized by the rules and the net class, between the top and the bottom copper layer unless two layers are given. |
 | `change_layer` | Splits a track at a vertex: the part after it goes to another copper layer and a via is put at the vertex. |

@@ -311,6 +311,25 @@ pub fn describe_operation(
             };
             fill(WinText::OpConnectPad, lang, &name)
         }
+        Operation::SetTestPoint { pad, marked } => {
+            let refdes = refdes_of(board, pad.component, inverse);
+            let number = board
+                .components
+                .get(&pad.component)
+                .and_then(|c| board.footprints.get(&c.footprint))
+                .and_then(|f| f.pads.get(&pad.pad))
+                .map(|p| p.number.clone());
+            let name = match number {
+                Some(number) => format!("{refdes}.{number}"),
+                None => refdes,
+            };
+            let text = if *marked {
+                WinText::OpMarkTestPoint
+            } else {
+                WinText::OpUnmarkTestPoint
+            };
+            fill(text, lang, &name)
+        }
         Operation::AddTrack { track, .. } => {
             fill(WinText::OpAddTrack, lang, &net_name(board, track.net))
         }

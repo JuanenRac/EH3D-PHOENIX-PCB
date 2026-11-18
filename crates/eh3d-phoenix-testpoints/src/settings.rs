@@ -36,6 +36,11 @@ pub struct TestPointSettings {
     pub prefixes: Vec<String>,
     /// A part whose footprint name holds one of these words (any case) is a test point.
     pub footprint_words: Vec<String>,
+    /// Whether the pads the board marks as test points count (`Board::test_points`).
+    pub use_marks: bool,
+    /// Whether the prefixes and the footprint words recognise test points. With both off nothing
+    /// is recognised.
+    pub use_names: bool,
     /// The side the probes touch.
     pub probe_side: ProbeSide,
     /// The test points every net must have on the probed side.
@@ -68,6 +73,8 @@ impl Default for TestPointSettings {
                 "test_point".to_owned(),
                 "test-point".to_owned(),
             ],
+            use_marks: true,
+            use_names: true,
             probe_side: ProbeSide::Both,
             required_per_net: 1,
             min_pads_for_test: 2,
@@ -78,6 +85,14 @@ impl Default for TestPointSettings {
             uncovered_severity: Severity::Warning,
             max_items: 1_000_000,
         }
+    }
+}
+
+fn parse_bool(value: &str) -> Option<bool> {
+    match value {
+        "true" => Some(true),
+        "false" => Some(false),
+        _ => None,
     }
 }
 
@@ -113,6 +128,8 @@ impl TestPointSettings {
             match key {
                 "testpoint_prefixes" => s.prefixes = parse_list(value),
                 "testpoint_footprint_words" => s.footprint_words = parse_list(value),
+                "use_marks" => s.use_marks = parse_bool(value).ok_or_else(bad)?,
+                "use_names" => s.use_names = parse_bool(value).ok_or_else(bad)?,
                 "probe_side" => {
                     s.probe_side = match value {
                         "both" => ProbeSide::Both,
@@ -216,6 +233,17 @@ mod tests {
         assert!(s.ignores("gnd") && s.ignores("VCC3V3") && !s.ignores("SIG"));
         let empty = TestPointSettings::parse("ignore_nets =\n").unwrap();
         assert!(empty.ignore_nets.is_empty());
+    }
+
+    #[test]
+    fn the_two_ways_of_recognising_a_test_point_are_on_and_can_be_switched_off() {
+        let s = TestPointSettings::default();
+        assert!(s.use_marks && s.use_names);
+        let off = TestPointSettings::parse("use_marks = false\nuse_names = false\n").unwrap();
+        assert!(!off.use_marks && !off.use_names);
+        for text in ["use_marks = yes\n", "use_names = 1\n", "use_marks =\n"] {
+            assert!(TestPointSettings::parse(text).is_err(), "{text}");
+        }
     }
 
     #[test]

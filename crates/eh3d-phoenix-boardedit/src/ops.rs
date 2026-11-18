@@ -27,6 +27,10 @@ pub struct PairLayerChange {
     pub layer: Id,
 }
 
+fn mark_by_default() -> bool {
+    true
+}
+
 /// One operation of the editor.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "op", rename_all = "snake_case")]
@@ -198,6 +202,15 @@ pub enum EditOp {
     DeleteVia {
         /// The via.
         via: Id,
+    },
+    /// Marks a pad as a test point, or takes the mark off (`Board::test_points`); marking a pad
+    /// that is marked, or unmarking one that is not, changes nothing.
+    TestPoint {
+        /// The pad.
+        pad: PadRef,
+        /// True to mark it (the default), false to take the mark off.
+        #[serde(default = "mark_by_default")]
+        marked: bool,
     },
     /// Deletes every track and via of a net (its zones and the nets of its pads stay).
     DeleteNet {

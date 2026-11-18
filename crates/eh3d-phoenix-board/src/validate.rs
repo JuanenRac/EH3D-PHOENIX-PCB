@@ -365,6 +365,34 @@ impl Board {
             }
         }
 
+        let mut previous_mark = None;
+        for mark in &self.test_points {
+            if previous_mark.is_some_and(|p| p >= *mark) {
+                error(
+                    PAD_NET_CONFLICT,
+                    format!(
+                        "test point mark of pad {} of component {} is repeated or out of order",
+                        mark.pad, mark.component
+                    ),
+                );
+            }
+            previous_mark = Some(*mark);
+            let has = self
+                .components
+                .get(&mark.component)
+                .and_then(|c| self.footprints.get(&c.footprint))
+                .is_some_and(|f| f.pads.contains_key(&mark.pad));
+            if !has {
+                error(
+                    DANGLING,
+                    format!(
+                        "a test point mark names the missing pad {} of component {}",
+                        mark.pad, mark.component
+                    ),
+                );
+            }
+        }
+
         for (id, t) in &self.tracks {
             if !self.nets.contains_key(&t.net) {
                 error(DANGLING, format!("track {id} names a missing net"));

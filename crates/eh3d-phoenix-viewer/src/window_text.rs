@@ -121,6 +121,10 @@ pub enum WinText {
     OpAddSilk,
     /// A step: something was removed from the silkscreen.
     OpRemoveSilk,
+    /// A step: a pad was marked as a test point; the pad goes where the braces are.
+    OpMarkTestPoint,
+    /// A step: the test point mark of a pad was taken off; the pad goes where the braces are.
+    OpUnmarkTestPoint,
     /// A step made of several; the first name goes where the braces are.
     OpBatch,
     /// A step: the board was updated from the schematic.
@@ -177,7 +181,7 @@ pub enum WinText {
 
 impl WinText {
     /// Every text, for the tests that check the table.
-    pub const ALL: [WinText; 80] = [
+    pub const ALL: [WinText; 82] = [
         WinText::SearchTitle,
         WinText::SearchHint,
         WinText::SearchNothing,
@@ -232,6 +236,8 @@ impl WinText {
         WinText::OpChangeZone,
         WinText::OpAddSilk,
         WinText::OpRemoveSilk,
+        WinText::OpMarkTestPoint,
+        WinText::OpUnmarkTestPoint,
         WinText::OpBatch,
         WinText::OpSyncToBoard,
         WinText::OpSyncToSchematic,
@@ -800,6 +806,26 @@ impl WinText {
                 "删除丝印",
                 "Remover serigrafia",
             ],
+            WinText::OpMarkTestPoint => [
+                "Mark {} as a test point",
+                "Marcar {} como punto de prueba",
+                "{} als Testpunkt markieren",
+                "Marquer {} comme point de test",
+                "Segna {} come punto di test",
+                "{} をテストポイントに指定",
+                "将 {} 标记为测试点",
+                "Marcar {} como ponto de teste",
+            ],
+            WinText::OpUnmarkTestPoint => [
+                "Unmark {} as a test point",
+                "Quitar a {} la marca de punto de prueba",
+                "Testpunktmarkierung von {} entfernen",
+                "Retirer à {} la marque de point de test",
+                "Rimuovi da {} il segno di punto di test",
+                "{} のテストポイント指定を解除",
+                "取消 {} 的测试点标记",
+                "Retirar de {} a marca de ponto de teste",
+            ],
             WinText::OpBatch => [
                 "{} (several changes)",
                 "{} (varios cambios)",
@@ -1132,6 +1158,8 @@ mod tests {
             WinText::OpRoutePair,
             WinText::OpAutoroute,
             WinText::OpChangeZone,
+            WinText::OpMarkTestPoint,
+            WinText::OpUnmarkTestPoint,
             WinText::OpBatch,
         ] {
             for lang in Lang::ALL {

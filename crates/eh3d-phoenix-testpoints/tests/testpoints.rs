@@ -2,7 +2,7 @@
 //! The test points of a board written by the test itself, with the numbers worked out by hand.
 
 use eh3d_phoenix_board::{
-    Board, Component, Footprint, Id, Layer, LayerKind, Net, Pad, PadNet, PadShape, Side,
+    Board, Component, Footprint, Id, Layer, LayerKind, Net, Pad, PadNet, PadRef, PadShape, Side,
 };
 use eh3d_phoenix_model::{Nm, ObjectId, Point, Udeg};
 use eh3d_phoenix_rules::Lang;
@@ -397,4 +397,73 @@ fn the_json_is_the_same_every_time() {
     let r = run(&TestPointSettings::default());
     assert_eq!(report_json(&r), report_json(&r.clone()));
     assert!(report_json(&r).ends_with('\n'));
+}
+
+fn pin_of_r3() -> PadRef {
+    PadRef {
+        component: id(22),
+        pad: id(11),
+    }
+}
+
+#[test]
+fn a_pad_the_board_marks_is_a_test_point_whatever_its_part_is_called() {
+    let mut b = board();
+    // pin 1 of R3 is on SIG3, the one net that no test point reaches
+    assert!(b.mark_test_point(pin_of_r3()));
+    let r = analyse(&b, &TestPointSettings::default()).unwrap();
+    let names: Vec<String> = r
+        .test_points
+        .iter()
+        .map(|p| format!("{}:{}", p.refdes, p.pad))
+        .collect();
+    assert_eq!(
+        names,
+        vec!["R3:1", "TP1:1", "TP2:1", "TP3:1", "TP4:1", "X1:1"]
+    );
+    // only the marked pad, not pin 2 of the same part
+    assert_eq!(r.test_points[0].net.as_deref(), Some("SIG3"));
+    assert_eq!(r.nets_covered, 4);
+    assert_eq!(r.coverage_x100, 10_000);
+    assert!(!codes_of(&r).contains(&NET_NO_TESTPOINT));
+}
+
+#[test]
+fn marks_and_names_can_each_be_switched_off() {
+    let mut b = board();
+    b.mark_test_point(pin_of_r3());
+    let names_only = TestPointSettings {
+        use_marks: false,
+        ..TestPointSettings::default()
+    };
+    let r = analyse(&b, &names_only).unwrap();
+    assert_eq!(r.test_points.len(), 5);
+    assert!(r.test_points.iter().all(|p| p.refdes != "R3"));
+    let marks_only = TestPointSettings {
+        use_names: false,
+        ..TestPointSettings::default()
+    };
+    let r = analyse(&b, &marks_only).unwrap();
+    assert_eq!(r.test_points.len(), 1);
+    assert_eq!(r.test_points[0].refdes, "R3");
+    // nothing marked and nothing named: nothing is recognised
+    let neither = TestPointSettings {
+        use_marks: false,
+        use_names: false,
+        ..TestPointSettings::default()
+    };
+    let r = analyse(&b, &neither).unwrap();
+    assert!(r.test_points.is_empty());
+    assert!(codes_of(&r).contains(&NONE_RECOGNISED));
+}
+
+#[test]
+fn a_mark_that_names_a_pad_the_board_no_longer_has_is_ignored() {
+    let mut b = board();
+    b.test_points.push(PadRef {
+        component: id(22),
+        pad: id(99),
+    });
+    let r = analyse(&b, &TestPointSettings::default()).unwrap();
+    assert_eq!(r.test_points.len(), 5);
 }
