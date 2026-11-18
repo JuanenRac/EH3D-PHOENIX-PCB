@@ -148,6 +148,18 @@ pub enum Operation {
         /// The item.
         id: Id,
     },
+    /// Adds a dimension to a documentation layer.
+    AddDimension {
+        /// The new id.
+        id: Id,
+        /// The dimension.
+        dimension: crate::dimension::Dimension,
+    },
+    /// Removes a dimension.
+    RemoveDimension {
+        /// The dimension.
+        id: Id,
+    },
     /// Replaces the board outline, a closed polygon (the last corner joins the first).
     SetOutline {
         /// The corners.
@@ -186,6 +198,9 @@ pub enum OpError {
     /// The layer of a silkscreen item is not a silkscreen layer.
     #[error("the layer {0} is not a silkscreen layer")]
     NotSilkscreen(Id),
+    /// The layer of a dimension is not a documentation layer.
+    #[error("the layer {0} is not a documentation layer")]
+    NotDocumentation(Id),
 }
 
 fn set_pad_net(board: &mut Board, pad: PadRef, net: Option<Id>) -> Result<Operation, OpError> {
@@ -452,6 +467,24 @@ impl Board {
             Operation::RemoveSilk { id } => {
                 let item = self.silkscreen.remove(id).ok_or(OpError::Missing(*id))?;
                 Ok(Operation::AddSilk { id: *id, item })
+            }
+            Operation::AddDimension { id, dimension } => {
+                if self.dimensions.contains_key(id) {
+                    return Err(OpError::Exists(*id));
+                }
+                match self.layers.get(&dimension.layer) {
+                    None => return Err(OpError::Dangling(dimension.layer)),
+                    Some(l) if l.kind != LayerKind::Documentation => {
+                        return Err(OpError::NotDocumentation(dimension.layer));
+                    }
+                    Some(_) => {}
+                }
+                self.dimensions.insert(*id, dimension.clone());
+                Ok(Operation::RemoveDimension { id: *id })
+            }
+            Operation::RemoveDimension { id } => {
+                let dimension = self.dimensions.remove(id).ok_or(OpError::Missing(*id))?;
+                Ok(Operation::AddDimension { id: *id, dimension })
             }
             Operation::SetOutline { outline } => {
                 // the inverse of a change from a board without an outline sets that back, so the

@@ -10,6 +10,7 @@
 //! * [`outline_arc`]: arcs in the outline of the board, kept apart from its corners, and the polygon
 //!   of straight pieces that they are cut into;
 //! * [`silk`]: text and strokes printed on the silkscreen layers, with a built-in stroke font;
+//! * [`dimension`]: the distances between two points of the board, drawn on a documentation layer;
 //! * [`stack`]: the checks of the ordered stack of copper layers;
 //! * [`ops`]: reversible operations with an exact inverse, and an undo/redo history that can be
 //!   saved and replayed.
@@ -21,6 +22,7 @@
 #![warn(missing_docs)]
 
 pub mod connectivity;
+pub mod dimension;
 pub mod model;
 pub mod ops;
 pub mod outline_arc;
@@ -30,6 +32,7 @@ pub mod silk;
 pub mod stack;
 pub mod validate;
 
+pub use dimension::{Dimension, DimensionError, DimensionKind};
 pub use model::{
     Board, Component, Footprint, Id, Layer, LayerKind, Net, Pad, PadNet, PadRef, PadShape, Segment,
     Side, StackFunction, Track, Via, Zone,

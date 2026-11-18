@@ -1,7 +1,8 @@
 //! Reading an EAGLE XML board file into a board.
 //!
 //! Only what the model holds is read: layers, the board outline, packages with pads, elements,
-//! signals with contacts, wires, vias and polygons, and the wires drawn on silkscreen layers.
+//! signals with contacts, wires, vias and polygons, the wires drawn on silkscreen layers and the
+//! parallel, horizontal and vertical dimensions.
 //! Everything else is counted by element name in a `PHOENIX-EAGLE-022` note and not interpreted.
 
 use std::collections::BTreeMap;
@@ -9,8 +10,8 @@ use std::collections::BTreeMap;
 use eh3d_diagnostic::{Diagnostic, Severity};
 use eh3d_phoenix_board::connectivity::point_in_polygon;
 use eh3d_phoenix_board::{
-    Board, Component, Footprint, Id, Layer, LayerKind, Net, Pad, PadNet, PadShape, Segment, Side,
-    SilkItem, Track, Via, Zone,
+    Board, Component, Dimension, DimensionKind, Footprint, Id, Layer, LayerKind, Net, Pad, PadNet,
+    PadShape, Segment, Side, SilkItem, Track, Via, Zone,
 };
 use eh3d_phoenix_eagle::xml::{parse, Element, Limits};
 use eh3d_phoenix_model::{Nm, Point, Udeg};
@@ -100,6 +101,105 @@ fn runs(wires: Vec<Wire>) -> Vec<(u32, Nm, Vec<Segment>)> {
         out.push((w.layer, w.width, vec![w.segment]));
     }
     out
+}
+
+/// The textsize of a dimension that does not give one, in nanometres (the default of EAGLE).
+const DEFAULT_DIMENSION_TEXT_NM: i64 = 1_778_000;
+
+/// Reads a `dimension` element of the plain drawing: the kinds `parallel` (also when `dtype` is
+/// left out), `horizontal` and `vertical`, on a documentation layer or on the layers 47 to 50
+/// (measures, document, reference, dxf), which become documentation layers of the board when a
+/// dimension is on them. Returns false when the element is not read (another kind, a layer that is
+/// not for documentation, a value that is missing or points that measure nothing).
+fn read_dimension(
+    item: &Element,
+    drawing: &Element,
+    board: &mut Board,
+    layer_ids: &mut BTreeMap<u32, Id>,
+    new_id: &mut dyn FnMut() -> Id,
+) -> bool {
+    let kind = match item.attr("dtype").unwrap_or("parallel") {
+        "parallel" => DimensionKind::Aligned,
+        "horizontal" => DimensionKind::Horizontal,
+        "vertical" => DimensionKind::Vertical,
+        _ => return false,
+    };
+    let Some(number) = item
+        .attr("layer")
+        .and_then(|n| n.trim().parse::<u32>().ok())
+    else {
+        return false;
+    };
+    let (Some(from), Some(to), Some(through)) = (
+        point(item, "x1", "y1"),
+        point(item, "x2", "y2"),
+        point(item, "x3", "y3"),
+    ) else {
+        return false;
+    };
+    let text_height = nm(item, "textsize")
+        .filter(|h| h.get() > 0)
+        .or_else(|| Nm::new(DEFAULT_DIMENSION_TEXT_NM).ok());
+    let ratio = item
+        .attr("textratio")
+        .and_then(|r| r.trim().parse::<i64>().ok())
+        .filter(|r| *r > 0)
+        .unwrap_or(8);
+    let (Some(text_height), Some(offset)) = (
+        text_height,
+        Dimension::offset_through(kind, from, to, through),
+    ) else {
+        return false;
+    };
+    let Ok(stroke) = Nm::new((text_height.get() / 100).saturating_mul(ratio).max(1)) else {
+        return false;
+    };
+    let layer = match layer_ids.get(&number) {
+        Some(id) => {
+            if board.layers.get(id).map(|l| l.kind) != Some(LayerKind::Documentation) {
+                return false;
+            }
+            *id
+        }
+        None if (47..=50).contains(&number) => {
+            let name = drawing
+                .child("layers")
+                .and_then(|l| {
+                    l.children_named("layer").find(|e| {
+                        e.attr("number").and_then(|n| n.trim().parse::<u32>().ok()) == Some(number)
+                    })
+                })
+                .and_then(|e| e.attr("name"))
+                .unwrap_or("Measures")
+                .to_owned();
+            let id = new_id();
+            board.layers.insert(
+                id,
+                Layer {
+                    name,
+                    kind: LayerKind::Documentation,
+                    side: None,
+                },
+            );
+            layer_ids.insert(number, id);
+            id
+        }
+        None => return false,
+    };
+    let dimension = Dimension {
+        layer,
+        kind,
+        from,
+        to,
+        offset,
+        text_height,
+        stroke,
+    };
+    if dimension.length_nm() == 0 {
+        return false;
+    }
+    board.dimensions.insert(new_id(), dimension);
+    true
 }
 
 /// Reads an EAGLE XML board file. The new objects get their ids from `new_id`. The limits are the
@@ -487,6 +587,12 @@ pub fn read_board_with_limits(
                 match ring.filter(|r| r.len() >= 3) {
                     Some(ring) => restricts.push((number, ring)),
                     None => note("polygon", &mut notes),
+                }
+                continue;
+            }
+            if item.name == "dimension" {
+                if !read_dimension(item, drawing, &mut board, &mut layer_ids, &mut *new_id) {
+                    note("dimension", &mut notes);
                 }
                 continue;
             }

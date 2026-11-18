@@ -654,6 +654,19 @@
           }
         },
         {
+          "name": "DIMENSIONS.md",
+          "desc": {
+            "en": "dimensions: aligned, horizontal and vertical, drawing, files",
+            "es": "cotas: alineadas, horizontales y verticales, dibujo, archivos",
+            "de": "Bemaßungen: ausgerichtet, horizontal und vertikal, Zeichnung, Dateien",
+            "fr": "cotes : alignées, horizontales et verticales, dessin, fichiers",
+            "it": "quote: allineate, orizzontali e verticali, disegno, file",
+            "ja": "寸法：平行・水平・垂直、描画、ファイル",
+            "zh": "尺寸标注：对齐、水平和垂直，绘制，文件",
+            "pt": "cotas: alinhadas, horizontais e verticais, desenho, ficheiros"
+          }
+        },
+        {
           "name": "IPC2581.md",
           "desc": {
             "en": "IPC-2581 export: layers, outline, pads, vias, nets, basic bill",

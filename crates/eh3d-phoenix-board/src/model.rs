@@ -368,6 +368,10 @@ pub struct Board {
     /// a board made before it existed reads as before.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub test_points: Vec<PadRef>,
+    /// The dimensions drawn on the documentation layers, by id (`crate::dimension`). Not written
+    /// when empty; a board made before it existed reads as before.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub dimensions: BTreeMap<Id, crate::dimension::Dimension>,
 }
 
 /// The place of a copper layer in the stack.

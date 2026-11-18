@@ -10,7 +10,8 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use eh3d_phoenix_board::{
-    Board, Component, Footprint, Id, LayerKind, Pad, PadShape, Segment, Side, SilkItem,
+    Board, Component, DimensionKind, Footprint, Id, LayerKind, Pad, PadShape, Segment, Side,
+    SilkItem,
 };
 use eh3d_phoenix_model::Point;
 
@@ -925,6 +926,93 @@ fn silk_nodes(board: &Board, ctx: &Ctx, report: &mut ExportReport) -> Vec<Sx> {
     out
 }
 
+/// The dimensions as `dimension` nodes of KiCad 6 and later: `aligned` for the aligned kind and
+/// `orthogonal` (with its orientation) for the horizontal and vertical kinds, each with its text.
+/// The height is the offset of the dimension line turned to the right of the model (the y of the
+/// file points down); the form has not been compared with KiCad.
+fn dimension_nodes(board: &Board, ctx: &Ctx, report: &mut ExportReport) -> Vec<Sx> {
+    let mut out = Vec::new();
+    for (id, d) in &board.dimensions {
+        let Some(name) = ctx.names.names.get(&d.layer) else {
+            report.note(
+                DANGLING,
+                "dimensions on a layer the board does not have",
+                "the dimension is left out",
+            );
+            continue;
+        };
+        let Ok(items) = d.items() else {
+            report.note(
+                LEFT_OUT,
+                "dimensions that cannot be drawn",
+                "the dimension measures nothing or has a size that is not above zero",
+            );
+            continue;
+        };
+        let Some(SilkItem::Text {
+            at: place,
+            text,
+            rotation,
+            ..
+        }) = items.last()
+        else {
+            continue;
+        };
+        let (kind, orientation, height) = match d.kind {
+            DimensionKind::Aligned => ("aligned", None, -d.offset.get()),
+            DimensionKind::Horizontal => ("orthogonal", Some(0), -d.offset.get()),
+            DimensionKind::Vertical => ("orthogonal", Some(1), d.offset.get()),
+        };
+        let mut nodes = vec![
+            list("type", vec![atom(kind)]),
+            list("layer", vec![string(name)]),
+            uuid_node(id, "dimension"),
+            list("pts", vec![xy_node(d.from), xy_node(d.to)]),
+            list("height", vec![num(height)]),
+        ];
+        if let Some(o) = orientation {
+            nodes.push(list("orientation", vec![int(o)]));
+        }
+        nodes.push(list(
+            "gr_text",
+            vec![
+                string(text),
+                at(
+                    kx(*place),
+                    ky(*place),
+                    rotation.get().rem_euclid(360_000_000),
+                ),
+                list("layer", vec![string(name)]),
+                uuid_node(id, "dimension-text"),
+                effects(
+                    d.text_height.get(),
+                    d.stroke.get(),
+                    false,
+                    &["left", "bottom"],
+                ),
+            ],
+        ));
+        nodes.push(list(
+            "format",
+            vec![
+                list("units", vec![int(3)]),
+                list("units_format", vec![int(0)]),
+                list("precision", vec![int(3)]),
+                atom("suppress_zeroes"),
+            ],
+        ));
+        nodes.push(list(
+            "style",
+            vec![list("thickness", vec![num(d.stroke.get())])],
+        ));
+        out.push(list("dimension", nodes));
+    }
+    if !out.is_empty() {
+        report.wrote("dimensions", out.len());
+    }
+    out
+}
+
 fn context<'a>(board: &Board, settings: &'a WriteSettings, report: &mut ExportReport) -> Ctx<'a> {
     let names = name_layers(board, report);
     let nets = net_table(board, report);
@@ -1029,6 +1117,12 @@ pub fn write_pcb(board: &Board, settings: &WriteSettings) -> Export {
         silk_nodes(board, &ctx, &mut report),
         max,
         "silkscreen items",
+        &mut report,
+    ));
+    root.extend(capped(
+        dimension_nodes(board, &ctx, &mut report),
+        max,
+        "dimensions",
         &mut report,
     ));
     note_unwritten_parts(board, &mut report);
@@ -1163,6 +1257,11 @@ pub(crate) fn check_pcb(text: &str, report: &mut ExportReport) {
         ("vias", report.written_count("vias"), board.vias.len()),
         ("zones", report.written_count("zones"), board.zones.len()),
         ("nets", report.written_count("nets"), board.nets.len()),
+        (
+            "dimensions",
+            report.written_count("dimensions"),
+            board.dimensions.len(),
+        ),
     ];
     for (what, wrote, got) in counts {
         expect(report, what, wrote, got);
@@ -1490,6 +1589,93 @@ mod tests {
         assert_eq!(track.path.len(), 2);
         assert_eq!(track.path[0].start(), pt(11_000_000, 5_000_000));
         assert_eq!(track.path[1].end(), pt(17_000_000, 3_000_000));
+    }
+
+    #[test]
+    fn dimensions_are_written_and_read_back_with_their_numbers() {
+        use eh3d_phoenix_board::{Dimension, DimensionKind, Layer};
+        let mut board = sample_board();
+        board.layers.insert(
+            id(40),
+            Layer {
+                name: "Notes".into(),
+                kind: LayerKind::Documentation,
+                side: None,
+            },
+        );
+        for (n, kind, from, to, offset) in [
+            (
+                41,
+                DimensionKind::Aligned,
+                pt(2_000_000, 3_000_000),
+                pt(5_000_000, 7_000_000),
+                1_000_000,
+            ),
+            (
+                42,
+                DimensionKind::Horizontal,
+                pt(1_000_000, 1_000_000),
+                pt(13_500_000, 4_000_000),
+                -2_000_000,
+            ),
+            (
+                43,
+                DimensionKind::Vertical,
+                pt(30_000_000, 1_000_000),
+                pt(30_000_000, 9_000_000),
+                2_500_000,
+            ),
+        ] {
+            board.dimensions.insert(
+                id(n),
+                Dimension {
+                    layer: id(40),
+                    kind,
+                    from,
+                    to,
+                    offset: nm(offset),
+                    text_height: nm(1_200_000),
+                    stroke: nm(120_000),
+                },
+            );
+        }
+        let out = write_pcb(&board, &WriteSettings::default());
+        let text = &out.files[0].text;
+        assert_eq!(children(&parse(text).unwrap(), "dimension").len(), 3);
+        assert_eq!(out.report.written_count("dimensions"), 3);
+        assert_eq!(
+            out.report.count_of(ROUND_TRIP),
+            0,
+            "{:?}",
+            out.report.notes()
+        );
+        let mut ids = crate::sequential_ids().unwrap();
+        let read =
+            crate::pcb::read_pcb(text.as_bytes(), &KicadSettings::default(), &mut ids).unwrap();
+        let key = |d: &Dimension| {
+            (
+                d.kind.as_str(),
+                (d.from.x_nm.get(), d.from.y_nm.get()),
+                (d.to.x_nm.get(), d.to.y_nm.get()),
+                d.offset.get(),
+                d.text_height.get(),
+                d.stroke.get(),
+                d.length_nm(),
+            )
+        };
+        let mut wrote: Vec<_> = board.dimensions.values().map(key).collect();
+        let mut got: Vec<_> = read.board.dimensions.values().map(key).collect();
+        wrote.sort();
+        got.sort();
+        assert_eq!(wrote, got);
+        // the file says the measure as text
+        assert!(text.contains("(gr_text \"5\""), "{text}");
+        assert!(text.contains("(gr_text \"12.5\""), "{text}");
+        assert!(text.contains("(gr_text \"8\""), "{text}");
+        assert_eq!(
+            text,
+            &write_pcb(&board, &WriteSettings::default()).files[0].text
+        );
     }
 
     #[test]

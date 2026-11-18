@@ -121,6 +121,10 @@ pub enum WinText {
     OpAddSilk,
     /// A step: something was removed from the silkscreen.
     OpRemoveSilk,
+    /// A step: a dimension was added; its measure in millimetres goes where the braces are.
+    OpAddDimension,
+    /// A step: a dimension was removed; its measure goes where the braces are.
+    OpRemoveDimension,
     /// A step: a pad was marked as a test point; the pad goes where the braces are.
     OpMarkTestPoint,
     /// A step: the test point mark of a pad was taken off; the pad goes where the braces are.
@@ -181,7 +185,7 @@ pub enum WinText {
 
 impl WinText {
     /// Every text, for the tests that check the table.
-    pub const ALL: [WinText; 82] = [
+    pub const ALL: [WinText; 84] = [
         WinText::SearchTitle,
         WinText::SearchHint,
         WinText::SearchNothing,
@@ -236,6 +240,8 @@ impl WinText {
         WinText::OpChangeZone,
         WinText::OpAddSilk,
         WinText::OpRemoveSilk,
+        WinText::OpAddDimension,
+        WinText::OpRemoveDimension,
         WinText::OpMarkTestPoint,
         WinText::OpUnmarkTestPoint,
         WinText::OpBatch,
@@ -806,6 +812,26 @@ impl WinText {
                 "删除丝印",
                 "Remover serigrafia",
             ],
+            WinText::OpAddDimension => [
+                "Add dimension {} mm",
+                "Añadir cota de {} mm",
+                "Bemaßung {} mm hinzufügen",
+                "Ajouter la cote de {} mm",
+                "Aggiungi la quota di {} mm",
+                "寸法 {} mm を追加",
+                "添加 {} mm 的尺寸标注",
+                "Adicionar a cota de {} mm",
+            ],
+            WinText::OpRemoveDimension => [
+                "Remove dimension {} mm",
+                "Quitar la cota de {} mm",
+                "Bemaßung {} mm entfernen",
+                "Supprimer la cote de {} mm",
+                "Rimuovi la quota di {} mm",
+                "寸法 {} mm を削除",
+                "删除 {} mm 的尺寸标注",
+                "Remover a cota de {} mm",
+            ],
             WinText::OpMarkTestPoint => [
                 "Mark {} as a test point",
                 "Marcar {} como punto de prueba",
@@ -1158,6 +1184,8 @@ mod tests {
             WinText::OpRoutePair,
             WinText::OpAutoroute,
             WinText::OpChangeZone,
+            WinText::OpAddDimension,
+            WinText::OpRemoveDimension,
             WinText::OpMarkTestPoint,
             WinText::OpUnmarkTestPoint,
             WinText::OpBatch,

@@ -4,10 +4,10 @@
 
 use std::collections::BTreeMap;
 
-use eh3d_phoenix_board::validate::{BAD_OUTLINE, DANGLING, PAD_NET_CONFLICT};
+use eh3d_phoenix_board::validate::{BAD_LAYER, BAD_OUTLINE, BAD_SIZE, DANGLING, PAD_NET_CONFLICT};
 use eh3d_phoenix_board::{
-    Board, Component, Footprint, History, Id, Layer, LayerKind, OpError, Operation, Pad, PadRef,
-    PadShape, Side, Zone,
+    Board, Component, Dimension, DimensionKind, Footprint, History, Id, Layer, LayerKind, OpError,
+    Operation, Pad, PadRef, PadShape, Side, Zone,
 };
 use eh3d_phoenix_model::{Nm, ObjectId, Point, Udeg};
 
@@ -383,4 +383,137 @@ fn a_mark_that_repeats_or_names_a_missing_pad_is_reported() {
         .filter_map(|d| d.code.as_ref().map(|c| c.to_string()))
         .collect();
     assert_eq!(codes, vec![DANGLING.to_owned()]);
+}
+
+/// The board of the fixture with a documentation layer, id 2, and a dimension of 10 mm on it.
+fn with_dimension() -> (Board, Dimension) {
+    let mut b = board(plain_pad());
+    b.layers.insert(
+        id(2),
+        Layer {
+            name: "Dimensions".into(),
+            kind: LayerKind::Documentation,
+            side: None,
+        },
+    );
+    let d = Dimension {
+        layer: id(2),
+        kind: DimensionKind::Horizontal,
+        from: pt(2, 2),
+        to: pt(12, 2),
+        offset: nm(2_000_000),
+        text_height: nm(1_000_000),
+        stroke: nm(100_000),
+    };
+    (b, d)
+}
+
+fn problems(b: &Board) -> Vec<String> {
+    b.validate()
+        .iter()
+        .filter_map(|d| d.code.as_ref().map(|c| c.to_string()))
+        .collect()
+}
+
+#[test]
+fn the_dimensions_are_written_only_when_there_are_some_and_read_back() {
+    let (mut b, d) = with_dimension();
+    let plain = String::from_utf8(b.to_bytes().unwrap()).unwrap();
+    assert!(!plain.contains("dimensions"), "{plain}");
+    b.dimensions.insert(id(60), d);
+    assert!(b.validate().is_empty(), "{:?}", b.validate());
+    let text = String::from_utf8(b.to_bytes().unwrap()).unwrap();
+    assert!(text.contains("\"dimensions\""), "{text}");
+    assert!(text.contains("\"kind\":\"horizontal\""), "{text}");
+    assert_eq!(Board::from_bytes(text.as_bytes()).unwrap(), b);
+    // writing what was read gives the same bytes
+    let again = Board::from_bytes(text.as_bytes())
+        .unwrap()
+        .to_bytes()
+        .unwrap();
+    assert_eq!(again, text.as_bytes());
+}
+
+#[test]
+fn a_dimension_is_added_and_removed_with_an_exact_inverse() {
+    let (mut b, d) = with_dimension();
+    let before = b.to_bytes().unwrap();
+    let mut history = History::new();
+    history
+        .execute(
+            &mut b,
+            Operation::AddDimension {
+                id: id(60),
+                dimension: d.clone(),
+            },
+        )
+        .unwrap();
+    assert_eq!(b.dimensions[&id(60)], d);
+    let added = b.to_bytes().unwrap();
+    history
+        .execute(&mut b, Operation::RemoveDimension { id: id(60) })
+        .unwrap();
+    assert!(b.dimensions.is_empty());
+    assert_eq!(b.to_bytes().unwrap(), before);
+    assert!(history.undo(&mut b));
+    assert_eq!(b.to_bytes().unwrap(), added);
+    assert!(history.undo(&mut b));
+    assert_eq!(b.to_bytes().unwrap(), before);
+    let text = serde_json::to_string(&Operation::RemoveDimension { id: id(60) }).unwrap();
+    assert!(text.starts_with(r#"{"op":"remove_dimension""#), "{text}");
+}
+
+#[test]
+fn a_dimension_is_refused_on_a_missing_layer_a_layer_that_is_not_documentation_or_twice() {
+    let (mut b, d) = with_dimension();
+    let add = |id_n: u16, dimension: Dimension| Operation::AddDimension {
+        id: id(id_n),
+        dimension,
+    };
+    let mut missing = d.clone();
+    missing.layer = id(99);
+    assert_eq!(
+        b.apply(&add(60, missing)).unwrap_err(),
+        OpError::Dangling(id(99))
+    );
+    let mut copper = d.clone();
+    copper.layer = id(1);
+    assert_eq!(
+        b.apply(&add(60, copper)).unwrap_err(),
+        OpError::NotDocumentation(id(1))
+    );
+    b.apply(&add(60, d.clone())).unwrap();
+    assert_eq!(b.apply(&add(60, d)).unwrap_err(), OpError::Exists(id(60)));
+    assert_eq!(
+        b.apply(&Operation::RemoveDimension { id: id(61) })
+            .unwrap_err(),
+        OpError::Missing(id(61))
+    );
+    assert_eq!(b.dimensions.len(), 1);
+}
+
+#[test]
+fn a_dimension_that_measures_nothing_or_sits_on_a_wrong_layer_is_reported() {
+    let (mut b, d) = with_dimension();
+    b.dimensions.insert(id(60), d.clone());
+    assert!(problems(&b).is_empty());
+    // the two points are the same
+    let mut same = d.clone();
+    same.to = same.from;
+    b.dimensions.insert(id(60), same);
+    assert_eq!(problems(&b), vec![BAD_SIZE.to_owned()]);
+    // a size that is not above zero
+    let mut thin = d.clone();
+    thin.stroke = nm(0);
+    b.dimensions.insert(id(60), thin);
+    assert_eq!(problems(&b), vec![BAD_SIZE.to_owned()]);
+    // a copper layer, and a layer that does not exist
+    let mut copper = d.clone();
+    copper.layer = id(1);
+    b.dimensions.insert(id(60), copper);
+    assert_eq!(problems(&b), vec![BAD_LAYER.to_owned()]);
+    let mut missing = d;
+    missing.layer = id(99);
+    b.dimensions.insert(id(60), missing);
+    assert_eq!(problems(&b), vec![DANGLING.to_owned()]);
 }

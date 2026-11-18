@@ -725,6 +725,39 @@ impl Scene {
             }
         }
 
+        // the dimensions, drawn on their documentation layers like silkscreen strokes and text
+        for dimension in board.dimensions.values() {
+            let Some(&layer) = layer_index.get(&dimension.layer) else {
+                b.skipped += 1;
+                continue;
+            };
+            let Ok(parts) = dimension.items() else {
+                b.skipped += 1;
+                continue;
+            };
+            let item = b.item(
+                ItemKind::Silk,
+                format!("dimension {}", dimension.measure_text()),
+                None,
+            );
+            for part in &parts {
+                let Ok(drawn) = part.drawn() else {
+                    b.skipped += 1;
+                    continue;
+                };
+                let paint = Paint {
+                    width: mm(drawn.width),
+                    filled: false,
+                    layer,
+                    net: None,
+                    item,
+                };
+                for piece in &drawn.pieces {
+                    b.segment(piece, paint);
+                }
+            }
+        }
+
         b.finish(SceneKind::Board, layers, net_names)
     }
 
@@ -1072,6 +1105,54 @@ mod tests {
         assert_eq!(count(&scene, Role::Outline), 1);
         assert_eq!(count(&scene, Role::Designator), 1);
         assert_eq!(scene.nets, vec!["GND".to_string(), "VCC".to_string()]);
+    }
+
+    #[test]
+    fn a_dimension_is_drawn_on_its_documentation_layer_as_one_item() {
+        use eh3d_phoenix_board::{Dimension, DimensionKind, Layer};
+        let mut board = sample::board();
+        board.layers.insert(
+            sample::id(60),
+            Layer {
+                name: "Docs".to_string(),
+                kind: LayerKind::Documentation,
+                side: None,
+            },
+        );
+        let plain = Scene::from_board(&board, &ViewerSettings::default()).unwrap();
+        board.dimensions.insert(
+            sample::id(61),
+            Dimension {
+                layer: sample::id(60),
+                kind: DimensionKind::Horizontal,
+                from: sample::point(1.0, 1.0),
+                to: sample::point(13.5, 1.0),
+                offset: Nm::new(2_000_000).unwrap(),
+                text_height: Nm::new(1_000_000).unwrap(),
+                stroke: Nm::new(100_000).unwrap(),
+            },
+        );
+        let scene = Scene::from_board(&board, &ViewerSettings::default()).unwrap();
+        // one item more, drawn on the documentation layer, with the strokes of the lines and of
+        // the characters of "12.5"
+        assert_eq!(scene.items.len(), plain.items.len() + 1);
+        let item = scene.items.last().unwrap();
+        assert_eq!(
+            (item.kind, item.label.as_str()),
+            (ItemKind::Silk, "dimension 12.5")
+        );
+        assert!(count(&scene, Role::Documentation) > 7);
+        assert_eq!(scene.skipped, 0);
+        // a dimension on a layer the board does not have is counted and not drawn
+        board
+            .dimensions
+            .values_mut()
+            .for_each(|d| d.layer = sample::id(99));
+        let missing = Scene::from_board(&board, &ViewerSettings::default()).unwrap();
+        assert_eq!(
+            (missing.items.len(), missing.skipped),
+            (plain.items.len(), 1)
+        );
     }
 
     #[test]

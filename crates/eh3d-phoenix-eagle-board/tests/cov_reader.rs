@@ -3,9 +3,9 @@
 //! the packages with their pads, the elements with their turn and side, the signals with their
 //! tracks, vias and polygons, the silkscreen, and what is counted as not read.
 
-use eh3d_phoenix_board::{Id, PadShape, Segment, Side, SilkItem};
+use eh3d_phoenix_board::{DimensionKind, Id, LayerKind, PadShape, Segment, Side, SilkItem};
 use eh3d_phoenix_eagle_board::{
-    read_board, read_board_with_limits, EagleLimits, ReadBoard, NOT_READ,
+    read_board, read_board_with_limits, write_board, EagleLimits, ReadBoard, NOT_READ,
 };
 use eh3d_phoenix_model::ObjectId;
 
@@ -371,4 +371,102 @@ fn an_outline_that_is_not_a_closed_ring_is_left_out() {
         .diagnostics
         .iter()
         .any(|d| d.message.ends_with("4 wire element(s)")));
+}
+
+/// A board with a layer for the documentation and dimensions of every kind that is read and some
+/// that is not.
+const DIMENSIONS: &str = r#"<?xml version="1.0" encoding="utf-8"?>
+<eagle version="9.6.2">
+<drawing>
+<layers>
+<layer number="1" name="Top" color="4" fill="1" visible="yes" active="yes"/>
+<layer number="16" name="Bottom" color="1" fill="1" visible="yes" active="yes"/>
+<layer number="47" name="Measures" color="7" fill="1" visible="yes" active="yes"/>
+<layer number="51" name="tDocu" color="7" fill="1" visible="yes" active="yes"/>
+</layers>
+<board>
+<plain>
+<dimension x1="0" y1="0" x2="3" y2="4" x3="-0.8" y3="0.6" textsize="2" textratio="10" layer="47"/>
+<dimension x1="1" y1="1" x2="13.5" y2="4" x3="7" y3="3" textsize="1.2" layer="51" dtype="horizontal"/>
+<dimension x1="30" y1="1" x2="30" y2="9" x3="32.5" y3="5" layer="47" dtype="vertical"/>
+<dimension x1="0" y1="0" x2="5" y2="0" x3="2" y3="2" layer="47" dtype="radius"/>
+<dimension x1="0" y1="0" x2="5" y2="0" x3="2" y3="2" layer="1"/>
+<dimension x1="4" y1="4" x2="4" y2="4" x3="2" y3="2" layer="47"/>
+<dimension x1="0" y1="0" x2="5" layer="47"/>
+</plain>
+<libraries/>
+<elements/>
+<signals/>
+</board>
+</drawing>
+</eagle>
+"#;
+
+#[test]
+fn the_parallel_horizontal_and_vertical_dimensions_are_read_and_the_others_are_counted() {
+    let read = read(DIMENSIONS);
+    let b = &read.board;
+    assert_eq!(b.dimensions.len(), 3);
+    let of = |kind: DimensionKind| b.dimensions.values().find(|d| d.kind == kind).unwrap();
+    // a parallel one: 3-4-5, the line through (-0.8, 0.6) is one millimetre to the left
+    let aligned = of(DimensionKind::Aligned);
+    assert_eq!(aligned.length_nm(), mm(5.0));
+    assert_eq!(aligned.offset.get(), mm(1.0));
+    assert_eq!(aligned.text_height.get(), mm(2.0));
+    // the ratio of the stroke to the text is a tenth
+    assert_eq!(aligned.stroke.get(), mm(0.2));
+    let horizontal = of(DimensionKind::Horizontal);
+    assert_eq!(horizontal.length_nm(), mm(12.5));
+    assert_eq!(horizontal.offset.get(), mm(2.0));
+    assert_eq!(horizontal.text_height.get(), mm(1.2));
+    // the ratio left out is 8 per cent
+    assert_eq!(horizontal.stroke.get(), mm(0.096));
+    let vertical = of(DimensionKind::Vertical);
+    assert_eq!(vertical.length_nm(), mm(8.0));
+    assert_eq!(vertical.offset.get(), mm(2.5));
+    // the size of text that the file leaves out is the usual one of EAGLE
+    assert_eq!(vertical.text_height.get(), 1_778_000);
+    // the layers 47 and 51 hold them, both for documentation
+    for d in b.dimensions.values() {
+        assert_eq!(b.layers[&d.layer].kind, LayerKind::Documentation);
+    }
+    assert_eq!(b.layers[&aligned.layer].name, "Measures");
+    assert_eq!(b.layers[&horizontal.layer].name, "tDocu");
+    assert!(b.validate().is_empty(), "{:?}", b.validate());
+    // the radius, the one on a copper layer, the one that measures nothing and the one with a
+    // point missing are counted
+    assert!(
+        read.diagnostics
+            .iter()
+            .any(|d| d.code.as_deref() == Some(NOT_READ)
+                && d.message.ends_with("4 dimension element(s)")),
+        "{:?}",
+        read.diagnostics
+    );
+}
+
+#[test]
+fn the_dimensions_of_a_board_are_written_and_read_back() {
+    let read_first = read(DIMENSIONS).board;
+    let written = write_board(&read_first);
+    assert!(written.text.contains("<dimension "), "{}", written.text);
+    let again = read(&written.text).board;
+    let key = |d: &eh3d_phoenix_board::Dimension| {
+        (
+            d.kind.as_str(),
+            (d.from.x_nm.get(), d.from.y_nm.get()),
+            (d.to.x_nm.get(), d.to.y_nm.get()),
+            d.offset.get(),
+            d.text_height.get(),
+            d.stroke.get(),
+        )
+    };
+    let mut first: Vec<_> = read_first.dimensions.values().map(key).collect();
+    let mut second: Vec<_> = again.dimensions.values().map(key).collect();
+    first.sort();
+    second.sort();
+    assert_eq!(first, second);
+    assert_eq!(again.dimensions.len(), 3);
+    // the same board gives the same file
+    assert_eq!(written.text, write_board(&read_first).text);
 }

@@ -4,20 +4,22 @@
 //! What is read: the layer table (and from it the order of the copper layers), the nets, the
 //! footprints with their pads and the net of each pad, the tracks (straight pieces and arcs, joined
 //! into runs of one net, layer and width), the vias, the zones (outline and clearance), the
-//! outline drawn on `Edge.Cuts`, and the lines and texts drawn on the silkscreen layers. All
-//! lengths become integer nanometres and the y axis is turned to point up.
+//! outline drawn on `Edge.Cuts`, the lines and texts drawn on the silkscreen layers, and the aligned
+//! and orthogonal dimensions of KiCad 6 and later on a documentation layer. All lengths become
+//! integer nanometres and the y axis is turned to point up.
 //!
 //! Not kept: the setup (stack-up, rules, plot settings), the filled copper of zones (it is
 //! computed again by the tool), keep-out zones other than the ones that keep the pour out (those become cutouts of the zones they lie in), zones and tracks without a net, graphics on layers
-//! other than the outline and the silkscreen, dimensions, groups, images and the 3D models.
+//! other than the outline and the silkscreen, dimensions of other kinds (leaders, centre marks,
+//! radial) and in the format of KiCad 5, groups, images and the 3D models.
 
 use std::collections::BTreeMap;
 
 use eh3d_diagnostic::Diagnostic;
 use eh3d_phoenix_board::connectivity::point_in_polygon;
 use eh3d_phoenix_board::{
-    Board, Component, Id, LayerKind, Net, OutlineArc, PadNet, Segment, Side, SilkItem, Track, Via,
-    Zone,
+    Board, Component, Dimension, DimensionKind, Id, LayerKind, Net, OutlineArc, PadNet, Segment,
+    Side, SilkItem, Track, Via, Zone,
 };
 use eh3d_phoenix_hub::QualityReport;
 use eh3d_phoenix_model::{Nm, Point, Udeg};
@@ -597,6 +599,93 @@ impl Reader {
         found
     }
 
+    /// A dimension of KiCad 6 or later: the aligned and the orthogonal kinds on a documentation
+    /// layer. The sign of the height follows the rule that the writer of this crate uses (the
+    /// height is the offset of the dimension line turned to the right of the model, y being
+    /// turned); it has not been compared with KiCad.
+    fn dimension(&mut self, node: &Node, ctx: &mut Ctx) {
+        let kind = match node.child("type").and_then(|t| t.arg_text(0)) {
+            Some("aligned") => DimensionKind::Aligned,
+            Some("orthogonal") => match node.child("orientation").and_then(|o| o.arg_text(0)) {
+                Some("1") => DimensionKind::Vertical,
+                _ => DimensionKind::Horizontal,
+            },
+            Some(_) => {
+                ctx.lose(
+                    "dimensions of other kinds (leaders, centre marks, radial)",
+                    1,
+                );
+                return;
+            }
+            None => {
+                ctx.lose("dimensions in the format of KiCad 5", 1);
+                return;
+            }
+        };
+        let Some(layer_name) = node.child("layer").and_then(|l| l.arg_text(0)) else {
+            ctx.invalid(node, "dimension", "it names no layer");
+            return;
+        };
+        if meaning(layer_name).0 != LayerKind::Documentation {
+            ctx.lose("dimensions on layers that are not documentation layers", 1);
+            return;
+        }
+        let points = xy_list(node);
+        let (Some(a), Some(b)) = (points.first().copied(), points.get(1).copied()) else {
+            ctx.invalid(node, "dimension", "it has no two points");
+            return;
+        };
+        let height = length_arg(node.child("height")).unwrap_or(0);
+        let font = node
+            .child("gr_text")
+            .and_then(|t| t.child("effects"))
+            .and_then(|e| e.child("font"));
+        let text_height = font
+            .and_then(|f| f.child("size"))
+            .and_then(xy_args)
+            .map(|(h, _)| h)
+            .filter(|h| *h > 0)
+            .unwrap_or(1_500_000);
+        let stroke = length_arg(node.child("style").and_then(|s| s.child("thickness")))
+            .or_else(|| font.and_then(|f| length_arg(f.child("thickness"))))
+            .filter(|t| *t > 0)
+            .unwrap_or(150_000);
+        let offset = match kind {
+            DimensionKind::Vertical => Some(height),
+            DimensionKind::Aligned | DimensionKind::Horizontal => height.checked_neg(),
+        };
+        let (Some(from), Some(to), Some(offset), Ok(text_height), Ok(stroke)) = (
+            to_model(a),
+            to_model(b),
+            offset.and_then(|o| Nm::new(o).ok()),
+            Nm::new(text_height),
+            Nm::new(stroke),
+        ) else {
+            ctx.invalid(
+                node,
+                "dimension",
+                "a value is outside the range of the model",
+            );
+            return;
+        };
+        let layer = self.layers.intern(layer_name, ctx);
+        let dimension = Dimension {
+            layer,
+            kind,
+            from,
+            to,
+            offset,
+            text_height,
+            stroke,
+        };
+        if dimension.length_nm() == 0 {
+            ctx.invalid(node, "dimension", "it measures nothing");
+            return;
+        }
+        let id = ctx.id();
+        self.board.dimensions.insert(id, dimension);
+    }
+
     fn silk(&mut self, node: &Node, head: &str, layer_name: &str, ctx: &mut Ctx) {
         let layer = self.layers.intern(layer_name, ctx);
         if head == "gr_text" {
@@ -1049,6 +1138,7 @@ pub fn read_pcb(
                 | "gr_rect"
                 | "gr_poly"
                 | "gr_text"
+                | "dimension"
         );
         if counts {
             seen += 1;
@@ -1069,6 +1159,7 @@ pub fn read_pcb(
             "gr_line" | "gr_arc" | "gr_circle" | "gr_rect" | "gr_poly" => {
                 r.graphic(child, head, &mut ctx)
             }
+            "dimension" => r.dimension(child, &mut ctx),
             "gr_text" => match child.child("layer").and_then(|l| l.arg_text(0)) {
                 Some(layer) if meaning(layer).0 == LayerKind::Silkscreen => {
                     r.silk(child, head, layer, &mut ctx)
@@ -1104,6 +1195,7 @@ pub fn read_pcb(
     ctx.keep("vias", r.board.vias.len());
     ctx.keep("zones", r.board.zones.len());
     ctx.keep("silkscreen items", r.board.silkscreen.len());
+    ctx.keep("dimensions", r.board.dimensions.len());
     let (diagnostics, quality) = ctx.finish();
     Ok(ReadPcb {
         board: r.board,
@@ -1304,6 +1396,93 @@ pub(crate) mod tests {
             .map(|d| d.message.clone())
             .collect();
         assert!(problems.is_empty(), "{problems:?}");
+    }
+
+    /// Dimensions of KiCad 7: an aligned one, a vertical and a horizontal orthogonal one, and four
+    /// that are not read (a leader, one on the silkscreen, one of KiCad 5 and one with one point).
+    const DIMENSIONS: &str = r#"(kicad_pcb (version 20221018) (generator pcbnew)
+  (layers (0 "F.Cu" signal) (31 "B.Cu" signal) (44 "Edge.Cuts" user) (50 "Dwgs.User" user "User.Drawings") (36 "F.SilkS" user "F.Silkscreen"))
+  (dimension (type aligned) (layer "Dwgs.User") (uuid "d1")
+    (pts (xy 10 20) (xy 13 24))
+    (height -1)
+    (gr_text "5" (at 11 21) (layer "Dwgs.User") (uuid "t1") (effects (font (size 2 2) (thickness 0.3))))
+    (format (units 3)) (style (thickness 0.25)))
+  (dimension (type orthogonal) (orientation 1) (layer "Dwgs.User") (uuid "d2")
+    (pts (xy 0 0) (xy 0 -7.5)) (height 2))
+  (dimension (type orthogonal) (layer "Dwgs.User") (pts (xy 0 0) (xy 12 3)) (height -2))
+  (dimension (type leader) (layer "Dwgs.User") (pts (xy 0 0) (xy 1 1)))
+  (dimension (type aligned) (layer "F.SilkS") (pts (xy 0 0) (xy 1 1)) (height 1))
+  (dimension 12.5 (width 0.15) (layer "Dwgs.User"))
+  (dimension (type aligned) (layer "Dwgs.User") (pts (xy 0 0)) (height 1))
+)"#;
+
+    #[test]
+    fn the_aligned_and_orthogonal_dimensions_are_read_and_the_others_are_counted() {
+        let r = read(DIMENSIONS);
+        let b = &r.board;
+        assert_eq!(b.dimensions.len(), 3);
+        let of = |kind: DimensionKind| b.dimensions.values().find(|d| d.kind == kind).unwrap();
+        // y is turned: (10, 20) in the file is (10, -20) in the model
+        let aligned = of(DimensionKind::Aligned);
+        assert_eq!(
+            aligned.from,
+            Point::from_nm(10_000_000, -20_000_000).unwrap()
+        );
+        assert_eq!(aligned.to, Point::from_nm(13_000_000, -24_000_000).unwrap());
+        assert_eq!(aligned.length_nm(), 5_000_000);
+        assert_eq!(aligned.measure_text(), "5");
+        // the height of the file is the offset turned to the other side
+        assert_eq!(aligned.offset.get(), 1_000_000);
+        assert_eq!(aligned.text_height.get(), 2_000_000);
+        assert_eq!(aligned.stroke.get(), 250_000);
+        // the sizes that the file does not give are the usual ones of KiCad
+        let vertical = of(DimensionKind::Vertical);
+        assert_eq!(vertical.length_nm(), 7_500_000);
+        assert_eq!(vertical.offset.get(), 2_000_000);
+        assert_eq!(vertical.text_height.get(), 1_500_000);
+        assert_eq!(vertical.stroke.get(), 150_000);
+        let horizontal = of(DimensionKind::Horizontal);
+        assert_eq!(horizontal.length_nm(), 12_000_000);
+        assert_eq!(horizontal.offset.get(), 2_000_000);
+        for d in b.dimensions.values() {
+            assert_eq!(b.layers[&d.layer].name, "Dwgs.User");
+            assert_eq!(b.layers[&d.layer].kind, LayerKind::Documentation);
+        }
+        let errors: Vec<String> = b
+            .validate()
+            .iter()
+            .filter(|d| d.severity == eh3d_diagnostic::Severity::Error)
+            .map(|d| d.message.clone())
+            .collect();
+        assert!(errors.is_empty(), "{errors:?}");
+        let q = &r.quality;
+        assert_eq!(count(&q.kept, "dimensions"), Some(3));
+        assert_eq!(
+            count(
+                &q.dropped,
+                "dimensions of other kinds (leaders, centre marks, radial)"
+            ),
+            Some(1)
+        );
+        assert_eq!(
+            count(
+                &q.dropped,
+                "dimensions on layers that are not documentation layers"
+            ),
+            Some(1)
+        );
+        assert_eq!(
+            count(&q.dropped, "dimensions in the format of KiCad 5"),
+            Some(1)
+        );
+        // the one with a single point is a finding and not a dimension
+        assert!(
+            r.diagnostics
+                .iter()
+                .any(|d| d.message.contains("dimension") && d.message.contains("two points")),
+            "{:?}",
+            r.diagnostics
+        );
     }
 
     #[test]

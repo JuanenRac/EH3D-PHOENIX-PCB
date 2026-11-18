@@ -311,6 +311,16 @@ pub fn describe_operation(
             };
             fill(WinText::OpConnectPad, lang, &name)
         }
+        Operation::AddDimension { dimension, .. } => {
+            fill(WinText::OpAddDimension, lang, &dimension.measure_text())
+        }
+        Operation::RemoveDimension { .. } => {
+            let measure = match inverse {
+                Operation::AddDimension { dimension, .. } => dimension.measure_text(),
+                _ => "?".to_string(),
+            };
+            fill(WinText::OpRemoveDimension, lang, &measure)
+        }
         Operation::SetTestPoint { pad, marked } => {
             let refdes = refdes_of(board, pad.component, inverse);
             let number = board
@@ -411,6 +421,72 @@ mod tests {
 
     fn rows(labels: &[&str]) -> Vec<String> {
         labels.iter().map(|l| (*l).to_string()).collect()
+    }
+
+    #[test]
+    fn the_steps_of_dimensions_and_test_points_are_described_in_every_language() {
+        use eh3d_phoenix_board::{Dimension, DimensionKind, Layer, LayerKind};
+        let mut board = sample::board();
+        board.layers.insert(
+            id(60),
+            Layer {
+                name: "Docs".to_string(),
+                kind: LayerKind::Documentation,
+                side: None,
+            },
+        );
+        let dimension = Dimension {
+            layer: id(60),
+            kind: DimensionKind::Horizontal,
+            from: point(1.0, 1.0),
+            to: point(13.5, 1.0),
+            offset: Nm::new(2_000_000).unwrap(),
+            text_height: Nm::new(1_000_000).unwrap(),
+            stroke: Nm::new(100_000).unwrap(),
+        };
+        let pad = PadRef {
+            component: id(30),
+            pad: id(21),
+        };
+        let mut history = History::new();
+        let ops = [
+            Operation::AddDimension {
+                id: id(61),
+                dimension,
+            },
+            Operation::SetTestPoint { pad, marked: true },
+            Operation::SetTestPoint { pad, marked: false },
+            Operation::RemoveDimension { id: id(61) },
+        ];
+        for op in ops {
+            history.execute(&mut board, op).unwrap();
+        }
+        let describe = |lang: Lang| -> Vec<String> {
+            history
+                .done()
+                .iter()
+                .map(|s| describe_step(s, &board, lang))
+                .collect()
+        };
+        assert_eq!(
+            describe(Lang::En),
+            [
+                "Add dimension 12.5 mm",
+                "Mark R1.1 as a test point",
+                "Unmark R1.1 as a test point",
+                "Remove dimension 12.5 mm"
+            ]
+        );
+        assert_eq!(describe(Lang::Es)[0], "Añadir cota de 12.5 mm");
+        assert_eq!(describe(Lang::Pt)[3], "Remover a cota de 12.5 mm");
+        for lang in Lang::ALL {
+            for text in describe(lang) {
+                assert!(
+                    !text.contains("{}") && !text.contains('?'),
+                    "{lang:?}: {text}"
+                );
+            }
+        }
     }
 
     #[test]

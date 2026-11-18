@@ -436,6 +436,41 @@ pub fn write_board(board: &Board) -> Written {
         }
     }
 
+    // the dimensions, as `dimension` elements on the number of their layer
+    for (did, d) in &board.dimensions {
+        let (Some(layer), Ok(through)) = (numbers.get(&d.layer), d.line_point()) else {
+            diagnostics.push(codes::diagnostic(
+                ITEM_LEFT_OUT,
+                Severity::Warning,
+                &format!("dimension {did}: its layer has no EAGLE number or it cannot be drawn"),
+            ));
+            continue;
+        };
+        let dtype = match d.kind {
+            eh3d_phoenix_board::DimensionKind::Aligned => "parallel",
+            eh3d_phoenix_board::DimensionKind::Horizontal => "horizontal",
+            eh3d_phoenix_board::DimensionKind::Vertical => "vertical",
+        };
+        // the ratio of the stroke to the height of the text, in whole per cent
+        let ratio = (d.stroke.get().saturating_mul(100) / d.text_height.get().max(1)).max(1);
+        plain.push(el(
+            "dimension",
+            vec![
+                ("x1", decimal(d.from.x_nm.get())),
+                ("y1", decimal(d.from.y_nm.get())),
+                ("x2", decimal(d.to.x_nm.get())),
+                ("y2", decimal(d.to.y_nm.get())),
+                ("x3", decimal(through.x_nm.get())),
+                ("y3", decimal(through.y_nm.get())),
+                ("textsize", decimal(d.text_height.get())),
+                ("textratio", ratio.to_string()),
+                ("layer", layer.to_string()),
+                ("dtype", dtype.to_owned()),
+            ],
+            Vec::new(),
+        ));
+    }
+
     let layers: Vec<Element> = used
         .iter()
         .map(|n| {

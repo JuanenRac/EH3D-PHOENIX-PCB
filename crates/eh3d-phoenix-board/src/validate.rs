@@ -464,6 +464,7 @@ impl Board {
         out.extend(warnings);
         out.extend(self.stack_problems());
         out.extend(self.silk_problems());
+        out.extend(self.dimension_problems());
         out
     }
 
