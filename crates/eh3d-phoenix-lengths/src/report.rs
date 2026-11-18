@@ -74,7 +74,7 @@ pub fn report_text(report: &LengthReport, lang: Lang) -> String {
             _ => "none".to_owned(),
         };
         out.push_str(&format!(
-            "pair {}: {} {} mm, {} {} mm, skew {} mm of {} mm, delay skew {} fs, coupled {} mm, uncoupled {} mm, gap {}: {}\n",
+            "pair {}: {} {} mm, {} {} mm, skew {} mm of {} mm, delay skew {} fs{}, coupled {} mm, uncoupled {} mm, gap {}: {}\n",
             p.name,
             p.positive,
             millimetres(p.positive_nm),
@@ -83,6 +83,8 @@ pub fn report_text(report: &LengthReport, lang: Lang) -> String {
             millimetres(p.skew_nm),
             millimetres(p.max_skew_nm),
             p.delay_skew_fs,
+            p.max_delay_skew_fs
+                .map_or(String::new(), |most| format!(" of {most} fs")),
             millimetres(p.coupled_nm),
             millimetres(p.uncoupled_nm),
             gap,

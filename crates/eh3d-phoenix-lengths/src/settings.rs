@@ -35,6 +35,9 @@ pub struct LengthSettings {
     pub pair_gap_tolerance_nm: i64,
     /// The tolerance of the width of a pair that gives none, in nanometres.
     pub pair_width_tolerance_nm: i64,
+    /// The most the delays of the two nets of a pair may differ when the pair names no limit, in
+    /// femtoseconds; 0 leaves the delay unjudged.
+    pub pair_delay_skew_fs: i64,
     /// The most nets, groups and pairs a report handles.
     pub max_items: usize,
 }
@@ -52,6 +55,7 @@ impl Default for LengthSettings {
             pair_coupling_range_nm: 1_000_000,
             pair_gap_tolerance_nm: 50_000,
             pair_width_tolerance_nm: 10_000,
+            pair_delay_skew_fs: 0,
             max_items: 100_000,
         }
     }
@@ -119,6 +123,7 @@ impl LengthSettings {
                 "pair_width_tolerance_nm" => {
                     s.pair_width_tolerance_nm = value.parse().map_err(|_| bad())?
                 }
+                "pair_delay_skew_fs" => s.pair_delay_skew_fs = value.parse().map_err(|_| bad())?,
                 "max_items" => s.max_items = value.parse().map_err(|_| bad())?,
                 _ => {
                     return Err(LengthError::new(
@@ -161,6 +166,9 @@ impl LengthSettings {
             if !(0..LENGTH_LIMIT_NM).contains(&v) {
                 return fail(&format!("{name} must be between 0 and 2^30 nanometres"));
             }
+        }
+        if !(0..=1_000_000_000).contains(&self.pair_delay_skew_fs) {
+            return fail("pair_delay_skew_fs must be between 0 and 1000000000");
         }
         if !(1..=10_000_000).contains(&self.max_items) {
             return fail("max_items must be between 1 and 10000000");
@@ -223,6 +231,7 @@ mod tests {
         assert!(LengthSettings::parse("layer_delay_ps_per_mm. = 5\n").is_err());
         assert!(LengthSettings::parse("pair_gap_tolerance_nm = -1\n").is_err());
         assert!(LengthSettings::parse("use_stackup = maybe\n").is_err());
+        assert!(LengthSettings::parse("pair_delay_skew_fs = -1\n").is_err());
         assert!(LengthSettings::parse("use_stackup\n").is_err());
     }
 }

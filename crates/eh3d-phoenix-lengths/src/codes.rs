@@ -45,6 +45,8 @@ pub const LIMIT_EXCEEDED: &str = "PHOENIX-LEN-017";
 pub const GROUP_TARGET: &str = "PHOENIX-LEN-018";
 /// The pair has no coupled stretch.
 pub const PAIR_NOT_COUPLED: &str = "PHOENIX-LEN-019";
+/// The two nets of a pair differ in delay by more than allowed.
+pub const PAIR_DELAY_SKEW: &str = "PHOENIX-LEN-020";
 
 /// Code, then the title in English, Spanish, German, French, Italian, Japanese, Chinese and
 /// European Portuguese.
@@ -294,6 +296,19 @@ pub const TITLES: &[(&str, [&str; 8])] = &[
             "ペアに結合区間がありません",
             "差分对没有耦合段",
             "O par não tem troço acoplado",
+        ],
+    ),
+    (
+        PAIR_DELAY_SKEW,
+        [
+            "Pair differs in delay by more than allowed",
+            "El par difiere en retardo más de lo permitido",
+            "Das Paar weicht in der Laufzeit stärker ab als erlaubt",
+            "La paire diffère en retard plus que permis",
+            "La coppia differisce nel ritardo più del consentito",
+            "ペアの遅延差が許容値を超えています",
+            "差分对的延迟差超过允许值",
+            "O par difere no atraso mais do que o permitido",
         ],
     ),
 ];

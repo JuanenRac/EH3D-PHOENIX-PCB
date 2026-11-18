@@ -4,7 +4,8 @@
 use eh3d_phoenix_board::{Board, Id, Layer, LayerKind, Net, Segment, Track, Via};
 use eh3d_phoenix_lengths::codes::{
     ARC_ESTIMATED, GROUP_MISMATCH, GROUP_TARGET, LAYER_NO_DELAY, NET_NOT_FOUND, NET_NO_COPPER,
-    PAIR_GAP_SMALL, PAIR_NOT_COUPLED, PAIR_SKEW, PAIR_UNCOUPLED, PAIR_WIDTH, STACKUP_FALLBACK,
+    PAIR_DELAY_SKEW, PAIR_GAP_SMALL, PAIR_NOT_COUPLED, PAIR_SKEW, PAIR_UNCOUPLED, PAIR_WIDTH,
+    STACKUP_FALLBACK,
 };
 use eh3d_phoenix_lengths::{
     analyse, report_json, report_text, LengthFile, LengthReport, LengthSettings,
@@ -368,4 +369,38 @@ fn the_same_board_gives_the_same_bytes() {
     let text = report_text(&first, Lang::En);
     assert!(text.contains("net USB_N: 10.000000 mm"), "{text}");
     assert!(text.contains("pair usb:"), "{text}");
+}
+
+const PAIR_TIME: &str = r#"{"format":"phoenix-lengths/1","pairs":[{"name":"usb","positive":"USB_P","negative":"USB_N","max_skew_nm":1000000,"max_delay_skew_fs":1000}]}"#;
+
+#[test]
+fn a_pair_out_of_time_is_an_error_even_when_its_length_is_inside_the_tolerance() {
+    // 0.3 mm at 6 ps per mm is 1 800 fs, above the 1 000 fs of the pair; the length tolerance of
+    // 1 mm is not broken
+    let report = run(&pair_board(350_000, 150_000, 10_300_000), Some(PAIR_TIME));
+    let p = &report.pairs[0];
+    assert_eq!((p.delay_skew_fs, p.max_delay_skew_fs), (1_800, Some(1_000)));
+    assert!(!p.ok);
+    assert!(report.findings.iter().any(|f| f.code == PAIR_DELAY_SKEW));
+    assert!(!report.findings.iter().any(|f| f.code == PAIR_SKEW));
+    // 0.1 mm is 600 fs, inside the budget
+    let near = run(&pair_board(350_000, 150_000, 10_100_000), Some(PAIR_TIME));
+    assert_eq!(near.pairs[0].delay_skew_fs, 600);
+    assert!(!near.findings.iter().any(|f| f.code == PAIR_DELAY_SKEW));
+}
+
+#[test]
+fn the_delay_budget_of_the_settings_covers_a_pair_that_names_none() {
+    let board = pair_board(350_000, 150_000, 10_300_000);
+    let file = LengthFile::from_json(
+        r#"{"format":"phoenix-lengths/1","pairs":[{"name":"usb","positive":"USB_P","negative":"USB_N","max_skew_nm":1000000}]}"#,
+    )
+    .unwrap();
+    let off = analyse(&board, &LengthSettings::default(), None, Some(&file)).unwrap();
+    assert_eq!(off.pairs[0].max_delay_skew_fs, None);
+    assert!(off.pairs[0].ok);
+    let on = LengthSettings::parse("pair_delay_skew_fs = 1500\n").unwrap();
+    let report = analyse(&board, &on, None, Some(&file)).unwrap();
+    assert_eq!(report.pairs[0].max_delay_skew_fs, Some(1_500));
+    assert!(report.findings.iter().any(|f| f.code == PAIR_DELAY_SKEW));
 }

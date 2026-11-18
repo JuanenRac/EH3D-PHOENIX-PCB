@@ -220,6 +220,7 @@ fn length_spec(pair: &ResolvedPair, settings: &PairSettings, swapped: bool) -> P
         width_tolerance_nm: Some(settings.width_tolerance_nm),
         max_uncoupled_nm: Some(pair.max_uncoupled_nm),
         coupling_range_nm: Some(settings.coupling_range_nm),
+        max_delay_skew_fs: None,
     }
 }
 

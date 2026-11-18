@@ -4,6 +4,7 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **A pair can have a budget of time:** the new field `max_delay_skew_fs` of a pair in the file of `phoenix lengths`, and the new line `pair_delay_skew_fs` of `config/lengths.cfg` for the pairs that name none (off at 0), make the report give `PHOENIX-LEN-020` when the two nets differ in delay by more than that, even when their lengths are inside the tolerance because they run on layers of different speed; the text and the JSON of the report show the limit, and the code has its title in the eight languages.
 - **The test count is the one the CI measures:** the READMEs and `docs/STATUS.md` said 4134 tests, which was counted on a computer; the Linux job of the Rust CI runs 4130, and `CONTRIBUTING.md` now says that the count is always measured in the CI.
 - **Capability profiles limit the number of different drill sizes:** the new line `max_drill_sizes` of a profile (off at 0) makes `phoenix check --dfm` report `PHOENIX-DFM-007` when the vias and the drilled pads use more drill sizes than the maker accepts, in the eight languages.
 - **Capability profiles limit the aspect ratio of the holes:** the new lines `board_thickness_nm` and `max_hole_aspect_x10` of a profile (off at 0) make `phoenix check --dfm` report `PHOENIX-DFM-008` when the thickness divided by the smallest drill is above the limit, with the least drill that passes, in the eight languages.

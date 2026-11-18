@@ -21,8 +21,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::codes::{
     Finding, LengthError, Severity, FILE_INVALID, GROUP_MISMATCH, GROUP_TARGET, LIMIT_EXCEEDED,
-    NET_NOT_FOUND, NET_NO_COPPER, PAIR_GAP_LARGE, PAIR_GAP_SMALL, PAIR_NOT_COUPLED, PAIR_SKEW,
-    PAIR_UNCOUPLED, PAIR_WIDTH,
+    NET_NOT_FOUND, NET_NO_COPPER, PAIR_DELAY_SKEW, PAIR_GAP_LARGE, PAIR_GAP_SMALL,
+    PAIR_NOT_COUPLED, PAIR_SKEW, PAIR_UNCOUPLED, PAIR_WIDTH,
 };
 use crate::geom::{seg_dist, seg_len, P};
 use crate::measure::{measure_nets, NetLength};
@@ -79,6 +79,9 @@ pub struct PairSpec {
     /// The widest gap at which two pieces count as coupled; the settings when missing.
     #[serde(default)]
     pub coupling_range_nm: Option<i64>,
+    /// The most the two delays may differ, in femtoseconds; the settings when missing.
+    #[serde(default)]
+    pub max_delay_skew_fs: Option<i64>,
 }
 
 /// The file of groups and pairs.
@@ -139,6 +142,7 @@ impl LengthFile {
                 p.width_tolerance_nm,
                 p.max_uncoupled_nm,
                 p.coupling_range_nm,
+                p.max_delay_skew_fs,
             ];
             if values.iter().any(|v| v.is_some_and(|x| x < 0)) {
                 return bad(format!("the pair {} has a negative length", p.name));
@@ -199,6 +203,8 @@ pub struct PairResult {
     pub max_skew_nm: i64,
     /// The difference of the delays, in femtoseconds.
     pub delay_skew_fs: i64,
+    /// The difference of the delays that was allowed, in femtoseconds, when a limit was set.
+    pub max_delay_skew_fs: Option<i64>,
     /// The length of the positive net that runs within the coupling range of the other.
     pub coupled_nm: i64,
     /// The rest of the length of the positive net.
@@ -439,6 +445,21 @@ fn judge_pair(
             format!("the nets differ by {skew_nm} nm, at most {max_skew_nm} nm is allowed"),
         ));
     }
+    let delay_skew_fs = (p_fs - n_fs).abs();
+    let max_delay_skew_fs = p
+        .max_delay_skew_fs
+        .or((settings.pair_delay_skew_fs > 0).then_some(settings.pair_delay_skew_fs));
+    if let Some(most) = max_delay_skew_fs {
+        if delay_skew_fs > most {
+            ok = false;
+            findings.push(Finding::new(
+                PAIR_DELAY_SKEW,
+                Severity::Error,
+                subject,
+                format!("the nets differ by {delay_skew_fs} fs, at most {most} fs is allowed"),
+            ));
+        }
+    }
     let p_pieces = pieces_of(board, pid);
     let n_pieces = pieces_of(board, nid);
     if let Some(want) = p.width_nm {
@@ -517,7 +538,8 @@ fn judge_pair(
         negative_nm: n_nm,
         skew_nm,
         max_skew_nm,
-        delay_skew_fs: (p_fs - n_fs).abs(),
+        delay_skew_fs,
+        max_delay_skew_fs,
         coupled_nm,
         uncoupled_nm,
         min_gap_nm,

@@ -941,6 +941,7 @@ The titles of these codes also exist in the eight languages of the suite (`TITLE
 | PHOENIX-LEN-017 | A limit of the length report was exceeded | more tracks and vias, or more groups and pairs, than `max_items` |
 | PHOENIX-LEN-018 | Net is not the target length | error: a net of a group with a target whose length is farther from the target than the tolerance |
 | PHOENIX-LEN-019 | Pair has no coupled stretch | warning: no straight piece of the positive net runs within the coupling range of the negative net, so the separation is not judged |
+| PHOENIX-LEN-020 | Pair differs in delay by more than allowed | error: the two nets of a pair differ in delay by more than `max_delay_skew_fs` of the pair or `pair_delay_skew_fs` of the settings |
 
 ## Signal integrity (`eh3d-phoenix-si`, `src/codes.rs`)
 
