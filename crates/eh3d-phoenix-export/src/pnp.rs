@@ -626,6 +626,58 @@ pub fn pnp_csv(rows: &[PnpRow], settings: &PnpSettings) -> String {
     text
 }
 
+/// The text of one field of a column of a placement file of an assembler: `ref`, `value`,
+/// `package`, `x`, `y` (no unit), `x_unit`, `y_unit` (the unit of the settings written after the
+/// number), `rotation`, `side` (`top` or `bottom`) and `layer` (`Top` or `Bottom`); any other name
+/// (`blank`) is an empty cell.
+fn assembler_field(row: &PnpRow, field: &str, settings: &PnpSettings) -> String {
+    let x = || length_text(row.x_nm, settings.unit, settings.decimals);
+    let y = || length_text(row.y_nm, settings.unit, settings.decimals);
+    match field {
+        "ref" => row.refdes.clone(),
+        "value" => row.value.clone(),
+        "package" => row.footprint.clone(),
+        "x" => x(),
+        "y" => y(),
+        "x_unit" => format!("{}{}", x(), settings.unit.name()),
+        "y_unit" => format!("{}{}", y(), settings.unit.name()),
+        "rotation" => format_micro(row.rotation, settings.rotation_decimals),
+        "side" => side_word(row.side).to_owned(),
+        "layer" => match row.side {
+            Side::Top => "Top".to_owned(),
+            Side::Bottom => "Bottom".to_owned(),
+        },
+        _ => String::new(),
+    }
+}
+
+/// The one placement file of both faces in the columns an assembler asks for: a header line with
+/// the header of each column and a line for each part that is fitted (the top face first), with
+/// the cells of the fields named by the columns, separated by `delimiter`. The coordinates, the
+/// unit and the rotation are those of the settings.
+pub fn pnp_assembler_csv(
+    plan: &PnpPlan,
+    columns: &[(String, String)],
+    delimiter: char,
+    settings: &PnpSettings,
+) -> String {
+    let header: Vec<String> = columns.iter().map(|(h, _)| h.clone()).collect();
+    let mut text = csv_line(&header, delimiter);
+    for row in plan
+        .top
+        .iter()
+        .chain(plan.bottom.iter())
+        .filter(|r| r.fitted)
+    {
+        let fields: Vec<String> = columns
+            .iter()
+            .map(|(_, field)| assembler_field(row, field, settings))
+            .collect();
+        text.push_str(&csv_line(&fields, delimiter));
+    }
+    text
+}
+
 fn origin_word(origin: PnpOrigin) -> &'static str {
     match origin {
         PnpOrigin::LowerLeft => "lower_left",
@@ -963,6 +1015,67 @@ mod tests {
         assert_eq!(length_text(-25_400, Unit::Mil, 0), "-1");
         assert_eq!(length_text(MM, Unit::Mil, 3), "39.370");
         assert_eq!(length_text(0, Unit::Mil, 1), "0.0");
+    }
+
+    #[test]
+    fn the_placement_of_an_assembler_holds_both_faces_and_the_fitted_parts() {
+        let row = |refdes: &str, x: i64, side: Side, fitted: bool| PnpRow {
+            refdes: refdes.to_owned(),
+            value: "10k".to_owned(),
+            footprint: "R0603".to_owned(),
+            x_nm: x * MM,
+            y_nm: 2 * MM + MM / 2,
+            rotation: 90_000_000,
+            side,
+            fitted,
+        };
+        let plan = PnpPlan {
+            name: "b".to_owned(),
+            top: vec![
+                row("R1", 10, Side::Top, true),
+                row("R2", 11, Side::Top, false),
+            ],
+            bottom: vec![row("C1", 12, Side::Bottom, true)],
+            excluded: Vec::new(),
+            findings: Vec::new(),
+        };
+        let columns = |pairs: &[(&str, &str)]| -> Vec<(String, String)> {
+            pairs
+                .iter()
+                .map(|(h, f)| ((*h).to_owned(), (*f).to_owned()))
+                .collect()
+        };
+        let s = PnpSettings::default();
+        let jlc = columns(&[
+            ("Designator", "ref"),
+            ("Mid X", "x_unit"),
+            ("Mid Y", "y_unit"),
+            ("Layer", "layer"),
+            ("Rotation", "rotation"),
+        ]);
+        assert_eq!(
+            pnp_assembler_csv(&plan, &jlc, ',', &s),
+            "Designator,Mid X,Mid Y,Layer,Rotation\n\
+             R1,10.0000mm,2.5000mm,Top,90.00\n\
+             C1,12.0000mm,2.5000mm,Bottom,90.00\n"
+        );
+        let other = columns(&[
+            ("Ref", "ref"),
+            ("Side", "side"),
+            ("X", "x"),
+            ("Note", "blank"),
+        ]);
+        assert_eq!(
+            pnp_assembler_csv(&plan, &other, ';', &s),
+            "Ref;Side;X;Note\nR1;top;10.0000;\nC1;bottom;12.0000;\n"
+        );
+        let mil = PnpSettings {
+            unit: Unit::Mil,
+            decimals: 1,
+            ..PnpSettings::default()
+        };
+        let text = pnp_assembler_csv(&plan, &columns(&[("X", "x_unit")]), ',', &mil);
+        assert_eq!(text, "X\n393.7mil\n472.4mil\n");
     }
 
     #[test]

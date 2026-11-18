@@ -8,8 +8,11 @@
 use std::io::Write;
 
 use eh3d_phoenix_board::Side;
+use eh3d_phoenix_bom::assembler::AssemblerSettings;
 use eh3d_phoenix_export::fabcodes::{FabError, PNP_OPTION_INVALID, PNP_OUTPUT_FAILED};
-use eh3d_phoenix_export::pnp::{plan, pnp_csv, pnp_json, PnpOrigin, PnpPlan, PnpSettings, Unit};
+use eh3d_phoenix_export::pnp::{
+    plan, pnp_assembler_csv, pnp_csv, pnp_json, PnpOrigin, PnpPlan, PnpSettings, Unit,
+};
 use eh3d_phoenix_export::Lang;
 
 use crate::fabpack::{
@@ -18,7 +21,8 @@ use crate::fabpack::{
 
 pub(crate) const USAGE: &str = "\
 phoenix pnp [--config FILE] [--maker NAME] [--parts FILE] [--dnp R1,R2,...]
-            [--variant NAME [--variant-file FILE]] [--origin lower_left|aux|panel] [--units mm|mil] [--lang CODE] [--out FOLDER] <board>
+            [--variant NAME [--variant-file FILE]] [--origin lower_left|aux|panel] [--units mm|mil]
+            [--assembler NAME [--assembler-config FILE]] [--lang CODE] [--out FOLDER] <board>
 
   pnp           the pick and place files of a board, one for each face, as CSV and as JSON
                 (phoenix-pnp/1): designator, value, footprint, X, Y, rotation and face of every
@@ -35,6 +39,11 @@ phoenix pnp [--config FILE] [--maker NAME] [--parts FILE] [--dnp R1,R2,...]
   --variant     an assembly variant of an EAGLE file: the parts it does not fit are left out like
                 --dnp; the variants are read from the board file when it is an EAGLE .brd or .sch,
                 otherwise from --variant-file
+  --assembler   also write one placement file of both faces, pnp_NAME.csv, in the columns of the
+                placement format of that name from the settings (jlcpcb and pcbway come with the
+                program; they have never been sent to an assembler and are not verified); the parts
+                that are not fitted are left out of it. --assembler-config is the file of the
+                formats (default: config/assembler.cfg when it exists)
   --lang CODE   the messages in en, es, de, fr, it, ja, zh or pt
 ";
 
@@ -73,6 +82,8 @@ struct Options {
     variant_file: Option<String>,
     origin: Option<PnpOrigin>,
     units: Option<Unit>,
+    assembler: Option<String>,
+    assembler_config: Option<String>,
     out: Option<String>,
     files: Vec<String>,
 }
@@ -88,6 +99,8 @@ fn parse_options(args: &[&str]) -> Result<Options, FabError> {
         variant_file: None,
         origin: None,
         units: None,
+        assembler: None,
+        assembler_config: None,
         out: None,
         files: Vec::new(),
     };
@@ -127,6 +140,10 @@ fn parse_options(args: &[&str]) -> Result<Options, FabError> {
                     _ => return Err(bad("--units is mm or mil")),
                 })
             }
+            "--assembler" => o.assembler = Some(value("--assembler needs a format name")?),
+            "--assembler-config" => {
+                o.assembler_config = Some(value("--assembler-config needs a file")?)
+            }
             "--out" => o.out = Some(value("--out needs a folder")?),
             other if other.starts_with("--") => {
                 return Err(FabError::new(
@@ -141,6 +158,29 @@ fn parse_options(args: &[&str]) -> Result<Options, FabError> {
 }
 
 /// The language of the design rules for the language of the export (the two enums have the same variants).
+/// The formats of the files for an assembler: the file named, or `config/assembler.cfg` when it
+/// exists, else the built-in ones.
+fn load_assembler_settings(named: Option<&str>) -> Result<AssemblerSettings, FabError> {
+    const DEFAULT: &str = "config/assembler.cfg";
+    let path = named.or_else(|| std::path::Path::new(DEFAULT).is_file().then_some(DEFAULT));
+    let Some(path) = path else {
+        return Ok(AssemblerSettings::default());
+    };
+    let size = std::fs::metadata(path)
+        .map_err(|e| FabError::new(PNP_OPTION_INVALID, format!("{path}: {e}")))?
+        .len();
+    if size > 1024 * 1024 {
+        return Err(FabError::new(
+            PNP_OPTION_INVALID,
+            format!("{path} is {size} bytes, the limit is 1048576"),
+        ));
+    }
+    let text = std::fs::read_to_string(path)
+        .map_err(|e| FabError::new(PNP_OPTION_INVALID, format!("{path}: {e}")))?;
+    AssemblerSettings::parse(&text)
+        .map_err(|e| FabError::new(PNP_OPTION_INVALID, e.message(eh3d_phoenix_rules::Lang::En)))
+}
+
 fn rules_lang(lang: Lang) -> eh3d_phoenix_rules::Lang {
     use eh3d_phoenix_rules::Lang as R;
     match lang {
@@ -161,6 +201,28 @@ fn pnp(o: &Options, out: &mut dyn Write) -> Result<i32, FabError> {
             PNP_OPTION_INVALID,
             "give exactly one board file",
         ));
+    };
+    if o.assembler_config.is_some() && o.assembler.is_none() {
+        return Err(FabError::new(
+            PNP_OPTION_INVALID,
+            "--assembler-config needs --assembler",
+        ));
+    }
+    let assembler = match &o.assembler {
+        Some(name) => {
+            let formats = load_assembler_settings(o.assembler_config.as_deref())?;
+            let format = formats.placement(name).cloned().ok_or_else(|| {
+                FabError::new(
+                    PNP_OPTION_INVALID,
+                    format!(
+                        "unknown assembler format {name} (the formats: {})",
+                        formats.placement_names()
+                    ),
+                )
+            })?;
+            Some((name.clone(), format, formats.delimiter))
+        }
+        None => None,
     };
     let mut settings = load_pnp_settings(o.config.as_deref(), o.maker.as_deref())?;
     if let Some(origin) = o.origin {
@@ -193,7 +255,13 @@ fn pnp(o: &Options, out: &mut dyn Write) -> Result<i32, FabError> {
     }
     let not_fitted = not_fitted_set(&board, &parts, &dnp);
     let placement = plan(&board, &settings, &not_fitted);
-    let files = pnp_files(&placement, &settings, "");
+    let mut files = pnp_files(&placement, &settings, "");
+    if let Some((name, format, delimiter)) = &assembler {
+        files.push((
+            format!("pnp_{name}.csv"),
+            pnp_assembler_csv(&placement, &format.columns, *delimiter, &settings).into_bytes(),
+        ));
+    }
 
     let mut text = format!(
         "board: {}\ntop: {} part(s), bottom: {} part(s), left out: {}\nunits: {}\n",
@@ -264,6 +332,8 @@ mod tests {
             vec!["--config"],
             vec!["--lang", "xx"],
             vec!["--nope"],
+            vec!["--assembler"],
+            vec!["--assembler-config"],
         ] {
             let e = parse_options(&bad).err().unwrap();
             assert_eq!(e.code, PNP_OPTION_INVALID, "{bad:?}");

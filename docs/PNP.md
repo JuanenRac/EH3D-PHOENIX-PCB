@@ -53,14 +53,19 @@ The same board and settings always give the same bytes.
 
 ```
 phoenix pnp [--config FILE] [--maker NAME] [--parts FILE] [--dnp R1,R2,...]
-            [--origin lower_left|aux|panel] [--units mm|mil] [--lang CODE] [--out FOLDER] <board>
+            [--origin lower_left|aux|panel] [--units mm|mil]
+            [--assembler NAME [--assembler-config FILE]] [--lang CODE] [--out FOLDER] <board>
 ```
 
 It is a dry run: it prints the number of parts of each face and the findings. With `--out` it writes the files to a folder that does not exist yet; an existing folder is never touched (`PHOENIX-PNP-009`). Exit code 0 is done and 2 is any refusal. The codes `PHOENIX-PNP-001` to `011` are in `docs/ERROR_CODES.md` with their titles in the eight languages.
 
+## The file of an assembler
+
+`--assembler NAME` also writes one file, `pnp_NAME.csv`, with the parts of both faces (the top face first) in the columns of the placement format of that name: `placement.NAME = Header=field|Header=field|...` in `config/assembler.cfg` (or the file of `--assembler-config`), the same file that holds the formats of the bill of materials (`docs/BOM.md`). The fields are `ref`, `value`, `package`, `x`, `y` (the centre in the unit and with the digits of the settings above, no unit), `x_unit`, `y_unit` (the same with the unit written after the number, `12.5000mm`), `rotation`, `side` (`top` or `bottom`), `layer` (`Top` or `Bottom`) and `blank` (an empty cell). Two formats come with the program, `jlcpcb` (`Designator`, `Mid X`, `Mid Y`, `Layer`, `Rotation`) and `pcbway` (`Designator`, `Comment`, `Footprint`, `Mid X`, `Mid Y`, `Layer`, `Rotation`). The separator is the `delimiter` of `config/assembler.cfg`. Parts that are not fitted are never in this file, whatever `not_fitted` says. **The two formats are not verified:** they are written from the headers the author knows those assemblers ask for and have never been sent to one, and the template of the assembler wins over them. A format that does not exist, or `--assembler-config` alone, is `PHOENIX-PNP-008`.
+
 ## What it does not do
 
-* It does not import the placement of a machine or of an assembler, and it writes no machine format beyond the two above.
+* It does not import the placement of a machine or of an assembler, and it writes no machine format beyond the two above and the columns of an assembler that you give.
 * It does not take the centre from a drawing of the body of the part: only the pads give it.
 * It does not know which rotation a head needs; that is the table you fill.
 * The origin of a panel is a setting, not the plan of the panel.

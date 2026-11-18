@@ -160,6 +160,64 @@ fn pnp_writes_the_centres_of_each_face_to_a_new_folder_only() {
 }
 
 #[test]
+fn pnp_writes_one_placement_file_in_the_columns_of_an_assembler() {
+    let dir = tempfile::tempdir().unwrap();
+    let board = write_board(dir.path());
+    let target = dir.path().join("pnp");
+    let target = target.to_str().unwrap();
+    let (code, out, err) = command(&[
+        "pnp",
+        "--dnp",
+        "R2",
+        "--assembler",
+        "jlcpcb",
+        "--out",
+        target,
+        board.as_str(),
+    ]);
+    assert_eq!((code, err.as_str()), (0, ""), "{out}");
+    assert!(out.contains(&format!("written: {target}/pnp_jlcpcb.csv\n")));
+    let text = fs::read_to_string(Path::new(target).join("pnp_jlcpcb.csv")).unwrap();
+    assert_eq!(
+        text,
+        "Designator,Mid X,Mid Y,Layer,Rotation\n\
+         R1,3.0500mm,3.0000mm,Top,0.00\n\
+         C1,7.9500mm,2.0000mm,Bottom,0.00\n"
+    );
+
+    // a format of the settings file of the test, and the wrong uses
+    let config = dir.path().join("assembler.cfg");
+    fs::write(
+        &config,
+        "placement.mine = Ref=ref|Side=side\ndelimiter = semicolon\n",
+    )
+    .unwrap();
+    let again = dir.path().join("again");
+    let again = again.to_str().unwrap();
+    let (code, _, err) = command(&[
+        "pnp",
+        "--assembler",
+        "mine",
+        "--assembler-config",
+        config.to_str().unwrap(),
+        "--out",
+        again,
+        board.as_str(),
+    ]);
+    assert_eq!((code, err.as_str()), (0, ""));
+    let mine = fs::read_to_string(Path::new(again).join("pnp_mine.csv")).unwrap();
+    assert_eq!(mine, "Ref;Side\nR1;top\nR2;top\nC1;bottom\n");
+    for args in [
+        vec!["pnp", "--assembler", "nope", board.as_str()],
+        vec!["pnp", "--assembler-config", "x.cfg", board.as_str()],
+    ] {
+        let (code, _, err) = command(&args);
+        assert_eq!(code, 2, "{args:?}");
+        assert!(err.contains("PHOENIX-PNP-0"), "{args:?}: {err}");
+    }
+}
+
+#[test]
 fn stencil_writes_the_openings_and_the_report_to_a_new_folder_only() {
     let dir = tempfile::tempdir().unwrap();
     let board = write_board(dir.path());

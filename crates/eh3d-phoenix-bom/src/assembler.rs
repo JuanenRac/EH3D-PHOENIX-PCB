@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! The bill of materials as the CSV file an assembler asks for. A format is a list of columns,
-//! each with the header the assembler wants and the field of the bill that fills it, read from
-//! `config/assembler.cfg`; two formats come with the program and any number can be added.
+//! The bill of materials and the placement as the CSV files an assembler asks for. A format is a
+//! list of columns, each with the header the assembler wants and the field that fills it, read
+//! from `config/assembler.cfg`; two formats of each file come with the program and any number can
+//! be added. This module holds the settings and writes the bill; the placement file is written by
+//! `eh3d-phoenix-export` from the columns of a placement format.
 //!
 //! **State: prototype.** The two formats that come with the program are written from the
 //! headers that the author knows those assemblers ask for; they have never been sent to an
@@ -32,6 +34,18 @@ pub const FIELDS: [&str; 10] = [
     "matched_code",
 ];
 
+/// The fields of a column of a placement file.
+///
+/// * `ref`, `value`, `package`: the reference, the value and the name of the footprint of the part;
+/// * `x`, `y`: the centre of the part in the unit of the placement settings, with no unit;
+/// * `x_unit`, `y_unit`: the same with the unit written after the number (`12.5mm`);
+/// * `rotation`: the rotation in degrees;
+/// * `side`: `top` or `bottom`; `layer`: `Top` or `Bottom`;
+/// * `blank`: an empty cell.
+pub const PLACEMENT_FIELDS: [&str; 10] = [
+    "ref", "value", "package", "x", "y", "x_unit", "y_unit", "rotation", "side", "layer",
+];
+
 /// The fields that are numbers worked out by the program (not text from a file).
 const NUMERIC_FIELDS: [&str; 2] = ["item", "quantity"];
 
@@ -52,8 +66,10 @@ pub struct AssemblerFormat {
 /// The settings of the assembler files.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AssemblerSettings {
-    /// The formats, in the order of the file.
+    /// The formats of the bill, in the order of the file.
     pub formats: Vec<AssemblerFormat>,
+    /// The formats of the placement file, in the order of the file.
+    pub placements: Vec<AssemblerFormat>,
     /// The character between the cells.
     pub delimiter: char,
     /// The character between the references of one cell.
@@ -98,6 +114,30 @@ impl Default for AssemblerSettings {
                     ],
                 ),
             ],
+            placements: vec![
+                format_of(
+                    "jlcpcb",
+                    &[
+                        ("Designator", "ref"),
+                        ("Mid X", "x_unit"),
+                        ("Mid Y", "y_unit"),
+                        ("Layer", "layer"),
+                        ("Rotation", "rotation"),
+                    ],
+                ),
+                format_of(
+                    "pcbway",
+                    &[
+                        ("Designator", "ref"),
+                        ("Comment", "value"),
+                        ("Footprint", "package"),
+                        ("Mid X", "x_unit"),
+                        ("Mid Y", "y_unit"),
+                        ("Layer", "layer"),
+                        ("Rotation", "rotation"),
+                    ],
+                ),
+            ],
             delimiter: ',',
             references_separator: ',',
             code_supplier: "LCSC".to_owned(),
@@ -124,8 +164,8 @@ fn valid_name(name: &str) -> bool {
 }
 
 /// Reads `Header=field|Header=field|...`: at least one column, a header of 1 to 64 printable
-/// characters with no `=` or `|`, and a field that is one of [`FIELDS`] or `blank`.
-fn parse_columns(text: &str) -> Option<Vec<(String, String)>> {
+/// characters with no `=` or `|`, and a field that is one of `fields` or `blank`.
+fn parse_columns(text: &str, fields: &[&str]) -> Option<Vec<(String, String)>> {
     let mut columns = Vec::new();
     for part in text.split('|') {
         let (header, field) = part.split_once('=')?;
@@ -133,7 +173,7 @@ fn parse_columns(text: &str) -> Option<Vec<(String, String)>> {
         let header_ok = !header.is_empty()
             && header.chars().count() <= MAX_HEADER
             && !header.chars().any(char::is_control);
-        if !header_ok || !(field == "blank" || FIELDS.contains(&field)) {
+        if !header_ok || !(field == "blank" || fields.contains(&field)) {
             return None;
         }
         columns.push((header.to_owned(), field.to_owned()));
@@ -143,7 +183,8 @@ fn parse_columns(text: &str) -> Option<Vec<(String, String)>> {
 
 impl AssemblerSettings {
     /// Parses a settings text. Blank lines and lines starting with `#` are ignored. A line
-    /// `format.NAME = ...` replaces the format of that name or adds a new one.
+    /// `format.NAME = ...` (the bill) or `placement.NAME = ...` (the placement) replaces the
+    /// format of that name or adds a new one.
     pub fn parse(text: &str) -> Result<AssemblerSettings, BomError> {
         let mut s = AssemblerSettings::default();
         for (index, raw) in text.lines().enumerate() {
@@ -162,22 +203,29 @@ impl AssemblerSettings {
                     format!("line {line}: the value of {key} is not valid"),
                 )
             };
-            if let Some(name) = key.strip_prefix("format.") {
+            let (name, fields, list) = if let Some(name) = key.strip_prefix("format.") {
+                (name, &FIELDS[..], Some(&mut s.formats))
+            } else if let Some(name) = key.strip_prefix("placement.") {
+                (name, &PLACEMENT_FIELDS[..], Some(&mut s.placements))
+            } else {
+                ("", &FIELDS[..], None)
+            };
+            if let Some(list) = list {
                 if !valid_name(name) {
                     return Err(bad());
                 }
-                let columns = parse_columns(value).ok_or_else(bad)?;
+                let columns = parse_columns(value, fields).ok_or_else(bad)?;
                 let format = AssemblerFormat {
                     name: name.to_owned(),
                     columns,
                 };
-                match s.formats.iter_mut().find(|f| f.name == name) {
+                match list.iter_mut().find(|f| f.name == name) {
                     Some(existing) => *existing = format,
                     None => {
-                        if s.formats.len() >= MAX_FORMATS {
+                        if list.len() >= MAX_FORMATS {
                             return Err(bad());
                         }
-                        s.formats.push(format);
+                        list.push(format);
                     }
                 }
                 continue;
@@ -213,14 +261,27 @@ impl AssemblerSettings {
         self.formats.iter().find(|f| f.name == name)
     }
 
-    /// The names of the formats, joined by commas, for a message.
-    pub fn names(&self) -> String {
-        self.formats
-            .iter()
-            .map(|f| f.name.as_str())
-            .collect::<Vec<_>>()
-            .join(", ")
+    /// The format of the placement file of a name.
+    pub fn placement(&self, name: &str) -> Option<&AssemblerFormat> {
+        self.placements.iter().find(|f| f.name == name)
     }
+
+    /// The names of the formats of the bill, joined by commas, for a message.
+    pub fn names(&self) -> String {
+        names_of(&self.formats)
+    }
+
+    /// The names of the formats of the placement file, joined by commas, for a message.
+    pub fn placement_names(&self) -> String {
+        names_of(&self.placements)
+    }
+}
+
+fn names_of(list: &[AssemblerFormat]) -> String {
+    list.iter()
+        .map(|f| f.name.as_str())
+        .collect::<Vec<_>>()
+        .join(", ")
 }
 
 /// A cell, quoted when it holds the delimiter, a quote or a line break.
@@ -395,6 +456,21 @@ mod tests {
         );
         assert_eq!(csv, "Ref;Qty;Note\nR1 R2;2;\n");
         assert_eq!(s.names(), "jlcpcb, pcbway, mine");
+    }
+
+    #[test]
+    fn a_line_adds_or_replaces_a_format_of_the_placement() {
+        let s = AssemblerSettings::parse(
+            "placement.mine = Ref=ref|Side=side\nplacement.jlcpcb = Name=ref\n",
+        )
+        .unwrap();
+        assert_eq!(s.placements.len(), 3);
+        assert_eq!(s.placement("jlcpcb").unwrap().columns.len(), 1);
+        assert_eq!(s.placement_names(), "jlcpcb, pcbway, mine");
+        // the fields of the two kinds of file are not the same
+        assert!(AssemblerSettings::parse("placement.x = A=value|B=quantity\n").is_err());
+        assert!(AssemblerSettings::parse("format.x = A=x\n").is_err());
+        assert!(AssemblerSettings::parse("placement.X = A=ref\n").is_err());
     }
 
     #[test]
