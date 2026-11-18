@@ -62,10 +62,11 @@ All lengths are in nanometres (1 mm is 1000000). A line that is missing, or has 
 | `PHOENIX-DFM-014` | a blind or buried via while `forbid_blind_vias` is `true` (the place is the via) |
 | `PHOENIX-DFM-015` | the smaller side of a pad without a drill is below `min_smd_pad_nm` (the location is the pad) |
 
-The first five are errors and make the exit code 1; the sixth is information. The titles are in the eight languages (`--lang`) and the findings go in the same report as the others, with `--json`, `--sarif`, `--csv` and `--html` (the category `capability` in the tables, `docs/DRC_ADVANCED.md`).
+Every finding is an error and makes the exit code 1, except `PHOENIX-DFM-006`, which is information. The titles are in the eight languages (`--lang`) and the findings go in the same report as the others, with `--json`, `--sarif`, `--csv` and `--html` (the category `capability` in the tables, `docs/DRC_ADVANCED.md`).
 
 ## What it does not do
 
 * It does not know any maker beyond the figures of the files. Capability is whatever the file says, and nothing checks the file against a maker or an order.
 * The board is the box of its outline: the sides of a board that is not a rectangle are those of its box, and a slot or a cutout is not looked at.
-* It does not judge the thickness, the aspect ratio of a hole (it needs a stack-up), the minimum text height of the silkscreen, the number of different drill sizes, or the price.
+* It does not take the thickness of the board from a stack-up: the aspect ratio of the holes uses the `board_thickness_nm` written in the profile. It does not judge the price.
+* A via inside a pad is found when its centre is inside the largest circle that fits in the pad, so a via at the corner of a rectangular pad is not found. An odd number of copper layers is judged only for a stack of three or more.

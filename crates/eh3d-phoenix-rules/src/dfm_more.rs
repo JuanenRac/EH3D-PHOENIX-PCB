@@ -909,6 +909,39 @@ mod tests {
     }
 
     #[test]
+    fn the_example_profile_names_every_further_line_and_leaves_it_off() {
+        let text = include_str!("../../../config/dfm/example.cfg");
+        for key in [
+            "max_drill_sizes",
+            "board_thickness_nm",
+            "max_hole_aspect_x10",
+            "forbid_via_in_pad",
+            "min_silk_text_height_nm",
+            "min_silk_stroke_nm",
+            "require_even_layers",
+            "max_board_aspect_x10",
+            "forbid_blind_vias",
+            "min_smd_pad_nm",
+        ] {
+            assert!(text.contains(&format!("\n{key} = ")), "{key}");
+        }
+        let profile = DfmProfile::parse(text).unwrap();
+        assert_eq!(profile.max_drill_sizes, 0);
+        assert_eq!(profile.board_thickness_nm, 0);
+        assert_eq!(profile.max_hole_aspect_x10, 0);
+        assert!(!profile.forbid_via_in_pad && !profile.forbid_blind_vias);
+        assert!(!profile.require_even_layers);
+        assert_eq!(profile.min_silk_text_height_nm, 0);
+        assert_eq!(profile.min_silk_stroke_nm, 0);
+        assert_eq!(profile.max_board_aspect_x10, 0);
+        assert_eq!(profile.min_smd_pad_nm, 0);
+        // every code of this module is a finding of the check and none is the information
+        for (code, _) in REGISTRY {
+            assert!(code.starts_with("PHOENIX-DFM-"), "{code}");
+        }
+    }
+
+    #[test]
     fn every_code_has_a_title_in_all_eight_languages_and_a_row_in_the_table() {
         assert_eq!(REGISTRY.len(), TITLES.len());
         let doc = include_str!("../../../docs/ERROR_CODES.md");
