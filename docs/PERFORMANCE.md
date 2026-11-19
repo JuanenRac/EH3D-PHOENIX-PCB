@@ -38,6 +38,8 @@ The numbers are in `config/performance.cfg`, which is also the built-in default 
 | `min_ms_for_growth` | 50 | a small run shorter than this is not compared |
 | `dxf_contours` | 4000 | the closed contours of the DXF run; the reader refuses more than `max_contours` of `config/dxf.cfg` (5000) |
 | `max_candidates_per_item` | 64 | the most candidates that the spatial index hands out for each track in the clearance check |
+| `outline_edges` | 400 | the pieces of the round outline of the board of the edge clearance test |
+| `max_edge_candidates_per_item` | 16 | the most pieces of the outline that the index hands out for each track in the edge clearance check |
 
 The tests of the benchmarks run one at a time (a lock in the test file), so that they do not slow each other down.
 
@@ -47,12 +49,15 @@ A time is noisy; a count is not. The copper clearance check is also tested by co
 
 The checks of the pads are counted the same way (`Board::pad_check_work`): on the board of pads, at both sizes, the pads, tracks and vias that the grids hand out stay below `max_candidates_per_item` for each pad and below one hundredth of the comparisons of the pass over every pair, and a clearance whose reach is too large for a grid (`pad_check_work` gives nothing) is checked by the pass over every pair. The same test requires that the grids and the pass over every pair give the same report, byte for byte in the JSON, on a board whose pads are too close.
 
+The edge clearance check of tracks and vias is counted too (`edge_work`): on the lattice board with a round outline of `outline_edges` pieces, at both sizes, the pieces of the outline that the index hands out stay below `max_edge_candidates_per_item` for each track and below a fifth of the pieces a pass over every piece would compare, and the check with the index and the check of every piece give the same report, byte for byte in the JSON. The outline is looked up in the index from `edge_index_min_edges` pieces on (`config/spatial.cfg`); a track or via beyond 537 mm from the origin is compared with every piece, as it always was, so that a number too large for the exact test is still reported as inconclusive.
+
 ## Work that grew with the square of a count, and was changed
 
 Each change keeps the results: the order and the text of the findings do not move. The tests that cover them are named in the changelog.
 
 | Where | What grew with the square | Now |
 |---|---|---|
+| Edge clearance of tracks and vias in the rule check (`check_board`) | each piece of copper was compared with every piece of the outline and of its openings, which is slow for a round outline of hundreds of pieces | the pieces are looked up in the spatial index from `edge_index_min_edges` pieces on; the report is the same |
 | Rule check (`check_board`) | the board library's own pass over every pair of tracks and of a track and a via ran as well, and its findings were dropped because the engine measures the same clearances with the spatial index | `Board::check_rules_with(rules, false)` leaves that pass out; `Board::check_rules` is unchanged |
 | Pad clearance, mask bridge and silkscreen over pads (`Board::check_rules`) | a message was built for every pair of a pad and another object, even for a pair far apart that gives no finding; the straight pieces of every track were collected again for every pad | the distance test comes first and a message is built only for a finding; the pieces of every track are collected once |
 | Pad checks (`Board::check_rules`) | each pad was compared with every other pad (clearance and bridge of solder mask), with every track and with every via, which is how a board of several thousand pads took seconds | the pads and the vias are looked up in a grid of cells as wide as the reach of the rule, the pieces of the tracks in the cells their box grown by the reach covers (a piece that would need more than 256 cells is tried for every pad); everything left out is certainly too far to give a finding, so the findings, their order and their text are those of the pass over every pair, which is still made when the reach is above `2^28` nanometres. The unit tests compare the two on random boards, with long slanted pieces and pads that are not round |
@@ -78,7 +83,7 @@ Each change keeps the results: the order and the text of the findings do not mov
 
 These parts compare every object with every other one or with every object of another kind. They were read, not changed, and the benchmark does not cover them:
 
-* the silkscreen against the pads, and the pads, tracks and vias against the pieces of the edge of the board (each against each);
+* the silkscreen against the pads, and the pads and the pieces of copper of `Board::check_rules` against the pieces of the edge of the board (each against each);
 * the overlap of zones of different nets on one layer, and the tracks, vias and pads against the edges of the board;
 * the depth of the contours of a DXF drawing (which contour holds which), which compares the boxes of all contours and is bounded by `max_contours`;
 * the arcs of the outline of a KiCad board, matched to the corners of the ring one by one;

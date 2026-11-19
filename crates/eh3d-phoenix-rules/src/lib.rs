@@ -58,7 +58,9 @@ pub use classes::{check_classes, NetClass, NetClasses};
 pub use codes::{title, Lang, REGISTRY};
 pub use connectivity::{analyse_board, check_connectivity, compare_schematic};
 pub use dfm::{builtin_names, builtin_profile, dfm_findings, DfmError, DfmProfile, BUILTIN};
-pub use engine::{check_board, check_board_with, clearance_work, ClearanceWork, Rule};
+pub use engine::{
+    check_board, check_board_with, clearance_work, edge_work, ClearanceWork, EdgeWork, Rule,
+};
 pub use notes::board_notes;
 pub use report::{Finding, Report, Severity};
 pub use report_export::{category, category_counts, report_csv, report_html};

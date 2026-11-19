@@ -42,6 +42,7 @@ A test that measured seconds would fail on a slow machine and pass on a fast one
 | `max_cells` | the most entries (one for each cell that a box covers) the grid may hold; more is refused with `PHOENIX-SPATIAL-002` | 4000000 |
 | `max_cells_per_item` | a box that covers more cells than this is kept in the list of big items | 4096 |
 | `max_items` | the most boxes one index accepts; more is refused with `PHOENIX-SPATIAL-003` | 4000000 |
+| `edge_index_min_edges` | the fewest pieces of the outline (its edges and those of its openings) for which the edge clearance check looks the pieces up in the index; with fewer, each piece of copper is compared with every piece | 32 |
 
 When the settings refuse the grid, the copper clearance check compares every pair instead, which gives the same result more slowly; `phoenix perf` shows the refusal and exits with 1.
 

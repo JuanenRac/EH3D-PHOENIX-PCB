@@ -20,6 +20,9 @@ pub struct SpatialConfig {
     pub max_cells_per_item: u32,
     /// The most items one index accepts.
     pub max_items: u64,
+    /// The fewest pieces of the outline of a board for which the edge clearance check looks the
+    /// pieces up in an index; with fewer it compares every piece.
+    pub edge_index_min_edges: u32,
 }
 
 impl Default for SpatialConfig {
@@ -30,6 +33,7 @@ impl Default for SpatialConfig {
             max_cells: 4_000_000,
             max_cells_per_item: 4096,
             max_items: 4_000_000,
+            edge_index_min_edges: 32,
         }
     }
 }
@@ -93,6 +97,13 @@ impl SpatialConfig {
                         .filter(|n| (1..=1_u64 << 28).contains(n))
                         .ok_or_else(bad)?;
                 }
+                "edge_index_min_edges" => {
+                    config.edge_index_min_edges = value
+                        .parse::<u32>()
+                        .ok()
+                        .filter(|n| (1..=1_u32 << 20).contains(n))
+                        .ok_or_else(bad)?;
+                }
                 _ => return Err(fail(line, &format!("unknown key {key}"))),
             }
         }
@@ -132,6 +143,7 @@ mod tests {
             "max_cells = many\n",
             "max_cells_per_item = 0\n",
             "max_items = 268435457\n",
+            "edge_index_min_edges = 0\n",
             "just words\n",
         ] {
             let e = SpatialConfig::parse(text).unwrap_err();

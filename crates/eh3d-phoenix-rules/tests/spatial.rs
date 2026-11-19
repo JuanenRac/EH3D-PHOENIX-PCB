@@ -6,7 +6,7 @@
 use eh3d_phoenix_board::{Board, Id, Layer, LayerKind, Net, Segment, Track, Via};
 use eh3d_phoenix_model::{Nm, ObjectId, Point, Udeg};
 use eh3d_phoenix_rules::{
-    check_board, check_board_with, clearance_work, IndexMode, Report, RuleValues,
+    check_board, check_board_with, clearance_work, edge_work, IndexMode, Report, RuleValues,
 };
 use eh3d_phoenix_spatial::testgen::Rng;
 use eh3d_phoenix_spatial::SpatialConfig;
@@ -276,4 +276,91 @@ fn with_no_clearance_in_the_rules_there_is_no_work() {
     let off = RuleValues::default();
     let work = clearance_work(&board, &off, IndexMode::Grid, &SpatialConfig::default());
     assert_eq!((work.items, work.comparisons), (100, 0));
+}
+
+/// A board whose outline is a polygon of `edges` pieces round a centre, with `tracks` short tracks
+/// at random inside and a little outside it, and the extreme track and vias of `random_board`.
+fn round_board(seed: u64, tracks: u32, edges: u32) -> Board {
+    let side = 80 * MM;
+    let mut b = random_board(seed, tracks, 40, 80);
+    let (centre, radius) = (side as f64 / 2.0, side as f64 / 2.0);
+    b.outline = (0..edges)
+        .map(|k| {
+            let turn = std::f64::consts::TAU * f64::from(k) / f64::from(edges);
+            pt(
+                (centre + radius * turn.cos()).round() as i64,
+                (centre + radius * turn.sin()).round() as i64,
+            )
+        })
+        .collect();
+    b
+}
+
+#[test]
+fn the_edge_check_with_the_index_gives_the_report_of_comparing_every_piece() {
+    for (seed, tracks, edges) in [
+        (21_u64, 300_u32, 40_u32),
+        (22, 1_500, 200),
+        (23, 4_000, 600),
+    ] {
+        let board = round_board(seed, tracks, edges);
+        let grid = check_board_with(&board, &rules(), IndexMode::Grid);
+        let naive = check_board_with(&board, &rules(), IndexMode::Naive);
+        same_report(&grid, &naive, &format!("seed {seed}"));
+        let near_the_edge = grid
+            .confirmed
+            .iter()
+            .filter(|f| f.rule == "edge_clearance")
+            .count();
+        assert!(near_the_edge > 5, "seed {seed}: {near_the_edge}");
+        // the boards have a piece of copper that reaches the extremes of the range, which is
+        // judged against the whole outline in both ways
+        assert!(
+            grid.inconclusive.iter().any(|f| f.rule == "not_judged"),
+            "seed {seed}"
+        );
+    }
+}
+
+#[test]
+fn the_pieces_of_the_outline_are_looked_up_and_not_compared_one_by_one() {
+    let config = SpatialConfig::default();
+    let board = round_board(24, 2_000, 400);
+    let grid = edge_work(&board, &rules(), IndexMode::Grid, &config);
+    let naive = edge_work(&board, &rules(), IndexMode::Naive, &config);
+    assert_eq!(grid.edges, 400);
+    assert!(grid.indexed && !naive.indexed);
+    let every_pair = (grid.items as u64) * 400;
+    assert_eq!(naive.comparisons, every_pair);
+    // the few pieces of copper that are too far out for the index are compared with all of them;
+    // the rest see a handful of pieces each
+    assert!(
+        grid.comparisons * 4 < every_pair,
+        "{} of {every_pair}",
+        grid.comparisons
+    );
+}
+
+#[test]
+fn an_outline_with_few_pieces_is_compared_piece_by_piece_unless_the_settings_say_otherwise() {
+    let board = round_board(25, 200, 8);
+    let config = SpatialConfig::default();
+    let few = edge_work(&board, &rules(), IndexMode::Grid, &config);
+    assert!(!few.indexed);
+    assert_eq!(few.comparisons, (few.items as u64) * 8);
+    let eager = SpatialConfig {
+        edge_index_min_edges: 4,
+        ..SpatialConfig::default()
+    };
+    assert!(edge_work(&board, &rules(), IndexMode::Grid, &eager).indexed);
+    // the report does not depend on it
+    same_report(
+        &check_board_with(&board, &rules(), IndexMode::Grid),
+        &check_board_with(&board, &rules(), IndexMode::Naive),
+        "eight pieces",
+    );
+    // with no edge clearance in the rules there is no work
+    let off = RuleValues::default();
+    let none = edge_work(&board, &off, IndexMode::Grid, &config);
+    assert_eq!(none.comparisons, 0);
 }

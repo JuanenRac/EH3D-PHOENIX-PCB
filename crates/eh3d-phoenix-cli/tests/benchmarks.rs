@@ -24,7 +24,9 @@ use eh3d_phoenix_board::{
 };
 use eh3d_phoenix_corpus::suite::facts::id_source;
 use eh3d_phoenix_model::{Nm, ObjectId, Point, Udeg};
-use eh3d_phoenix_rules::{check_board_with, clearance_work, IndexMode, RuleValues, Severity};
+use eh3d_phoenix_rules::{
+    check_board_with, clearance_work, edge_work, IndexMode, RuleValues, Severity,
+};
 use eh3d_phoenix_spatial::SpatialConfig;
 
 const MM: i64 = 1_000_000;
@@ -73,6 +75,13 @@ dxf_contours = 4000
 # The most candidates, for each object, that the spatial index may hand to the clearance check
 # on the lattice board of the test (counted, not timed, so the same on every computer).
 max_candidates_per_item = 64
+
+# The pieces of the outline of the round board of the edge clearance test, and the most
+# candidates, for each piece of copper, that the index may hand to the edge clearance check on it
+# (counted, not timed). A board with a round outline has hundreds of pieces; the check looks up
+# the few that are near each piece of copper instead of comparing all of them.
+outline_edges = 400
+max_edge_candidates_per_item = 16
 "#;
 
 /// The contents of `config/performance.cfg`.
@@ -86,6 +95,8 @@ struct Settings {
     min_ms_for_growth: u64,
     dxf_contours: usize,
     max_candidates_per_item: u64,
+    outline_edges: usize,
+    max_edge_candidates_per_item: u64,
 }
 
 impl Default for Settings {
@@ -99,6 +110,8 @@ impl Default for Settings {
             min_ms_for_growth: 50,
             dxf_contours: 4000,
             max_candidates_per_item: 64,
+            outline_edges: 400,
+            max_edge_candidates_per_item: 16,
         }
     }
 }
@@ -108,7 +121,7 @@ fn default_file() -> String {
     DEFAULT_FILE.to_owned()
 }
 
-const KEYS: [&str; 8] = [
+const KEYS: [&str; 10] = [
     "small_size",
     "large_size",
     "repeats",
@@ -117,6 +130,8 @@ const KEYS: [&str; 8] = [
     "min_ms_for_growth",
     "dxf_contours",
     "max_candidates_per_item",
+    "outline_edges",
+    "max_edge_candidates_per_item",
 ];
 
 /// Reads the settings: `key = value` lines, comments and blank lines; every key once and no
@@ -160,6 +175,8 @@ fn parse_settings(text: &str) -> Result<Settings, String> {
         min_ms_for_growth: get("min_ms_for_growth")?,
         dxf_contours: to_usize("dxf_contours")?,
         max_candidates_per_item: get("max_candidates_per_item")?,
+        outline_edges: to_usize("outline_edges")?,
+        max_edge_candidates_per_item: get("max_edge_candidates_per_item")?,
     };
     if settings.small_size < 100
         || settings.large_size <= settings.small_size
@@ -170,6 +187,9 @@ fn parse_settings(text: &str) -> Result<Settings, String> {
         || settings.max_growth_percent == 0
         || settings.dxf_contours < 10
         || settings.max_candidates_per_item == 0
+        || settings.outline_edges < 3
+        || settings.outline_edges > 100_000
+        || settings.max_edge_candidates_per_item == 0
     {
         return Err("a value is outside its range".to_owned());
     }
@@ -929,6 +949,58 @@ fn the_index_hands_each_track_a_few_candidates_and_gives_the_report_of_the_pass_
         let naive = check_board_with(&board, &rules, IndexMode::Naive);
         assert!(!grid.passes());
         assert!(grid.count(Severity::Error) > 0);
+        assert_eq!(grid.to_json(), naive.to_json());
+    }
+}
+
+/// The board of `track_board` with an outline of `pieces` pieces: a circle of 150.5 mm radius
+/// round the middle of the tracks, which cuts across the rows of tracks.
+fn round_outline_board(n: usize, pieces: usize) -> Board {
+    let mut board = track_board(n, 200, 2.0, 2.0);
+    let rows = n.div_ceil(200) as f64;
+    let (cx, cy) = (204.5, 5.0 + (rows - 1.0) + 0.5);
+    board.outline = (0..pieces)
+        .map(|k| {
+            let turn = std::f64::consts::TAU * k as f64 / pieces as f64;
+            pt(
+                ((cx + 150.5 * turn.cos()) * MM as f64).round() as i64,
+                ((cy + 150.5 * turn.sin()) * MM as f64).round() as i64,
+            )
+        })
+        .collect();
+    board
+}
+
+#[test]
+fn the_index_hands_each_track_the_few_pieces_of_a_round_outline_that_are_near_and_the_report_is_the_same(
+) {
+    let _alone = ONE_AT_A_TIME.lock().unwrap_or_else(|e| e.into_inner());
+    let settings = settings();
+    let rules = RuleValues {
+        min_edge_clearance: Nm::new(300_000).unwrap(),
+        ..rule_values()
+    };
+    // counted and not timed: the pieces looked at stay in proportion to the tracks at both sizes
+    for n in [settings.small_size, settings.large_size] {
+        let board = round_outline_board(n, settings.outline_edges);
+        let work = edge_work(&board, &rules, IndexMode::Grid, &SpatialConfig::default());
+        assert_eq!((work.items, work.edges), (n, settings.outline_edges));
+        assert!(work.indexed, "{work:?}");
+        assert!(
+            work.comparisons <= settings.max_edge_candidates_per_item * n as u64,
+            "{} pieces looked at for {n} tracks",
+            work.comparisons
+        );
+        // looking at every piece would be n * pieces
+        assert!(work.comparisons * 5 < (n * settings.outline_edges) as u64);
+    }
+    // the same report with the index and with the pass over every piece, with tracks across the
+    // outline
+    for n in [400, 1200] {
+        let board = round_outline_board(n, settings.outline_edges);
+        let grid = check_board_with(&board, &rules, IndexMode::Grid);
+        let naive = check_board_with(&board, &rules, IndexMode::Naive);
+        assert!(grid.confirmed.iter().any(|f| f.rule == "edge_clearance"));
         assert_eq!(grid.to_json(), naive.to_json());
     }
 }

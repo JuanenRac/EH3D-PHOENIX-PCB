@@ -179,6 +179,90 @@ fn clearance_index(
     }
 }
 
+/// The coordinates (in nanometres, as a distance from the origin) up to which the distances of the
+/// copper to the pieces of the edge of the board cannot overflow the exact test, so that leaving
+/// out the pieces that are far away cannot hide a piece that could not be judged. Beyond it the
+/// whole outline is compared, as it always was.
+const EDGE_INDEX_SAFE_NM: i128 = 1 << 29;
+
+/// The index of the pieces of the outline, for a board whose outline has at least
+/// `edge_index_min_edges` pieces of the settings, in the grid mode and with every coordinate
+/// within the range where nothing can overflow; else `None`, and every piece is compared.
+fn edge_index_of(edges: &[Prim], mode: IndexMode, config: &SpatialConfig) -> Option<Index> {
+    if mode != IndexMode::Grid || edges.len() < config.edge_index_min_edges as usize {
+        return None;
+    }
+    let boxes: Vec<Bx> = edges.iter().map(|e| inflate(&e.bbox(), 1)).collect();
+    if boxes
+        .iter()
+        .any(|b| b.iter().any(|v| v.abs() > EDGE_INDEX_SAFE_NM))
+    {
+        return None;
+    }
+    Index::grid(&boxes, config).ok()
+}
+
+/// The pieces of the outline that an item of copper may be too near to when the edge clearance is
+/// `e`, in ascending order; `None` when the item is out of the range where this is safe and every
+/// piece has to be compared.
+fn edge_candidates(index: &Index, item: &Prim, e: i128) -> Option<Vec<usize>> {
+    let query = inflate(&item.bbox(), e + item.lo / 2 + 2);
+    if query.iter().any(|v| v.abs() > EDGE_INDEX_SAFE_NM) {
+        return None;
+    }
+    Some(index.candidates(&query))
+}
+
+/// How much work the edge clearance check does on a board.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EdgeWork {
+    /// The pieces of copper that are compared with the outline.
+    pub items: usize,
+    /// The pieces of the outline and of its openings.
+    pub edges: usize,
+    /// Whether the pieces of the outline were put in an index (not when there are fewer than
+    /// `edge_index_min_edges`, in the comparison of every pair, or when the settings refuse it).
+    pub indexed: bool,
+    /// The pairs of a piece of copper and a piece of the outline that the check had to look at.
+    pub comparisons: u64,
+}
+
+/// The work of the edge clearance check on a board, counted and not timed: the same search as
+/// the check makes, with the pairs counted instead of judged. A rule file with no edge clearance
+/// turns the check off, and then there is no work.
+pub fn edge_work(
+    board: &Board,
+    rules: &RuleValues,
+    mode: IndexMode,
+    config: &SpatialConfig,
+) -> EdgeWork {
+    let copper = copper_of(board);
+    let limit = rules.min_edge_clearance;
+    let edges = outline_edges(board);
+    let mut work = EdgeWork {
+        items: copper.len(),
+        edges: edges.len(),
+        indexed: false,
+        comparisons: 0,
+    };
+    if !on(limit) || edges.is_empty() {
+        return work;
+    }
+    let e = i128::from(limit.get());
+    let index = edge_index_of(&edges, mode, config);
+    work.indexed = index.is_some();
+    for item in &copper {
+        work.comparisons += match index
+            .as_ref()
+            .and_then(|index| edge_candidates(index, &item.prim, e))
+        {
+            Some(found) => found.len() as u64,
+            None => edges.len() as u64,
+        };
+    }
+    work
+}
+
 /// How much work the copper clearance check does on a board.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ClearanceWork {
@@ -421,12 +505,25 @@ impl Run<'_> {
             return;
         }
         let e = i128::from(limit.get());
+        let edge_index = edge_index_of(&edges, self.mode, &SpatialConfig::default());
+        let every_edge: Vec<usize> = (0..edges.len()).collect();
         for item in &self.copper {
             let at = item.prim.first_point();
             let mut broken = false;
             let mut unknown = false;
             let mut nearest = f64::MAX;
-            for edge in &edges {
+            let near;
+            let to_compare: &[usize] = match edge_index
+                .as_ref()
+                .and_then(|index| edge_candidates(index, &item.prim, e))
+            {
+                Some(found) => {
+                    near = found;
+                    &near
+                }
+                None => &every_edge,
+            };
+            for edge in to_compare.iter().map(|i| &edges[*i]) {
                 let Some(d) = item.prim.distance(edge) else {
                     unknown = true;
                     continue;
