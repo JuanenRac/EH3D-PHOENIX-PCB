@@ -646,9 +646,10 @@ mod tests {
     }
 
     fn outline_board(points: &[(i64, i64)]) -> Board {
-        let mut board = Board::default();
-        board.outline = points.iter().map(|p| pt(p.0, p.1)).collect();
-        board
+        Board {
+            outline: points.iter().map(|p| pt(p.0, p.1)).collect(),
+            ..Default::default()
+        }
     }
 
     const TRIANGLE: [(i64, i64); 3] = [(0, 0), (10_000_000, 0), (0, 10_000_000)];
