@@ -654,6 +654,19 @@
           }
         },
         {
+          "name": "NETS.md",
+          "desc": {
+            "en": "the text netlist: write, read and compare with a board",
+            "es": "la lista de redes de texto: escribir, leer y comparar con una placa",
+            "de": "die Text-Netzliste: schreiben, lesen und mit einer Platine vergleichen",
+            "fr": "la liste de réseaux texte : écrire, lire et comparer à une carte",
+            "it": "la lista di reti di testo: scrivere, leggere e confrontare con una scheda",
+            "ja": "テキストのネットリスト：書き出し、読み込み、基板との比較",
+            "zh": "文本网表：写出、读取并与电路板比较",
+            "pt": "a lista de redes de texto: escrever, ler e comparar com uma placa"
+          }
+        },
+        {
           "name": "DIMENSIONS.md",
           "desc": {
             "en": "dimensions: lengths, radius, diameter and angle, drawing, files",

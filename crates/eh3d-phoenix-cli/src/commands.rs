@@ -381,6 +381,13 @@ pub static COMMANDS: &[Command] = &[
         run: Some(crate::testpoints::testpoints_command),
     },
     Command {
+        name: "nets",
+        topic: Topic::Manufacturing,
+        doc: "docs/NETS.md",
+        summary: ["the nets of a board as a text netlist, and a netlist file compared with the board", "las redes de una placa como lista de redes de texto, y un archivo de lista de redes comparado con la placa", "die Netze einer Platine als Text-Netzliste und der Vergleich einer Netzlistendatei mit der Platine", "les réseaux d'une carte en liste de réseaux texte, et un fichier de liste de réseaux comparé à la carte", "le reti di una scheda come lista di reti di testo e un file di lista di reti confrontato con la scheda", "基板のネットをテキストのネットリストとして出力し、ネットリストファイルを基板と比較する", "将电路板的网络输出为文本网表，并将网表文件与电路板比较", "as redes de uma placa como lista de redes de texto, e um ficheiro de lista de redes comparado com a placa"],
+        run: Some(crate::nets::nets_command),
+    },
+    Command {
         name: "ipc2581",
         topic: Topic::Manufacturing,
         doc: "docs/IPC2581.md",

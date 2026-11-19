@@ -14,6 +14,7 @@
 //! field solver of the cross section of a line adds `field2d`, and the heating of tracks and vias
 //! by the current of their net adds `thermal`, and the statistics of a board add `stats`.
 //! The test points of a board add `testpoints`, and the IPC-2581 file of a board adds `ipc2581`.
+//! The nets of a board as a text netlist, and their comparison with a netlist file, add `nets`.
 //! The writing of boards, schematics and libraries as KiCad 8 files adds `kicad-export`.
 //! The simulation netlist of a schematic, made from a table of models, adds `netlist`.
 //! The annotation back into the schematic, as a plan that is read before it is applied, adds
@@ -74,6 +75,9 @@ mod libedit;
 mod limits;
 mod materials;
 mod netlist;
+mod nets;
+mod nets_codes;
+mod nets_text;
 mod oracle;
 mod pairs;
 mod panel;
@@ -439,6 +443,15 @@ phoenix testpoints [--config FILE] [--out FILE] [--json] [--lang xx] <board>
                 on the side that is probed, and the test points that are too small, too close to
                 each other or too near the edge, with the codes PHOENIX-TP-<NNN>; a dry run unless
                 --out names a new file, a prototype, run `phoenix testpoints` alone for its options
+
+phoenix nets [--config FILE] [--out FILE] [--compare NETLIST | --import NETLIST] [--json] [--lang xx] [<board>]
+
+  nets          the nets of a board as a text netlist, one line for each net (`NET GND U1.1 C1.2`),
+                the reading and checking of such a file against the limits of config/nets.cfg, and
+                the comparison of a file with a board (nets on one side only, a pin on another net
+                or on none, a net under another name), with the codes PHOENIX-NETS-<NNN>; a dry run
+                unless --out names a new file, a prototype, run `phoenix nets` alone for its
+                options
 
 phoenix ipc2581 [--config FILE] [--out FILE [--overwrite]] [--json] [--lang xx] <board>
 
