@@ -194,7 +194,7 @@ fn collect(inputs: &BomInputs, findings: &mut Vec<Finding>) -> Vec<Entry> {
     entries
 }
 
-fn row_matches(
+pub(crate) fn row_matches(
     row: &PriceRow,
     value: &str,
     footprint: &str,

@@ -66,6 +66,14 @@ pub struct CostSettings {
     pub max_file_bytes: u64,
     /// The most alternative part numbers a line of the file of part data may name.
     pub max_alternatives: usize,
+    /// The suppliers the supplier assistant considers; empty for every supplier of the price file.
+    pub suppliers: Vec<String>,
+    /// The shipping of an order at a supplier, by name, in millionths of the currency.
+    pub supplier_shipping_micro: BTreeMap<String, i64>,
+    /// The least order a supplier takes, by name, in millionths of the currency.
+    pub supplier_min_order_micro: BTreeMap<String, i64>,
+    /// The order value from which a supplier ships for nothing, by name, in millionths.
+    pub supplier_free_shipping_micro: BTreeMap<String, i64>,
 }
 
 impl Default for CostSettings {
@@ -92,6 +100,10 @@ impl Default for CostSettings {
             max_items: 100_000,
             max_file_bytes: 16 * 1024 * 1024,
             max_alternatives: crate::parts::MAX_ALTERNATIVES,
+            suppliers: Vec::new(),
+            supplier_shipping_micro: BTreeMap::new(),
+            supplier_min_order_micro: BTreeMap::new(),
+            supplier_free_shipping_micro: BTreeMap::new(),
         }
     }
 }
@@ -125,7 +137,28 @@ impl CostSettings {
                 s.pcb_area_rate_micro.insert(layers, money()?);
                 continue;
             }
+            let per_supplier = [
+                ("supplier_shipping.", 0),
+                ("supplier_min_order.", 1),
+                ("supplier_free_shipping.", 2),
+            ];
+            if let Some((name, which)) = per_supplier
+                .iter()
+                .find_map(|(prefix, which)| key.strip_prefix(prefix).map(|n| (n.trim(), *which)))
+            {
+                if !supplier_name_ok(name) {
+                    return Err(bad());
+                }
+                let target = match which {
+                    0 => &mut s.supplier_shipping_micro,
+                    1 => &mut s.supplier_min_order_micro,
+                    _ => &mut s.supplier_free_shipping_micro,
+                };
+                target.insert(name.to_owned(), money()?);
+                continue;
+            }
             match key {
+                "suppliers" => s.suppliers = parse_suppliers(value).ok_or_else(bad)?,
                 "currency" => s.currency = value.to_owned(),
                 "boards" => s.boards = value.parse().map_err(|_| bad())?,
                 "parts_waste_percent" => s.parts_waste_percent_micro = money()?,
@@ -190,6 +223,28 @@ impl CostSettings {
         }
         Ok(())
     }
+}
+
+/// A name of a supplier: 1 to 64 characters, no control character and no comma.
+fn supplier_name_ok(name: &str) -> bool {
+    !name.is_empty()
+        && name.chars().count() <= 64
+        && !name.chars().any(|c| c.is_control() || c == ',')
+}
+
+/// Reads a list of supplier names separated by commas (an empty text is an empty list), none
+/// twice (without regard to case) and at most 64.
+fn parse_suppliers(text: &str) -> Option<Vec<String>> {
+    if text.trim().is_empty() {
+        return Some(Vec::new());
+    }
+    let names: Vec<String> = text.split(',').map(|n| n.trim().to_owned()).collect();
+    let mut seen = std::collections::BTreeSet::new();
+    let ok = names.len() <= 64
+        && names
+            .iter()
+            .all(|n| supplier_name_ok(n) && seen.insert(n.to_ascii_lowercase()));
+    ok.then_some(names)
 }
 
 /// Reads `value,footprint[,manufacturer][,mpn]`: the value and the footprint are always part of
@@ -293,6 +348,35 @@ mod tests {
         }
         let e = CostSettings::parse("max_alternatives = many\n").unwrap_err();
         assert!(e.detail.contains("line 1"), "{}", e.detail);
+    }
+
+    #[test]
+    fn the_suppliers_and_their_terms_are_read_by_name() {
+        let d = CostSettings::default();
+        assert!(d.suppliers.is_empty() && d.supplier_shipping_micro.is_empty());
+        let s = CostSettings::parse(
+            "suppliers = Shop A, Shop B\nsupplier_shipping.Shop A = 5.5\nsupplier_min_order.Shop A = 10\nsupplier_free_shipping.Shop B = 100\n",
+        )
+        .unwrap();
+        assert_eq!(s.suppliers, ["Shop A", "Shop B"]);
+        assert_eq!(s.supplier_shipping_micro["Shop A"], 5_500_000);
+        assert_eq!(s.supplier_min_order_micro["Shop A"], 10_000_000);
+        assert_eq!(s.supplier_free_shipping_micro["Shop B"], 100_000_000);
+        assert!(CostSettings::parse("suppliers =\n")
+            .unwrap()
+            .suppliers
+            .is_empty());
+        for text in [
+            "suppliers = A,a\n",
+            "suppliers = A,,B\n",
+            "supplier_shipping. = 1\n",
+            "supplier_shipping.A = -1\n",
+            "supplier_min_order.A = x\n",
+            "supplier_free_shipping.A,B = 1\n",
+        ] {
+            let e = CostSettings::parse(text).unwrap_err();
+            assert_eq!(e.code, SETTINGS_INVALID, "{text}");
+        }
     }
 
     #[test]

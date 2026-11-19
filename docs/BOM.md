@@ -67,10 +67,21 @@ The cost of the bare boards is an estimate from `config/costs.cfg`:
 
 Every estimate says so (`PHOENIX-BOM-018`). The total of the batch is the parts plus the boards.
 
+## The supplier assistant
+
+`phoenix bom --sourcing` adds a plan of where to buy the bill, worked out from the same local price file (nothing is fetched from a network, and the prices are the ones of the file). The suppliers it considers are the list `suppliers` of `config/costs.cfg` (every supplier of the price file when the list is empty), and for a supplier by name `supplier_shipping.NAME` (the shipping of an order), `supplier_min_order.NAME` (the least order it takes) and `supplier_free_shipping.NAME` (the order value from which shipping is free) can be given; the part codes and the prices by quantity break are the rows of the price file. For each supplier the plan prices every line at the quantity to buy (the greatest break the quantity reaches, else the smallest) and gives:
+
+* a summary for each supplier: the lines it has a price for, the cost of those parts, the shipping, the total, and whether the parts cost less than its least order;
+* the cheapest single supplier that covers every line, shipping included (none when no supplier has a price for every line);
+* a split purchase: each line goes to its cheapest supplier, and then the supplier whose lines can all be bought from the others for less, because the shipping saved is more than the parts cost extra, is dropped, one at a time, until nothing is gained;
+* the lines that no supplier has a price for.
+
+A line that a supplier has no row for is priced through the cheapest of its alternative part numbers (the column `alternatives` of the file of part data) that the supplier has a row for. A tie goes to the first supplier by name, and a price in another currency than the one of the settings is left out as in the bill. With `--json` the plan is the key `sourcing`. The shipping of the settings is an example to copy and change, not the terms of any supplier, and a split purchase does not look at stock or lead time.
+
 ## The command
 
 ```
-phoenix bom [--config FILE] [--prices FILE] [--parts FILE] [--import FILE [--import-format NAME] [--import-map FILE]] [--parts-out FILE] [--parts-db PATH] [--schematic FILE]
+phoenix bom [--config FILE] [--prices FILE] [--parts FILE] [--import FILE [--import-format NAME] [--import-map FILE]] [--parts-out FILE] [--parts-db PATH] [--schematic FILE] [--sourcing]
             [--stackup FILE] [--boards N] [--csv FILE] [--json-file FILE] [--html FILE]
             [--assembler NAME --assembler-file FILE [--assembler-config FILE]] [--json] [--lang CODE]
             <board>

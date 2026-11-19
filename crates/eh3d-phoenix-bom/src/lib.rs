@@ -15,6 +15,9 @@
 //! * [`pcb`]: the estimate of the bare boards from the area, the layers, the thickness and the
 //!   holes, with the tariffs of the settings;
 //! * [`settings`]: every rate, percentage and limit, read from `config/costs.cfg`;
+//! * [`sourcing`]: the supplier assistant: for each supplier of the list of the settings what the
+//!   whole bill costs there (the quantity breaks of the price file, shipping, the least order),
+//!   the cheapest single supplier and a split purchase;
 //! * [`report`]: the CSV, the JSON, the HTML and the text, the same every time;
 //! * [`money`] and [`text`]: money in whole millionths, and the reading and the quoting of CSV
 //!   and the escaping of HTML;
@@ -46,6 +49,9 @@ pub mod prices;
 pub mod range;
 pub mod report;
 pub mod settings;
+pub mod sourcing;
+#[cfg(test)]
+mod sourcing_tests;
 pub mod text;
 
 pub use bom::{build_bom, natural_key, Bom, BomInputs, BomLine, Purchase};
@@ -57,3 +63,4 @@ pub use pcb::{pcb_cost, polygon_area, PcbCost};
 pub use prices::{PriceBook, PriceRow};
 pub use report::{bom_csv, bom_csv_with, bom_html, bom_json, bom_text, line_status, COLUMNS};
 pub use settings::{CostSettings, GroupBy};
+pub use sourcing::{plan_sourcing, sourcing_json, sourcing_text, SourcingPlan};

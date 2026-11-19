@@ -450,7 +450,7 @@ phoenix ipc2581 [--config FILE] [--out FILE [--overwrite]] [--json] [--lang xx] 
                 only with --overwrite, a prototype that no viewer has opened, run
                 `phoenix ipc2581` alone for its options
 
-phoenix bom [--config FILE] [--prices FILE] [--parts FILE] [--schematic FILE] [--stackup FILE]
+phoenix bom [--config FILE] [--prices FILE] [--parts FILE] [--schematic FILE] [--sourcing] [--stackup FILE]
             [--boards N] [--variant NAME [--variant-file FILE]] [--csv FILE] [--json-file FILE]
             [--html FILE] [--assembler NAME --assembler-file FILE [--assembler-config FILE]]
             [--json] [--lang xx] <board>
@@ -459,8 +459,9 @@ phoenix assembly3d [--config FILE] --models FILE [--stackup FILE] [--obj FILE] [
 
   bom           the bill of materials of a board grouped by value, footprint and maker, with the
                 cheapest supplier from a local price file, the cost per board and per batch with
-                the waste, and an estimate of the cost of the boards from example tariffs; CSV,
-                JSON and HTML are written only to new files, a prototype, run `phoenix bom`
+                the waste, and an estimate of the cost of the boards from example tariffs (with
+                --sourcing also where to buy it: each supplier, the cheapest single one and a
+                split purchase); CSV, JSON and HTML are written only to new files, a prototype, run `phoenix bom`
                 alone for its options
   assembly3d    the board and its components as a 3D scene from the models of a table (STEP files
                 or boxes), with collisions and a height limit checked on the boxes and a

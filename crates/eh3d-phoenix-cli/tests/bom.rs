@@ -570,6 +570,87 @@ fn the_alternatives_of_the_file_of_parts_reach_the_csv_and_the_file_of_an_assemb
 }
 
 #[test]
+fn the_supplier_assistant_prices_the_bill_at_each_supplier_and_through_the_alternatives() {
+    let dir = tempfile::tempdir().unwrap();
+    let board = write_board(dir.path(), (6 * MM, 6 * MM));
+    let parts = dir.path().join("parts.csv");
+    fs::write(
+        &parts,
+        "match,manufacturer,mpn,alternatives\nR1,Acme,RC-10K,ALT-B\nR2,Acme,RC-10K,ALT-B\n",
+    )
+    .unwrap();
+    let prices = dir.path().join("prices.csv");
+    fs::write(
+        &prices,
+        "mpn,supplier,supplier_code,min_qty,unit_price\nRC-10K,Shop A,A-10K,1,0.01\nALT-B,Shop B,B-ALT,1,0.02\n",
+    )
+    .unwrap();
+    let config = dir.path().join("costs.cfg");
+    fs::write(
+        &config,
+        "suppliers = Shop A, Shop B\nsupplier_shipping.Shop A = 1\n",
+    )
+    .unwrap();
+    let args = [
+        "bom",
+        "--sourcing",
+        "--config",
+        config.to_str().unwrap(),
+        "--parts",
+        parts.to_str().unwrap(),
+        "--prices",
+        prices.to_str().unwrap(),
+        board.as_str(),
+    ];
+    let (code, out, err) = command(&args);
+    assert_eq!((code, err.as_str()), (0, ""), "{out}");
+    // 21 parts: Shop A asks 0.21 and 1.00 of shipping, Shop B 0.42 through the alternative
+    assert!(
+        out.contains("Shop A: 1/1 lines, parts 0.210000, shipping 1.000000, total 1.210000\n"),
+        "{out}"
+    );
+    assert!(
+        out.contains("cheapest single supplier: Shop B for 0.420000\n"),
+        "{out}"
+    );
+    assert!(
+        out.contains("split purchase: 1 orders for 0.420000\n"),
+        "{out}"
+    );
+    // without the option the text is the one it always was
+    let (_, plain, _) = command(&[
+        "bom",
+        "--config",
+        config.to_str().unwrap(),
+        "--parts",
+        parts.to_str().unwrap(),
+        "--prices",
+        prices.to_str().unwrap(),
+        board.as_str(),
+    ]);
+    assert!(!plain.contains("cheapest single supplier"));
+    assert!(out.starts_with(&plain));
+    // with --json the plan is the key sourcing, next to the rest
+    let (code, text, err) = command(&[
+        "bom",
+        "--sourcing",
+        "--json",
+        "--config",
+        config.to_str().unwrap(),
+        "--parts",
+        parts.to_str().unwrap(),
+        "--prices",
+        prices.to_str().unwrap(),
+        board.as_str(),
+    ]);
+    assert_eq!((code, err.as_str()), (0, ""), "{text}");
+    let json: serde_json::Value = serde_json::from_str(&text).unwrap();
+    assert_eq!(json["sourcing"]["single"], "Shop B");
+    assert_eq!(json["sourcing"]["split_total"], "0.420000");
+    assert!(json["lines"].is_array());
+}
+
+#[test]
 fn bom_refuses_a_wrong_use_of_the_assembler_options() {
     let dir = tempfile::tempdir().unwrap();
     let board = write_board(dir.path(), (6 * MM, 6 * MM));
