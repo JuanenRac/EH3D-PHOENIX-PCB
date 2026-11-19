@@ -1127,6 +1127,13 @@ pub fn tools_panel(ui: &mut egui::Ui, st: &mut BoardEditUi, lang: Lang) -> bool 
                 ] {
                     ui.selectable_value(&mut kind, value, text.tr(lang));
                 }
+                let mut editing = st.state.dimension_edit_mode;
+                if ui
+                    .toggle_value(&mut editing, BoardMsg::EditDimension.tr(lang))
+                    .changed()
+                {
+                    st.state.set_dimension_edit_mode(editing);
+                }
                 if kind != st.state.dimension_kind {
                     st.state.set_dimension_kind(kind);
                     // a dimension that was taken changes to the kind chosen, when it can

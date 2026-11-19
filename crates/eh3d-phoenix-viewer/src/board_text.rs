@@ -93,6 +93,8 @@ pub enum BoardMsg {
     HintTestPad,
     /// The hint of the dimension tool.
     HintDimension,
+    /// The button of the dimension tool that edits a placed dimension without shift.
+    EditDimension,
     /// The keys of the editor.
     KeysHint,
 }
@@ -608,6 +610,19 @@ const TABLE: [(BoardMsg, [&str; 8]); BoardMsg::COUNT] = [
             "測る2点をクリックし、次に寸法線上の点をクリック（半径・直径：中心または一端、円上の点、引出線の端。角度：頂点、各辺上の点、円弧上の点）Shiftキーを押しながらクリックすると既存の寸法の点をつかみ、次のクリックで置きます。別の種類を選ぶと寸法の種類が変わります。",
             "单击要测量的两个点，再单击尺寸线上的一点（半径或直径：圆心或一端、圆上一点和引线末端；角度：顶点、每条边上一点和圆弧上一点）按住 Shift 单击可拿起已有尺寸标注的一个点，下次单击放下；选择另一种类型会改变它。",
             "Clique nos dois pontos a medir e depois num ponto da linha de cota (raio ou diâmetro: o centro ou uma extremidade, um ponto da circunferência e o fim da linha; ângulo: o vértice, um ponto de cada lado e um ponto do arco) Shift e um clique pegam num ponto de uma cota já existente; o clique seguinte larga-o; escolher outro tipo muda-a.",
+        ],
+    ),
+    (
+        BoardMsg::EditDimension,
+        [
+            "Edit dimension",
+            "Editar cota",
+            "Bemaßung bearbeiten",
+            "Modifier la cote",
+            "Modifica quota",
+            "寸法を編集",
+            "编辑尺寸标注",
+            "Editar cota",
         ],
     ),
     (

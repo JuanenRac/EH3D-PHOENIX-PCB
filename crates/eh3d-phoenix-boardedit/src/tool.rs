@@ -84,6 +84,9 @@ pub struct EditState {
     pub dimension_points: Vec<Point>,
     /// The point of a dimension already on the board that was taken and waits to be put down.
     pub dimension_grab: Option<DimensionGrab>,
+    /// Whether the dimension tool is in editing mode: a click without shift takes a point of a
+    /// dimension already on the board instead of starting a new one.
+    pub dimension_edit_mode: bool,
     /// The dimension that was taken last, which a change of kind applies to.
     pub selected_dimension: Option<Id>,
     /// The footprint the place tool places.
@@ -124,6 +127,7 @@ impl EditState {
             dimension_kind: DimensionKind::Aligned,
             dimension_points: Vec::new(),
             dimension_grab: None,
+            dimension_edit_mode: false,
             selected_dimension: None,
             place_footprint,
             place_refdes: String::new(),
@@ -183,6 +187,14 @@ impl EditState {
         self.route_net = None;
         self.dimension_points.clear();
         self.dimension_grab = None;
+    }
+
+    /// Turns the editing mode of the dimension tool on or off and drops the dimension in
+    /// progress and the point that was taken.
+    pub fn set_dimension_edit_mode(&mut self, on: bool) {
+        self.dimension_points.clear();
+        self.dimension_grab = None;
+        self.dimension_edit_mode = on;
     }
 
     /// Chooses the kind of dimension and drops the points of the one in progress.
@@ -401,9 +413,12 @@ impl EditState {
     /// and the line width of the settings, as one step. Two points for the measure and the point
     /// the line passes through; an angle takes its vertex, a point on each ray and a point of the
     /// arc. With shift, and no dimension in progress, the click takes a point of a dimension that
-    /// is already there instead (see `dimension_edit`); the next click puts it down.
+    /// is already there instead (see `dimension_edit`); the next click puts it down. In the
+    /// editing mode (`dimension_edit_mode`) every click without a point taken does that, with no
+    /// shift, and no new dimension is started.
     fn press_dimension(&mut self, p: Point, shift: bool) {
-        if shift && self.dimension_points.is_empty() {
+        let editing = shift || (self.dimension_edit_mode && self.dimension_grab.is_none());
+        if editing && self.dimension_points.is_empty() {
             self.grab_dimension_point(p);
             return;
         }

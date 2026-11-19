@@ -297,3 +297,35 @@ fn the_pure_functions_give_the_handles_the_moves_and_the_kinds() {
         (DimensionKind::Diameter, 3_000_000)
     );
 }
+
+#[test]
+fn the_editing_mode_takes_a_point_without_shift_and_never_starts_a_new_dimension() {
+    let (f, mut s, dimension) = with_one_dimension();
+    let steps = s.edit.steps();
+    s.set_dimension_edit_mode(true);
+    // a click that is not on a point takes nothing and starts no dimension
+    s.pointer_pressed(f.pt(40, 30), false);
+    assert!(s.dimension_grab.is_none());
+    assert!(s.dimension_points.is_empty());
+    assert_eq!(s.error.as_ref().unwrap().code, OPERATION_REFUSED);
+    // a click on a point takes it, the next click puts it down as one step
+    s.pointer_pressed(f.pt(13, 14), false);
+    assert_eq!(s.dimension_grab.unwrap().dimension, dimension);
+    s.pointer_pressed(f.pt(20, 14), false);
+    assert!(s.error.is_none(), "{:?}", s.error);
+    assert_eq!(only(&s).to, f.pt(20, 14));
+    assert_eq!(s.edit.steps(), steps + 1);
+    assert!(s.dimension_grab.is_none());
+}
+
+#[test]
+fn leaving_the_editing_mode_draws_dimensions_again() {
+    let (f, mut s, _) = with_one_dimension();
+    s.set_dimension_edit_mode(true);
+    s.set_dimension_edit_mode(false);
+    s.pointer_pressed(f.pt(30, 30), false);
+    assert_eq!(s.dimension_points.len(), 1);
+    // turning the mode on drops the dimension in progress
+    s.set_dimension_edit_mode(true);
+    assert!(s.dimension_points.is_empty());
+}
