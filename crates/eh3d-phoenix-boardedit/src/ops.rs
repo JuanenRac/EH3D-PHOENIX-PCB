@@ -6,7 +6,7 @@
 
 use std::collections::BTreeMap;
 
-use eh3d_phoenix_board::{Id, PadRef, Side};
+use eh3d_phoenix_board::{Dimension, Id, PadRef, Side};
 use eh3d_phoenix_model::Point;
 use serde::{Deserialize, Serialize};
 
@@ -211,6 +211,18 @@ pub enum EditOp {
         /// True to mark it (the default), false to take the mark off.
         #[serde(default = "mark_by_default")]
         marked: bool,
+    },
+    /// Adds a dimension (`docs/DIMENSIONS.md`) on a documentation layer of the board. It is
+    /// refused when the layer is missing or is not for documentation, and when the dimension
+    /// cannot be drawn (it measures nothing, a size is not above zero, a point is missing).
+    AddDimension {
+        /// The dimension, with its layer.
+        dimension: Dimension,
+    },
+    /// Removes a dimension.
+    RemoveDimension {
+        /// The dimension.
+        dimension: Id,
     },
     /// Deletes every track and via of a net (its zones and the nets of its pads stay).
     DeleteNet {

@@ -329,3 +329,184 @@ fn the_ratsnest_comes_from_the_nets_the_pads_were_given() {
     assert_eq!(lit.highlight_net, Some(f.gnd));
     assert_eq!(lit.net_at(f.pt(50, 30)), Some(f.gnd));
 }
+
+/// The board of the fixture with a documentation layer.
+fn with_documentation_layer(f: &mut Fixture) -> eh3d_phoenix_board::Id {
+    let layer = id(70);
+    f.board.layers.insert(
+        layer,
+        eh3d_phoenix_board::Layer {
+            name: "Notes".to_owned(),
+            kind: eh3d_phoenix_board::LayerKind::Documentation,
+            side: None,
+        },
+    );
+    layer
+}
+
+#[test]
+fn the_dimension_tool_makes_a_dimension_from_three_clicks() {
+    use eh3d_phoenix_board::DimensionKind;
+    let mut f = fixture();
+    let layer = with_documentation_layer(&mut f);
+    let mut s = state(&f);
+    s.set_tool(Tool::Dimension);
+    // an aligned one: the two points measured and a point of the line, 2 mm to the left
+    s.pointer_pressed(f.pt(10, 10), false);
+    s.pointer_pressed(f.pt(13, 14), false);
+    assert_eq!(s.dimension_points.len(), 2);
+    assert!(s.board().dimensions.is_empty());
+    s.pointer_pressed(f.pt(10, 10), false);
+    assert!(s.error.is_none(), "{:?}", s.error);
+    assert!(s.dimension_points.is_empty());
+    assert_eq!(s.board().dimensions.len(), 1);
+    let d = s.board().dimensions.values().next().unwrap();
+    assert_eq!(
+        (d.kind, d.layer, d.third),
+        (DimensionKind::Aligned, layer, None)
+    );
+    assert_eq!(d.length_nm(), 5_000_000);
+    assert_eq!(d.offset.get(), 0);
+    // the sizes come from the settings
+    assert_eq!(
+        d.text_height.get(),
+        s.edit.settings.dimension_text_height_nm
+    );
+    assert_eq!(d.stroke.get(), s.edit.settings.dimension_stroke_nm);
+    // one click, one step; undo takes it away
+    assert_eq!(s.edit.steps(), 1);
+    assert!(s.undo());
+    assert!(s.board().dimensions.is_empty());
+}
+
+#[test]
+fn the_dimension_tool_draws_every_kind_with_the_points_it_needs() {
+    use eh3d_phoenix_board::DimensionKind;
+    let mut f = fixture();
+    with_documentation_layer(&mut f);
+    let mut s = state(&f);
+    s.set_tool(Tool::Dimension);
+    // a horizontal one with the line 2 mm above
+    s.set_dimension_kind(DimensionKind::Horizontal);
+    for p in [f.pt(10, 10), f.pt(20, 15), f.pt(15, 12)] {
+        s.pointer_pressed(p, false);
+    }
+    let horizontal = s.board().dimensions.values().last().unwrap();
+    assert_eq!(
+        (horizontal.length_nm(), horizontal.offset.get()),
+        (10_000_000, 2_000_000)
+    );
+    // a radius: the centre, a point of the circle and the end of the leader, 2 mm beyond
+    s.set_dimension_kind(DimensionKind::Radius);
+    for p in [f.pt(30, 30), f.pt(33, 30), f.pt(35, 30)] {
+        s.pointer_pressed(p, false);
+    }
+    let radius = s
+        .board()
+        .dimensions
+        .values()
+        .find(|d| d.kind == DimensionKind::Radius)
+        .unwrap();
+    assert_eq!(
+        (radius.length_nm(), radius.offset.get()),
+        (3_000_000, 2_000_000)
+    );
+    // a diameter
+    s.set_dimension_kind(DimensionKind::Diameter);
+    for p in [f.pt(40, 40), f.pt(48, 40), f.pt(48, 40)] {
+        s.pointer_pressed(p, false);
+    }
+    assert!(s
+        .board()
+        .dimensions
+        .values()
+        .any(|d| d.kind == DimensionKind::Diameter && d.length_nm() == 8_000_000));
+    // an angle takes four clicks: the vertex, a point on each ray and a point of the arc
+    s.set_dimension_kind(DimensionKind::Angle);
+    for p in [f.pt(50, 50), f.pt(60, 50), f.pt(50, 60)] {
+        s.pointer_pressed(p, false);
+    }
+    assert_eq!(s.dimension_points.len(), 3);
+    s.pointer_pressed(f.pt(55, 50), false);
+    assert!(s.error.is_none(), "{:?}", s.error);
+    let angle = s
+        .board()
+        .dimensions
+        .values()
+        .find(|d| d.kind == DimensionKind::Angle)
+        .unwrap();
+    assert_eq!(angle.angle_udeg(), Some(90_000_000));
+    assert_eq!(angle.offset.get(), 5_000_000);
+    assert_eq!(s.board().dimensions.len(), 4);
+    // changing the kind or choosing another tool drops the points in progress
+    s.pointer_pressed(f.pt(1, 1), false);
+    s.set_dimension_kind(DimensionKind::Vertical);
+    assert!(s.dimension_points.is_empty());
+    s.pointer_pressed(f.pt(1, 1), false);
+    s.set_tool(Tool::Select);
+    assert!(s.dimension_points.is_empty());
+}
+
+#[test]
+fn the_dimension_tool_refuses_what_it_cannot_draw_and_changes_nothing() {
+    use eh3d_phoenix_board::DimensionKind;
+    // a board without a documentation layer
+    let f = fixture();
+    let mut s = state(&f);
+    s.set_tool(Tool::Dimension);
+    for p in [f.pt(10, 10), f.pt(13, 14), f.pt(10, 10)] {
+        s.pointer_pressed(p, false);
+    }
+    assert_eq!(s.error.as_ref().unwrap().code, OPERATION_REFUSED);
+    assert!(s.board().dimensions.is_empty());
+    assert_eq!(s.edit.steps(), 0);
+    // the same point twice measures nothing
+    let mut g = fixture();
+    with_documentation_layer(&mut g);
+    let mut s = state(&g);
+    s.set_tool(Tool::Dimension);
+    s.set_dimension_kind(DimensionKind::Aligned);
+    for p in [g.pt(10, 10), g.pt(10, 10), g.pt(12, 10)] {
+        s.pointer_pressed(p, false);
+    }
+    assert_eq!(s.error.as_ref().unwrap().code, OPERATION_REFUSED);
+    assert!(s.board().dimensions.is_empty());
+    // a wrong number of points to the method that takes them all at once
+    assert!(!s.add_dimension_through(&[g.pt(1, 1)]));
+}
+
+#[test]
+fn the_operations_add_and_remove_a_dimension_on_a_documentation_layer_only() {
+    use eh3d_phoenix_board::{Dimension, DimensionKind};
+    use eh3d_phoenix_model::Nm;
+    let mut f = fixture();
+    let layer = with_documentation_layer(&mut f);
+    let make = |layer| Dimension {
+        layer,
+        kind: DimensionKind::Horizontal,
+        from: f.pt(0, 0),
+        to: f.pt(10, 0),
+        third: None,
+        offset: Nm::new(2_000_000).unwrap(),
+        text_height: Nm::new(1_000_000).unwrap(),
+        stroke: Nm::new(100_000).unwrap(),
+    };
+    let mut s = state(&f);
+    assert!(s.run(&EditOp::AddDimension {
+        dimension: make(layer)
+    }));
+    let added = *s.board().dimensions.keys().next().unwrap();
+    // a copper layer and a layer the board does not have
+    assert!(!s.run(&EditOp::AddDimension {
+        dimension: make(f.top)
+    }));
+    assert_eq!(s.error.as_ref().unwrap().code, OPERATION_REFUSED);
+    assert!(!s.run(&EditOp::AddDimension {
+        dimension: make(id(99))
+    }));
+    assert_eq!(s.board().dimensions.len(), 1);
+    // it can be removed, and a dimension that is not there cannot
+    assert!(s.run(&EditOp::RemoveDimension { dimension: added }));
+    assert!(s.board().dimensions.is_empty());
+    assert!(!s.run(&EditOp::RemoveDimension { dimension: added }));
+}

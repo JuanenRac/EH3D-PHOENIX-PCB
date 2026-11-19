@@ -7,7 +7,7 @@
 
 use eframe::egui::{self, Color32, Pos2, Rect, Stroke};
 use eh3d_phoenix_board::connectivity::pad_position;
-use eh3d_phoenix_board::{Board, Id, PadRef, PadShape, StackFunction};
+use eh3d_phoenix_board::{Board, DimensionKind, Id, PadRef, PadShape, StackFunction};
 use eh3d_phoenix_boardedit::selection::all_items;
 use eh3d_phoenix_boardedit::{
     item_bounds, AlignMode, BoardEdit, BoardEditSettings, EditOp, EditState, Item, Picked,
@@ -18,6 +18,7 @@ use eh3d_phoenix_route::copper_layers;
 use eh3d_phoenix_rules::{Lang, Severity};
 
 use crate::board_analysis::AnalysisTool;
+use crate::board_analysis_text::AnalysisMsg;
 use crate::board_autoroute::AutorouteTool;
 use crate::board_pair::PairTool;
 use crate::board_select::{self, Group, GroupCommand, GroupKeys};
@@ -643,6 +644,19 @@ pub fn canvas(
         let target = st.state.snap(at);
         painter.circle_stroke(view.at(target), 5.0, Stroke::new(1.0, ui_accent()));
     }
+    // the points of the dimension in progress, joined in the order they were given
+    let pending: Vec<Pos2> = st
+        .state
+        .dimension_points
+        .iter()
+        .map(|p| view.at(*p))
+        .collect();
+    for at in &pending {
+        painter.circle_filled(*at, 3.0, ui_accent());
+    }
+    if pending.len() >= 2 {
+        painter.add(egui::Shape::line(pending, Stroke::new(1.0, ui_dim())));
+    }
     crate::board_pair_gui::draw(&painter, &st.pair, &|p: Point| view.at(p));
     crate::board_shove_gui::draw(&painter, &st.shove, &|p: Point| view.at(p));
     crate::board_autoroute_gui::draw(&painter, &st.autoroute, &st.state, &|p: Point| view.at(p));
@@ -735,6 +749,7 @@ pub fn canvas(
         Tool::Delete => BoardMsg::HintDelete,
         Tool::Tune => BoardMsg::HintTune,
         Tool::TestPad => BoardMsg::HintTestPad,
+        Tool::Dimension => BoardMsg::HintDimension,
     };
     painter.text(
         rect.left_bottom() + egui::vec2(8.0, -8.0),
@@ -995,6 +1010,7 @@ pub fn tools_panel(ui: &mut egui::Ui, st: &mut BoardEditUi, lang: Lang) -> bool 
             (Tool::Delete, BoardMsg::ToolDelete),
             (Tool::Tune, BoardMsg::ToolTune),
             (Tool::TestPad, BoardMsg::ToolTestPad),
+            (Tool::Dimension, BoardMsg::ToolDimension),
         ] {
             ui.selectable_value(&mut tool, value, text.tr(lang));
         }
@@ -1094,6 +1110,24 @@ pub fn tools_panel(ui: &mut egui::Ui, st: &mut BoardEditUi, lang: Lang) -> bool 
                     .changed()
                 {
                     st.state.tune_target_nm = (st.target_mm * 1_000_000.0).round() as i64;
+                }
+            });
+        }
+        Tool::Dimension => {
+            ui.horizontal_wrapped(|ui| {
+                let mut kind = st.state.dimension_kind;
+                for (value, text) in [
+                    (DimensionKind::Aligned, AnalysisMsg::KindAligned),
+                    (DimensionKind::Horizontal, AnalysisMsg::KindHorizontal),
+                    (DimensionKind::Vertical, AnalysisMsg::KindVertical),
+                    (DimensionKind::Radius, AnalysisMsg::KindRadius),
+                    (DimensionKind::Diameter, AnalysisMsg::KindDiameter),
+                    (DimensionKind::Angle, AnalysisMsg::KindAngle),
+                ] {
+                    ui.selectable_value(&mut kind, value, text.tr(lang));
+                }
+                if kind != st.state.dimension_kind {
+                    st.state.set_dimension_kind(kind);
                 }
             });
         }

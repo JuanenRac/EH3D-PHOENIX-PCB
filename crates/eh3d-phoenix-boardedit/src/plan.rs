@@ -8,7 +8,8 @@ use std::collections::BTreeSet;
 
 use eh3d_phoenix_board::connectivity::pad_position;
 use eh3d_phoenix_board::{
-    Board, Component, Id, LayerKind, Operation, PadRef, Segment, Side, Track,
+    Board, Component, Dimension, DimensionError, Id, LayerKind, Operation, PadRef, Segment, Side,
+    Track,
 };
 use eh3d_phoenix_lengths::{measure_nets, LengthSettings};
 use eh3d_phoenix_model::{Nm, Point, Udeg, ANGLE_LIMIT_UDEG};
@@ -302,6 +303,13 @@ pub fn plan(
                 marked: *marked,
             }))
         }
+        EditOp::AddDimension { dimension } => add_dimension(board, ids, dimension),
+        EditOp::RemoveDimension { dimension } => {
+            if !board.dimensions.contains_key(dimension) {
+                return Err(refused(format!("no dimension {dimension}")));
+            }
+            Ok(single(Operation::RemoveDimension { id: *dimension }))
+        }
         EditOp::DeleteNet { net } => delete_net(board, *net),
         EditOp::RouteBetween {
             from,
@@ -594,6 +602,40 @@ fn route(
     }
     Ok(Plan {
         alternatives,
+        created: vec![id],
+        notes: Vec::new(),
+        expect: None,
+    })
+}
+
+fn add_dimension(
+    board: &Board,
+    ids: &mut IdSupply,
+    dimension: &Dimension,
+) -> Result<Plan, BoardEditError> {
+    match board.layers.get(&dimension.layer) {
+        None => return Err(refused(format!("no layer {}", dimension.layer))),
+        Some(l) if l.kind != LayerKind::Documentation => {
+            return Err(refused("a dimension goes on a documentation layer"));
+        }
+        Some(_) => {}
+    }
+    dimension.items().map_err(|e| {
+        geometry(match e {
+            DimensionError::Empty => "the dimension measures nothing",
+            DimensionError::Size => {
+                "the text height, the line width or the radius is not above zero"
+            }
+            DimensionError::Range => "the dimension does not fit the coordinate range",
+            DimensionError::Points => "an angle needs its third point and no other kind has one",
+        })
+    })?;
+    let id = ids.next_for(board);
+    Ok(Plan {
+        alternatives: vec![Operation::AddDimension {
+            id,
+            dimension: dimension.clone(),
+        }],
         created: vec![id],
         notes: Vec::new(),
         expect: None,

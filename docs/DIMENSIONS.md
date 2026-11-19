@@ -2,7 +2,7 @@
 
 The board model holds dimensions: the distance between two points of the board (or the radius or the diameter of a circle, or an angle), drawn as a dimension line with its extension lines, two arrow heads and the measure as text, on a documentation layer. They are in `crates/eh3d-phoenix-board/src/dimension.rs`.
 
-**State: prototype.** It has been tried on boards made by hand and by the tests only. The files of KiCad and of EAGLE that carry dimensions were written by hand for the tests; the programs have never opened what this code writes, and the sign of the height of a KiCad dimension and the layers of an EAGLE one have not been compared with them. The window draws the dimensions of a board but has no tool to place one.
+**State: prototype.** It has been tried on boards made by hand and by the tests only. The files of KiCad and of EAGLE that carry dimensions were written by hand for the tests; the programs have never opened what this code writes, and the sign of the height of a KiCad dimension and the layers of an EAGLE one have not been compared with them. The window draws the dimensions of a board and the board editor has a tool to place one, tried only through its code without a screen.
 
 ## The model
 
@@ -32,6 +32,8 @@ The measure is not stored: it follows from the two points and the kind, so it ca
 `items()` gives the drawing as the strokes and the text of the silkscreen font, all on the layer of the dimension and in a fixed order: the extension lines (none when the offset is zero), the dimension line, the four lines of the two arrow heads (as long as the text is high and a third of that wide on each side) and the text. Every division is rounded half away from zero, so the same dimension gives the same bytes on every system. The text is horizontal, centred over the dimension line, when the line is nearer to horizontal than to vertical, and runs from bottom to top, centred beside the line, otherwise. The scene of the window draws these items on the layer of the dimension.
 
 ## Operations and checks
+
+The board editor has the operations `add_dimension` and `remove_dimension` and, in the window, the *Dimension* tool (`docs/BOARD_EDIT.md`).
 
 * `AddDimension` and `RemoveDimension` are reversible operations of the board (`docs/BOARD_EDIT.md` lists the operations of the editor); the first refuses an id that is used, a missing layer and a layer that is not for documentation. The history of the window names the steps in the eight languages.
 * The consistency check (`Board::validate`) reports a dimension on a layer that does not exist (`PHOENIX-BOARD-001`), on a layer that is not for documentation (`PHOENIX-BOARD-007`), and one that measures nothing, has a text height or a line width that is not above zero or does not fit the coordinate range (`PHOENIX-BOARD-004`).

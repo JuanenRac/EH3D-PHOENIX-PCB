@@ -65,6 +65,12 @@ pub struct BoardEditSettings {
     pub arc_steps_per_quarter: usize,
     /// The gap added to the clearance of the rules when an arc is checked, in nanometres.
     pub arc_margin_nm: i64,
+    /// The height of the text of a dimension drawn in the editor, which is also the length of its
+    /// arrow heads, in nanometres.
+    pub dimension_text_height_nm: i64,
+    /// The width of the lines and of the strokes of the text of a dimension drawn in the editor,
+    /// in nanometres.
+    pub dimension_stroke_nm: i64,
 }
 
 impl Default for BoardEditSettings {
@@ -113,6 +119,8 @@ impl BoardEditSettings {
             arc_min_radius_nm: 1,
             arc_steps_per_quarter: 1,
             arc_margin_nm: 0,
+            dimension_text_height_nm: 1,
+            dimension_stroke_nm: 1,
         }
     }
 
@@ -189,6 +197,12 @@ impl BoardEditSettings {
                     self.arc_steps_per_quarter = value.parse().map_err(|_| bad())?;
                 }
                 "arc_margin_nm" => self.arc_margin_nm = value.parse().map_err(|_| bad())?,
+                "dimension_text_height_nm" => {
+                    self.dimension_text_height_nm = value.parse().map_err(|_| bad())?;
+                }
+                "dimension_stroke_nm" => {
+                    self.dimension_stroke_nm = value.parse().map_err(|_| bad())?;
+                }
                 _ => return Err(fail(format!("unknown key {key}"))),
             }
         }
@@ -212,6 +226,8 @@ impl BoardEditSettings {
             ("shove_margin_nm", self.shove_margin_nm, 0),
             ("arc_min_radius_nm", self.arc_min_radius_nm, 1),
             ("arc_margin_nm", self.arc_margin_nm, 0),
+            ("dimension_text_height_nm", self.dimension_text_height_nm, 1),
+            ("dimension_stroke_nm", self.dimension_stroke_nm, 1),
         ];
         for (name, value, low) in ranges {
             if !(low..=limit).contains(&value) {
@@ -281,6 +297,10 @@ mod tests {
         assert_eq!(s.shove_margin_nm, 1_000);
         assert_eq!(s.arc_min_radius_nm, 500_000);
         assert_eq!(s.arc_steps_per_quarter, 8);
+        assert_eq!(
+            (s.dimension_text_height_nm, s.dimension_stroke_nm),
+            (1_500_000, 150_000)
+        );
         let route = s.route_settings();
         assert_eq!(route.default_width_nm, 250_000);
         assert_eq!(route.via_diameter_nm, 600_000);

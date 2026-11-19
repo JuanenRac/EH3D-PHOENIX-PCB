@@ -54,6 +54,16 @@ pub enum DimensionKind {
 }
 
 impl DimensionKind {
+    /// How many points the person gives to make a dimension of the kind: the two points measured
+    /// and the one the line passes through, and for an angle the vertex, a point on each ray and
+    /// a point of the arc.
+    pub fn clicks(self) -> usize {
+        match self {
+            DimensionKind::Angle => 4,
+            _ => 3,
+        }
+    }
+
     /// The word of the file formats and the messages.
     pub fn as_str(self) -> &'static str {
         match self {
@@ -261,6 +271,15 @@ impl Dimension {
             DimensionKind::Angle => self.angle_udeg().is_none_or(|a| a == 0),
             _ => self.length_nm() == 0,
         }
+    }
+
+    /// The distance between two points, rounded to the nearest nanometre; `None` when it is
+    /// outside the range.
+    pub fn distance(a: Point, b: Point) -> Option<Nm> {
+        let dx = i128::from(b.x_nm.get()) - i128::from(a.x_nm.get());
+        let dy = i128::from(b.y_nm.get()) - i128::from(a.y_nm.get());
+        let length = isqrt_round((dx * dx + dy * dy).unsigned_abs());
+        Nm::new(i64::try_from(length).ok()?).ok()
     }
 
     /// The shortest of the two rays of an angle, rounded to the nearest nanometre: the radius of
@@ -904,6 +923,23 @@ mod tests {
         assert_eq!(extra.items(), Err(DimensionError::Points));
         assert!(missing.measures_nothing() && same.measures_nothing());
         assert!(!dim(DimensionKind::Diameter, pt(0, 0), pt(MM, 0), 0).measures_nothing());
+    }
+
+    #[test]
+    fn the_distance_and_the_clicks_of_a_dimension_are_told() {
+        assert_eq!(
+            Dimension::distance(pt(0, 0), pt(3 * MM, 4 * MM))
+                .unwrap()
+                .get(),
+            5 * MM
+        );
+        assert_eq!(
+            Dimension::distance(pt(MM, MM), pt(MM, MM)).unwrap().get(),
+            0
+        );
+        assert_eq!(DimensionKind::Aligned.clicks(), 3);
+        assert_eq!(DimensionKind::Radius.clicks(), 3);
+        assert_eq!(DimensionKind::Angle.clicks(), 4);
     }
 
     #[test]

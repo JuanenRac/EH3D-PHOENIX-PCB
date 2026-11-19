@@ -30,6 +30,8 @@ pub enum BoardMsg {
     ToolTune,
     /// The tool that marks a single pad as a test point.
     ToolTestPad,
+    /// The tool that draws dimensions.
+    ToolDimension,
     /// The button that turns the selected components.
     Rotate,
     /// The button that puts the selected components on the other side.
@@ -89,6 +91,8 @@ pub enum BoardMsg {
     HintTune,
     /// The hint of the test pad tool.
     HintTestPad,
+    /// The hint of the dimension tool.
+    HintDimension,
     /// The keys of the editor.
     KeysHint,
 }
@@ -222,6 +226,19 @@ const TABLE: [(BoardMsg, [&str; 8]); BoardMsg::COUNT] = [
             "テストポイント",
             "测试点",
             "Ponto de teste",
+        ],
+    ),
+    (
+        BoardMsg::ToolDimension,
+        [
+            "Dimension",
+            "Cota",
+            "Bemaßung",
+            "Cote",
+            "Quota",
+            "寸法",
+            "尺寸标注",
+            "Cota",
         ],
     ),
     (
@@ -578,6 +595,19 @@ const TABLE: [(BoardMsg, [&str; 8]); BoardMsg::COUNT] = [
             "パッドをクリックしてテストポイントに指定し、もう一度クリックして解除",
             "单击焊盘将其标记为测试点；再次单击取消标记",
             "Clique num pad para o marcar como ponto de teste; clique de novo para retirar a marca",
+        ],
+    ),
+    (
+        BoardMsg::HintDimension,
+        [
+            "Click the two points to measure and then a point of the dimension line (a radius or a diameter: the centre or an end, a point of the circle, and the end of the leader; an angle: the vertex, a point on each ray and a point of the arc)",
+            "Pulse los dos puntos que se miden y después un punto de la línea de cota (radio o diámetro: el centro o un extremo, un punto de la circunferencia y el final de la línea; ángulo: el vértice, un punto de cada lado y un punto del arco)",
+            "Die zwei zu messenden Punkte anklicken, dann einen Punkt der Maßlinie (Radius oder Durchmesser: Mittelpunkt oder ein Ende, ein Punkt des Kreises und das Ende der Linie; Winkel: Scheitel, ein Punkt je Schenkel und ein Punkt des Bogens)",
+            "Cliquez les deux points à mesurer puis un point de la ligne de cote (rayon ou diamètre : le centre ou une extrémité, un point du cercle et le bout de la ligne ; angle : le sommet, un point de chaque côté et un point de l'arc)",
+            "Clic sui due punti da misurare e poi su un punto della linea di quota (raggio o diametro: il centro o un estremo, un punto della circonferenza e la fine della linea; angolo: il vertice, un punto per lato e un punto dell'arco)",
+            "測る2点をクリックし、次に寸法線上の点をクリック（半径・直径：中心または一端、円上の点、引出線の端。角度：頂点、各辺上の点、円弧上の点）",
+            "单击要测量的两个点，再单击尺寸线上的一点（半径或直径：圆心或一端、圆上一点和引线末端；角度：顶点、每条边上一点和圆弧上一点）",
+            "Clique nos dois pontos a medir e depois num ponto da linha de cota (raio ou diâmetro: o centro ou uma extremidade, um ponto da circunferência e o fim da linha; ângulo: o vértice, um ponto de cada lado e um ponto do arco)",
         ],
     ),
     (

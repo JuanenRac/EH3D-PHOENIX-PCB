@@ -5,8 +5,8 @@
 use std::collections::BTreeSet;
 
 use eh3d_phoenix_board::connectivity::pad_position;
-use eh3d_phoenix_board::{Board, Id, LayerKind, Operation, PadRef};
-use eh3d_phoenix_model::Point;
+use eh3d_phoenix_board::{Board, Dimension, DimensionKind, Id, LayerKind, Operation, PadRef};
+use eh3d_phoenix_model::{Nm, Point};
 use eh3d_phoenix_route::{copper_layers, RatLine};
 
 use crate::codes::{BoardEditError, OPERATION_REFUSED};
@@ -32,6 +32,8 @@ pub enum Tool {
     Tune,
     /// Mark the pad under the pointer as a test point, or take the mark off.
     TestPad,
+    /// Draw a dimension, one click for each point (see `EditState::dimension_kind`).
+    Dimension,
 }
 
 /// A drag of components in progress.
@@ -75,6 +77,10 @@ pub struct EditState {
     pub route_net: Option<Id>,
     /// The points of the route in progress.
     pub route_points: Vec<Point>,
+    /// The kind of dimension the dimension tool draws.
+    pub dimension_kind: DimensionKind,
+    /// The points of the dimension in progress.
+    pub dimension_points: Vec<Point>,
     /// The footprint the place tool places.
     pub place_footprint: Option<Id>,
     /// The reference designator for the next component; one is made when it is empty.
@@ -110,6 +116,8 @@ impl EditState {
             marquee: None,
             route_net: None,
             route_points: Vec::new(),
+            dimension_kind: DimensionKind::Aligned,
+            dimension_points: Vec::new(),
             place_footprint,
             place_refdes: String::new(),
             place_value: String::new(),
@@ -166,6 +174,13 @@ impl EditState {
         self.marquee = None;
         self.route_points.clear();
         self.route_net = None;
+        self.dimension_points.clear();
+    }
+
+    /// Chooses the kind of dimension and drops the points of the one in progress.
+    pub fn set_dimension_kind(&mut self, kind: DimensionKind) {
+        self.dimension_points.clear();
+        self.dimension_kind = kind;
     }
 
     /// What lies under a point.
@@ -366,6 +381,76 @@ impl EditState {
         self.run(&EditOp::TestPoint { pad, marked })
     }
 
+    /// A click of the dimension tool: the point (on the grid) is kept, and with the last point
+    /// the dimension is made on the first documentation layer of the board, with the text height
+    /// and the line width of the settings, as one step. Two points for the measure and the point
+    /// the line passes through; an angle takes its vertex, a point on each ray and a point of the
+    /// arc.
+    fn press_dimension(&mut self, p: Point) {
+        let at = self.snap(p);
+        self.dimension_points.push(at);
+        if self.dimension_points.len() < self.dimension_kind.clicks() {
+            return;
+        }
+        let points = std::mem::take(&mut self.dimension_points);
+        self.add_dimension_through(&points);
+    }
+
+    /// Makes a dimension of the chosen kind from its points (see [`EditState::press_dimension`]);
+    /// false when it was refused.
+    pub fn add_dimension_through(&mut self, points: &[Point]) -> bool {
+        let kind = self.dimension_kind;
+        if points.len() != kind.clicks() {
+            self.fail(BoardEditError::new(
+                OPERATION_REFUSED,
+                format!("a dimension of this kind takes {} points", kind.clicks()),
+            ));
+            return false;
+        }
+        let Some(layer) = self
+            .board()
+            .layers
+            .iter()
+            .find(|(_, l)| l.kind == LayerKind::Documentation)
+            .map(|(id, _)| *id)
+        else {
+            self.fail(BoardEditError::new(
+                OPERATION_REFUSED,
+                "the board has no documentation layer",
+            ));
+            return false;
+        };
+        let (from, to, through) = (points[0], points[1], points[2]);
+        let (third, offset) = if kind == DimensionKind::Angle {
+            (Some(through), Dimension::distance(from, points[3]))
+        } else {
+            (None, Dimension::offset_through(kind, from, to, through))
+        };
+        let settings = &self.edit.settings;
+        let (Some(offset), Ok(text_height), Ok(stroke)) = (
+            offset,
+            Nm::new(settings.dimension_text_height_nm),
+            Nm::new(settings.dimension_stroke_nm),
+        ) else {
+            self.fail(BoardEditError::new(
+                OPERATION_REFUSED,
+                "the points do not make a dimension",
+            ));
+            return false;
+        };
+        let dimension = Dimension {
+            layer,
+            kind,
+            from,
+            to,
+            third,
+            offset,
+            text_height,
+            stroke,
+        };
+        self.run(&EditOp::AddDimension { dimension })
+    }
+
     fn next_refdes(&self) -> String {
         let board = self.board();
         let mut n = board.components.len() + 1;
@@ -520,6 +605,7 @@ impl EditState {
             Tool::TestPad => {
                 self.toggle_test_point_at(p);
             }
+            Tool::Dimension => self.press_dimension(p),
             Tool::Tune => match self.pick_at(p).and_then(|item| item.net(self.board())) {
                 Some(net) => {
                     self.run(&EditOp::TuneLength {
