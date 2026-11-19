@@ -20,6 +20,8 @@
 //!   codes `PHOENIX-DFM-007` to `PHOENIX-DFM-019`;
 //! * [`dfm`]: a capability profile of a board maker read from a text file, its limits for the rule
 //!   check and the checks of the layers, the size of the board and the holes (`PHOENIX-DFM-<NNN>`);
+//! * [`dfm_compare`]: the comparison of one board against the profiles of several makers, as text
+//!   in eight languages and as JSON;
 //! * [`notes`]: the notes of the consistency checks of a board that a report carries as information
 //!   (a polygon over `max_polygon_points`, code `PHOENIX-BOARD-017`);
 //! * [`report`]: the report as text and as JSON, with proven (`confirmed`) and unjudged
@@ -41,6 +43,7 @@ pub mod classes;
 pub mod codes;
 pub mod connectivity;
 pub mod dfm;
+pub mod dfm_compare;
 pub mod dfm_more;
 pub mod engine;
 mod geometry;
@@ -58,6 +61,7 @@ pub use classes::{check_classes, NetClass, NetClasses};
 pub use codes::{title, Lang, REGISTRY};
 pub use connectivity::{analyse_board, check_connectivity, compare_schematic};
 pub use dfm::{builtin_names, builtin_profile, dfm_findings, DfmError, DfmProfile, BUILTIN};
+pub use dfm_compare::{compare_profiles, DfmComparison, ProfileRun};
 pub use engine::{
     check_board, check_board_with, clearance_work, edge_work, ClearanceWork, EdgeWork, Rule,
 };

@@ -449,3 +449,124 @@ fn check_with_the_profile_of_a_maker_that_comes_with_the_program() {
         assert!(err.contains("only one of them"), "{err}");
     }
 }
+
+#[test]
+fn dfm_compare_puts_the_profiles_side_by_side_and_exits_with_whether_one_accepts_the_board() {
+    let f = Files::new();
+    let brd = f.write("b.brd", &write_board(&board()).text);
+    // the track of 0.10 mm and the two copper layers break the first profile, not the second
+    let strict = f.write(
+        "strict.cfg",
+        "verified = true\nmin_track_width_nm = 150000\nmax_copper_layers = 1\n",
+    );
+    let open = f.write("open.cfg", "name = example\nmin_track_width_nm = 50000\n");
+    let list = format!("{strict},{open}");
+    let (code, out, err) = call(&["check", "--dfm-compare", list.as_str(), brd.as_str()]);
+    assert_eq!((code, err.as_str()), (0, ""), "{out}");
+    assert!(out.starts_with("Profiles compared: 2\n"), "{out}");
+    assert!(
+        out.contains("- strict.cfg (verified: yes): passes: no"),
+        "{out}"
+    );
+    assert!(
+        out.contains("- open.cfg (verified: no): passes: yes"),
+        "{out}"
+    );
+    assert!(
+        out.contains(
+            "PHOENIX-CHECK-001 Track narrower than the minimum: strict.cfg 1 | open.cfg 0"
+        ),
+        "{out}"
+    );
+    assert!(out.contains("Only on some of the profiles:\n"), "{out}");
+    assert!(out.ends_with("Fewest errors: open.cfg\n"), "{out}");
+    // the same bytes every time, in another language and as JSON
+    assert_eq!(
+        call(&["check", "--dfm-compare", list.as_str(), brd.as_str()]).1,
+        out
+    );
+    let (_, pt, _) = call(&[
+        "check",
+        "--dfm-compare",
+        list.as_str(),
+        "--lang",
+        "pt",
+        brd.as_str(),
+    ]);
+    assert!(pt.starts_with("Perfis comparados: 2\n"), "{pt}");
+    let (code, json, _) = call(&[
+        "check",
+        "--dfm-compare",
+        list.as_str(),
+        "--json",
+        brd.as_str(),
+    ]);
+    assert_eq!(code, 0);
+    let value: serde_json::Value = serde_json::from_str(&json).unwrap();
+    assert_eq!(value["schema"], "phoenix-dfm-compare/1");
+    assert_eq!(value["any_passes"], true);
+    assert_eq!(value["fewest_errors"][0], "open.cfg");
+    assert_eq!(value["profiles"][0]["name"], "strict.cfg");
+    assert_eq!(value["profiles"][0]["passes"], false);
+    // when no profile accepts the board the exit code is 1
+    let strict_too = f.write(
+        "strict2.cfg",
+        "min_track_width_nm = 150000\nmax_copper_layers = 1\n",
+    );
+    let both = format!("{strict},{strict_too}");
+    let (code, out, _) = call(&["check", "--dfm-compare", both.as_str(), brd.as_str()]);
+    assert_eq!(code, 1, "{out}");
+}
+
+#[test]
+fn dfm_compare_takes_the_profiles_that_come_with_the_program() {
+    let f = Files::new();
+    let brd = f.write("b.brd", &write_board(&board()).text);
+    // both accept the track of 0.10 mm and both say that they are not verified
+    let (code, out, err) = call(&["check", "--dfm-compare", "jlcpcb, pcbway", brd.as_str()]);
+    assert_eq!((code, err.as_str()), (0, ""), "{out}");
+    assert!(
+        out.contains("- jlcpcb (verified: no): passes: yes"),
+        "{out}"
+    );
+    assert!(
+        out.contains("- pcbway (verified: no): passes: yes"),
+        "{out}"
+    );
+    assert!(out.contains("jlcpcb 1 | pcbway 1"), "{out}");
+    // what is not a profile, a list that is too short and a profile twice are refused
+    let (code, _, err) = call(&["check", "--dfm-compare", "jlcpcb,nobody", brd.as_str()]);
+    assert_eq!(code, 2);
+    assert!(err.contains("no profile is called nobody"), "{err}");
+    let (code, _, err) = call(&["check", "--dfm-compare", "jlcpcb", brd.as_str()]);
+    assert_eq!(code, 2);
+    assert!(err.contains("from 2 to 8 profiles"), "{err}");
+    let (code, _, err) = call(&["check", "--dfm-compare", "jlcpcb,,pcbway", brd.as_str()]);
+    assert_eq!(code, 2);
+    assert!(err.contains("from 2 to 8 profiles"), "{err}");
+    let (code, _, err) = call(&["check", "--dfm-compare", "jlcpcb,JLCPCB.cfg", brd.as_str()]);
+    assert_eq!(code, 2, "{err}");
+    let (code, _, err) = call(&["check", "--dfm-compare", "pcbway,pcbway", brd.as_str()]);
+    assert_eq!(code, 2);
+    assert!(err.contains("is given twice"), "{err}");
+    // it does not mix with the other ways to give the limits, and it is not for connectivity
+    let rules = f.write("r.json", RULES);
+    for other in [
+        ["--rules", rules.as_str()],
+        ["--dfm-profile", "jlcpcb"],
+        ["--csv", "x.csv"],
+    ] {
+        let (code, _, err) = call(&[
+            "check",
+            "--dfm-compare",
+            "jlcpcb,pcbway",
+            other[0],
+            other[1],
+            brd.as_str(),
+        ]);
+        assert_eq!(code, 2);
+        assert!(err.contains("cannot be given with"), "{err}");
+    }
+    let (code, _, err) = call(&["check", "--dfm-compare"]);
+    assert_eq!(code, 2, "{err}");
+}

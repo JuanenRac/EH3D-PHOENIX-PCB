@@ -74,6 +74,19 @@ All lengths are in nanometres (1 mm is 1000000). A line that is missing, or has 
 
 Every finding is an error and makes the exit code 1, except `PHOENIX-DFM-006`, which is information. The titles are in the eight languages (`--lang`) and the findings go in the same report as the others, with `--json`, `--sarif`, `--csv` and `--html` (the category `capability` in the tables, `docs/DRC_ADVANCED.md`).
 
+## Comparing the makers
+
+`phoenix check --dfm-compare LIST <board>` checks the same board with the profile of each maker and puts the results side by side. `LIST` is from 2 to 8 profiles separated by commas, each the name of a profile that comes with the program (`jlcpcb`, `pcbway`, `example`) or a profile file (an entry with a dot or a slash is a file, and its name without the folder is its label). Each profile is used as with `--dfm`: its limits replace the rules of the board and its own lines are judged, nothing else. The output has:
+
+* a line for each profile with whether its figures are verified, whether the board passes (no proven error) and the number of errors, warnings and information and of what could not be judged;
+* for each code that is found with any profile, how many times each profile finds it, with the title of the code in the language of `--lang`;
+* the codes that only some of the profiles find, with the profiles that do;
+* the profiles with the fewest errors.
+
+With `--json` the same is written as `phoenix-dfm-compare/1`: `any_passes`, `profiles` (`name`, `verified`, `passes`, `errors`, `warnings`, `information`, `inconclusive`), `codes` (each with its `counts` by profile), `only_on_some` and `fewest_errors`. The same board and profiles give the same bytes. The exit code is 0 when at least one profile accepts the board, 1 when none does and 2 when the input is unusable. It cannot be given with `--rules`, `--rules-dru`, `--dfm`, `--dfm-profile`, `--advanced`, `--sarif`, `--csv` or `--html`, and it belongs to `check`, not to `connectivity`.
+
+It compares figures, not makers: a profile that is not verified (`verified = false`, as the profiles that come with the program are) gives what its file says and not what the maker builds, so the comparison is no recommendation of a maker and no price. The library is `compare_profiles` of `eh3d-phoenix-rules`, which reads reports that were made already.
+
 ## What it does not do
 
 * It does not know any maker beyond the figures of the files. Capability is whatever the file says, and nothing checks the file against a maker or an order.

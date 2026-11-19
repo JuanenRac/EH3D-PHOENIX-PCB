@@ -9,14 +9,15 @@
 
 use std::collections::BTreeMap;
 use std::io::Write;
+use std::path::Path;
 use std::time::Instant;
 
 use eh3d_phoenix_eagle_board::{read_board_with_limits, read_schematic_with_limits};
 use eh3d_phoenix_model::{DeterministicRandom, IdGenerator, Nm, ObjectId, StepClock};
 use eh3d_phoenix_rules::{
     board_notes, builtin_names, builtin_profile, check_advanced, check_board, check_classes,
-    check_connectivity, dfm_findings, report_csv, report_html, to_sarif, AdvancedConfig,
-    DfmProfile, Lang, NetClasses, Report, RuleFile, RuleValues,
+    check_connectivity, compare_profiles, dfm_findings, report_csv, report_html, to_sarif,
+    AdvancedConfig, DfmProfile, Lang, NetClasses, ProfileRun, Report, RuleFile, RuleValues,
 };
 
 /// Said when a KiCad board is checked without a file of limits.
@@ -27,7 +28,7 @@ const KICAD_NEEDS_RULES: &str =
 const MAX_INPUT_BYTES: u64 = 256 * 1024 * 1024;
 
 pub(crate) const USAGE: &str = "\
-phoenix check [--rules FILE | --rules-dru FILE | --dfm FILE | --dfm-profile NAME] [--advanced] [--drc-config FILE] [--limits FILE] [--json | --sarif] [--csv FILE] [--html FILE] [--time] [--lang CODE] <board.brd>
+phoenix check [--rules FILE | --rules-dru FILE | --dfm FILE | --dfm-profile NAME | --dfm-compare LIST] [--advanced] [--drc-config FILE] [--limits FILE] [--json | --sarif] [--csv FILE] [--html FILE] [--time] [--lang CODE] <board.brd>
 
   check         run the design rules on an EAGLE board. The limits come from FILE (a JSON rule
                 file, format phoenix-rules/1 or phoenix-rules/2, which adds net classes with
@@ -57,6 +58,18 @@ phoenix connectivity [--rules FILE] [--limits FILE] [--json] [--csv FILE] [--htm
                 (the files config/dfm_jlcpcb.cfg, config/dfm_pcbway.cfg and config/dfm/example.cfg,
                 whose figures are public guiding numbers of the makers and stay unverified); it
                 cannot be given with --dfm, --rules or --rules-dru
+  --dfm-compare LIST
+                check the board against several capability profiles and compare them: LIST is
+                profiles separated by commas, each the name of a profile that comes with the
+                program or a profile file (a name with a dot or a slash is a file). It prints, for
+                each profile, the errors, warnings and information and whether the board passes,
+                then how often each code is found with each profile, the codes only some profiles
+                find and the profiles with the fewest errors (--json: phoenix-dfm-compare/1). The
+                figures of a profile are what its file says (verified = false for those that come
+                with the program), so the comparison is no recommendation of a maker. Exit code 0
+                when at least one profile accepts the board, 1 when none does, 2 for unusable
+                input. It cannot be given with --rules, --rules-dru, --dfm, --dfm-profile,
+                --advanced, --sarif, --csv or --html
   --limits FILE the limits of the reader of the EAGLE files (config/eagle_board.cfg), of the
                 checks of a board (config/board.cfg) and the cut of the arcs of the outline
                 (config/outline_arcs.cfg), as for every command; without it the defaults
@@ -79,6 +92,7 @@ struct Options {
     drc_config: Option<String>,
     dfm: Option<String>,
     dfm_profile: Option<String>,
+    dfm_compare: Option<String>,
     csv: Option<String>,
     html: Option<String>,
     lang: Lang,
@@ -96,6 +110,7 @@ fn parse_options(args: &[&str]) -> Result<Options, String> {
         drc_config: None,
         dfm: None,
         dfm_profile: None,
+        dfm_compare: None,
         csv: None,
         html: None,
         lang: Lang::En,
@@ -124,6 +139,12 @@ fn parse_options(args: &[&str]) -> Result<Options, String> {
                     .next()
                     .ok_or("--dfm-profile needs the name of a profile")?;
                 options.dfm_profile = Some((*name).to_owned());
+            }
+            "--dfm-compare" => {
+                let list = iter
+                    .next()
+                    .ok_or("--dfm-compare needs a list of profiles separated by commas")?;
+                options.dfm_compare = Some((*list).to_owned());
             }
             "--csv" => {
                 let path = iter.next().ok_or("--csv needs a file to write")?;
@@ -271,6 +292,9 @@ pub(crate) fn check(args: &[&str], out: &mut dyn Write, err: &mut dyn Write) -> 
             Err(message) => return fail(err, &message),
         }
     };
+    if let Some(list) = &options.dfm_compare {
+        return compare_dfm(list, &options, board_path, kicad, &text, out, err);
+    }
     if options.dfm.is_some() && options.dfm_profile.is_some() {
         return fail(err, "give --dfm or --dfm-profile, only one of them");
     }
@@ -399,6 +423,111 @@ pub(crate) fn check(args: &[&str], out: &mut dyn Write, err: &mut dyn Write) -> 
     finish(&report, &options, started, out, err)
 }
 
+/// The profile that one entry of `--dfm-compare` names: a profile that comes with the program, or
+/// a profile file when the entry has a dot or a slash. The label is the name of the profile as it
+/// was written, or the name of the file without its folder.
+fn read_profile(entry: &str) -> Result<(String, DfmProfile), String> {
+    if entry.contains(['.', '/', '\\']) {
+        let text = read_text(entry)?;
+        let profile = DfmProfile::parse(&text).map_err(|e| format!("{entry}: {e}"))?;
+        let label = Path::new(entry).file_name().map_or_else(
+            || entry.to_owned(),
+            |name| name.to_string_lossy().into_owned(),
+        );
+        return Ok((label, profile));
+    }
+    let Some(text) = builtin_profile(entry) else {
+        return Err(format!(
+            "no profile is called {entry} (the profiles that come with the program: {})",
+            builtin_names()
+        ));
+    };
+    let profile = DfmProfile::parse(text).map_err(|e| format!("{entry}: {e}"))?;
+    Ok((entry.to_owned(), profile))
+}
+
+/// `--dfm-compare`: the same board checked with the limits of each profile and the results put
+/// side by side. The profile gives the limits of the usual rule check and its own lines, as with
+/// `--dfm`; nothing else is judged.
+fn compare_dfm(
+    list: &str,
+    options: &Options,
+    board_path: &str,
+    kicad: bool,
+    text: &str,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+) -> i32 {
+    if options.dfm.is_some()
+        || options.dfm_profile.is_some()
+        || options.rules.is_some()
+        || options.rules_dru.is_some()
+        || options.advanced
+        || options.sarif
+        || options.csv.is_some()
+        || options.html.is_some()
+    {
+        return fail(
+            err,
+            "--dfm-compare cannot be given with --rules, --rules-dru, --dfm, --dfm-profile, --advanced, --sarif, --csv or --html",
+        );
+    }
+    let entries: Vec<&str> = list.split(',').map(str::trim).collect();
+    if entries.iter().any(|e| e.is_empty()) || entries.len() < 2 || entries.len() > 8 {
+        return fail(
+            err,
+            "--dfm-compare needs from 2 to 8 profiles separated by commas",
+        );
+    }
+    let mut profiles: Vec<(String, DfmProfile)> = Vec::new();
+    for entry in &entries {
+        match read_profile(entry) {
+            Ok((label, profile)) => {
+                if profiles.iter().any(|(known, _)| *known == label) {
+                    return fail(err, &format!("the profile {label} is given twice"));
+                }
+                profiles.push((label, profile));
+            }
+            Err(message) => return fail(err, &message),
+        }
+    }
+    let mut new_id = match id_source() {
+        Ok(source) => source,
+        Err(message) => return fail(err, &message),
+    };
+    let board = if kicad {
+        match crate::kicad_import::read_kicad_board(board_path, &mut new_id) {
+            Ok(board) => board,
+            Err(message) => return fail(err, &message),
+        }
+    } else {
+        match read_board_with_limits(text, &mut new_id, &crate::limits::active().eagle) {
+            Ok(read) => read.board,
+            Err(diagnostic) => return fail(err, &diagnostic.message),
+        }
+    };
+    let runs: Vec<ProfileRun> = profiles
+        .iter()
+        .map(|(label, profile)| {
+            let mut report = check_board(&board, &profile.rules);
+            report.merge(dfm_findings(&board, profile));
+            ProfileRun {
+                label: label.clone(),
+                verified: profile.verified,
+                report,
+            }
+        })
+        .collect();
+    let comparison = compare_profiles(&runs);
+    let shown = if options.json {
+        comparison.to_json()
+    } else {
+        comparison.to_text(options.lang)
+    };
+    let _ = out.write_all(shown.as_bytes());
+    i32::from(!comparison.any_passes())
+}
+
 pub(crate) fn connectivity(args: &[&str], out: &mut dyn Write, err: &mut dyn Write) -> i32 {
     let options = match parse_options(args) {
         Ok(options) => options,
@@ -408,10 +537,10 @@ pub(crate) fn connectivity(args: &[&str], out: &mut dyn Write, err: &mut dyn Wri
         }
     };
     let started = Instant::now();
-    if options.dfm.is_some() || options.dfm_profile.is_some() {
+    if options.dfm.is_some() || options.dfm_profile.is_some() || options.dfm_compare.is_some() {
         return fail(
             err,
-            "--dfm and --dfm-profile belong to the command check, not to connectivity",
+            "--dfm, --dfm-profile and --dfm-compare belong to the command check, not to connectivity",
         );
     }
     if options.advanced {

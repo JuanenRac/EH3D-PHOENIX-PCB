@@ -938,11 +938,7 @@ fn a_broken_kicad_netlist_is_refused_with_its_code_and_line() {
     let file = write_text(
         dir.path(),
         "bad.net",
-        "(export
- (nets
-  (net (code 1)
-   (node (ref R1) (pin 1)))))
-",
+        "(export\n (nets\n  (net (code 1)\n   (node (ref R1) (pin 1)))))\n",
     );
     let (code, _, err) = command(&["nets", "--import", &file]);
     assert_eq!(code, 2);
