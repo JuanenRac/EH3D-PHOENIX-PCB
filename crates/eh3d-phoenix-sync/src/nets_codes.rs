@@ -41,6 +41,14 @@ pub const NET_SINGLE_PIN: &str = "PHOENIX-NETS-017";
 pub const NET_NAMES_ALIKE: &str = "PHOENIX-NETS-018";
 /// A net has no pin.
 pub const NET_EMPTY: &str = "PHOENIX-NETS-019";
+/// A net has more pins than `lint_max_pins` of the settings.
+pub const NET_MANY_PINS: &str = "PHOENIX-NETS-020";
+/// A part has all its pins on one net.
+pub const PART_ON_ONE_NET: &str = "PHOENIX-NETS-021";
+/// A net has a name that a program made, not the designer.
+pub const NET_NAME_GENERATED: &str = "PHOENIX-NETS-022";
+/// A net of two pins or more joins pins of one part only.
+pub const NET_ONE_PART: &str = "PHOENIX-NETS-023";
 
 /// Code, then the title in English, Spanish, German, French, Italian, Japanese, Chinese and
 /// European Portuguese.
@@ -290,6 +298,58 @@ pub const TITLES: &[(&str, [&str; 8])] = &[
             "ネットにピンがありません",
             "该网络没有引脚",
             "A rede não tem nenhum pino",
+        ],
+    ),
+    (
+        NET_MANY_PINS,
+        [
+            "Net has more pins than the limit of the lint",
+            "La red tiene más pines que el límite del análisis",
+            "Das Netz hat mehr Pins als die Grenze der Prüfung",
+            "Le réseau a plus de broches que la limite du contrôle",
+            "La rete ha più pin del limite del controllo",
+            "ネットのピン数がチェックの上限を超えています",
+            "该网络的引脚数超过了检查的上限",
+            "A rede tem mais pinos do que o limite da verificação",
+        ],
+    ),
+    (
+        PART_ON_ONE_NET,
+        [
+            "Part has all its pins on one net",
+            "La pieza tiene todos sus pines en una sola red",
+            "Das Bauteil hat alle Pins an einem Netz",
+            "La pièce a toutes ses broches sur un seul réseau",
+            "Il componente ha tutti i pin su una sola rete",
+            "部品のすべてのピンが1つのネットにあります",
+            "元件的所有引脚都在同一个网络上",
+            "A peça tem todos os pinos numa só rede",
+        ],
+    ),
+    (
+        NET_NAME_GENERATED,
+        [
+            "Net has a name made by the program",
+            "La red tiene un nombre generado por el programa",
+            "Das Netz hat einen vom Programm erzeugten Namen",
+            "Le réseau porte un nom généré par le programme",
+            "La rete ha un nome generato dal programma",
+            "ネット名がプログラムによる自動生成です",
+            "该网络的名称是由程序自动生成的",
+            "A rede tem um nome gerado pelo programa",
+        ],
+    ),
+    (
+        NET_ONE_PART,
+        [
+            "Net joins pins of one part only",
+            "La red solo une pines de una pieza",
+            "Das Netz verbindet nur Pins eines Bauteils",
+            "Le réseau ne relie que des broches d'une seule pièce",
+            "La rete collega solo pin di un componente",
+            "ネットが1つの部品のピンだけをつないでいます",
+            "该网络只连接同一个元件的引脚",
+            "A rede liga apenas pinos de uma peça",
         ],
     ),
 ];

@@ -97,10 +97,25 @@ pub struct NetsSettings {
     /// Nets that a comparison and the lint leave out (any case); a name that ends in `*`
     /// matches every net that starts with the rest.
     pub ignore_nets: Vec<String>,
+    /// Parts that a comparison and the lint leave out, with their pins (any case, `*` for any run
+    /// of characters, as in [`pattern_matches`]): the test points and fiducials that a board has
+    /// and a schematic has not. A net that has no pin left because of them is left out too.
+    pub ignore_parts: Vec<String>,
     /// Whether a cell of a CSV file that starts with `=`, `+`, `-`, `@`, a tab or a carriage
     /// return gets a single quote in front of it, so that a spreadsheet does not take a net
     /// called `+5V` for a formula.
     pub csv_guard_formulas: bool,
+    /// The most pins a net may have before the lint reports it (`PHOENIX-NETS-020`); 0 does not
+    /// judge it.
+    pub lint_max_pins: usize,
+    /// Whether the lint reports the parts with two pins or more that are all on one net
+    /// (`PHOENIX-NETS-021`).
+    pub lint_part_on_one_net: bool,
+    /// Whether the lint reports the nets whose name a program made (`PHOENIX-NETS-022`).
+    pub lint_generated_names: bool,
+    /// Whether the lint reports the nets of two pins or more that all belong to one part
+    /// (`PHOENIX-NETS-023`).
+    pub lint_one_part_nets: bool,
 }
 
 impl Default for NetsSettings {
@@ -113,8 +128,26 @@ impl Default for NetsSettings {
             max_name_len: 128,
             max_differences: 1000,
             ignore_nets: Vec::new(),
+            ignore_parts: Vec::new(),
             csv_guard_formulas: true,
+            lint_max_pins: 0,
+            lint_part_on_one_net: false,
+            lint_generated_names: false,
+            lint_one_part_nets: false,
         }
+    }
+}
+
+/// Reads `true` or `false` for a setting.
+fn flag(key: &str, value: &str, line: usize) -> Result<bool, NetsError> {
+    match value {
+        "true" => Ok(true),
+        "false" => Ok(false),
+        _ => Err(NetsError::at(
+            codes::SETTINGS_INVALID,
+            line,
+            format!("{key} is true or false"),
+        )),
     }
 }
 
@@ -151,12 +184,18 @@ impl NetsSettings {
                 "max_pins" => s.max_pins = number(1, 100_000_000)? as usize,
                 "max_name_len" => s.max_name_len = number(1, 1024)? as usize,
                 "max_differences" => s.max_differences = number(1, 10_000_000)? as usize,
-                "csv_guard_formulas" => {
-                    s.csv_guard_formulas = match value {
-                        "true" => true,
-                        "false" => false,
-                        _ => return Err(bad("csv_guard_formulas is true or false".to_owned())),
-                    }
+                "csv_guard_formulas" => s.csv_guard_formulas = flag(key, value, line)?,
+                "lint_max_pins" => s.lint_max_pins = number(0, 10_000_000)? as usize,
+                "lint_part_on_one_net" => s.lint_part_on_one_net = flag(key, value, line)?,
+                "lint_generated_names" => s.lint_generated_names = flag(key, value, line)?,
+                "lint_one_part_nets" => s.lint_one_part_nets = flag(key, value, line)?,
+                "ignore_parts" => {
+                    s.ignore_parts = value
+                        .split(',')
+                        .map(str::trim)
+                        .filter(|w| !w.is_empty())
+                        .map(str::to_owned)
+                        .collect();
                 }
                 "ignore_nets" => {
                     s.ignore_nets = value
@@ -182,6 +221,11 @@ impl NetsSettings {
                 None => net == pattern,
             }
         })
+    }
+
+    /// Whether a part is one that a comparison and the lint leave out (see [`pattern_matches`]).
+    pub fn ignores_part(&self, part: &str) -> bool {
+        self.ignore_parts.iter().any(|p| pattern_matches(p, part))
     }
 }
 
@@ -296,16 +340,25 @@ impl NetTable {
         owners
     }
 
-    /// The table without the nets that the settings ignore.
+    /// The table without the nets that the settings ignore and without the pins of the parts that
+    /// they ignore; a net that had pins and has none left is left out, and a net that had none
+    /// stays.
     fn without_ignored(&self, settings: &NetsSettings) -> NetTable {
-        NetTable {
-            nets: self
-                .nets
+        let mut nets = BTreeMap::new();
+        for (name, pins) in &self.nets {
+            if settings.ignores(name) {
+                continue;
+            }
+            let kept: BTreeSet<Pin> = pins
                 .iter()
-                .filter(|(name, _)| !settings.ignores(name))
-                .map(|(name, pins)| (name.clone(), pins.clone()))
-                .collect(),
+                .filter(|pin| !settings.ignores_part(&pin.part))
+                .cloned()
+                .collect();
+            if !kept.is_empty() || pins.is_empty() {
+                nets.insert(name.clone(), kept);
+            }
         }
+        NetTable { nets }
     }
 }
 
@@ -700,11 +753,13 @@ pub fn compare(file: &NetTable, board: &NetTable, settings: &NetsSettings) -> Co
 /// One finding of the lint.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LintFinding {
-    /// The code (`PHOENIX-NETS-017` to `PHOENIX-NETS-019`).
+    /// The code (`PHOENIX-NETS-017` to `PHOENIX-NETS-023`).
     pub code: &'static str,
     /// The net: the first of the nets for the names that are alike.
     pub net: String,
-    /// The other nets with a name alike, joined by a comma and a blank.
+    /// The other nets with a name alike, joined by a comma and a blank; for `PHOENIX-NETS-020`
+    /// the number of pins, for `PHOENIX-NETS-021` the parts of the net and for `PHOENIX-NETS-023`
+    /// the part.
     pub other: Option<String>,
 }
 
@@ -726,17 +781,78 @@ fn alike_key(name: &str) -> String {
         .collect()
 }
 
+/// Whether a net name is one that a program makes when the designer gives none: `N$12` (EAGLE),
+/// `Net-(R1-Pad1)` and `unconnected-(U1-Pad3)` (KiCad, with or without the `/` of the root sheet)
+/// and `$1N1234` (OrCAD), in any case.
+pub fn generated_name(name: &str) -> bool {
+    let lower = name.strip_prefix('/').unwrap_or(name).to_lowercase();
+    if lower.starts_with("net-(") || lower.starts_with("unconnected-(") {
+        return true;
+    }
+    let digits_only = |text: &str| !text.is_empty() && text.chars().all(|c| c.is_ascii_digit());
+    if let Some(rest) = lower.strip_prefix("n$") {
+        return digits_only(rest);
+    }
+    if let Some(rest) = lower.strip_prefix('$') {
+        let count = rest.chars().take_while(char::is_ascii_digit).count();
+        return count > 0 && rest[count..].strip_prefix('n').is_some_and(digits_only);
+    }
+    false
+}
+
+/// The nets that hold parts with two pins or more that are all on that one net, one finding for
+/// each net in natural order, with the parts in natural order in `other`. A net that the settings
+/// ignore is left out.
+fn parts_on_one_net(table: &NetTable, settings: &NetsSettings) -> Vec<LintFinding> {
+    let mut pin_counts: BTreeMap<&str, usize> = BTreeMap::new();
+    let mut nets_of: BTreeMap<&str, BTreeSet<&str>> = BTreeMap::new();
+    for (name, pins) in &table.nets {
+        for pin in pins {
+            *pin_counts.entry(pin.part.as_str()).or_default() += 1;
+            nets_of
+                .entry(pin.part.as_str())
+                .or_default()
+                .insert(name.as_str());
+        }
+    }
+    let mut by_net: BTreeMap<&str, Vec<&str>> = BTreeMap::new();
+    for (part, count) in &pin_counts {
+        let only = nets_of.get(part).filter(|nets| nets.len() == 1);
+        if let (true, Some(net)) = (*count >= 2, only.and_then(|nets| nets.iter().next())) {
+            if !settings.ignores(net) {
+                by_net.entry(net).or_default().push(part);
+            }
+        }
+    }
+    let mut ordered: Vec<(&str, Vec<&str>)> = by_net.into_iter().collect();
+    ordered.sort_by(|a, b| natural_cmp(a.0, b.0));
+    ordered
+        .into_iter()
+        .map(|(net, mut parts)| {
+            parts.sort_by(|a, b| natural_cmp(a, b));
+            LintFinding {
+                code: codes::PART_ON_ONE_NET,
+                net: net.to_owned(),
+                other: Some(parts.join(", ")),
+            }
+        })
+        .collect()
+}
+
 /// Looks for nets that are probably a mistake: a net with one pin (an unconnected input, or a
 /// misspelt name that split a net in two), a net with no pin and nets whose names differ only in
 /// case or in the separators (`GND` and `Gnd`, `VCC_3V3` and `VCC-3V3`). The nets that the settings
-/// ignore are left out.
+/// ignore are left out. Three more findings are asked for by the settings: a net with more pins
+/// than `lint_max_pins` (the finding holds the number of pins in `other`), the parts whose pins are
+/// all on one net (`lint_part_on_one_net`, one finding for each net, naming the parts in `other`),
+/// the nets with a name that a program made (`lint_generated_names`) and the nets of two pins or
+/// more that all belong to one part (`lint_one_part_nets`, naming the part in `other`). The pins
+/// of the parts that `ignore_parts` names are not looked at.
 pub fn lint(table: &NetTable, settings: &NetsSettings) -> LintResult {
+    let table = &table.without_ignored(settings);
     let mut found: Vec<LintFinding> = Vec::new();
     let mut groups: BTreeMap<String, Vec<&String>> = BTreeMap::new();
     for (name, pins) in table.ordered() {
-        if settings.ignores(name) {
-            continue;
-        }
         let code = match pins.len() {
             0 => Some(codes::NET_EMPTY),
             1 => Some(codes::NET_SINGLE_PIN),
@@ -749,7 +865,35 @@ pub fn lint(table: &NetTable, settings: &NetsSettings) -> LintResult {
                 other: None,
             });
         }
+        if settings.lint_max_pins > 0 && pins.len() > settings.lint_max_pins {
+            found.push(LintFinding {
+                code: codes::NET_MANY_PINS,
+                net: name.clone(),
+                other: Some(pins.len().to_string()),
+            });
+        }
+        if settings.lint_generated_names && generated_name(name) {
+            found.push(LintFinding {
+                code: codes::NET_NAME_GENERATED,
+                net: name.clone(),
+                other: None,
+            });
+        }
+        if settings.lint_one_part_nets && pins.len() >= 2 {
+            if let Some(first) = pins.iter().next() {
+                if pins.iter().all(|pin| pin.part == first.part) {
+                    found.push(LintFinding {
+                        code: codes::NET_ONE_PART,
+                        net: name.clone(),
+                        other: Some(first.part.clone()),
+                    });
+                }
+            }
+        }
         groups.entry(alike_key(name)).or_default().push(name);
+    }
+    if settings.lint_part_on_one_net {
+        found.extend(parts_on_one_net(table, settings));
     }
     for names in groups.values() {
         if let Some((first, rest)) = names.split_first() {
@@ -769,6 +913,114 @@ pub fn lint(table: &NetTable, settings: &NetsSettings) -> LintResult {
         findings: found,
         total,
     }
+}
+
+// ---------------------------------------------------------------------------------------------
+// the summary, the filter and the pins of a part
+// ---------------------------------------------------------------------------------------------
+
+/// The size of a netlist: how many nets, parts and pins, how many nets have none, one or two pins,
+/// and the nets with the most pins.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Summary {
+    /// The number of nets.
+    pub nets: usize,
+    /// The number of pins.
+    pub pins: usize,
+    /// The number of different parts.
+    pub parts: usize,
+    /// The nets with no pin.
+    pub empty: usize,
+    /// The nets with one pin.
+    pub single_pin: usize,
+    /// The nets with two pins.
+    pub two_pin: usize,
+    /// The nets with the most pins, as `(name, pins)`: the most pins first, and the natural order
+    /// of the names among nets with as many.
+    pub largest: Vec<(String, usize)>,
+}
+
+/// Counts a table and lists its `top` largest nets.
+pub fn summary(table: &NetTable, top: usize) -> Summary {
+    let mut parts: BTreeSet<&str> = BTreeSet::new();
+    let mut sizes: Vec<(&String, usize)> = Vec::with_capacity(table.nets.len());
+    for (name, pins) in &table.nets {
+        parts.extend(pins.iter().map(|pin| pin.part.as_str()));
+        sizes.push((name, pins.len()));
+    }
+    let with = |count: usize| sizes.iter().filter(|(_, n)| *n == count).count();
+    let (empty, single_pin, two_pin) = (with(0), with(1), with(2));
+    sizes.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| natural_cmp(a.0, b.0)));
+    Summary {
+        nets: table.nets.len(),
+        pins: table.pin_count(),
+        parts: parts.len(),
+        empty,
+        single_pin,
+        two_pin,
+        largest: sizes
+            .into_iter()
+            .take(top)
+            .map(|(name, n)| (name.clone(), n))
+            .collect(),
+    }
+}
+
+/// Whether a name matches a pattern: any case, and `*` stands for any run of characters (also an
+/// empty one) anywhere in the pattern.
+pub fn pattern_matches(pattern: &str, name: &str) -> bool {
+    let p: Vec<char> = pattern.to_lowercase().chars().collect();
+    let t: Vec<char> = name.to_lowercase().chars().collect();
+    let (mut pi, mut ti) = (0usize, 0usize);
+    let (mut star, mut mark): (Option<usize>, usize) = (None, 0);
+    while ti < t.len() {
+        if pi < p.len() && p[pi] == '*' {
+            star = Some(pi);
+            mark = ti;
+            pi += 1;
+        } else if pi < p.len() && p[pi] == t[ti] {
+            pi += 1;
+            ti += 1;
+        } else if let Some(s) = star {
+            pi = s + 1;
+            mark += 1;
+            ti = mark;
+        } else {
+            return false;
+        }
+    }
+    p[pi..].iter().all(|c| *c == '*')
+}
+
+/// The table with only the nets whose name matches one of the patterns, separated by commas (see
+/// [`pattern_matches`]); an empty list of patterns keeps no net.
+pub fn filter_nets(table: &NetTable, patterns: &str) -> NetTable {
+    let patterns: Vec<&str> = patterns
+        .split(',')
+        .map(str::trim)
+        .filter(|p| !p.is_empty())
+        .collect();
+    NetTable {
+        nets: table
+            .nets
+            .iter()
+            .filter(|(name, _)| patterns.iter().any(|p| pattern_matches(p, name)))
+            .map(|(name, pins)| (name.clone(), pins.clone()))
+            .collect(),
+    }
+}
+
+/// The pins of one part (its reference exactly as written, case included) with the net each is
+/// on and how many pins that net has, in natural order of the pins.
+pub fn pins_of_part(table: &NetTable, part: &str) -> Vec<(Pin, String, usize)> {
+    let mut found: Vec<(Pin, String, usize)> = Vec::new();
+    for (name, pins) in &table.nets {
+        for pin in pins.iter().filter(|pin| pin.part == part) {
+            found.push((pin.clone(), name.clone(), pins.len()));
+        }
+    }
+    found.sort_by(|a, b| a.0.cmp(&b.0));
+    found
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -1299,5 +1551,496 @@ mod tests {
             "PHOENIX-NETS-009: No se pudo escribir el fichero de salida de la lista de redes"
         );
         assert_eq!(shown(&"x".repeat(50)).chars().count(), SHOWN + 3);
+    }
+
+    fn findings(
+        text: &str,
+        settings: &NetsSettings,
+    ) -> Vec<(&'static str, String, Option<String>)> {
+        lint(&table(text), settings)
+            .findings
+            .into_iter()
+            .map(|f| (f.code, f.net, f.other))
+            .collect()
+    }
+
+    #[test]
+    fn a_net_with_more_pins_than_the_limit_is_found_with_its_pin_count() {
+        let text = "NET BIG R1.1 R2.1 R3.1 R4.1\nNET SMALL R1.2 R2.2\n";
+        assert!(findings(text, &settings()).is_empty());
+        let s = NetsSettings::parse("lint_max_pins = 3").unwrap();
+        assert_eq!(
+            findings(text, &s),
+            vec![(codes::NET_MANY_PINS, "BIG".to_owned(), Some("4".to_owned()))]
+        );
+        // a net at the limit is allowed, and an ignored net is not judged
+        let s = NetsSettings::parse("lint_max_pins = 4").unwrap();
+        assert!(findings(text, &s).is_empty());
+        let s = NetsSettings::parse("lint_max_pins = 1\nignore_nets = big").unwrap();
+        assert_eq!(findings(text, &s).len(), 1);
+    }
+
+    #[test]
+    fn the_parts_with_all_their_pins_on_one_net_are_found_for_each_net() {
+        let text =
+            "NET GND R1.2 R2.2 R3.1 R3.2 U1.1\nNET SIG R1.1 R2.1 U1.2 U2.1 U2.2\nNET LONE J1.1\n";
+        assert!(findings(text, &settings())
+            .iter()
+            .all(|f| f.0 != codes::PART_ON_ONE_NET));
+        let s = NetsSettings::parse("lint_part_on_one_net = true").unwrap();
+        let found: Vec<_> = findings(text, &s)
+            .into_iter()
+            .filter(|f| f.0 == codes::PART_ON_ONE_NET)
+            .collect();
+        assert_eq!(
+            found,
+            vec![
+                (
+                    codes::PART_ON_ONE_NET,
+                    "GND".to_owned(),
+                    Some("R3".to_owned())
+                ),
+                (
+                    codes::PART_ON_ONE_NET,
+                    "SIG".to_owned(),
+                    Some("U2".to_owned())
+                ),
+            ]
+        );
+        // a part with one pin (J1) is not a part on one net, and an ignored net is left out
+        let s = NetsSettings::parse("lint_part_on_one_net = true\nignore_nets = gnd").unwrap();
+        let found = findings(text, &s);
+        assert!(found.iter().all(|f| f.1 != "GND"));
+        assert!(found.iter().any(|f| f.1 == "SIG"));
+    }
+
+    #[test]
+    fn two_parts_on_the_same_net_are_one_finding_in_natural_order() {
+        let text = "NET GND C10.1 C10.2 C2.1 C2.2 R1.1\nNET A R1.2 C3.1\nNET B C3.2\n";
+        let s = NetsSettings::parse("lint_part_on_one_net = true").unwrap();
+        let found: Vec<_> = findings(text, &s)
+            .into_iter()
+            .filter(|f| f.0 == codes::PART_ON_ONE_NET)
+            .collect();
+        assert_eq!(found.len(), 1);
+        assert_eq!(found[0].2.as_deref(), Some("C2, C10"));
+    }
+
+    #[test]
+    fn the_names_that_a_program_makes_are_known_and_a_name_of_the_designer_is_not() {
+        for name in [
+            "N$1",
+            "n$123",
+            "Net-(R1-Pad1)",
+            "/Net-(U1-Pad2)",
+            "unconnected-(U3-Pad4)",
+            "$1N1234",
+            "$25N7",
+        ] {
+            assert!(generated_name(name), "{name}");
+        }
+        for name in [
+            "", "GND", "N$", "N$1A", "N1", "Netted", "$N12", "$1N", "$1X5", "SIG_N$1", "VCC",
+        ] {
+            assert!(!generated_name(name), "{name}");
+        }
+        let text = "NET N$7 R1.1 R2.1\nNET GND R1.2 R2.2\n";
+        assert!(findings(text, &settings()).is_empty());
+        let s = NetsSettings::parse("lint_generated_names = true").unwrap();
+        assert_eq!(
+            findings(text, &s),
+            vec![(codes::NET_NAME_GENERATED, "N$7".to_owned(), None)]
+        );
+    }
+
+    #[test]
+    fn the_settings_of_the_lint_are_read_and_refused_out_of_their_range() {
+        let s = NetsSettings::default();
+        assert_eq!(s.lint_max_pins, 0);
+        assert!(!s.lint_part_on_one_net && !s.lint_generated_names);
+        let s = NetsSettings::parse(
+            "lint_max_pins = 250\nlint_part_on_one_net = true\nlint_generated_names = true",
+        )
+        .unwrap();
+        assert_eq!(s.lint_max_pins, 250);
+        assert!(s.lint_part_on_one_net && s.lint_generated_names);
+        for bad in [
+            "lint_max_pins = -1",
+            "lint_max_pins = 10000001",
+            "lint_max_pins = many",
+            "lint_part_on_one_net = 1",
+            "lint_generated_names = yes",
+        ] {
+            let e = NetsSettings::parse(bad).unwrap_err();
+            assert_eq!((e.code, e.line), (codes::SETTINGS_INVALID, 1), "{bad}");
+        }
+    }
+
+    #[test]
+    fn the_summary_counts_the_nets_by_size_and_lists_the_largest_first() {
+        let t = table("NET A R1.1 R2.1 R3.1\nNET B R1.2 R2.2\nNET C R3.2 U1.1\nNET D U1.2\nNET E\nNET F R4.1 R4.2 R4.3\n");
+        let s = summary(&t, 3);
+        assert_eq!((s.nets, s.pins, s.parts), (6, 11, 5));
+        assert_eq!((s.empty, s.single_pin, s.two_pin), (1, 1, 2));
+        assert_eq!(
+            s.largest,
+            vec![
+                ("A".to_owned(), 3),
+                ("F".to_owned(), 3),
+                ("B".to_owned(), 2)
+            ]
+        );
+        assert_eq!(summary(&t, 0).largest, Vec::new());
+        assert_eq!(summary(&t, 100).largest.len(), 6);
+        let none = summary(&NetTable::default(), 5);
+        assert_eq!((none.nets, none.pins, none.parts), (0, 0, 0));
+        assert!(none.largest.is_empty());
+    }
+
+    #[test]
+    fn a_pattern_matches_in_any_case_with_stars_anywhere() {
+        for (pattern, name, expected) in [
+            ("GND", "gnd", true),
+            ("GND", "GND1", false),
+            ("gnd*", "GND_ANALOG", true),
+            ("*3v3", "VCC_3V3", true),
+            ("*3v3", "VCC_3V3X", false),
+            ("v*_3v3", "VCC_3V3", true),
+            ("v*_3v3", "V_3V3", true),
+            ("*", "", true),
+            ("*", "anything", true),
+            ("", "", true),
+            ("", "a", false),
+            ("a*b*c", "aXbYc", true),
+            ("a*b*c", "aXbY", false),
+            ("**x", "x", true),
+            ("a*a*a", "aaa", true),
+            ("a*a*a", "aa", false),
+        ] {
+            assert_eq!(pattern_matches(pattern, name), expected, "{pattern} {name}");
+        }
+    }
+
+    #[test]
+    fn the_filter_keeps_the_nets_that_match_one_of_the_patterns() {
+        let t = table("NET GND R1.1\nNET GND_A R2.1\nNET VCC_3V3 R3.1\nNET SIG R4.1\n");
+        let names = |patterns: &str| -> Vec<String> {
+            filter_nets(&t, patterns).nets.keys().cloned().collect()
+        };
+        assert_eq!(names("gnd*"), vec!["GND", "GND_A"]);
+        assert_eq!(names("GND, *3v3"), vec!["GND", "VCC_3V3"]);
+        assert_eq!(names("sig"), vec!["SIG"]);
+        assert!(names("").is_empty());
+        assert!(names(" , ").is_empty());
+        assert!(names("nothing*").is_empty());
+        assert_eq!(names("*").len(), 4);
+        // the pins of a kept net are all there
+        assert_eq!(filter_nets(&t, "gnd").pin_count(), 1);
+    }
+
+    #[test]
+    fn the_pins_of_a_part_come_with_their_net_in_natural_order() {
+        let t = table("NET GND U1.1 U1.10 U1.2 R1.2 R2.2\nNET SIG U1.3 R1.1 R2.1\nNET U11 U11.1\n");
+        let pins = pins_of_part(&t, "U1");
+        let shown: Vec<String> = pins
+            .iter()
+            .map(|(p, n, c)| format!("{p} {n} {c}"))
+            .collect();
+        assert_eq!(
+            shown,
+            vec!["U1.1 GND 5", "U1.2 GND 5", "U1.3 SIG 3", "U1.10 GND 5"]
+        );
+        assert!(pins_of_part(&t, "u1").is_empty());
+        assert!(pins_of_part(&t, "X9").is_empty());
+        assert_eq!(pins_of_part(&t, "U11").len(), 1);
+    }
+
+    #[test]
+    fn a_net_that_joins_pins_of_one_part_only_is_found_when_asked() {
+        let text = "NET LOOP U1.1 U1.2\nNET OK U1.3 R1.1\nNET ONE U2.1\nNET VOID\nNET BIG U3.1 U3.2 U3.3\n";
+        let found = |s: &NetsSettings| -> Vec<(String, Option<String>)> {
+            findings(text, s)
+                .into_iter()
+                .filter(|f| f.0 == codes::NET_ONE_PART)
+                .map(|f| (f.1, f.2))
+                .collect()
+        };
+        assert!(found(&settings()).is_empty());
+        let s = NetsSettings::parse("lint_one_part_nets = true").unwrap();
+        assert_eq!(
+            found(&s),
+            vec![
+                ("BIG".to_owned(), Some("U3".to_owned())),
+                ("LOOP".to_owned(), Some("U1".to_owned())),
+            ]
+        );
+        // a net of one pin is not a loop of a part, and an ignored net is not judged
+        let s = NetsSettings::parse("lint_one_part_nets = true\nignore_nets = big").unwrap();
+        assert_eq!(found(&s).len(), 1);
+        assert!(NetsSettings::parse("lint_one_part_nets = maybe").is_err());
+    }
+
+    #[test]
+    fn the_parts_that_are_ignored_leave_the_lint_with_their_pins() {
+        let text = "NET SIG R1.1 TP1.1\nNET GND R1.2 R2.1\nNET TPONLY TP2.1 TP3.1\nNET VOID\n";
+        let s = settings();
+        let none = findings(text, &s);
+        assert_eq!(none.len(), 1, "{none:?}");
+        assert_eq!(none[0].0, codes::NET_EMPTY);
+        let s = NetsSettings::parse("ignore_parts = tp*").unwrap();
+        let found = findings(text, &s);
+        // SIG has one pin left, TPONLY has none left and is not judged, VOID had none to begin with
+        assert_eq!(
+            found,
+            vec![
+                (codes::NET_SINGLE_PIN, "SIG".to_owned(), None),
+                (codes::NET_EMPTY, "VOID".to_owned(), None),
+            ]
+        );
+    }
+
+    #[test]
+    fn a_comparison_leaves_out_the_parts_that_are_ignored_on_both_sides() {
+        let file = table("NET SIG R1.1\nNET GND R1.2\n");
+        let board = table("NET SIG R1.1 TP1.1\nNET GND R1.2\nNET TPNET TP2.1 FID1.1\n");
+        let plain = compare(&file, &board, &settings());
+        assert!(plain.total >= 2, "{:?}", plain.differences);
+        let s = NetsSettings::parse("ignore_parts = TP*, fid*").unwrap();
+        let same = compare(&file, &board, &s);
+        assert_eq!((same.total, same.differences.len()), (0, 0));
+        // the other way round
+        assert_eq!(compare(&board, &file, &s).total, 0);
+        // a part that is not ignored still shows
+        let s = NetsSettings::parse("ignore_parts = fid*").unwrap();
+        let partly = compare(&file, &board, &s);
+        assert!(
+            partly.total >= 1 && partly.total <= plain.total,
+            "{:?}",
+            partly.differences
+        );
+    }
+
+    #[test]
+    fn the_names_of_the_parts_that_are_ignored_are_read_and_matched_in_any_case() {
+        assert!(NetsSettings::default().ignore_parts.is_empty());
+        assert!(!NetsSettings::default().ignores_part("TP1"));
+        let s = NetsSettings::parse("ignore_parts = TP*, fid?, *mount , ").unwrap();
+        assert_eq!(s.ignore_parts, vec!["TP*", "fid?", "*mount"]);
+        assert!(s.ignores_part("tp12"));
+        assert!(s.ignores_part("TP"));
+        assert!(s.ignores_part("hole_mount"));
+        assert!(s.ignores_part("FID?"));
+        assert!(!s.ignores_part("FID1"));
+        assert!(!s.ignores_part("R1"));
+        assert!(NetsSettings::parse("ignore_parts =")
+            .unwrap()
+            .ignore_parts
+            .is_empty());
+    }
+
+    #[test]
+    fn every_setting_is_in_the_shipped_file_and_in_the_document() {
+        let shipped = include_str!("../../../config/nets.cfg");
+        let doc = include_str!("../../../docs/NETS.md");
+        for key in [
+            "max_input_bytes",
+            "max_nets",
+            "max_pins_per_net",
+            "max_pins",
+            "max_name_len",
+            "max_differences",
+            "ignore_nets",
+            "ignore_parts",
+            "csv_guard_formulas",
+            "lint_max_pins",
+            "lint_part_on_one_net",
+            "lint_generated_names",
+            "lint_one_part_nets",
+        ] {
+            assert!(
+                shipped.lines().any(|l| l.starts_with(&format!("{key} ="))),
+                "{key} is not in config/nets.cfg"
+            );
+            assert!(
+                doc.contains(&format!("`{key}`")),
+                "{key} is not in docs/NETS.md"
+            );
+            // the key is one that the reader knows: it is never refused as unknown
+            let refused = NetsSettings::parse(&format!("{key} = x")).err();
+            assert!(
+                refused.is_none_or(|e| !e.detail.contains("unknown key")),
+                "{key}"
+            );
+        }
+    }
+
+    /// A linear congruential generator with a fixed seed: the same cases on every run.
+    fn generator(seed: u64) -> impl FnMut(u64) -> u64 {
+        let mut state = seed;
+        move |n: u64| {
+            state = state
+                .wrapping_mul(6_364_136_223_846_793_005)
+                .wrapping_add(1_442_695_040_888_963_407);
+            (state >> 33) % n
+        }
+    }
+
+    fn random_table(next: &mut impl FnMut(u64) -> u64) -> NetTable {
+        let mut t = NetTable::default();
+        let mut used = BTreeSet::new();
+        for n in 0..=next(10) {
+            let mut pins = BTreeSet::new();
+            for _ in 0..next(12) {
+                let pin = Pin {
+                    part: format!(
+                        "{}{}",
+                        ["R", "C", "U", "J", "TP"][next(5) as usize],
+                        next(30)
+                    ),
+                    pad: format!("{}", next(9)),
+                };
+                if used.insert(pin.clone()) {
+                    pins.insert(pin);
+                }
+            }
+            t.nets.insert(
+                format!("{}{n}", ["NET", "GND", "N$", "VCC_"][next(4) as usize]),
+                pins,
+            );
+        }
+        t
+    }
+
+    #[test]
+    fn a_table_compared_with_itself_has_no_difference_whatever_the_table() {
+        let mut next = generator(0x9E37_79B9_7F4A_7C15);
+        for _ in 0..60 {
+            let t = random_table(&mut next);
+            let same = compare(&t, &t, &settings());
+            assert_eq!(
+                (same.total, same.differences.len()),
+                (0, 0),
+                "{}",
+                render(&t)
+            );
+        }
+    }
+
+    #[test]
+    fn the_lint_and_the_summary_give_the_same_answer_on_the_same_table_every_time() {
+        let mut next = generator(0xD1B5_4A32_D192_ED03);
+        let s = NetsSettings::parse(
+            "lint_max_pins = 3\nlint_part_on_one_net = true\nlint_generated_names = true",
+        )
+        .unwrap();
+        for _ in 0..60 {
+            let t = random_table(&mut next);
+            let first = lint(&t, &s);
+            assert_eq!(first, lint(&table(&render(&t)), &s));
+            assert!(first.findings.len() <= first.total);
+            assert_eq!(summary(&t, 4), summary(&table(&render(&t)), 4));
+            let sum = summary(&t, 4);
+            assert!(sum.largest.windows(2).all(|w| w[0].1 >= w[1].1));
+            assert_eq!(
+                sum.nets,
+                sum.empty
+                    + sum.single_pin
+                    + sum.two_pin
+                    + t.nets.values().filter(|p| p.len() > 2).count()
+            );
+        }
+    }
+
+    #[test]
+    fn the_table_of_the_pins_of_a_table_is_that_table_without_notes() {
+        let mut next = generator(0x2545_F491_4F6C_DD1D);
+        for _ in 0..60 {
+            let mut t = random_table(&mut next);
+            t.nets.retain(|_, pins| !pins.is_empty());
+            let pins: Vec<(String, String, String)> = t
+                .nets
+                .iter()
+                .flat_map(|(n, ps)| {
+                    ps.iter()
+                        .map(move |p| (n.clone(), p.part.clone(), p.pad.clone()))
+                })
+                .collect();
+            let (again, notes) = table_of_pins(pins);
+            assert!(notes.is_empty(), "{notes:?}");
+            assert_eq!(again, t);
+        }
+    }
+
+    #[test]
+    fn a_cell_of_a_csv_file_never_starts_like_a_formula_when_the_guard_is_on() {
+        let mut next = generator(0x0123_4567_89AB_CDEF);
+        let alphabet = [
+            '=', '+', '-', '@', '\t', '\r', ',', '"', '\n', 'a', 'Z', '5', ' ', '_',
+        ];
+        for _ in 0..300 {
+            let value: String = (0..next(6))
+                .map(|_| alphabet[next(alphabet.len() as u64) as usize])
+                .collect();
+            let guarded = csv_field(&value, true);
+            assert!(
+                !guarded.starts_with(['=', '+', '-', '@', '\t', '\r']),
+                "{value:?} -> {guarded:?}"
+            );
+            // without the guard the cell is only quoted when it has to be
+            let plain = csv_field(&value, false);
+            assert_eq!(
+                plain.starts_with('"'),
+                value.contains([',', '"', '\n', '\r']),
+                "{value:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn the_natural_order_is_a_total_order_on_texts_made_by_a_fixed_generator() {
+        let mut next = generator(0x3C6E_F372_FE94_F82B);
+        let alphabet = ['R', 'r', '0', '1', '9', '_', '.', 'a'];
+        let texts: Vec<String> = (0..40)
+            .map(|_| (0..next(6)).map(|_| alphabet[next(8) as usize]).collect())
+            .collect();
+        for a in &texts {
+            assert_eq!(natural_cmp(a, a), Ordering::Equal);
+            for b in &texts {
+                assert_eq!(
+                    natural_cmp(a, b),
+                    natural_cmp(b, a).reverse(),
+                    "{a:?} {b:?}"
+                );
+                assert_eq!(natural_cmp(a, b) == Ordering::Equal, a == b, "{a:?} {b:?}");
+                for c in &texts {
+                    if natural_cmp(a, b) != Ordering::Greater
+                        && natural_cmp(b, c) != Ordering::Greater
+                    {
+                        assert_ne!(natural_cmp(a, c), Ordering::Greater, "{a:?} {b:?} {c:?}");
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn a_pattern_made_of_a_prefix_a_star_and_a_suffix_matches_what_it_should() {
+        let mut next = generator(0xA409_3822_299F_31D0);
+        let alphabet = ['A', 'b', 'C', '3', '_', 'v'];
+        let word = |next: &mut dyn FnMut(u64) -> u64, n: u64| -> String {
+            (0..n).map(|_| alphabet[next(6) as usize]).collect()
+        };
+        for _ in 0..200 {
+            let (head, middle, tail) = (word(&mut next, 3), word(&mut next, 4), word(&mut next, 3));
+            let name = format!("{head}{middle}{tail}");
+            assert!(pattern_matches(&format!("{head}*{tail}"), &name), "{name}");
+            assert!(
+                pattern_matches(&format!("{}*", head.to_uppercase()), &name),
+                "{name}"
+            );
+            assert!(pattern_matches("*", &name));
+            assert!(pattern_matches(&name.to_lowercase(), &name));
+            assert!(!pattern_matches(&format!("{name}x"), &name));
+        }
     }
 }

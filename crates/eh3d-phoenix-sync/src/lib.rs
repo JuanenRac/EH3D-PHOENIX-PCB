@@ -24,7 +24,11 @@
 //!   as JSON, in a fixed order;
 //! * [`settings`]: where new components are put, whether components without a part are removed and
 //!   the other choices, read from `config/sync.cfg`;
-//! * [`codes`]: the stable codes `PHOENIX-SYNC-<NNN>` with their titles in the eight languages.
+//! * [`codes`]: the stable codes `PHOENIX-SYNC-<NNN>` with their titles in the eight languages;
+//! * [`nets_text`], [`nets_board`] and [`nets_codes`]: the text netlist of `phoenix nets` (the
+//!   reading and writing of the text, the comparison of two tables, the lint, the summary and the
+//!   table made from the pins of a board) with its codes `PHOENIX-NETS-<NNN>`, kept here so that
+//!   the command and the board editor judge the same table.
 //!
 //! Planning is a dry run that changes neither document. Applying a package twice changes nothing
 //! the second time, undoing it gives back the original, and nothing the package does not name
@@ -41,6 +45,9 @@ pub mod backward;
 pub mod codes;
 pub mod diff;
 pub mod forward;
+pub mod nets_board;
+pub mod nets_codes;
+pub mod nets_text;
 pub mod report;
 pub mod settings;
 

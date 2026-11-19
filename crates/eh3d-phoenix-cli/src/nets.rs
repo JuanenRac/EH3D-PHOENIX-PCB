@@ -12,23 +12,25 @@ use std::fs::OpenOptions;
 use std::io::{Read, Write};
 use std::path::Path;
 
-use eh3d_phoenix_board::Board;
 use eh3d_phoenix_rules::Lang;
+use eh3d_phoenix_sync::nets_board::board_table;
+use eh3d_phoenix_sync::nets_codes::{
+    self, INPUT_UNREADABLE, LIMIT_EXCEEDED, OPTION_INVALID, OUTPUT_FAILED,
+};
+use eh3d_phoenix_sync::nets_text::{
+    compare, differences_csv, filter_nets, lint, parse, pins_csv, pins_of_part, render,
+    summary as table_summary, Comparison, LintResult, NetTable, NetsError, NetsSettings, Note,
+};
 use serde_json::json;
 
 use crate::export::read_board_file;
-use crate::nets_codes::{INPUT_UNREADABLE, LIMIT_EXCEEDED, OPTION_INVALID, OUTPUT_FAILED};
-use crate::nets_text::{
-    compare, differences_csv, lint, parse, pins_csv, render, table_of_pins, Comparison, LintResult,
-    NetTable, NetsError, NetsSettings, Note,
-};
 
 /// The settings file that is read when `--config` is not given and the file exists.
 const DEFAULT_CONFIG: &str = "config/nets.cfg";
 
 pub(crate) const USAGE: &str =
     "phoenix nets [--config FILE] [--out FILE] [--csv FILE] [--compare NETLIST] [--import NETLIST]
-             [--lint] [--json] [--lang CODE] [<board>]
+             [--lint] [--net PATTERNS] [--part REF] [--top N] [--json] [--lang CODE] [<board>]
 
   nets          the nets of a board as a text netlist, one line for each net: `NET GND U1.1 C1.2`
                 (the word NET, the name, the pins as PART.PAD; a line that starts with a blank
@@ -46,8 +48,15 @@ pub(crate) const USAGE: &str =
   --lint        look for nets that are probably a mistake: a net with one pin or none, and names
                 that differ only in case or in separators (GND and Gnd, VCC_3V3 and VCC-3V3); exit
                 code 1 when there is a finding. With --out the JSON report is written
-  --config      the limits, the nets a comparison and the lint ignore and the guard of the CSV
-                cells (default: config/nets.cfg when it exists)
+  --net         keep only the nets whose name matches one of the patterns, separated by commas
+                (any case, `*` stands for any run of characters: `GND*,*3V3`); the netlist, the
+                JSON and the CSV file have those nets only. Not given with --compare or --lint
+  --part REF    the pins of one part (the reference as written, `U1`) with the net each is on and
+                how many pins that net has; exit code 1 when the part has no pin
+  --top N       the size of the netlist (nets, parts, pins, nets with none, one and two pins) and
+                the N nets with the most pins (from 1 to 1000), instead of the netlist
+  --config      the limits, the nets a comparison and the lint ignore, the lint settings and the
+                guard of the CSV cells (default: config/nets.cfg when it exists)
   --out FILE    write the netlist (or, with --compare or --lint, the JSON report) to a new file
   --csv FILE    write the pins as CSV (net,part,pad), or with --compare the differences
                 (code,net,pin,other), to a new file; a cell that a spreadsheet would read as a
@@ -66,6 +75,9 @@ struct Options {
     csv: Option<String>,
     compare: Option<String>,
     import: Option<String>,
+    net: Option<String>,
+    part: Option<String>,
+    top: Option<usize>,
     files: Vec<String>,
 }
 
@@ -103,6 +115,9 @@ fn parse_options(args: &[&str]) -> Result<Options, NetsError> {
         csv: None,
         compare: None,
         import: None,
+        net: None,
+        part: None,
+        top: None,
         files: Vec::new(),
     };
     let bad = |what: &str| NetsError::new(OPTION_INVALID, what.to_owned());
@@ -120,6 +135,22 @@ fn parse_options(args: &[&str]) -> Result<Options, NetsError> {
             "--csv" => take_once(&mut iter, &mut options.csv, "--csv needs one file")?,
             "--compare" => take_once(&mut iter, &mut options.compare, "--compare needs one file")?,
             "--import" => take_once(&mut iter, &mut options.import, "--import needs one file")?,
+            "--net" => take_once(
+                &mut iter,
+                &mut options.net,
+                "--net needs one list of patterns",
+            )?,
+            "--part" => take_once(&mut iter, &mut options.part, "--part needs one reference")?,
+            "--top" => {
+                if options.top.is_some() {
+                    return Err(bad("--top needs one number"));
+                }
+                let n = next_value(&mut iter, "--top needs a number")?;
+                options.top = match n.parse::<usize>() {
+                    Ok(n) if (1..=1000).contains(&n) => Some(n),
+                    _ => return Err(bad("--top is a whole number from 1 to 1000")),
+                };
+            }
             other if other.starts_with("--") => {
                 return Err(NetsError::new(
                     OPTION_INVALID,
@@ -138,6 +169,23 @@ fn parse_options(args: &[&str]) -> Result<Options, NetsError> {
     }
     if options.lint && (options.compare.is_some() || options.csv.is_some()) {
         return Err(bad("--lint is not given with --compare or --csv"));
+    }
+    let writes = options.out.is_some() || options.csv.is_some();
+    let reads_whole = options.lint || options.compare.is_some();
+    if options.net.is_some() && reads_whole {
+        return Err(bad("--net is not given with --lint or --compare"));
+    }
+    if options.part.is_some() && (reads_whole || writes || options.net.is_some()) {
+        return Err(bad(
+            "--part is not given with another way to use the command",
+        ));
+    }
+    if options.top.is_some()
+        && (reads_whole || writes || options.net.is_some() || options.part.is_some())
+    {
+        return Err(bad(
+            "--top is not given with another way to use the command",
+        ));
     }
     Ok(options)
 }
@@ -178,31 +226,6 @@ fn read_netlist(path: &str, settings: &NetsSettings) -> Result<String, NetsError
     String::from_utf8(bytes).map_err(|_| unreadable("the file is not UTF-8 text".to_owned()))
 }
 
-/// The pins of the board as `(net, part, pad)`: a pad of a part that a net names.
-fn board_pins(board: &Board) -> Vec<(String, String, String)> {
-    let mut pins = Vec::new();
-    for assignment in &board.pad_nets {
-        let Some(net) = board.nets.get(&assignment.net) else {
-            continue;
-        };
-        let Some(component) = board.components.get(&assignment.component) else {
-            continue;
-        };
-        let Some(footprint) = board.footprints.get(&component.footprint) else {
-            continue;
-        };
-        let Some(pad) = footprint.pads.get(&assignment.pad) else {
-            continue;
-        };
-        pins.push((
-            net.name.clone(),
-            component.refdes.clone(),
-            pad.number.clone(),
-        ));
-    }
-    pins
-}
-
 /// The nets that the command works on: those of the netlist file that `--import` names, or else
 /// those of the board, with the notes about what could not be written as it is.
 fn load_side(
@@ -214,7 +237,7 @@ fn load_side(
         (None, [board_path]) => {
             let board =
                 read_board_file(board_path).map_err(|e| NetsError::new(INPUT_UNREADABLE, e))?;
-            Ok(table_of_pins(board_pins(&board)))
+            Ok(board_table(&board))
         }
         _ => Err(NetsError::new(
             OPTION_INVALID,
@@ -344,6 +367,16 @@ fn export_or_import(options: &Options, out: &mut dyn Write) -> Result<i32, NetsE
     if options.lint {
         return lint_table(options, &settings, &table, &notes, out);
     }
+    if let Some(part) = &options.part {
+        return part_report(options, &table, part, out);
+    }
+    if let Some(top) = options.top {
+        return top_report(options, &table, &notes, top, out);
+    }
+    let table = match &options.net {
+        Some(patterns) => filter_nets(&table, patterns),
+        None => table,
+    };
     let text = text_with_notes(&table, &notes);
     let mut report = table_json(&table);
     report["notes"] = notes_json(&notes);
@@ -369,6 +402,81 @@ fn export_or_import(options: &Options, out: &mut dyn Write) -> Result<i32, NetsE
         text
     };
     let _ = out.write_all(shown.as_bytes());
+    Ok(0)
+}
+
+/// The pins of one part with their nets (`--part`); exit code 1 when the part has no pin.
+fn part_report(
+    options: &Options,
+    table: &NetTable,
+    part: &str,
+    out: &mut dyn Write,
+) -> Result<i32, NetsError> {
+    let pins = pins_of_part(table, part);
+    let text = if options.json {
+        let list: Vec<serde_json::Value> = pins
+            .iter()
+            .map(|(pin, net, count)| json!({ "pin": pin.to_string(), "net": net, "net_pins": count }))
+            .collect();
+        pretty(&json!({ "part": part, "pin_count": pins.len(), "pins": list }))
+    } else if pins.is_empty() {
+        format!("part {part}: no pin\n")
+    } else {
+        let mut text = format!("part {part}: {} pins\n", pins.len());
+        for (pin, net, count) in &pins {
+            text.push_str(&format!("{pin} {net} ({count} pins)\n"));
+        }
+        text
+    };
+    let _ = out.write_all(text.as_bytes());
+    Ok(i32::from(pins.is_empty()))
+}
+
+/// The size of the netlist and its largest nets (`--top`).
+fn top_report(
+    options: &Options,
+    table: &NetTable,
+    notes: &[Note],
+    top: usize,
+    out: &mut dyn Write,
+) -> Result<i32, NetsError> {
+    let sum = table_summary(table, top);
+    let text = if options.json {
+        let largest: Vec<serde_json::Value> = sum
+            .largest
+            .iter()
+            .map(|(name, pins)| json!({ "name": name, "pins": pins }))
+            .collect();
+        let mut report = json!({
+            "net_count": sum.nets,
+            "pin_count": sum.pins,
+            "part_count": sum.parts,
+            "empty_nets": sum.empty,
+            "single_pin_nets": sum.single_pin,
+            "two_pin_nets": sum.two_pin,
+            "largest": largest,
+        });
+        report["notes"] = notes_json(notes);
+        pretty(&report)
+    } else {
+        let mut text = format!(
+            "nets: {}\nparts: {}\nnets with no pin: {}, one pin: {}, two pins: {}\n",
+            summary(table),
+            sum.parts,
+            sum.empty,
+            sum.single_pin,
+            sum.two_pin
+        );
+        for note in notes {
+            text.push_str(&format!("note {}: {}\n", note.code, note.detail));
+        }
+        text.push_str(&format!("largest nets: {}\n", sum.largest.len()));
+        for (name, pins) in &sum.largest {
+            text.push_str(&format!("{name} {pins}\n"));
+        }
+        text
+    };
+    let _ = out.write_all(text.as_bytes());
     Ok(0)
 }
 
@@ -398,7 +506,7 @@ fn lint_table(
             text.push_str(&format!(
                 "{}: {}: {}",
                 f.code,
-                crate::nets_codes::title(f.code, lang),
+                nets_codes::title(f.code, lang),
                 f.net
             ));
             if let Some(other) = &f.other {
@@ -465,7 +573,7 @@ fn compare_with_board(
             text.push_str(&format!(
                 "{}: {}: {}",
                 d.code,
-                crate::nets_codes::title(d.code, lang),
+                nets_codes::title(d.code, lang),
                 d.net
             ));
             if let Some(pin) = &d.pin {

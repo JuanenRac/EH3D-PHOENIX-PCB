@@ -1503,7 +1503,7 @@ The same titles in the eight languages of the suite (English, Spanish, German, F
 | PHOENIX-SEC-002 | The side file of the write is already there | Ya existe el fichero auxiliar de la escritura | Die Hilfsdatei des Schreibvorgangs ist bereits vorhanden | Le fichier auxiliaire de l'écriture existe déjà | Il file ausiliario della scrittura esiste già | 書き込み用の補助ファイルが既に存在します | 写入用的辅助文件已存在 | O ficheiro auxiliar da escrita já existe |
 | PHOENIX-SEC-003 | Settings file is larger than its limit | El fichero de ajustes supera su límite | Die Einstellungsdatei ist größer als ihr Grenzwert | Le fichier de réglages dépasse sa limite | Il file delle impostazioni supera il suo limite | 設定ファイルが上限を超えています | 设置文件超过其限制 | O ficheiro de definições excede o seu limite |
 
-## Text netlist (`eh3d-phoenix-cli`, `src/nets_codes.rs`)
+## Text netlist (`eh3d-phoenix-sync`, `src/nets_codes.rs`)
 
 | Code | Title | Raised by |
 |---|---|---|
@@ -1526,6 +1526,10 @@ The same titles in the eight languages of the suite (English, Spanish, German, F
 | PHOENIX-NETS-017 | Net has a single pin | `--lint`: a net with exactly one pin, which is an unconnected input or a misspelt name that split a net in two (a net that the settings ignore is left out) |
 | PHOENIX-NETS-018 | Net names differ only in case or in separators | `--lint`: nets whose names are the same once the case and the separators (`_`, `-`, `.`, `/`, blank) are taken away, such as `GND` and `Gnd` or `VCC_3V3` and `VCC-3V3`; one finding for each group, naming the first net and the others |
 | PHOENIX-NETS-019 | Net has no pin | `--lint`: a net with no pin, which only a netlist file can have |
+| PHOENIX-NETS-020 | Net has more pins than the limit of the lint | `--lint`: a net with more pins than `lint_max_pins` of `config/nets.cfg` (off at 0), which is usually a supply that should be a plane or a bus that should be split; the finding says how many pins the net has |
+| PHOENIX-NETS-021 | Part has all its pins on one net | `--lint` with `lint_part_on_one_net = true`: a part with two pins or more that are all on the same net, so that it does nothing (a resistor with both ends on `GND`); one finding for each net, naming the parts |
+| PHOENIX-NETS-022 | Net has a name made by the program | `--lint` with `lint_generated_names = true`: a net whose name is one that a program makes when the designer gives none (`N$12` of EAGLE, `Net-(R1-Pad1)` and `unconnected-(U1-Pad3)` of KiCad, `$1N1234` of OrCAD) |
+| PHOENIX-NETS-023 | Net joins pins of one part only | `--lint` with `lint_one_part_nets = true`: a net with two pins or more that all belong to one part (the finding names the part), which is a loop that stays inside a part and is usually a mistake in the schematic |
 
 The same titles in the eight languages of the suite (English, Spanish, German, French, Italian, Japanese, Chinese and European Portuguese), as `phoenix nets --lang` prints them:
 
@@ -1550,3 +1554,7 @@ The same titles in the eight languages of the suite (English, Spanish, German, F
 | PHOENIX-NETS-017 | Net has a single pin | La red tiene un solo pin | Das Netz hat nur einen Pin | Le réseau n'a qu'une seule broche | La rete ha un solo pin | ネットにピンが1つしかありません | 该网络只有一个引脚 | A rede tem um só pino |
 | PHOENIX-NETS-018 | Net names differ only in case or in separators | Los nombres de red solo se diferencian en mayúsculas o en separadores | Netznamen unterscheiden sich nur in Groß- und Kleinschreibung oder in Trennzeichen | Les noms de réseau ne diffèrent que par la casse ou les séparateurs | I nomi delle reti differiscono solo per maiuscole o separatori | ネット名が大文字小文字または区切り文字だけ異なります | 网络名称仅在大小写或分隔符上不同 | Os nomes das redes diferem apenas em maiúsculas ou em separadores |
 | PHOENIX-NETS-019 | Net has no pin | La red no tiene ningún pin | Das Netz hat keinen Pin | Le réseau n'a aucune broche | La rete non ha nessun pin | ネットにピンがありません | 该网络没有引脚 | A rede não tem nenhum pino |
+| PHOENIX-NETS-020 | Net has more pins than the limit of the lint | La red tiene más pines que el límite del análisis | Das Netz hat mehr Pins als die Grenze der Prüfung | Le réseau a plus de broches que la limite du contrôle | La rete ha più pin del limite del controllo | ネットのピン数がチェックの上限を超えています | 该网络的引脚数超过了检查的上限 | A rede tem mais pinos do que o limite da verificação |
+| PHOENIX-NETS-021 | Part has all its pins on one net | La pieza tiene todos sus pines en una sola red | Das Bauteil hat alle Pins an einem Netz | La pièce a toutes ses broches sur un seul réseau | Il componente ha tutti i pin su una sola rete | 部品のすべてのピンが1つのネットにあります | 元件的所有引脚都在同一个网络上 | A peça tem todos os pinos numa só rede |
+| PHOENIX-NETS-022 | Net has a name made by the program | La red tiene un nombre generado por el programa | Das Netz hat einen vom Programm erzeugten Namen | Le réseau porte un nom généré par le programme | La rete ha un nome generato dal programma | ネット名がプログラムによる自動生成です | 该网络的名称是由程序自动生成的 | A rede tem um nome gerado pelo programa |
+| PHOENIX-NETS-023 | Net joins pins of one part only | La red solo une pines de una pieza | Das Netz verbindet nur Pins eines Bauteils | Le réseau ne relie que des broches d'une seule pièce | La rete collega solo pin di un componente | ネットが1つの部品のピンだけをつないでいます | 该网络只连接同一个元件的引脚 | A rede liga apenas pinos de uma peça |

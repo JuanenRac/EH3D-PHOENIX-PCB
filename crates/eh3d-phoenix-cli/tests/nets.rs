@@ -668,3 +668,229 @@ fn the_lint_is_not_given_with_a_comparison_or_a_csv_file() {
     }
     assert!(!Path::new(&target).exists());
 }
+
+#[test]
+fn the_nets_that_match_a_pattern_are_the_only_ones_written() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = write_board(dir.path(), &board_with("SIG"));
+    let (code, out, err) = command(&["nets", "--net", "gnd", &path]);
+    assert_eq!((code, err.as_str()), (0, ""));
+    assert_eq!(out, "NET GND R1.2 R2.2 TP1.1\n");
+    let (_, out, _) = command(&["nets", "--net", "s*,GND", &path]);
+    assert_eq!(out, BOARD_NETLIST);
+    let (code, out, _) = command(&["nets", "--net", "nothing*", &path]);
+    assert_eq!((code, out.as_str()), (0, ""));
+    // the JSON and the CSV file have those nets only
+    let (_, json, _) = command(&["nets", "--net", "*x", "--json", &path]);
+    assert!(json.contains("\"net_count\": 0"), "{json}");
+    let (_, json, _) = command(&["nets", "--net", "sig", "--json", &path]);
+    let v: serde_json::Value = serde_json::from_str(&json).unwrap();
+    assert_eq!(
+        (v["net_count"].as_i64(), v["pin_count"].as_i64()),
+        (Some(1), Some(2))
+    );
+    let target = path_in(dir.path(), "sig.csv");
+    let (code, _, _) = command(&["nets", "--net", "sig", "--csv", &target, &path]);
+    assert_eq!(code, 0);
+    assert_eq!(
+        fs::read_to_string(&target).unwrap(),
+        "net,part,pad\nSIG,R1,1\nSIG,R2,1\n"
+    );
+}
+
+#[test]
+fn the_pins_of_a_part_are_listed_with_their_nets() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = write_board(dir.path(), &board_with("SIG"));
+    let (code, out, err) = command(&["nets", "--part", "R1", &path]);
+    assert_eq!((code, err.as_str()), (0, ""));
+    assert_eq!(
+        out,
+        "part R1: 2 pins\nR1.1 SIG (2 pins)\nR1.2 GND (3 pins)\n"
+    );
+    let (code, out, _) = command(&["nets", "--part", "X9", &path]);
+    assert_eq!((code, out.as_str()), (1, "part X9: no pin\n"));
+    // the reference is taken as written
+    assert_eq!(command(&["nets", "--part", "r1", &path]).0, 1);
+    let (code, json, _) = command(&["nets", "--part", "TP1", "--json", &path]);
+    assert_eq!(code, 0);
+    let v: serde_json::Value = serde_json::from_str(&json).unwrap();
+    assert_eq!(v["part"], "TP1");
+    assert_eq!(v["pin_count"], 1);
+    assert_eq!(v["pins"][0]["pin"], "TP1.1");
+    assert_eq!(v["pins"][0]["net"], "GND");
+    assert_eq!(v["pins"][0]["net_pins"], 3);
+    // a netlist file answers too
+    let file = write_text(dir.path(), "a.nets", BOARD_NETLIST);
+    let (code, out, _) = command(&["nets", "--part", "R2", "--import", &file]);
+    assert_eq!(code, 0);
+    assert!(out.starts_with("part R2: 2 pins\n"), "{out}");
+}
+
+#[test]
+fn the_size_of_the_netlist_and_its_largest_nets_are_listed() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = write_board(dir.path(), &board_with("SIG"));
+    let (code, out, err) = command(&["nets", "--top", "1", &path]);
+    assert_eq!((code, err.as_str()), (0, ""));
+    assert_eq!(
+        out,
+        "nets: 2 nets, 5 pins\nparts: 3\nnets with no pin: 0, one pin: 0, two pins: 1\nlargest nets: 1\nGND 3\n"
+    );
+    let (_, out, _) = command(&["nets", "--top", "9", &path]);
+    assert!(out.ends_with("largest nets: 2\nGND 3\nSIG 2\n"), "{out}");
+    let (code, json, _) = command(&["nets", "--top", "2", "--json", &path]);
+    assert_eq!(code, 0);
+    let v: serde_json::Value = serde_json::from_str(&json).unwrap();
+    assert_eq!(v["part_count"], 3);
+    assert_eq!(v["two_pin_nets"], 1);
+    assert_eq!(v["largest"][1]["name"], "SIG");
+    assert_eq!(v["largest"][0]["pins"], 3);
+    let file = write_text(
+        dir.path(),
+        "big.nets",
+        "NET A R1.1\nNET B\nNET C R1.2 R2.1 R3.1\n",
+    );
+    let (_, out, _) = command(&["nets", "--top", "5", "--import", &file]);
+    assert!(
+        out.contains("nets with no pin: 1, one pin: 1, two pins: 0\n"),
+        "{out}"
+    );
+}
+
+#[test]
+fn the_new_options_are_refused_with_what_does_not_go_with_them() {
+    let dir = tempfile::tempdir().unwrap();
+    let file = write_text(dir.path(), "a.nets", BOARD_NETLIST);
+    let target = path_in(dir.path(), "x.out");
+    for args in [
+        vec!["nets", "--import", &file, "--top", "0"],
+        vec!["nets", "--import", &file, "--top", "1001"],
+        vec!["nets", "--import", &file, "--top", "many"],
+        vec!["nets", "--import", &file, "--top"],
+        vec!["nets", "--import", &file, "--top", "1", "--top", "2"],
+        vec!["nets", "--import", &file, "--top", "2", "--lint"],
+        vec!["nets", "--import", &file, "--top", "2", "--out", &target],
+        vec!["nets", "--import", &file, "--top", "2", "--part", "R1"],
+        vec!["nets", "--import", &file, "--part", "R1", "--csv", &target],
+        vec!["nets", "--import", &file, "--part", "R1", "--net", "a"],
+        vec!["nets", "--import", &file, "--net", "a", "--lint"],
+        vec!["nets", "--import", &file, "--net", "a", "--compare", &file],
+        vec!["nets", "--import", &file, "--net"],
+        vec!["nets", "--import", &file, "--part"],
+    ] {
+        let (code, out, err) = command(&args);
+        assert_eq!((code, out.as_str()), (2, ""), "{args:?}");
+        assert!(err.contains("PHOENIX-NETS-008"), "{args:?}: {err}");
+    }
+    assert!(!Path::new(&target).exists());
+}
+
+#[test]
+fn the_lint_can_ask_for_the_nets_with_too_many_pins() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = write_board(dir.path(), &board_with("SIG"));
+    assert_eq!(command(&["nets", "--lint", &path]).0, 0);
+    let cfg = write_text(dir.path(), "many.cfg", "lint_max_pins = 2\n");
+    let (code, out, err) = command(&["nets", "--config", &cfg, "--lint", &path]);
+    assert_eq!((code, err.as_str()), (1, ""));
+    assert_eq!(
+        out,
+        "nets: 2 nets, 5 pins\nPHOENIX-NETS-020: Net has more pins than the limit of the lint: GND ~ 3\nfindings: 1\n"
+    );
+    let (_, es, _) = command(&["nets", "--config", &cfg, "--lint", &path, "--lang", "es"]);
+    assert!(
+        es.contains(
+            "PHOENIX-NETS-020: La red tiene más pines que el límite del análisis: GND ~ 3\n"
+        ),
+        "{es}"
+    );
+}
+
+#[test]
+fn the_lint_can_ask_for_parts_on_one_net_and_names_made_by_a_program() {
+    let dir = tempfile::tempdir().unwrap();
+    let file = write_text(
+        dir.path(),
+        "p.nets",
+        "NET GND R1.1 R1.2 U1.1\nNET SIG U1.2 U2.1\nNET N$4 U2.2 J1.1\n",
+    );
+    assert_eq!(command(&["nets", "--lint", "--import", &file]).0, 0);
+    let cfg = write_text(
+        dir.path(),
+        "more.cfg",
+        "lint_part_on_one_net = true\nlint_generated_names = true\n",
+    );
+    let (code, out, err) = command(&["nets", "--config", &cfg, "--lint", "--import", &file]);
+    assert_eq!((code, err.as_str()), (1, ""));
+    assert_eq!(
+        out,
+        "nets: 3 nets, 7 pins\nPHOENIX-NETS-022: Net has a name made by the program: N$4\nPHOENIX-NETS-021: Part has all its pins on one net: GND ~ R1\nfindings: 2\n"
+    );
+    let (_, json, _) = command(&[
+        "nets", "--config", &cfg, "--lint", "--import", &file, "--json",
+    ]);
+    let v: serde_json::Value = serde_json::from_str(&json).unwrap();
+    assert_eq!(v["findings"][1]["code"], "PHOENIX-NETS-021");
+    assert_eq!(v["findings"][1]["other"], "R1");
+}
+
+#[test]
+fn the_parts_that_are_ignored_make_no_difference_in_a_comparison() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = write_board(dir.path(), &board_with("SIG"));
+    // the schematic has no test point, the board has TP1 on GND
+    let file = write_text(
+        dir.path(),
+        "a.nets",
+        "NET GND R1.2 R2.2\nNET SIG R1.1 R2.1\n",
+    );
+    let (code, out, _) = command(&["nets", "--compare", &file, &path]);
+    assert_eq!(code, 1);
+    assert!(
+        out.contains("TP1.1") && out.ends_with("differences: 1\n"),
+        "{out}"
+    );
+    let cfg = write_text(dir.path(), "tp.cfg", "ignore_parts = tp*\n");
+    let (code, out, err) = command(&["nets", "--config", &cfg, "--compare", &file, &path]);
+    assert_eq!((code, err.as_str()), (0, ""));
+    assert!(out.ends_with("differences: 0\n"), "{out}");
+    // the lint leaves the pins of those parts out too
+    let (code, out, _) = command(&["nets", "--config", &cfg, "--lint", &path]);
+    assert_eq!(code, 0);
+    assert!(out.ends_with("findings: 0\n"), "{out}");
+}
+
+#[test]
+fn the_lint_can_ask_for_the_nets_that_stay_inside_one_part() {
+    let dir = tempfile::tempdir().unwrap();
+    let file = write_text(
+        dir.path(),
+        "l.nets",
+        "NET LOOP U1.1 U1.2\nNET OK U1.3 R1.1\n",
+    );
+    assert_eq!(command(&["nets", "--lint", "--import", &file]).0, 0);
+    let cfg = write_text(dir.path(), "loop.cfg", "lint_one_part_nets = true\n");
+    let (code, out, err) = command(&["nets", "--config", &cfg, "--lint", "--import", &file]);
+    assert_eq!((code, err.as_str()), (1, ""));
+    assert_eq!(
+        out,
+        "nets: 2 nets, 4 pins\nPHOENIX-NETS-023: Net joins pins of one part only: LOOP ~ U1\nfindings: 1\n"
+    );
+    let (_, de, _) = command(&[
+        "nets", "--config", &cfg, "--lint", "--import", &file, "--lang", "de",
+    ]);
+    assert!(
+        de.contains("PHOENIX-NETS-023: Das Netz verbindet nur Pins eines Bauteils: LOOP ~ U1\n"),
+        "{de}"
+    );
+}
+
+#[test]
+fn the_usage_of_the_command_names_the_new_options() {
+    let (code, _, err) = command(&["nets"]);
+    assert_eq!(code, 2);
+    for word in ["--net PATTERNS", "--part REF", "--top N"] {
+        assert!(err.contains(word), "{word}");
+    }
+}
