@@ -42,6 +42,18 @@ pub enum AnalysisMsg {
     PricesFile,
     /// What the supplier report says when no price file was typed.
     PricesNeeded,
+    /// The button that makes the report of the nets, and the word before the number of nets.
+    Nets,
+    /// The word before the number of parts in the report of the nets.
+    Parts,
+    /// The word before the number of pins in the report of the nets.
+    Pins,
+    /// The title of the list of the nets with the most pins.
+    LargestNets,
+    /// The word before the number of findings of the lint of the nets.
+    Findings,
+    /// What the report of the nets says when no net of the board has a pin.
+    NetsNone,
     /// The button that copies the text of the report.
     Copy,
     /// The button that closes the report.
@@ -246,6 +258,77 @@ const TABLE: [(AnalysisMsg, [&str; 8]); AnalysisMsg::COUNT] = [
         ],
     ),
     (
+        AnalysisMsg::Nets,
+        [
+            "Nets",
+            "Redes",
+            "Netze",
+            "Réseaux",
+            "Reti",
+            "ネット",
+            "网络",
+            "Redes",
+        ],
+    ),
+    (
+        AnalysisMsg::Parts,
+        [
+            "Parts",
+            "Piezas",
+            "Bauteile",
+            "Pièces",
+            "Componenti",
+            "部品",
+            "元件",
+            "Peças",
+        ],
+    ),
+    (
+        AnalysisMsg::Pins,
+        [
+            "Pins", "Pines", "Pins", "Broches", "Pin", "ピン", "引脚", "Pinos",
+        ],
+    ),
+    (
+        AnalysisMsg::LargestNets,
+        [
+            "Largest nets",
+            "Redes más grandes",
+            "Größte Netze",
+            "Plus grands réseaux",
+            "Reti più grandi",
+            "最大のネット",
+            "最大的网络",
+            "Maiores redes",
+        ],
+    ),
+    (
+        AnalysisMsg::Findings,
+        [
+            "Findings",
+            "Hallazgos",
+            "Befunde",
+            "Constats",
+            "Rilievi",
+            "指摘事項",
+            "发现",
+            "Constatações",
+        ],
+    ),
+    (
+        AnalysisMsg::NetsNone,
+        [
+            "The board has no nets with pins",
+            "La placa no tiene redes con pines",
+            "Die Platine hat keine Netze mit Pins",
+            "La carte n'a aucun réseau avec des broches",
+            "La scheda non ha reti con pin",
+            "この基板にはピンのあるネットがありません",
+            "电路板没有带引脚的网络",
+            "A placa não tem redes com pinos",
+        ],
+    ),
+    (
         AnalysisMsg::Copy,
         [
             "Copy report",
@@ -352,6 +435,11 @@ mod tests {
             AnalysisMsg::DimensionsNone,
             AnalysisMsg::Sourcing,
             AnalysisMsg::PricesNeeded,
+            AnalysisMsg::Nets,
+            AnalysisMsg::Parts,
+            AnalysisMsg::LargestNets,
+            AnalysisMsg::Findings,
+            AnalysisMsg::NetsNone,
             AnalysisMsg::Copy,
             AnalysisMsg::Close,
             AnalysisMsg::Hint,

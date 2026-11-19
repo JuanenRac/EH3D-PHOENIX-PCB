@@ -18,9 +18,13 @@ use eh3d_phoenix_bom::{
 use eh3d_phoenix_lengths::{analyse as analyse_lengths, LengthSettings};
 use eh3d_phoenix_rules::Lang;
 use eh3d_phoenix_stats::{compute, report_text as stats_report_text, StatsSettings};
+use eh3d_phoenix_sync::nets_board::board_table;
+use eh3d_phoenix_sync::nets_codes::title as nets_title;
+use eh3d_phoenix_sync::nets_text::{lint as lint_nets, summary as nets_summary, NetsSettings};
 use eh3d_phoenix_testpoints::{analyse, report_text as testpoints_report_text, TestPointSettings};
 
 use crate::board_analysis_text::AnalysisMsg;
+use crate::codes::column;
 
 /// The settings file of the statistics.
 const STATS_CONFIG: &str = "config/stats.cfg";
@@ -33,6 +37,12 @@ const LENGTHS_CONFIG: &str = "config/lengths.cfg";
 
 /// The settings file of the bill of materials.
 const COSTS_CONFIG: &str = "config/costs.cfg";
+
+/// The settings file of the nets.
+const NETS_CONFIG: &str = "config/nets.cfg";
+
+/// How many of the largest nets the report of the nets lists.
+const NETS_TOP: usize = 5;
 
 /// The largest settings file that is read, in bytes.
 const MAX_CONFIG_BYTES: u64 = 1 << 20;
@@ -53,6 +63,9 @@ pub enum AnalysisKind {
     /// The supplier assistant: the bill priced at each supplier from a price file, with the
     /// shipping, the least order and the purchase split among suppliers.
     Sourcing,
+    /// The nets: how many nets, parts and pins, the nets with the most pins and the findings of
+    /// the lint of `phoenix nets --lint`, with the settings of `config/nets.cfg`.
+    Nets,
 }
 
 /// The settings of the reports.
@@ -66,6 +79,8 @@ pub struct AnalysisSettings {
     pub lengths: LengthSettings,
     /// The settings of the bill of materials.
     pub costs: CostSettings,
+    /// The settings of the nets: the limits of the lint and the nets it leaves out.
+    pub nets: NetsSettings,
     /// The price file of the supplier assistant; empty when none was given.
     pub prices_file: String,
 }
@@ -104,6 +119,9 @@ impl AnalysisSettings {
             costs: read_config(COSTS_CONFIG)
                 .and_then(|text| CostSettings::parse(&text).ok())
                 .unwrap_or_default(),
+            nets: read_config(NETS_CONFIG)
+                .and_then(|text| NetsSettings::parse(&text).ok())
+                .unwrap_or_default(),
             prices_file: String::new(),
         }
     }
@@ -132,6 +150,7 @@ pub fn report_for(
         },
         AnalysisKind::Dimensions => dimensions_text(board, lang),
         AnalysisKind::Sourcing => sourcing_report(board, settings, lang),
+        AnalysisKind::Nets => nets_report(board, settings, lang),
         AnalysisKind::Bom => {
             let (parts, prices) = (PartsFile::default(), PriceBook::default());
             let inputs = BomInputs {
@@ -196,6 +215,54 @@ pub fn sourcing_report(board: &Board, settings: &AnalysisSettings, lang: Lang) -
     }
 }
 
+/// The report of the nets of a board in a language: the number of nets, parts and pins, the nets
+/// with the most pins, what could not be written as a netlist and the findings of the lint of
+/// `phoenix nets --lint`, judged by the same function with the settings of `config/nets.cfg`, so
+/// that the window and the command give the same findings. A board with no net that has a pin
+/// says so.
+pub fn nets_report(board: &Board, settings: &AnalysisSettings, lang: Lang) -> String {
+    let (table, notes) = board_table(board);
+    if table.nets.is_empty() {
+        return AnalysisMsg::NetsNone.tr(lang).to_owned();
+    }
+    let sum = nets_summary(&table, NETS_TOP);
+    let result = lint_nets(&table, &settings.nets);
+    let mut out = format!(
+        "{}: {}\n{}: {}\n{}: {}\n",
+        AnalysisMsg::Nets.tr(lang),
+        sum.nets,
+        AnalysisMsg::Parts.tr(lang),
+        sum.parts,
+        AnalysisMsg::Pins.tr(lang),
+        sum.pins
+    );
+    let _ = writeln!(out, "{}:", AnalysisMsg::LargestNets.tr(lang));
+    for (name, pins) in &sum.largest {
+        let _ = writeln!(out, "  {name}: {pins}");
+    }
+    for note in &notes {
+        let _ = writeln!(out, "{}: {}", note.code, note.detail);
+    }
+    let _ = writeln!(out, "{}: {}", AnalysisMsg::Findings.tr(lang), result.total);
+    for finding in &result.findings {
+        let _ = write!(
+            out,
+            "{}: {}: {}",
+            finding.code,
+            nets_title(finding.code, column(lang)),
+            finding.net
+        );
+        if let Some(other) = &finding.other {
+            let _ = write!(out, " ~ {other}");
+        }
+        out.push('\n');
+    }
+    if result.total > result.findings.len() {
+        let _ = writeln!(out, "... {}", result.total - result.findings.len());
+    }
+    out
+}
+
 /// The list of the dimensions of a board in a language, in the order of their ids: the number,
 /// and for each its kind, its measure in millimetres, its layer and the two points it measures.
 pub fn dimensions_text(board: &Board, lang: Lang) -> String {
@@ -257,14 +324,75 @@ impl AnalysisTool {
 mod tests {
     use super::*;
 
-    const KINDS: [AnalysisKind; 6] = [
+    const KINDS: [AnalysisKind; 7] = [
         AnalysisKind::Stats,
         AnalysisKind::TestPoints,
         AnalysisKind::Lengths,
         AnalysisKind::Bom,
         AnalysisKind::Dimensions,
         AnalysisKind::Sourcing,
+        AnalysisKind::Nets,
     ];
+
+    /// A board with the nets GND (R1.2, R2.2, TP1.1) and SIG (R1.1, R2.1); `lonely` adds a part
+    /// J1 whose only pin is on a third net named `N$3`.
+    fn board_with_nets(lonely: bool) -> Board {
+        use eh3d_phoenix_board::{Component, Footprint, Id, Net, Pad, PadNet, PadShape, Side};
+        use eh3d_phoenix_model::{ObjectId, Udeg};
+        let id = |n: u32| -> Id {
+            ObjectId::from_parts(1_700_000_000_000, (n & 0xfff) as u16, u64::from(n)).unwrap()
+        };
+        let pad = |number: &str| Pad {
+            number: number.into(),
+            shape: PadShape::Circle {
+                diameter: eh3d_phoenix_model::Nm::new(800_000).unwrap(),
+            },
+            at: eh3d_phoenix_model::Point::from_nm(0, 0).unwrap(),
+            rotation: Udeg::ZERO,
+            drill: None,
+            layers: vec![id(1)],
+            roundness: 0,
+            plated: true,
+        };
+        let mut board = Board::default();
+        board.nets.insert(id(2), Net { name: "GND".into() });
+        board.nets.insert(id(3), Net { name: "SIG".into() });
+        board.nets.insert(id(4), Net { name: "N$3".into() });
+        let mut two = Footprint {
+            name: "R_0603".into(),
+            pads: Default::default(),
+        };
+        two.pads.insert(id(11), pad("1"));
+        two.pads.insert(id(12), pad("2"));
+        board.footprints.insert(id(10), two);
+        let part = |refdes: &str, footprint: Id| Component {
+            refdes: refdes.into(),
+            value: String::new(),
+            symbol: None,
+            footprint,
+            at: eh3d_phoenix_model::Point::from_nm(0, 0).unwrap(),
+            rotation: Udeg::ZERO,
+            side: Side::Top,
+        };
+        let place = |board: &mut Board, n: u32, refdes: &str, pins: &[(u32, u32)]| {
+            board.components.insert(id(n), part(refdes, id(10)));
+            for (pad_id, net) in pins {
+                board.pad_nets.push(PadNet {
+                    component: id(n),
+                    pad: id(*pad_id),
+                    net: id(*net),
+                });
+            }
+        };
+        place(&mut board, 20, "R1", &[(11, 3), (12, 2)]);
+        place(&mut board, 21, "R2", &[(11, 3), (12, 2)]);
+        place(&mut board, 22, "TP1", &[(12, 2)]);
+        if lonely {
+            place(&mut board, 23, "J1", &[(11, 4)]);
+        }
+        board.pad_nets.sort_by_key(PadNet::pad_ref);
+        board
+    }
 
     #[test]
     fn a_report_is_kept_until_it_is_closed() {
@@ -441,6 +569,104 @@ mod tests {
         };
         tool.run(AnalysisKind::Sourcing, &board, Lang::En);
         assert_eq!(tool.shown.as_ref().unwrap().0, AnalysisKind::Sourcing);
+    }
+
+    #[test]
+    fn the_report_of_the_nets_counts_them_lists_the_largest_and_says_the_findings() {
+        let settings = AnalysisSettings::default();
+        assert_eq!(
+            nets_report(&board_with_nets(false), &settings, Lang::En),
+            "Nets: 2\nParts: 3\nPins: 5\nLargest nets:\n  GND: 3\n  SIG: 2\nFindings: 0\n"
+        );
+        assert_eq!(
+            nets_report(&board_with_nets(false), &settings, Lang::Es),
+            "Redes: 2\nPiezas: 3\nPines: 5\nRedes más grandes:\n  GND: 3\n  SIG: 2\nHallazgos: 0\n"
+        );
+        assert_eq!(
+            nets_report(&board_with_nets(true), &settings, Lang::En),
+            "Nets: 3\nParts: 4\nPins: 6\nLargest nets:\n  GND: 3\n  SIG: 2\n  N$3: 1\nFindings: 1\nPHOENIX-NETS-017: Net has a single pin: N$3\n"
+        );
+        let pt = nets_report(&board_with_nets(true), &settings, Lang::Pt);
+        assert!(
+            pt.contains("PHOENIX-NETS-017: A rede tem um só pino: N$3\n"),
+            "{pt}"
+        );
+        assert!(
+            pt.starts_with("Redes: 3\nPeças: 4\nPinos: 6\nMaiores redes:\n"),
+            "{pt}"
+        );
+    }
+
+    #[test]
+    fn a_board_without_a_net_with_a_pin_says_so_in_the_language() {
+        let settings = AnalysisSettings::default();
+        let board = Board::default();
+        assert_eq!(
+            nets_report(&board, &settings, Lang::En),
+            "The board has no nets with pins"
+        );
+        assert_eq!(
+            nets_report(&board, &settings, Lang::De),
+            "Die Platine hat keine Netze mit Pins"
+        );
+        assert_eq!(
+            nets_report(&board, &settings, Lang::Ja),
+            "この基板にはピンのあるネットがありません"
+        );
+    }
+
+    #[test]
+    fn the_window_gives_the_findings_of_the_command_with_the_same_settings() {
+        use eh3d_phoenix_sync::nets_text::lint;
+        let board = board_with_nets(true);
+        let mut settings = AnalysisSettings {
+            nets: NetsSettings::parse(
+                "lint_max_pins = 2\nlint_part_on_one_net = true\nlint_generated_names = true",
+            )
+            .unwrap(),
+            ..AnalysisSettings::default()
+        };
+        let (table, _) = board_table(&board);
+        let result = lint(&table, &settings.nets);
+        assert_eq!(result.total, 3);
+        let text = nets_report(&board, &settings, Lang::En);
+        assert!(text.contains("Findings: 3\n"), "{text}");
+        let lines: Vec<&str> = text
+            .lines()
+            .skip_while(|l| !l.starts_with("Findings"))
+            .skip(1)
+            .collect();
+        assert_eq!(
+            lines,
+            vec![
+                "PHOENIX-NETS-020: Net has more pins than the limit of the lint: GND ~ 3",
+                "PHOENIX-NETS-017: Net has a single pin: N$3",
+                "PHOENIX-NETS-022: Net has a name made by the program: N$3",
+            ]
+        );
+        // the nets that the settings leave out are left out of the window too
+        settings.nets = NetsSettings::parse("ignore_nets = n$*, gnd").unwrap();
+        let text = nets_report(&board, &settings, Lang::En);
+        assert!(text.ends_with("Findings: 0\n"), "{text}");
+        // a list that the limit cuts says how many are not listed
+        settings.nets = NetsSettings::parse(
+            "lint_max_pins = 2\nlint_generated_names = true\nmax_differences = 1",
+        )
+        .unwrap();
+        let text = nets_report(&board, &settings, Lang::En);
+        assert!(text.ends_with("... 2\n"), "{text}");
+    }
+
+    #[test]
+    fn the_nets_report_is_kept_by_the_tool_and_follows_the_language() {
+        let board = board_with_nets(true);
+        let mut tool = AnalysisTool::default();
+        tool.run(AnalysisKind::Nets, &board, Lang::En);
+        let (kind, text) = tool.shown.clone().unwrap();
+        assert_eq!(kind, AnalysisKind::Nets);
+        assert!(text.starts_with("Nets: 3\n"), "{text}");
+        tool.run(AnalysisKind::Nets, &board, Lang::Fr);
+        assert!(tool.shown.as_ref().unwrap().1.starts_with("Réseaux: 3\n"));
     }
 
     #[test]
