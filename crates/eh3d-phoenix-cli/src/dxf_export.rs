@@ -43,7 +43,8 @@ phoenix dxf-export <board|panel> [--out FILE.dxf] [--config FILE] [--panel-confi
   --silk        the silkscreen of a board: strokes as polylines and texts as texts (a text is
                 written without its rotation and its mirror)
   --dimensions  the dimensions of a board: their lines as polylines and their texts as
-                texts, on the layer layer_dimensions (a text is written without its rotation)
+                texts, on the layer layer_dimensions (the height and the turn of the texts
+                come from dimension_text_height_nm and dimension_text_rotation)
   --boards LIST the board files of a panel of different boards, separated by commas
   --panel-config the settings of the panel (default: the defaults of the panel crate)
   --json        print the report as JSON. --lang CODE writes the titles in en, es, de, fr, it,
@@ -226,6 +227,40 @@ fn add_silk_item(d: &mut Drawing, layer: &str, item: &SilkItem) {
     }
 }
 
+/// An item of a dimension: like an item of the silkscreen, but the texts take their height
+/// (`dimension_text_height_nm`, when above zero) and their turn (`dimension_text_rotation`) from the
+/// settings.
+fn add_dimension_item(d: &mut Drawing, settings: &DxfSettings, item: &SilkItem) {
+    match item {
+        SilkItem::Text {
+            at,
+            text,
+            height,
+            rotation,
+            ..
+        } => {
+            let height = if settings.dimension_text_height_nm > 0 {
+                settings.dimension_text_height_nm
+            } else {
+                height.get()
+            };
+            let turn = if settings.dimension_text_rotation {
+                rotation.get()
+            } else {
+                0
+            };
+            d.text_turned(
+                &settings.layer_dimensions,
+                (at.x_nm.get(), at.y_nm.get()),
+                height,
+                text,
+                turn,
+            );
+        }
+        other => add_silk_item(d, &settings.layer_dimensions, other),
+    }
+}
+
 /// The drawing of a board: the outline and its interior cutouts, the drilled holes, the outlines of the pads and, if asked,
 /// the silkscreen and the dimensions.
 pub(crate) fn board_drawing(
@@ -300,7 +335,7 @@ pub(crate) fn board_drawing(
         for dimension in board.dimensions.values() {
             if let Ok(items) = dimension.items() {
                 for item in &items {
-                    add_silk_item(&mut d, &settings.layer_dimensions, item);
+                    add_dimension_item(&mut d, settings, item);
                 }
             }
         }
@@ -781,7 +816,9 @@ mod tests {
         assert_eq!(on(&d, "HOLES").len(), 2);
         assert!(on(&d, "OUTLINE").is_empty());
         match on(&d, "TEXT")[0] {
-            DxfShape::Text { at, height, text } => {
+            DxfShape::Text {
+                at, height, text, ..
+            } => {
                 assert_eq!(text, "demo");
                 assert_eq!(*at, (0, -2 * MM));
                 assert_eq!(*height, MM);
@@ -938,6 +975,72 @@ mod tests {
         let d = board_drawing(&b, &renamed, false, true);
         assert_eq!(on(&d, "COTAS").len(), 31);
         assert!(on(&d, "DIMENSIONS").is_empty());
+    }
+
+    #[test]
+    fn the_texts_of_the_dimensions_take_their_height_and_their_turn_from_the_settings() {
+        use eh3d_phoenix_board::{Dimension, DimensionKind};
+        let mut b = board(0);
+        b.layers.insert(
+            id(40),
+            Layer {
+                name: "Notes".to_owned(),
+                kind: LayerKind::Documentation,
+                side: None,
+            },
+        );
+        // a vertical dimension: its text runs upwards
+        let vertical = Dimension {
+            layer: id(40),
+            kind: DimensionKind::Vertical,
+            from: pt(0, 0),
+            to: pt(0, 10 * MM),
+            third: None,
+            offset: Nm::new(2 * MM).unwrap(),
+            text_height: Nm::new(MM).unwrap(),
+            stroke: Nm::new(100_000).unwrap(),
+        };
+        let drawn_turn = vertical
+            .items()
+            .unwrap()
+            .iter()
+            .find_map(|i| match i {
+                SilkItem::Text { rotation, .. } => Some(rotation.get()),
+                _ => None,
+            })
+            .unwrap();
+        assert_ne!(drawn_turn, 0);
+        b.dimensions.insert(id(41), vertical);
+        let text_of = |settings: &DxfSettings| {
+            let d = board_drawing(&b, settings, false, true);
+            let found: Vec<(i64, i64)> = on(&d, "DIMENSIONS")
+                .iter()
+                .filter_map(|s| match s {
+                    DxfShape::Text {
+                        height,
+                        rotation_udeg,
+                        ..
+                    } => Some((*height, *rotation_udeg)),
+                    _ => None,
+                })
+                .collect();
+            assert_eq!(found.len(), 1);
+            found[0]
+        };
+        // by default the height of the dimension and the turn it is drawn with
+        assert_eq!(text_of(&DxfSettings::default()), (MM, drawn_turn));
+        // a height in the settings replaces the height of every dimension
+        let tall = DxfSettings::parse("dimension_text_height_nm = 2500000\n").unwrap();
+        assert_eq!(text_of(&tall), (2_500_000, drawn_turn));
+        // without the turn every text is level
+        let level = DxfSettings::parse("dimension_text_rotation = false\n").unwrap();
+        assert_eq!(text_of(&level), (MM, 0));
+        // the file carries the turn of the text in degrees, and only for a text that is turned
+        let turned =
+            eh3d_phoenix_dxf::write_dxf(&board_drawing(&b, &DxfSettings::default(), false, true));
+        assert!(turned.contains("\n 50\n90.0\n"), "{turned}");
+        let flat = eh3d_phoenix_dxf::write_dxf(&board_drawing(&b, &level, false, true));
+        assert!(!flat.contains("\n 50\n"));
     }
 
     #[test]

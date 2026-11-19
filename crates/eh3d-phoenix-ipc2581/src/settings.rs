@@ -17,8 +17,14 @@ pub struct Ipc2581Settings {
     pub include_tracks: bool,
     /// Write the zones, as their outlines.
     pub include_zones: bool,
-    /// Write the lines of the dimensions (not their texts) on a layer of the function DOCUMENT.
+    /// Write the lines of the dimensions on a layer of the function DOCUMENT.
     pub include_dimensions: bool,
+    /// Write the texts of the dimensions (their measures) on that layer too; with
+    /// `include_dimensions` off nothing of the dimensions is written.
+    pub include_dimension_texts: bool,
+    /// The height of the texts of the dimensions, in nanometres; zero keeps the height each
+    /// dimension has.
+    pub dimension_text_height_nm: i64,
     /// The most objects (parts, connected pads, tracks, vias and zones) a board may hold for the
     /// file to be made.
     pub max_items: usize,
@@ -32,6 +38,8 @@ impl Default for Ipc2581Settings {
             include_tracks: true,
             include_zones: true,
             include_dimensions: true,
+            include_dimension_texts: true,
+            dimension_text_height_nm: 0,
             max_items: 1_000_000,
         }
     }
@@ -83,6 +91,12 @@ impl Ipc2581Settings {
                 "include_tracks" => s.include_tracks = parse_bool(value).ok_or_else(bad)?,
                 "include_zones" => s.include_zones = parse_bool(value).ok_or_else(bad)?,
                 "include_dimensions" => s.include_dimensions = parse_bool(value).ok_or_else(bad)?,
+                "include_dimension_texts" => {
+                    s.include_dimension_texts = parse_bool(value).ok_or_else(bad)?;
+                }
+                "dimension_text_height_nm" => {
+                    s.dimension_text_height_nm = value.parse().map_err(|_| bad())?;
+                }
                 "max_items" => s.max_items = value.parse().map_err(|_| bad())?,
                 _ => {
                     return Err(Ipc2581Error::new(
@@ -102,6 +116,12 @@ impl Ipc2581Settings {
             return Err(Ipc2581Error::new(
                 SETTINGS_INVALID,
                 "origination must be like 1970-01-01T00:00:00",
+            ));
+        }
+        if !(0..=1_000_000_000).contains(&self.dimension_text_height_nm) {
+            return Err(Ipc2581Error::new(
+                SETTINGS_INVALID,
+                "dimension_text_height_nm must be between 0 and 1000000000",
             ));
         }
         if !(1..=100_000_000).contains(&self.max_items) {
@@ -139,11 +159,13 @@ mod tests {
     #[test]
     fn lines_change_the_values() {
         let s = Ipc2581Settings::parse(
-            "origination = 2000-02-03T04:05:06\ninclude_bom = false\ninclude_tracks = false\ninclude_zones = false\ninclude_dimensions = false\nmax_items = 9\n",
+            "origination = 2000-02-03T04:05:06\ninclude_bom = false\ninclude_tracks = false\ninclude_zones = false\ninclude_dimensions = false\ninclude_dimension_texts = false\ndimension_text_height_nm = 1500000\nmax_items = 9\n",
         )
         .unwrap();
         assert_eq!(s.origination, "2000-02-03T04:05:06");
         assert!(!s.include_bom && !s.include_tracks && !s.include_zones && !s.include_dimensions);
+        assert!(!s.include_dimension_texts);
+        assert_eq!(s.dimension_text_height_nm, 1_500_000);
         assert_eq!(s.max_items, 9);
     }
 
@@ -161,6 +183,10 @@ mod tests {
             "max_items = x\n",
             "include_zones\n",
             "include_dimensions = yes\n",
+            "include_dimension_texts = 1\n",
+            "dimension_text_height_nm = -1\n",
+            "dimension_text_height_nm = 1000000001\n",
+            "dimension_text_height_nm = tall\n",
         ] {
             assert!(Ipc2581Settings::parse(text).is_err(), "{text}");
         }

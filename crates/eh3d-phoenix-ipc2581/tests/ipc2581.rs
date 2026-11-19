@@ -637,7 +637,79 @@ fn a_board_without_the_order_of_its_layers_still_gives_a_file() {
 }
 
 #[test]
-fn the_lines_of_the_dimensions_are_written_on_a_document_layer_and_their_texts_are_left_out() {
+fn the_texts_of_the_dimensions_are_written_with_their_height_and_their_turn() {
+    use eh3d_phoenix_board::{Dimension, DimensionKind};
+    let mut b = board();
+    let notes = *b
+        .layers
+        .iter()
+        .find(|(_, l)| l.name == "Notes")
+        .map(|(id, _)| id)
+        .unwrap();
+    let mut add = |n: u32, kind, to| {
+        b.dimensions.insert(
+            id(n),
+            Dimension {
+                layer: notes,
+                kind,
+                from: pt(0, 0),
+                to,
+                third: None,
+                offset: nm(2 * MM),
+                text_height: nm(MM),
+                stroke: nm(100_000),
+            },
+        );
+    };
+    add(900, DimensionKind::Horizontal, pt(10 * MM, 0));
+    add(901, DimensionKind::Vertical, pt(0, 8 * MM));
+    let out = export(&b, &Ipc2581Settings::default()).unwrap();
+    assert_eq!(out.summary.dimension_texts, 2);
+    let root = parse(&out.xml, &Limits::default()).unwrap();
+    let feature = step(&root)
+        .children_named("LayerFeature")
+        .find(|f| f.attr("layerRef") == Some("Notes"))
+        .unwrap();
+    let texts: Vec<&_> = feature
+        .child("Set")
+        .unwrap()
+        .children_named("Features")
+        .filter(|f| f.child("UserSpecial").is_some())
+        .collect();
+    assert_eq!(texts.len(), 2);
+    let described: Vec<(Option<&str>, Option<&str>, bool)> = texts
+        .iter()
+        .map(|f| {
+            let text = f.child("UserSpecial").unwrap().child("Text").unwrap();
+            (
+                text.attr("text"),
+                text.attr("textHeight"),
+                f.child("Xform").is_some(),
+            )
+        })
+        .collect();
+    // the horizontal one is read level, the vertical one runs upwards and carries its turn
+    assert_eq!(
+        described,
+        vec![(Some("10"), Some("1"), false), (Some("8"), Some("1"), true)]
+    );
+    let turned = texts[1].child("Xform").unwrap().attr("rotation");
+    assert_eq!(turned, Some("90"));
+    // nothing about the texts is left out
+    let f = out.findings.iter().find(|f| f.code == LEFT_OUT).unwrap();
+    assert!(!f.detail.contains("texts of dimensions"), "{}", f.detail);
+    // the height of the settings replaces the height of every dimension
+    let tall = Ipc2581Settings {
+        dimension_text_height_nm: 2_500_000,
+        ..Ipc2581Settings::default()
+    };
+    let out = export(&b, &tall).unwrap();
+    assert!(out.xml.contains("textHeight=\"2.5\""));
+    assert!(!out.xml.contains("textHeight=\"1\""));
+}
+
+#[test]
+fn the_lines_of_the_dimensions_are_written_on_a_document_layer_and_their_texts_when_asked() {
     use eh3d_phoenix_board::{Dimension, DimensionKind};
     let mut b = board();
     let notes = *b
@@ -686,7 +758,11 @@ fn the_lines_of_the_dimensions_are_written_on_a_document_layer_and_their_texts_a
         None,
         MM,
     );
-    let out = export(&b, &Ipc2581Settings::default()).unwrap();
+    let no_texts = Ipc2581Settings {
+        include_dimension_texts: false,
+        ..Ipc2581Settings::default()
+    };
+    let out = export(&b, &no_texts).unwrap();
     let root = parse(&out.xml, &Limits::default()).unwrap();
     // the layer is declared with the function DOCUMENT and holds one set of lines
     let cad = root.child("Ecad").unwrap().child("CadData").unwrap();
@@ -712,6 +788,8 @@ fn the_lines_of_the_dimensions_are_written_on_a_document_layer_and_their_texts_a
         .attr("lineWidth");
     assert_eq!(width, Some("0.1"));
     assert_eq!(out.summary.dimensions, 2);
+    assert_eq!(out.summary.dimension_texts, 0);
+    assert!(!out.xml.contains("<Text "));
     // what is left out: the two texts and the dimension that cannot be drawn, no longer the layer
     let f = out.findings.iter().find(|f| f.code == LEFT_OUT).unwrap();
     assert!(f.detail.contains("2 texts of dimensions"), "{}", f.detail);
@@ -726,10 +804,7 @@ fn the_lines_of_the_dimensions_are_written_on_a_document_layer_and_their_texts_a
         f.detail
     );
     // the same board gives the same bytes, and the setting switches them off
-    assert_eq!(
-        out.xml,
-        export(&b, &Ipc2581Settings::default()).unwrap().xml
-    );
+    assert_eq!(out.xml, export(&b, &no_texts).unwrap().xml);
     let off = Ipc2581Settings {
         include_dimensions: false,
         ..Ipc2581Settings::default()

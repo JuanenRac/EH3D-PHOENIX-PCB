@@ -56,6 +56,12 @@ pub struct DxfSettings {
     pub write_text: bool,
     /// The height of a text, in nanometres.
     pub text_height_nm: i64,
+    /// The height of the texts of the dimensions of a board, in nanometres; zero keeps the height
+    /// each dimension has.
+    pub dimension_text_height_nm: i64,
+    /// Write the texts of the dimensions turned as they are drawn (a vertical dimension has its
+    /// text running upwards); when off every text is written level.
+    pub dimension_text_rotation: bool,
     /// The length of an arm of a cross that marks a point, in nanometres.
     pub cross_size_nm: i64,
     /// How far apart two ends may be and still be joined into a chain, in nanometres.
@@ -101,6 +107,8 @@ impl Default for DxfSettings {
             layer_text: "TEXT".to_owned(),
             write_text: false,
             text_height_nm: 1_000_000,
+            dimension_text_height_nm: 0,
+            dimension_text_rotation: true,
             cross_size_nm: 1_000_000,
             join_tolerance_nm: 10_000,
             spline_tolerance_nm: 5_000,
@@ -158,6 +166,16 @@ impl DxfSettings {
                     }
                 }
                 "text_height_nm" => s.text_height_nm = value.parse().map_err(|_| bad())?,
+                "dimension_text_height_nm" => {
+                    s.dimension_text_height_nm = value.parse().map_err(|_| bad())?
+                }
+                "dimension_text_rotation" => {
+                    s.dimension_text_rotation = match value {
+                        "true" => true,
+                        "false" => false,
+                        _ => return Err(bad()),
+                    }
+                }
                 "cross_size_nm" => s.cross_size_nm = value.parse().map_err(|_| bad())?,
                 "join_tolerance_nm" => s.join_tolerance_nm = value.parse().map_err(|_| bad())?,
                 "spline_tolerance_nm" => {
@@ -203,6 +221,9 @@ impl DxfSettings {
             if value <= 0 || value > LENGTH_LIMIT_NM {
                 return fail(&format!("{name} must be above 0 and within the range"));
             }
+        }
+        if self.dimension_text_height_nm < 0 || self.dimension_text_height_nm > LENGTH_LIMIT_NM {
+            return fail("dimension_text_height_nm must be from 0 and within the range");
         }
         if self.join_tolerance_nm < 0 || self.join_tolerance_nm > LENGTH_LIMIT_NM {
             return fail("join_tolerance_nm must be from 0 and within the range");
@@ -297,6 +318,14 @@ mod tests {
             ("write_text = maybe\n", "the value of write_text"),
             ("default_unit = mile\n", "the value of default_unit"),
             ("text_height_nm = 0\n", "text_height_nm must be"),
+            (
+                "dimension_text_height_nm = -1\n",
+                "dimension_text_height_nm must be",
+            ),
+            (
+                "dimension_text_rotation = maybe\n",
+                "the value of dimension_text_rotation",
+            ),
             ("join_tolerance_nm = -1\n", "join_tolerance_nm must be"),
             ("max_entities = 0\n", "a limit is below"),
             ("layer_tabs = vscore\n", "two layers have the same name"),

@@ -12,10 +12,10 @@
 //! standard shapes and the padstacks (shape, drill, plating and layers), the footprints as
 //! packages, the placed parts, the nets with their pins, and for each copper layer the pads, the
 //! vias, the tracks (with arcs) and the outlines of the zones, grouped by net, the lines of the
-//! dimensions on a layer of the function DOCUMENT, and a basic bill of materials. **What is left
-//! out** is reported (`PHOENIX-IPC2581-006`): the silkscreen items, the arcs of the outline, the
-//! copper fill of the zones, the texts of the dimensions, the other documentation layers and the
-//! stack-up.
+//! dimensions and their texts on a layer of the function DOCUMENT, and a basic bill of materials.
+//! **What is left out** is reported (`PHOENIX-IPC2581-006`): the silkscreen items, the arcs of the
+//! outline, the copper fill of the zones, the texts of the dimensions when the settings say so,
+//! the other documentation layers and the stack-up.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::f64::consts::PI;
@@ -63,6 +63,8 @@ pub struct Summary {
     pub zones: usize,
     /// The dimensions written, as lines.
     pub dimensions: usize,
+    /// The texts of the dimensions written.
+    pub dimension_texts: usize,
     /// The nets.
     pub nets: usize,
     /// The lines of the bill of materials.
@@ -677,6 +679,7 @@ pub fn export(board: &Board, settings: &Ipc2581Settings) -> Result<Ipc2581, Ipc2
         tracks: 0,
         zones: 0,
         dimensions: 0,
+        dimension_texts: 0,
         nets: pins.len(),
         bom_lines,
         bytes: 0,
@@ -826,6 +829,22 @@ pub fn export(board: &Board, settings: &Ipc2581Settings) -> Result<Ipc2581, Ipc2
                         any = true;
                         set = set.push(el("Features").push(path_polyline(&path, width.get())));
                     }
+                    SilkItem::Text {
+                        at,
+                        text,
+                        height,
+                        rotation,
+                        ..
+                    } if settings.include_dimension_texts => {
+                        any = true;
+                        counts.dimension_texts += 1;
+                        let height = if settings.dimension_text_height_nm > 0 {
+                            settings.dimension_text_height_nm
+                        } else {
+                            height.get()
+                        };
+                        set = set.push(text_feature(at, &text, height, rotation.get()));
+                    }
                     SilkItem::Text { .. } => dimension_texts += 1,
                 }
             }
@@ -925,6 +944,23 @@ pub fn export(board: &Board, settings: &Ipc2581Settings) -> Result<Ipc2581, Ipc2
         summary: counts,
         findings,
     })
+}
+
+/// A text as a feature: where it starts (its lower left corner), its turn when it has one, and the
+/// characters with their height.
+fn text_feature(at: Point, text: &str, height_nm: i64, rotation_udeg: i64) -> Element {
+    let mut features = el("Features");
+    let turn = rotation_udeg.rem_euclid(360_000_000);
+    if turn != 0 {
+        features = features.push(el("Xform").with("rotation", degrees(turn)));
+    }
+    features.push(point_attrs("Location", at)).push(
+        el("UserSpecial").push(
+            el("Text")
+                .with("text", text)
+                .with("textHeight", mm(height_nm)),
+        ),
+    )
 }
 
 fn track_polyline(track: &Track) -> Element {

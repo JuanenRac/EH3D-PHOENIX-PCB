@@ -148,12 +148,22 @@ pub fn write_dxf(drawing: &Drawing) -> String {
                 pair(&mut out, 8, &layer);
                 point3(&mut out, 10, *at);
             }
-            Shape::Text { at, height, text } => {
+            Shape::Text {
+                at,
+                height,
+                text,
+                rotation_udeg,
+            } => {
                 pair(&mut out, 0, "TEXT");
                 pair(&mut out, 8, &layer);
                 point3(&mut out, 10, *at);
                 pair(&mut out, 40, &mm(*height));
                 pair(&mut out, 1, &one_line(text));
+                // the turn in degrees, from 0 up to 360 (left out for a text that is not turned)
+                let turn = rotation_udeg.rem_euclid(360_000_000);
+                if turn != 0 {
+                    pair(&mut out, 50, &mm(turn));
+                }
             }
         }
     }
@@ -224,6 +234,21 @@ mod tests {
         let text = write_dxf(&d);
         assert!(text.contains(" 42\n1.0\n"), "{text}");
         assert!(text.contains("  0\nSEQEND\n"));
+    }
+
+    #[test]
+    fn a_text_that_is_turned_carries_its_angle_in_degrees_from_zero_to_360() {
+        let mut d = Drawing::new();
+        d.text_turned("A", (0, 0), 1_000_000, "up", 90_000_000);
+        d.text_turned("A", (0, 0), 1_000_000, "back", -90_000_000);
+        d.text_turned("A", (0, 0), 1_000_000, "level", 0);
+        d.text_turned("A", (0, 0), 1_000_000, "full", 360_000_000);
+        let text = write_dxf(&d);
+        assert!(text.contains("  1\nup\n 50\n90.0\n"), "{text}");
+        assert!(text.contains("  1\nback\n 50\n270.0\n"), "{text}");
+        assert!(text.contains("  1\nlevel\n  0\n"), "{text}");
+        assert!(text.contains("  1\nfull\n  0\n"), "{text}");
+        assert_eq!(text.matches("\n 50\n").count(), 2);
     }
 
     #[test]

@@ -37,6 +37,9 @@ pub enum Shape {
         height: i64,
         /// The text.
         text: String,
+        /// The turn about the lower left corner, in micro-degrees, counter-clockwise (zero for a
+        /// text that is read from left to right).
+        rotation_udeg: i64,
     },
 }
 
@@ -121,12 +124,19 @@ impl Drawing {
 
     /// Adds a text.
     pub fn text(&mut self, layer: &str, at: P, height: i64, text: &str) {
+        self.text_turned(layer, at, height, text, 0);
+    }
+
+    /// Adds a text turned about its lower left corner by `rotation_udeg` micro-degrees,
+    /// counter-clockwise.
+    pub fn text_turned(&mut self, layer: &str, at: P, height: i64, text: &str, rotation_udeg: i64) {
         self.entities.push(Entity {
             layer: layer.to_owned(),
             shape: Shape::Text {
                 at,
                 height,
                 text: text.to_owned(),
+                rotation_udeg,
             },
         });
     }

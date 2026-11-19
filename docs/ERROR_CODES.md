@@ -987,7 +987,7 @@ The titles of these codes also exist in the eight languages of the suite (`TITLE
 | PHOENIX-IPC2581-003 | An input file cannot be read | a board or a settings file that cannot be opened, is too large or is not valid |
 | PHOENIX-IPC2581-004 | The output file exists or cannot be written | an output file that already exists without `--overwrite`, one that is a link or a folder, the board itself, or one that cannot be created |
 | PHOENIX-IPC2581-005 | A limit of the export was exceeded | error: a board with more objects than `max_items` of the settings |
-| PHOENIX-IPC2581-006 | Parts of the board are left out of the file | information: always given, it lists what the file does not hold (the silkscreen items, the arcs of the outline, the copper fill of the zones, the holes that are not plated, the texts of the dimensions, the stack-up, and what the settings switch off) |
+| PHOENIX-IPC2581-006 | Parts of the board are left out of the file | information: always given, it lists what the file does not hold (the silkscreen items, the arcs of the outline, the copper fill of the zones, the holes that are not plated, the texts of the dimensions when the settings leave them out, the stack-up, and what the settings switch off) |
 | PHOENIX-IPC2581-007 | The board has no outline to write | warning: the outline has fewer than three corners, so the file has no profile |
 | PHOENIX-IPC2581-008 | A pad is on no layer that the file holds | warning: a pad of a part that is on none of the copper layers of the board |
 
