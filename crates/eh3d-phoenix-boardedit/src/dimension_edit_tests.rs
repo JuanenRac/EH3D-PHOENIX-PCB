@@ -152,6 +152,24 @@ fn the_dimension_line_is_moved_with_its_middle_point() {
 }
 
 #[test]
+fn the_delete_tool_removes_a_dimension_by_one_of_its_points_as_one_step() {
+    let (f, mut s, _) = with_one_dimension();
+    s.set_tool(Tool::Delete);
+    // a click away from every point of the dimension and every object does nothing
+    s.pointer_pressed(f.pt(40, 30), false);
+    assert_eq!(only(&s).kind, DimensionKind::Aligned);
+    assert_eq!(s.edit.steps(), 1);
+    assert!(s.error.is_none(), "{:?}", s.error);
+    // a click on the second point measured removes it
+    s.pointer_pressed(f.pt(13, 14), false);
+    assert!(s.error.is_none(), "{:?}", s.error);
+    assert!(s.board().dimensions.is_empty());
+    assert_eq!(s.edit.steps(), 2);
+    assert!(s.undo());
+    assert_eq!(only(&s).to, f.pt(13, 14));
+}
+
+#[test]
 fn a_click_that_is_not_on_a_point_takes_nothing_and_says_so() {
     let (f, mut s, _) = with_one_dimension();
     s.pointer_pressed(f.pt(40, 30), true);

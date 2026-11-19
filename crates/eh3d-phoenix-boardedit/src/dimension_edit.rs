@@ -227,6 +227,17 @@ impl EditState {
         }
     }
 
+    /// Removes the dimension that has a point under `p` (see [`EditState::dimension_handle_at`])
+    /// as one step; false, with no error, when there is none. This is what the delete tool does
+    /// where it finds no other object.
+    pub fn remove_dimension_at(&mut self, p: Point) -> bool {
+        let Some((dimension, _)) = self.dimension_handle_at(p) else {
+            return false;
+        };
+        self.dimension_grab = None;
+        self.run(&EditOp::RemoveDimension { dimension })
+    }
+
     /// Puts a point of a dimension at `to` (on the grid) as one step; false when it was refused.
     pub fn move_dimension_point(&mut self, id: Id, handle: DimensionHandle, to: Point) -> bool {
         let to = self.snap(to);

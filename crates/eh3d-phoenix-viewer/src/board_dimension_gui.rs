@@ -59,7 +59,7 @@ pub fn draw(
     pointer: Option<Point>,
     to_screen: &dyn Fn(Point) -> Pos2,
 ) {
-    if state.tool != Tool::Dimension {
+    if !matches!(state.tool, Tool::Dimension | Tool::Delete) {
         return;
     }
     for (id, d) in &state.board().dimensions {

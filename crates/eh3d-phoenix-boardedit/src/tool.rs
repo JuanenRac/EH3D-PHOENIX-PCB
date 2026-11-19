@@ -624,6 +624,8 @@ impl EditState {
                     self.selection.clear();
                     self.selection.insert(item);
                     self.delete_selection();
+                } else {
+                    self.remove_dimension_at(p);
                 }
             }
             Tool::TestPad => {
