@@ -944,6 +944,7 @@ The titles of these codes also exist in the eight languages of the suite (`TITLE
 | PHOENIX-LEN-020 | Pair differs in delay by more than allowed | error: the two nets of a pair differ in delay by more than `max_delay_skew_fs` of the pair or `pair_delay_skew_fs` of the settings |
 | PHOENIX-LEN-021 | Nets of a group differ in delay by more than allowed | error: the longest and the shortest delay of the nets of a group differ by more than its `max_delay_spread_fs` |
 | PHOENIX-LEN-022 | Net is longer than the longest length allowed | error: a net of a group is longer than the `max_length_nm` of the group |
+| PHOENIX-LEN-023 | Net is not the length of the reference net plus its offset | error: a net of a group that names a `reference` net is farther from the length of the reference plus its `offsets_nm` than the tolerance of the group |
 
 ## Statistics of a board (`eh3d-phoenix-stats`, `src/codes.rs`)
 

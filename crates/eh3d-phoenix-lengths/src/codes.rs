@@ -51,6 +51,8 @@ pub const PAIR_DELAY_SKEW: &str = "PHOENIX-LEN-020";
 pub const GROUP_DELAY_SPREAD: &str = "PHOENIX-LEN-021";
 /// A net of a group is longer than the longest length allowed.
 pub const NET_TOO_LONG: &str = "PHOENIX-LEN-022";
+/// A net of a group is not the length of the reference net of the group plus its offset.
+pub const GROUP_OFFSET: &str = "PHOENIX-LEN-023";
 
 /// Code, then the title in English, Spanish, German, French, Italian, Japanese, Chinese and
 /// European Portuguese.
@@ -339,6 +341,19 @@ pub const TITLES: &[(&str, [&str; 8])] = &[
             "ネットが許容される最大の長さを超えています",
             "网络长度超过允许的最大长度",
             "A rede é mais longa do que o comprimento máximo permitido",
+        ],
+    ),
+    (
+        GROUP_OFFSET,
+        [
+            "Net is not the length of the reference net plus its offset",
+            "La red no tiene la longitud de la red de referencia más su desplazamiento",
+            "Das Netz hat nicht die Länge des Bezugsnetzes plus seinem Versatz",
+            "Le réseau n'a pas la longueur du réseau de référence plus son décalage",
+            "La rete non ha la lunghezza della rete di riferimento più il suo scostamento",
+            "ネットの長さが基準ネットの長さにオフセットを加えた値と一致しません",
+            "网络长度不等于参考网络的长度加上其偏移量",
+            "A rede não tem o comprimento da rede de referência mais o seu desvio",
         ],
     ),
 ];

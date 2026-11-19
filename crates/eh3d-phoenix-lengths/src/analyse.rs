@@ -20,9 +20,9 @@ use eh3d_phoenix_stackup::StackupJob;
 use serde::{Deserialize, Serialize};
 
 use crate::codes::{
-    Finding, LengthError, Severity, FILE_INVALID, GROUP_DELAY_SPREAD, GROUP_MISMATCH, GROUP_TARGET,
-    LIMIT_EXCEEDED, NET_NOT_FOUND, NET_NO_COPPER, NET_TOO_LONG, PAIR_DELAY_SKEW, PAIR_GAP_LARGE,
-    PAIR_GAP_SMALL, PAIR_NOT_COUPLED, PAIR_SKEW, PAIR_UNCOUPLED, PAIR_WIDTH,
+    Finding, LengthError, Severity, FILE_INVALID, GROUP_DELAY_SPREAD, GROUP_MISMATCH, GROUP_OFFSET,
+    GROUP_TARGET, LIMIT_EXCEEDED, NET_NOT_FOUND, NET_NO_COPPER, NET_TOO_LONG, PAIR_DELAY_SKEW,
+    PAIR_GAP_LARGE, PAIR_GAP_SMALL, PAIR_NOT_COUPLED, PAIR_SKEW, PAIR_UNCOUPLED, PAIR_WIDTH,
 };
 use crate::geom::{seg_dist, seg_len, P};
 use crate::measure::{measure_nets, NetLength};
@@ -52,6 +52,17 @@ pub struct GroupSpec {
     /// The longest length any net of the group may have, in nanometres; not judged when missing.
     #[serde(default)]
     pub max_length_nm: Option<i64>,
+    /// The reference net of the group, one of its nets: every other net must be as long as the
+    /// reference plus its offset, within the tolerance, instead of all being as long as each
+    /// other (a bus whose lines are meant to be longer or shorter than a clock by a fixed
+    /// amount). It cannot be given with a target.
+    #[serde(default)]
+    pub reference: Option<String>,
+    /// How much longer (or, negative, shorter) than the reference each net has to be, by the name
+    /// of the net, in nanometres; a net that is not named has an offset of zero. Needs a
+    /// reference, and the reference has none.
+    #[serde(default)]
+    pub offsets_nm: BTreeMap<String, i64>,
 }
 
 /// A differential pair.
@@ -119,6 +130,37 @@ impl LengthFile {
             if g.name.trim().is_empty() || !names.insert(g.name.as_str()) {
                 return bad(format!(
                     "the group name {:?} is empty or used twice",
+                    g.name
+                ));
+            }
+            if let Some(reference) = &g.reference {
+                if g.target_nm.is_some() {
+                    return bad(format!(
+                        "the group {} has a reference net and a target length",
+                        g.name
+                    ));
+                }
+                if !g.nets.contains(reference) {
+                    return bad(format!(
+                        "the reference net {reference} is not a net of the group {}",
+                        g.name
+                    ));
+                }
+                if g.offsets_nm.contains_key(reference) {
+                    return bad(format!(
+                        "the reference net {reference} of the group {} has an offset",
+                        g.name
+                    ));
+                }
+            } else if !g.offsets_nm.is_empty() {
+                return bad(format!(
+                    "the group {} has offsets and no reference net",
+                    g.name
+                ));
+            }
+            if let Some(name) = g.offsets_nm.keys().find(|n| !g.nets.contains(n)) {
+                return bad(format!(
+                    "the offset of {name} is for a net that is not in the group {}",
                     g.name
                 ));
             }
@@ -192,6 +234,8 @@ pub struct GroupResult {
     pub tolerance_nm: i64,
     /// The target length, when the group has one.
     pub target_nm: Option<i64>,
+    /// The reference net, when the group has one.
+    pub reference: Option<String>,
     /// The longest delay minus the shortest, in femtoseconds.
     pub delay_spread_fs: i64,
     /// The spread of the delays that was allowed, in femtoseconds, when a limit was given.
@@ -384,35 +428,59 @@ fn judge_group(
     let max_nm = nets.iter().map(|n| n.length_nm).max().unwrap_or(0);
     let spread_nm = max_nm - min_nm;
     let mut ok = true;
-    match g.target_nm {
-        Some(target) => {
-            for n in &nets {
-                let off = (n.length_nm - target).abs();
-                if off > tolerance_nm {
-                    ok = false;
-                    findings.push(Finding::new(
-                        GROUP_TARGET,
-                        Severity::Error,
-                        Some(g.name.as_str()),
-                        format!(
-                            "{} is {} nm from the target, the tolerance is {} nm",
-                            n.name, off, tolerance_nm
-                        ),
-                    ));
-                }
-            }
-        }
-        None => {
-            if spread_nm > tolerance_nm {
+    let reference_nm = g.reference.as_ref().and_then(|name| {
+        nets.iter()
+            .find(|n| n.name == *name)
+            .map(|n| (name, n.length_nm))
+    });
+    if let Some((reference, reference_nm)) = reference_nm {
+        for n in nets.iter().filter(|n| n.name != *reference) {
+            let offset = g.offsets_nm.get(&n.name).copied().unwrap_or(0);
+            let off = (n.length_nm - (reference_nm + offset)).abs();
+            if off > tolerance_nm {
                 ok = false;
                 findings.push(Finding::new(
-                    GROUP_MISMATCH,
+                    GROUP_OFFSET,
                     Severity::Error,
                     Some(g.name.as_str()),
                     format!(
-                        "the nets differ by {spread_nm} nm, the tolerance is {tolerance_nm} nm"
+                        "{} is {} nm from {reference} plus {offset} nm, the tolerance is {} nm",
+                        n.name, off, tolerance_nm
                     ),
                 ));
+            }
+        }
+    } else {
+        match g.target_nm {
+            Some(target) => {
+                for n in &nets {
+                    let off = (n.length_nm - target).abs();
+                    if off > tolerance_nm {
+                        ok = false;
+                        findings.push(Finding::new(
+                            GROUP_TARGET,
+                            Severity::Error,
+                            Some(g.name.as_str()),
+                            format!(
+                                "{} is {} nm from the target, the tolerance is {} nm",
+                                n.name, off, tolerance_nm
+                            ),
+                        ));
+                    }
+                }
+            }
+            None => {
+                if spread_nm > tolerance_nm {
+                    ok = false;
+                    findings.push(Finding::new(
+                        GROUP_MISMATCH,
+                        Severity::Error,
+                        Some(g.name.as_str()),
+                        format!(
+                            "the nets differ by {spread_nm} nm, the tolerance is {tolerance_nm} nm"
+                        ),
+                    ));
+                }
             }
         }
     }
@@ -452,6 +520,7 @@ fn judge_group(
         spread_nm,
         tolerance_nm,
         target_nm: g.target_nm,
+        reference: g.reference.clone(),
         delay_spread_fs,
         max_delay_spread_fs: g.max_delay_spread_fs,
         max_length_nm: g.max_length_nm,

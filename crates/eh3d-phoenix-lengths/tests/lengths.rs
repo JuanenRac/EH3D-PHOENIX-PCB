@@ -3,9 +3,9 @@
 
 use eh3d_phoenix_board::{Board, Id, Layer, LayerKind, Net, Segment, Track, Via};
 use eh3d_phoenix_lengths::codes::{
-    ARC_ESTIMATED, GROUP_DELAY_SPREAD, GROUP_MISMATCH, GROUP_TARGET, LAYER_NO_DELAY, NET_NOT_FOUND,
-    NET_NO_COPPER, NET_TOO_LONG, PAIR_DELAY_SKEW, PAIR_GAP_SMALL, PAIR_NOT_COUPLED, PAIR_SKEW,
-    PAIR_UNCOUPLED, PAIR_WIDTH, STACKUP_FALLBACK,
+    ARC_ESTIMATED, GROUP_DELAY_SPREAD, GROUP_MISMATCH, GROUP_OFFSET, GROUP_TARGET, LAYER_NO_DELAY,
+    NET_NOT_FOUND, NET_NO_COPPER, NET_TOO_LONG, PAIR_DELAY_SKEW, PAIR_GAP_SMALL, PAIR_NOT_COUPLED,
+    PAIR_SKEW, PAIR_UNCOUPLED, PAIR_WIDTH, STACKUP_FALLBACK,
 };
 use eh3d_phoenix_lengths::{
     analyse, report_json, report_text, LengthFile, LengthReport, LengthSettings,
@@ -273,6 +273,75 @@ fn a_group_with_a_target_judges_each_net_against_it() {
     assert_eq!(targets.len(), 1);
     assert!(targets[0].detail.contains("D1"), "{}", targets[0].detail);
     assert!(!report.groups[0].ok);
+}
+
+const BUS: &str = r#"{"format":"phoenix-lengths/1","groups":[{"name":"bus","nets":["D0","D1"],"tolerance_nm":300000,"reference":"D0","offsets_nm":{"D1":2000000}}]}"#;
+
+#[test]
+fn a_group_with_a_reference_judges_each_net_against_the_reference_plus_its_offset() {
+    // D1 is 2 mm longer than D0 within 0.3 mm
+    let ok = run(&data_board(12_100_000), Some(BUS));
+    let g = &ok.groups[0];
+    assert!(g.ok, "{:?}", ok.findings);
+    assert_eq!(g.reference.as_deref(), Some("D0"));
+    assert!(!ok.has_errors());
+    // 0.4 mm too much; the spread of the lengths is not judged, the offset is
+    let broken = run(&data_board(12_400_000), Some(BUS));
+    assert!(!broken.groups[0].ok);
+    let found: Vec<_> = broken
+        .findings
+        .iter()
+        .filter(|f| f.code == GROUP_OFFSET)
+        .collect();
+    assert_eq!(found.len(), 1);
+    assert!(
+        found[0]
+            .detail
+            .starts_with("D1 is 400000 nm from D0 plus 2000000 nm"),
+        "{}",
+        found[0].detail
+    );
+    assert!(broken.findings.iter().all(|f| f.code != GROUP_MISMATCH));
+    // too short is as wrong as too long
+    let short = run(&data_board(11_600_000), Some(BUS));
+    assert!(short.findings.iter().any(|f| f.code == GROUP_OFFSET));
+    // a net with no offset has to be as long as the reference
+    let plain = r#"{"format":"phoenix-lengths/1","groups":[{"name":"bus","nets":["D0","D1"],"tolerance_nm":300000,"reference":"D0"}]}"#;
+    assert!(run(&data_board(10_200_000), Some(plain)).groups[0].ok);
+    assert!(!run(&data_board(10_400_000), Some(plain)).groups[0].ok);
+    // a negative offset is a net that must be shorter
+    let shorter = r#"{"format":"phoenix-lengths/1","groups":[{"name":"bus","nets":["D0","D1"],"tolerance_nm":300000,"reference":"D0","offsets_nm":{"D1":-1000000}}]}"#;
+    assert!(run(&data_board(9_100_000), Some(shorter)).groups[0].ok);
+    // the report says what the group is relative to, and the other delays and limits still apply
+    let text = report_text(&ok, Lang::En);
+    assert!(text.contains(", relative to D0: ok"), "{text}");
+    assert!(report_json(&ok).contains("\"reference\": \"D0\""));
+    let capped = r#"{"format":"phoenix-lengths/1","groups":[{"name":"bus","nets":["D0","D1"],"tolerance_nm":300000,"reference":"D0","offsets_nm":{"D1":2000000},"max_length_nm":12000000}]}"#;
+    assert!(run(&data_board(12_100_000), Some(capped))
+        .findings
+        .iter()
+        .any(|f| f.code == NET_TOO_LONG));
+}
+
+#[test]
+fn a_reference_that_does_not_fit_the_group_is_refused() {
+    let file = |group: &str| {
+        format!(
+            r#"{{"format":"phoenix-lengths/1","groups":[{{"name":"bus","nets":["D0","D1"],{group}}}]}}"#
+        )
+    };
+    for bad in [
+        r#""reference":"D0","target_nm":10000000"#,
+        r#""reference":"D9""#,
+        r#""offsets_nm":{"D1":1000000}"#,
+        r#""reference":"D0","offsets_nm":{"D9":1000000}"#,
+        r#""reference":"D0","offsets_nm":{"D0":1000000}"#,
+    ] {
+        assert!(LengthFile::from_json(&file(bad)).is_err(), "{bad}");
+    }
+    assert!(
+        LengthFile::from_json(&file(r#""reference":"D0","offsets_nm":{"D1":-1000000}"#)).is_ok()
+    );
 }
 
 #[test]

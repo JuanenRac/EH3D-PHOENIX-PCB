@@ -26,6 +26,8 @@ The delay of a via is its length times `via_delay_ps_per_mm`. Delays are whole f
 
 A group names nets and a tolerance. Without a target the longest and the shortest net may differ by at most the tolerance (`PHOENIX-LEN-004`); with a target every net must be within the tolerance of the target (`PHOENIX-LEN-018`). A group that gives no tolerance uses `default_group_tolerance_nm`.
 
+A group may name a `reference` net (one of its nets) instead of a target, and `offsets_nm`, how much longer (or, negative, shorter) than the reference each other net has to be, by the name of the net; a net that is not named has an offset of zero. Each net must then be within the tolerance of the length of the reference plus its offset (`PHOENIX-LEN-023`), and the spread of the lengths is not judged. It is for a bus whose lines have to be longer or shorter than a clock or a strobe by a fixed amount. A reference with a target, a reference that is not a net of the group, offsets without a reference, an offset for a net that is not in the group and an offset for the reference are refused when the file is read (`PHOENIX-LEN-002`). The result and the text of the report say what the group is relative to.
+
 A group may also give `max_delay_spread_fs`, the most the delays of its nets may differ (`PHOENIX-LEN-021`), which matches the nets in time and not in length when they run on layers of different speed, and `max_length_nm`, the longest any of its nets may be (`PHOENIX-LEN-022`). Both work with or without a target and are not judged when missing.
 
 ## Pairs
@@ -48,7 +50,9 @@ A pair with no coupled stretch gives the warning `PHOENIX-LEN-019` and its gap i
 {
   "format": "phoenix-lengths/1",
   "groups": [
-    {"name": "data", "nets": ["D0", "D1", "D2"], "tolerance_nm": 500000, "target_nm": null}
+    {"name": "data", "nets": ["D0", "D1", "D2"], "tolerance_nm": 500000, "target_nm": null},
+    {"name": "bus", "nets": ["CLK", "D0", "D1"], "tolerance_nm": 300000, "reference": "CLK",
+     "offsets_nm": {"D0": 2000000, "D1": -1000000}}
   ],
   "pairs": [
     {"name": "usb", "positive": "USB_P", "negative": "USB_N", "max_skew_nm": 150000,

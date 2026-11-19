@@ -56,14 +56,19 @@ pub fn report_text(report: &LengthReport, lang: Lang) -> String {
     }
     for g in &report.groups {
         let state = if g.ok { "ok" } else { "broken" };
+        let relative = g
+            .reference
+            .as_ref()
+            .map_or(String::new(), |r| format!(", relative to {r}"));
         out.push_str(&format!(
-            "group {}: {} nets from {} mm to {} mm, spread {} mm, tolerance {} mm: {}\n",
+            "group {}: {} nets from {} mm to {} mm, spread {} mm, tolerance {} mm{}: {}\n",
             g.name,
             g.nets.len(),
             millimetres(g.min_nm),
             millimetres(g.max_nm),
             millimetres(g.spread_nm),
             millimetres(g.tolerance_nm),
+            relative,
             state
         ));
     }
