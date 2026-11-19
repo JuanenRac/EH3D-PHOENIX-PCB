@@ -212,7 +212,11 @@ C9,,,no\n";
         let text = "match,alternatives\nR1,A;B;C\n";
         assert!(PartsFile::parse_with(text, 10, 3).is_ok());
         let e = PartsFile::parse_with(text, 10, 2).unwrap_err();
-        assert!(e.detail.contains("more than 2 alternatives"), "{}", e.detail);
+        assert!(
+            e.detail.contains("more than 2 alternatives"),
+            "{}",
+            e.detail
+        );
         // the plain reader keeps the default limit
         assert!(PartsFile::parse(text, 10).is_ok());
     }
