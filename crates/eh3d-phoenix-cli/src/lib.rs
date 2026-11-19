@@ -444,14 +444,15 @@ phoenix testpoints [--config FILE] [--out FILE] [--json] [--lang xx] <board>
                 each other or too near the edge, with the codes PHOENIX-TP-<NNN>; a dry run unless
                 --out names a new file, a prototype, run `phoenix testpoints` alone for its options
 
-phoenix nets [--config FILE] [--out FILE] [--compare NETLIST] [--import NETLIST] [--json] [--lang xx] [<board>]
+phoenix nets [--config FILE] [--out FILE] [--csv FILE] [--compare NETLIST] [--import NETLIST] [--lint] [--json] [--lang xx] [<board>]
 
   nets          the nets of a board as a text netlist, one line for each net (`NET GND U1.1 C1.2`),
-                the reading and checking of such a file against the limits of config/nets.cfg, and
-                the comparison of a file with a board (nets on one side only, a pin on another net
-                or on none, a net under another name), with the codes PHOENIX-NETS-<NNN>; a dry run
-                unless --out names a new file, a prototype, run `phoenix nets` alone for its
-                options
+                the reading and checking of such a file against the limits of config/nets.cfg, the
+                comparison of a file with a board or with another file (nets on one side only, a
+                pin on another net or on none, a net under another name), a lint of the nets (one
+                pin or none, names alike) and the pins as CSV, with the codes PHOENIX-NETS-<NNN>; a
+                dry run unless --out or --csv names a new file, a prototype, run `phoenix nets`
+                alone for its options
 
 phoenix ipc2581 [--config FILE] [--out FILE [--overwrite]] [--json] [--lang xx] <board>
 

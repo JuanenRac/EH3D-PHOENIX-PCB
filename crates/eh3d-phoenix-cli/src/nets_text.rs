@@ -94,9 +94,13 @@ pub struct NetsSettings {
     pub max_name_len: usize,
     /// The most differences that a comparison lists; the total is counted all the same.
     pub max_differences: usize,
-    /// Nets that a comparison leaves out on both sides (any case); a name that ends in `*`
+    /// Nets that a comparison and the lint leave out (any case); a name that ends in `*`
     /// matches every net that starts with the rest.
     pub ignore_nets: Vec<String>,
+    /// Whether a cell of a CSV file that starts with `=`, `+`, `-`, `@`, a tab or a carriage
+    /// return gets a single quote in front of it, so that a spreadsheet does not take a net
+    /// called `+5V` for a formula.
+    pub csv_guard_formulas: bool,
 }
 
 impl Default for NetsSettings {
@@ -109,6 +113,7 @@ impl Default for NetsSettings {
             max_name_len: 128,
             max_differences: 1000,
             ignore_nets: Vec::new(),
+            csv_guard_formulas: true,
         }
     }
 }
@@ -146,6 +151,13 @@ impl NetsSettings {
                 "max_pins" => s.max_pins = number(1, 100_000_000)? as usize,
                 "max_name_len" => s.max_name_len = number(1, 1024)? as usize,
                 "max_differences" => s.max_differences = number(1, 10_000_000)? as usize,
+                "csv_guard_formulas" => {
+                    s.csv_guard_formulas = match value {
+                        "true" => true,
+                        "false" => false,
+                        _ => return Err(bad("csv_guard_formulas is true or false".to_owned())),
+                    }
+                }
                 "ignore_nets" => {
                     s.ignore_nets = value
                         .split(',')
@@ -681,6 +693,136 @@ pub fn compare(file: &NetTable, board: &NetTable, settings: &NetsSettings) -> Co
     }
 }
 
+// ---------------------------------------------------------------------------------------------
+// the lint
+// ---------------------------------------------------------------------------------------------
+
+/// One finding of the lint.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LintFinding {
+    /// The code (`PHOENIX-NETS-017` to `PHOENIX-NETS-019`).
+    pub code: &'static str,
+    /// The net: the first of the nets for the names that are alike.
+    pub net: String,
+    /// The other nets with a name alike, joined by a comma and a blank.
+    pub other: Option<String>,
+}
+
+/// The result of the lint.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LintResult {
+    /// The findings, at most `max_differences` of them.
+    pub findings: Vec<LintFinding>,
+    /// How many there are in all.
+    pub total: usize,
+}
+
+/// The name of a net without its case and without the characters that people use as
+/// separators, to find the names that are alike.
+fn alike_key(name: &str) -> String {
+    name.chars()
+        .filter(|c| !matches!(c, '_' | '-' | '.' | '/' | ' '))
+        .flat_map(char::to_lowercase)
+        .collect()
+}
+
+/// Looks for nets that are probably a mistake: a net with one pin (an unconnected input, or a
+/// misspelt name that split a net in two), a net with no pin and nets whose names differ only in
+/// case or in the separators (`GND` and `Gnd`, `VCC_3V3` and `VCC-3V3`). The nets that the settings
+/// ignore are left out.
+pub fn lint(table: &NetTable, settings: &NetsSettings) -> LintResult {
+    let mut found: Vec<LintFinding> = Vec::new();
+    let mut groups: BTreeMap<String, Vec<&String>> = BTreeMap::new();
+    for (name, pins) in table.ordered() {
+        if settings.ignores(name) {
+            continue;
+        }
+        let code = match pins.len() {
+            0 => Some(codes::NET_EMPTY),
+            1 => Some(codes::NET_SINGLE_PIN),
+            _ => None,
+        };
+        if let Some(code) = code {
+            found.push(LintFinding {
+                code,
+                net: name.clone(),
+                other: None,
+            });
+        }
+        groups.entry(alike_key(name)).or_default().push(name);
+    }
+    for names in groups.values() {
+        if let Some((first, rest)) = names.split_first() {
+            if !rest.is_empty() {
+                let rest: Vec<&str> = rest.iter().map(|n| n.as_str()).collect();
+                found.push(LintFinding {
+                    code: codes::NET_NAMES_ALIKE,
+                    net: (*first).clone(),
+                    other: Some(rest.join(", ")),
+                });
+            }
+        }
+    }
+    let total = found.len();
+    found.truncate(settings.max_differences);
+    LintResult {
+        findings: found,
+        total,
+    }
+}
+
+// ---------------------------------------------------------------------------------------------
+// CSV
+// ---------------------------------------------------------------------------------------------
+
+/// One cell of a CSV file: a cell with a comma, a double quote or a line end is quoted, and with
+/// `guard` a cell that a spreadsheet would read as a formula (it starts with `=`, `+`, `-`, `@`, a
+/// tab or a carriage return) gets a single quote in front of it.
+pub fn csv_field(value: &str, guard: bool) -> String {
+    let mut text = value.to_owned();
+    if guard && text.starts_with(['=', '+', '-', '@', '\t', '\r']) {
+        text.insert(0, '\'');
+    }
+    if text.contains([',', '"', '\n', '\r']) {
+        text = format!("\"{}\"", text.replace('"', "\"\""));
+    }
+    text
+}
+
+/// The pins of a table as CSV, one row for each pin under the header `net,part,pad`, in the order
+/// of the netlist. A net with no pin has no row.
+pub fn pins_csv(table: &NetTable, guard: bool) -> String {
+    let mut text = String::from("net,part,pad\n");
+    for (name, pins) in table.ordered() {
+        for pin in pins {
+            text.push_str(&format!(
+                "{},{},{}\n",
+                csv_field(name, guard),
+                csv_field(&pin.part, guard),
+                csv_field(&pin.pad, guard)
+            ));
+        }
+    }
+    text
+}
+
+/// The differences of a comparison as CSV under the header `code,net,pin,other`.
+pub fn differences_csv(differences: &[Difference], guard: bool) -> String {
+    let mut text = String::from("code,net,pin,other\n");
+    for d in differences {
+        let pin = d.pin.as_ref().map(ToString::to_string).unwrap_or_default();
+        let other = d.other.clone().unwrap_or_default();
+        text.push_str(&format!(
+            "{},{},{},{}\n",
+            d.code,
+            csv_field(&d.net, guard),
+            csv_field(&pin, guard),
+            csv_field(&other, guard)
+        ));
+    }
+    text
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -891,7 +1033,103 @@ mod tests {
     #[test]
     fn the_settings_file_of_the_repository_is_the_built_in_default() {
         let shipped = include_str!("../../../config/nets.cfg");
-        assert_eq!(NetsSettings::parse(shipped).unwrap(), NetsSettings::default());
+        assert_eq!(
+            NetsSettings::parse(shipped).unwrap(),
+            NetsSettings::default()
+        );
+    }
+
+    #[test]
+    fn a_cell_of_a_csv_file_is_quoted_and_guarded_against_formulas() {
+        assert_eq!(csv_field("GND", true), "GND");
+        assert_eq!(csv_field("a,b", true), "\"a,b\"");
+        assert_eq!(csv_field("say \"hi\"", true), "\"say \"\"hi\"\"\"");
+        assert_eq!(csv_field("two\nlines", false), "\"two\nlines\"");
+        // a spreadsheet takes these for formulas, so each gets a quote in front
+        for formula in ["=1+1", "+5V", "-5V", "@SUM", "\tx", "\rx"] {
+            let guarded = csv_field(formula, true);
+            assert!(guarded.trim_matches('"').starts_with('\''), "{formula:?}");
+            assert!(!csv_field(formula, false).contains('\''), "{formula:?}");
+        }
+        // a quote in the middle is not a formula
+        assert_eq!(csv_field("V+", true), "V+");
+        assert_eq!(csv_field("", true), "");
+    }
+
+    #[test]
+    fn the_pins_of_a_table_are_written_as_csv_in_the_order_of_the_netlist() {
+        let t = table("NET +5V U1.1 C10.1 C2.1\nNET GND U1.2\nNET EMPTY\n");
+        assert_eq!(
+            pins_csv(&t, true),
+            "net,part,pad\n'+5V,C2,1\n'+5V,C10,1\n'+5V,U1,1\nGND,U1,2\n"
+        );
+        assert_eq!(
+            pins_csv(&t, false),
+            "net,part,pad\n+5V,C2,1\n+5V,C10,1\n+5V,U1,1\nGND,U1,2\n"
+        );
+        assert_eq!(pins_csv(&NetTable::default(), true), "net,part,pad\n");
+    }
+
+    #[test]
+    fn the_differences_are_written_as_csv() {
+        let file = table("NET A R1.1 R2.1\nNET -B R3.1\n");
+        let board = table("NET A R1.1\nNET C R2.1 R3.1\n");
+        let c = compare(&file, &board, &settings());
+        let text = differences_csv(&c.differences, true);
+        assert!(text.starts_with("code,net,pin,other\n"), "{text}");
+        assert!(text.contains("PHOENIX-NETS-011,'-B,,\n"), "{text}");
+        assert!(text.contains("PHOENIX-NETS-013,A,R2.1,C\n"), "{text}");
+        assert_eq!(text.lines().count(), 1 + c.total);
+        assert_eq!(differences_csv(&[], true), "code,net,pin,other\n");
+    }
+
+    #[test]
+    fn the_lint_finds_single_pin_nets_empty_nets_and_names_that_are_alike() {
+        let t = table(
+            "NET GND U1.1 U1.2\nNET Gnd R1.1 R1.2\nNET VCC_3V3 U2.1 U2.2\nNET VCC-3V3 R2.1 R2.2\nNET ALONE R9.1\nNET VOID\nNET GOOD C1.1 C1.2\n",
+        );
+        let r = lint(&t, &settings());
+        let list: Vec<(&str, &str, Option<&str>)> = r
+            .findings
+            .iter()
+            .map(|f| (f.code, f.net.as_str(), f.other.as_deref()))
+            .collect();
+        assert_eq!(
+            list,
+            vec![
+                (codes::NET_SINGLE_PIN, "ALONE", None),
+                (codes::NET_EMPTY, "VOID", None),
+                (codes::NET_NAMES_ALIKE, "GND", Some("Gnd")),
+                (codes::NET_NAMES_ALIKE, "VCC-3V3", Some("VCC_3V3")),
+            ]
+        );
+        assert_eq!(r.total, 4);
+    }
+
+    #[test]
+    fn three_names_that_are_alike_are_one_finding_and_ignored_nets_are_left_out() {
+        let t = table("NET a.b U1.1 U1.2\nNET A_B U2.1 U2.2\nNET a-b U3.1 U3.2\nNET NC1 R1.1\n");
+        let r = lint(&t, &settings());
+        assert_eq!(r.total, 2);
+        let alike = r
+            .findings
+            .iter()
+            .find(|f| f.code == codes::NET_NAMES_ALIKE)
+            .unwrap();
+        assert_eq!(alike.net, "A_B");
+        assert_eq!(alike.other.as_deref(), Some("a-b, a.b"));
+        let s = NetsSettings::parse("ignore_nets = nc*\nmax_differences = 1").unwrap();
+        let r = lint(&t, &s);
+        assert_eq!((r.total, r.findings.len()), (1, 1));
+        assert_eq!(lint(&table("NET A R1.1 R2.1\n"), &settings()).total, 0);
+    }
+
+    #[test]
+    fn the_guard_against_formulas_is_a_setting_that_is_on_by_default() {
+        assert!(NetsSettings::default().csv_guard_formulas);
+        let off = NetsSettings::parse("csv_guard_formulas = false").unwrap();
+        assert!(!off.csv_guard_formulas);
+        assert!(NetsSettings::parse("csv_guard_formulas = 1").is_err());
     }
 
     #[test]

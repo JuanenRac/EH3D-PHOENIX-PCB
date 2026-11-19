@@ -508,3 +508,163 @@ fn two_netlist_files_are_compared_with_each_other() {
     assert_eq!(code, 2);
     assert!(err.contains("PHOENIX-NETS-004"), "{err}");
 }
+
+#[test]
+fn the_pins_are_written_as_csv_with_the_formulas_guarded() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = write_board(dir.path(), &board_with("+SIG"));
+    let target = path_in(dir.path(), "pins.csv");
+    let (code, out, err) = command(&["nets", "--csv", &target, &path]);
+    assert_eq!((code, err.as_str()), (0, ""));
+    assert_eq!(out, format!("written: {target} (5 rows)\n"));
+    assert_eq!(
+        fs::read_to_string(&target).unwrap(),
+        "net,part,pad\n'+SIG,R1,1\n'+SIG,R2,1\nGND,R1,2\nGND,R2,2\nGND,TP1,1\n"
+    );
+    // the guard is a setting
+    let plain = write_text(dir.path(), "plain.cfg", "csv_guard_formulas = false\n");
+    let second = path_in(dir.path(), "plain.csv");
+    let (code, _, _) = command(&["nets", "--config", &plain, "--csv", &second, &path]);
+    assert_eq!(code, 0);
+    assert!(fs::read_to_string(&second)
+        .unwrap()
+        .starts_with("net,part,pad\n+SIG,R1,1\n"));
+    // a file that exists is never replaced
+    let (code, out, err) = command(&["nets", "--csv", &target, &path]);
+    assert_eq!((code, out.as_str()), (2, ""));
+    assert!(err.contains("PHOENIX-NETS-009"), "{err}");
+}
+
+#[test]
+fn the_netlist_and_the_csv_are_written_together_or_not_at_all() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = write_board(dir.path(), &board_with("SIG"));
+    let (netlist, csv) = (path_in(dir.path(), "a.nets"), path_in(dir.path(), "a.csv"));
+    let (code, out, _) = command(&["nets", "--out", &netlist, "--csv", &csv, &path]);
+    assert_eq!(code, 0);
+    assert_eq!(
+        out,
+        format!("written: {netlist} (2 nets, 5 pins)\nwritten: {csv} (5 rows)\n")
+    );
+    assert_eq!(fs::read_to_string(&netlist).unwrap(), BOARD_NETLIST);
+    // one of the two exists: nothing new is written
+    let fresh = path_in(dir.path(), "b.csv");
+    let (code, _, err) = command(&["nets", "--out", &netlist, "--csv", &fresh, &path]);
+    assert_eq!(code, 2);
+    assert!(err.contains("PHOENIX-NETS-009"), "{err}");
+    assert!(!Path::new(&fresh).exists());
+    let (code, _, _) = command(&["nets", "--out", &fresh, "--csv", &csv, &path]);
+    assert_eq!(code, 2);
+    assert!(!Path::new(&fresh).exists());
+    // the same name twice
+    let same = path_in(dir.path(), "same.out");
+    let (code, _, err) = command(&["nets", "--out", &same, "--csv", &same, &path]);
+    assert_eq!(code, 2);
+    assert!(err.contains("PHOENIX-NETS-009"), "{err}");
+    assert!(!Path::new(&same).exists());
+}
+
+#[test]
+fn the_differences_of_a_comparison_are_written_as_csv() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = write_board(dir.path(), &board_with("SIG"));
+    let file = write_text(dir.path(), "other.nets", DIFFERENT);
+    let target = path_in(dir.path(), "diff.csv");
+    let (code, out, _) = command(&["nets", "--compare", &file, "--csv", &target, &path]);
+    assert_eq!(code, 1);
+    assert!(
+        out.ends_with(&format!("differences: 4\nwritten: {target}\n")),
+        "{out}"
+    );
+    assert_eq!(
+        fs::read_to_string(&target).unwrap(),
+        "code,net,pin,other\nPHOENIX-NETS-011,EXTRA,,\nPHOENIX-NETS-014,EXTRA,U9.1,\n\
+PHOENIX-NETS-013,GND,R2.1,SIG\nPHOENIX-NETS-015,GND,R2.2,\n"
+    );
+}
+
+const LINTED: &str = "NET GND U1.1 U1.2\nNET Gnd R1.1 R1.2\nNET ALONE R9.1\n";
+
+#[test]
+fn the_lint_lists_single_pin_nets_and_names_that_are_alike() {
+    let dir = tempfile::tempdir().unwrap();
+    let file = write_text(dir.path(), "linted.nets", LINTED);
+    let (code, out, err) = command(&["nets", "--lint", "--import", &file]);
+    assert_eq!((code, err.as_str()), (1, ""));
+    assert_eq!(
+        out,
+        "nets: 3 nets, 5 pins\n\
+PHOENIX-NETS-017: Net has a single pin: ALONE\n\
+PHOENIX-NETS-018: Net names differ only in case or in separators: GND ~ Gnd\n\
+findings: 2\n"
+    );
+    let (_, es, _) = command(&["nets", "--lint", "--import", &file, "--lang", "es"]);
+    assert!(
+        es.contains("PHOENIX-NETS-017: La red tiene un solo pin: ALONE\n"),
+        "{es}"
+    );
+    let (code, json, _) = command(&["nets", "--lint", "--import", &file, "--json"]);
+    assert_eq!(code, 1);
+    let v: serde_json::Value = serde_json::from_str(&json).unwrap();
+    assert_eq!(v["finding_count"], 2);
+    assert_eq!(v["findings"][0]["code"], "PHOENIX-NETS-017");
+    assert!(v["findings"][0]["other"].is_null());
+    assert_eq!(v["findings"][1]["other"], "Gnd");
+    // the report goes to a new file only when asked
+    let target = path_in(dir.path(), "lint.json");
+    let (code, out, _) = command(&["nets", "--lint", "--import", &file, "--out", &target]);
+    assert_eq!(code, 1);
+    assert!(
+        out.ends_with(&format!("findings: 2\nwritten: {target}\n")),
+        "{out}"
+    );
+    let written: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(&target).unwrap()).unwrap();
+    assert_eq!(written["finding_count"], 2);
+}
+
+#[test]
+fn the_lint_of_a_board_without_mistakes_finds_nothing() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = write_board(dir.path(), &board_with("SIG"));
+    let (code, out, _) = command(&["nets", "--lint", &path]);
+    assert_eq!(code, 0);
+    assert_eq!(out, "nets: 2 nets, 5 pins\nfindings: 0\n");
+}
+
+#[test]
+fn the_settings_say_which_nets_the_lint_leaves_out() {
+    let dir = tempfile::tempdir().unwrap();
+    let file = write_text(dir.path(), "linted.nets", LINTED);
+    let one = write_text(dir.path(), "one.cfg", "ignore_nets = alone\n");
+    let (code, out, _) = command(&["nets", "--config", &one, "--lint", "--import", &file]);
+    assert_eq!(code, 1);
+    assert!(out.ends_with("findings: 1\n"), "{out}");
+    let all = write_text(dir.path(), "all.cfg", "ignore_nets = alone, gnd\n");
+    let (code, out, _) = command(&["nets", "--config", &all, "--lint", "--import", &file]);
+    assert_eq!(code, 0);
+    assert!(out.ends_with("findings: 0\n"), "{out}");
+    let cut = write_text(dir.path(), "cut.cfg", "max_differences = 1\n");
+    let (code, out, _) = command(&["nets", "--config", &cut, "--lint", "--import", &file]);
+    assert_eq!(code, 1);
+    assert!(
+        out.contains("1 more findings are not listed (max_differences)\n"),
+        "{out}"
+    );
+}
+
+#[test]
+fn the_lint_is_not_given_with_a_comparison_or_a_csv_file() {
+    let dir = tempfile::tempdir().unwrap();
+    let file = write_text(dir.path(), "a.nets", BOARD_NETLIST);
+    let target = path_in(dir.path(), "x.csv");
+    for args in [
+        vec!["nets", "--lint", "--import", &file, "--compare", &file],
+        vec!["nets", "--lint", "--import", &file, "--csv", &target],
+    ] {
+        let (code, out, err) = command(&args);
+        assert_eq!((code, out.as_str()), (2, ""), "{args:?}");
+        assert!(err.contains("PHOENIX-NETS-008"), "{err}");
+    }
+    assert!(!Path::new(&target).exists());
+}

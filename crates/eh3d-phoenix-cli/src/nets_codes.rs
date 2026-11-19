@@ -35,6 +35,12 @@ pub const PIN_NOT_ON_BOARD: &str = "PHOENIX-NETS-014";
 pub const PIN_NOT_IN_FILE: &str = "PHOENIX-NETS-015";
 /// A net has another name on the board but the same pins.
 pub const NET_RENAMED: &str = "PHOENIX-NETS-016";
+/// A net has one pin only.
+pub const NET_SINGLE_PIN: &str = "PHOENIX-NETS-017";
+/// Nets whose names differ only in case or in the separators.
+pub const NET_NAMES_ALIKE: &str = "PHOENIX-NETS-018";
+/// A net has no pin.
+pub const NET_EMPTY: &str = "PHOENIX-NETS-019";
 
 /// Code, then the title in English, Spanish, German, French, Italian, Japanese, Chinese and
 /// European Portuguese.
@@ -245,6 +251,45 @@ pub const TITLES: &[(&str, [&str; 8])] = &[
             "ネットは基板上で名前が異なり、ピンは同じです",
             "该网络在电路板上名称不同但引脚相同",
             "A rede tem outro nome na placa e os mesmos pinos",
+        ],
+    ),
+    (
+        NET_SINGLE_PIN,
+        [
+            "Net has a single pin",
+            "La red tiene un solo pin",
+            "Das Netz hat nur einen Pin",
+            "Le réseau n'a qu'une seule broche",
+            "La rete ha un solo pin",
+            "ネットにピンが1つしかありません",
+            "该网络只有一个引脚",
+            "A rede tem um só pino",
+        ],
+    ),
+    (
+        NET_NAMES_ALIKE,
+        [
+            "Net names differ only in case or in separators",
+            "Los nombres de red solo se diferencian en mayúsculas o en separadores",
+            "Netznamen unterscheiden sich nur in Groß- und Kleinschreibung oder in Trennzeichen",
+            "Les noms de réseau ne diffèrent que par la casse ou les séparateurs",
+            "I nomi delle reti differiscono solo per maiuscole o separatori",
+            "ネット名が大文字小文字または区切り文字だけ異なります",
+            "网络名称仅在大小写或分隔符上不同",
+            "Os nomes das redes diferem apenas em maiúsculas ou em separadores",
+        ],
+    ),
+    (
+        NET_EMPTY,
+        [
+            "Net has no pin",
+            "La red no tiene ningún pin",
+            "Das Netz hat keinen Pin",
+            "Le réseau n'a aucune broche",
+            "La rete non ha nessun pin",
+            "ネットにピンがありません",
+            "该网络没有引脚",
+            "A rede não tem nenhum pino",
         ],
     ),
 ];

@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! The command `nets`: the nets of a board as a text netlist (`NET name PART.PAD ...`), the
-//! reading and checking of such a file, and the comparison of a file with a board.
+//! reading and checking of such a file, the comparison of a file with a board, a lint of the
+//! names and the pins, and the pins as a CSV file.
 //!
-//! Exit codes: 0 done and nothing differs, 1 a comparison found differences, 2 the arguments, the
-//! input or the output are unusable. Nothing is written unless `--out` names a new file: the text
-//! goes to the output stream, and an existing file is never replaced.
+//! Exit codes: 0 done and nothing differs, 1 a comparison found differences or the lint found
+//! something, 2 the arguments, the input or the output are unusable. Nothing is written unless
+//! `--out` or `--csv` names a new file: the text goes to the output stream, and an existing file
+//! is never replaced.
 
 use std::fs::OpenOptions;
 use std::io::{Read, Write};
@@ -17,41 +19,51 @@ use serde_json::json;
 use crate::export::read_board_file;
 use crate::nets_codes::{INPUT_UNREADABLE, LIMIT_EXCEEDED, OPTION_INVALID, OUTPUT_FAILED};
 use crate::nets_text::{
-    compare, parse, render, table_of_pins, Comparison, NetTable, NetsError, NetsSettings, Note,
+    compare, differences_csv, lint, parse, pins_csv, render, table_of_pins, Comparison, LintResult,
+    NetTable, NetsError, NetsSettings, Note,
 };
 
 /// The settings file that is read when `--config` is not given and the file exists.
 const DEFAULT_CONFIG: &str = "config/nets.cfg";
 
 pub(crate) const USAGE: &str =
-    "phoenix nets [--config FILE] [--out FILE] [--compare NETLIST] [--import NETLIST] [--json]
-             [--lang CODE] [<board>]
+    "phoenix nets [--config FILE] [--out FILE] [--csv FILE] [--compare NETLIST] [--import NETLIST]
+             [--lint] [--json] [--lang CODE] [<board>]
 
   nets          the nets of a board as a text netlist, one line for each net: `NET GND U1.1 C1.2`
                 (the word NET, the name, the pins as PART.PAD; a line that starts with a blank
                 goes on with the pins above, `#` starts a comment). Without options the netlist
                 of the board is printed; a net name with a blank, a part with a dot and the like
                 are changed or left out and said in comment lines with the codes PHOENIX-NETS-<NNN>.
-                A dry run unless --out names a new file (an existing file is never replaced)
+                A dry run unless --out or --csv names a new file (an existing file is never
+                replaced)
   --import      read a netlist file instead of a board, check it against the limits of the
                 settings and print it again in its canonical form (no board is given)
   --compare     compare a netlist file with the board: nets only on one side, a pin on another net
                 or on none, a net under another name; exit code 1 when anything differs. With
                 --import the second side is another netlist file and no board is given. With
                 --out the JSON report is written
-  --config      the limits and the nets a comparison ignores (default: config/nets.cfg when it
-                exists)
-  --out FILE    write the netlist (or, with --compare, the JSON report) to a new file
+  --lint        look for nets that are probably a mistake: a net with one pin or none, and names
+                that differ only in case or in separators (GND and Gnd, VCC_3V3 and VCC-3V3); exit
+                code 1 when there is a finding. With --out the JSON report is written
+  --config      the limits, the nets a comparison and the lint ignore and the guard of the CSV
+                cells (default: config/nets.cfg when it exists)
+  --out FILE    write the netlist (or, with --compare or --lint, the JSON report) to a new file
+  --csv FILE    write the pins as CSV (net,part,pad), or with --compare the differences
+                (code,net,pin,other), to a new file; a cell that a spreadsheet would read as a
+                formula (+5V) gets a quote in front of it unless the settings turn that off
   --json        print the result as JSON, the same every time
   --lang CODE   the titles in en, es, de, fr, it, ja, zh or pt. Exit code: 0 done, 1 a
-                comparison differs, 2 unusable input
+                comparison differs or the lint finds something, 2 unusable input
 ";
 
 struct Options {
     json: bool,
+    lint: bool,
     lang: Lang,
     config: Option<String>,
     out: Option<String>,
+    csv: Option<String>,
     compare: Option<String>,
     import: Option<String>,
     files: Vec<String>,
@@ -84,9 +96,11 @@ fn take_once(
 fn parse_options(args: &[&str]) -> Result<Options, NetsError> {
     let mut options = Options {
         json: false,
+        lint: false,
         lang: Lang::En,
         config: None,
         out: None,
+        csv: None,
         compare: None,
         import: None,
         files: Vec::new(),
@@ -96,12 +110,14 @@ fn parse_options(args: &[&str]) -> Result<Options, NetsError> {
     while let Some(arg) = iter.next() {
         match *arg {
             "--json" => options.json = true,
+            "--lint" => options.lint = true,
             "--lang" => {
                 let tag = next_value(&mut iter, "--lang needs a language code")?;
                 options.lang = Lang::from_tag(&tag).ok_or_else(|| bad("unknown language code"))?;
             }
             "--config" => take_once(&mut iter, &mut options.config, "--config needs one file")?,
             "--out" => take_once(&mut iter, &mut options.out, "--out needs one file")?,
+            "--csv" => take_once(&mut iter, &mut options.csv, "--csv needs one file")?,
             "--compare" => take_once(&mut iter, &mut options.compare, "--compare needs one file")?,
             "--import" => take_once(&mut iter, &mut options.import, "--import needs one file")?,
             other if other.starts_with("--") => {
@@ -119,6 +135,9 @@ fn parse_options(args: &[&str]) -> Result<Options, NetsError> {
         }
     } else if options.files.len() != 1 {
         return Err(bad("give exactly one board file"));
+    }
+    if options.lint && (options.compare.is_some() || options.csv.is_some()) {
+        return Err(bad("--lint is not given with --compare or --csv"));
     }
     Ok(options)
 }
@@ -184,6 +203,49 @@ fn board_pins(board: &Board) -> Vec<(String, String, String)> {
     pins
 }
 
+/// The nets that the command works on: those of the netlist file that `--import` names, or else
+/// those of the board, with the notes about what could not be written as it is.
+fn load_side(
+    options: &Options,
+    settings: &NetsSettings,
+) -> Result<(NetTable, Vec<Note>), NetsError> {
+    match (&options.import, options.files.as_slice()) {
+        (Some(path), _) => Ok((parse(&read_netlist(path, settings)?, settings)?, Vec::new())),
+        (None, [board_path]) => {
+            let board =
+                read_board_file(board_path).map_err(|e| NetsError::new(INPUT_UNREADABLE, e))?;
+            Ok(table_of_pins(board_pins(&board)))
+        }
+        _ => Err(NetsError::new(
+            OPTION_INVALID,
+            "give exactly one board file",
+        )),
+    }
+}
+
+/// Refuses the run before anything is written when an output names a file that is already there
+/// (whatever it is) or when `--out` and `--csv` name the same file.
+fn check_outputs(options: &Options) -> Result<(), NetsError> {
+    let paths: Vec<&String> = options.out.iter().chain(options.csv.iter()).collect();
+    if let [a, b] = paths.as_slice() {
+        if a == b {
+            return Err(NetsError::new(
+                OUTPUT_FAILED,
+                "--out and --csv name the same file",
+            ));
+        }
+    }
+    for path in paths {
+        if std::fs::symlink_metadata(path).is_ok() {
+            return Err(NetsError::new(
+                OUTPUT_FAILED,
+                format!("{path}: it exists, an existing file is never replaced"),
+            ));
+        }
+    }
+    Ok(())
+}
+
 /// Writes a new file. An existing file is never replaced.
 fn write_new(path: &str, text: &str) -> Result<(), NetsError> {
     let failed = |e: std::io::Error| NetsError::new(OUTPUT_FAILED, format!("{path}: {e}"));
@@ -242,6 +304,21 @@ fn comparison_json(file: &NetTable, board: &NetTable, result: &Comparison) -> se
     })
 }
 
+fn lint_json(table: &NetTable, result: &LintResult) -> serde_json::Value {
+    let findings: Vec<serde_json::Value> = result
+        .findings
+        .iter()
+        .map(|f| json!({ "code": f.code, "net": f.net, "other": f.other }))
+        .collect();
+    json!({
+        "net_count": table.nets.len(),
+        "pin_count": table.pin_count(),
+        "finding_count": result.total,
+        "listed": result.findings.len(),
+        "findings": findings,
+    })
+}
+
 fn pretty(value: &serde_json::Value) -> String {
     let mut text = serde_json::to_string_pretty(value).unwrap_or_default();
     text.push('\n');
@@ -263,36 +340,86 @@ fn summary(table: &NetTable) -> String {
 
 fn export_or_import(options: &Options, out: &mut dyn Write) -> Result<i32, NetsError> {
     let settings = load_settings(options.config.as_deref())?;
-    let (table, notes) = match (&options.import, options.files.as_slice()) {
-        (Some(path), _) => (
-            parse(&read_netlist(path, &settings)?, &settings)?,
-            Vec::new(),
-        ),
-        (None, [board_path]) => {
-            let board =
-                read_board_file(board_path).map_err(|e| NetsError::new(INPUT_UNREADABLE, e))?;
-            table_of_pins(board_pins(&board))
-        }
-        _ => {
-            return Err(NetsError::new(
-                OPTION_INVALID,
-                "give exactly one board file",
-            ))
-        }
-    };
+    let (table, notes) = load_side(options, &settings)?;
+    if options.lint {
+        return lint_table(options, &settings, &table, &notes, out);
+    }
     let text = text_with_notes(&table, &notes);
     let mut report = table_json(&table);
     report["notes"] = notes_json(&notes);
+    check_outputs(options)?;
     if let Some(path) = &options.out {
         write_new(path, &text)?;
     }
-    let shown = match (&options.out, options.json) {
-        (_, true) => pretty(&report),
-        (Some(path), false) => format!("written: {path} ({})\n", summary(&table)),
-        (None, false) => text,
+    if let Some(path) = &options.csv {
+        write_new(path, &pins_csv(&table, settings.csv_guard_formulas))?;
+    }
+    let shown = if options.json {
+        pretty(&report)
+    } else if options.out.is_some() || options.csv.is_some() {
+        let mut shown = String::new();
+        if let Some(path) = &options.out {
+            shown.push_str(&format!("written: {path} ({})\n", summary(&table)));
+        }
+        if let Some(path) = &options.csv {
+            shown.push_str(&format!("written: {path} ({} rows)\n", table.pin_count()));
+        }
+        shown
+    } else {
+        text
     };
     let _ = out.write_all(shown.as_bytes());
     Ok(0)
+}
+
+fn lint_table(
+    options: &Options,
+    settings: &NetsSettings,
+    table: &NetTable,
+    notes: &[Note],
+    out: &mut dyn Write,
+) -> Result<i32, NetsError> {
+    let result = lint(table, settings);
+    let mut report = lint_json(table, &result);
+    report["notes"] = notes_json(notes);
+    check_outputs(options)?;
+    if let Some(path) = &options.out {
+        write_new(path, &pretty(&report))?;
+    }
+    let text = if options.json {
+        pretty(&report)
+    } else {
+        let lang = column(options.lang);
+        let mut text = format!("nets: {}\n", summary(table));
+        for note in notes {
+            text.push_str(&format!("note {}: {}\n", note.code, note.detail));
+        }
+        for f in &result.findings {
+            text.push_str(&format!(
+                "{}: {}: {}",
+                f.code,
+                crate::nets_codes::title(f.code, lang),
+                f.net
+            ));
+            if let Some(other) = &f.other {
+                text.push_str(&format!(" ~ {other}"));
+            }
+            text.push('\n');
+        }
+        if result.total > result.findings.len() {
+            text.push_str(&format!(
+                "{} more findings are not listed (max_differences)\n",
+                result.total - result.findings.len()
+            ));
+        }
+        text.push_str(&format!("findings: {}\n", result.total));
+        if let Some(path) = &options.out {
+            text.push_str(&format!("written: {path}\n"));
+        }
+        text
+    };
+    let _ = out.write_all(text.as_bytes());
+    Ok(i32::from(result.total > 0))
 }
 
 fn compare_with_board(
@@ -303,30 +430,24 @@ fn compare_with_board(
     let settings = load_settings(options.config.as_deref())?;
     let file = parse(&read_netlist(file_path, &settings)?, &settings)?;
     // the other side is the board, or a second netlist file when --import names one
-    let (board_table, notes, other_label) = match (&options.import, options.files.as_slice()) {
-        (Some(path), _) => (
-            parse(&read_netlist(path, &settings)?, &settings)?,
-            Vec::new(),
-            "second netlist",
-        ),
-        (None, [board_path]) => {
-            let board =
-                read_board_file(board_path).map_err(|e| NetsError::new(INPUT_UNREADABLE, e))?;
-            let (table, notes) = table_of_pins(board_pins(&board));
-            (table, notes, "board")
-        }
-        _ => {
-            return Err(NetsError::new(
-                OPTION_INVALID,
-                "give exactly one board file",
-            ))
-        }
+    let (board_table, notes) = load_side(options, &settings)?;
+    let other_label = if options.import.is_some() {
+        "second netlist"
+    } else {
+        "board"
     };
     let result = compare(&file, &board_table, &settings);
     let mut report = comparison_json(&file, &board_table, &result);
     report["notes"] = notes_json(&notes);
+    check_outputs(options)?;
     if let Some(path) = &options.out {
         write_new(path, &pretty(&report))?;
+    }
+    if let Some(path) = &options.csv {
+        write_new(
+            path,
+            &differences_csv(&result.differences, settings.csv_guard_formulas),
+        )?;
     }
     let text = if options.json {
         pretty(&report)
@@ -362,7 +483,7 @@ fn compare_with_board(
             ));
         }
         text.push_str(&format!("differences: {}\n", result.total));
-        if let Some(path) = &options.out {
+        for path in options.out.iter().chain(options.csv.iter()) {
             text.push_str(&format!("written: {path}\n"));
         }
         text
