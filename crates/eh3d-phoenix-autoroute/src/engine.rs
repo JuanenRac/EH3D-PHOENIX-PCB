@@ -587,6 +587,54 @@ pub fn autoroute_with_pairs(
     request: &Request,
     pairs: &[PairSpec],
 ) -> Result<AutoroutePlan, AutorouteError> {
+    let first = route_once(board, ctx, route, cfg, request, pairs)?;
+    if cfg.refine_grid_nm <= 0
+        || cfg.refine_grid_nm >= cfg.grid_nm
+        || first.report.unrouted.is_empty()
+    {
+        return Ok(first);
+    }
+    // the connections that are left are tried again, on the board with the first routes, on the
+    // finer grid and on the nets that have them
+    let mut nets: Vec<String> = first
+        .report
+        .unrouted
+        .iter()
+        .map(|u| u.net.clone())
+        .collect();
+    nets.sort();
+    nets.dedup();
+    let fine = AutorouteConfig {
+        grid_nm: cfg.refine_grid_nm,
+        refine_grid_nm: 0,
+        ..cfg.clone()
+    };
+    let again = Request {
+        nets,
+        layers: request.layers.clone(),
+    };
+    match route_once(&first.board_after, ctx, route, &fine, &again, &[]) {
+        Ok(second) => Ok(first.with_refinement(second, cfg.refine_grid_nm)),
+        Err(error) => {
+            let mut first = first;
+            first.report.notes.push(format!(
+                "the second pass on a grid of {} nm could not be made: {}",
+                cfg.refine_grid_nm, error.detail
+            ));
+            Ok(first)
+        }
+    }
+}
+
+/// One run of the search on the grid of the settings.
+fn route_once(
+    board: &Board,
+    ctx: &RuleContext,
+    route: &RouteSettings,
+    cfg: &AutorouteConfig,
+    request: &Request,
+    pairs: &[PairSpec],
+) -> Result<AutoroutePlan, AutorouteError> {
     let copper = copper_layers(board);
     if board.outline.len() < 3 || copper.is_empty() {
         return Err(AutorouteError::new(

@@ -25,6 +25,21 @@ fn run(fix: &Fix, config: &AutorouteConfig) -> AutoroutePlan {
     .unwrap()
 }
 
+/// Routes the net SIG only: the pieces of a wall of another net are not a connection to make.
+fn run_sig(fix: &Fix, config: &AutorouteConfig) -> AutoroutePlan {
+    autoroute(
+        &fix.board,
+        &ctx(),
+        &RouteSettings::default(),
+        config,
+        &Request {
+            nets: vec!["SIG".to_owned()],
+            layers: Vec::new(),
+        },
+    )
+    .unwrap()
+}
+
 fn run_pairs(fix: &Fix, config: &AutorouteConfig, pairs: &[PairSpec]) -> AutoroutePlan {
     autoroute_with_pairs(
         &fix.board,
@@ -405,4 +420,123 @@ fn a_via_off_the_grid_leaves_no_rule_error_and_the_same_result_every_time() {
             .iter()
             .all(|v| (v.at.x_nm.get(), v.at.y_nm.get()) != (6_100_000, mm(5))));
     }
+}
+
+/// A board of one layer with a wall of another net at x = 6 mm whose only opening is 1.1 mm wide
+/// between y = 4.2 and y = 5.3: the only line that passes is about y = 4.75, which is on no node
+/// of a grid of 1 mm.
+fn board_with_a_slot() -> Fix {
+    let mut fix = Fix::new(20, 10, false);
+    let sig = fix.net("SIG");
+    let wall = fix.net("W");
+    fix.pad(sig, mm(2), mm(5), false);
+    fix.pad(sig, mm(10), mm(5), false);
+    let top = fix.top;
+    fix.wall(wall, top, (mm(6), mm(1) / 2), (mm(6), 4_200_000));
+    fix.wall(wall, top, (mm(6), 5_300_000), (mm(6), mm(19) / 2));
+    fix
+}
+
+#[test]
+fn the_connections_left_are_tried_on_a_finer_grid_when_the_settings_ask_for_it() {
+    let fix = board_with_a_slot();
+    let coarse = AutorouteConfig {
+        grid_nm: 1_000_000,
+        ..cfg()
+    };
+    let plain = run_sig(&fix, &coarse);
+    assert!(plain.tracks.is_empty(), "{:?}", plain.tracks);
+    assert_eq!(plain.report.unrouted.len(), 1);
+    assert!(plain.report.notes.is_empty());
+    // without the setting nothing changes (the pieces of the wall are open connections too)
+    assert_eq!(plain.report.connections_left, 2);
+    // with it the opening is found on the grid of 0.25 mm
+    let refined = AutorouteConfig {
+        refine_grid_nm: 250_000,
+        ..coarse.clone()
+    };
+    let plan = run_sig(&fix, &refined);
+    assert!(
+        plan.report.unrouted.is_empty(),
+        "{:?}",
+        plan.report.unrouted
+    );
+    assert_eq!(plan.report.connections_total, 1);
+    assert_eq!(plan.report.connections_routed, 1);
+    assert_eq!(plan.report.connections_left, 1);
+    assert_eq!(plan.report.nets_completed, vec!["SIG".to_owned()]);
+    assert_eq!(plan.report.errors_after, 0);
+    assert!(!plan.tracks.is_empty());
+    assert_eq!(plan.report.tracks_added, plan.tracks.len());
+    assert_eq!(plan.report.nets[0].routed, 1);
+    assert_eq!(plan.report.nets[0].tracks, plan.tracks.len());
+    assert!(plan
+        .report
+        .notes
+        .iter()
+        .any(|n| n.contains("1 connections were routed in a second pass on a grid of 250000 nm")));
+    plan.require_complete().unwrap();
+    // the track goes through the opening
+    let through = plan
+        .tracks
+        .iter()
+        .flat_map(|t| t.points.windows(2))
+        .any(|w| {
+            let (a, b) = (w[0].x_nm.get(), w[1].x_nm.get());
+            a.min(b) <= mm(6)
+                && a.max(b) >= mm(6)
+                && w[0].y_nm.get() > 4_200_000
+                && w[0].y_nm.get() < 5_300_000
+        });
+    assert!(through, "{:?}", plan.tracks);
+    // the single operation applies to the board and undoes exactly
+    let mut board = fix.board.clone();
+    plan.apply(&mut board).unwrap();
+    assert_eq!(
+        board.tracks.len(),
+        fix.board.tracks.len() + plan.tracks.len()
+    );
+    let route = RouteSettings::default();
+    assert_eq!(
+        eh3d_phoenix_route::ratsnest(&board, &route).unwrap().len(),
+        1
+    );
+    assert_eq!(board, plan.board_after);
+    // the same input gives the same plan
+    let again = run_sig(&fix, &refined);
+    assert_eq!(again.to_text("en"), plan.to_text("en"));
+    assert_eq!(again.tracks, plan.tracks);
+}
+
+#[test]
+fn a_finer_grid_that_routes_nothing_more_leaves_the_plan_as_it_was_with_a_note() {
+    // a wall with no opening at all: no grid finds a way
+    let mut fix = Fix::new(20, 10, false);
+    let sig = fix.net("SIG");
+    let wall = fix.net("W");
+    fix.pad(sig, mm(2), mm(5), false);
+    fix.pad(sig, mm(10), mm(5), false);
+    let top = fix.top;
+    fix.wall(wall, top, (mm(6), mm(1) / 2), (mm(6), mm(19) / 2));
+    let config = AutorouteConfig {
+        grid_nm: 1_000_000,
+        refine_grid_nm: 500_000,
+        ..cfg()
+    };
+    let plan = run_sig(&fix, &config);
+    assert!(plan.tracks.is_empty());
+    assert_eq!(plan.report.unrouted.len(), 1);
+    assert!(plan
+        .report
+        .notes
+        .iter()
+        .any(|n| n.contains("second pass on a grid of 500000 nm routed no more connections")));
+    // a finer grid that is not finer than the grid is not used
+    let same = AutorouteConfig {
+        grid_nm: 1_000_000,
+        refine_grid_nm: 1_000_000,
+        ..cfg()
+    };
+    let plan = run_sig(&fix, &same);
+    assert!(plan.report.notes.is_empty());
 }

@@ -200,6 +200,55 @@ pub struct AutoroutePlan {
 }
 
 impl AutoroutePlan {
+    /// This plan followed by `second`, a plan made on the board that this one leaves with a finer
+    /// grid of `grid_nm` for the connections that were left. When the second pass routes nothing
+    /// the plan stays as it was, with a note. Otherwise the tracks, the vias and the counts are
+    /// added up, the connections left unrouted are the ones that the second pass left, and one
+    /// operation holds both.
+    pub(crate) fn with_refinement(mut self, second: AutoroutePlan, grid_nm: i64) -> AutoroutePlan {
+        let gained = second.report.connections_routed;
+        if gained == 0 {
+            self.report.notes.push(format!(
+                "the second pass on a grid of {grid_nm} nm routed no more connections"
+            ));
+            return self;
+        }
+        for net in &mut self.report.nets {
+            if let Some(more) = second.report.nets.iter().find(|n| n.name == net.name) {
+                net.routed = (net.routed + more.routed).min(net.connections);
+                net.tracks += more.tracks;
+                net.vias += more.vias;
+                net.length_nm += more.length_nm;
+            }
+        }
+        for net in &self.report.nets {
+            if net.remaining() == 0 && !self.report.nets_completed.contains(&net.name) {
+                self.report.nets_completed.push(net.name.clone());
+            }
+        }
+        let r = &mut self.report;
+        let s = second.report;
+        r.connections_routed = (r.connections_routed + gained).min(r.connections_total);
+        r.unrouted = s.unrouted;
+        r.tracks_added += s.tracks_added;
+        r.vias_added += s.vias_added;
+        r.length_nm += s.length_nm;
+        r.ripups += s.ripups;
+        r.expansions += s.expansions;
+        r.errors_after = s.errors_after;
+        r.connections_left = s.connections_left;
+        r.notes.push(format!(
+            "{gained} connections were routed in a second pass on a grid of {grid_nm} nm"
+        ));
+        self.tracks.extend(second.tracks);
+        self.vias.extend(second.vias);
+        self.operation = Operation::Batch {
+            ops: vec![self.operation, second.operation],
+        };
+        self.board_after = second.board_after;
+        self
+    }
+
     /// Applies the plan to a board, all or nothing.
     pub fn apply(&self, board: &mut Board) -> Result<(), AutorouteError> {
         board

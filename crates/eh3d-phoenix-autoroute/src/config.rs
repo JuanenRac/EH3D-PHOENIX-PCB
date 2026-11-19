@@ -48,6 +48,9 @@ impl NetOrder {
 pub struct AutorouteConfig {
     /// The pitch of the routing grid.
     pub grid_nm: i64,
+    /// The pitch of a second, finer grid that the connections left unrouted are tried on (0: no
+    /// second pass); when it is not 0 it is smaller than `grid_nm`.
+    pub refine_grid_nm: i64,
     /// The order of the nets.
     pub order: NetOrder,
     /// The nets that go first with the order `critical`, by name.
@@ -115,6 +118,7 @@ impl Default for AutorouteConfig {
     fn default() -> Self {
         AutorouteConfig {
             grid_nm: 250_000,
+            refine_grid_nm: 0,
             order: NetOrder::Shortest,
             critical_nets: Vec::new(),
             diagonal: true,
@@ -171,6 +175,7 @@ impl AutorouteConfig {
         }
         let mut c = AutorouteConfig::default();
         let mut seen: Vec<&str> = Vec::new();
+        let mut refine_line = 0;
         for (index, raw) in text.lines().enumerate() {
             let line = index + 1;
             let trimmed = raw.trim();
@@ -188,6 +193,10 @@ impl AutorouteConfig {
             let bad = || fail(line, &format!("the value of {key} is not valid"));
             match key {
                 "grid_nm" => c.grid_nm = int_in(value, 1_000, 5_000_000).ok_or_else(bad)?,
+                "refine_grid_nm" => {
+                    c.refine_grid_nm = int_in(value, 0, 5_000_000).ok_or_else(bad)?;
+                    refine_line = line;
+                }
                 "order" => c.order = NetOrder::from_word(value).ok_or_else(bad)?,
                 "critical_nets" => {
                     c.critical_nets = value
@@ -271,6 +280,13 @@ impl AutorouteConfig {
                 }
             }
         }
+        // a second grid that is not finer than the first would route nothing more
+        if c.refine_grid_nm != 0 && !(1_000..c.grid_nm).contains(&c.refine_grid_nm) {
+            return Err(fail(
+                refine_line,
+                "refine_grid_nm must be 0 or from 1000 to less than grid_nm",
+            ));
+        }
         Ok(c)
     }
 }
@@ -278,6 +294,28 @@ impl AutorouteConfig {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_finer_grid_is_off_by_default_and_must_be_finer_than_the_grid() {
+        assert_eq!(AutorouteConfig::default().refine_grid_nm, 0);
+        let c = AutorouteConfig::parse("refine_grid_nm = 125000\n").unwrap();
+        assert_eq!((c.grid_nm, c.refine_grid_nm), (250_000, 125_000));
+        // the grid may come after it in the file
+        let c = AutorouteConfig::parse("refine_grid_nm = 500000\ngrid_nm = 1000000\n").unwrap();
+        assert_eq!(c.refine_grid_nm, 500_000);
+        for text in [
+            "refine_grid_nm = 250000\n",
+            "refine_grid_nm = 300000\n",
+            "refine_grid_nm = 999\n",
+            "refine_grid_nm = -1\n",
+            "refine_grid_nm = fine\n",
+            "refine_grid_nm = 500000\ngrid_nm = 400000\n",
+        ] {
+            let e = AutorouteConfig::parse(text).unwrap_err();
+            assert_eq!(e.code, SETTINGS_INVALID, "{text}");
+            assert!(e.detail.starts_with("line "), "{text}: {}", e.detail);
+        }
+    }
 
     #[test]
     fn the_shipped_file_parses_to_the_defaults() {
