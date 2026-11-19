@@ -36,6 +36,14 @@ pub enum AnalysisMsg {
     KindDiameter,
     /// The name of an angle dimension in the list.
     KindAngle,
+    /// The button that makes the report of the suppliers and the split purchase.
+    Sourcing,
+    /// The label of the field where the price file of the supplier report is typed.
+    PricesFile,
+    /// What the supplier report says when no price file was typed.
+    PricesNeeded,
+    /// The button that copies the text of the report.
+    Copy,
     /// The button that closes the report.
     Close,
     /// What is said under the title: the reports are of the board as it is now.
@@ -199,6 +207,58 @@ const TABLE: [(AnalysisMsg, [&str; 8]); AnalysisMsg::COUNT] = [
         ],
     ),
     (
+        AnalysisMsg::Sourcing,
+        [
+            "Suppliers and order",
+            "Proveedores y pedido",
+            "Lieferanten und Bestellung",
+            "Fournisseurs et commande",
+            "Fornitori e ordine",
+            "仕入先と発注",
+            "供应商与订单",
+            "Fornecedores e encomenda",
+        ],
+    ),
+    (
+        AnalysisMsg::PricesFile,
+        [
+            "Price file",
+            "Archivo de precios",
+            "Preisdatei",
+            "Fichier de prix",
+            "File dei prezzi",
+            "価格ファイル",
+            "价格文件",
+            "Ficheiro de preços",
+        ],
+    ),
+    (
+        AnalysisMsg::PricesNeeded,
+        [
+            "Type the path of a price file to price the bill at each supplier",
+            "Escriba la ruta de un archivo de precios para valorar la lista en cada proveedor",
+            "Pfad einer Preisdatei eingeben, um die Stückliste bei jedem Lieferanten zu bepreisen",
+            "Saisissez le chemin d'un fichier de prix pour chiffrer la nomenclature chez chaque fournisseur",
+            "Scrivere il percorso di un file dei prezzi per valutare la distinta presso ogni fornitore",
+            "各仕入先で部品表を見積もるには価格ファイルのパスを入力してください",
+            "输入价格文件的路径，以便按每个供应商为物料清单报价",
+            "Escreva o caminho de um ficheiro de preços para orçamentar a lista em cada fornecedor",
+        ],
+    ),
+    (
+        AnalysisMsg::Copy,
+        [
+            "Copy report",
+            "Copiar informe",
+            "Bericht kopieren",
+            "Copier le rapport",
+            "Copia rapporto",
+            "レポートをコピー",
+            "复制报告",
+            "Copiar relatório",
+        ],
+    ),
+    (
         AnalysisMsg::Close,
         [
             "Close report",
@@ -290,6 +350,9 @@ mod tests {
             AnalysisMsg::Bom,
             AnalysisMsg::Dimensions,
             AnalysisMsg::DimensionsNone,
+            AnalysisMsg::Sourcing,
+            AnalysisMsg::PricesNeeded,
+            AnalysisMsg::Copy,
             AnalysisMsg::Close,
             AnalysisMsg::Hint,
         ] {

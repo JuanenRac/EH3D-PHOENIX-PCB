@@ -10,7 +10,11 @@
 use std::fmt::Write as _;
 
 use eh3d_phoenix_board::{mm_text, Board, DimensionKind};
-use eh3d_phoenix_bom::{bom_text, build_bom, BomInputs, CostSettings, PartsFile, PriceBook};
+use eh3d_phoenix_bom::codes::{FILE_TOO_LARGE, INPUT_UNREADABLE};
+use eh3d_phoenix_bom::{
+    bom_text, build_bom, plan_sourcing, sourcing_text, BomError, BomInputs, CostSettings,
+    PartsFile, PriceBook,
+};
 use eh3d_phoenix_lengths::{analyse as analyse_lengths, LengthSettings};
 use eh3d_phoenix_rules::Lang;
 use eh3d_phoenix_stats::{compute, report_text as stats_report_text, StatsSettings};
@@ -46,6 +50,9 @@ pub enum AnalysisKind {
     Bom,
     /// The dimensions of the board: kind, measure, layer and the two points.
     Dimensions,
+    /// The supplier assistant: the bill priced at each supplier from a price file, with the
+    /// shipping, the least order and the purchase split among suppliers.
+    Sourcing,
 }
 
 /// The settings of the reports.
@@ -59,6 +66,8 @@ pub struct AnalysisSettings {
     pub lengths: LengthSettings,
     /// The settings of the bill of materials.
     pub costs: CostSettings,
+    /// The price file of the supplier assistant; empty when none was given.
+    pub prices_file: String,
 }
 
 /// The state of the reports of the board editor.
@@ -66,6 +75,8 @@ pub struct AnalysisSettings {
 pub struct AnalysisTool {
     /// The last report: which one it is and its text in the language it was asked for.
     pub shown: Option<(AnalysisKind, String)>,
+    /// The path of the price file that the supplier assistant reads, as it was typed.
+    pub prices_path: String,
 }
 
 fn read_config(path: &str) -> Option<String> {
@@ -93,6 +104,7 @@ impl AnalysisSettings {
             costs: read_config(COSTS_CONFIG)
                 .and_then(|text| CostSettings::parse(&text).ok())
                 .unwrap_or_default(),
+            prices_file: String::new(),
         }
     }
 }
@@ -119,6 +131,7 @@ pub fn report_for(
             Err(error) => error.message(lang),
         },
         AnalysisKind::Dimensions => dimensions_text(board, lang),
+        AnalysisKind::Sourcing => sourcing_report(board, settings, lang),
         AnalysisKind::Bom => {
             let (parts, prices) = (PartsFile::default(), PriceBook::default());
             let inputs = BomInputs {
@@ -134,6 +147,52 @@ pub fn report_for(
                 Err(error) => error.message(lang),
             }
         }
+    }
+}
+
+/// Reads the price file at `path`, no larger than the limit of the settings of the bill and with
+/// no more rows than they allow.
+fn read_prices(path: &str, costs: &CostSettings) -> Result<PriceBook, BomError> {
+    let unreadable = |e: std::io::Error| BomError::new(INPUT_UNREADABLE, format!("{path}: {e}"));
+    let size = std::fs::metadata(path).map_err(unreadable)?.len();
+    if size > costs.max_file_bytes {
+        return Err(BomError::new(
+            FILE_TOO_LARGE,
+            format!(
+                "{path} is {size} bytes, the limit is {}",
+                costs.max_file_bytes
+            ),
+        ));
+    }
+    let text = std::fs::read_to_string(path).map_err(unreadable)?;
+    PriceBook::parse(&text, costs.max_items)
+}
+
+/// The report of the supplier assistant of a board in a language (the text of
+/// `phoenix bom --sourcing`): the bill priced at each supplier of the price file named in the
+/// settings, with the shipping and the least order of `config/costs.cfg`. Without a price file it
+/// says that one is needed; a file that cannot be read gives the message of the refusal.
+pub fn sourcing_report(board: &Board, settings: &AnalysisSettings, lang: Lang) -> String {
+    let path = settings.prices_file.trim();
+    if path.is_empty() {
+        return AnalysisMsg::PricesNeeded.tr(lang).to_owned();
+    }
+    let prices = match read_prices(path, &settings.costs) {
+        Ok(prices) => prices,
+        Err(error) => return error.message(lang),
+    };
+    let parts = PartsFile::default();
+    let inputs = BomInputs {
+        board,
+        schematic: None,
+        parts: &parts,
+        prices: &prices,
+        settings: &settings.costs,
+        stackup: None,
+    };
+    match build_bom(&inputs) {
+        Ok(bom) => sourcing_text(&plan_sourcing(&bom, &prices, &settings.costs), &bom),
+        Err(error) => error.message(lang),
     }
 }
 
@@ -182,7 +241,9 @@ pub fn dimensions_text(board: &Board, lang: Lang) -> String {
 impl AnalysisTool {
     /// Makes a report of the board as it is now and keeps its text.
     pub fn run(&mut self, kind: AnalysisKind, board: &Board, lang: Lang) {
-        let text = report_for(kind, board, &AnalysisSettings::load(), lang);
+        let mut settings = AnalysisSettings::load();
+        settings.prices_file = self.prices_path.clone();
+        let text = report_for(kind, board, &settings, lang);
         self.shown = Some((kind, text));
     }
 
@@ -196,12 +257,13 @@ impl AnalysisTool {
 mod tests {
     use super::*;
 
-    const KINDS: [AnalysisKind; 5] = [
+    const KINDS: [AnalysisKind; 6] = [
         AnalysisKind::Stats,
         AnalysisKind::TestPoints,
         AnalysisKind::Lengths,
         AnalysisKind::Bom,
         AnalysisKind::Dimensions,
+        AnalysisKind::Sourcing,
     ];
 
     #[test]
@@ -335,6 +397,50 @@ mod tests {
             .unwrap()
             .1
             .starts_with("Cotas: 2\nAlinhada: 5 mm"));
+    }
+
+    #[test]
+    fn the_supplier_report_asks_for_a_price_file_and_reads_the_one_typed() {
+        let board = Board::default();
+        let mut settings = AnalysisSettings::default();
+        assert_eq!(
+            sourcing_report(&board, &settings, Lang::En),
+            AnalysisMsg::PricesNeeded.tr(Lang::En)
+        );
+        assert_ne!(
+            sourcing_report(&board, &settings, Lang::Pt),
+            sourcing_report(&board, &settings, Lang::En)
+        );
+        // a file that is not there is refused with its code and its path
+        let folder = tempfile::tempdir().unwrap();
+        let missing = folder.path().join("none.csv");
+        settings.prices_file = missing.to_string_lossy().into_owned();
+        let refused = sourcing_report(&board, &settings, Lang::En);
+        assert!(refused.starts_with("PHOENIX-BOM-016"), "{refused}");
+        // a file that is larger than the limit of the settings is refused
+        let file = folder.path().join("prices.csv");
+        std::fs::write(
+            &file,
+            "value,footprint,supplier,min_qty,unit_price
+10k,R0603,A,1,0.01
+",
+        )
+        .unwrap();
+        settings.prices_file = file.to_string_lossy().into_owned();
+        settings.costs.max_file_bytes = 10;
+        let large = sourcing_report(&board, &settings, Lang::En);
+        assert!(large.starts_with("PHOENIX-BOM-002"), "{large}");
+        // a good file gives the plan of the assistant
+        settings.costs.max_file_bytes = 1 << 20;
+        let plan = sourcing_report(&board, &settings, Lang::En);
+        assert!(plan.starts_with("suppliers: "), "{plan}");
+        // and the tool keeps the path it was given and uses it
+        let mut tool = AnalysisTool {
+            prices_path: settings.prices_file.clone(),
+            ..AnalysisTool::default()
+        };
+        tool.run(AnalysisKind::Sourcing, &board, Lang::En);
+        assert_eq!(tool.shown.as_ref().unwrap().0, AnalysisKind::Sourcing);
     }
 
     #[test]

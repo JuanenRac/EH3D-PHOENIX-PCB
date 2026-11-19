@@ -36,10 +36,23 @@ pub fn panel(ui: &mut egui::Ui, tool: &mut AnalysisTool, board: &Board, lang: La
         if ui.button(AnalysisMsg::Dimensions.tr(lang)).clicked() {
             tool.run(AnalysisKind::Dimensions, board, lang);
         }
+        if ui.button(AnalysisMsg::Sourcing.tr(lang)).clicked() {
+            tool.run(AnalysisKind::Sourcing, board, lang);
+        }
         if tool.shown.is_some() && ui.button(AnalysisMsg::Close.tr(lang)).clicked() {
             tool.clear();
         }
     });
+    ui.horizontal(|ui| {
+        ui.label(egui::RichText::new(AnalysisMsg::PricesFile.tr(lang)).color(ui_dim()));
+        ui.text_edit_singleline(&mut tool.prices_path);
+    });
+    if let Some((_, text)) = &tool.shown {
+        // the text of the report goes to the clipboard as it is shown
+        if ui.button(AnalysisMsg::Copy.tr(lang)).clicked() {
+            ui.ctx().copy_text(text.clone());
+        }
+    }
     if let Some((_, text)) = &tool.shown {
         egui::ScrollArea::vertical()
             .id_salt("board-analysis")
