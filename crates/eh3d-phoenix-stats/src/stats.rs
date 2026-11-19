@@ -20,14 +20,19 @@
 
 use std::collections::BTreeMap;
 
-use eh3d_phoenix_board::{Board, Id, LayerKind, Side};
+use eh3d_phoenix_board::connectivity::pad_position;
+use eh3d_phoenix_board::{Board, Id, LayerKind, PadRef, Side};
+use eh3d_phoenix_model::Point;
 use serde::Serialize;
 
 use crate::balance::{judge, BalancePair};
 use crate::codes::{
-    Finding, Severity, StatsError, LIMIT_EXCEEDED, NO_BOARD_AREA, ZONE_OUTLINE_COUNTED,
+    Finding, Severity, StatsError, LIMIT_EXCEEDED, NO_BOARD_AREA, REGION_UNEVEN,
+    ZONE_OUTLINE_COUNTED,
 };
 use crate::geom::{circle_nm2, pad_copper_nm2, polygon_area_nm2, segment_length_nm, to_um2, whole};
+use crate::regions::{capped_nm2, coverage_x100, spread_x100, Grid};
+use crate::report::hundredths;
 use crate::settings::StatsSettings;
 
 /// The name of the format of the JSON report.
@@ -112,6 +117,35 @@ pub struct LayerStats {
     pub coverage_x100: i64,
 }
 
+/// The copper of one layer in one cell of the grid over the board.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct RegionCell {
+    /// The column of the cell, from 0 at the least x.
+    pub column: usize,
+    /// The row of the cell, from 0 at the least y.
+    pub row: usize,
+    /// The area of the board inside the cell (the outline less its cutouts), in square
+    /// micrometres.
+    pub area_um2: i64,
+    /// The copper of the layer in the cell, never above its area, in square micrometres.
+    pub copper_um2: i64,
+    /// The copper over the area of the cell, in hundredths of a percent.
+    pub coverage_x100: i64,
+}
+
+/// The copper of one layer by region of the board (`docs/STATS.md`).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct RegionStats {
+    /// The name of the layer.
+    pub layer: String,
+    /// The columns of the grid.
+    pub columns: usize,
+    /// The rows of the grid.
+    pub rows: usize,
+    /// The cells, row by row from the least y and in each row from the least x.
+    pub cells: Vec<RegionCell>,
+}
+
 /// The holes of one diameter.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct DrillStats {
@@ -158,6 +192,10 @@ pub struct BoardStats {
     /// The pairs of layers that mirror each other and the difference of their copper; empty when
     /// the check is off or the board has fewer than two copper layers.
     pub balance: Vec<BalancePair>,
+    /// The copper of each layer by region of the board; empty (and not written in the JSON)
+    /// unless the settings cut the box of the outline into more than one cell.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub regions: Vec<RegionStats>,
     /// What the report did on its own that the user may want to know.
     pub findings: Vec<Finding>,
 }
@@ -240,6 +278,27 @@ fn copper_layers(board: &Board) -> Vec<Id> {
     }
 }
 
+/// The corners of a polygon as plain pairs of nanometres.
+fn xy(points: &[Point]) -> Vec<(i64, i64)> {
+    points
+        .iter()
+        .map(|p| (p.x_nm.get(), p.y_nm.get()))
+        .collect()
+}
+
+/// The grid that the settings cut the box of the outline into, when it has more than one cell
+/// and the board has an area.
+fn region_grid(board: &Board, settings: &StatsSettings, area_nm2: i128) -> Option<Grid> {
+    if settings.region_columns * settings.region_rows <= 1 || area_nm2 <= 0 {
+        return None;
+    }
+    let xs = board.outline.iter().map(|p| p.x_nm.get());
+    let ys = board.outline.iter().map(|p| p.y_nm.get());
+    let min = (xs.clone().min()?, ys.clone().min()?);
+    let max = (xs.max()?, ys.max()?);
+    Grid::new(min, max, settings.region_columns, settings.region_rows)
+}
+
 /// The statistics of a board.
 pub fn compute(board: &Board, settings: &StatsSettings) -> Result<BoardStats, StatsError> {
     let items = board.tracks.len()
@@ -258,6 +317,11 @@ pub fn compute(board: &Board, settings: &StatsSettings) -> Result<BoardStats, St
     let order = copper_layers(board);
     let index: BTreeMap<Id, usize> = order.iter().enumerate().map(|(i, id)| (*id, i)).collect();
     let mut acc: Vec<Acc> = order.iter().map(|_| Acc::default()).collect();
+    // the copper of each layer in each cell of the grid of regions, in square nanometres; the
+    // cells of a layer are empty when there is no grid
+    let grid = region_grid(board, settings, area_nm2);
+    let cell_count = grid.as_ref().map_or(0, Grid::cells);
+    let mut region_acc: Vec<Vec<f64>> = order.iter().map(|_| vec![0.0; cell_count]).collect();
     let mut drills: BTreeMap<i64, DrillStats> = BTreeMap::new();
     let mut counts = Counts {
         components: board.components.len(),
@@ -276,7 +340,7 @@ pub fn compute(board: &Board, settings: &StatsSettings) -> Result<BoardStats, St
         silkscreen_items: board.silkscreen.len(),
     };
 
-    for component in board.components.values() {
+    for (component_id, component) in &board.components {
         match component.side {
             Side::Top => counts.components_top += 1,
             Side::Bottom => counts.components_bottom += 1,
@@ -284,7 +348,7 @@ pub fn compute(board: &Board, settings: &StatsSettings) -> Result<BoardStats, St
         let Some(footprint) = board.footprints.get(&component.footprint) else {
             continue;
         };
-        for pad in footprint.pads.values() {
+        for (pad_id, pad) in &footprint.pads {
             counts.pads += 1;
             match (pad.drill, pad.plated) {
                 (None, _) => counts.smd_pads += 1,
@@ -305,10 +369,24 @@ pub fn compute(board: &Board, settings: &StatsSettings) -> Result<BoardStats, St
                 continue;
             }
             let copper = pad_copper_nm2(pad);
+            // a pad is wholly in the cell that holds its centre
+            let cell = grid.as_ref().and_then(|g| {
+                let at = pad_position(
+                    board,
+                    PadRef {
+                        component: *component_id,
+                        pad: *pad_id,
+                    },
+                )?;
+                Some(g.cell_of(at.x_nm.get(), at.y_nm.get()))
+            });
             for layer in &pad.layers {
                 if let Some(&i) = index.get(layer) {
                     acc[i].pads += 1;
                     acc[i].pads_nm2 += copper;
+                    if let Some(c) = cell {
+                        region_acc[i][c] += copper as f64;
+                    }
                 }
             }
         }
@@ -328,6 +406,25 @@ pub fn compute(board: &Board, settings: &StatsSettings) -> Result<BoardStats, St
             acc[i].tracks += 1;
             acc[i].track_length_nm = acc[i].track_length_nm.saturating_add(length);
             acc[i].tracks_nm2 += body + ends;
+            if let Some(g) = &grid {
+                // each piece is shared between the cells in proportion to its length in each,
+                // and the round ends are put in the cells of the two ends of the track
+                for segment in &track.path {
+                    let (a, b) = (segment.start(), segment.end());
+                    let area = segment_length_nm(*segment) as f64 * width as f64;
+                    let shares = g
+                        .segment_shares((a.x_nm.get(), a.y_nm.get()), (b.x_nm.get(), b.y_nm.get()));
+                    for (cell, share) in shares {
+                        region_acc[i][cell] += area * share;
+                    }
+                }
+                if let (Some(first), Some(last)) = (track.path.first(), track.path.last()) {
+                    let half = ends as f64 / 2.0;
+                    let (start, end) = (first.start(), last.end());
+                    region_acc[i][g.cell_of(start.x_nm.get(), start.y_nm.get())] += half;
+                    region_acc[i][g.cell_of(end.x_nm.get(), end.y_nm.get())] += half;
+                }
+            }
         }
     }
 
@@ -345,9 +442,15 @@ pub fn compute(board: &Board, settings: &StatsSettings) -> Result<BoardStats, St
             (Some(a), None) | (None, Some(a)) => vec![a],
             (None, None) => Vec::new(),
         };
+        let via_cell = grid
+            .as_ref()
+            .map(|g| g.cell_of(via.at.x_nm.get(), via.at.y_nm.get()));
         for i in crossed {
             acc[i].vias += 1;
             acc[i].vias_nm2 += ring;
+            if let Some(c) = via_cell {
+                region_acc[i][c] += ring as f64;
+            }
         }
     }
 
@@ -359,6 +462,18 @@ pub fn compute(board: &Board, settings: &StatsSettings) -> Result<BoardStats, St
         if settings.count_zones {
             let cutouts: i128 = zone.cutouts.iter().map(|c| polygon_area_nm2(c)).sum();
             acc[i].zones_nm2 += (polygon_area_nm2(&zone.outline) - cutouts).max(0);
+            if let Some(g) = &grid {
+                // the outline and the cutouts are clipped to each cell
+                let mut areas = g.polygon_areas(&xy(&zone.outline));
+                for cutout in &zone.cutouts {
+                    for (total, cut) in areas.iter_mut().zip(g.polygon_areas(&xy(cutout))) {
+                        *total -= cut;
+                    }
+                }
+                for (cell, area) in areas.into_iter().enumerate() {
+                    region_acc[i][cell] += area.max(0.0);
+                }
+            }
         }
     }
 
@@ -402,6 +517,60 @@ pub fn compute(board: &Board, settings: &StatsSettings) -> Result<BoardStats, St
         })
         .collect();
 
+    let mut regions = Vec::new();
+    let mut region_findings = Vec::new();
+    if let Some(g) = &grid {
+        // the area of the board in each cell: the outline less its cutouts, clipped to the cell
+        let mut cell_areas = g.polygon_areas(&xy(&board.outline));
+        for cutout in &board.outline_cutouts {
+            for (total, cut) in cell_areas.iter_mut().zip(g.polygon_areas(&xy(cutout))) {
+                *total -= cut;
+            }
+        }
+        let areas: Vec<i128> = cell_areas.iter().map(|a| capped_nm2(*a, 0)).collect();
+        let limit = settings.region_max_difference_x100;
+        for (layer, sums) in layers.iter().zip(&region_acc) {
+            let mut cells = Vec::with_capacity(g.cells());
+            let mut judged = Vec::with_capacity(g.cells());
+            for (cell, (area, sum)) in areas.iter().zip(sums).enumerate() {
+                let copper = capped_nm2(*sum, *area);
+                let coverage = coverage_x100(copper, *area);
+                judged.push((*area, coverage));
+                cells.push(RegionCell {
+                    column: cell % g.columns(),
+                    row: cell / g.columns(),
+                    area_um2: to_um2(*area),
+                    copper_um2: to_um2(copper),
+                    coverage_x100: coverage,
+                });
+            }
+            if limit > 0 {
+                if let Some((low, high)) = spread_x100(&judged) {
+                    if high - low > limit {
+                        region_findings.push(Finding::new(
+                            REGION_UNEVEN,
+                            settings.balance_severity,
+                            Some(&layer.layer),
+                            format!(
+                                "coverage from {} % to {} %, difference {} points, limit {}",
+                                hundredths(low),
+                                hundredths(high),
+                                hundredths(high - low),
+                                hundredths(limit)
+                            ),
+                        ));
+                    }
+                }
+            }
+            regions.push(RegionStats {
+                layer: layer.layer.clone(),
+                columns: g.columns(),
+                rows: g.rows(),
+                cells,
+            });
+        }
+    }
+
     let holes = counts.through_pads + counts.unplated_holes + counts.vias;
     let density = Density {
         components_per_cm2_x100: per_cm2_x100(counts.components, area.area_um2),
@@ -429,6 +598,7 @@ pub fn compute(board: &Board, settings: &StatsSettings) -> Result<BoardStats, St
 
     let (balance, balance_findings) = judge(&layers, !board.copper_stack.is_empty(), settings);
     findings.extend(balance_findings);
+    findings.extend(region_findings);
 
     Ok(BoardStats {
         format: FORMAT,
@@ -439,6 +609,7 @@ pub fn compute(board: &Board, settings: &StatsSettings) -> Result<BoardStats, St
         drills: drills.into_values().collect(),
         density,
         balance,
+        regions,
         findings,
     })
 }

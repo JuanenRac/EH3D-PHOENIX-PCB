@@ -57,6 +57,8 @@ pub enum Label {
     Difference,
     /// Percentage points.
     Points,
+    /// The copper by region of the board.
+    Regions,
     /// The drills.
     Drills,
     /// The plated pads of a drill.
@@ -355,6 +357,12 @@ const LABELS: &[(Label, [&str; 8])] = &[
         ],
     ),
     (
+        Label::Regions,
+        [
+            "Regions", "Regiones", "Bereiche", "Régions", "Regioni", "領域", "区域", "Regiões",
+        ],
+    ),
+    (
         Label::Drills,
         [
             "Drills",
@@ -573,6 +581,27 @@ pub fn report_text(stats: &BoardStats, lang: Lang) -> String {
             ));
         }
     }
+    if let Some(first) = stats.regions.first() {
+        // the grid as the board is seen: the row with the greatest y first
+        out.push_str(&format!(
+            "{}: {} x {}:\n",
+            l(Label::Regions),
+            first.columns,
+            first.rows
+        ));
+        for region in &stats.regions {
+            out.push_str(&format!("  {}:\n", region.layer));
+            for row in (0..region.rows).rev() {
+                let line: Vec<String> = region
+                    .cells
+                    .iter()
+                    .filter(|cell| cell.row == row)
+                    .map(|cell| format!("{} %", hundredths(cell.coverage_x100)))
+                    .collect();
+                out.push_str(&format!("    {}\n", line.join("  ")));
+            }
+        }
+    }
     out.push_str(&format!("{}:\n", l(Label::Drills)));
     if stats.drills.is_empty() {
         out.push_str(&format!("  {}\n", l(Label::None)));
@@ -626,7 +655,7 @@ mod tests {
                 assert!(!text.is_empty(), "{which:?} column {column}");
             }
         }
-        assert_eq!(LABELS.len(), 30);
+        assert_eq!(LABELS.len(), 31);
         assert_eq!(label(Label::Title, Lang::Es), "Estadísticas de la placa");
         assert_eq!(label(Label::Bottom, Lang::Pt), "em baixo");
     }

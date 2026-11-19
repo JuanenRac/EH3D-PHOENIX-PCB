@@ -25,6 +25,8 @@ pub const NO_BOARD_AREA: &str = "PHOENIX-STATS-007";
 pub const LAYER_UNBALANCED: &str = "PHOENIX-STATS-008";
 /// The layers are paired in the order of their ids because the board gives no order.
 pub const STACK_ORDER_UNKNOWN: &str = "PHOENIX-STATS-009";
+/// The coverage of the regions of a layer differs by more than allowed.
+pub const REGION_UNEVEN: &str = "PHOENIX-STATS-010";
 
 /// Code, then the title in English, Spanish, German, French, Italian, Japanese, Chinese and
 /// European Portuguese.
@@ -144,6 +146,19 @@ pub const TITLES: &[(&str, [&str; 8])] = &[
             "層は識別子の順に組み合わせています。基板には層の順序がありません",
             "各层按标识符顺序配对，电路板未给出层序",
             "As camadas são emparelhadas pela ordem dos identificadores, a placa não indica a ordem",
+        ],
+    ),
+    (
+        REGION_UNEVEN,
+        [
+            "The copper of a layer is unevenly spread over the regions of the board",
+            "El cobre de una capa está repartido de forma desigual entre las regiones de la placa",
+            "Das Kupfer einer Lage ist ungleichmäßig über die Bereiche der Platine verteilt",
+            "Le cuivre d'une couche est réparti de façon inégale entre les régions de la carte",
+            "Il rame di uno strato è distribuito in modo non uniforme tra le regioni della scheda",
+            "層の銅が基板の領域間で偏って分布しています",
+            "某一层的铜在电路板各区域间分布不均匀",
+            "O cobre de uma camada está distribuído de forma desigual pelas regiões da placa",
         ],
     ),
 ];

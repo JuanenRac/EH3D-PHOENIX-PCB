@@ -22,6 +22,15 @@ pub struct StatsSettings {
     pub balance_max_difference_x100: i64,
     /// How serious a pair above that limit is: information, a warning or an error.
     pub balance_severity: Severity,
+    /// The columns of the grid that the box of the outline is cut into to add up the copper of
+    /// each layer by region (`crate::regions`); with one column and one row there are no regions.
+    pub region_columns: usize,
+    /// The rows of that grid.
+    pub region_rows: usize,
+    /// The most that the coverage of the cells of one layer may differ, in hundredths of a
+    /// percentage point; 0 leaves the regions unjudged. A layer above it gives
+    /// `PHOENIX-STATS-010` with the severity of `balance_severity`.
+    pub region_max_difference_x100: i64,
 }
 
 impl Default for StatsSettings {
@@ -32,6 +41,9 @@ impl Default for StatsSettings {
             balance_check: true,
             balance_max_difference_x100: 1500,
             balance_severity: Severity::Warning,
+            region_columns: 1,
+            region_rows: 1,
+            region_max_difference_x100: 0,
         }
     }
 }
@@ -79,6 +91,11 @@ impl StatsSettings {
                         _ => return Err(bad()),
                     }
                 }
+                "region_columns" => s.region_columns = value.parse().map_err(|_| bad())?,
+                "region_rows" => s.region_rows = value.parse().map_err(|_| bad())?,
+                "region_max_difference_x100" => {
+                    s.region_max_difference_x100 = value.parse().map_err(|_| bad())?
+                }
                 _ => {
                     return Err(StatsError::new(
                         SETTINGS_INVALID,
@@ -103,6 +120,18 @@ impl StatsSettings {
             return Err(StatsError::new(
                 SETTINGS_INVALID,
                 "balance_max_difference_x100 must be between 0 and 10000",
+            ));
+        }
+        if !(1..=16).contains(&self.region_columns) || !(1..=16).contains(&self.region_rows) {
+            return Err(StatsError::new(
+                SETTINGS_INVALID,
+                "region_columns and region_rows must be between 1 and 16",
+            ));
+        }
+        if !(0..=10_000).contains(&self.region_max_difference_x100) {
+            return Err(StatsError::new(
+                SETTINGS_INVALID,
+                "region_max_difference_x100 must be between 0 and 10000",
             ));
         }
         Ok(())
@@ -149,6 +178,31 @@ mod tests {
         assert_eq!(s.balance_severity, Severity::Error);
         let info = StatsSettings::parse("balance_severity = info\n").unwrap();
         assert_eq!(info.balance_severity, Severity::Info);
+    }
+
+    #[test]
+    fn the_lines_of_the_regions_change_the_grid_and_its_limit() {
+        let off = StatsSettings::default();
+        assert_eq!((off.region_columns, off.region_rows), (1, 1));
+        assert_eq!(off.region_max_difference_x100, 0);
+        let s = StatsSettings::parse(
+            "region_columns = 4\nregion_rows = 16\nregion_max_difference_x100 = 2500\n",
+        )
+        .unwrap();
+        assert_eq!((s.region_columns, s.region_rows), (4, 16));
+        assert_eq!(s.region_max_difference_x100, 2500);
+        for bad in [
+            "region_columns = 0",
+            "region_columns = 17",
+            "region_rows = 0",
+            "region_rows = 17",
+            "region_rows = -1",
+            "region_columns = x",
+            "region_max_difference_x100 = 10001",
+            "region_max_difference_x100 = -1",
+        ] {
+            assert!(StatsSettings::parse(&format!("{bad}\n")).is_err(), "{bad}");
+        }
     }
 
     #[test]

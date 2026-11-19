@@ -17,6 +17,7 @@ The board is a `.json` board, an EAGLE `.brd` or a KiCad `.kicad_pcb`, as for th
 * **The copper of each layer**, from the top of the stack: the pads with copper on it, the tracks, the vias that cross it and the zones, each with its area, and the sum of the four with the share of the board it covers.
 * **The drills**, by diameter from the smallest: the vias, the plated pads and the holes that are not plated that have each diameter.
 * **The balance**: for each pair of layers that mirror each other, the coverage of both and the difference.
+* **The regions** (only when the settings ask for them): the copper of each layer in each cell of a grid over the board.
 * **The density**: the components, the pads and the holes (vias and drilled pads) per square centimetre of board.
 
 ## The copper of a layer
@@ -36,6 +37,20 @@ A board whose copper is uneven across the middle of the stack bends when it is h
 
 A pair whose difference is above `balance_max_difference_x100` (in hundredths of a point, 1500 by default) gives `PHOENIX-STATS-008`. Its severity is the one that `balance_severity` names: `warning` by default, `info` to only note it, `error` to make `phoenix stats` exit with 1. `balance_check = false` leaves the comparison out. Without the order of the copper layers on the board the pairs follow the order of the layer ids, and `PHOENIX-STATS-009` says so. The coverage comes from the copper of the layers, so it has the limits of that number (zones as their whole outline, no overlap taken away).
 
+## The copper by region
+
+A board whose copper is heavy in one corner and thin in another warps when it is heated, even when the coverage of the whole layer is right. With `region_columns` and `region_rows` above 1 (both 1 by default, so there are no regions) the box of the outline is cut into that many equal columns and rows, and the report adds the copper of each layer up in every cell. A cell is the part of the box inside the board: its area is the outline less its cutouts, clipped to the cell, and its coverage is the copper over that area, in hundredths of a percent. The columns go from the least x and the rows from the least y; the text prints the row with the greatest y first, as the board is seen, and the JSON keeps the cells in order, row by row (`column` and `row` count from 0).
+
+The areas of a layer are shared between the cells like this:
+
+* a **zone** and each of its cutouts are clipped to every cell, so a zone is shared exactly;
+* a **track** is shared in proportion to the length of each of its pieces that lies in each cell, and its two round ends go to the cells of the two ends of the track;
+* a **pad** and a **via** go whole to the cell that holds their centre (a centre on the edge between two cells is in the one with the greater column or row).
+
+The copper of a cell is never counted above its area, as for a whole layer, and a cell whose area is zero (a grid cell that lies wholly in a cutout, or outside a board that is not a rectangle) has coverage zero and is left out of the judgement. A grid has at most 16 columns and 16 rows.
+
+With `region_max_difference_x100` above 0 (hundredths of a percentage point, 0 by default, which leaves the regions unjudged) a layer whose most and least covered cells differ by more than that gives `PHOENIX-STATS-010`, with the severity of `balance_severity`. Like the rest of the report it is a prototype: the copper is an upper bound, and the split of a pad or a via by its centre is coarse where the pad is large.
+
 ## The numbers
 
 Lengths are integer nanometres and areas are integer square micrometres; the text shows millimetres and square millimetres with six decimals, exactly, and the coverage in percent with two decimals. The density is shown per square centimetre with two decimals; in the JSON it is the integer times 100. The text has its titles in the eight languages (`--lang`); the JSON keeps its keys. The same board gives the same bytes every time.
@@ -47,12 +62,13 @@ Lengths are integer nanometres and areas are integer square micrometres; the tex
 * `max_items`: the most objects (parts, tracks, vias, zones, connected pads and silkscreen items) a board may hold for the report to be made; above it the command stops with `PHOENIX-STATS-005`;
 * `count_zones`: whether the area of the zones is counted as copper;
 * `balance_check`, `balance_max_difference_x100` and `balance_severity`: the comparison of the layers that mirror each other, its limit and how serious a pair above it is.
+* `region_columns`, `region_rows` and `region_max_difference_x100`: the grid of the regions (1 by 1, none, by default) and the most that the coverage of the cells of one layer may differ (0, unjudged, by default).
 
 A line that is not `key = value`, an unknown key or a value out of range is refused with its line number (`PHOENIX-STATS-001`).
 
 ## Codes
 
-`PHOENIX-STATS-001` to `PHOENIX-STATS-009`, with titles in the eight languages (`src/codes.rs`) and the table in `docs/ERROR_CODES.md`.
+`PHOENIX-STATS-001` to `PHOENIX-STATS-010`, with titles in the eight languages (`src/codes.rs`) and the table in `docs/ERROR_CODES.md`.
 
 ## Limits
 

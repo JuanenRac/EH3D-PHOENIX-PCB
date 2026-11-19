@@ -959,6 +959,7 @@ The titles of these codes also exist in the eight languages of the suite (`TITLE
 | PHOENIX-STATS-007 | The board outline encloses no area | warning: the area is zero, so the coverage and the density are zero |
 | PHOENIX-STATS-008 | Layers that mirror each other carry copper that differs by more than allowed | the severity of `balance_severity` (a warning by default): the coverage of two layers that mirror each other differs by more than `balance_max_difference_x100` |
 | PHOENIX-STATS-009 | The layers are paired in the order of their ids, the board gives no order | information: the board has two or more copper layers and no `copper_stack`, so the pairs of the balance may not be the real ones |
+| PHOENIX-STATS-010 | The copper of a layer is unevenly spread over the regions of the board | the severity of `balance_severity` (a warning by default), only with `region_max_difference_x100` above 0 and a grid of more than one cell: the coverage of the cells of one layer differs by more than that limit |
 
 ## Test points of a board (`eh3d-phoenix-testpoints`, `src/codes.rs`)
 

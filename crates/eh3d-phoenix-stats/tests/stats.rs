@@ -8,7 +8,7 @@ use eh3d_phoenix_board::{
 use eh3d_phoenix_model::{Nm, ObjectId, Point, Udeg};
 use eh3d_phoenix_rules::Lang;
 use eh3d_phoenix_stats::codes::{
-    Severity, LAYER_UNBALANCED, LIMIT_EXCEEDED, NO_BOARD_AREA, STACK_ORDER_UNKNOWN,
+    Severity, LAYER_UNBALANCED, LIMIT_EXCEEDED, NO_BOARD_AREA, REGION_UNEVEN, STACK_ORDER_UNKNOWN,
     ZONE_OUTLINE_COUNTED,
 };
 use eh3d_phoenix_stats::{compute, report_json, report_text, StatsSettings};
@@ -463,4 +463,177 @@ fn the_text_lists_the_pairs_in_the_language_asked_for() {
     assert!(en.contains("warning: PHOENIX-STATS-008"), "{en}");
     assert!(report_text(&s, Lang::De).contains("Kupferbalance:\n"));
     assert!(report_text(&s, Lang::Pt).contains("Equilíbrio do cobre:\n"));
+}
+
+/// The settings that cut the 20 x 10 mm box of the board into two cells side by side, each 10 x 10
+/// mm: the opening of 2 x 2 mm is in the left one.
+fn two_columns() -> StatsSettings {
+    StatsSettings {
+        region_columns: 2,
+        ..StatsSettings::default()
+    }
+}
+
+#[test]
+fn without_a_grid_there_are_no_regions_and_the_json_has_no_trace_of_them() {
+    let s = compute(&board(), &StatsSettings::default()).unwrap();
+    assert!(s.regions.is_empty());
+    assert!(!report_json(&s).contains("regions"));
+    assert!(!report_text(&s, Lang::En).contains("Regions"));
+    assert!(s.findings.iter().all(|f| f.code != REGION_UNEVEN));
+}
+
+#[test]
+fn the_copper_of_each_layer_is_added_up_in_each_cell_of_the_grid() {
+    let s = compute(&board(), &two_columns()).unwrap();
+    let [top, bottom] = s.regions.as_slice() else {
+        panic!("{} layers", s.regions.len());
+    };
+    assert_eq!((top.layer.as_str(), top.columns, top.rows), ("Top", 2, 1));
+    assert_eq!(bottom.layer, "Bottom");
+    let cells = |r: &eh3d_phoenix_stats::RegionStats| -> Vec<(usize, usize, i64, i64, i64)> {
+        r.cells
+            .iter()
+            .map(|c| (c.column, c.row, c.area_um2, c.copper_um2, c.coverage_x100))
+            .collect()
+    };
+    // left: half of the track, its first end and the via; right: the two pads of each part, the
+    // other half of the track and its second end. The pads are on the edge between the cells and
+    // belong to the right one.
+    assert_eq!(
+        cells(top),
+        vec![
+            (0, 0, 96_000_000, 1_486_601, 154),
+            (1, 0, 100_000_000, 5_290_472, 529),
+        ]
+    );
+    // left: the zone and the via, more than the area of the cell, so the cell is full; right: the
+    // zone less its notch and the two plated pads
+    assert_eq!(
+        cells(bottom),
+        vec![
+            (0, 0, 96_000_000, 96_000_000, 10_000),
+            (1, 0, 100_000_000, 78_015_928, 7801),
+        ]
+    );
+}
+
+#[test]
+fn the_cells_have_the_area_of_the_board_and_hold_the_copper_of_the_layer() {
+    let settings = StatsSettings {
+        region_columns: 2,
+        region_rows: 2,
+        ..StatsSettings::default()
+    };
+    let s = compute(&board(), &settings).unwrap();
+    for region in &s.regions {
+        assert_eq!(region.cells.len(), 4);
+        let rows: Vec<(usize, usize)> = region.cells.iter().map(|c| (c.column, c.row)).collect();
+        assert_eq!(rows, vec![(0, 0), (1, 0), (0, 1), (1, 1)]);
+        // the area of the board, with the opening of 2 x 2 mm in the lower left cell
+        let areas: Vec<i64> = region.cells.iter().map(|c| c.area_um2).collect();
+        assert_eq!(areas, vec![46_000_000, 50_000_000, 50_000_000, 50_000_000]);
+    }
+    // nothing of the top layer is cut off by the area of a cell, so the cells hold all of it but
+    // the fractions that each cell rounds off
+    let top = &s.layers[0];
+    let held: i64 = s.regions[0].cells.iter().map(|c| c.copper_um2).sum();
+    assert!(
+        held <= top.copper_um2 && top.copper_um2 - held < 4,
+        "{held} {}",
+        top.copper_um2
+    );
+}
+
+#[test]
+fn a_layer_with_copper_spread_unevenly_is_reported_when_a_limit_is_set() {
+    let limit = StatsSettings {
+        region_max_difference_x100: 1000,
+        ..two_columns()
+    };
+    let s = compute(&board(), &limit).unwrap();
+    let found: Vec<_> = s
+        .findings
+        .iter()
+        .filter(|f| f.code == REGION_UNEVEN)
+        .collect();
+    assert_eq!(found.len(), 1, "{:?}", s.findings);
+    assert_eq!(found[0].subject.as_deref(), Some("Bottom"));
+    assert_eq!(found[0].severity, Severity::Warning);
+    assert_eq!(
+        found[0].detail,
+        "coverage from 78.01 % to 100.00 %, difference 21.99 points, limit 10.00"
+    );
+    // the severity is the one of the balance
+    let strict = StatsSettings {
+        balance_severity: Severity::Error,
+        ..limit.clone()
+    };
+    let s = compute(&board(), &strict).unwrap();
+    let uneven = s.findings.iter().find(|f| f.code == REGION_UNEVEN).unwrap();
+    assert_eq!(uneven.severity, Severity::Error);
+    // a limit of 0 leaves the regions unjudged, and a wide limit passes
+    let off = compute(&board(), &two_columns()).unwrap();
+    assert!(off.findings.iter().all(|f| f.code != REGION_UNEVEN));
+    let wide = StatsSettings {
+        region_max_difference_x100: 5000,
+        ..two_columns()
+    };
+    let s = compute(&board(), &wide).unwrap();
+    assert!(s.findings.iter().all(|f| f.code != REGION_UNEVEN));
+}
+
+#[test]
+fn the_text_and_the_json_carry_the_regions() {
+    let s = compute(&board(), &two_columns()).unwrap();
+    let en = report_text(&s, Lang::En);
+    assert!(
+        en.contains(
+            "Regions: 2 x 1:\n  Top:\n    1.54 %  5.29 %\n  Bottom:\n    100.00 %  78.01 %\n"
+        ),
+        "{en}"
+    );
+    assert!(report_text(&s, Lang::De).contains("Bereiche: 2 x 1:\n"));
+    assert!(report_text(&s, Lang::Pt).contains("Regiões: 2 x 1:\n"));
+    let json = report_json(&s);
+    assert!(json.contains("\"regions\""), "{json}");
+    assert!(json.contains("\"coverage_x100\": 7801"), "{json}");
+    // the same board gives the same bytes
+    assert_eq!(
+        json,
+        report_json(&compute(&board(), &two_columns()).unwrap())
+    );
+}
+
+#[test]
+fn the_rows_are_written_with_the_greatest_y_first() {
+    let settings = StatsSettings {
+        region_rows: 2,
+        ..StatsSettings::default()
+    };
+    let s = compute(&board(), &settings).unwrap();
+    let en = report_text(&s, Lang::En);
+    let top_layer: Vec<&str> = en
+        .lines()
+        .skip_while(|l| !l.starts_with("Regions:"))
+        .skip(2)
+        .take(2)
+        .collect();
+    let region = &s.regions[0];
+    let upper = format!("    {} %", hundredths_of(region.cells[1].coverage_x100));
+    let lower = format!("    {} %", hundredths_of(region.cells[0].coverage_x100));
+    assert_eq!(top_layer, vec![upper.as_str(), lower.as_str()], "{en}");
+}
+
+fn hundredths_of(x100: i64) -> String {
+    format!("{}.{:02}", x100 / 100, x100 % 100)
+}
+
+#[test]
+fn a_board_with_no_area_has_no_regions() {
+    let mut b = board();
+    b.outline.clear();
+    let s = compute(&b, &two_columns()).unwrap();
+    assert!(s.regions.is_empty());
+    assert!(s.findings.iter().any(|f| f.code == NO_BOARD_AREA));
 }
