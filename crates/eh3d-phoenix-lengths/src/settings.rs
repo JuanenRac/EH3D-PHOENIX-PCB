@@ -40,6 +40,9 @@ pub struct LengthSettings {
     pub pair_delay_skew_fs: i64,
     /// The most nets, groups and pairs a report handles.
     pub max_items: usize,
+    /// Whether a name in a CSV table that a spreadsheet would read as a formula (it starts with
+    /// `=`, `+`, `-`, `@`, a tab or a carriage return) gets a single quote in front of it.
+    pub csv_guard_formulas: bool,
 }
 
 impl Default for LengthSettings {
@@ -57,6 +60,7 @@ impl Default for LengthSettings {
             pair_width_tolerance_nm: 10_000,
             pair_delay_skew_fs: 0,
             max_items: 100_000,
+            csv_guard_formulas: true,
         }
     }
 }
@@ -125,6 +129,7 @@ impl LengthSettings {
                 }
                 "pair_delay_skew_fs" => s.pair_delay_skew_fs = value.parse().map_err(|_| bad())?,
                 "max_items" => s.max_items = value.parse().map_err(|_| bad())?,
+                "csv_guard_formulas" => s.csv_guard_formulas = parse_bool(value).ok_or_else(bad)?,
                 _ => {
                     return Err(LengthError::new(
                         SETTINGS_INVALID,
@@ -233,5 +238,13 @@ mod tests {
         assert!(LengthSettings::parse("use_stackup = maybe\n").is_err());
         assert!(LengthSettings::parse("pair_delay_skew_fs = -1\n").is_err());
         assert!(LengthSettings::parse("use_stackup\n").is_err());
+        assert!(LengthSettings::parse("csv_guard_formulas = 1\n").is_err());
+    }
+
+    #[test]
+    fn the_guard_of_the_csv_table_is_on_unless_the_settings_turn_it_off() {
+        assert!(LengthSettings::default().csv_guard_formulas);
+        let s = LengthSettings::parse("csv_guard_formulas = false\n").unwrap();
+        assert!(!s.csv_guard_formulas);
     }
 }

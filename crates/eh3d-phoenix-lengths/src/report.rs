@@ -6,6 +6,7 @@ use eh3d_phoenix_rules::Lang;
 
 use crate::analyse::LengthReport;
 use crate::codes::{Finding, Severity};
+use crate::csv::{nets_csv, CsvRow};
 
 /// A length in nanometres as millimetres with six decimals, exactly.
 pub fn millimetres(nm: i64) -> String {
@@ -100,6 +101,26 @@ pub fn report_text(report: &LengthReport, lang: Lang) -> String {
     out.push_str(&format!("{errors} errors, {warnings} warnings\n"));
     out.push_str(&findings_text(&report.findings, lang));
     out
+}
+
+/// The lengths of the nets of a report as a CSV table (`net,length_nm,tracks_nm,vias,vias_nm,
+/// delay_fs,arcs`), with `guard` on a name that a spreadsheet would read as a formula gets a single
+/// quote in front of it.
+pub fn report_csv(report: &LengthReport, guard: bool) -> String {
+    let rows: Vec<CsvRow<'_>> = report
+        .nets
+        .iter()
+        .map(|n| CsvRow {
+            name: &n.name,
+            length_nm: n.total_nm,
+            tracks_nm: n.tracks_nm,
+            vias: n.vias,
+            vias_nm: n.vias_nm,
+            delay_fs: n.delay_fs,
+            arcs: n.arcs,
+        })
+        .collect();
+    nets_csv(&rows, guard)
 }
 
 /// The report as JSON.

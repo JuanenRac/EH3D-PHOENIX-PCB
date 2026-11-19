@@ -3,8 +3,8 @@
 //! nets that must match in length and the differential pairs.
 //!
 //! Exit codes: 0 done, 1 a rule of a group or a pair is proven broken, 2 the arguments or the
-//! input are unusable. Nothing is written unless `--out` names a new file; an existing file is
-//! never replaced.
+//! input are unusable. Nothing is written unless `--out` or `--csv` names a new file; an existing
+//! file is never replaced.
 
 use std::fs::OpenOptions;
 use std::io::Write;
@@ -12,7 +12,7 @@ use std::path::Path;
 
 use eh3d_phoenix_lengths::codes::{INPUT_UNREADABLE, OPTION_INVALID, OUTPUT_FAILED};
 use eh3d_phoenix_lengths::{
-    analyse, report_json, report_text, LengthError, LengthFile, LengthSettings,
+    analyse, report_csv, report_json, report_text, LengthError, LengthFile, LengthSettings,
 };
 use eh3d_phoenix_rules::Lang;
 use eh3d_phoenix_stackup::StackupJob;
@@ -24,8 +24,8 @@ use crate::export::read_board_file;
 const DEFAULT_CONFIG: &str = "config/lengths.cfg";
 
 pub(crate) const USAGE: &str = "\
-phoenix lengths [--config FILE] [--stackup FILE] [--groups FILE] [--out FILE] [--json]
-                [--lang CODE] <board>
+phoenix lengths [--config FILE] [--stackup FILE] [--groups FILE] [--out FILE] [--csv FILE]
+                [--json] [--lang CODE] <board>
 
   lengths       the copper length and the delay of every net of a board (tracks and vias, the
                 delay of each layer from the settings, from the stack-up or from the default),
@@ -37,6 +37,9 @@ phoenix lengths [--config FILE] [--stackup FILE] [--groups FILE] [--out FILE] [-
   --stackup     a stack-up job file (the file of `phoenix stackup`) for the delay of each layer
                 and the length of each via
   --groups      a JSON file (format phoenix-lengths/1) with the groups and the pairs
+  --csv FILE    write the lengths of the nets as a CSV table (net,length_nm,tracks_nm,vias,
+                vias_nm,delay_fs,arcs) to a new file; a net name that a spreadsheet would read
+                as a formula (+5V) gets a quote in front of it unless the settings turn that off
   --lang CODE   the messages in en, es, de, fr, it, ja, zh or pt
 ";
 
@@ -47,6 +50,7 @@ struct Options {
     stackup: Option<String>,
     groups: Option<String>,
     out: Option<String>,
+    csv: Option<String>,
     files: Vec<String>,
 }
 
@@ -58,6 +62,7 @@ fn parse_options(args: &[&str]) -> Result<Options, LengthError> {
         stackup: None,
         groups: None,
         out: None,
+        csv: None,
         files: Vec::new(),
     };
     let bad = |what: &str| LengthError::new(OPTION_INVALID, what.to_owned());
@@ -78,6 +83,7 @@ fn parse_options(args: &[&str]) -> Result<Options, LengthError> {
             "--stackup" => options.stackup = Some(value("--stackup needs a file")?),
             "--groups" => options.groups = Some(value("--groups needs a file")?),
             "--out" => options.out = Some(value("--out needs a file")?),
+            "--csv" => options.csv = Some(value("--csv needs a file")?),
             other if other.starts_with("--") => {
                 return Err(LengthError::new(
                     OPTION_INVALID,
@@ -149,14 +155,23 @@ fn lengths(options: &Options, out: &mut dyn Write) -> Result<i32, LengthError> {
         None => None,
     };
     let report = analyse(&board, &settings, job.as_ref(), file.as_ref())?;
+    if options.out.is_some() && options.out == options.csv {
+        return Err(LengthError::new(
+            OPTION_INVALID,
+            "--out and --csv name the same file",
+        ));
+    }
     if let Some(path) = &options.out {
         write_new(path, &report_json(&report))?;
+    }
+    if let Some(path) = &options.csv {
+        write_new(path, &report_csv(&report, settings.csv_guard_formulas))?;
     }
     let text = if options.json {
         report_json(&report)
     } else {
         let mut text = report_text(&report, options.lang);
-        if let Some(path) = &options.out {
+        for path in options.out.iter().chain(options.csv.iter()) {
             text.push_str(&format!("written: {path}\n"));
         }
         text

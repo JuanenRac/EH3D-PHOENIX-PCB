@@ -66,10 +66,10 @@ Nets are named as the board names them; if two nets share a name the one with th
 ## The command
 
 ```
-phoenix lengths [--config FILE] [--stackup FILE] [--groups FILE] [--out FILE] [--json] [--lang CODE] <board>
+phoenix lengths [--config FILE] [--stackup FILE] [--groups FILE] [--out FILE] [--csv FILE] [--json] [--lang CODE] <board>
 ```
 
-`<board>` is an EAGLE board or the JSON board of a project. It is a dry run: it prints the report and writes nothing unless `--out` names a file, which must not exist (an existing file, the board included, is never replaced); the file holds the JSON report. Exit code 0 when done, 1 when a rule of a group or a pair is proven broken, 2 when the arguments or the input are unusable. The report has no date, host name or user name and the same input gives the same bytes: the nets come in the order of their names, the groups and pairs in the order of the file, and every number is an integer (lengths in nanometres, delays in femtoseconds; the text shows millimetres with six decimals, exactly).
+`<board>` is an EAGLE board or the JSON board of a project. It is a dry run: it prints the report and writes nothing unless `--out` names a file, which must not exist (an existing file, the board included, is never replaced); the file holds the JSON report. `--csv FILE` also writes the lengths of the nets as a CSV table to a new file, under the header `net,length_nm,tracks_nm,vias,vias_nm,delay_fs,arcs`, one row for each net in the order of the report and with the same integers (the same bytes for the same board); a cell with a comma, a double quote or a line end is quoted, and with `csv_guard_formulas` of `config/lengths.cfg` (true by default) a name that a spreadsheet would read as a formula (it starts with `=`, `+`, `-`, `@`, a tab or a carriage return, such as a net called `+5V`) gets a single quote in front of it; `--out` and `--csv` may not name the same file. Exit code 0 when done, 1 when a rule of a group or a pair is proven broken, 2 when the arguments or the input are unusable. The report has no date, host name or user name and the same input gives the same bytes: the nets come in the order of their names, the groups and pairs in the order of the file, and every number is an integer (lengths in nanometres, delays in femtoseconds; the text shows millimetres with six decimals, exactly).
 
 ## Settings
 

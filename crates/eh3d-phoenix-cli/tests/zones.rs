@@ -296,3 +296,69 @@ fn bad_arguments_of_lengths_exit_with_two() {
     let missing = dir.path().join("none.json");
     assert_eq!(command(&["lengths", missing.to_str().unwrap()]).0, 2);
 }
+
+#[test]
+fn the_lengths_are_written_as_a_csv_table_to_a_new_file_only() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = write_board(dir.path(), &lengths_board());
+    let target = dir.path().join("lengths.csv");
+    let target = target.to_str().unwrap();
+    let (code, out, err) = command(&["lengths", "--csv", target, &path]);
+    assert_eq!((code, err.as_str()), (0, ""));
+    assert!(out.contains(&format!("written: {target}")), "{out}");
+    let text = fs::read_to_string(target).unwrap();
+    let lines: Vec<&str> = text.lines().collect();
+    assert_eq!(lines.len(), 3, "{text}");
+    assert_eq!(
+        lines[0],
+        "net,length_nm,tracks_nm,vias,vias_nm,delay_fs,arcs"
+    );
+    // the nets in the order of their names, with the numbers of the report
+    let d0: Vec<&str> = lines[1].split(',').collect();
+    assert_eq!(&d0[..5], ["D0", "10000000", "10000000", "0", "0"]);
+    assert_eq!(d0[6], "0");
+    let d1: Vec<&str> = lines[2].split(',').collect();
+    assert_eq!(&d1[..3], ["D1", "10600000", "10600000"]);
+    // a file that exists is never replaced, and both outputs may not be the same file
+    let (again, _, _) = command(&["lengths", "--csv", target, &path]);
+    assert_eq!(again, 2);
+    assert_eq!(fs::read_to_string(target).unwrap(), text);
+    let json = dir.path().join("same.out");
+    let json = json.to_str().unwrap();
+    let (same, _, err) = command(&["lengths", "--out", json, "--csv", json, &path]);
+    assert_eq!(same, 2);
+    assert!(err.contains("same file"), "{err}");
+    assert!(!Path::new(json).exists());
+    // the report on the output is the same with and without the table
+    let (_, plain, _) = command(&["lengths", &path]);
+    let second = dir.path().join("second.csv");
+    let (_, with, _) = command(&["lengths", "--csv", second.to_str().unwrap(), &path]);
+    assert!(with.starts_with(&plain), "{with}");
+    assert_eq!(command(&["lengths", "--csv"]).0, 2);
+}
+
+#[test]
+fn a_net_name_that_a_spreadsheet_would_read_as_a_formula_is_guarded_unless_the_settings_say_not() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut board = lengths_board();
+    board.nets.insert(id(2), Net { name: "+5V".into() });
+    let path = write_board(dir.path(), &board);
+    let first = dir.path().join("a.csv");
+    let (code, _, _) = command(&["lengths", "--csv", first.to_str().unwrap(), &path]);
+    assert_eq!(code, 0);
+    let text = fs::read_to_string(&first).unwrap();
+    assert!(text.lines().nth(1).unwrap().starts_with("'+5V,"), "{text}");
+    let cfg = write_text(dir.path(), "len.cfg", "csv_guard_formulas = false\n");
+    let second = dir.path().join("b.csv");
+    let (code, _, _) = command(&[
+        "lengths",
+        "--config",
+        &cfg,
+        "--csv",
+        second.to_str().unwrap(),
+        &path,
+    ]);
+    assert_eq!(code, 0);
+    let text = fs::read_to_string(&second).unwrap();
+    assert!(text.lines().nth(1).unwrap().starts_with("+5V,"), "{text}");
+}

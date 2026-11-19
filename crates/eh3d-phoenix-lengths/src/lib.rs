@@ -8,6 +8,8 @@
 //!   (or their distance to a target), the pairs by the difference of their lengths, the width of
 //!   their tracks, the gap between the edges of the coupled pieces and the length that runs
 //!   uncoupled, and the report that holds it all;
+//! * [`csv`]: the lengths of the nets as a CSV table, the same bytes for the same board, with a guard
+//!   against names that a spreadsheet would read as formulas;
 //! * [`settings`]: every delay, tolerance and limit, read from `config/lengths.cfg`;
 //! * [`report`]: the text and JSON of a report, the same every time;
 //! * [`codes`]: the codes `PHOENIX-LEN-001` to `PHOENIX-LEN-022` with their titles in the eight
@@ -23,6 +25,7 @@
 
 pub mod analyse;
 pub mod codes;
+pub mod csv;
 mod geom;
 pub mod measure;
 pub mod report;
@@ -33,6 +36,7 @@ pub use analyse::{
     FILE_FORMAT,
 };
 pub use codes::{title, Finding, LengthError, Severity};
+pub use csv::{csv_field, nets_csv, CsvRow};
 pub use measure::{measure_nets, LayerLength, NetLength};
-pub use report::{findings_text, millimetres, report_json, report_text};
+pub use report::{findings_text, millimetres, report_csv, report_json, report_text};
 pub use settings::LengthSettings;
