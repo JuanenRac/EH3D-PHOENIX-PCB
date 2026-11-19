@@ -16,7 +16,7 @@ The silhouette of a footprint is the box around its pads, not its real body, and
 
 Every page has a border, a **title block** in the lower right corner (project, title of the page, sheet `n/N`, revision, author, scale and paper) whose words come in the language chosen, a **scale bar** in the strip to its left, and, with `dimensions = true`, the dimension lines of the width and the height of the outline. The paper is A4, A3, Letter or a size in millimetres (`400x300`); it is turned to landscape when the drawing is wider than it is tall. The scale is the largest of the usual ones (1, 1.25, 1.5, 2, 2.5, 3, 4, 5, 6, 7.5 and 8 times a power of ten) that fits, or the exact one that fills the paper (`scale_rounding = exact`), or the one that is asked for (`--scale 2:1`, `1:2`, `0.5`), which is refused with `PHOENIX-PRINT-003` when the drawing does not fit. Lines are never thinner than `thin_line_mm`, and texts never smaller than `min_text_mm`.
 
-The colours of the layers come with a transparency (`#rrggbbaa`), so the copper, the mask and the paste can be seen one through the other. The layers that are printed are chosen with `layers` or `--layers outline,top_copper,drill`; the border and the dimensions are always printed.
+The colours of the layers come with a transparency (`#rrggbbaa`), so the copper, the mask and the paste can be seen one through the other. The layers that are printed are chosen with `layers` or `--layers outline,top_copper,drill`; the border and the dimensions are always printed. The dimensions of the board (`docs/DIMENSIONS.md`) are drawn on its documentation layers, which the page of the layers and each assembly plan carry.
 
 ## The files
 

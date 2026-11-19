@@ -529,7 +529,7 @@ phoenix print <schematic|board|panel> [--kind svg|pdf] [--out FOLDER|FILE] [--pa
 
 phoenix dxf-import <drawing.dxf> --board BOARD [--layer LAYER] [--join-tolerance-mm N]
                    [--config FILE] [--rules FILE] [--force] [--out FILE.json] [--json] [--lang xx]
-phoenix dxf-export <board|panel> [--out FILE.dxf] [--config FILE] [--silk] [--json] [--lang xx] <file>
+phoenix dxf-export <board|panel> [--out FILE.dxf] [--config FILE] [--silk] [--dimensions] [--json] [--lang xx] <file>
 phoenix enclosure <board> --enclosure FILE [--models FILE] [--stackup FILE] [--config FILE]
                   [--step FILE] [--json] [--lang xx]
 phoenix perf <board> [--config FILE] [--clearance-mm N] [--json] [--lang xx]

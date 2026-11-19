@@ -635,3 +635,112 @@ fn a_board_without_the_order_of_its_layers_still_gives_a_file() {
     // the via joins the two layers it starts and ends on
     assert_eq!(step(&root).children_named("LayerFeature").count(), 2);
 }
+
+#[test]
+fn the_lines_of_the_dimensions_are_written_on_a_document_layer_and_their_texts_are_left_out() {
+    use eh3d_phoenix_board::{Dimension, DimensionKind};
+    let mut b = board();
+    let notes = *b
+        .layers
+        .iter()
+        .find(|(_, l)| l.name == "Notes")
+        .map(|(id, _)| id)
+        .unwrap();
+    let mut add = |n: u32, kind, from, to, third, offset: i64| {
+        b.dimensions.insert(
+            id(n),
+            Dimension {
+                layer: notes,
+                kind,
+                from,
+                to,
+                third,
+                offset: nm(offset),
+                text_height: nm(MM),
+                stroke: nm(100_000),
+            },
+        );
+    };
+    add(
+        900,
+        DimensionKind::Horizontal,
+        pt(0, 0),
+        pt(10 * MM, 0),
+        None,
+        2 * MM,
+    );
+    add(
+        901,
+        DimensionKind::Angle,
+        pt(0, 0),
+        pt(10 * MM, 0),
+        Some(pt(0, 10 * MM)),
+        5 * MM,
+    );
+    // one that cannot be drawn
+    add(
+        902,
+        DimensionKind::Aligned,
+        pt(MM, MM),
+        pt(MM, MM),
+        None,
+        MM,
+    );
+    let out = export(&b, &Ipc2581Settings::default()).unwrap();
+    let root = parse(&out.xml, &Limits::default()).unwrap();
+    // the layer is declared with the function DOCUMENT and holds one set of lines
+    let cad = root.child("Ecad").unwrap().child("CadData").unwrap();
+    let declared = cad
+        .children_named("Layer")
+        .find(|l| l.attr("name") == Some("Notes"))
+        .unwrap();
+    assert_eq!(declared.attr("layerFunction"), Some("DOCUMENT"));
+    let feature = step(&root)
+        .children_named("LayerFeature")
+        .find(|f| f.attr("layerRef") == Some("Notes"))
+        .unwrap();
+    // 7 lines of the horizontal one and 22 of the angle: every line is a polyline of one piece
+    let set = feature.child("Set").unwrap();
+    assert_eq!(set.children_named("Features").count(), 7 + 22);
+    let width = set
+        .child("Features")
+        .unwrap()
+        .child("Polyline")
+        .unwrap()
+        .child("LineDesc")
+        .unwrap()
+        .attr("lineWidth");
+    assert_eq!(width, Some("0.1"));
+    assert_eq!(out.summary.dimensions, 2);
+    // what is left out: the two texts and the dimension that cannot be drawn, no longer the layer
+    let f = out.findings.iter().find(|f| f.code == LEFT_OUT).unwrap();
+    assert!(f.detail.contains("2 texts of dimensions"), "{}", f.detail);
+    assert!(
+        f.detail.contains("1 dimensions that cannot be drawn"),
+        "{}",
+        f.detail
+    );
+    assert!(
+        !f.detail.contains("the documentation layers"),
+        "{}",
+        f.detail
+    );
+    // the same board gives the same bytes, and the setting switches them off
+    assert_eq!(
+        out.xml,
+        export(&b, &Ipc2581Settings::default()).unwrap().xml
+    );
+    let off = Ipc2581Settings {
+        include_dimensions: false,
+        ..Ipc2581Settings::default()
+    };
+    let out = export(&b, &off).unwrap();
+    assert_eq!(out.summary.dimensions, 0);
+    assert!(!out.xml.contains("DOCUMENT"));
+    let f = out.findings.iter().find(|f| f.code == LEFT_OUT).unwrap();
+    assert!(
+        f.detail.contains("the documentation layers"),
+        "{}",
+        f.detail
+    );
+}

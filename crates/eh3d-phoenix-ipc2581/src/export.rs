@@ -11,16 +11,18 @@
 //! solder mask and paste as declared layers without features), the outline with its cutouts, the
 //! standard shapes and the padstacks (shape, drill, plating and layers), the footprints as
 //! packages, the placed parts, the nets with their pins, and for each copper layer the pads, the
-//! vias, the tracks (with arcs) and the outlines of the zones, grouped by net, and a basic bill of
-//! materials. **What is left out** is reported (`PHOENIX-IPC2581-006`): the silkscreen items, the
-//! arcs of the outline, the copper fill of the zones, the documentation layers and the stack-up.
+//! vias, the tracks (with arcs) and the outlines of the zones, grouped by net, the lines of the
+//! dimensions on a layer of the function DOCUMENT, and a basic bill of materials. **What is left
+//! out** is reported (`PHOENIX-IPC2581-006`): the silkscreen items, the arcs of the outline, the
+//! copper fill of the zones, the texts of the dimensions, the other documentation layers and the
+//! stack-up.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::f64::consts::PI;
 
 use eh3d_phoenix_board::connectivity::pad_position;
 use eh3d_phoenix_board::{
-    Board, Id, LayerKind, Pad, PadRef, PadShape, Segment, Side, Track, Via, Zone,
+    Board, Id, LayerKind, Pad, PadRef, PadShape, Segment, Side, SilkItem, Track, Via, Zone,
 };
 use eh3d_phoenix_eagle::Element;
 use eh3d_phoenix_model::Point;
@@ -59,6 +61,8 @@ pub struct Summary {
     pub tracks: usize,
     /// The zones written, as outlines.
     pub zones: usize,
+    /// The dimensions written, as lines.
+    pub dimensions: usize,
     /// The nets.
     pub nets: usize,
     /// The lines of the bill of materials.
@@ -257,7 +261,7 @@ struct FileLayer {
     copper: bool,
 }
 
-fn file_layers(board: &Board) -> Vec<FileLayer> {
+fn file_layers(board: &Board, with_dimensions: bool) -> Vec<FileLayer> {
     let mut out = Vec::new();
     let coppers: Vec<Id> = if board.copper_stack.is_empty() {
         board
@@ -295,6 +299,12 @@ fn file_layers(board: &Board) -> Vec<FileLayer> {
             LayerKind::Silkscreen => "SILKSCREEN",
             LayerKind::SolderMask => "SOLDERMASK",
             LayerKind::Paste => "SOLDERPASTE",
+            // a documentation layer is written when a dimension is drawn on it
+            LayerKind::Documentation
+                if with_dimensions && board.dimensions.values().any(|d| d.layer == *id) =>
+            {
+                "DOCUMENT"
+            }
             _ => continue,
         };
         let side = match layer.side {
@@ -343,7 +353,7 @@ pub fn export(board: &Board, settings: &Ipc2581Settings) -> Result<Ipc2581, Ipc2
             format!("{items} objects, the limit is {}", settings.max_items),
         ));
     }
-    let layers = file_layers(board);
+    let layers = file_layers(board, settings.include_dimensions);
     let mut findings = Vec::new();
     let layer_index: BTreeMap<Id, usize> =
         layers.iter().enumerate().map(|(i, l)| (l.id, i)).collect();
@@ -666,6 +676,7 @@ pub fn export(board: &Board, settings: &Ipc2581Settings) -> Result<Ipc2581, Ipc2
         vias: board.vias.len(),
         tracks: 0,
         zones: 0,
+        dimensions: 0,
         nets: pins.len(),
         bom_lines,
         bytes: 0,
@@ -797,6 +808,37 @@ pub fn export(board: &Board, settings: &Ipc2581Settings) -> Result<Ipc2581, Ipc2
         step = step.push(feature);
     }
 
+    // the lines of the dimensions, on the layers of the function DOCUMENT
+    let mut dimension_texts = 0_usize;
+    let mut dimensions_undrawn = 0_usize;
+    for layer in layers.iter().filter(|l| l.function == "DOCUMENT") {
+        let mut set = el("Set");
+        let mut any = false;
+        for dimension in board.dimensions.values().filter(|d| d.layer == layer.id) {
+            let Ok(items) = dimension.items() else {
+                dimensions_undrawn += 1;
+                continue;
+            };
+            counts.dimensions += 1;
+            for item in items {
+                match item {
+                    SilkItem::Stroke { width, path, .. } => {
+                        any = true;
+                        set = set.push(el("Features").push(path_polyline(&path, width.get())));
+                    }
+                    SilkItem::Text { .. } => dimension_texts += 1,
+                }
+            }
+        }
+        if any {
+            step = step.push(
+                el("LayerFeature")
+                    .with("layerRef", layer.name.clone())
+                    .push(set),
+            );
+        }
+    }
+
     // ---- the layers of the Ecad section
     let mut cad = el("CadData");
     for layer in &layers {
@@ -858,10 +900,18 @@ pub fn export(board: &Board, settings: &Ipc2581Settings) -> Result<Ipc2581, Ipc2
     }
     if board
         .layers
-        .values()
-        .any(|l| l.kind == LayerKind::Documentation)
+        .iter()
+        .any(|(id, l)| l.kind == LayerKind::Documentation && !layers.iter().any(|f| f.id == *id))
     {
         left.push("the documentation layers".to_owned());
+    }
+    if dimension_texts > 0 {
+        left.push(format!("{dimension_texts} texts of dimensions"));
+    }
+    if dimensions_undrawn > 0 {
+        left.push(format!(
+            "{dimensions_undrawn} dimensions that cannot be drawn"
+        ));
     }
     left.push("the stack-up".to_owned());
     findings.insert(
@@ -878,9 +928,14 @@ pub fn export(board: &Board, settings: &Ipc2581Settings) -> Result<Ipc2581, Ipc2
 }
 
 fn track_polyline(track: &Track) -> Element {
+    path_polyline(&track.path, track.width.get())
+}
+
+/// A run of lines and arcs as a polyline with round ends and the width `width_nm`.
+fn path_polyline(path: &[Segment], width_nm: i64) -> Element {
     let mut line = el("Polyline");
     let mut first = true;
-    for segment in &track.path {
+    for segment in path {
         if first {
             line = line.push(point_attrs("PolyBegin", segment.start()));
             first = false;
@@ -907,7 +962,7 @@ fn track_polyline(track: &Track) -> Element {
     line.push(
         el("LineDesc")
             .with("lineEnd", "ROUND")
-            .with("lineWidth", mm(track.width.get())),
+            .with("lineWidth", mm(width_nm)),
     )
 }
 

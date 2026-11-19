@@ -12,7 +12,7 @@ The writer produces DXF release 12 in ASCII, the dialect that the most programs 
 
 * a path (an outline, a polygon, a run of lines and arcs) is a `POLYLINE` with `VERTEX` entities and the bulge of an arc on the vertex it starts at; a closed path has the flag 1;
 * a hole is a `CIRCLE`; a mark is a `POINT` or a cross of two lines; a text is a `TEXT` on one line (without its rotation);
-* the names of the layers come from `config/dxf.cfg` (`layer_outline`, `layer_drills`, `layer_pads`, `layer_silk`, `layer_vscore`, `layer_fiducials`, `layer_tabs`, `layer_tooling`, `layer_mouse_bites`, `layer_text`). They must differ from each other without regard to case and may not hold `< > / \ " : ; ? * | = `` ` `` or a comma.
+* the names of the layers come from `config/dxf.cfg` (`layer_outline`, `layer_drills`, `layer_pads`, `layer_silk`, `layer_dimensions`, `layer_vscore`, `layer_fiducials`, `layer_tabs`, `layer_tooling`, `layer_mouse_bites`, `layer_text`). They must differ from each other without regard to case and may not hold `< > / \ " : ; ? * | = `` ` `` or a comma.
 
 ## The reader
 
@@ -66,7 +66,7 @@ The operation can also be written in a file of operations (`phoenix boardedit --
 
 ```
 phoenix dxf-export <board|panel> [--out FILE.dxf] [--config FILE] [--panel-config FILE]
-                   [--boards A,B,...] [--silk] [--json] [--lang CODE] <file>
+                   [--boards A,B,...] [--silk] [--dimensions] [--json] [--lang CODE] <file>
 ```
 
 A board gives:
@@ -75,6 +75,7 @@ A board gives:
 * the drilled holes, a circle for each via and each drill of a pad, on `layer_drills`;
 * the outlines of the pads, on `layer_pads`: a circle, a rectangle or a rounded rectangle (two lines and two half turns) turned with the component, with the pad mirrored along x on the bottom side;
 * with `--silk`, the strokes of the silkscreen as polylines (with their arcs) and the texts as texts on `layer_silk` (a text is written without its rotation and its mirror);
+* with `--dimensions`, the dimensions of the board (`docs/DIMENSIONS.md`): their extension and dimension lines, arrow heads and arcs as polylines and their texts as texts on `layer_dimensions`, all the dimensions on that one layer whatever documentation layer they are on in the board (a text is written without its rotation, and a dimension that cannot be drawn is left out);
 * with `write_text = true`, the name of the board as a text below the lower left corner.
 
 A panel (`phoenix print panel` takes the same files and the same `--panel-config`, `docs/PANEL.md`) gives the frame as a closed polyline and the routed outline as lines on `layer_outline`, the V-score lines on `layer_vscore`, a cross for each tab on `layer_tabs`, the holes of the boards on `layer_drills`, the mouse bites on `layer_mouse_bites`, the tooling holes on `layer_tooling`, and each fiducial as a circle and a cross on `layer_fiducials`; with `write_text = true`, the name of each board at its lower left corner.

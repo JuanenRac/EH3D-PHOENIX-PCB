@@ -27,7 +27,7 @@ use crate::dxf_import::load_dxf_settings;
 use crate::export::read_board_file;
 
 pub(crate) const USAGE: &str = "\
-phoenix dxf-export <board|panel> [--out FILE.dxf] [--config FILE] [--panel-config FILE] [--boards A,B,...] [--silk] [--json] [--lang CODE] <file>
+phoenix dxf-export <board|panel> [--out FILE.dxf] [--config FILE] [--panel-config FILE] [--boards A,B,...] [--silk] [--dimensions] [--json] [--lang CODE] <file>
 
   dxf-export    a board or a panel of boards as a DXF drawing (release 12, in ASCII, millimetres,
                 the same text every time). A board gives its outline (a closed polyline), its
@@ -42,6 +42,8 @@ phoenix dxf-export <board|panel> [--out FILE.dxf] [--config FILE] [--panel-confi
                 exists)
   --silk        the silkscreen of a board: strokes as polylines and texts as texts (a text is
                 written without its rotation and its mirror)
+  --dimensions  the dimensions of a board: their lines as polylines and their texts as
+                texts, on the layer layer_dimensions (a text is written without its rotation)
   --boards LIST the board files of a panel of different boards, separated by commas
   --panel-config the settings of the panel (default: the defaults of the panel crate)
   --json        print the report as JSON. --lang CODE writes the titles in en, es, de, fr, it,
@@ -61,6 +63,7 @@ struct Options {
     panel_config: Option<String>,
     boards: Option<Vec<String>>,
     silk: bool,
+    dimensions: bool,
     json: bool,
     lang: Lang,
     files: Vec<String>,
@@ -83,6 +86,7 @@ fn parse_options(args: &[&str]) -> Result<Options, DxfError> {
         panel_config: None,
         boards: None,
         silk: false,
+        dimensions: false,
         json: false,
         lang: Lang::En,
         files: Vec::new(),
@@ -97,6 +101,7 @@ fn parse_options(args: &[&str]) -> Result<Options, DxfError> {
         match *arg {
             "--json" => o.json = true,
             "--silk" => o.silk = true,
+            "--dimensions" => o.dimensions = true,
             "--out" => o.out = Some(value("--out needs a file")?),
             "--config" => o.config = Some(value("--config needs a file")?),
             "--panel-config" => o.panel_config = Some(value("--panel-config needs a file")?),
@@ -194,9 +199,41 @@ fn pad_outline(drawing: &mut Drawing, layer: &str, shape: &PadShape, centre: P, 
     }
 }
 
+/// Adds an item of the silkscreen font, a stroke or a text, to a drawing on a layer; a text is
+/// written without its rotation and its mirror.
+fn add_silk_item(d: &mut Drawing, layer: &str, item: &SilkItem) {
+    match item {
+        SilkItem::Text {
+            at, text, height, ..
+        } => d.text(layer, (at.x_nm.get(), at.y_nm.get()), height.get(), text),
+        SilkItem::Stroke { path, .. } => {
+            let segs: Vec<Seg> = path
+                .iter()
+                .map(|s| match *s {
+                    Segment::Line { start, end } => Seg::line(
+                        (start.x_nm.get(), start.y_nm.get()),
+                        (end.x_nm.get(), end.y_nm.get()),
+                    ),
+                    Segment::Arc { start, end, sweep } => Seg {
+                        a: (start.x_nm.get(), start.y_nm.get()),
+                        b: (end.x_nm.get(), end.y_nm.get()),
+                        sweep_udeg: sweep.get(),
+                    },
+                })
+                .collect();
+            d.path(layer, segs, false);
+        }
+    }
+}
+
 /// The drawing of a board: the outline and its interior cutouts, the drilled holes, the outlines of the pads and, if asked,
-/// the silkscreen.
-pub(crate) fn board_drawing(board: &Board, settings: &DxfSettings, silk: bool) -> Drawing {
+/// the silkscreen and the dimensions.
+pub(crate) fn board_drawing(
+    board: &Board,
+    settings: &DxfSettings,
+    silk: bool,
+    dimensions: bool,
+) -> Drawing {
     let mut d = Drawing::new();
     // the arcs of the outline are written as the chords they are cut into
     let outline: Vec<P> = board
@@ -255,31 +292,15 @@ pub(crate) fn board_drawing(board: &Board, settings: &DxfSettings, silk: bool) -
     }
     if silk {
         for item in board.silkscreen.values() {
-            match item {
-                SilkItem::Text {
-                    at, text, height, ..
-                } => d.text(
-                    &settings.layer_silk,
-                    (at.x_nm.get(), at.y_nm.get()),
-                    height.get(),
-                    text,
-                ),
-                SilkItem::Stroke { path, .. } => {
-                    let segs: Vec<Seg> = path
-                        .iter()
-                        .map(|s| match *s {
-                            Segment::Line { start, end } => Seg::line(
-                                (start.x_nm.get(), start.y_nm.get()),
-                                (end.x_nm.get(), end.y_nm.get()),
-                            ),
-                            Segment::Arc { start, end, sweep } => Seg {
-                                a: (start.x_nm.get(), start.y_nm.get()),
-                                b: (end.x_nm.get(), end.y_nm.get()),
-                                sweep_udeg: sweep.get(),
-                            },
-                        })
-                        .collect();
-                    d.path(&settings.layer_silk, segs, false);
+            add_silk_item(&mut d, &settings.layer_silk, item);
+        }
+    }
+    if dimensions {
+        // a dimension that cannot be drawn is left out here as it is in the window
+        for dimension in board.dimensions.values() {
+            if let Ok(items) = dimension.items() {
+                for item in &items {
+                    add_silk_item(&mut d, &settings.layer_dimensions, item);
                 }
             }
         }
@@ -400,7 +421,12 @@ fn drawing_of(options: &Options, settings: &DxfSettings) -> Result<Drawing, DxfE
             return Err(DxfError::new(OPTION_INVALID, "give exactly one board file"));
         };
         let board = read_board_file(path).map_err(unreadable)?;
-        return Ok(board_drawing(&board, settings, options.silk));
+        return Ok(board_drawing(
+            &board,
+            settings,
+            options.silk,
+            options.dimensions,
+        ));
     }
     let paths: Vec<String> = match (&options.boards, options.files.as_slice()) {
         (Some(list), []) => list.clone(),
@@ -646,7 +672,7 @@ mod tests {
     #[test]
     fn a_board_gives_its_outline_its_holes_and_the_outlines_of_its_pads() {
         let settings = DxfSettings::default();
-        let d = board_drawing(&board(0), &settings, false);
+        let d = board_drawing(&board(0), &settings, false, false);
         let outline = on(&d, "OUTLINE");
         assert_eq!(outline.len(), 1);
         match outline[0] {
@@ -724,7 +750,7 @@ mod tests {
 
     #[test]
     fn a_turned_part_turns_its_pads_and_their_outlines() {
-        let d = board_drawing(&board(90), &DxfSettings::default(), false);
+        let d = board_drawing(&board(90), &DxfSettings::default(), false, false);
         // the round pad at (-3, 0) goes to (0, -3) about (10, 10)
         assert!(on(&d, "PADS").contains(&&DxfShape::Circle {
             centre: (10 * MM, 7 * MM),
@@ -750,7 +776,7 @@ mod tests {
         let settings =
             DxfSettings::parse("layer_outline = EDGE\nlayer_drills = HOLES\nwrite_text = true\n")
                 .unwrap();
-        let d = board_drawing(&board(0), &settings, false);
+        let d = board_drawing(&board(0), &settings, false, false);
         assert_eq!(on(&d, "EDGE").len(), 1);
         assert_eq!(on(&d, "HOLES").len(), 2);
         assert!(on(&d, "OUTLINE").is_empty());
@@ -792,7 +818,7 @@ mod tests {
     #[test]
     fn the_file_written_is_read_back_by_the_reader_of_the_suite() {
         let settings = DxfSettings::default();
-        let d = board_drawing(&board(0), &settings, false);
+        let d = board_drawing(&board(0), &settings, false, false);
         let read = read_dxf(&write_dxf(&d), &settings).unwrap();
         assert_eq!(read.drawing, d);
         assert!(read.report.findings.is_empty());
@@ -843,12 +869,89 @@ mod tests {
     }
 
     #[test]
+    fn the_dimensions_are_written_on_their_layer_only_when_asked() {
+        use eh3d_phoenix_board::{Dimension, DimensionKind};
+        let mut b = board(0);
+        b.layers.insert(
+            id(40),
+            Layer {
+                name: "Notes".to_owned(),
+                kind: LayerKind::Documentation,
+                side: None,
+            },
+        );
+        let dimension = |kind, from, to, third, offset: i64| Dimension {
+            layer: id(40),
+            kind,
+            from,
+            to,
+            third,
+            offset: Nm::new(offset).unwrap(),
+            text_height: Nm::new(MM).unwrap(),
+            stroke: Nm::new(100_000).unwrap(),
+        };
+        b.dimensions.insert(
+            id(41),
+            dimension(
+                DimensionKind::Horizontal,
+                pt(0, 0),
+                pt(10 * MM, 0),
+                None,
+                2 * MM,
+            ),
+        );
+        b.dimensions.insert(
+            id(42),
+            dimension(
+                DimensionKind::Angle,
+                pt(0, 0),
+                pt(10 * MM, 0),
+                Some(pt(0, 10 * MM)),
+                5 * MM,
+            ),
+        );
+        // one that cannot be drawn is left out
+        b.dimensions.insert(
+            id(43),
+            dimension(DimensionKind::Aligned, pt(MM, MM), pt(MM, MM), None, MM),
+        );
+        let settings = DxfSettings::default();
+        let without = board_drawing(&b, &settings, false, false);
+        assert!(on(&without, "DIMENSIONS").is_empty());
+        let d = board_drawing(&b, &settings, false, true);
+        let shapes = on(&d, "DIMENSIONS");
+        // the horizontal one: two extension lines, the line, four of arrow heads and the text;
+        // the angle: two extension lines, sixteen pieces of arc, four of arrow heads and the text
+        assert_eq!(shapes.len(), 8 + 23);
+        let texts: Vec<&str> = shapes
+            .iter()
+            .filter_map(|s| match s {
+                DxfShape::Text { text, .. } => Some(text.as_str()),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(texts, vec!["10", "90 DEG"]);
+        // the other layers are the same with or without them
+        assert_eq!(on(&d, "OUTLINE"), on(&without, "OUTLINE"));
+        // the layer takes the name of the settings
+        let renamed = DxfSettings::parse("layer_dimensions = COTAS\n").unwrap();
+        let d = board_drawing(&b, &renamed, false, true);
+        assert_eq!(on(&d, "COTAS").len(), 31);
+        assert!(on(&d, "DIMENSIONS").is_empty());
+    }
+
+    #[test]
     fn the_options_are_read_and_the_wrong_ones_refused() {
         let o = parse_options(&[
             "placa", "--out", "a.dxf", "--silk", "--lang", "es", "b.json",
         ])
         .unwrap();
-        assert!(o.subject == Subject::Board && o.silk);
+        assert!(o.subject == Subject::Board && o.silk && !o.dimensions);
+        assert!(
+            parse_options(&["board", "--dimensions", "b.json"])
+                .unwrap()
+                .dimensions
+        );
         assert_eq!(o.out.as_deref(), Some("a.dxf"));
         assert_eq!(o.lang, Lang::Es);
         assert_eq!(o.files, vec!["b.json".to_owned()]);

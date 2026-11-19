@@ -3,7 +3,8 @@
 //! assembly plan and the layers of a board, and a panel of boards, as the content of pages in
 //! millimetres. A schematic is cut into its sheets and given the marks that the scene does not
 //! draw (junctions, names of nets, power ports, ports of sheets and buses); an assembly plan
-//! shows, for one side, the outline, the drills, the silkscreen, a silhouette of each footprint
+//! shows, for one side, the outline, the drills, the silkscreen, the documentation layers (the
+//! dimensions of the board), a silhouette of each footprint
 //! (the box around its pads) with its reference designator, the mark of its first pin and the
 //! fiducials, seen from above or, for the bottom side, as in a mirror. No window is needed.
 
@@ -408,7 +409,7 @@ fn assembly_content(
         scene,
         cfg,
         &map,
-        |role| matches!(role, Role::Outline | Role::Drill) || role == silk,
+        |role| matches!(role, Role::Outline | Role::Drill | Role::Documentation) || role == silk,
         |_| true,
     );
     let (mut boxes, mut names, mut firsts, mut fiducials) =
@@ -713,6 +714,49 @@ mod tests {
         assert!(has(LayerKind::Assembly));
         assert!(has(LayerKind::Designator));
         assert!(top.dimension_box.is_some());
+    }
+
+    #[test]
+    fn the_dimensions_are_on_the_plan_of_each_side_and_on_the_page_of_the_layers() {
+        use eh3d_phoenix_board::{Dimension, DimensionKind, Layer};
+        let mut board = sample::board();
+        let cfg = PrintConfig::default();
+        let documentation = |c: &Content| -> usize {
+            c.layers
+                .iter()
+                .filter(|l| l.kind == LayerKind::Documentation)
+                .map(|l| l.items.len())
+                .sum()
+        };
+        let scene = Scene::from_board(&board, &ViewerSettings::default()).unwrap();
+        let plain = board_contents(&board, &scene, &cfg, Lang::En, "demo");
+        assert!(plain.iter().all(|c| documentation(c) == 0));
+        board.layers.insert(
+            sample::id(60),
+            Layer {
+                name: "Docs".to_string(),
+                kind: eh3d_phoenix_board::LayerKind::Documentation,
+                side: None,
+            },
+        );
+        board.dimensions.insert(
+            sample::id(61),
+            Dimension {
+                layer: sample::id(60),
+                kind: DimensionKind::Horizontal,
+                from: sample::point(1.0, 1.0),
+                to: sample::point(13.5, 1.0),
+                third: None,
+                offset: Nm::new(2_000_000).unwrap(),
+                text_height: Nm::new(1_000_000).unwrap(),
+                stroke: Nm::new(100_000).unwrap(),
+            },
+        );
+        let scene = Scene::from_board(&board, &ViewerSettings::default()).unwrap();
+        let contents = board_contents(&board, &scene, &cfg, Lang::En, "demo");
+        // the plan of the top, the plan of the bottom and the page of the layers carry it
+        assert!(contents.iter().all(|c| documentation(c) > 0));
+        assert_eq!(documentation(&contents[0]), documentation(&contents[2]));
     }
 
     #[test]

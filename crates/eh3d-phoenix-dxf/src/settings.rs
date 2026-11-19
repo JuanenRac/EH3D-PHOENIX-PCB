@@ -38,6 +38,8 @@ pub struct DxfSettings {
     pub layer_pads: String,
     /// The layer of the silkscreen.
     pub layer_silk: String,
+    /// The layer of the dimensions of a board.
+    pub layer_dimensions: String,
     /// The layer of the V-score lines of a panel.
     pub layer_vscore: String,
     /// The layer of the fiducials of a panel.
@@ -90,6 +92,7 @@ impl Default for DxfSettings {
             layer_drills: "DRILLS".to_owned(),
             layer_pads: "PADS".to_owned(),
             layer_silk: "SILKSCREEN".to_owned(),
+            layer_dimensions: "DIMENSIONS".to_owned(),
             layer_vscore: "VSCORE".to_owned(),
             layer_fiducials: "FIDUCIALS".to_owned(),
             layer_tabs: "TABS".to_owned(),
@@ -140,6 +143,7 @@ impl DxfSettings {
                 "layer_drills" => s.layer_drills = layer_name(value).ok_or_else(bad)?,
                 "layer_pads" => s.layer_pads = layer_name(value).ok_or_else(bad)?,
                 "layer_silk" => s.layer_silk = layer_name(value).ok_or_else(bad)?,
+                "layer_dimensions" => s.layer_dimensions = layer_name(value).ok_or_else(bad)?,
                 "layer_vscore" => s.layer_vscore = layer_name(value).ok_or_else(bad)?,
                 "layer_fiducials" => s.layer_fiducials = layer_name(value).ok_or_else(bad)?,
                 "layer_tabs" => s.layer_tabs = layer_name(value).ok_or_else(bad)?,
@@ -218,6 +222,7 @@ impl DxfSettings {
             &self.layer_drills,
             &self.layer_pads,
             &self.layer_silk,
+            &self.layer_dimensions,
             &self.layer_vscore,
             &self.layer_fiducials,
             &self.layer_tabs,

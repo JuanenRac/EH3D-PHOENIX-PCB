@@ -17,6 +17,8 @@ pub struct Ipc2581Settings {
     pub include_tracks: bool,
     /// Write the zones, as their outlines.
     pub include_zones: bool,
+    /// Write the lines of the dimensions (not their texts) on a layer of the function DOCUMENT.
+    pub include_dimensions: bool,
     /// The most objects (parts, connected pads, tracks, vias and zones) a board may hold for the
     /// file to be made.
     pub max_items: usize,
@@ -29,6 +31,7 @@ impl Default for Ipc2581Settings {
             include_bom: true,
             include_tracks: true,
             include_zones: true,
+            include_dimensions: true,
             max_items: 1_000_000,
         }
     }
@@ -79,6 +82,7 @@ impl Ipc2581Settings {
                 "include_bom" => s.include_bom = parse_bool(value).ok_or_else(bad)?,
                 "include_tracks" => s.include_tracks = parse_bool(value).ok_or_else(bad)?,
                 "include_zones" => s.include_zones = parse_bool(value).ok_or_else(bad)?,
+                "include_dimensions" => s.include_dimensions = parse_bool(value).ok_or_else(bad)?,
                 "max_items" => s.max_items = value.parse().map_err(|_| bad())?,
                 _ => {
                     return Err(Ipc2581Error::new(
@@ -135,11 +139,11 @@ mod tests {
     #[test]
     fn lines_change_the_values() {
         let s = Ipc2581Settings::parse(
-            "origination = 2000-02-03T04:05:06\ninclude_bom = false\ninclude_tracks = false\ninclude_zones = false\nmax_items = 9\n",
+            "origination = 2000-02-03T04:05:06\ninclude_bom = false\ninclude_tracks = false\ninclude_zones = false\ninclude_dimensions = false\nmax_items = 9\n",
         )
         .unwrap();
         assert_eq!(s.origination, "2000-02-03T04:05:06");
-        assert!(!s.include_bom && !s.include_tracks && !s.include_zones);
+        assert!(!s.include_bom && !s.include_tracks && !s.include_zones && !s.include_dimensions);
         assert_eq!(s.max_items, 9);
     }
 
@@ -156,6 +160,7 @@ mod tests {
             "max_items = 0\n",
             "max_items = x\n",
             "include_zones\n",
+            "include_dimensions = yes\n",
         ] {
             assert!(Ipc2581Settings::parse(text).is_err(), "{text}");
         }
