@@ -275,6 +275,38 @@ fn the_pads_of_the_selected_parts_are_marked_as_test_points_and_unmarked_by_the_
 }
 
 #[test]
+fn the_test_pad_tool_marks_the_pad_under_the_pointer_and_unmarks_it_on_the_next_click() {
+    let mut f = fixture();
+    let part = with_free_part(&mut f);
+    let pad1 = PadRef {
+        component: part,
+        pad: f.pad1,
+    };
+    let at = eh3d_phoenix_board::connectivity::pad_position(&f.board, pad1).unwrap();
+    let mut s = state(&f);
+    s.set_tool(Tool::TestPad);
+    s.pointer_pressed(at, false);
+    assert!(s.error.is_none(), "{:?}", s.error);
+    assert_eq!(s.board().test_points, vec![pad1]);
+    // the other pad of the part is not touched
+    assert!(!s.board().is_test_point(PadRef {
+        component: part,
+        pad: f.pad2
+    }));
+    // a click on the same pad takes the mark off
+    s.pointer_pressed(at, false);
+    assert!(s.board().test_points.is_empty());
+    // each click is one step
+    assert!(s.undo());
+    assert_eq!(s.board().test_points, vec![pad1]);
+    // a click where there is no pad is refused and changes nothing
+    let steps = s.edit.steps();
+    s.pointer_pressed(f.pt(90, 90), false);
+    assert_eq!(s.error.as_ref().unwrap().code, OPERATION_REFUSED);
+    assert_eq!(s.edit.steps(), steps);
+}
+
+#[test]
 fn the_tune_tool_asks_for_the_length_in_the_state() {
     let f = fixture();
     let mut s = state(&f);

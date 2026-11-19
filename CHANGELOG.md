@@ -4,6 +4,8 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **The board editor has a test point tool that marks one pad at a time:** a click on a pad with the new tool *Test point* marks it as a test point and a second click takes the mark off (one step each, undone by undo; a lock does not stop it), a click where there is no pad is refused and changes nothing; the button and the hint are in the eight languages, and the pads of the selected components can still be marked together with the existing button.
+
 - **The most alternatives of a line of the file of part data is a setting:** the new line `max_alternatives` of `config/costs.cfg` (32 by default, from 1 to 1024, refused outside that) replaces the fixed limit of 32 for `phoenix bom --parts`; the library reader `PartsFile::parse` keeps 32 and the new `PartsFile::parse_with` takes the limit.
 
 ## [0.0.9] - Manufacturing profiles with more limits, board statistics, test points, an IPC-2581 writer, Gerber test pad, bills of materials and placements for assemblers, dimensions and a far faster check of pads

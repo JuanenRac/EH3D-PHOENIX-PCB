@@ -73,7 +73,7 @@ The window offers it too (`board_select` of the viewer crate, see *The window*),
 
 `eh3d-phoenix-boardedit` holds what the window shows and does:
 
-* **Tools:** select, place, route, via, delete and tune. The route starts on a pad, a track or a via (the net comes from there, or from the lit net), goes on with a click for each corner and ends on a pad of the same net, on `finish_route`, or is dropped; the corner goes first along x or along y (`corner_horizontal_first`, and the space key), with 45-degree pieces when `diagonal_routes` is on.
+* **Tools:** select, place, route, via, delete, tune and test point (a click on a pad marks it as a test point, a second click takes the mark off; one step each, and a click where there is no pad is refused). The route starts on a pad, a track or a via (the net comes from there, or from the lit net), goes on with a click for each corner and ends on a pad of the same net, on `finish_route`, or is dropped; the corner goes first along x or along y (`corner_horizontal_first`, and the space key), with 45-degree pieces when `diagonal_routes` is on.
 * **Grid and snapping:** a point lands on the grid when `snap` is on.
 * **Selection:** by a click (shift adds or takes away) or by a rectangle (what lies wholly inside); a via, then a track, then a component is picked, the nearest first.
 * **Drag:** the selected components follow the pointer on the grid; `drag_preview` gives the board as it would be, and letting go makes one step in which the tracks on their pads follow.

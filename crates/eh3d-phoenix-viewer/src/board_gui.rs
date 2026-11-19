@@ -734,6 +734,7 @@ pub fn canvas(
         Tool::Via => BoardMsg::HintVia,
         Tool::Delete => BoardMsg::HintDelete,
         Tool::Tune => BoardMsg::HintTune,
+        Tool::TestPad => BoardMsg::HintTestPad,
     };
     painter.text(
         rect.left_bottom() + egui::vec2(8.0, -8.0),
@@ -993,6 +994,7 @@ pub fn tools_panel(ui: &mut egui::Ui, st: &mut BoardEditUi, lang: Lang) -> bool 
             (Tool::Via, BoardMsg::ToolVia),
             (Tool::Delete, BoardMsg::ToolDelete),
             (Tool::Tune, BoardMsg::ToolTune),
+            (Tool::TestPad, BoardMsg::ToolTestPad),
         ] {
             ui.selectable_value(&mut tool, value, text.tr(lang));
         }

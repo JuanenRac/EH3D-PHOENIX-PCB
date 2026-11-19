@@ -30,6 +30,8 @@ pub enum Tool {
     Delete,
     /// Tune the net under the pointer to the target length.
     Tune,
+    /// Mark the pad under the pointer as a test point, or take the mark off.
+    TestPad,
 }
 
 /// A drag of components in progress.
@@ -353,6 +355,17 @@ impl EditState {
         self.run(&EditOp::Group { ops })
     }
 
+    /// Marks the pad under `p` as a test point, or takes the mark off when it has one; one step.
+    /// A lock does not stop it. False (and the error says so) when no pad is there.
+    pub fn toggle_test_point_at(&mut self, p: Point) -> bool {
+        let Some(pad) = pad_near(self.board(), p, self.edit.settings.pick_tolerance_nm) else {
+            self.fail(BoardEditError::new(OPERATION_REFUSED, "click a pad"));
+            return false;
+        };
+        let marked = !self.board().is_test_point(pad);
+        self.run(&EditOp::TestPoint { pad, marked })
+    }
+
     fn next_refdes(&self) -> String {
         let board = self.board();
         let mut n = board.components.len() + 1;
@@ -503,6 +516,9 @@ impl EditState {
                     self.selection.insert(item);
                     self.delete_selection();
                 }
+            }
+            Tool::TestPad => {
+                self.toggle_test_point_at(p);
             }
             Tool::Tune => match self.pick_at(p).and_then(|item| item.net(self.board())) {
                 Some(net) => {

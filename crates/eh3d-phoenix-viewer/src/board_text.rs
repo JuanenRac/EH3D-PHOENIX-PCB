@@ -28,6 +28,8 @@ pub enum BoardMsg {
     ToolDelete,
     /// The tool that tunes the length of a net.
     ToolTune,
+    /// The tool that marks a single pad as a test point.
+    ToolTestPad,
     /// The button that turns the selected components.
     Rotate,
     /// The button that puts the selected components on the other side.
@@ -85,6 +87,8 @@ pub enum BoardMsg {
     HintDelete,
     /// The hint of the tune tool.
     HintTune,
+    /// The hint of the test pad tool.
+    HintTestPad,
     /// The keys of the editor.
     KeysHint,
 }
@@ -205,6 +209,19 @@ const TABLE: [(BoardMsg, [&str; 8]); BoardMsg::COUNT] = [
             "長さ調整",
             "调整长度",
             "Ajustar comprimento",
+        ],
+    ),
+    (
+        BoardMsg::ToolTestPad,
+        [
+            "Test point",
+            "Punto de prueba",
+            "Testpunkt",
+            "Point de test",
+            "Punto di test",
+            "テストポイント",
+            "测试点",
+            "Ponto de teste",
         ],
     ),
     (
@@ -548,6 +565,19 @@ const TABLE: [(BoardMsg, [&str; 8]); BoardMsg::COUNT] = [
             "目標の長さを設定し、ネットの配線をクリックしてミアンダを追加",
             "设置目标长度，然后单击网络的走线以添加蛇形线",
             "Defina o comprimento pedido e clique numa pista da rede para acrescentar meandros",
+        ],
+    ),
+    (
+        BoardMsg::HintTestPad,
+        [
+            "Click a pad to mark it as a test point; click it again to take the mark off",
+            "Pulse un pad para marcarlo como punto de prueba; púlselo de nuevo para quitar la marca",
+            "Pad anklicken, um ihn als Testpunkt zu markieren; erneut anklicken hebt die Markierung auf",
+            "Cliquez un pad pour le marquer comme point de test ; cliquez-le de nouveau pour retirer la marque",
+            "Clic su un pad per segnarlo come punto di test; un altro clic toglie il segno",
+            "パッドをクリックしてテストポイントに指定し、もう一度クリックして解除",
+            "单击焊盘将其标记为测试点；再次单击取消标记",
+            "Clique num pad para o marcar como ponto de teste; clique de novo para retirar a marca",
         ],
     ),
     (
