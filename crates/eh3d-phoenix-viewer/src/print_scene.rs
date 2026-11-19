@@ -426,6 +426,8 @@ fn assembly_content(
         };
         let mut area = Bounds::EMPTY;
         let mut first: Option<P> = None;
+        let mut marked: Option<P> = None;
+        let polarity = cfg.polarity_pad(&component.refdes);
         for (pid, pad) in &footprint.pads {
             let Some(at) = pad_position(
                 board,
@@ -442,6 +444,9 @@ fn assembly_content(
             area.include(P::new(x + half, y + half));
             if pad.number == "1" {
                 first = Some(P::new(x, y));
+            }
+            if polarity == Some(pad.number.as_str()) {
+                marked = Some(P::new(x, y));
             }
         }
         if area.is_empty() {
@@ -493,6 +498,19 @@ fn assembly_content(
             let at = map.pt(p);
             firsts.push(Item::circle(at, 0.55, c_pin1, 0.12, false));
             firsts.push(Item::circle(at, 0.2, c_pin1, 0.0, true));
+        }
+        // the mark of polarity: a bar along the side of the box that is nearest to the marked pad
+        if let (Some(p), true) = (marked, footprint.pads.len() >= 2) {
+            let middle = area.centre();
+            let (dx, dy) = (p.x - middle.x, p.y - middle.y);
+            let (a, b) = if dx.abs() >= dy.abs() {
+                let x = if dx >= 0.0 { body.max.x } else { body.min.x };
+                (P::new(x, body.min.y), P::new(x, body.max.y))
+            } else {
+                let y = if dy >= 0.0 { body.max.y } else { body.min.y };
+                (P::new(body.min.x, y), P::new(body.max.x, y))
+            };
+            firsts.push(Item::line(map.pt(a), map.pt(b), c_pin1, 0.4));
         }
     }
     for (kind, items) in [
@@ -714,6 +732,51 @@ mod tests {
         assert!(has(LayerKind::Assembly));
         assert!(has(LayerKind::Designator));
         assert!(top.dimension_box.is_some());
+    }
+
+    #[test]
+    fn a_part_with_a_polarity_has_a_bar_on_the_side_of_its_marked_pad() {
+        use eh3d_phoenix_print::Shape;
+        let mut board = sample::board();
+        let scene = Scene::from_board(&board, &ViewerSettings::default()).unwrap();
+        let lines = |cfg: &PrintConfig, board: &Board, scene: &Scene| -> Vec<(Pt, Pt)> {
+            let top = &board_contents(board, scene, cfg, Lang::En, "demo")[0];
+            top.layers
+                .iter()
+                .filter(|l| l.kind == LayerKind::Pin1)
+                .flat_map(|l| l.items.iter())
+                .filter_map(|i| match i.shape {
+                    Shape::Line { a, b } => Some((a, b)),
+                    _ => None,
+                })
+                .collect()
+        };
+        // a resistor has no polarity
+        let cfg = PrintConfig::default();
+        assert!(lines(&cfg, &board, &scene).is_empty());
+        // the same part named as a diode has a bar, along one side of its box
+        for component in board.components.values_mut() {
+            if component.refdes == "R1" {
+                component.refdes = "D1".to_string();
+            }
+        }
+        let marks = lines(&cfg, &board, &scene);
+        assert_eq!(marks.len(), 1);
+        let (a, b) = marks[0];
+        assert!(
+            (a.0 - b.0).abs() < 1e-9 || (a.1 - b.1).abs() < 1e-9,
+            "a bar is level or upright: {a:?} {b:?}"
+        );
+        // pad 2 instead of pad 1: the bar is on the other side
+        let other = PrintConfig::parse("polarity_pads = D:2\n").unwrap();
+        let moved = lines(&other, &board, &scene);
+        assert_eq!(moved.len(), 1);
+        assert_ne!(moved[0], marks[0]);
+        // turned off, or no part named, no bar
+        let off = PrintConfig::parse("polarity_marks = false\n").unwrap();
+        assert!(lines(&off, &board, &scene).is_empty());
+        let none = PrintConfig::parse("polarity_pads =\n").unwrap();
+        assert!(lines(&none, &board, &scene).is_empty());
     }
 
     #[test]

@@ -95,6 +95,11 @@ pub struct PrintConfig {
     pub scale_bar: bool,
     /// Draw the dimension lines of the width and the height.
     pub dimensions: bool,
+    /// Draw a mark of polarity on the assembly plan of the parts that have one.
+    pub polarity_marks: bool,
+    /// The parts that have a polarity: the letters of the reference designator (`D` for `D1`) and
+    /// the number of the pad that is marked (the cathode of a diode, the plus of a capacitor).
+    pub polarity_pads: Vec<(String, String)>,
     /// The side of a board that is printed.
     pub side: SideChoice,
     /// The layers that are printed; empty for all of them.
@@ -132,6 +137,13 @@ impl Default for PrintConfig {
             author: String::new(),
             scale_bar: true,
             dimensions: false,
+            polarity_marks: true,
+            polarity_pads: vec![
+                ("D".to_owned(), "1".to_owned()),
+                ("LED".to_owned(), "1".to_owned()),
+                ("CP".to_owned(), "1".to_owned()),
+                ("BT".to_owned(), "1".to_owned()),
+            ],
             side: SideChoice::Both,
             layers: Vec::new(),
             background: Rgba::new(255, 255, 255, 255),
@@ -177,6 +189,39 @@ pub fn parse_scale(text: &str) -> Option<f64> {
     (value.is_finite() && (0.001..=1000.0).contains(&value)).then_some(value)
 }
 
+/// Reads the parts that have a polarity: `D:1, LED:1` is the letters of the reference designator,
+/// a colon and the number of the pad that is marked, separated by commas; nothing is an empty
+/// list. A name of letters at most 8 long (kept in capitals), a number of at most 8 characters, no
+/// name twice, at most 64 parts.
+pub fn parse_polarity_pads(text: &str) -> Result<Vec<(String, String)>, String> {
+    let bad = |why: &str| format!("polarity_pads: {why}");
+    if text.trim().is_empty() {
+        return Ok(Vec::new());
+    }
+    let mut list: Vec<(String, String)> = Vec::new();
+    for item in text.split(',') {
+        let Some((name, pad)) = item.split_once(':') else {
+            return Err(bad("each part is `letters:pad`"));
+        };
+        let (name, pad) = (name.trim().to_ascii_uppercase(), pad.trim().to_owned());
+        let name_ok = (1..=8).contains(&name.len()) && name.chars().all(|c| c.is_ascii_uppercase());
+        let pad_ok = (1..=8).contains(&pad.len()) && pad.chars().all(|c| c.is_ascii_alphanumeric());
+        if !name_ok || !pad_ok {
+            return Err(bad(
+                "letters (at most 8) and a pad number (at most 8 characters)",
+            ));
+        }
+        if list.iter().any(|(n, _)| *n == name) {
+            return Err(bad("a part twice"));
+        }
+        list.push((name, pad));
+    }
+    if list.len() > 64 {
+        return Err(bad("at most 64 parts"));
+    }
+    Ok(list)
+}
+
 /// Reads a list of layer names separated by commas; `all` or nothing is every layer. The error is
 /// the name that is not known.
 pub fn parse_layers(text: &str) -> Result<Vec<LayerKind>, String> {
@@ -207,6 +252,23 @@ impl PrintConfig {
         matches!(kind, LayerKind::Frame | LayerKind::Dimension)
             || self.layers.is_empty()
             || self.layers.contains(&kind)
+    }
+
+    /// The number of the pad that is marked for the polarity of a part, from its reference
+    /// designator (`D3` gives the pad of `D`); `None` when the part has none or the marks are off.
+    pub fn polarity_pad(&self, refdes: &str) -> Option<&str> {
+        if !self.polarity_marks {
+            return None;
+        }
+        let letters: String = refdes
+            .chars()
+            .take_while(char::is_ascii_alphabetic)
+            .collect::<String>()
+            .to_ascii_uppercase();
+        self.polarity_pads
+            .iter()
+            .find(|(name, _)| *name == letters)
+            .map(|(_, pad)| pad.as_str())
     }
 
     /// Reads the settings from the text of a file; a line that is missing keeps its default.
@@ -297,6 +359,8 @@ impl PrintConfig {
             "author" => self.author = words()?,
             "scale_bar" => self.scale_bar = flag()?,
             "dimensions" => self.dimensions = flag()?,
+            "polarity_marks" => self.polarity_marks = flag()?,
+            "polarity_pads" => self.polarity_pads = parse_polarity_pads(value)?,
             "side" => {
                 self.side = match value {
                     "top" => SideChoice::Top,
@@ -397,6 +461,41 @@ mod tests {
             let error = PrintConfig::parse(text).unwrap_err();
             assert_eq!(error.code, SETTINGS_INVALID, "{text}");
             assert!(error.detail.starts_with(&format!("line {line}:")), "{text}");
+        }
+    }
+
+    #[test]
+    fn the_parts_with_a_polarity_are_read_from_the_settings() {
+        let c = PrintConfig::default();
+        assert_eq!(c.polarity_pad("D12"), Some("1"));
+        assert_eq!(c.polarity_pad("led3"), Some("1"));
+        assert_eq!(c.polarity_pad("R1"), None);
+        assert_eq!(c.polarity_pad("DX1"), None);
+        assert_eq!(c.polarity_pad("1"), None);
+        let c = PrintConfig::parse("polarity_pads = d : 2 , Z:A1\n").unwrap();
+        assert_eq!(c.polarity_pad("D1"), Some("2"));
+        assert_eq!(c.polarity_pad("Z9"), Some("A1"));
+        assert_eq!(c.polarity_pad("LED1"), None);
+        let off = PrintConfig::parse("polarity_marks = false\n").unwrap();
+        assert_eq!(off.polarity_pad("D1"), None);
+        assert!(PrintConfig::parse("polarity_pads =\n")
+            .unwrap()
+            .polarity_pads
+            .is_empty());
+        for text in [
+            "polarity_pads = D\n",
+            "polarity_pads = D:\n",
+            "polarity_pads = :1\n",
+            "polarity_pads = D1:1\n",
+            "polarity_pads = D:1,d:2\n",
+            "polarity_pads = D:1,,E:1\n",
+            "polarity_pads = ABCDEFGHI:1\n",
+            "polarity_pads = D:123456789\n",
+            "polarity_marks = yes\n",
+        ] {
+            let error = PrintConfig::parse(text).unwrap_err();
+            assert_eq!(error.code, SETTINGS_INVALID, "{text}");
+            assert!(error.detail.starts_with("line 1:"), "{text}");
         }
     }
 
