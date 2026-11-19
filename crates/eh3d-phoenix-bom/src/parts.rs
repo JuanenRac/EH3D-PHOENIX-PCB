@@ -25,14 +25,19 @@ pub struct PartData {
     pub alternatives: Vec<String>,
 }
 
-/// The most alternatives a line of the file may name, and the longest one in characters.
+/// The most alternatives a line of the file may name when the settings do not say (the key
+/// `max_alternatives` of the costs file changes it).
 pub const MAX_ALTERNATIVES: usize = 32;
 /// The longest alternative, in characters.
 pub const MAX_ALTERNATIVE_CHARS: usize = 128;
 
 /// Reads the cell of alternatives: part numbers separated by semicolons, trimmed, with the empty
 /// ones and the repeated ones left out.
-fn parse_alternatives(cell: &str, line: usize) -> Result<Vec<String>, BomError> {
+fn parse_alternatives(
+    cell: &str,
+    line: usize,
+    max_alternatives: usize,
+) -> Result<Vec<String>, BomError> {
     let mut out: Vec<String> = Vec::new();
     for word in cell.split(';').map(str::trim).filter(|w| !w.is_empty()) {
         if word.chars().count() > MAX_ALTERNATIVE_CHARS || word.chars().any(char::is_control) {
@@ -44,9 +49,9 @@ fn parse_alternatives(cell: &str, line: usize) -> Result<Vec<String>, BomError> 
             out.push(word.to_owned());
         }
     }
-    if out.len() > MAX_ALTERNATIVES {
+    if out.len() > max_alternatives {
         return Err(invalid(format!(
-            "line {line}: more than {MAX_ALTERNATIVES} alternatives"
+            "line {line}: more than {max_alternatives} alternatives"
         )));
     }
     Ok(out)
@@ -68,6 +73,16 @@ fn invalid(what: String) -> BomError {
 impl PartsFile {
     /// Reads the file, with no more than `max_rows` lines.
     pub fn parse(text: &str, max_rows: usize) -> Result<PartsFile, BomError> {
+        PartsFile::parse_with(text, max_rows, MAX_ALTERNATIVES)
+    }
+
+    /// Reads the file, with no more than `max_rows` lines and no more than `max_alternatives`
+    /// alternatives on a line.
+    pub fn parse_with(
+        text: &str,
+        max_rows: usize,
+        max_alternatives: usize,
+    ) -> Result<PartsFile, BomError> {
         let table = parse_table(text).map_err(invalid)?;
         let key = table
             .column("match")
@@ -101,7 +116,7 @@ impl PartsFile {
                 manufacturer: get("manufacturer"),
                 mpn: get("mpn"),
                 fitted,
-                alternatives: parse_alternatives(&get("alternatives"), *line)?,
+                alternatives: parse_alternatives(&get("alternatives"), *line, max_alternatives)?,
             };
             let duplicate = match matched.split_once('|') {
                 Some((value, footprint)) => file
@@ -190,6 +205,16 @@ C9,,,no\n";
         let e = PartsFile::parse(&format!("match,alternatives\nR1,{long}\n"), 10).unwrap_err();
         assert_eq!(e.code, PARTS_INVALID);
         assert!(e.detail.contains("line 2"), "{}", e.detail);
+    }
+
+    #[test]
+    fn the_limit_of_alternatives_can_be_set_by_the_caller() {
+        let text = "match,alternatives\nR1,A;B;C\n";
+        assert!(PartsFile::parse_with(text, 10, 3).is_ok());
+        let e = PartsFile::parse_with(text, 10, 2).unwrap_err();
+        assert!(e.detail.contains("more than 2 alternatives"), "{}", e.detail);
+        // the plain reader keeps the default limit
+        assert!(PartsFile::parse(text, 10).is_ok());
     }
 
     #[test]

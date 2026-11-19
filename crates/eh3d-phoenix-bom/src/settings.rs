@@ -64,6 +64,8 @@ pub struct CostSettings {
     pub max_items: usize,
     /// The largest input file, in bytes.
     pub max_file_bytes: u64,
+    /// The most alternative part numbers a line of the file of part data may name.
+    pub max_alternatives: usize,
 }
 
 impl Default for CostSettings {
@@ -89,6 +91,7 @@ impl Default for CostSettings {
             csv_columns: COLUMNS.iter().map(|c| (*c).to_owned()).collect(),
             max_items: 100_000,
             max_file_bytes: 16 * 1024 * 1024,
+            max_alternatives: crate::parts::MAX_ALTERNATIVES,
         }
     }
 }
@@ -140,6 +143,7 @@ impl CostSettings {
                 "csv_columns" => s.csv_columns = parse_columns(value).ok_or_else(bad)?,
                 "max_items" => s.max_items = value.parse().map_err(|_| bad())?,
                 "max_file_bytes" => s.max_file_bytes = value.parse().map_err(|_| bad())?,
+                "max_alternatives" => s.max_alternatives = value.parse().map_err(|_| bad())?,
                 _ => {
                     return Err(BomError::new(
                         SETTINGS_INVALID,
@@ -180,6 +184,9 @@ impl CostSettings {
         }
         if self.max_items == 0 || self.max_file_bytes == 0 {
             return fail("max_items and max_file_bytes must be above 0");
+        }
+        if self.max_alternatives == 0 || self.max_alternatives > 1024 {
+            return fail("max_alternatives must be from 1 to 1024");
         }
         Ok(())
     }
@@ -269,6 +276,23 @@ mod tests {
             let e = CostSettings::parse(text).unwrap_err();
             assert_eq!(e.code, SETTINGS_INVALID, "{text}");
         }
+    }
+
+    #[test]
+    fn the_limit_of_alternatives_is_read_and_kept_within_its_range() {
+        assert_eq!(CostSettings::default().max_alternatives, 32);
+        assert_eq!(
+            CostSettings::parse("max_alternatives = 5\n")
+                .unwrap()
+                .max_alternatives,
+            5
+        );
+        for text in ["max_alternatives = 0\n", "max_alternatives = 1025\n"] {
+            let e = CostSettings::parse(text).unwrap_err();
+            assert!(e.detail.contains("max_alternatives"), "{}", e.detail);
+        }
+        let e = CostSettings::parse("max_alternatives = many\n").unwrap_err();
+        assert!(e.detail.contains("line 1"), "{}", e.detail);
     }
 
     #[test]

@@ -4,6 +4,8 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **The most alternatives of a line of the file of part data is a setting:** the new line `max_alternatives` of `config/costs.cfg` (32 by default, from 1 to 1024, refused outside that) replaces the fixed limit of 32 for `phoenix bom --parts`; the library reader `PartsFile::parse` keeps 32 and the new `PartsFile::parse_with` takes the limit.
+
 ## [0.0.9] - Manufacturing profiles with more limits, board statistics, test points, an IPC-2581 writer, Gerber test pad, bills of materials and placements for assemblers, dimensions and a far faster check of pads
 
 - **`phoenix testpoints` can ask for the opening of the solder mask over a test point:** the new line `require_mask_opening` of `config/testpoints.cfg` (off by default, so no report changes) makes the report give `PHOENIX-TP-013` for a test point whose pad lists no solder mask layer of the side of its part or of no side (a through-hole pad, which shows on both sides, takes a mask layer of either), with the title in the eight languages; the size of the opening is not compared with the pad.

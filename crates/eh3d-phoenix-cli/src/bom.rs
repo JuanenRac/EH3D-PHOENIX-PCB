@@ -352,9 +352,10 @@ fn bom(options: &Options, out: &mut dyn Write) -> Result<i32, BomError> {
         None => PriceBook::default(),
     };
     let mut parts = match &options.parts {
-        Some(path) => PartsFile::parse(
+        Some(path) => PartsFile::parse_with(
             &read_limited(path, settings.max_file_bytes)?,
             settings.max_items,
+            settings.max_alternatives,
         )?,
         None => PartsFile::default(),
     };
