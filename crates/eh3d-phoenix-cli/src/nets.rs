@@ -37,6 +37,7 @@ pub(crate) const USAGE: &str =
                 settings and print it again in its canonical form (no board is given)
   --compare     compare a netlist file with the board: nets only on one side, a pin on another net
                 or on none, a net under another name; exit code 1 when anything differs. With
+                --import the second side is another netlist file and no board is given. With
                 --out the JSON report is written
   --config      the limits and the nets a comparison ignores (default: config/nets.cfg when it
                 exists)
@@ -113,9 +114,6 @@ fn parse_options(args: &[&str]) -> Result<Options, NetsError> {
         }
     }
     if options.import.is_some() {
-        if options.compare.is_some() {
-            return Err(bad("--import and --compare are not given together"));
-        }
         if !options.files.is_empty() {
             return Err(bad("--import reads a netlist and takes no board"));
         }
@@ -303,15 +301,27 @@ fn compare_with_board(
     out: &mut dyn Write,
 ) -> Result<i32, NetsError> {
     let settings = load_settings(options.config.as_deref())?;
-    let [board_path] = options.files.as_slice() else {
-        return Err(NetsError::new(
-            OPTION_INVALID,
-            "give exactly one board file",
-        ));
-    };
     let file = parse(&read_netlist(file_path, &settings)?, &settings)?;
-    let board = read_board_file(board_path).map_err(|e| NetsError::new(INPUT_UNREADABLE, e))?;
-    let (board_table, notes) = table_of_pins(board_pins(&board));
+    // the other side is the board, or a second netlist file when --import names one
+    let (board_table, notes, other_label) = match (&options.import, options.files.as_slice()) {
+        (Some(path), _) => (
+            parse(&read_netlist(path, &settings)?, &settings)?,
+            Vec::new(),
+            "second netlist",
+        ),
+        (None, [board_path]) => {
+            let board =
+                read_board_file(board_path).map_err(|e| NetsError::new(INPUT_UNREADABLE, e))?;
+            let (table, notes) = table_of_pins(board_pins(&board));
+            (table, notes, "board")
+        }
+        _ => {
+            return Err(NetsError::new(
+                OPTION_INVALID,
+                "give exactly one board file",
+            ))
+        }
+    };
     let result = compare(&file, &board_table, &settings);
     let mut report = comparison_json(&file, &board_table, &result);
     report["notes"] = notes_json(&notes);
@@ -323,7 +333,7 @@ fn compare_with_board(
     } else {
         let lang = column(options.lang);
         let mut text = format!(
-            "netlist: {}\nboard: {}\n",
+            "netlist: {}\n{other_label}: {}\n",
             summary(&file),
             summary(&board_table)
         );

@@ -424,7 +424,7 @@ fn what_cannot_be_used_stops_with_exit_code_2_and_writes_nothing() {
         (vec!["nets", &file, &path], "PHOENIX-NETS-008"),
         (vec!["nets", "--import", &file, &path], "PHOENIX-NETS-008"),
         (
-            vec!["nets", "--import", &file, "--compare", &file],
+            vec!["nets", "--import", &file, "--compare", &file, &path],
             "PHOENIX-NETS-008",
         ),
         (vec!["nets", "--bogus", &path], "PHOENIX-NETS-008"),
@@ -467,4 +467,44 @@ fn the_command_is_listed_in_the_help() {
     assert_eq!(code, 0);
     assert!(out.contains("phoenix nets "), "{out}");
     assert!(out.contains("PHOENIX-NETS-<NNN>"), "{out}");
+}
+
+#[test]
+fn two_netlist_files_are_compared_with_each_other() {
+    let dir = tempfile::tempdir().unwrap();
+    let old = write_text(dir.path(), "old.nets", BOARD_NETLIST);
+    let same = write_text(
+        dir.path(),
+        "same.nets",
+        "NET SIG R2.1 R1.1\nNET GND TP1.1 R2.2 R1.2\n",
+    );
+    let (code, out, err) = command(&["nets", "--compare", &old, "--import", &same]);
+    assert_eq!((code, err.as_str()), (0, ""));
+    assert_eq!(
+        out,
+        "netlist: 2 nets, 5 pins\nsecond netlist: 2 nets, 5 pins\ndifferences: 0\n"
+    );
+    let other = write_text(dir.path(), "new.nets", DIFFERENT);
+    let (code, out, _) = command(&["nets", "--compare", &old, "--import", &other]);
+    assert_eq!(code, 1);
+    // the first file plays the netlist and the second the board of the comparison
+    assert!(
+        out.contains("PHOENIX-NETS-012: Net of the board is not in the netlist: "),
+        "{out}"
+    );
+    assert!(out.ends_with("differences: 4\n"), "{out}");
+    let (code, out, _) = command(&["nets", "--compare", &old, "--import", &other, "--json"]);
+    assert_eq!(code, 1);
+    let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+    assert_eq!(v["board"]["net_count"], 3);
+    assert_eq!(v["notes"].as_array().unwrap().len(), 0);
+    // a file that is not there or not valid stops the comparison
+    let missing = path_in(dir.path(), "missing.nets");
+    let (code, _, err) = command(&["nets", "--compare", &old, "--import", &missing]);
+    assert_eq!(code, 2);
+    assert!(err.contains("PHOENIX-NETS-001"), "{err}");
+    let bad = write_text(dir.path(), "bad.nets", "NET A R1\n");
+    let (code, _, err) = command(&["nets", "--compare", &old, "--import", &bad]);
+    assert_eq!(code, 2);
+    assert!(err.contains("PHOENIX-NETS-004"), "{err}");
 }

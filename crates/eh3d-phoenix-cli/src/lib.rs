@@ -444,7 +444,7 @@ phoenix testpoints [--config FILE] [--out FILE] [--json] [--lang xx] <board>
                 each other or too near the edge, with the codes PHOENIX-TP-<NNN>; a dry run unless
                 --out names a new file, a prototype, run `phoenix testpoints` alone for its options
 
-phoenix nets [--config FILE] [--out FILE] [--compare NETLIST | --import NETLIST] [--json] [--lang xx] [<board>]
+phoenix nets [--config FILE] [--out FILE] [--compare NETLIST] [--import NETLIST] [--json] [--lang xx] [<board>]
 
   nets          the nets of a board as a text netlist, one line for each net (`NET GND U1.1 C1.2`),
                 the reading and checking of such a file against the limits of config/nets.cfg, and

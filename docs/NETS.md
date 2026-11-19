@@ -28,7 +28,7 @@ NET UNUSED
 
 Names have no blanks, a part has no dot and nothing starts with `#`. When a board has a name that cannot be written, the writer does not stop: a pin whose part or pad cannot be written is left out, a net name with a blank or a leading `#` is written with underscores, two nets that get the same written name are joined, and a pin that two nets claim stays on the first. Each of these is a note with the code `PHOENIX-NETS-007` (or `PHOENIX-NETS-005` for the pin), written as a comment line after the netlist, so the netlist says that it is not exactly the board. Only the pads that a net names are written: a net with no pad (a net of tracks alone) is not.
 
-## The three ways to use it
+## The ways to use it
 
 * `phoenix nets board.json` prints the netlist of the board. With `--out FILE` the netlist goes to the new file and the output says how many nets and pins were written; with `--json` the output is the nets and the notes as JSON.
 * `phoenix nets --import FILE` reads a netlist file instead of a board, checks it against the limits of the settings and prints it again in its canonical form (sorted, wrapped, comments taken out). It is the way to normalise a file that was edited by hand, or to see why it is refused.
@@ -44,6 +44,7 @@ Names have no blanks, a part has no dot and nothing starts with `#`. When a boar
   | `PHOENIX-NETS-016` | a net has another name on the board and exactly the same pins | `NET -> BOARD-NET` |
 
   A net that only changed its name is one line (`PHOENIX-NETS-016`) and not one line for each of its pins. A pin that is on another net is reported once, from the side of the file. The last line says how many differences there are, and `--out` writes the JSON report to a new file.
+* `phoenix nets --compare OLD.nets --import NEW.nets` compares two netlist files: the second one takes the place of the board, so the report reads "board" as "the second file" (the header line says `second netlist`, and the JSON keeps the key `board`). It is how the netlists of two revisions of a schematic are compared, with the same codes, the same exit code and the same settings.
 
 ## Settings
 
