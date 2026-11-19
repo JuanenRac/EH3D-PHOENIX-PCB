@@ -38,7 +38,8 @@ pub fn category(code: &str) -> &'static str {
         | "PHOENIX-CHECK-014" | "PHOENIX-CHECK-015" | "PHOENIX-DRC-001" | "PHOENIX-DRC-004"
         | "PHOENIX-DRC-006" | "PHOENIX-DRC-016" | "PHOENIX-DRC-018" => "size",
         "PHOENIX-CHECK-005" | "PHOENIX-DRC-008" => "clearance",
-        "PHOENIX-CHECK-006" | "PHOENIX-CHECK-007" | "PHOENIX-DRC-002" | "PHOENIX-DRC-003" => "edge",
+        "PHOENIX-CHECK-006" | "PHOENIX-CHECK-007" | "PHOENIX-DRC-002" | "PHOENIX-DRC-003"
+        | "PHOENIX-DRC-020" => "edge",
         "PHOENIX-CHECK-008" | "PHOENIX-CHECK-011" | "PHOENIX-CHECK-012" | "PHOENIX-DRC-005" => {
             "mask_silk"
         }
@@ -269,6 +270,7 @@ mod tests {
         assert_eq!(category("PHOENIX-DRC-018"), "size");
         assert_eq!(category("PHOENIX-DRC-017"), "advanced");
         assert_eq!(category("PHOENIX-DRC-019"), "advanced");
+        assert_eq!(category("PHOENIX-DRC-020"), "edge");
         assert_eq!(category("PHOENIX-DFM-003"), "capability");
         assert_eq!(category(NOT_JUDGED), "other");
         assert_eq!(category("PHOENIX-NOPE-001"), "other");

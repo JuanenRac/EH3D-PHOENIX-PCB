@@ -43,6 +43,8 @@ pub const TRACK_ANGLE: &str = "PHOENIX-DRC-017";
 pub const RING_CLASS: &str = "PHOENIX-DRC-018";
 /// A net with more vias than via_count_max.
 pub const VIA_COUNT: &str = "PHOENIX-DRC-019";
+/// A corner of the outline or of a cutout that is sharper than outline_corner_min_angle_deg.
+pub const OUTLINE_CORNER: &str = "PHOENIX-DRC-020";
 
 /// Every code with its English title, in order.
 pub const REGISTRY: &[(&str, &str)] = &[
@@ -77,6 +79,10 @@ pub const REGISTRY: &[(&str, &str)] = &[
         "Annular ring thinner than the minimum of its net class",
     ),
     (VIA_COUNT, "More vias on a net than the limit"),
+    (
+        OUTLINE_CORNER,
+        "Sharp corner in the board outline or in a cutout",
+    ),
 ];
 
 const TITLES: &[(&str, [&str; 8])] = &[
@@ -325,6 +331,19 @@ const TITLES: &[(&str, [&str; 8])] = &[
             "ネット上のビア数が上限を超えている",
             "网络上的过孔数超过上限",
             "Mais vias numa rede do que o limite",
+        ],
+    ),
+    (
+        OUTLINE_CORNER,
+        [
+            "Sharp corner in the board outline or in a cutout",
+            "Esquina aguda en el contorno de la placa o en un recorte",
+            "Spitze Ecke im Platinenumriss oder in einem Ausschnitt",
+            "Angle aigu dans le contour de la carte ou dans une découpe",
+            "Angolo acuto nel contorno della scheda o in un ritaglio",
+            "基板外形または切り欠きの鋭い角",
+            "板框或开孔中的尖角",
+            "Canto agudo no contorno da placa ou num recorte",
         ],
     ),
 ];

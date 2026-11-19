@@ -129,6 +129,10 @@ pub struct AdvancedConfig {
     pub via_count_level: Option<Severity>,
     /// The most vias a net may have; 0 does not judge it.
     pub via_count_max: i64,
+    /// Level of the sharp corner of the outline check.
+    pub outline_corner_level: Option<Severity>,
+    /// The smallest angle a corner of the outline or of a cutout may have, in degrees.
+    pub outline_corner_min_angle_deg: i64,
     /// The distance from copper to the board edge of the layers that have a limit of their own,
     /// by the name of the layer, in nanometres.
     pub copper_edge_layers: BTreeMap<String, i64>,
@@ -205,6 +209,8 @@ impl AdvancedConfig {
             ring_class_level: None,
             via_count_level: None,
             via_count_max: 0,
+            outline_corner_level: None,
+            outline_corner_min_angle_deg: 0,
             copper_edge_layers: BTreeMap::new(),
         }
     }
@@ -380,6 +386,10 @@ impl AdvancedConfig {
                 }
                 "ring_class_level" => self.ring_class_level = level()?,
                 "via_count_level" => self.via_count_level = level()?,
+                "outline_corner_level" => self.outline_corner_level = level()?,
+                "outline_corner_min_angle_deg" => {
+                    self.outline_corner_min_angle_deg = parse_int(value, 0, 180).ok_or_else(bad)?;
+                }
                 "via_count_max" => {
                     self.via_count_max = parse_int(value, 0, 1_000_000).ok_or_else(bad)?
                 }
@@ -501,6 +511,7 @@ mod tests {
         assert_eq!(cfg.track_angle_level, None);
         assert_eq!(cfg.ring_class_level, None);
         assert_eq!(cfg.via_count_level, None);
+        assert_eq!(cfg.outline_corner_level, None);
         assert!(cfg.copper_edge_layers.is_empty());
         assert_eq!(cfg.track_angle_step_deg, 45);
     }
@@ -510,13 +521,15 @@ mod tests {
         let cfg = parse(
             "short_track_level = info\nshort_track_min_nm = 123\ntrack_angle_level = error\n\
              track_angle_step_deg = 90\nring_class_level = warning\nvia_count_level = warning\n\
-             via_count_max = 40\ncopper_edge_layer.Bottom = 500000\n\
+             via_count_max = 40\noutline_corner_level = info\noutline_corner_min_angle_deg = 30\n\
+             copper_edge_layer.Bottom = 500000\n\
              drill_class.pwr.nets = A, B\ndrill_class.pwr.ring_min_nm = 175000\n",
         )
         .unwrap();
         assert_eq!(cfg.short_track_min_nm, 123);
         assert_eq!(cfg.track_angle_step_deg, 90);
         assert_eq!(cfg.via_count_max, 40);
+        assert_eq!(cfg.outline_corner_min_angle_deg, 30);
         assert_eq!(cfg.copper_edge_layers["Bottom"], 500_000);
         assert_eq!(cfg.drill_classes[0].ring_min_nm, 175_000);
         for bad in [
@@ -524,6 +537,8 @@ mod tests {
             "track_angle_step_deg = 30\n",
             "via_count_max = -1\n",
             "via_count_max = 1000001\n",
+            "outline_corner_min_angle_deg = 181\n",
+            "outline_corner_min_angle_deg = -1\n",
             "short_track_min_nm = x\n",
             "copper_edge_layer. = 5\n",
             "copper_edge_layer.Top = -5\n",

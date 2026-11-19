@@ -22,8 +22,9 @@
 //! * `PHOENIX-DRC-013` parts with a pad outside the outline;
 //! * `PHOENIX-DRC-014` what could not be judged (information);
 //! * `PHOENIX-DRC-016` short tracks, `PHOENIX-DRC-017` pieces of tracks off a grid of angles,
-//!   `PHOENIX-DRC-018` the annular ring by net class and `PHOENIX-DRC-019` the number of vias on a
-//!   net (all four off in the settings that come with the program).
+//!   `PHOENIX-DRC-018` the annular ring by net class, `PHOENIX-DRC-019` the number of vias on a
+//!   net and `PHOENIX-DRC-020` sharp corners of the outline (all five off in the settings that come
+//!   with the program).
 //!
 //! The pairs of items that are close to each other are found with a uniform grid. The grid only
 //! chooses which pairs are compared, so the report is the one of the search that compares every
@@ -139,6 +140,11 @@ pub(crate) const R_VIA_COUNT: RuleInfo = RuleInfo {
     rank: 38,
     name: "via_count",
     code: codes::VIA_COUNT,
+};
+pub(crate) const R_OUTLINE_CORNER: RuleInfo = RuleInfo {
+    rank: 39,
+    name: "outline_corner",
+    code: codes::OUTLINE_CORNER,
 };
 pub(crate) const R_NOT_JUDGED: RuleInfo = RuleInfo {
     rank: 34,

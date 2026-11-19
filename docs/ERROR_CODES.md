@@ -237,6 +237,7 @@ The checks of `phoenix check --advanced`, with the limits and the levels of `con
 | PHOENIX-DRC-017 | Track piece off the allowed grid of angles | A straight piece of a track that is off the grid of angles of track_angle_step_deg (45 or 90 degrees) |
 | PHOENIX-DRC-018 | Annular ring thinner than the minimum of its net class | A via or a drilled pad whose annular ring is thinner than the ring_min_nm of the class of its net |
 | PHOENIX-DRC-019 | More vias on a net than the limit | A net with more vias than via_count_max |
+| PHOENIX-DRC-020 | Sharp corner in the board outline or in a cutout | A corner of the outline or of a cutout that is sharper than outline_corner_min_angle_deg |
 | PHOENIX-DFM-001 | More copper layers than the profile offers | `phoenix check --dfm`: the board has more copper layers than `max_copper_layers` of the capability profile |
 | PHOENIX-DFM-002 | Board smaller than the profile accepts | `phoenix check --dfm`: the short or the long side of the outline is below `min_board_short_nm` or `min_board_long_nm` |
 | PHOENIX-DFM-003 | Board larger than the profile accepts | `phoenix check --dfm`: the short or the long side of the outline is above `max_board_short_nm` or `max_board_long_nm` |
@@ -280,6 +281,7 @@ Titles of the same codes in the other seven languages (Portuguese is the Portugu
 | PHOENIX-DRC-017 | Tramo de pista fuera de la rejilla de ángulos permitida | Leiterbahnstück außerhalb des erlaubten Winkelrasters | Tronçon de piste hors de la grille d'angles autorisée | Tratto di pista fuori dalla griglia di angoli consentita | 配線の一部が許容される角度の格子から外れている | 走线段不在允许的角度网格上 | Troço de pista fora da grelha de ângulos permitida |
 | PHOENIX-DRC-018 | Anillo anular más fino que el mínimo de su clase de red | Restring dünner als das Minimum seiner Netzklasse | Anneau de cuivre plus fin que le minimum de sa classe de réseau | Anello anulare più sottile del minimo della sua classe di rete | アニュラリングがネットクラスの最小値より薄い | 环形焊环比其网络类别的最小值更薄 | Anel anular mais fino do que o mínimo da sua classe de rede |
 | PHOENIX-DRC-019 | Más vías en una red que el límite | Mehr Durchkontaktierungen in einem Netz als erlaubt | Plus de vias sur un réseau que la limite | Più via su una rete del limite | ネット上のビア数が上限を超えている | 网络上的过孔数超过上限 | Mais vias numa rede do que o limite |
+| PHOENIX-DRC-020 | Esquina aguda en el contorno de la placa o en un recorte | Spitze Ecke im Platinenumriss oder in einem Ausschnitt | Angle aigu dans le contour de la carte ou dans une découpe | Angolo acuto nel contorno della scheda o in un ritaglio | 基板外形または切り欠きの鋭い角 | 板框或开孔中的尖角 | Canto agudo no contorno da placa ou num recorte |
 
 ## Stack-up and transmission lines (`eh3d-phoenix-stackup`, `src/error.rs`)
 

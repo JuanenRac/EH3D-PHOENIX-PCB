@@ -243,6 +243,7 @@ pub(super) fn run_all(ctx: &Ctx<'_>, out: &mut Report) {
     checks_extra::track_angles(ctx.board, ctx.cfg, out);
     checks_extra::ring_classes(ctx.board, ctx.cfg, &ring_items(ctx), out);
     checks_extra::via_counts(ctx.board, ctx.cfg, out);
+    checks_extra::outline_corners(ctx.board, ctx.cfg, out);
 }
 
 /// The drilled pads of the parts, as the items the check of the ring by class judges.
