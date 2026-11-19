@@ -330,3 +330,73 @@ fn the_help_of_the_command_is_in_the_table() {
     assert!(out.contains("phoenix ipc2581"), "{out}");
     assert!(out.contains("docs/IPC2581.md"), "{out}");
 }
+
+#[test]
+fn the_netlist_is_written_as_an_ipc_d356a_file_and_never_replaces_a_file_without_overwrite() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = write_board(dir.path());
+    let target = dir.path().join("board.d356").to_str().unwrap().to_owned();
+    let (code, out, err) = command(&["ipc2581", "--d356", &target, &path]);
+    assert_eq!((code, err.as_str()), (0, ""));
+    assert!(out.contains("IPC-D-356A of demo: 2 records"), "{out}");
+    assert!(out.contains(&format!("written: {target}")), "{out}");
+    // only the netlist is written, not the IPC-2581 file
+    assert_eq!(names(dir.path()), vec!["board.d356", "board.json"]);
+    let text = fs::read_to_string(&target).unwrap();
+    let lines: Vec<&str> = text.lines().collect();
+    assert_eq!(lines.len(), 6);
+    assert!(lines.iter().all(|l| l.len() == 80));
+    assert!(lines[0].starts_with("C  IPC-D-356A"));
+    assert!(lines[1].starts_with("P  JOB   demo"));
+    assert!(lines[2].starts_with("P  UNITS CUST 1"));
+    assert!(lines[5].starts_with("999"));
+    // the pins in the order of the nets: GND (R1 pad 2) and then SIG (R1 pad 1), on the top
+    let gnd = lines[3];
+    assert_eq!(&gnd[0..3], "327");
+    assert_eq!(&gnd[3..17], "GND           ");
+    assert_eq!(&gnd[18..24], "R1    ");
+    assert_eq!(&gnd[25..29], "2   ");
+    assert_eq!(&gnd[36..39], "A01");
+    assert_eq!(&gnd[39..47], "X+010800");
+    assert_eq!(&gnd[47..55], "Y+005000");
+    assert_eq!(&gnd[55..60], "X0800");
+    assert_eq!(&gnd[60..65], "Y0600");
+    assert_eq!(&gnd[69..72], " S1");
+    assert_eq!(&lines[4][3..17], "SIG           ");
+    assert_eq!(&lines[4][39..47], "X+009200");
+    // it exists now
+    let (code, _, err) = command(&["ipc2581", "--d356", &target, &path]);
+    assert_eq!(code, 2);
+    assert!(err.contains("--overwrite"), "{err}");
+    let (code, _, _) = command(&["ipc2581", "--d356", &target, "--overwrite", &path]);
+    assert_eq!(code, 0);
+    assert_eq!(names(dir.path()), vec!["board.d356", "board.json"]);
+    // the same file for both outputs is refused before anything is written
+    let (code, _, err) = command(&["ipc2581", "--out", &target, "--d356", &target, &path]);
+    assert_eq!(code, 2);
+    assert!(err.contains("same file"), "{err}");
+}
+
+#[test]
+fn the_netlist_summary_is_in_the_json_and_the_settings_choose_the_pads_written() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = write_board(dir.path());
+    let target = dir.path().join("a.d356").to_str().unwrap().to_owned();
+    let (code, out, _) = command(&["ipc2581", "--json", "--d356", &target, &path]);
+    assert_eq!(code, 0);
+    let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+    assert_eq!(v["d356"]["records"], 2);
+    assert!(v["d356"]["notes"].as_array().unwrap().is_empty());
+    // without --d356 the summary has no such key
+    let (_, plain, _) = command(&["ipc2581", "--json", &path]);
+    let v: serde_json::Value = serde_json::from_str(&plain).unwrap();
+    assert!(v.get("d356").is_none());
+    // the pads of the resistor have no hole: with the setting off none is written
+    let cfg = write_text(dir.path(), "ipc.cfg", "d356_include_smd = false\n");
+    let second = dir.path().join("b.d356").to_str().unwrap().to_owned();
+    let (code, out, _) = command(&["ipc2581", "--config", &cfg, "--d356", &second, &path]);
+    assert_eq!(code, 0);
+    assert!(out.contains("IPC-D-356A of demo: 0 records"), "{out}");
+    let text = fs::read_to_string(&second).unwrap();
+    assert_eq!(text.lines().count(), 4);
+}

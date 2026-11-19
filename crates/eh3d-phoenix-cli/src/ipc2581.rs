@@ -2,7 +2,7 @@
 //! The command `ipc2581`: a board as an IPC-2581 file (write only).
 //!
 //! Exit codes: 0 done, 2 the arguments, the input or the output are unusable. Nothing is written
-//! unless `--out` names a file. A file that exists is never replaced unless `--overwrite` is
+//! unless `--out` or `--d356` names a file. A file that exists is never replaced unless `--overwrite` is
 //! given; then the new file is made next to it with a name that was free, and moved over the old
 //! one, so a failure leaves the old file as it was. The input board, a link and a folder are
 //! never replaced.
@@ -12,7 +12,7 @@ use std::io::Write;
 use std::path::Path;
 
 use eh3d_phoenix_ipc2581::codes::{INPUT_UNREADABLE, OPTION_INVALID, OUTPUT_FAILED};
-use eh3d_phoenix_ipc2581::{export, Ipc2581, Ipc2581Error, Ipc2581Settings};
+use eh3d_phoenix_ipc2581::{d356, export, Ipc2581, Ipc2581Error, Ipc2581Settings, D356};
 use eh3d_phoenix_rules::Lang;
 
 use crate::export::read_board_file;
@@ -21,7 +21,8 @@ use crate::export::read_board_file;
 const DEFAULT_CONFIG: &str = "config/ipc2581.cfg";
 
 pub(crate) const USAGE: &str = "\
-phoenix ipc2581 [--config FILE] [--out FILE [--overwrite]] [--json] [--lang CODE] <board>
+phoenix ipc2581 [--config FILE] [--out FILE] [--d356 FILE] [--overwrite] [--json] [--lang CODE]
+                <board>
 
   ipc2581       a board as an IPC-2581 file (revision C, a subset): the layers, the outline and
                 its cutouts, the pads with their padstacks, the vias, the tracks, the outlines of
@@ -31,7 +32,11 @@ phoenix ipc2581 [--config FILE] [--out FILE [--overwrite]] [--json] [--lang CODE
                 file is not read back, and a prototype that no viewer has opened
   --config      what goes into the file and the limit (default: config/ipc2581.cfg when it exists)
   --out FILE    write the file there
-  --overwrite   replace the file that --out names when it exists
+  --d356 FILE   also write the netlist of the board as an IPC-D-356A test file (one line of 80
+                columns for each pad of a part: net, part, pin, hole, side, place and size, in
+                micrometres), a prototype whose columns have not been compared with the standard
+                or with a tester; what does not fit is listed
+  --overwrite   replace the files that --out and --d356 name when they exist
   --json        print the summary as JSON
   --lang CODE   the messages in en, es, de, fr, it, ja, zh or pt
 ";
@@ -42,6 +47,7 @@ struct Options {
     lang: Lang,
     config: Option<String>,
     out: Option<String>,
+    d356: Option<String>,
     files: Vec<String>,
 }
 
@@ -52,6 +58,7 @@ fn parse_options(args: &[&str]) -> Result<Options, Ipc2581Error> {
         lang: Lang::En,
         config: None,
         out: None,
+        d356: None,
         files: Vec::new(),
     };
     let bad = |what: &str| Ipc2581Error::new(OPTION_INVALID, what.to_owned());
@@ -71,6 +78,7 @@ fn parse_options(args: &[&str]) -> Result<Options, Ipc2581Error> {
             }
             "--config" => options.config = Some(value("--config needs a file")?),
             "--out" => options.out = Some(value("--out needs a file")?),
+            "--d356" => options.d356 = Some(value("--d356 needs a file")?),
             other if other.starts_with("--") => {
                 return Err(Ipc2581Error::new(
                     OPTION_INVALID,
@@ -80,8 +88,11 @@ fn parse_options(args: &[&str]) -> Result<Options, Ipc2581Error> {
             other => options.files.push(other.to_owned()),
         }
     }
-    if options.overwrite && options.out.is_none() {
-        return Err(bad("--overwrite needs --out"));
+    if options.overwrite && options.out.is_none() && options.d356.is_none() {
+        return Err(bad("--overwrite needs --out or --d356"));
+    }
+    if options.out.is_some() && options.out == options.d356 {
+        return Err(bad("--out and --d356 name the same file"));
     }
     Ok(options)
 }
@@ -181,6 +192,15 @@ fn summary_text(file: &Ipc2581, lang: Lang) -> String {
     out
 }
 
+/// What is said of the IPC-D-356A file: its records and what does not fit.
+fn d356_text(file: &D356, name: &str) -> String {
+    let mut out = format!("IPC-D-356A of {name}: {} records\n", file.records);
+    for note in &file.notes {
+        out.push_str(&format!("note: {note}\n"));
+    }
+    out
+}
+
 fn ipc2581(options: &Options, out: &mut dyn Write) -> Result<i32, Ipc2581Error> {
     let [board_path] = options.files.as_slice() else {
         return Err(Ipc2581Error::new(
@@ -191,18 +211,43 @@ fn ipc2581(options: &Options, out: &mut dyn Write) -> Result<i32, Ipc2581Error> 
     let board = read_board_file(board_path).map_err(|e| Ipc2581Error::new(INPUT_UNREADABLE, e))?;
     let settings = load_settings(options.config.as_deref())?;
     let file = export(&board, &settings)?;
+    let netlist = match &options.d356 {
+        Some(_) => Some(d356(&board, &settings)?),
+        None => None,
+    };
     if let Some(path) = &options.out {
         write_file(path, &file.xml, options.overwrite, board_path)?;
     }
+    if let (Some(path), Some(netlist)) = (&options.d356, &netlist) {
+        write_file(path, &netlist.text, options.overwrite, board_path)?;
+    }
     let mut text = if options.json {
-        let mut json = serde_json::to_string_pretty(&file.summary).unwrap_or_default();
+        // without --d356 the summary is written as it always was, in the order of its fields
+        let mut json = if let Some(netlist) = &netlist {
+            let mut value = serde_json::to_value(&file.summary).unwrap_or_default();
+            if let Some(object) = value.as_object_mut() {
+                object.insert(
+                    "d356".to_owned(),
+                    serde_json::json!({ "records": netlist.records, "notes": netlist.notes }),
+                );
+            }
+            serde_json::to_string_pretty(&value).unwrap_or_default()
+        } else {
+            serde_json::to_string_pretty(&file.summary).unwrap_or_default()
+        };
         json.push('\n');
         json
     } else {
-        summary_text(&file, options.lang)
+        let mut text = summary_text(&file, options.lang);
+        if let Some(netlist) = &netlist {
+            text.push_str(&d356_text(netlist, &file.summary.name));
+        }
+        text
     };
-    if let (Some(path), false) = (&options.out, options.json) {
-        text.push_str(&format!("written: {path}\n"));
+    if !options.json {
+        for path in options.out.iter().chain(options.d356.iter()) {
+            text.push_str(&format!("written: {path}\n"));
+        }
     }
     let _ = out.write_all(text.as_bytes());
     Ok(0)

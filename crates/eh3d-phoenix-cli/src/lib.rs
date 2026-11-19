@@ -454,15 +454,17 @@ phoenix nets [--config FILE] [--out FILE] [--csv FILE] [--compare NETLIST] [--im
                 dry run unless --out or --csv names a new file, a prototype, run `phoenix nets`
                 alone for its options
 
-phoenix ipc2581 [--config FILE] [--out FILE [--overwrite]] [--json] [--lang xx] <board>
+phoenix ipc2581 [--config FILE] [--out FILE] [--d356 FILE] [--overwrite] [--json] [--lang xx] <board>
 
   ipc2581       a board as an IPC-2581 file (revision C, a subset): the layers, the outline and
                 its cutouts, the pads with their padstacks, the vias, the tracks, the outlines of
                 the zones, the nets and a basic bill of materials, as an XML document that is the
                 same every time, with the list of what it leaves out, with the codes
                 PHOENIX-IPC2581-<NNN>; a dry run unless --out names the file, which is replaced
-                only with --overwrite, a prototype that no viewer has opened, run
-                `phoenix ipc2581` alone for its options
+                only with --overwrite, a prototype that no viewer has opened; with --d356 it also
+                writes the netlist of the board as an IPC-D-356A test file, a prototype whose
+                columns have not been compared with the standard, run `phoenix ipc2581` alone for
+                its options
 
 phoenix bom [--config FILE] [--prices FILE] [--parts FILE] [--schematic FILE] [--sourcing] [--stackup FILE]
             [--boards N] [--variant NAME [--variant-file FILE]] [--csv FILE] [--json-file FILE]

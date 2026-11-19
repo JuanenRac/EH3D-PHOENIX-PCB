@@ -26,8 +26,14 @@ pub struct Ipc2581Settings {
     /// dimension has.
     pub dimension_text_height_nm: i64,
     /// The most objects (parts, connected pads, tracks, vias and zones) a board may hold for the
-    /// file to be made.
+    /// file to be made; it also limits the pads of the IPC-D-356A file.
     pub max_items: usize,
+    /// Write the pads without a hole in the IPC-D-356A file (`phoenix ipc2581 --d356`) as well as
+    /// the pads with one.
+    pub d356_include_smd: bool,
+    /// The name of the net that a pad on no net has in the IPC-D-356A file: from 1 to 14 printable
+    /// characters without a blank.
+    pub d356_unconnected_name: String,
 }
 
 impl Default for Ipc2581Settings {
@@ -41,6 +47,8 @@ impl Default for Ipc2581Settings {
             include_dimension_texts: true,
             dimension_text_height_nm: 0,
             max_items: 1_000_000,
+            d356_include_smd: true,
+            d356_unconnected_name: "N/C".to_owned(),
         }
     }
 }
@@ -98,6 +106,8 @@ impl Ipc2581Settings {
                     s.dimension_text_height_nm = value.parse().map_err(|_| bad())?;
                 }
                 "max_items" => s.max_items = value.parse().map_err(|_| bad())?,
+                "d356_include_smd" => s.d356_include_smd = parse_bool(value).ok_or_else(bad)?,
+                "d356_unconnected_name" => value.clone_into(&mut s.d356_unconnected_name),
                 _ => {
                     return Err(Ipc2581Error::new(
                         SETTINGS_INVALID,
@@ -128,6 +138,13 @@ impl Ipc2581Settings {
             return Err(Ipc2581Error::new(
                 SETTINGS_INVALID,
                 "max_items must be between 1 and 100000000",
+            ));
+        }
+        let name = &self.d356_unconnected_name;
+        if !(1..=14).contains(&name.len()) || !name.bytes().all(|c| c.is_ascii_graphic()) {
+            return Err(Ipc2581Error::new(
+                SETTINGS_INVALID,
+                "d356_unconnected_name must be from 1 to 14 printable characters without a blank",
             ));
         }
         Ok(())
@@ -167,6 +184,10 @@ mod tests {
         assert!(!s.include_dimension_texts);
         assert_eq!(s.dimension_text_height_nm, 1_500_000);
         assert_eq!(s.max_items, 9);
+        let s = Ipc2581Settings::parse("d356_include_smd = false\nd356_unconnected_name = NONET\n")
+            .unwrap();
+        assert!(!s.d356_include_smd);
+        assert_eq!(s.d356_unconnected_name, "NONET");
     }
 
     #[test]
@@ -187,6 +208,10 @@ mod tests {
             "dimension_text_height_nm = -1\n",
             "dimension_text_height_nm = 1000000001\n",
             "dimension_text_height_nm = tall\n",
+            "d356_include_smd = 1\n",
+            "d356_unconnected_name =\n",
+            "d356_unconnected_name = THE_NAME_IS_TOO_LONG\n",
+            "d356_unconnected_name = caf\u{e9}\n",
         ] {
             assert!(Ipc2581Settings::parse(text).is_err(), "{text}");
         }

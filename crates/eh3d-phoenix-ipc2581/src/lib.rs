@@ -5,6 +5,8 @@
 //!   cutouts, the standard shapes and padstacks, the packages and the placed parts, the nets, the
 //!   pads, vias, tracks and zone outlines of each copper layer, and a basic bill of materials,
 //!   as an XML document that is the same every time, with a summary of what it holds;
+//! * [`d356`]: the netlist of a board as an IPC-D-356A test file (one line of 80 columns for each
+//!   pad of a part), a prototype whose columns have not been compared with the standard;
 //! * [`settings`]: what goes into the file and the limits, read from `config/ipc2581.cfg`;
 //! * [`codes`]: the codes `PHOENIX-IPC2581-001` to `PHOENIX-IPC2581-008` with their titles in the
 //!   eight languages.
@@ -18,9 +20,11 @@
 #![warn(missing_docs)]
 
 pub mod codes;
+pub mod d356;
 pub mod export;
 pub mod settings;
 
 pub use codes::{title, Finding, Ipc2581Error, Severity};
+pub use d356::{d356, D356};
 pub use export::{degrees, export, mm, Ipc2581, Summary, SUMMARY_FORMAT};
 pub use settings::Ipc2581Settings;
