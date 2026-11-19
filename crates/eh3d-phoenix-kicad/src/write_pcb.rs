@@ -927,12 +927,22 @@ fn silk_nodes(board: &Board, ctx: &Ctx, report: &mut ExportReport) -> Vec<Sx> {
 }
 
 /// The dimensions as `dimension` nodes of KiCad 6 and later: `aligned` for the aligned kind and
-/// `orthogonal` (with its orientation) for the horizontal and vertical kinds, each with its text.
+/// `orthogonal` (with its orientation) for the horizontal and vertical kinds, `radial` (with its
+/// `leader_length` and the prefix R) for a radius, an `aligned` one with the prefix D for a
+/// diameter (KiCad has no diameter) and nothing for an angle (KiCad has none), each with its text.
 /// The height is the offset of the dimension line turned to the right of the model (the y of the
 /// file points down); the form has not been compared with KiCad.
 fn dimension_nodes(board: &Board, ctx: &Ctx, report: &mut ExportReport) -> Vec<Sx> {
     let mut out = Vec::new();
     for (id, d) in &board.dimensions {
+        if d.kind == DimensionKind::Angle {
+            report.note(
+                LEFT_OUT,
+                "angle dimensions",
+                "KiCad has no angle dimension; the dimension is left out",
+            );
+            continue;
+        }
         let Some(name) = ctx.names.names.get(&d.layer) else {
             report.note(
                 DANGLING,
@@ -962,14 +972,29 @@ fn dimension_nodes(board: &Board, ctx: &Ctx, report: &mut ExportReport) -> Vec<S
             DimensionKind::Aligned => ("aligned", None, -d.offset.get()),
             DimensionKind::Horizontal => ("orthogonal", Some(0), -d.offset.get()),
             DimensionKind::Vertical => ("orthogonal", Some(1), d.offset.get()),
+            DimensionKind::Radius => ("radial", None, 0),
+            // KiCad has no diameter: the distance between the two ends, with the prefix D
+            DimensionKind::Diameter => ("aligned", None, 0),
+            DimensionKind::Angle => continue,
         };
+        if d.kind == DimensionKind::Diameter {
+            report.note(
+                CHANGED,
+                "diameter dimensions",
+                "written as aligned dimensions between the two ends, with the prefix D",
+            );
+        }
         let mut nodes = vec![
             list("type", vec![atom(kind)]),
             list("layer", vec![string(name)]),
             uuid_node(id, "dimension"),
             list("pts", vec![xy_node(d.from), xy_node(d.to)]),
-            list("height", vec![num(height)]),
         ];
+        if d.kind == DimensionKind::Radius {
+            nodes.push(list("leader_length", vec![num(d.offset.get().max(0))]));
+        } else {
+            nodes.push(list("height", vec![num(height)]));
+        }
         if let Some(o) = orientation {
             nodes.push(list("orientation", vec![int(o)]));
         }
@@ -992,15 +1017,19 @@ fn dimension_nodes(board: &Board, ctx: &Ctx, report: &mut ExportReport) -> Vec<S
                 ),
             ],
         ));
-        nodes.push(list(
-            "format",
-            vec![
-                list("units", vec![int(3)]),
-                list("units_format", vec![int(0)]),
-                list("precision", vec![int(3)]),
-                atom("suppress_zeroes"),
-            ],
-        ));
+        let mut format = Vec::new();
+        match d.kind {
+            DimensionKind::Radius => format.push(list("prefix", vec![string("R")])),
+            DimensionKind::Diameter => format.push(list("prefix", vec![string("D")])),
+            _ => {}
+        }
+        format.extend([
+            list("units", vec![int(3)]),
+            list("units_format", vec![int(0)]),
+            list("precision", vec![int(3)]),
+            atom("suppress_zeroes"),
+        ]);
+        nodes.push(list("format", format));
         nodes.push(list(
             "style",
             vec![list("thickness", vec![num(d.stroke.get())])],
@@ -1260,7 +1289,12 @@ pub(crate) fn check_pcb(text: &str, report: &mut ExportReport) {
         (
             "dimensions",
             report.written_count("dimensions"),
-            board.dimensions.len(),
+            // the angles are left out, as KiCad has none
+            board
+                .dimensions
+                .values()
+                .filter(|d| d.kind != DimensionKind::Angle)
+                .count(),
         ),
     ];
     for (what, wrote, got) in counts {
@@ -1633,6 +1667,7 @@ mod tests {
                     kind,
                     from,
                     to,
+                    third: None,
                     offset: nm(offset),
                     text_height: nm(1_200_000),
                     stroke: nm(120_000),
@@ -1676,6 +1711,108 @@ mod tests {
             text,
             &write_pcb(&board, &WriteSettings::default()).files[0].text
         );
+    }
+
+    #[test]
+    fn a_radius_is_written_as_radial_a_diameter_as_aligned_and_an_angle_is_left_out() {
+        use eh3d_phoenix_board::{Dimension, DimensionKind, Layer};
+        let mut board = sample_board();
+        board.layers.insert(
+            id(40),
+            Layer {
+                name: "Notes".into(),
+                kind: LayerKind::Documentation,
+                side: None,
+            },
+        );
+        for (n, kind, from, to, third, offset) in [
+            (
+                41,
+                DimensionKind::Radius,
+                pt(10_000_000, 10_000_000),
+                pt(13_000_000, 14_000_000),
+                None,
+                2_000_000,
+            ),
+            (
+                42,
+                DimensionKind::Diameter,
+                pt(0, 0),
+                pt(8_000_000, 0),
+                None,
+                0,
+            ),
+            (
+                43,
+                DimensionKind::Angle,
+                pt(0, 0),
+                pt(10_000_000, 0),
+                Some(pt(0, 10_000_000)),
+                5_000_000,
+            ),
+        ] {
+            board.dimensions.insert(
+                id(n),
+                Dimension {
+                    layer: id(40),
+                    kind,
+                    from,
+                    to,
+                    third,
+                    offset: nm(offset),
+                    text_height: nm(1_200_000),
+                    stroke: nm(120_000),
+                },
+            );
+        }
+        let out = write_pcb(&board, &WriteSettings::default());
+        let text = &out.files[0].text;
+        // the angle is not written, and the report says so
+        assert_eq!(children(&parse(text).unwrap(), "dimension").len(), 2);
+        assert_eq!(out.report.written_count("dimensions"), 2);
+        assert!(
+            out.report
+                .notes()
+                .iter()
+                .any(|n| n.category == "angle dimensions" && n.code == LEFT_OUT),
+            "{:?}",
+            out.report.notes()
+        );
+        assert_eq!(
+            out.report.count_of(ROUND_TRIP),
+            0,
+            "{:?}",
+            out.report.notes()
+        );
+        assert!(text.contains("(type radial)"), "{text}");
+        assert!(text.contains("(leader_length 2)"), "{text}");
+        assert!(text.contains("(prefix \"R\")"), "{text}");
+        assert!(text.contains("(prefix \"D\")"), "{text}");
+        assert!(text.contains("(gr_text \"R5\""), "{text}");
+        assert!(text.contains("(gr_text \"D8\""), "{text}");
+        let mut ids = crate::sequential_ids().unwrap();
+        let read =
+            crate::pcb::read_pcb(text.as_bytes(), &KicadSettings::default(), &mut ids).unwrap();
+        let kinds: Vec<_> = read.board.dimensions.values().map(|d| d.kind).collect();
+        assert_eq!(kinds.len(), 2);
+        // the radius comes back as it was; the diameter as an aligned dimension of the same length
+        let radius = read
+            .board
+            .dimensions
+            .values()
+            .find(|d| d.kind == DimensionKind::Radius)
+            .unwrap();
+        assert_eq!(
+            (radius.length_nm(), radius.offset.get()),
+            (5_000_000, 2_000_000)
+        );
+        let aligned = read
+            .board
+            .dimensions
+            .values()
+            .find(|d| d.kind == DimensionKind::Aligned)
+            .unwrap();
+        assert_eq!(aligned.length_nm(), 8_000_000);
     }
 
     #[test]

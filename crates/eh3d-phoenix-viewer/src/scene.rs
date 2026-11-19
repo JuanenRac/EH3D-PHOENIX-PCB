@@ -1127,6 +1127,7 @@ mod tests {
                 kind: DimensionKind::Horizontal,
                 from: sample::point(1.0, 1.0),
                 to: sample::point(13.5, 1.0),
+                third: None,
                 offset: Nm::new(2_000_000).unwrap(),
                 text_height: Nm::new(1_000_000).unwrap(),
                 stroke: Nm::new(100_000).unwrap(),

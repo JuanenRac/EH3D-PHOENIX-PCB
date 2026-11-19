@@ -438,7 +438,15 @@ pub fn write_board(board: &Board) -> Written {
 
     // the dimensions, as `dimension` elements on the number of their layer
     for (did, d) in &board.dimensions {
-        let (Some(layer), Ok(through)) = (numbers.get(&d.layer), d.line_point()) else {
+        let through = match d.kind {
+            eh3d_phoenix_board::DimensionKind::Angle => {
+                d.third.ok_or(eh3d_phoenix_board::DimensionError::Points)
+            }
+            eh3d_phoenix_board::DimensionKind::Radius
+            | eh3d_phoenix_board::DimensionKind::Diameter => d.leader_end(),
+            _ => d.line_point(),
+        };
+        let (Some(layer), Ok(through)) = (numbers.get(&d.layer), through) else {
             diagnostics.push(codes::diagnostic(
                 ITEM_LEFT_OUT,
                 Severity::Warning,
@@ -450,6 +458,9 @@ pub fn write_board(board: &Board) -> Written {
             eh3d_phoenix_board::DimensionKind::Aligned => "parallel",
             eh3d_phoenix_board::DimensionKind::Horizontal => "horizontal",
             eh3d_phoenix_board::DimensionKind::Vertical => "vertical",
+            eh3d_phoenix_board::DimensionKind::Radius => "radius",
+            eh3d_phoenix_board::DimensionKind::Diameter => "diameter",
+            eh3d_phoenix_board::DimensionKind::Angle => "angle",
         };
         // the ratio of the stroke to the height of the text, in whole per cent
         let ratio = (d.stroke.get().saturating_mul(100) / d.text_height.get().max(1)).max(1);

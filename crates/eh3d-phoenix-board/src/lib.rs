@@ -32,7 +32,7 @@ pub mod silk;
 pub mod stack;
 pub mod validate;
 
-pub use dimension::{mm_text, Dimension, DimensionError, DimensionKind};
+pub use dimension::{degrees_text, mm_text, Dimension, DimensionError, DimensionKind};
 pub use model::{
     Board, Component, Footprint, Id, Layer, LayerKind, Net, Pad, PadNet, PadRef, PadShape, Segment,
     Side, StackFunction, Track, Via, Zone,

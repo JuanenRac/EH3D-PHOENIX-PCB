@@ -311,12 +311,14 @@ pub fn describe_operation(
             };
             fill(WinText::OpConnectPad, lang, &name)
         }
-        Operation::AddDimension { dimension, .. } => {
-            fill(WinText::OpAddDimension, lang, &dimension.measure_text())
-        }
+        Operation::AddDimension { dimension, .. } => fill(
+            WinText::OpAddDimension,
+            lang,
+            &dimension.measure_with_unit(),
+        ),
         Operation::RemoveDimension { .. } => {
             let measure = match inverse {
-                Operation::AddDimension { dimension, .. } => dimension.measure_text(),
+                Operation::AddDimension { dimension, .. } => dimension.measure_with_unit(),
                 _ => "?".to_string(),
             };
             fill(WinText::OpRemoveDimension, lang, &measure)
@@ -440,6 +442,7 @@ mod tests {
             kind: DimensionKind::Horizontal,
             from: point(1.0, 1.0),
             to: point(13.5, 1.0),
+            third: None,
             offset: Nm::new(2_000_000).unwrap(),
             text_height: Nm::new(1_000_000).unwrap(),
             stroke: Nm::new(100_000).unwrap(),

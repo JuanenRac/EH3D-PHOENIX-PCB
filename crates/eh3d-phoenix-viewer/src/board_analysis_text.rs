@@ -30,6 +30,12 @@ pub enum AnalysisMsg {
     KindHorizontal,
     /// The name of a vertical dimension in the list.
     KindVertical,
+    /// The name of a radius dimension in the list.
+    KindRadius,
+    /// The name of a diameter dimension in the list.
+    KindDiameter,
+    /// The name of an angle dimension in the list.
+    KindAngle,
     /// The button that closes the report.
     Close,
     /// What is said under the title: the reports are of the board as it is now.
@@ -165,6 +171,31 @@ const TABLE: [(AnalysisMsg, [&str; 8]); AnalysisMsg::COUNT] = [
             "垂直",
             "垂直",
             "Vertical",
+        ],
+    ),
+    (
+        AnalysisMsg::KindRadius,
+        [
+            "Radius", "Radio", "Radius", "Rayon", "Raggio", "半径", "半径", "Raio",
+        ],
+    ),
+    (
+        AnalysisMsg::KindDiameter,
+        [
+            "Diameter",
+            "Diámetro",
+            "Durchmesser",
+            "Diamètre",
+            "Diametro",
+            "直径",
+            "直径",
+            "Diâmetro",
+        ],
+    ),
+    (
+        AnalysisMsg::KindAngle,
+        [
+            "Angle", "Ángulo", "Winkel", "Angle", "Angolo", "角度", "角度", "Ângulo",
         ],
     ),
     (

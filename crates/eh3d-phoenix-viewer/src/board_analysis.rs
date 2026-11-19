@@ -153,16 +153,23 @@ pub fn dimensions_text(board: &Board, lang: Lang) -> String {
             DimensionKind::Aligned => AnalysisMsg::KindAligned,
             DimensionKind::Horizontal => AnalysisMsg::KindHorizontal,
             DimensionKind::Vertical => AnalysisMsg::KindVertical,
+            DimensionKind::Radius => AnalysisMsg::KindRadius,
+            DimensionKind::Diameter => AnalysisMsg::KindDiameter,
+            DimensionKind::Angle => AnalysisMsg::KindAngle,
         };
         let layer = board
             .layers
             .get(&dimension.layer)
             .map_or("?", |l| l.name.as_str());
+        // an angle goes through a third point
+        let third = dimension.third.map_or(String::new(), |p| {
+            format!(" -> ({}, {})", mm_text(p.x_nm.get()), mm_text(p.y_nm.get()))
+        });
         let _ = writeln!(
             out,
-            "{}: {} mm, {layer}, ({}, {}) -> ({}, {}) mm",
+            "{}: {}, {layer}, ({}, {}) -> ({}, {}){third} mm",
             kind.tr(lang),
-            dimension.measure_text(),
+            dimension.measure_with_unit(),
             mm_text(dimension.from.x_nm.get()),
             mm_text(dimension.from.y_nm.get()),
             mm_text(dimension.to.x_nm.get()),
@@ -254,6 +261,7 @@ mod tests {
                     kind,
                     from,
                     to,
+                    third: None,
                     offset: Nm::new(1_000_000).unwrap(),
                     text_height: Nm::new(1_000_000).unwrap(),
                     stroke: Nm::new(100_000).unwrap(),
@@ -265,6 +273,60 @@ mod tests {
             "Dimensions: 2\nAligned: 5 mm, Notes, (0, 0) -> (3, 4) mm\nHorizontal: 12.5 mm, Notes, (-1.5, 0) -> (11, 2) mm\n"
         );
         assert!(dimensions_text(&board, Lang::De).starts_with("Bemaßungen: 2\nAusgerichtet: 5 mm"));
+        // a radius, a diameter and an angle, with their units and the third point of the angle
+        {
+            let mut board = board.clone();
+            let more = |n: u16, kind, from, to, third, offset: i64| {
+                (
+                    eh3d_phoenix_model::ObjectId::from_parts(1_700_000_000_000, n, u64::from(n))
+                        .unwrap(),
+                    Dimension {
+                        layer,
+                        kind,
+                        from,
+                        to,
+                        third,
+                        offset: Nm::new(offset).unwrap(),
+                        text_height: Nm::new(1_000_000).unwrap(),
+                        stroke: Nm::new(100_000).unwrap(),
+                    },
+                )
+            };
+            board.dimensions.clear();
+            for (id, d) in [
+                more(
+                    4,
+                    DimensionKind::Radius,
+                    point(0, 0),
+                    point(5_000_000, 0),
+                    None,
+                    0,
+                ),
+                more(
+                    5,
+                    DimensionKind::Diameter,
+                    point(0, 0),
+                    point(8_000_000, 0),
+                    None,
+                    0,
+                ),
+                more(
+                    6,
+                    DimensionKind::Angle,
+                    point(0, 0),
+                    point(10_000_000, 0),
+                    Some(point(0, 10_000_000)),
+                    5_000_000,
+                ),
+            ] {
+                board.dimensions.insert(id, d);
+            }
+            assert_eq!(
+            dimensions_text(&board, Lang::En),
+            "Dimensions: 3\nRadius: 5 mm, Notes, (0, 0) -> (5, 0) mm\nDiameter: 8 mm, Notes, (0, 0) -> (8, 0) mm\nAngle: 90\u{b0}, Notes, (0, 0) -> (10, 0) -> (0, 10) mm\n"
+        );
+            assert!(dimensions_text(&board, Lang::Pt).contains("\nÂngulo: 90\u{b0}"));
+        }
         assert!(dimensions_text(&board, Lang::Ja).starts_with("寸法: 2\n平行: 5 mm"));
         let mut tool = AnalysisTool::default();
         tool.run(AnalysisKind::Dimensions, &board, Lang::Pt);

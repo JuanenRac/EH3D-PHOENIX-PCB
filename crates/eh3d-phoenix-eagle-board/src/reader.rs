@@ -107,7 +107,7 @@ fn runs(wires: Vec<Wire>) -> Vec<(u32, Nm, Vec<Segment>)> {
 const DEFAULT_DIMENSION_TEXT_NM: i64 = 1_778_000;
 
 /// Reads a `dimension` element of the plain drawing: the kinds `parallel` (also when `dtype` is
-/// left out), `horizontal` and `vertical`, on a documentation layer or on the layers 47 to 50
+/// left out), `horizontal`, `vertical`, `radius`, `diameter` and `angle`, on a documentation layer or on the layers 47 to 50
 /// (measures, document, reference, dxf), which become documentation layers of the board when a
 /// dimension is on them. Returns false when the element is not read (another kind, a layer that is
 /// not for documentation, a value that is missing or points that measure nothing).
@@ -122,6 +122,9 @@ fn read_dimension(
         "parallel" => DimensionKind::Aligned,
         "horizontal" => DimensionKind::Horizontal,
         "vertical" => DimensionKind::Vertical,
+        "radius" => DimensionKind::Radius,
+        "diameter" => DimensionKind::Diameter,
+        "angle" => DimensionKind::Angle,
         _ => return false,
     };
     let Some(number) = item
@@ -145,10 +148,14 @@ fn read_dimension(
         .and_then(|r| r.trim().parse::<i64>().ok())
         .filter(|r| *r > 0)
         .unwrap_or(8);
-    let (Some(text_height), Some(offset)) = (
-        text_height,
-        Dimension::offset_through(kind, from, to, through),
-    ) else {
+    // an angle has its vertex, a point of each ray and no more: the arc is as far from the vertex
+    // as the shorter ray; the other kinds find their offset from the point the line passes through
+    let (third, offset) = if kind == DimensionKind::Angle {
+        (Some(through), Dimension::shortest_ray(from, to, through))
+    } else {
+        (None, Dimension::offset_through(kind, from, to, through))
+    };
+    let (Some(text_height), Some(offset)) = (text_height, offset) else {
         return false;
     };
     let Ok(stroke) = Nm::new((text_height.get() / 100).saturating_mul(ratio).max(1)) else {
@@ -191,11 +198,12 @@ fn read_dimension(
         kind,
         from,
         to,
+        third,
         offset,
         text_height,
         stroke,
     };
-    if dimension.length_nm() == 0 {
+    if dimension.measures_nothing() {
         return false;
     }
     board.dimensions.insert(new_id(), dimension);

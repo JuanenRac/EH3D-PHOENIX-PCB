@@ -10,8 +10,8 @@
 //!
 //! Not kept: the setup (stack-up, rules, plot settings), the filled copper of zones (it is
 //! computed again by the tool), keep-out zones other than the ones that keep the pour out (those become cutouts of the zones they lie in), zones and tracks without a net, graphics on layers
-//! other than the outline and the silkscreen, dimensions of other kinds (leaders, centre marks,
-//! radial) and in the format of KiCad 5, groups, images and the 3D models.
+//! other than the outline and the silkscreen, dimensions of other kinds (leaders, centre marks)
+//! and in the format of KiCad 5, groups, images and the 3D models.
 
 use std::collections::BTreeMap;
 
@@ -599,22 +599,22 @@ impl Reader {
         found
     }
 
-    /// A dimension of KiCad 6 or later: the aligned and the orthogonal kinds on a documentation
-    /// layer. The sign of the height follows the rule that the writer of this crate uses (the
+    /// A dimension of KiCad 6 or later: the aligned, the orthogonal and the radial kinds on a
+    /// documentation layer (a radial one is the radius: `pts` holds the centre and a point of the
+    /// circle, and `leader_length` how far the leader goes on beyond it; the form has not been
+    /// compared with KiCad). The sign of the height follows the rule that the writer of this crate uses (the
     /// height is the offset of the dimension line turned to the right of the model, y being
     /// turned); it has not been compared with KiCad.
     fn dimension(&mut self, node: &Node, ctx: &mut Ctx) {
         let kind = match node.child("type").and_then(|t| t.arg_text(0)) {
             Some("aligned") => DimensionKind::Aligned,
+            Some("radial") => DimensionKind::Radius,
             Some("orthogonal") => match node.child("orientation").and_then(|o| o.arg_text(0)) {
                 Some("1") => DimensionKind::Vertical,
                 _ => DimensionKind::Horizontal,
             },
             Some(_) => {
-                ctx.lose(
-                    "dimensions of other kinds (leaders, centre marks, radial)",
-                    1,
-                );
+                ctx.lose("dimensions of other kinds (leaders, centre marks)", 1);
                 return;
             }
             None => {
@@ -653,6 +653,9 @@ impl Reader {
         let offset = match kind {
             DimensionKind::Vertical => Some(height),
             DimensionKind::Aligned | DimensionKind::Horizontal => height.checked_neg(),
+            // a radial dimension has no height: its leader goes on beyond the circle
+            DimensionKind::Radius => length_arg(node.child("leader_length")).map(|l| l.max(0)),
+            DimensionKind::Diameter | DimensionKind::Angle => Some(0),
         };
         let (Some(from), Some(to), Some(offset), Ok(text_height), Ok(stroke)) = (
             to_model(a),
@@ -674,11 +677,12 @@ impl Reader {
             kind,
             from,
             to,
+            third: None,
             offset,
             text_height,
             stroke,
         };
-        if dimension.length_nm() == 0 {
+        if dimension.measures_nothing() {
             ctx.invalid(node, "dimension", "it measures nothing");
             return;
         }
@@ -1398,8 +1402,8 @@ pub(crate) mod tests {
         assert!(problems.is_empty(), "{problems:?}");
     }
 
-    /// Dimensions of KiCad 7: an aligned one, a vertical and a horizontal orthogonal one, and four
-    /// that are not read (a leader, one on the silkscreen, one of KiCad 5 and one with one point).
+    /// Dimensions of KiCad 7: an aligned one, a vertical and a horizontal orthogonal one, a radial
+    /// one, and four that are not read (a leader, one on the silkscreen, one of KiCad 5 and one with one point).
     const DIMENSIONS: &str = r#"(kicad_pcb (version 20221018) (generator pcbnew)
   (layers (0 "F.Cu" signal) (31 "B.Cu" signal) (44 "Edge.Cuts" user) (50 "Dwgs.User" user "User.Drawings") (36 "F.SilkS" user "F.Silkscreen"))
   (dimension (type aligned) (layer "Dwgs.User") (uuid "d1")
@@ -1410,6 +1414,7 @@ pub(crate) mod tests {
   (dimension (type orthogonal) (orientation 1) (layer "Dwgs.User") (uuid "d2")
     (pts (xy 0 0) (xy 0 -7.5)) (height 2))
   (dimension (type orthogonal) (layer "Dwgs.User") (pts (xy 0 0) (xy 12 3)) (height -2))
+  (dimension (type radial) (layer "Dwgs.User") (uuid "d5") (pts (xy 5 5) (xy 8 9)) (leader_length 2))
   (dimension (type leader) (layer "Dwgs.User") (pts (xy 0 0) (xy 1 1)))
   (dimension (type aligned) (layer "F.SilkS") (pts (xy 0 0) (xy 1 1)) (height 1))
   (dimension 12.5 (width 0.15) (layer "Dwgs.User"))
@@ -1417,10 +1422,10 @@ pub(crate) mod tests {
 )"#;
 
     #[test]
-    fn the_aligned_and_orthogonal_dimensions_are_read_and_the_others_are_counted() {
+    fn the_aligned_orthogonal_and_radial_dimensions_are_read_and_the_others_are_counted() {
         let r = read(DIMENSIONS);
         let b = &r.board;
-        assert_eq!(b.dimensions.len(), 3);
+        assert_eq!(b.dimensions.len(), 4);
         let of = |kind: DimensionKind| b.dimensions.values().find(|d| d.kind == kind).unwrap();
         // y is turned: (10, 20) in the file is (10, -20) in the model
         let aligned = of(DimensionKind::Aligned);
@@ -1444,6 +1449,12 @@ pub(crate) mod tests {
         let horizontal = of(DimensionKind::Horizontal);
         assert_eq!(horizontal.length_nm(), 12_000_000);
         assert_eq!(horizontal.offset.get(), 2_000_000);
+        // a radial dimension holds the centre and a point of the circle, and the leader length
+        let radius = of(DimensionKind::Radius);
+        assert_eq!(radius.from, Point::from_nm(5_000_000, -5_000_000).unwrap());
+        assert_eq!(radius.to, Point::from_nm(8_000_000, -9_000_000).unwrap());
+        assert_eq!(radius.length_nm(), 5_000_000);
+        assert_eq!(radius.offset.get(), 2_000_000);
         for d in b.dimensions.values() {
             assert_eq!(b.layers[&d.layer].name, "Dwgs.User");
             assert_eq!(b.layers[&d.layer].kind, LayerKind::Documentation);
@@ -1456,11 +1467,11 @@ pub(crate) mod tests {
             .collect();
         assert!(errors.is_empty(), "{errors:?}");
         let q = &r.quality;
-        assert_eq!(count(&q.kept, "dimensions"), Some(3));
+        assert_eq!(count(&q.kept, "dimensions"), Some(4));
         assert_eq!(
             count(
                 &q.dropped,
-                "dimensions of other kinds (leaders, centre marks, radial)"
+                "dimensions of other kinds (leaders, centre marks)"
             ),
             Some(1)
         );

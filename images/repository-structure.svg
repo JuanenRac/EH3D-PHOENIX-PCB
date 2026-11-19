@@ -171,7 +171,7 @@
 <text x="712.67" y="1549" font-family="'Segoe UI','Noto Sans','Noto Sans CJK SC','Microsoft YaHei','Yu Gothic','Helvetica Neue',Helvetica,Arial,sans-serif" font-size="12.8" font-weight="400" fill="#8A97A6" text-anchor="start">test points: nets without access, size, spacing, edge</text>
 <line x1="392" y1="1557" x2="1118" y2="1557" stroke="#1A2430" stroke-width="1"/>
 <text x="392" y="1576" font-family="'JetBrains Mono','Cascadia Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="14.5" font-weight="600" fill="#E6EDF3" text-anchor="start">DIMENSIONS.md</text>
-<text x="712.67" y="1576" font-family="'Segoe UI','Noto Sans','Noto Sans CJK SC','Microsoft YaHei','Yu Gothic','Helvetica Neue',Helvetica,Arial,sans-serif" font-size="12.8" font-weight="400" fill="#8A97A6" text-anchor="start">dimensions: aligned, horizontal and vertical, drawing, files</text>
+<text x="712.67" y="1576" font-family="'Segoe UI','Noto Sans','Noto Sans CJK SC','Microsoft YaHei','Yu Gothic','Helvetica Neue',Helvetica,Arial,sans-serif" font-size="12.8" font-weight="400" fill="#8A97A6" text-anchor="start">dimensions: lengths, radius, diameter and angle, drawing, files</text>
 <line x1="392" y1="1584" x2="1118" y2="1584" stroke="#1A2430" stroke-width="1"/>
 <text x="392" y="1603" font-family="'JetBrains Mono','Cascadia Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="14.5" font-weight="600" fill="#E6EDF3" text-anchor="start">IPC2581.md</text>
 <text x="712.67" y="1603" font-family="'Segoe UI','Noto Sans','Noto Sans CJK SC','Microsoft YaHei','Yu Gothic','Helvetica Neue',Helvetica,Arial,sans-serif" font-size="12.8" font-weight="400" fill="#8A97A6" text-anchor="start">IPC-2581 export: layers, outline, pads, vias, nets, basic bill</text>

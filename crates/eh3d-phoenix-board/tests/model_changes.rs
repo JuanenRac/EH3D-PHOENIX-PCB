@@ -401,6 +401,7 @@ fn with_dimension() -> (Board, Dimension) {
         kind: DimensionKind::Horizontal,
         from: pt(2, 2),
         to: pt(12, 2),
+        third: None,
         offset: nm(2_000_000),
         text_height: nm(1_000_000),
         stroke: nm(100_000),
@@ -516,4 +517,51 @@ fn a_dimension_that_measures_nothing_or_sits_on_a_wrong_layer_is_reported() {
     missing.layer = id(99);
     b.dimensions.insert(id(60), missing);
     assert_eq!(problems(&b), vec![DANGLING.to_owned()]);
+}
+
+#[test]
+fn radius_diameter_and_angle_dimensions_are_written_with_their_third_point_only_when_they_have_one()
+{
+    let (mut b, d) = with_dimension();
+    let radius = Dimension {
+        kind: DimensionKind::Radius,
+        from: pt(20, 20),
+        to: pt(23, 24),
+        ..d.clone()
+    };
+    let diameter = Dimension {
+        kind: DimensionKind::Diameter,
+        from: pt(30, 20),
+        to: pt(40, 20),
+        offset: nm(0),
+        ..d.clone()
+    };
+    let angle = Dimension {
+        kind: DimensionKind::Angle,
+        from: pt(0, 0),
+        to: pt(10, 0),
+        third: Some(pt(0, 10)),
+        offset: nm(5_000_000),
+        ..d
+    };
+    b.dimensions.insert(id(61), radius);
+    b.dimensions.insert(id(62), diameter);
+    b.dimensions.insert(id(63), angle.clone());
+    assert!(b.validate().is_empty(), "{:?}", b.validate());
+    let text = String::from_utf8(b.to_bytes().unwrap()).unwrap();
+    assert!(text.contains("\"kind\":\"radius\""), "{text}");
+    assert!(text.contains("\"kind\":\"diameter\""), "{text}");
+    assert!(text.contains("\"kind\":\"angle\""), "{text}");
+    // the third point is written once, for the angle only
+    assert_eq!(text.matches("\"third\"").count(), 1, "{text}");
+    assert_eq!(Board::from_bytes(text.as_bytes()).unwrap(), b);
+    // an angle without its third point, and another kind with one, are reported
+    let mut lone = angle.clone();
+    lone.third = None;
+    b.dimensions.insert(id(63), lone);
+    assert_eq!(problems(&b), vec![BAD_SIZE.to_owned()]);
+    let mut extra = angle;
+    extra.kind = DimensionKind::Radius;
+    b.dimensions.insert(id(63), extra);
+    assert_eq!(problems(&b), vec![BAD_SIZE.to_owned()]);
 }

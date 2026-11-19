@@ -656,14 +656,14 @@
         {
           "name": "DIMENSIONS.md",
           "desc": {
-            "en": "dimensions: aligned, horizontal and vertical, drawing, files",
-            "es": "cotas: alineadas, horizontales y verticales, dibujo, archivos",
-            "de": "Bemaßungen: ausgerichtet, horizontal und vertikal, Zeichnung, Dateien",
-            "fr": "cotes : alignées, horizontales et verticales, dessin, fichiers",
-            "it": "quote: allineate, orizzontali e verticali, disegno, file",
-            "ja": "寸法：平行・水平・垂直、描画、ファイル",
-            "zh": "尺寸标注：对齐、水平和垂直，绘制，文件",
-            "pt": "cotas: alinhadas, horizontais e verticais, desenho, ficheiros"
+            "en": "dimensions: lengths, radius, diameter and angle, drawing, files",
+            "es": "cotas: longitudes, radio, diámetro y ángulo, dibujo, archivos",
+            "de": "Bemaßungen: Längen, Radius, Durchmesser und Winkel, Zeichnung, Dateien",
+            "fr": "cotes : longueurs, rayon, diamètre et angle, dessin, fichiers",
+            "it": "quote: lunghezze, raggio, diametro e angolo, disegno, file",
+            "ja": "寸法：長さ・半径・直径・角度、描画、ファイル",
+            "zh": "尺寸标注：长度、半径、直径和角度，绘制，文件",
+            "pt": "cotas: comprimentos, raio, diâmetro e ângulo, desenho, ficheiros"
           }
         },
         {

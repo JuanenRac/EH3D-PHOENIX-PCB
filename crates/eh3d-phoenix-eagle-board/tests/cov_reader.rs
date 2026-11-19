@@ -389,7 +389,10 @@ const DIMENSIONS: &str = r#"<?xml version="1.0" encoding="utf-8"?>
 <dimension x1="0" y1="0" x2="3" y2="4" x3="-0.8" y3="0.6" textsize="2" textratio="10" layer="47"/>
 <dimension x1="1" y1="1" x2="13.5" y2="4" x3="7" y3="3" textsize="1.2" layer="51" dtype="horizontal"/>
 <dimension x1="30" y1="1" x2="30" y2="9" x3="32.5" y3="5" layer="47" dtype="vertical"/>
-<dimension x1="0" y1="0" x2="5" y2="0" x3="2" y3="2" layer="47" dtype="radius"/>
+<dimension x1="0" y1="0" x2="3" y2="4" x3="4.2" y3="5.6" textsize="1.5" layer="47" dtype="radius"/>
+<dimension x1="-5" y1="0" x2="5" y2="0" x3="8" y3="0" layer="47" dtype="diameter"/>
+<dimension x1="0" y1="0" x2="10" y2="0" x3="0" y3="6" layer="47" dtype="angle"/>
+<dimension x1="0" y1="0" x2="5" y2="0" x3="2" y3="2" layer="47" dtype="leader"/>
 <dimension x1="0" y1="0" x2="5" y2="0" x3="2" y3="2" layer="1"/>
 <dimension x1="4" y1="4" x2="4" y2="4" x3="2" y3="2" layer="47"/>
 <dimension x1="0" y1="0" x2="5" layer="47"/>
@@ -403,10 +406,10 @@ const DIMENSIONS: &str = r#"<?xml version="1.0" encoding="utf-8"?>
 "#;
 
 #[test]
-fn the_parallel_horizontal_and_vertical_dimensions_are_read_and_the_others_are_counted() {
+fn the_dimensions_of_every_kind_but_the_leader_are_read_and_the_others_are_counted() {
     let read = read(DIMENSIONS);
     let b = &read.board;
-    assert_eq!(b.dimensions.len(), 3);
+    assert_eq!(b.dimensions.len(), 6);
     let of = |kind: DimensionKind| b.dimensions.values().find(|d| d.kind == kind).unwrap();
     // a parallel one: 3-4-5, the line through (-0.8, 0.6) is one millimetre to the left
     let aligned = of(DimensionKind::Aligned);
@@ -426,6 +429,20 @@ fn the_parallel_horizontal_and_vertical_dimensions_are_read_and_the_others_are_c
     assert_eq!(vertical.offset.get(), mm(2.5));
     // the size of text that the file leaves out is the usual one of EAGLE
     assert_eq!(vertical.text_height.get(), 1_778_000);
+    // a radius: the centre, a point of the circle and the end of the leader, 2 mm beyond it
+    let radius = of(DimensionKind::Radius);
+    assert_eq!(radius.length_nm(), mm(5.0));
+    assert_eq!(radius.offset.get(), mm(2.0));
+    assert_eq!(radius.text_height.get(), mm(1.5));
+    // a diameter: the two ends and the end of the leader, 3 mm beyond the second
+    let diameter = of(DimensionKind::Diameter);
+    assert_eq!(diameter.length_nm(), mm(10.0));
+    assert_eq!(diameter.offset.get(), mm(3.0));
+    // an angle: the vertex and a point of each ray; the arc is as far as the shorter ray
+    let angle = of(DimensionKind::Angle);
+    assert_eq!(angle.angle_udeg(), Some(90_000_000));
+    assert_eq!(angle.third.map(|p| p.y_nm.get()), Some(mm(6.0)));
+    assert_eq!(angle.offset.get(), mm(6.0));
     // the layers 47 and 51 hold them, both for documentation
     for d in b.dimensions.values() {
         assert_eq!(b.layers[&d.layer].kind, LayerKind::Documentation);
@@ -433,7 +450,7 @@ fn the_parallel_horizontal_and_vertical_dimensions_are_read_and_the_others_are_c
     assert_eq!(b.layers[&aligned.layer].name, "Measures");
     assert_eq!(b.layers[&horizontal.layer].name, "tDocu");
     assert!(b.validate().is_empty(), "{:?}", b.validate());
-    // the radius, the one on a copper layer, the one that measures nothing and the one with a
+    // the leader, the one on a copper layer, the one that measures nothing and the one with a
     // point missing are counted
     assert!(
         read.diagnostics
@@ -456,6 +473,7 @@ fn the_dimensions_of_a_board_are_written_and_read_back() {
             d.kind.as_str(),
             (d.from.x_nm.get(), d.from.y_nm.get()),
             (d.to.x_nm.get(), d.to.y_nm.get()),
+            d.third.map(|p| (p.x_nm.get(), p.y_nm.get())),
             d.offset.get(),
             d.text_height.get(),
             d.stroke.get(),
@@ -466,7 +484,7 @@ fn the_dimensions_of_a_board_are_written_and_read_back() {
     first.sort();
     second.sort();
     assert_eq!(first, second);
-    assert_eq!(again.dimensions.len(), 3);
+    assert_eq!(again.dimensions.len(), 6);
     // the same board gives the same file
     assert_eq!(written.text, write_board(&read_first).text);
 }
