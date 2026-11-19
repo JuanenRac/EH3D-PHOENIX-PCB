@@ -8,7 +8,7 @@
 //!   `config/testpoints.cfg`;
 //! * [`report`]: the text, with its titles in the eight languages, and the JSON of a report, the
 //!   same every time;
-//! * [`codes`]: the codes `PHOENIX-TP-001` to `PHOENIX-TP-013` with their titles in the eight
+//! * [`codes`]: the codes `PHOENIX-TP-001` to `PHOENIX-TP-014` with their titles in the eight
 //!   languages.
 //!
 //! **State: prototype.** It has been tried on boards made by hand and by the tests only. A test

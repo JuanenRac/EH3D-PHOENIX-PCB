@@ -62,6 +62,10 @@ pub struct TestPointSettings {
     /// The smallest distance from the centre of a test point to the edge of the board, in
     /// nanometres; 0 leaves it unjudged.
     pub min_edge_nm: i64,
+    /// The smallest distance from the centre of a test point to the centre of a pad of any other
+    /// part on the same side that is not itself a test point, in nanometres: a probe needs room
+    /// around the point. 0 leaves it unjudged.
+    pub min_part_clearance_nm: i64,
     /// How serious a net without a test point is.
     pub uncovered_severity: Severity,
     /// The most objects (parts, pads of parts and nets) a board may hold for the check to run.
@@ -87,6 +91,7 @@ impl Default for TestPointSettings {
             min_pad_nm: 1_000_000,
             min_spacing_nm: 1_270_000,
             min_edge_nm: 1_000_000,
+            min_part_clearance_nm: 0,
             uncovered_severity: Severity::Warning,
             max_items: 1_000_000,
         }
@@ -152,6 +157,9 @@ impl TestPointSettings {
                 "min_pad_nm" => s.min_pad_nm = value.parse().map_err(|_| bad())?,
                 "min_spacing_nm" => s.min_spacing_nm = value.parse().map_err(|_| bad())?,
                 "min_edge_nm" => s.min_edge_nm = value.parse().map_err(|_| bad())?,
+                "min_part_clearance_nm" => {
+                    s.min_part_clearance_nm = value.parse().map_err(|_| bad())?
+                }
                 "uncovered_severity" => {
                     s.uncovered_severity = Severity::from_word(value).ok_or_else(bad)?
                 }
@@ -181,6 +189,7 @@ impl TestPointSettings {
             ("min_pad_nm", self.min_pad_nm),
             ("min_spacing_nm", self.min_spacing_nm),
             ("min_edge_nm", self.min_edge_nm),
+            ("min_part_clearance_nm", self.min_part_clearance_nm),
         ] {
             if !(0..(1 << 30)).contains(&v) {
                 return fail(&format!("{name} must be between 0 and 2^30 nanometres"));
@@ -241,6 +250,23 @@ mod tests {
         assert!(s.ignores("gnd") && s.ignores("VCC3V3") && !s.ignores("SIG"));
         let empty = TestPointSettings::parse("ignore_nets =\n").unwrap();
         assert!(empty.ignore_nets.is_empty());
+    }
+
+    #[test]
+    fn the_room_around_a_test_point_is_a_limit_that_is_off_by_default() {
+        assert_eq!(TestPointSettings::default().min_part_clearance_nm, 0);
+        let s = TestPointSettings::parse("min_part_clearance_nm = 2500000\n").unwrap();
+        assert_eq!(s.min_part_clearance_nm, 2_500_000);
+        for bad in [
+            "min_part_clearance_nm = -1",
+            "min_part_clearance_nm = x",
+            "min_part_clearance_nm = 1073741824",
+        ] {
+            assert!(
+                TestPointSettings::parse(&format!("{bad}\n")).is_err(),
+                "{bad}"
+            );
+        }
     }
 
     #[test]

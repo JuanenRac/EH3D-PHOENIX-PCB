@@ -8,7 +8,7 @@ use eh3d_phoenix_model::{Nm, ObjectId, Point, Udeg};
 use eh3d_phoenix_rules::Lang;
 use eh3d_phoenix_testpoints::codes::{
     Severity, LIMIT_EXCEEDED, NEAR_EDGE, NET_NO_TESTPOINT, NET_WRONG_SIDE, NONE_RECOGNISED,
-    NO_MASK_OPENING, NO_NET, PAD_SMALL, TOO_CLOSE,
+    NO_MASK_OPENING, NO_NET, PAD_SMALL, PART_TOO_CLOSE, TOO_CLOSE,
 };
 use eh3d_phoenix_testpoints::{
     analyse, report_json, report_text, ProbeSide, TestPointReport, TestPointSettings,
@@ -564,4 +564,110 @@ fn a_through_hole_test_point_shows_on_both_sides_and_a_mask_layer_of_either_will
         .findings
         .iter()
         .any(|f| f.code == NO_MASK_OPENING && f.subject.as_deref() == Some("TP3:1")));
+}
+
+fn near_parts(report: &TestPointReport) -> Vec<(String, String)> {
+    report
+        .findings
+        .iter()
+        .filter(|f| f.code == PART_TOO_CLOSE)
+        .map(|f| (f.subject.clone().unwrap_or_default(), f.detail.clone()))
+        .collect()
+}
+
+fn with_clearance(nm: i64) -> TestPointSettings {
+    TestPointSettings {
+        min_part_clearance_nm: nm,
+        ..TestPointSettings::default()
+    }
+}
+
+#[test]
+fn the_room_around_a_test_point_is_not_judged_unless_a_limit_is_set() {
+    assert!(near_parts(&run(&TestPointSettings::default())).is_empty());
+    assert!(near_parts(&run(&with_clearance(0))).is_empty());
+}
+
+#[test]
+fn a_pad_of_another_part_closer_than_the_limit_is_reported_with_the_nearest_pad_of_the_part() {
+    let r = run(&with_clearance(9_900_000));
+    assert_eq!(
+        near_parts(&r),
+        vec![
+            (
+                "TP3:1".to_owned(),
+                "R2.1 is 9.861541 mm from the test point, the least is 9.900000 mm".to_owned()
+            ),
+            (
+                "TP4:1".to_owned(),
+                "R1.1 is 9.861541 mm from the test point, the least is 9.900000 mm".to_owned()
+            ),
+            // R4 has two pads within the limit: only the nearest is named
+            (
+                "X1:1".to_owned(),
+                "R4.2 is 6.403124 mm from the test point, the least is 9.900000 mm".to_owned()
+            ),
+        ]
+    );
+    let f = r
+        .findings
+        .iter()
+        .find(|f| f.code == PART_TOO_CLOSE)
+        .unwrap();
+    assert_eq!(f.severity, Severity::Warning);
+    // a pad exactly at the limit is not closer than it: TP1 is 10.295630 mm from R1 and R2
+    assert!(near_parts(&run(&with_clearance(10_295_630)))
+        .iter()
+        .all(|(subject, _)| subject != "TP1:1"));
+    assert!(near_parts(&run(&with_clearance(10_295_631)))
+        .iter()
+        .any(|(subject, _)| subject == "TP1:1"));
+}
+
+#[test]
+fn the_other_test_points_and_the_parts_of_test_points_are_not_in_the_way() {
+    // TP3 is 0.5 mm from TP1, which the spacing judges, and the room around a test point does not
+    let r = run(&with_clearance(1_000_000));
+    assert!(near_parts(&r).is_empty(), "{:?}", near_parts(&r));
+    assert!(codes_of(&r).contains(&TOO_CLOSE));
+}
+
+#[test]
+fn only_the_parts_on_the_side_of_the_test_point_are_in_the_way() {
+    let mut b = board();
+    // a part on the bottom, beside TP2 (bottom), and a part on the top, as near to it
+    place(&mut b, 40, "R5", 10, 255, 150, Side::Bottom);
+    place(&mut b, 41, "R6", 10, 250, 150, Side::Top);
+    let r = analyse(&b, &with_clearance(1_200_000)).unwrap();
+    let near = near_parts(&r);
+    assert_eq!(
+        near,
+        vec![(
+            "TP2:1".to_owned(),
+            "R5.2 is 0.500000 mm from the test point, the least is 1.200000 mm".to_owned()
+        )]
+    );
+}
+
+#[test]
+fn a_board_with_no_test_point_has_nothing_to_keep_room_around() {
+    let mut b = board();
+    b.components.retain(|_, c| c.refdes.starts_with('R'));
+    let r = analyse(&b, &with_clearance(50 * MM)).unwrap();
+    assert!(near_parts(&r).is_empty());
+    assert!(codes_of(&r).contains(&NONE_RECOGNISED));
+}
+
+#[test]
+fn the_text_says_it_in_the_language_asked_for() {
+    let r = run(&with_clearance(9_900_000));
+    let es = report_text(&r, Lang::Es);
+    assert!(
+        es.contains(
+            "PHOENIX-TP-014: Una pieza est\u{e1} demasiado cerca del punto de prueba [TP3:1]"
+        ),
+        "{es}"
+    );
+    assert!(report_text(&r, Lang::De).contains("Ein Bauteil liegt zu nah am Testpunkt"));
+    assert!(report_json(&r).contains("PHOENIX-TP-014"));
 }

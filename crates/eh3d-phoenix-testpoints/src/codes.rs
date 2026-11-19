@@ -33,6 +33,8 @@ pub const NO_NET: &str = "PHOENIX-TP-011";
 pub const NONE_RECOGNISED: &str = "PHOENIX-TP-012";
 /// A test point has no solder mask opening on its side.
 pub const NO_MASK_OPENING: &str = "PHOENIX-TP-013";
+/// A pad of another part is closer to a test point than allowed.
+pub const PART_TOO_CLOSE: &str = "PHOENIX-TP-014";
 
 /// Code, then the title in English, Spanish, German, French, Italian, Japanese, Chinese and
 /// European Portuguese.
@@ -204,6 +206,19 @@ pub const TITLES: &[(&str, [&str; 8])] = &[
             "テストポイントにソルダーマスクの開口がありません",
             "测试点没有阻焊开窗",
             "O ponto de teste não tem abertura na máscara de soldadura",
+        ],
+    ),
+    (
+        PART_TOO_CLOSE,
+        [
+            "A part is too close to the test point",
+            "Una pieza está demasiado cerca del punto de prueba",
+            "Ein Bauteil liegt zu nah am Testpunkt",
+            "Un composant est trop près du point de test",
+            "Un componente è troppo vicino al punto di test",
+            "部品がテストポイントに近すぎます",
+            "有元件离测试点太近",
+            "Uma peça está demasiado perto do ponto de teste",
         ],
     ),
 ];

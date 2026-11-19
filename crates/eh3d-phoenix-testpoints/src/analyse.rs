@@ -20,7 +20,7 @@
 //! The report is the same every time: the test points come in the order of their reference and
 //! pad, the nets in the order of their names, and every number is an integer.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use eh3d_phoenix_board::connectivity::pad_position;
 use eh3d_phoenix_board::{Board, Id, LayerKind, Pad, PadRef, PadShape, Side};
@@ -29,7 +29,7 @@ use serde::Serialize;
 
 use crate::codes::{
     Finding, Severity, TestPointError, LIMIT_EXCEEDED, NEAR_EDGE, NET_NO_TESTPOINT, NET_WRONG_SIDE,
-    NONE_RECOGNISED, NO_MASK_OPENING, NO_NET, PAD_SMALL, TOO_CLOSE,
+    NONE_RECOGNISED, NO_MASK_OPENING, NO_NET, PAD_SMALL, PART_TOO_CLOSE, TOO_CLOSE,
 };
 use crate::settings::{ProbeSide, TestPointSettings};
 
@@ -105,6 +105,8 @@ impl TestPointReport {
 /// A test point with the id of its net, for the analysis only.
 struct Raw {
     point: TestPoint,
+    /// The part the test point is a pad of.
+    component: Id,
     net_id: Option<Id>,
     /// Whether the pad lists a solder mask layer that opens it on its side.
     mask_open: bool,
@@ -231,6 +233,7 @@ fn find_test_points(board: &Board, settings: &TestPointSettings) -> Vec<Raw> {
             };
             let net_id = board.net_of(pad_ref);
             found.push(Raw {
+                component: *component_id,
                 point: TestPoint {
                     refdes: component.refdes.clone(),
                     pad: pad.number.clone(),
@@ -278,6 +281,84 @@ fn close_pairs(points: &[TestPoint], spacing_nm: i64) -> Vec<(usize, usize)> {
     }
     pairs.sort_unstable();
     pairs
+}
+
+/// The centres of the pads of the parts that hold no test point, with the part and the pad, from
+/// the least x.
+fn neighbour_pads(board: &Board, test_parts: &BTreeSet<Id>) -> Vec<(i64, i64, Id, Id)> {
+    let mut list = Vec::new();
+    for (component_id, component) in &board.components {
+        if test_parts.contains(component_id) {
+            continue;
+        }
+        let Some(footprint) = board.footprints.get(&component.footprint) else {
+            continue;
+        };
+        for pad_id in footprint.pads.keys() {
+            let pad_ref = PadRef {
+                component: *component_id,
+                pad: *pad_id,
+            };
+            if let Some(at) = pad_position(board, pad_ref) {
+                list.push((at.x_nm.get(), at.y_nm.get(), *component_id, *pad_id));
+            }
+        }
+    }
+    list.sort_by_key(|n| (n.0, n.1));
+    list
+}
+
+/// For one test point, the parts on its side that have a pad closer than `limit_nm`, each with its
+/// nearest pad: the reference, the number of the pad and the distance, by reference.
+fn parts_near(
+    board: &Board,
+    point: &TestPoint,
+    neighbours: &[(i64, i64, Id, Id)],
+    limit_nm: i64,
+) -> Vec<(String, String, i64)> {
+    let low = point.x_nm.saturating_sub(limit_nm);
+    let start = neighbours.partition_point(|n| n.0 < low);
+    let limit2 = i128::from(limit_nm) * i128::from(limit_nm);
+    let mut nearest: BTreeMap<Id, (i128, Id)> = BTreeMap::new();
+    for &(x, y, component_id, pad_id) in &neighbours[start..] {
+        if x > point.x_nm.saturating_add(limit_nm) {
+            break;
+        }
+        let Some(component) = board.components.get(&component_id) else {
+            continue;
+        };
+        if side_word(component.side) != point.side {
+            continue;
+        }
+        let dx = i128::from(x) - i128::from(point.x_nm);
+        let dy = i128::from(y) - i128::from(point.y_nm);
+        let d2 = dx * dx + dy * dy;
+        if d2 >= limit2 {
+            continue;
+        }
+        let entry = nearest.entry(component_id).or_insert((d2, pad_id));
+        if (d2, pad_id) < *entry {
+            *entry = (d2, pad_id);
+        }
+    }
+    let mut found: Vec<(String, String, i64)> = nearest
+        .into_iter()
+        .filter_map(|(component_id, (d2, pad_id))| {
+            let component = board.components.get(&component_id)?;
+            let pad = board
+                .footprints
+                .get(&component.footprint)?
+                .pads
+                .get(&pad_id)?;
+            Some((
+                component.refdes.clone(),
+                pad.number.clone(),
+                (d2 as f64).sqrt().round() as i64,
+            ))
+        })
+        .collect();
+    found.sort();
+    found
 }
 
 /// The test points of a board and the nets they reach.
@@ -365,6 +446,28 @@ pub fn analyse(
                     millimetres(settings.min_spacing_nm)
                 ),
             ));
+        }
+    }
+    if settings.min_part_clearance_nm > 0 && !raws.is_empty() {
+        let test_parts: BTreeSet<Id> = raws.iter().map(|r| r.component).collect();
+        let neighbours = neighbour_pads(board, &test_parts);
+        for raw in &raws {
+            let p = &raw.point;
+            let name = format!("{}:{}", p.refdes, p.pad);
+            for (refdes, pad, distance) in
+                parts_near(board, p, &neighbours, settings.min_part_clearance_nm)
+            {
+                findings.push(Finding::new(
+                    PART_TOO_CLOSE,
+                    Severity::Warning,
+                    Some(&name),
+                    format!(
+                        "{refdes}.{pad} is {} mm from the test point, the least is {} mm",
+                        millimetres(distance),
+                        millimetres(settings.min_part_clearance_nm)
+                    ),
+                ));
+            }
         }
     }
     if raws.is_empty() {
