@@ -17,6 +17,8 @@
 //! * [`hit`] and [`tool`]: what lies under a point, the rectangle, and the [`EditState`] of the
 //!   tools (select, place, route, via, delete, tune), the drag with the tracks that follow, the
 //!   active layer, the lit net and the ratsnest;
+//! * [`dimension_edit`]: the dimension tool beyond the first drawing: the preview of the dimension
+//!   in progress and the editing of one that is placed (moving a point, changing the kind);
 //! * [`shape`]: the pieces of a route and the meanders, in integer nanometres;
 //! * [`ops_file`]: the file of operations that `phoenix boardedit` applies;
 //! * [`pairs`], [`pair_check`] and [`pair_codes`]: the differential pairs: their definition (two
@@ -67,6 +69,9 @@ mod arc;
 mod arc_tests;
 pub mod codes;
 mod copper;
+pub mod dimension_edit;
+#[cfg(test)]
+mod dimension_edit_tests;
 pub mod edit;
 #[cfg(test)]
 mod edit_tests;

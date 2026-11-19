@@ -10,6 +10,7 @@ use eh3d_phoenix_model::{Nm, Point};
 use eh3d_phoenix_route::{copper_layers, RatLine};
 
 use crate::codes::{BoardEditError, OPERATION_REFUSED};
+use crate::dimension_edit::DimensionGrab;
 use crate::edit::{BoardEdit, Outcome};
 use crate::hit::{in_rectangle, pad_near, pick, Picked};
 use crate::ops::EditOp;
@@ -81,6 +82,10 @@ pub struct EditState {
     pub dimension_kind: DimensionKind,
     /// The points of the dimension in progress.
     pub dimension_points: Vec<Point>,
+    /// The point of a dimension already on the board that was taken and waits to be put down.
+    pub dimension_grab: Option<DimensionGrab>,
+    /// The dimension that was taken last, which a change of kind applies to.
+    pub selected_dimension: Option<Id>,
     /// The footprint the place tool places.
     pub place_footprint: Option<Id>,
     /// The reference designator for the next component; one is made when it is empty.
@@ -118,6 +123,8 @@ impl EditState {
             route_points: Vec::new(),
             dimension_kind: DimensionKind::Aligned,
             dimension_points: Vec::new(),
+            dimension_grab: None,
+            selected_dimension: None,
             place_footprint,
             place_refdes: String::new(),
             place_value: String::new(),
@@ -175,11 +182,13 @@ impl EditState {
         self.route_points.clear();
         self.route_net = None;
         self.dimension_points.clear();
+        self.dimension_grab = None;
     }
 
     /// Chooses the kind of dimension and drops the points of the one in progress.
     pub fn set_dimension_kind(&mut self, kind: DimensionKind) {
         self.dimension_points.clear();
+        self.dimension_grab = None;
         self.dimension_kind = kind;
     }
 
@@ -206,13 +215,19 @@ impl EditState {
             .or(self.highlight_net)
     }
 
-    fn fail(&mut self, error: BoardEditError) {
+    pub(crate) fn fail(&mut self, error: BoardEditError) {
         self.error = Some(error);
     }
 
     fn prune(&mut self) {
         let board = self.edit.board();
         self.selection.retain(|item| item.exists(board));
+        self.selected_dimension = self
+            .selected_dimension
+            .filter(|d| board.dimensions.contains_key(d));
+        self.dimension_grab = self
+            .dimension_grab
+            .filter(|g| board.dimensions.contains_key(&g.dimension));
     }
 
     /// Applies an operation and keeps what it said; false when it was refused.
@@ -385,8 +400,17 @@ impl EditState {
     /// the dimension is made on the first documentation layer of the board, with the text height
     /// and the line width of the settings, as one step. Two points for the measure and the point
     /// the line passes through; an angle takes its vertex, a point on each ray and a point of the
-    /// arc.
-    fn press_dimension(&mut self, p: Point) {
+    /// arc. With shift, and no dimension in progress, the click takes a point of a dimension that
+    /// is already there instead (see `dimension_edit`); the next click puts it down.
+    fn press_dimension(&mut self, p: Point, shift: bool) {
+        if shift && self.dimension_points.is_empty() {
+            self.grab_dimension_point(p);
+            return;
+        }
+        if let Some(grab) = self.dimension_grab.take() {
+            self.move_dimension_point(grab.dimension, grab.handle, p);
+            return;
+        }
         let at = self.snap(p);
         self.dimension_points.push(at);
         if self.dimension_points.len() < self.dimension_kind.clicks() {
@@ -605,7 +629,7 @@ impl EditState {
             Tool::TestPad => {
                 self.toggle_test_point_at(p);
             }
-            Tool::Dimension => self.press_dimension(p),
+            Tool::Dimension => self.press_dimension(p, shift),
             Tool::Tune => match self.pick_at(p).and_then(|item| item.net(self.board())) {
                 Some(net) => {
                     self.run(&EditOp::TuneLength {

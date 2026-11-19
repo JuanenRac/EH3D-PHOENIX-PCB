@@ -657,6 +657,7 @@ pub fn canvas(
     if pending.len() >= 2 {
         painter.add(egui::Shape::line(pending, Stroke::new(1.0, ui_dim())));
     }
+    crate::board_dimension_gui::draw(&painter, &st.state, pointer, &|p: Point| view.at(p));
     crate::board_pair_gui::draw(&painter, &st.pair, &|p: Point| view.at(p));
     crate::board_shove_gui::draw(&painter, &st.shove, &|p: Point| view.at(p));
     crate::board_autoroute_gui::draw(&painter, &st.autoroute, &st.state, &|p: Point| view.at(p));
@@ -1128,6 +1129,10 @@ pub fn tools_panel(ui: &mut egui::Ui, st: &mut BoardEditUi, lang: Lang) -> bool 
                 }
                 if kind != st.state.dimension_kind {
                     st.state.set_dimension_kind(kind);
+                    // a dimension that was taken changes to the kind chosen, when it can
+                    if let Some(taken) = st.state.selected_dimension {
+                        st.state.change_dimension_kind(taken, kind);
+                    }
                 }
             });
         }

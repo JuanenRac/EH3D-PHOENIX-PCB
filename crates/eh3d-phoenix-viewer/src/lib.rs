@@ -130,6 +130,8 @@ pub mod board_autoroute;
 pub mod board_autoroute_gui;
 pub mod board_autoroute_text;
 #[cfg(feature = "gui")]
+pub mod board_dimension_gui;
+#[cfg(feature = "gui")]
 pub mod board_gui;
 pub mod board_pair;
 #[cfg(feature = "gui")]

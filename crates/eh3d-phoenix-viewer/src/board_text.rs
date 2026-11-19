@@ -600,14 +600,14 @@ const TABLE: [(BoardMsg, [&str; 8]); BoardMsg::COUNT] = [
     (
         BoardMsg::HintDimension,
         [
-            "Click the two points to measure and then a point of the dimension line (a radius or a diameter: the centre or an end, a point of the circle, and the end of the leader; an angle: the vertex, a point on each ray and a point of the arc)",
-            "Pulse los dos puntos que se miden y después un punto de la línea de cota (radio o diámetro: el centro o un extremo, un punto de la circunferencia y el final de la línea; ángulo: el vértice, un punto de cada lado y un punto del arco)",
-            "Die zwei zu messenden Punkte anklicken, dann einen Punkt der Maßlinie (Radius oder Durchmesser: Mittelpunkt oder ein Ende, ein Punkt des Kreises und das Ende der Linie; Winkel: Scheitel, ein Punkt je Schenkel und ein Punkt des Bogens)",
-            "Cliquez les deux points à mesurer puis un point de la ligne de cote (rayon ou diamètre : le centre ou une extrémité, un point du cercle et le bout de la ligne ; angle : le sommet, un point de chaque côté et un point de l'arc)",
-            "Clic sui due punti da misurare e poi su un punto della linea di quota (raggio o diametro: il centro o un estremo, un punto della circonferenza e la fine della linea; angolo: il vertice, un punto per lato e un punto dell'arco)",
-            "測る2点をクリックし、次に寸法線上の点をクリック（半径・直径：中心または一端、円上の点、引出線の端。角度：頂点、各辺上の点、円弧上の点）",
-            "单击要测量的两个点，再单击尺寸线上的一点（半径或直径：圆心或一端、圆上一点和引线末端；角度：顶点、每条边上一点和圆弧上一点）",
-            "Clique nos dois pontos a medir e depois num ponto da linha de cota (raio ou diâmetro: o centro ou uma extremidade, um ponto da circunferência e o fim da linha; ângulo: o vértice, um ponto de cada lado e um ponto do arco)",
+            "Click the two points to measure and then a point of the dimension line (a radius or a diameter: the centre or an end, a point of the circle, and the end of the leader; an angle: the vertex, a point on each ray and a point of the arc) Shift and a click take a point of a dimension that is already there; the next click puts it down; choosing another kind changes it.",
+            "Pulse los dos puntos que se miden y después un punto de la línea de cota (radio o diámetro: el centro o un extremo, un punto de la circunferencia y el final de la línea; ángulo: el vértice, un punto de cada lado y un punto del arco) Mayús y clic toman un punto de una cota ya puesta; el clic siguiente lo suelta; elegir otro tipo la cambia.",
+            "Die zwei zu messenden Punkte anklicken, dann einen Punkt der Maßlinie (Radius oder Durchmesser: Mittelpunkt oder ein Ende, ein Punkt des Kreises und das Ende der Linie; Winkel: Scheitel, ein Punkt je Schenkel und ein Punkt des Bogens) Umschalt und Klick greifen einen Punkt einer vorhandenen Bemaßung; der nächste Klick setzt ihn ab; eine andere Art zu wählen ändert sie.",
+            "Cliquez les deux points à mesurer puis un point de la ligne de cote (rayon ou diamètre : le centre ou une extrémité, un point du cercle et le bout de la ligne ; angle : le sommet, un point de chaque côté et un point de l'arc) Maj et un clic saisissent un point d'une cote existante ; le clic suivant le dépose ; choisir un autre type la change.",
+            "Clic sui due punti da misurare e poi su un punto della linea di quota (raggio o diametro: il centro o un estremo, un punto della circonferenza e la fine della linea; angolo: il vertice, un punto per lato e un punto dell'arco) Maiusc e clic prendono un punto di una quota già presente; il clic successivo lo posa; scegliere un altro tipo la cambia.",
+            "測る2点をクリックし、次に寸法線上の点をクリック（半径・直径：中心または一端、円上の点、引出線の端。角度：頂点、各辺上の点、円弧上の点）Shiftキーを押しながらクリックすると既存の寸法の点をつかみ、次のクリックで置きます。別の種類を選ぶと寸法の種類が変わります。",
+            "单击要测量的两个点，再单击尺寸线上的一点（半径或直径：圆心或一端、圆上一点和引线末端；角度：顶点、每条边上一点和圆弧上一点）按住 Shift 单击可拿起已有尺寸标注的一个点，下次单击放下；选择另一种类型会改变它。",
+            "Clique nos dois pontos a medir e depois num ponto da linha de cota (raio ou diâmetro: o centro ou uma extremidade, um ponto da circunferência e o fim da linha; ângulo: o vértice, um ponto de cada lado e um ponto do arco) Shift e um clique pegam num ponto de uma cota já existente; o clique seguinte larga-o; escolher outro tipo muda-a.",
         ],
     ),
     (
