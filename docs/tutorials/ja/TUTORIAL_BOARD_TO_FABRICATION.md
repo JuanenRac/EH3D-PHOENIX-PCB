@@ -39,9 +39,56 @@ $ phoenix export --out build/fab examples/tutorials/kicad/demo.kicad_pcb
 $ phoenix fabpack --out build/demo_pack.zip examples/tutorials/kicad/demo.kicad_pcb
 ```
 
+6. 送る前に基板を数値で確認します。寸法、各種の個数、各層の銅、ドリル、密度です。何も書き込まれません。
+
+```console
+# test
+$ phoenix stats examples/tutorials/kicad/demo.kicad_pcb
+Board statistics:
+Board: 30.000000 x 20.000000 mm; 600.000000 mm2; Cutouts: 0.000000 mm2
+Components: 2 (top: 2; bottom: 0)
+```
+
+7. 基板エディタの操作でパッドをテストポイントにし（`examples/tutorials/testpoint_ops.json` は R1 の 2 番パッド、ネット `MID` を印付けします）、テストポイントとどのプローブも届かないネットのレポートを出します。入力ファイルは上書きされません。
+
+```console
+# test
+$ phoenix boardedit --rules examples/tutorials/rules_relaxed.json --apply examples/tutorials/testpoint_ops.json --out build/with_test_point.json examples/tutorials/tut.brd
+~ written: build/with_test_point.json
+$ phoenix testpoints build/with_test_point.json
+Test points of the board:
+Test points: 1 (probe side: both)
+Nets asked: 1; covered: 1; coverage: 100.00 %
+```
+
+8. ドキュメント層のある基板に寸法を 2 つ追加し（`examples/tutorials/dimension_ops.json`：基板の幅と高さ、寸法線は外側 3 mm）、DXF 図面に書き出します。ウィンドウでは寸法ツールで同じことができ、*寸法を編集* でその点を動かせます。`--out` に新しいファイルを指定するまではドライランです。
+
+```console
+# test
+$ phoenix boardedit --rules examples/tutorials/rules_relaxed.json --apply examples/tutorials/dimension_ops.json --out build/with_dimensions.json examples/tutorials/notes_board.json
+~ written: build/with_dimensions.json
+$ phoenix dxf-export board --dimensions build/with_dimensions.json
+entities: 21
+layer DIMENSIONS: 16
+```
+
+9. 仕入先アシスタントに部品表をどこで買うか尋ねます。価格ファイル（`examples/tutorials/prices.csv`、仕入先と数量区分ごとに 1 行）と、設定ファイル（`examples/tutorials/sourcing.cfg`）の仕入先、送料、最低注文額を読み、各仕入先での金額と分割購入の金額を出します。価格はファイルのものです。ネットワークからは何も取得しません。
+
+```console
+# test
+$ phoenix bom --sourcing --config examples/tutorials/sourcing.cfg --prices examples/tutorials/prices.csv examples/tutorials/kicad/demo.kicad_pcb
+~ suppliers: 2 considered, 1 lines, EUR
+~ cheapest single supplier: Shop A for 2.210000
+~ split purchase: 1 orders for 2.210000
+```
+
 ## 関連ドキュメント
 
 * [docs/EXPORT.md](../../EXPORT.md)
 * [docs/FABPACK.md](../../FABPACK.md)
 * [docs/RULES.md](../../RULES.md)
 * [docs/DRC_ADVANCED.md](../../DRC_ADVANCED.md)
+* [docs/STATS.md](../../STATS.md)
+* [docs/TESTPOINTS.md](../../TESTPOINTS.md)
+* [docs/DIMENSIONS.md](../../DIMENSIONS.md)
+* [docs/BOM.md](../../BOM.md)

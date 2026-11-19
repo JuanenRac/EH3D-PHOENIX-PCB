@@ -39,9 +39,56 @@ $ phoenix export --out build/fab examples/tutorials/kicad/demo.kicad_pcb
 $ phoenix fabpack --out build/demo_pack.zip examples/tutorials/kicad/demo.kicad_pcb
 ```
 
+6. Guardate la scheda in numeri prima di inviarla: dimensioni, conteggi, rame di ogni strato, forature e densità. Non viene scritto nulla.
+
+```console
+# test
+$ phoenix stats examples/tutorials/kicad/demo.kicad_pcb
+Board statistics:
+Board: 30.000000 x 20.000000 mm; 600.000000 mm2; Cutouts: 0.000000 mm2
+Components: 2 (top: 2; bottom: 0)
+```
+
+7. Segnate un pad come punto di test con un'operazione dell'editor di schede (`examples/tutorials/testpoint_ops.json` segna il secondo pad di R1, sulla rete `MID`) e ottenete il rapporto dei punti di test e delle reti che nessuna sonda raggiunge. Il file di ingresso non viene mai sovrascritto.
+
+```console
+# test
+$ phoenix boardedit --rules examples/tutorials/rules_relaxed.json --apply examples/tutorials/testpoint_ops.json --out build/with_test_point.json examples/tutorials/tut.brd
+~ written: build/with_test_point.json
+$ phoenix testpoints build/with_test_point.json
+Test points of the board:
+Test points: 1 (probe side: both)
+Nets asked: 1; covered: 1; coverage: 100.00 %
+```
+
+8. Aggiungete due quote a una scheda che ha uno strato di documentazione (`examples/tutorials/dimension_ops.json`: la larghezza e l'altezza della scheda, con la linea di quota a 3 mm all'esterno) e scrivetele in un disegno DXF; nella finestra si fa lo stesso con lo strumento delle quote, e *Modifica quota* sposta i loro punti. Il disegno è una prova a secco finché `--out` non indica un file nuovo.
+
+```console
+# test
+$ phoenix boardedit --rules examples/tutorials/rules_relaxed.json --apply examples/tutorials/dimension_ops.json --out build/with_dimensions.json examples/tutorials/notes_board.json
+~ written: build/with_dimensions.json
+$ phoenix dxf-export board --dimensions build/with_dimensions.json
+entities: 21
+layer DIMENSIONS: 16
+```
+
+9. Chiedete all'assistente fornitori dove acquistare la distinta. Legge un file dei prezzi (`examples/tutorials/prices.csv`, una riga per fornitore e scaglione di quantità) e i fornitori, le spedizioni e l'ordine minimo da un file di impostazioni (`examples/tutorials/sourcing.cfg`), e valuta la distinta presso ogni fornitore e come acquisto suddiviso. I prezzi sono quelli del file: non si consulta alcuna rete.
+
+```console
+# test
+$ phoenix bom --sourcing --config examples/tutorials/sourcing.cfg --prices examples/tutorials/prices.csv examples/tutorials/kicad/demo.kicad_pcb
+~ suppliers: 2 considered, 1 lines, EUR
+~ cheapest single supplier: Shop A for 2.210000
+~ split purchase: 1 orders for 2.210000
+```
+
 ## Vedere anche
 
 * [docs/EXPORT.md](../../EXPORT.md)
 * [docs/FABPACK.md](../../FABPACK.md)
 * [docs/RULES.md](../../RULES.md)
 * [docs/DRC_ADVANCED.md](../../DRC_ADVANCED.md)
+* [docs/STATS.md](../../STATS.md)
+* [docs/TESTPOINTS.md](../../TESTPOINTS.md)
+* [docs/DIMENSIONS.md](../../DIMENSIONS.md)
+* [docs/BOM.md](../../BOM.md)

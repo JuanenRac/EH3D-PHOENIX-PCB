@@ -39,9 +39,56 @@ $ phoenix export --out build/fab examples/tutorials/kicad/demo.kicad_pcb
 $ phoenix fabpack --out build/demo_pack.zip examples/tutorials/kicad/demo.kicad_pcb
 ```
 
+6. Sehen Sie sich die Platine vor dem Versand in Zahlen an: Größe, Anzahl der Objekte, Kupfer jeder Lage, Bohrungen und Dichte. Es wird nichts geschrieben.
+
+```console
+# test
+$ phoenix stats examples/tutorials/kicad/demo.kicad_pcb
+Board statistics:
+Board: 30.000000 x 20.000000 mm; 600.000000 mm2; Cutouts: 0.000000 mm2
+Components: 2 (top: 2; bottom: 0)
+```
+
+7. Markieren Sie ein Pad mit einer Operation des Platinen-Editors als Testpunkt (`examples/tutorials/testpoint_ops.json` markiert das zweite Pad von R1 im Netz `MID`) und lassen Sie den Bericht über die Testpunkte und die Netze ausgeben, die keine Sonde erreicht. Die Eingabedatei wird nie überschrieben.
+
+```console
+# test
+$ phoenix boardedit --rules examples/tutorials/rules_relaxed.json --apply examples/tutorials/testpoint_ops.json --out build/with_test_point.json examples/tutorials/tut.brd
+~ written: build/with_test_point.json
+$ phoenix testpoints build/with_test_point.json
+Test points of the board:
+Test points: 1 (probe side: both)
+Nets asked: 1; covered: 1; coverage: 100.00 %
+```
+
+8. Fügen Sie einer Platine mit Dokumentationslage zwei Bemaßungen hinzu (`examples/tutorials/dimension_ops.json`: Breite und Höhe der Platine, mit der Maßlinie 3 mm außerhalb) und schreiben Sie sie in eine DXF-Zeichnung; im Fenster geht das mit dem Bemaßungswerkzeug, und *Bemaßung bearbeiten* verschiebt ihre Punkte. Die Zeichnung ist ein Probelauf, bis `--out` eine neue Datei nennt.
+
+```console
+# test
+$ phoenix boardedit --rules examples/tutorials/rules_relaxed.json --apply examples/tutorials/dimension_ops.json --out build/with_dimensions.json examples/tutorials/notes_board.json
+~ written: build/with_dimensions.json
+$ phoenix dxf-export board --dimensions build/with_dimensions.json
+entities: 21
+layer DIMENSIONS: 16
+```
+
+9. Fragen Sie den Lieferantenassistenten, wo die Stückliste zu kaufen ist. Er liest eine Preisdatei (`examples/tutorials/prices.csv`, eine Zeile je Lieferant und Mengenstaffel) sowie Lieferanten, Versand und Mindestbestellwert aus einer Einstellungsdatei (`examples/tutorials/sourcing.cfg`) und bepreist die Stückliste bei jedem Lieferanten und als aufgeteilten Einkauf. Die Preise stammen aus der Datei: Es wird nichts aus einem Netzwerk abgerufen.
+
+```console
+# test
+$ phoenix bom --sourcing --config examples/tutorials/sourcing.cfg --prices examples/tutorials/prices.csv examples/tutorials/kicad/demo.kicad_pcb
+~ suppliers: 2 considered, 1 lines, EUR
+~ cheapest single supplier: Shop A for 2.210000
+~ split purchase: 1 orders for 2.210000
+```
+
 ## Siehe auch
 
 * [docs/EXPORT.md](../../EXPORT.md)
 * [docs/FABPACK.md](../../FABPACK.md)
 * [docs/RULES.md](../../RULES.md)
 * [docs/DRC_ADVANCED.md](../../DRC_ADVANCED.md)
+* [docs/STATS.md](../../STATS.md)
+* [docs/TESTPOINTS.md](../../TESTPOINTS.md)
+* [docs/DIMENSIONS.md](../../DIMENSIONS.md)
+* [docs/BOM.md](../../BOM.md)

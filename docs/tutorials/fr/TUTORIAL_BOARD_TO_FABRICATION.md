@@ -39,9 +39,56 @@ $ phoenix export --out build/fab examples/tutorials/kicad/demo.kicad_pcb
 $ phoenix fabpack --out build/demo_pack.zip examples/tutorials/kicad/demo.kicad_pcb
 ```
 
+6. Regardez la carte en chiffres avant de l'envoyer : la taille, les décomptes, le cuivre de chaque couche, les perçages et la densité. Rien n'est écrit.
+
+```console
+# test
+$ phoenix stats examples/tutorials/kicad/demo.kicad_pcb
+Board statistics:
+Board: 30.000000 x 20.000000 mm; 600.000000 mm2; Cutouts: 0.000000 mm2
+Components: 2 (top: 2; bottom: 0)
+```
+
+7. Marquez un pad comme point de test avec une opération de l'éditeur de cartes (`examples/tutorials/testpoint_ops.json` marque le deuxième pad de R1, sur le réseau `MID`) et obtenez le rapport des points de test et des réseaux qu'aucune sonde n'atteint. Le fichier d'entrée n'est jamais écrasé.
+
+```console
+# test
+$ phoenix boardedit --rules examples/tutorials/rules_relaxed.json --apply examples/tutorials/testpoint_ops.json --out build/with_test_point.json examples/tutorials/tut.brd
+~ written: build/with_test_point.json
+$ phoenix testpoints build/with_test_point.json
+Test points of the board:
+Test points: 1 (probe side: both)
+Nets asked: 1; covered: 1; coverage: 100.00 %
+```
+
+8. Ajoutez deux cotes à une carte qui a une couche de documentation (`examples/tutorials/dimension_ops.json` : la largeur et la hauteur de la carte, avec la ligne de cote à 3 mm à l'extérieur) et écrivez-les dans un dessin DXF ; dans la fenêtre, on fait la même chose avec l'outil de cote, et *Modifier la cote* déplace leurs points. Le dessin est un essai à blanc tant que `--out` ne nomme pas un nouveau fichier.
+
+```console
+# test
+$ phoenix boardedit --rules examples/tutorials/rules_relaxed.json --apply examples/tutorials/dimension_ops.json --out build/with_dimensions.json examples/tutorials/notes_board.json
+~ written: build/with_dimensions.json
+$ phoenix dxf-export board --dimensions build/with_dimensions.json
+entities: 21
+layer DIMENSIONS: 16
+```
+
+9. Demandez à l'assistant fournisseurs où acheter la nomenclature. Il lit un fichier de prix (`examples/tutorials/prices.csv`, une ligne par fournisseur et palier de quantité) ainsi que les fournisseurs, les frais d'envoi et la commande minimale d'un fichier de réglages (`examples/tutorials/sourcing.cfg`), et chiffre la nomenclature chez chaque fournisseur et en achat réparti. Les prix sont ceux du fichier : rien n'est récupéré sur un réseau.
+
+```console
+# test
+$ phoenix bom --sourcing --config examples/tutorials/sourcing.cfg --prices examples/tutorials/prices.csv examples/tutorials/kicad/demo.kicad_pcb
+~ suppliers: 2 considered, 1 lines, EUR
+~ cheapest single supplier: Shop A for 2.210000
+~ split purchase: 1 orders for 2.210000
+```
+
 ## Voir aussi
 
 * [docs/EXPORT.md](../../EXPORT.md)
 * [docs/FABPACK.md](../../FABPACK.md)
 * [docs/RULES.md](../../RULES.md)
 * [docs/DRC_ADVANCED.md](../../DRC_ADVANCED.md)
+* [docs/STATS.md](../../STATS.md)
+* [docs/TESTPOINTS.md](../../TESTPOINTS.md)
+* [docs/DIMENSIONS.md](../../DIMENSIONS.md)
+* [docs/BOM.md](../../BOM.md)

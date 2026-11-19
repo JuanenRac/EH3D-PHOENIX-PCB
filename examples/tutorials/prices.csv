@@ -1,0 +1,4 @@
+value,footprint,supplier,supplier_code,min_qty,unit_price
+1k,Lib:Part,Shop A,A-1K,1,0.010
+1k,Lib:Part,Shop A,A-1K,100,0.004
+1k,Lib:Part,Shop B,B-1K,1,0.008
