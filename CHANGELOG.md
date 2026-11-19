@@ -4,6 +4,8 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **`phoenix nets --import` and `--compare` read a KiCad netlist:** a file that starts with `(export` is read as the netlist that a KiCad schematic exports (`.net`), taking only the list `nets` with the name and the nodes (`ref`, `pin`) of each net, quoted or bare words, with the same limits of `config/nets.cfg` and the same notes for a name the text cannot hold; a file that is not closed, has no `nets`, a net with no name, or a node with no `ref` or `pin` is refused with its code and line, and the nesting is limited to 64 lists so that a hostile file cannot overflow the stack. It is read only, never written. The reader is `read_kicad_net` of the sync crate; its tests include a fixed-seed round trip from a generated table (`docs/NETS.md`).
+
 ## [0.1.0] - Netlist text format and comparison, nets panel in the editor, copper by region, supplier report and faster edge clearance
 
 - **The board editor reports the nets of the board:** the section *Analysis* has a new button *Nets* that makes the report of the nets as the board is now: how many nets, parts and pins it has, the five nets with the most pins, what could not be written as a netlist and the findings of the lint of `phoenix nets --lint`, in the language of the window. It is made by the same code, from the same table and with the settings of `config/nets.cfg` as the command, so the window and the command give the same findings (the code of the text netlist moved to the crate `eh3d-phoenix-sync` for that reason); a board with no net that has a pin says so. The texts are in the eight languages and the report is tested; the window has not been seen on a screen.

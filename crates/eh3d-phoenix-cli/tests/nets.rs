@@ -894,3 +894,58 @@ fn the_usage_of_the_command_names_the_new_options() {
         assert!(err.contains(word), "{word}");
     }
 }
+
+const KICAD_NET: &str = r#"(export (version "E")
+  (design (source "demo.kicad_sch"))
+  (nets
+    (net (code "1") (name "GND")
+      (node (ref "R1") (pin "2")) (node (ref "R2") (pin "2")) (node (ref "TP1") (pin "1")))
+    (net (code "2") (name "SIG")
+      (node (ref "R1") (pin "1")) (node (ref "R2") (pin "1")))))
+"#;
+
+#[test]
+fn a_kicad_netlist_is_read_by_import_and_printed_as_a_text_netlist() {
+    let dir = tempfile::tempdir().unwrap();
+    let file = write_text(dir.path(), "demo.net", KICAD_NET);
+    let (code, out, err) = command(&["nets", "--import", &file]);
+    assert_eq!((code, err.as_str()), (0, ""));
+    assert_eq!(out, BOARD_NETLIST);
+    // nothing is written next to it
+    assert_eq!(fs::read_dir(dir.path()).unwrap().count(), 1);
+}
+
+#[test]
+fn a_kicad_netlist_is_compared_with_a_board_and_with_a_text_netlist() {
+    let dir = tempfile::tempdir().unwrap();
+    let file = write_text(dir.path(), "demo.net", KICAD_NET);
+    let board = write_board(dir.path(), &board_with("SIG"));
+    let (code, _, err) = command(&["nets", "--compare", &file, &board]);
+    assert_eq!((code, err.as_str()), (0, ""));
+    let other = board_with("SIGNAL");
+    let board2 = path_in(dir.path(), "board2.json");
+    fs::write(&board2, other.to_bytes().unwrap()).unwrap();
+    let (code, out, _) = command(&["nets", "--compare", &file, &board2]);
+    assert_eq!(code, 1, "{out}");
+    let text = write_text(dir.path(), "same.nets", BOARD_NETLIST);
+    let (code, _, err) = command(&["nets", "--compare", &file, "--import", &text]);
+    assert_eq!((code, err.as_str()), (0, ""));
+}
+
+#[test]
+fn a_broken_kicad_netlist_is_refused_with_its_code_and_line() {
+    let dir = tempfile::tempdir().unwrap();
+    let file = write_text(
+        dir.path(),
+        "bad.net",
+        "(export
+ (nets
+  (net (code 1)
+   (node (ref R1) (pin 1)))))
+",
+    );
+    let (code, _, err) = command(&["nets", "--import", &file]);
+    assert_eq!(code, 2);
+    assert!(err.contains("PHOENIX-NETS-002"), "{err}");
+    assert!(err.contains("line 3"), "{err}");
+}

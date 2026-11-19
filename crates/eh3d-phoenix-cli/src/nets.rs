@@ -13,6 +13,7 @@ use std::io::{Read, Write};
 use std::path::Path;
 
 use eh3d_phoenix_rules::Lang;
+use eh3d_phoenix_sync::kicad_net::{looks_like_kicad_net, read_kicad_net};
 use eh3d_phoenix_sync::nets_board::board_table;
 use eh3d_phoenix_sync::nets_codes::{
     self, INPUT_UNREADABLE, LIMIT_EXCEEDED, OPTION_INVALID, OUTPUT_FAILED,
@@ -40,7 +41,9 @@ pub(crate) const USAGE: &str =
                 A dry run unless --out or --csv names a new file (an existing file is never
                 replaced)
   --import      read a netlist file instead of a board, check it against the limits of the
-                settings and print it again in its canonical form (no board is given)
+                settings and print it again in its canonical form (no board is given). The file
+                may also be a KiCad netlist (`.net`, read only), which is recognised by its first
+                word `(export`
   --compare     compare a netlist file with the board: nets only on one side, a pin on another net
                 or on none, a net under another name; exit code 1 when anything differs. With
                 --import the second side is another netlist file and no board is given. With
@@ -226,6 +229,17 @@ fn read_netlist(path: &str, settings: &NetsSettings) -> Result<String, NetsError
     String::from_utf8(bytes).map_err(|_| unreadable("the file is not UTF-8 text".to_owned()))
 }
 
+/// Reads a netlist file, in the text format or as a KiCad netlist (`.net`, recognised by its first
+/// word), into a table with the notes about the names that could not be kept as they were.
+fn read_table(path: &str, settings: &NetsSettings) -> Result<(NetTable, Vec<Note>), NetsError> {
+    let text = read_netlist(path, settings)?;
+    if looks_like_kicad_net(&text) {
+        read_kicad_net(&text, settings)
+    } else {
+        Ok((parse(&text, settings)?, Vec::new()))
+    }
+}
+
 /// The nets that the command works on: those of the netlist file that `--import` names, or else
 /// those of the board, with the notes about what could not be written as it is.
 fn load_side(
@@ -233,7 +247,7 @@ fn load_side(
     settings: &NetsSettings,
 ) -> Result<(NetTable, Vec<Note>), NetsError> {
     match (&options.import, options.files.as_slice()) {
-        (Some(path), _) => Ok((parse(&read_netlist(path, settings)?, settings)?, Vec::new())),
+        (Some(path), _) => read_table(path, settings),
         (None, [board_path]) => {
             let board =
                 read_board_file(board_path).map_err(|e| NetsError::new(INPUT_UNREADABLE, e))?;
@@ -536,9 +550,10 @@ fn compare_with_board(
     out: &mut dyn Write,
 ) -> Result<i32, NetsError> {
     let settings = load_settings(options.config.as_deref())?;
-    let file = parse(&read_netlist(file_path, &settings)?, &settings)?;
+    let (file, file_notes) = read_table(file_path, &settings)?;
     // the other side is the board, or a second netlist file when --import names one
-    let (board_table, notes) = load_side(options, &settings)?;
+    let (board_table, mut notes) = load_side(options, &settings)?;
+    notes.extend(file_notes);
     let other_label = if options.import.is_some() {
         "second netlist"
     } else {

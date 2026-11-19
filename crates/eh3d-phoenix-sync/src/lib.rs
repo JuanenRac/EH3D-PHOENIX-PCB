@@ -28,7 +28,8 @@
 //! * [`nets_text`], [`nets_board`] and [`nets_codes`]: the text netlist of `phoenix nets` (the
 //!   reading and writing of the text, the comparison of two tables, the lint, the summary and the
 //!   table made from the pins of a board) with its codes `PHOENIX-NETS-<NNN>`, kept here so that
-//!   the command and the board editor judge the same table.
+//!   the command and the board editor judge the same table;
+//! * [`kicad_net`]: the reading of a KiCad netlist (`.net`) into that table, read only.
 //!
 //! Planning is a dry run that changes neither document. Applying a package twice changes nothing
 //! the second time, undoing it gives back the original, and nothing the package does not name
@@ -45,6 +46,7 @@ pub mod backward;
 pub mod codes;
 pub mod diff;
 pub mod forward;
+pub mod kicad_net;
 pub mod nets_board;
 pub mod nets_codes;
 pub mod nets_text;

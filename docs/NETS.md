@@ -31,7 +31,7 @@ Names have no blanks, a part has no dot and nothing starts with `#`. When a boar
 ## The ways to use it
 
 * `phoenix nets board.json` prints the netlist of the board. With `--out FILE` the netlist goes to the new file and the output says how many nets and pins were written; with `--json` the output is the nets and the notes as JSON.
-* `phoenix nets --import FILE` reads a netlist file instead of a board, checks it against the limits of the settings and prints it again in its canonical form (sorted, wrapped, comments taken out). It is the way to normalise a file that was edited by hand, or to see why it is refused.
+* `phoenix nets --import FILE` reads a netlist file instead of a board, checks it against the limits of the settings and prints it again in its canonical form (sorted, wrapped, comments taken out). It is the way to normalise a file that was edited by hand, or to see why it is refused. The file may also be a KiCad netlist (`.net`, the S-expression that a schematic exports, recognised by its first word `(export`): only its list `nets` is read, each `net` with its `name` and its `node`s (`ref` and `pin`), words may be quoted or bare, the lists may be nested 64 deep at most, and the same limits and the same changes of unwritable names (told as notes) apply as for the text. It is read only; no program of this repository writes that format here. A broken file is refused with `PHOENIX-NETS-002` (no `export`, no `nets`, a net with no name, a list that is not closed), `PHOENIX-NETS-004` (a node with no `ref` or no `pin`) or `PHOENIX-NETS-006` (a limit), with the line.
 * `phoenix nets --compare FILE board.json` compares the file with the board. Each difference is one line with its code, the title in the language of `--lang`, and the net, the pin and the other net:
 
   | Code | What | Line |
@@ -68,6 +68,6 @@ The section *Analysis* of the board editor has a button *Nets* that makes the re
 
 * The format holds connections only: no values, footprints, net classes, properties or sheets. A netlist of a simulator is `phoenix netlist` (`docs/NETLIST.md`).
 * Comparing is by the name of the part and of the pad. A part that was renamed in the schematic is a difference for each of its pins; the netlist does not know that two names are one part.
-* The netlist is not written back into a board: `--import` and `--compare` only read. Giving a board the nets of a file is not done.
+* The netlist is not written back into a board: `--import` and `--compare` only read. The same holds for a KiCad netlist: it is read and never written. Giving a board the nets of a file is not done.
 * The lint knows names and pin counts only: it does not know which nets must have more than one pin (a net of a connector to the outside has one) or which names the designer meant to be different, so a finding is a place to look. `ignore_nets` quiets the ones that are meant.
 * The quote that guards a cell of the CSV file is part of the cell for a program that reads it back; the guard is a setting for that reason.
