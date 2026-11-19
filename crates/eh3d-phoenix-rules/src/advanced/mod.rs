@@ -20,7 +20,10 @@
 //! * `PHOENIX-DRC-011` duplicate or stacked vias;
 //! * `PHOENIX-DRC-012` pads on no net;
 //! * `PHOENIX-DRC-013` parts with a pad outside the outline;
-//! * `PHOENIX-DRC-014` what could not be judged (information).
+//! * `PHOENIX-DRC-014` what could not be judged (information);
+//! * `PHOENIX-DRC-016` short tracks, `PHOENIX-DRC-017` pieces of tracks off a grid of angles,
+//!   `PHOENIX-DRC-018` the annular ring by net class and `PHOENIX-DRC-019` the number of vias on a
+//!   net (all four off in the settings that come with the program).
 //!
 //! The pairs of items that are close to each other are found with a uniform grid. The grid only
 //! chooses which pairs are compared, so the report is the one of the search that compares every
@@ -31,6 +34,7 @@
 
 mod cfg;
 mod checks;
+mod checks_extra;
 mod checks_more;
 pub mod codes;
 mod grid;
@@ -115,6 +119,26 @@ pub(crate) const R_OUTSIDE: RuleInfo = RuleInfo {
     rank: 33,
     name: "outside_outline",
     code: codes::OUTSIDE,
+};
+pub(crate) const R_SHORT_TRACK: RuleInfo = RuleInfo {
+    rank: 35,
+    name: "short_track",
+    code: codes::SHORT_TRACK,
+};
+pub(crate) const R_TRACK_ANGLE: RuleInfo = RuleInfo {
+    rank: 36,
+    name: "track_angle",
+    code: codes::TRACK_ANGLE,
+};
+pub(crate) const R_RING_CLASS: RuleInfo = RuleInfo {
+    rank: 37,
+    name: "ring_class",
+    code: codes::RING_CLASS,
+};
+pub(crate) const R_VIA_COUNT: RuleInfo = RuleInfo {
+    rank: 38,
+    name: "via_count",
+    code: codes::VIA_COUNT,
 };
 pub(crate) const R_NOT_JUDGED: RuleInfo = RuleInfo {
     rank: 34,

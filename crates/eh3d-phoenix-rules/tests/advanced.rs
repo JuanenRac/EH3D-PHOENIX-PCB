@@ -955,3 +955,156 @@ fn the_edge_of_a_cutout_is_an_edge_of_the_board() {
     assert_eq!(outside.len(), 1);
     assert_eq!(outside[0].detail, "1 of 1 pads outside");
 }
+
+#[test]
+fn a_layer_can_have_its_own_distance_from_copper_to_the_board_edge() {
+    let mut b = base();
+    let na = net(&mut b, 10, "A");
+    // 0.2 mm from the top edge: the gap between the copper and the edge is 200000 - 100000
+    track(
+        &mut b,
+        20,
+        na,
+        200_000,
+        vec![line((2 * MM, 19_800_000), (8 * MM, 19_800_000))],
+    );
+    // a via 0.5 mm from the left edge with a pad of 0.6 mm: the gap is 500000 - 300000
+    via(&mut b, 30, na, (500_000, 10 * MM), 300_000, 600_000);
+    let judged = |layers: &[(&str, i64)]| {
+        let cfg = only(|c| {
+            c.copper_edge_level = Some(Severity::Error);
+            c.copper_edge_min_nm = 300_000;
+            for (name, nm) in layers {
+                c.copper_edge_layers.insert((*name).to_owned(), *nm);
+            }
+        });
+        let report = check_advanced(&b, &cfg);
+        by_rule(&report, "copper_edge")
+            .iter()
+            .map(|f| (f.location.clone(), f.measured_nm, f.limit_nm))
+            .collect::<Vec<_>>()
+    };
+    let track_place = format!("track {}", id(20));
+    let via_place = format!("via {}", id(30));
+    // no layer has a limit of its own: both are too close to the edge
+    assert_eq!(
+        judged(&[]),
+        vec![
+            (track_place.clone(), Some(100_000), Some(300_000)),
+            (via_place.clone(), Some(200_000), Some(300_000)),
+        ]
+    );
+    // the top layer asks for less (in any case): the track is clear, and the via, which takes the
+    // greatest limit of the layers it joins (50000 and the default of the bottom layer), is not
+    assert_eq!(
+        judged(&[("top", 50_000)]),
+        vec![(via_place.clone(), Some(200_000), Some(300_000))]
+    );
+    // both layers ask for less than the gap of the via: nothing is found for it
+    assert_eq!(judged(&[("Top", 50_000), ("Bottom", 150_000)]), Vec::new());
+    // the bottom layer asks for more: the via is judged against it, the track is not
+    assert_eq!(
+        judged(&[("Top", 90_000), ("Bottom", 250_000)]),
+        vec![(via_place, Some(200_000), Some(250_000))]
+    );
+    // a layer with a limit that is not a layer of the board changes nothing
+    assert_eq!(judged(&[("Inner9", 1)]).len(), 2);
+}
+
+#[test]
+fn the_ring_of_a_class_judges_the_drilled_pads_of_the_parts_too() {
+    let mut b = base();
+    let na = net(&mut b, 10, "A");
+    let nb = net(&mut b, 11, "B");
+    // a pad of 1.0 mm with a drill of 0.8 mm has a ring of 0.1 mm
+    component(
+        &mut b,
+        (10 * MM, 10 * MM),
+        vec![
+            (
+                "1",
+                (0, 0),
+                round(1_000_000),
+                Some(800_000),
+                vec![TOP, BOT],
+                Some(na),
+            ),
+            (
+                "2",
+                (3 * MM, 0),
+                round(1_000_000),
+                Some(800_000),
+                vec![TOP, BOT],
+                Some(nb),
+            ),
+            (
+                "3",
+                (6 * MM, 0),
+                round(1_000_000),
+                Some(600_000),
+                vec![TOP, BOT],
+                Some(na),
+            ),
+        ],
+    );
+    let cfg = AdvancedConfig::parse(
+        "ring_class_level = warning\ndrill_class.signal.nets = A\ndrill_class.signal.ring_min_nm = 150000\n",
+    )
+    .unwrap();
+    let report = check_advanced(&b, &cfg);
+    let found = by_rule(&report, "ring_class");
+    assert_eq!(found.len(), 1);
+    assert_eq!(found[0].location, "U1 pad 1");
+    assert_eq!(found[0].code, dcodes::RING_CLASS);
+    assert_eq!(found[0].measured_nm, Some(100_000));
+    assert_eq!(found[0].limit_nm, Some(150_000));
+    assert_eq!(found[0].severity, Severity::Warning);
+    // the ordinary checks of the built-in settings are not changed by the new keys: a board that
+    // has no further level on gives no finding of these four rules
+    let plain = check_advanced(&b, &AdvancedConfig::default());
+    for rule in ["short_track", "track_angle", "ring_class", "via_count"] {
+        assert!(by_rule(&plain, rule).is_empty(), "{rule}");
+    }
+}
+
+#[test]
+fn the_further_checks_have_titles_in_all_eight_languages_and_a_place_in_the_report() {
+    for code in [
+        dcodes::SHORT_TRACK,
+        dcodes::TRACK_ANGLE,
+        dcodes::RING_CLASS,
+        dcodes::VIA_COUNT,
+    ] {
+        let english = title(code, Lang::En).unwrap();
+        for lang in Lang::ALL {
+            let text = title(code, lang).unwrap();
+            assert!(!text.is_empty(), "{code}");
+            if lang != Lang::En {
+                assert_ne!(text, english, "{code} {}", lang.tag());
+            }
+        }
+    }
+    let mut b = base();
+    let na = net(&mut b, 10, "A");
+    track(
+        &mut b,
+        20,
+        na,
+        200_000,
+        vec![line((0, 0), (50_000, 20_000))],
+    );
+    via(&mut b, 30, na, (5 * MM, 5 * MM), 300_000, 600_000);
+    via(&mut b, 31, na, (6 * MM, 6 * MM), 300_000, 600_000);
+    let cfg = only(|c| {
+        c.short_track_level = Some(Severity::Info);
+        c.short_track_min_nm = 100_000;
+        c.track_angle_level = Some(Severity::Warning);
+        c.via_count_level = Some(Severity::Error);
+        c.via_count_max = 1;
+    });
+    let report = check_advanced(&b, &cfg);
+    let rules: Vec<&str> = report.confirmed.iter().map(|f| f.rule).collect();
+    // in the fixed order of the rules: the short track, the angle, then the vias on the net
+    assert_eq!(rules, vec!["short_track", "track_angle", "via_count"]);
+    assert_eq!(report.confirmed[2].severity, Severity::Error);
+}

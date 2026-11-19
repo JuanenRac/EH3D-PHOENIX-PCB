@@ -37,6 +37,8 @@ pub enum DrcMsg {
     NoMatch,
     /// What is said when no problem shown has a place on the board.
     NoPlace,
+    /// The label of the box that filters the problems by words.
+    Search,
 }
 
 const TABLE: [(DrcMsg, [&str; 8]); DrcMsg::COUNT] = [
@@ -196,11 +198,24 @@ const TABLE: [(DrcMsg, [&str; 8]); DrcMsg::COUNT] = [
             "Nenhum problema mostrado tem um lugar na placa",
         ],
     ),
+    (
+        DrcMsg::Search,
+        [
+            "Search (code, place, detail)",
+            "Buscar (código, lugar, detalle)",
+            "Suchen (Code, Ort, Detail)",
+            "Rechercher (code, lieu, détail)",
+            "Cerca (codice, posizione, dettaglio)",
+            "検索（コード、場所、詳細）",
+            "搜索（代码、位置、详情）",
+            "Procurar (código, local, detalhe)",
+        ],
+    ),
 ];
 
 impl DrcMsg {
     /// How many texts there are: one more than the number of the last variant.
-    pub const COUNT: usize = DrcMsg::NoPlace as usize + 1;
+    pub const COUNT: usize = DrcMsg::Search as usize + 1;
 
     /// The text in a language.
     pub fn tr(self, lang: Lang) -> &'static str {

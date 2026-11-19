@@ -21,6 +21,10 @@
 | PHOENIX-DRC-013 | `outside_outline` | A component with a pad whose centre is outside the outline. |
 | PHOENIX-DRC-014 | `advanced_not_judged` | What could not be judged (information, in the inconclusive list). |
 | PHOENIX-DRC-015 | | A settings file that is not valid. |
+| PHOENIX-DRC-016 | `short_track` | A track that is no longer than `short_track_min_nm` in all (a fragment left over from editing). A track with an arc is not judged. Off until its level is given. |
+| PHOENIX-DRC-017 | `track_angle` | The straight pieces of a track that are off the grid of angles of `track_angle_step_deg` (45: the eight directions; 90: along the two axes). One finding for each track, with the number of pieces. Off until its level is given. |
+| PHOENIX-DRC-018 | `ring_class` | The ring of a via and of a drilled pad against the `ring_min_nm` of the class of its net. Off until its level is given. |
+| PHOENIX-DRC-019 | `via_count` | A net with more vias than `via_count_max`, one finding for each net. Off until its level is given. |
 
 The existing rules keep their own codes (`PHOENIX-CHECK-001` to `015`). Where an advanced check looks like one of them (the annular ring, the distance to the edge, the smallest drill) it has its own limit and its own level in `config/drc_advanced.cfg` and is reported under its own code, so the two never hide each other.
 
@@ -30,7 +34,9 @@ Lines are `key = value`; blank lines and lines starting with `#` are ignored. Th
 
 * `<check>_level = off | info | warning | error` for each check. A level of `off` turns the check off; only `error` makes `phoenix check` exit with 1. The levels are the severity of the findings, so a limit can be reported without failing the board.
 * The limits are in nanometres (`annular_ring_min_nm`, `copper_edge_min_nm`, `pad_edge_min_nm`, `silk_hole_min_nm`, `neck_min_width_nm`, `via_duplicate_max_distance_nm`, `drill_default_min_nm`) and in degrees (`acid_trap_min_angle_deg`).
-* Drill classes: `drill_class.NAME.nets = A, B` and `drill_class.NAME.min_nm = N`. A net that is in no class has the default minimum; a net in two classes is refused.
+* Drill classes: `drill_class.NAME.nets = A, B` and `drill_class.NAME.min_nm = N`. A net that is in no class has the default minimum; a net in two classes is refused. A class may also give a ring: `drill_class.NAME.ring_min_nm = N` (0, or no line, gives none), which `ring_class_level` judges for the vias and the drilled pads of its nets; the nets of a class with no ring are left to `annular_ring_min_nm`. A class that gives a ring and no drill has no minimum drill of its own, so its nets are not judged by `drill_class_level`.
+* `copper_edge_layer.NAME = N` gives the layer called NAME (in any case) a distance from copper to the board edge of its own, in nanometres, in place of `copper_edge_min_nm`; a via takes the greatest limit of the layers it joins, a layer without a line counting as the default, and the pads are not changed (`pad_edge_min_nm`). A name that is not a layer of the board changes nothing.
+* The four further checks have a level each (`short_track_level`, `track_angle_level`, `ring_class_level`, `via_count_level`), `off` in the file that comes with the program, with their limits `short_track_min_nm`, `track_angle_step_deg` (45 or 90) and `via_count_max` (0 to 1000000; 0 does not judge it).
 * `voltage.NET = V` gives the voltage of a net, in volts. A net that has no voltage is not judged by the spacing check; write the ground net as `voltage.GND = 0`.
 * `grid_cell_nm` is the size of the cell of the search grid. It changes the speed only.
 
@@ -64,7 +70,7 @@ Exit code: 0 when nothing is proven wrong, 1 when a finding of level `error` is 
 
 * The CSV header is `list,category,severity,code,title,location,x_nm,y_nm,measured_nm,limit_nm,detail`. One row per finding, the proven ones first (`list` is `confirmed` or `inconclusive`). `category`, `severity` and `list` keep their English keys in every language so a script can read them; only `title` is in the language of `--lang`. A text cell that a spreadsheet would run as a formula gets a quote mark in front, and a cell with a comma, a quote or a line break is quoted.
 * The HTML page has no script and no outside file and escapes every text that comes from the board. It starts with a summary of the proven and inconclusive findings of each category, then a table for each category that has findings. The headings are in the language of `--lang`.
-* The categories group the codes by what is fixed together: `size` (widths, via sizes, drills, rings, necks), `clearance` (copper clearance, isolation by voltage), `edge` (the board edge and drill spacing), `mask_silk` (solder mask and silkscreen), `zones`, `connectivity`, `advanced` (islands, stubs, duplicate vias, acid traps and the other advanced checks), `capability` (the checks against the profile of a maker, `docs/DFM.md`) and `other` (what could not be judged). The category is a reading aid and changes no result.
+* The categories group the codes by what is fixed together: `size` (widths, via sizes, drills, rings, necks, short tracks), `clearance` (copper clearance, isolation by voltage), `edge` (the board edge and drill spacing), `mask_silk` (solder mask and silkscreen), `zones`, `connectivity`, `advanced` (islands, stubs, duplicate vias, acid traps and the other advanced checks), `capability` (the checks against the profile of a maker, `docs/DFM.md`) and `other` (what could not be judged). The category is a reading aid and changes no result.
 
 
 `--time` (also of `phoenix connectivity`) writes one more line to the error stream, `time: S.SSS s`, with the seconds the command took from the end of the options to the end of the report, to three decimals. The report on the output and the exit code are the same with and without it. It is a wall-clock time of one run on the machine it ran on, so it is for comparing two runs on one computer and not a figure of the program.

@@ -74,6 +74,10 @@ pub fn section(ui: &mut egui::Ui, workspace: &mut Workspace, lang: Lang) {
             });
         }
         ui.horizontal_wrapped(|ui| {
+            ui.label(dim(DrcMsg::Search.tr(lang)));
+            ui.add(egui::TextEdit::singleline(&mut drc.filter.text).desired_width(160.0));
+        });
+        ui.horizontal_wrapped(|ui| {
             ui.label(dim(DrcMsg::Order.tr(lang)));
             egui::ComboBox::from_id_salt("drc-order")
                 .selected_text(DrcMsg::of_sort(drc.sort).tr(lang))

@@ -55,6 +55,9 @@ pub struct DrcFilter {
     pub information: bool,
     /// The categories (one of `CATEGORIES`) that are hidden.
     pub hidden: BTreeSet<String>,
+    /// Words, separated by blanks, that a problem must all hold (in any case) in its code, its
+    /// place, the name of its rule or its detail to be shown; empty shows every problem.
+    pub text: String,
 }
 
 impl Default for DrcFilter {
@@ -64,6 +67,7 @@ impl Default for DrcFilter {
             warnings: true,
             information: true,
             hidden: BTreeSet::new(),
+            text: String::new(),
         }
     }
 }
@@ -83,9 +87,25 @@ impl DrcFilter {
         !self.hidden.contains(name)
     }
 
-    /// Whether a problem is shown: its severity is on and its category is not hidden.
+    /// Whether a problem holds every word of the text filter, in any case, in its code, its place,
+    /// the name of its rule or its detail. An empty text, or one of blanks only, holds for all.
+    pub fn text_matches(&self, finding: &Finding) -> bool {
+        let haystack = format!(
+            "{} {} {} {}",
+            finding.code, finding.location, finding.rule, finding.detail
+        )
+        .to_lowercase();
+        self.text
+            .split_whitespace()
+            .all(|word| haystack.contains(&word.to_lowercase()))
+    }
+
+    /// Whether a problem is shown: its severity is on, its category is not hidden and it holds the
+    /// words of the text filter.
     pub fn shows(&self, finding: &Finding) -> bool {
-        self.severity_shown(finding.severity) && self.category_shown(category(finding.code))
+        self.severity_shown(finding.severity)
+            && self.category_shown(category(finding.code))
+            && self.text_matches(finding)
     }
 
     /// Hides a category that is shown and shows one that is hidden; a name that is not a category
@@ -204,6 +224,7 @@ impl DrcPanel {
                 warnings: settings.drc_show_warnings,
                 information: settings.drc_show_information,
                 hidden: settings.drc_hidden_categories.iter().cloned().collect(),
+                text: String::new(),
             },
             sort: settings.drc_sort,
             wrap: settings.drc_wrap,
@@ -378,6 +399,58 @@ mod tests {
         panel.filter.show_all();
         assert!(panel.filter.is_all());
         assert_eq!(panel.visible(&findings).len(), 6);
+    }
+
+    #[test]
+    fn the_text_filter_wants_every_word_in_the_code_the_place_the_rule_or_the_detail() {
+        let mut findings = sample();
+        findings[3].detail = "class power".to_owned();
+        let mut panel = DrcPanel {
+            sort: DrcSort::Found,
+            ..DrcPanel::default()
+        };
+        // the code, in any case
+        panel.filter.text = "check-005".to_owned();
+        assert_eq!(names(&panel.visible(&findings)), ["a", "d"]);
+        panel.filter.text = "CHECK-005".to_owned();
+        assert_eq!(names(&panel.visible(&findings)), ["a", "d"]);
+        // every word must be held, each where it likes
+        panel.filter.text = "  check-005   POWER ".to_owned();
+        assert_eq!(names(&panel.visible(&findings)), ["d"]);
+        // the place and the rule
+        panel.filter.text = "e".to_owned();
+        assert!(names(&panel.visible(&findings)).contains(&"e"));
+        panel.filter.text = "x".to_owned();
+        assert_eq!(panel.visible(&findings).len(), 6);
+        panel.filter.text = "nothing like it".to_owned();
+        assert!(panel.visible(&findings).is_empty());
+        // blanks only are no filter at all, but the filter is no longer the default
+        panel.filter.text = "   ".to_owned();
+        assert_eq!(panel.visible(&findings).len(), 6);
+        assert!(!panel.filter.is_all());
+        // it adds to the severities and the categories
+        panel.filter.text = "check-005".to_owned();
+        panel.filter.warnings = false;
+        assert_eq!(names(&panel.visible(&findings)), ["a"]);
+        panel.filter.show_all();
+        assert!(panel.filter.is_all());
+        assert!(panel.filter.text.is_empty());
+        assert_eq!(panel.visible(&findings).len(), 6);
+    }
+
+    #[test]
+    fn the_step_only_goes_to_the_problems_that_pass_the_text_filter() {
+        let findings = sample();
+        let mut panel = DrcPanel {
+            sort: DrcSort::Found,
+            ..DrcPanel::default()
+        };
+        panel.filter.text = "track".to_owned();
+        // nothing of the sample has `track` in its code, place, rule or detail
+        assert_eq!(panel.step(&findings, true), None);
+        panel.filter.text = "check-001".to_owned();
+        assert_eq!(panel.step(&findings, true), Some([2, 2]));
+        assert_eq!(panel.step(&findings, true), Some([6, 6]));
     }
 
     #[test]

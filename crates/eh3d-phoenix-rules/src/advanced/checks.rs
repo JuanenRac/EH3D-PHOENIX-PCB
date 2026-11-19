@@ -9,6 +9,7 @@ use eh3d_phoenix_board::connectivity::pad_position;
 use eh3d_phoenix_board::{Board, Id, PadRef, Segment, Via};
 use eh3d_phoenix_model::Point;
 
+use super::checks_extra::{self, RingItem};
 use super::checks_more;
 use super::grid::{pairs, Bx, Index};
 use super::{
@@ -238,6 +239,26 @@ pub(super) fn run_all(ctx: &Ctx<'_>, out: &mut Report) {
     via_duplicates(ctx, out);
     pads_without_net(ctx, out);
     outside_outline(ctx, out);
+    checks_extra::short_tracks(ctx.board, ctx.cfg, out);
+    checks_extra::track_angles(ctx.board, ctx.cfg, out);
+    checks_extra::ring_classes(ctx.board, ctx.cfg, &ring_items(ctx), out);
+    checks_extra::via_counts(ctx.board, ctx.cfg, out);
+}
+
+/// The drilled pads of the parts, as the items the check of the ring by class judges.
+fn ring_items(ctx: &Ctx<'_>) -> Vec<RingItem> {
+    ctx.pads
+        .iter()
+        .filter_map(|pad| {
+            let drill = pad.drill?;
+            Some(RingItem {
+                label: pad.label.clone(),
+                net: pad.net,
+                at: (pad.at.x_nm.get(), pad.at.y_nm.get()),
+                ring2: pad_min_side(pad.shape) - i128::from(drill.get()),
+            })
+        })
+        .collect()
 }
 
 pub(super) fn to_i64(value: i128) -> i64 {
@@ -304,8 +325,19 @@ fn edge_rule(ctx: &Ctx<'_>, out: &mut Report, rule: &RuleInfo, pads: bool) {
         );
         return;
     }
-    let limit = i128::from(limit_nm);
     for item in ctx.items.iter().filter(|c| (c.kind == Kind::Pad) == pads) {
+        // a layer may have a limit of its own for copper (`copper_edge_layer.NAME`)
+        let limit_nm = if pads {
+            limit_nm
+        } else {
+            let names = item
+                .layers
+                .iter()
+                .filter_map(|l| ctx.board.layers.get(l))
+                .map(|l| l.name.as_str());
+            ctx.cfg.copper_edge_for(names, limit_nm)
+        };
+        let limit = i128::from(limit_nm);
         let at = item.prim.first_point();
         let mut proven: Option<i64> = None;
         let mut unsure = false;

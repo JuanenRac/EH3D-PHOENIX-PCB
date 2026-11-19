@@ -42,6 +42,9 @@ pub struct DrillClass {
     pub nets: BTreeSet<String>,
     /// The smallest drill of its nets, in nanometres.
     pub min_nm: i64,
+    /// The thinnest annular ring of its nets, in nanometres; 0 does not judge the ring of the
+    /// class (`ring_class_level`).
+    pub ring_min_nm: i64,
 }
 
 /// One row of the table of spacing by voltage.
@@ -110,6 +113,25 @@ pub struct AdvancedConfig {
     pub pad_no_net_level: Option<Severity>,
     /// Level of the part outside the outline check.
     pub outside_outline_level: Option<Severity>,
+    /// Level of the short track check.
+    pub short_track_level: Option<Severity>,
+    /// A track that is no longer than this in all is a short track, in nanometres; 0 does not
+    /// judge it.
+    pub short_track_min_nm: i64,
+    /// Level of the track angle check.
+    pub track_angle_level: Option<Severity>,
+    /// The grid of angles the straight pieces of a track must lie on, in degrees: 45 (the eight
+    /// directions) or 90 (along the axes).
+    pub track_angle_step_deg: i64,
+    /// Level of the annular ring by class check.
+    pub ring_class_level: Option<Severity>,
+    /// Level of the vias on a net check.
+    pub via_count_level: Option<Severity>,
+    /// The most vias a net may have; 0 does not judge it.
+    pub via_count_max: i64,
+    /// The distance from copper to the board edge of the layers that have a limit of their own,
+    /// by the name of the layer, in nanometres.
+    pub copper_edge_layers: BTreeMap<String, i64>,
 }
 
 fn fail(line: usize, message: String) -> AdvancedError {
@@ -176,6 +198,14 @@ impl AdvancedConfig {
             via_duplicate_max_distance_nm: 0,
             pad_no_net_level: None,
             outside_outline_level: None,
+            short_track_level: None,
+            short_track_min_nm: 0,
+            track_angle_level: None,
+            track_angle_step_deg: 45,
+            ring_class_level: None,
+            via_count_level: None,
+            via_count_max: 0,
+            copper_edge_layers: BTreeMap::new(),
         }
     }
 
@@ -197,6 +227,36 @@ impl AdvancedConfig {
             }
         }
         self.iso_per_volt_nm[self.iso_column].saturating_mul(v)
+    }
+
+    /// The distance from copper to the board edge for an item on the layers named: the greatest of
+    /// the limits of those layers, where a layer that has no limit of its own has `default_nm`
+    /// (an item on no layer has `default_nm` too).
+    pub fn copper_edge_for<'a>(
+        &self,
+        layer_names: impl Iterator<Item = &'a str>,
+        default_nm: i64,
+    ) -> i64 {
+        layer_names
+            .map(|name| {
+                self.copper_edge_layers
+                    .iter()
+                    .find(|(layer, _)| layer.eq_ignore_ascii_case(name))
+                    .map_or(default_nm, |(_, nm)| *nm)
+            })
+            .max()
+            .unwrap_or(default_nm)
+    }
+
+    /// The thinnest annular ring for a net: the one of its class when the class has one, with the
+    /// name of the class; `None` when the net is in no class or its class gives none.
+    pub fn ring_min_for(&self, net_name: Option<&str>) -> Option<(i64, &str)> {
+        let name = net_name?;
+        self.drill_classes
+            .iter()
+            .find(|class| class.nets.contains(name))
+            .filter(|class| class.ring_min_nm > 0)
+            .map(|class| (class.ring_min_nm, class.name.as_str()))
     }
 
     /// The name of the column of the table that is used (`b2`).
@@ -310,6 +370,19 @@ impl AdvancedConfig {
                 "via_duplicate_max_distance_nm" => self.via_duplicate_max_distance_nm = nm()?,
                 "pad_no_net_level" => self.pad_no_net_level = level()?,
                 "outside_outline_level" => self.outside_outline_level = level()?,
+                "short_track_level" => self.short_track_level = level()?,
+                "short_track_min_nm" => self.short_track_min_nm = nm()?,
+                "track_angle_level" => self.track_angle_level = level()?,
+                "track_angle_step_deg" => {
+                    self.track_angle_step_deg = parse_int(value, 45, 90)
+                        .filter(|n| *n == 45 || *n == 90)
+                        .ok_or_else(bad)?;
+                }
+                "ring_class_level" => self.ring_class_level = level()?,
+                "via_count_level" => self.via_count_level = level()?,
+                "via_count_max" => {
+                    self.via_count_max = parse_int(value, 0, 1_000_000).ok_or_else(bad)?
+                }
                 _ => {
                     if let Some(net) = key.strip_prefix("voltage.") {
                         if net.is_empty() {
@@ -317,6 +390,11 @@ impl AdvancedConfig {
                         }
                         let volts = parse_int(value, -100_000, 100_000).ok_or_else(bad)?;
                         self.voltages.insert(net.to_owned(), volts);
+                    } else if let Some(layer) = key.strip_prefix("copper_edge_layer.") {
+                        if layer.is_empty() {
+                            return Err(bad());
+                        }
+                        self.copper_edge_layers.insert(layer.to_owned(), nm()?);
                     } else if let Some(rest) = key.strip_prefix("drill_class.") {
                         self.apply_class(line, rest, value)?;
                     } else {
@@ -346,6 +424,7 @@ impl AdvancedConfig {
                     name: name.to_owned(),
                     nets: BTreeSet::new(),
                     min_nm: 0,
+                    ring_min_nm: 0,
                 });
                 self.drill_classes.len() - 1
             }
@@ -364,6 +443,9 @@ impl AdvancedConfig {
             }
             "min_nm" => {
                 self.drill_classes[at].min_nm = parse_int(value, 0, MAX_NM).ok_or_else(bad)?;
+            }
+            "ring_min_nm" => {
+                self.drill_classes[at].ring_min_nm = parse_int(value, 0, MAX_NM).ok_or_else(bad)?;
             }
             _ => return Err(fail(line, format!("unknown key drill_class.{rest}"))),
         }
@@ -401,5 +483,94 @@ impl AdvancedConfig {
             });
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn parse(text: &str) -> Result<AdvancedConfig, AdvancedError> {
+        AdvancedConfig::parse(text)
+    }
+
+    #[test]
+    fn the_four_further_checks_are_off_in_the_built_in_settings() {
+        let cfg = AdvancedConfig::default();
+        assert_eq!(cfg.short_track_level, None);
+        assert_eq!(cfg.track_angle_level, None);
+        assert_eq!(cfg.ring_class_level, None);
+        assert_eq!(cfg.via_count_level, None);
+        assert!(cfg.copper_edge_layers.is_empty());
+        assert_eq!(cfg.track_angle_step_deg, 45);
+    }
+
+    #[test]
+    fn the_further_keys_are_read_and_checked() {
+        let cfg = parse(
+            "short_track_level = info\nshort_track_min_nm = 123\ntrack_angle_level = error\n\
+             track_angle_step_deg = 90\nring_class_level = warning\nvia_count_level = warning\n\
+             via_count_max = 40\ncopper_edge_layer.Bottom = 500000\n\
+             drill_class.pwr.nets = A, B\ndrill_class.pwr.ring_min_nm = 175000\n",
+        )
+        .unwrap();
+        assert_eq!(cfg.short_track_min_nm, 123);
+        assert_eq!(cfg.track_angle_step_deg, 90);
+        assert_eq!(cfg.via_count_max, 40);
+        assert_eq!(cfg.copper_edge_layers["Bottom"], 500_000);
+        assert_eq!(cfg.drill_classes[0].ring_min_nm, 175_000);
+        for bad in [
+            "track_angle_step_deg = 60\n",
+            "track_angle_step_deg = 30\n",
+            "via_count_max = -1\n",
+            "via_count_max = 1000001\n",
+            "short_track_min_nm = x\n",
+            "copper_edge_layer. = 5\n",
+            "copper_edge_layer.Top = -5\n",
+            "drill_class.pwr.nets = A\ndrill_class.pwr.ring_min_nm = -1\n",
+        ] {
+            let error = parse(bad).unwrap_err();
+            assert_eq!(error.code, "PHOENIX-DRC-015", "{bad}");
+        }
+        // a key written twice is refused as for every other key
+        assert!(parse("via_count_max = 1\nvia_count_max = 2\n").is_err());
+        assert!(parse("copper_edge_layer.Top = 1\ncopper_edge_layer.Top = 2\n").is_err());
+    }
+
+    #[test]
+    fn the_edge_limit_of_a_layer_replaces_the_default_and_the_greatest_of_several_wins() {
+        let cfg =
+            parse("copper_edge_layer.top = 400000\ncopper_edge_layer.Inner1 = 250000\n").unwrap();
+        // no layer of the item has a limit of its own: the default
+        assert_eq!(
+            cfg.copper_edge_for(["Bottom"].into_iter(), 300_000),
+            300_000
+        );
+        assert_eq!(cfg.copper_edge_for(std::iter::empty(), 300_000), 300_000);
+        // the name is matched in any case
+        assert_eq!(cfg.copper_edge_for(["Top"].into_iter(), 300_000), 400_000);
+        // a layer may ask for less than the default
+        assert_eq!(
+            cfg.copper_edge_for(["INNER1"].into_iter(), 300_000),
+            250_000
+        );
+        // a via on several layers takes the greatest limit among them
+        assert_eq!(
+            cfg.copper_edge_for(["Top", "Inner1", "Bottom"].into_iter(), 300_000),
+            400_000
+        );
+    }
+
+    #[test]
+    fn the_ring_of_a_class_is_given_only_by_a_class_that_has_one() {
+        let cfg = parse(
+            "drill_class.a.nets = X\ndrill_class.a.min_nm = 300000\n\
+             drill_class.b.nets = Y\ndrill_class.b.ring_min_nm = 160000\n",
+        )
+        .unwrap();
+        assert_eq!(cfg.ring_min_for(Some("X")), None);
+        assert_eq!(cfg.ring_min_for(Some("Y")), Some((160_000, "b")));
+        assert_eq!(cfg.ring_min_for(Some("Z")), None);
+        assert_eq!(cfg.ring_min_for(None), None);
     }
 }
