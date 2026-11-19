@@ -512,7 +512,7 @@ mod tests {
         let b = board(
             vec![
                 (11, pad("1", pt(0, 0), 12 * MM, Some(11 * MM))),
-                (12, pad("2", pt(2_000 * MM, 0), 800_000, None)),
+                (12, pad("2", pt(1_000 * MM, 0), 800_000, None)),
             ],
             &[(20, "R1", 0, 0, Side::Top)],
             &[],
