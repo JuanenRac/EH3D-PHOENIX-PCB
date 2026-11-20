@@ -13,6 +13,8 @@
 //! * [`check`]: the checker of the library with the codes `PHOENIX-IPC-001` to `010`;
 //! * [`compare`] and [`pads`]: the comparison of a footprint of the owner with the generated one,
 //!   as a report that replaces nothing;
+//! * [`padstack`]: the names of padstacks made and read by rule (shape, sizes, hole and
+//!   modifiers in hundredths of a millimetre) and their validator;
 //! * [`bulk`]: the walk through a folder of EAGLE and KiCad libraries, the quality report of every
 //!   footprint and symbol and the index `phoenix-libindex/1` with the hash of each item;
 //! * [`settings`] and [`codes`]: the settings files and the codes, with their titles in eight
@@ -32,6 +34,7 @@ pub mod family;
 pub mod fp;
 pub mod generate;
 pub mod pads;
+pub mod padstack;
 pub mod settings;
 
 pub use bulk::{index_folder, write_index, Index, INDEX_FORMAT};

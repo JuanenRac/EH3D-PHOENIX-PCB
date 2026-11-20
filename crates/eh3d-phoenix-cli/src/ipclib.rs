@@ -13,9 +13,10 @@ use std::path::Path;
 
 use eh3d_phoenix_ipclib::check::check_footprint;
 use eh3d_phoenix_ipclib::codes::{
-    IpcError, DENSITY_INVALID, FILE_UNUSABLE, IDX_FILE_UNREADABLE, IDX_OPTION_INVALID,
-    IDX_WRITE_FAILED, OPTION_INVALID,
+    title, IpcError, DENSITY_INVALID, FILE_UNUSABLE, IDX_FILE_UNREADABLE, IDX_OPTION_INVALID,
+    IDX_WRITE_FAILED, OPTION_INVALID, PADSTACK_INVALID, PADSTACK_NOT_CANONICAL,
 };
+use eh3d_phoenix_ipclib::padstack::{check_name, nm_from_units, Gravity, Padstack};
 use eh3d_phoenix_ipclib::{
     check_library, compare_pads, generate, index_folder, library, load_footprint, save_kicad_mod,
     save_lbr, write_index, BulkSettings, Density, FamilySet, IpcFootprint, IpcSettings,
@@ -33,6 +34,8 @@ phoenix ipc check [--family NAME] [--dir FOLDER] [--config FILE] [--json] [--lan
 phoenix ipc compare <library.lbr|file.kicad_mod> <family> <variant> [--name FOOTPRINT]
                     [--param NAME=VALUE ...] [--density A|B|C] [--dir FOLDER] [--config FILE]
                     [--json] [--lang xx]
+phoenix ipc padstack <NAME>... [--json] [--lang xx]
+phoenix ipc padstack --param KEY=VALUE ... [--json] [--lang xx]
 
   ipc        the own library of footprints by the method of IPC-7351B: families (chip 0201 to
              2512, MELF, SOD, SOT, SOIC, SSOP, TSSOP, QFN, DFN, QFP, BGA, DIP, headers and
@@ -47,6 +50,14 @@ phoenix ipc compare <library.lbr|file.kicad_mod> <family> <variant> [--name FOOT
              silkscreen, courtyard by density; codes PHOENIX-IPC-001 to 010)
   compare    compare a footprint of your library with the generated one, pad by pad; a report,
              nothing is replaced (exit 1 when pads differ)
+  padstack   judge the names of padstacks by the naming rule (shape c s r b d u v vs w, sizes in
+             hundredths of a millimetre, hole h and hn, modifiers z x m mx p a y t l; for example
+             c150h90z140m165): each name is read, the padstack it says is checked (a hole as large
+             as its land, a donut with a hole, a thermal relief turned inside out) and its
+             canonical name is shown (codes PHOENIX-IPC-050 and 051). With --param KEY=VALUE pairs
+             in millimetres (shape, size, size2, hole, slot, plated, inner, opposite, mask,
+             mask_opposite, paste, assembly, antipad, thermal=inner/outer/spoke[/2], span=1-3) it
+             writes the canonical name. Exit 1 when a name is an error
   --dir      the folder of family files (config/ipc_families holds the ones that come with the
              program); --config the settings (config/ipc.cfg shows every key)
   --json     print the result as JSON. --lang xx writes the report in en, es, de, fr, it, ja, zh
@@ -502,6 +513,116 @@ fn compare_command(o: &Opts, out: &mut dyn Write) -> Result<i32, IpcError> {
     Ok(i32::from(!report.is_same()))
 }
 
+fn padstack_json(stack: &Padstack) -> Value {
+    let length = nm_from_units;
+    let thermal: Value = match stack.thermal {
+        Some(t) => json!([length(t.inner), length(t.outer), length(t.spoke)]),
+        None => Value::Null,
+    };
+    let span: Value = match stack.span {
+        Some((from, to)) => json!([from, to]),
+        None => Value::Null,
+    };
+    let hole_nm = stack.hole.map(|h| length(h.size));
+    let slot_nm = stack.hole.and_then(|h| h.slot_width).map(length);
+    let plated = stack.hole.map(|h| h.plated);
+    let two_spokes = stack.thermal.map(|t| t.two_spokes);
+    json!({
+        "shape": stack.shape.letters(),
+        "a_nm": length(stack.a),
+        "b_nm": stack.b.map(length),
+        "hole_nm": hole_nm,
+        "slot_width_nm": slot_nm,
+        "plated": plated,
+        "inner_nm": stack.inner.map(length),
+        "opposite_nm": stack.opposite.map(length),
+        "mask_nm": stack.mask.map(length),
+        "mask_opposite_nm": stack.mask_opposite.map(length),
+        "paste_nm": stack.paste.map(length),
+        "assembly_nm": stack.assembly.map(length),
+        "antipad_nm": stack.antipad.map(length),
+        "thermal_nm": thermal,
+        "two_spokes": two_spokes,
+        "span": span,
+    })
+}
+
+/// `padstack`: the names given are judged, or one name is made from the pairs of `--param`.
+fn padstack_command(o: &Opts, out: &mut dyn Write) -> Result<i32, IpcError> {
+    o.only(&["--param", "--json", "--lang"], OPTION_INVALID)?;
+    let lang = o.lang();
+    let names: Vec<String> = match (o.positional.is_empty(), o.params.is_empty()) {
+        (false, true) => o.positional.clone(),
+        (true, false) => {
+            let stack =
+                Padstack::from_pairs(&o.params).map_err(|e| IpcError::new(PADSTACK_INVALID, e))?;
+            vec![stack.name()]
+        }
+        (true, true) => {
+            return Err(IpcError::new(
+                OPTION_INVALID,
+                "padstack needs names or --param KEY=VALUE pairs",
+            ))
+        }
+        (false, false) => {
+            return Err(IpcError::new(
+                OPTION_INVALID,
+                "padstack takes names or --param pairs, not both",
+            ))
+        }
+    };
+    let mut failed = false;
+    let mut all: Vec<Value> = Vec::new();
+    for name in &names {
+        let issues = check_name(name);
+        let stack = Padstack::parse(name).ok();
+        failed |= issues.iter().any(|i| i.gravity == Gravity::Error);
+        if o.json {
+            let list: Vec<Value> = issues
+                .iter()
+                .map(|i| {
+                    let (code, severity) = match i.gravity {
+                        Gravity::Error => (PADSTACK_INVALID, "error"),
+                        Gravity::Warning => (PADSTACK_NOT_CANONICAL, "warning"),
+                    };
+                    json!({ "code": code, "severity": severity, "detail": i.detail })
+                })
+                .collect();
+            all.push(json!({
+                "name": name,
+                "canonical": stack.as_ref().map(Padstack::name),
+                "padstack": stack.as_ref().map(padstack_json),
+                "findings": list,
+            }));
+        } else {
+            match (&stack, issues.is_empty()) {
+                (Some(stack), true) => {
+                    let _ = writeln!(out, "{name} -> {}", stack.name());
+                }
+                _ => {
+                    let _ = writeln!(out, "{name}");
+                }
+            }
+            for issue in &issues {
+                let (code, word) = match issue.gravity {
+                    Gravity::Error => (PADSTACK_INVALID, "error"),
+                    Gravity::Warning => (PADSTACK_NOT_CANONICAL, "warning"),
+                };
+                let _ = writeln!(
+                    out,
+                    "  {word}: {code}: {}: {}",
+                    title(code, lang),
+                    issue.detail
+                );
+            }
+        }
+    }
+    if o.json {
+        print_json(out, &json!({ "padstacks": all }));
+    }
+    Ok(i32::from(failed))
+}
+
 fn ipc_inner(
     args: &[&str],
     out: &mut dyn Write,
@@ -519,6 +640,7 @@ fn ipc_inner(
         "generate" => generate_command(&o, out),
         "check" => check_command(&o, out),
         "compare" => compare_command(&o, out),
+        "padstack" => padstack_command(&o, out),
         other => {
             let _ = err.write_all(IPC_USAGE.as_bytes());
             Err(IpcError::new(

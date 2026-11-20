@@ -55,6 +55,10 @@ pub const COMPARE_DIFFERS: &str = "PHOENIX-IPC-040";
 pub const COMPARE_MISSING: &str = "PHOENIX-IPC-041";
 /// A pad of the footprint of the owner has no counterpart in the generated one.
 pub const COMPARE_EXTRA: &str = "PHOENIX-IPC-042";
+/// The name of a padstack cannot be read, or says something that cannot be.
+pub const PADSTACK_INVALID: &str = "PHOENIX-IPC-050";
+/// The name of a padstack is readable but is not the canonical name of the padstack it says.
+pub const PADSTACK_NOT_CANONICAL: &str = "PHOENIX-IPC-051";
 
 /// Two pads of an imported footprint have the same name.
 pub const IDX_PAD_DUPLICATE: &str = "PHOENIX-LIBIDX-001";
@@ -383,6 +387,32 @@ pub const TITLES: &[(&str, [&str; 8])] = &[
             "生成されたフットプリントに対応するパッドがありません",
             "生成的封装中没有对应的焊盘",
             "O pad não tem correspondente na pegada gerada",
+        ],
+    ),
+    (
+        PADSTACK_INVALID,
+        [
+            "The name of the padstack is not valid",
+            "El nombre del padstack no es válido",
+            "Der Name des Padstacks ist ungültig",
+            "Le nom du padstack n'est pas valide",
+            "Il nome del padstack non è valido",
+            "パッドスタック名が正しくありません",
+            "焊盘堆栈名称无效",
+            "O nome do padstack não é válido",
+        ],
+    ),
+    (
+        PADSTACK_NOT_CANONICAL,
+        [
+            "The name of the padstack is not the canonical one",
+            "El nombre del padstack no es el canónico",
+            "Der Name des Padstacks ist nicht der kanonische",
+            "Le nom du padstack n'est pas le nom canonique",
+            "Il nome del padstack non è quello canonico",
+            "パッドスタック名が正規の名前ではありません",
+            "焊盘堆栈名称不是规范名称",
+            "O nome do padstack não é o canónico",
         ],
     ),
     (

@@ -483,6 +483,8 @@ The titles of these codes also exist in the eight languages of the suite (`TITLE
 | PHOENIX-IPC-040 | Pad differs from the generated one | a pad of the footprint of the owner whose position, size or hole differs from the generated pad by more than `compare_tol_mm`; the report gives the differences |
 | PHOENIX-IPC-041 | Pad of the generated footprint is missing | a pad of the generated footprint that has no pad of the same name in the footprint of the owner |
 | PHOENIX-IPC-042 | Pad has no counterpart in the generated footprint | a pad of the footprint of the owner that has no pad of the same name in the generated footprint |
+| PHOENIX-IPC-050 | The name of the padstack is not valid | error: a name that cannot be read (with its place), a forbidden character, or a padstack that cannot be (a hole as large as its land, a donut with a hole, an inner land not larger than the hole, a thermal relief that is turned inside out) |
+| PHOENIX-IPC-051 | The name of the padstack is not the canonical one | warning: the name reads but its modifiers are not in the canonical order, or a number is written another way |
 
 ## Bulk import of libraries (`eh3d-phoenix-ipclib`, `src/codes.rs`)
 
