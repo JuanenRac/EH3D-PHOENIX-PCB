@@ -66,6 +66,10 @@ A settings file can hold several named templates. The lines before the first `[t
 
 `phoenix print panel` writes the panel as an SVG or PDF page, with the copies numbered, the tabs, the V-score lines, the mouse bites, the tooling holes, the fiducials and the width and the height (`docs/PRINT.md`). The panel window has no button for it yet.
 
+## How the plan is tested
+
+Besides the cases worked out by hand, `crates/eh3d-phoenix-panel/tests/property_plan.rs` plans a few hundred matrices from a generator with a fixed seed (columns and rows from 1 to 5, boards from 8 to 60 mm, both joints, the three frames, every turn and both mirrors) and checks what must hold whatever the numbers are: the same input gives the same plan, there is a copy for each place and it lies inside the panel, no two boards overlap and the boards fill at most all of the panel, a quarter turn swaps the sides of every copy, a turned board makes the panel of the board with its sides swapped, the number of V-score lines is the lines between the boards plus those between the boards and the rails, and the panel is never smaller than its boards side by side.
+
 ## What is not here
 
 See `docs/NOT_YET.md`: routing slots as an outline with the width of the router bit, break-away rails with their own tabs, the layers of a panel of boards with different layers, and a check by a manufacturer. A zone is written as its outline with its cutouts, as in the export of a board, and the window has never been seen on a screen.

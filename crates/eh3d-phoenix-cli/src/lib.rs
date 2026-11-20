@@ -108,7 +108,9 @@ pub mod window_run;
 mod zones;
 
 use eh3d_phoenix_corpus::{inventory, InventoryConfig};
-use eh3d_phoenix_stackup::{report_json, report_text, Language, StackupJob, StackupSettings};
+use eh3d_phoenix_stackup::{
+    report_json, report_text, stackup_html, Language, StackupJob, StackupSettings,
+};
 use std::io::Write;
 use std::path::Path;
 
@@ -124,7 +126,7 @@ phoenix eagle-rate <folder of originals> <new folder for the copies>
               is checked by SHA-256) and measure how many the EAGLE reader reads: counts, versions
               and diagnostic codes only, never a name or a value
 
-phoenix stackup <job.json> --freq-ghz <GHz> [--material ID ...] [--settings FILE] [--field2d] [--lang xx] [--json]
+phoenix stackup <job.json> --freq-ghz <GHz> [--material ID ...] [--settings FILE] [--field2d] [--html FILE] [--lang xx] [--json]
 
   stackup     compute the transmission lines of a stack-up (microstrip, stripline, coplanar
               waveguide, coupled pairs): impedance, effective permittivity, losses, delay and
@@ -133,8 +135,9 @@ phoenix stackup <job.json> --freq-ghz <GHz> [--material ID ...] [--settings FILE
               of the database (for example isola/370hr or rogers/ro4350b) that the layers name
               by its identifier, its Dk and Df taken from the published points; --field2d adds
               the result of the two-dimensional field solver of `phoenix field2d` on the same
-              lines; a prototype estimate, not a simulation; --lang is one of en, es, de, fr,
-              it, ja, zh, pt
+              lines; --html writes the layers of the stack-up as a page of HTML to a new file
+              (one that exists is never replaced); a prototype estimate, not a simulation;
+              --lang is one of en, es, de, fr, it, ja, zh, pt
 
 phoenix materials list [--manufacturer NAME] [--kind KIND] [--min-tg C] [--min-dk X] [--max-dk X]
                        [--min-df X] [--max-df X] [--at-ghz F] [--phoenix] [--json]
@@ -771,12 +774,20 @@ fn stackup_command(args: &[&str], out: &mut dyn Write, err: &mut dyn Write) -> i
     let mut language = Language::En;
     let mut json = false;
     let mut compare_field = false;
+    let mut html_path: Option<&str> = None;
     let mut material_ids: Vec<&str> = Vec::new();
     let mut iter = args.iter().copied();
     while let Some(arg) = iter.next() {
         match arg {
             "--json" => json = true,
             "--field2d" => compare_field = true,
+            "--html" => match iter.next() {
+                Some(path) => html_path = Some(path),
+                None => {
+                    let _ = err.write_all(USAGE.as_bytes());
+                    return 2;
+                }
+            },
             "--material" => match iter.next() {
                 Some(id) => material_ids.push(id),
                 None => {
@@ -836,6 +847,22 @@ fn stackup_command(args: &[&str], out: &mut dyn Write, err: &mut dyn Write) -> i
             return 2;
         }
     };
+    let html = match html_path {
+        None => None,
+        Some(path) => {
+            if Path::new(path).exists() {
+                let _ = writeln!(err, "error: {path} exists and is never replaced");
+                return 2;
+            }
+            match stackup_html(&job.stackup, language) {
+                Ok(page) => Some((path, page)),
+                Err(error) => {
+                    let _ = writeln!(err, "error {}: {}", error.code(), error.message(language));
+                    return 2;
+                }
+            }
+        }
+    };
     let outcomes = job.run(freq, &settings);
     let appendix = if compare_field {
         match field2d::appendix(&job, freq, &settings, language) {
@@ -868,7 +895,23 @@ fn stackup_command(args: &[&str], out: &mut dyn Write, err: &mut dyn Write) -> i
         }
         shown
     };
+    if let Some((path, page)) = &html {
+        let written = std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(path)
+            .and_then(|mut file| file.write_all(page.as_bytes()));
+        if let Err(error) = written {
+            let _ = writeln!(err, "error: cannot write {path}: {error}");
+            return 2;
+        }
+    }
     let _ = out.write_all(text.as_bytes());
+    if let Some((path, _)) = &html {
+        if !json {
+            let _ = writeln!(out, "written: {path}");
+        }
+    }
     if outcomes.iter().any(|o| o.result.is_err()) {
         1
     } else {
@@ -1048,6 +1091,49 @@ mod tests {
         let (code, german, _) = call(&["stackup", path, "--freq-ghz", "20", "--lang", "de"]);
         assert_eq!(code, 1);
         assert!(german.contains("Frequenz außerhalb der veröffentlichten Punkte"));
+    }
+
+    #[test]
+    fn stackup_writes_the_layers_as_a_page_to_a_new_file_only() {
+        let dir = tempfile::tempdir().unwrap();
+        let job = dir.path().join("job.json");
+        std::fs::write(&job, STACKUP_JOB).unwrap();
+        let path = job.to_str().unwrap();
+        let html = dir.path().join("stack.html");
+        let html_path = html.to_str().unwrap();
+        let (code, text, err) = call(&["stackup", path, "--freq-ghz", "2", "--html", html_path]);
+        assert_eq!((code, err.is_empty()), (0, true), "{err}");
+        assert!(text.ends_with(&format!("written: {html_path}\n")), "{text}");
+        let page = std::fs::read_to_string(&html).unwrap();
+        assert!(page.contains("<html lang=\"en\">") && page.contains("two-layer"));
+        assert!(page.contains("Total thickness (um): 1670.000"), "{page}");
+        // A page that exists is never replaced, and nothing is computed then.
+        let before = std::fs::read(&html).unwrap();
+        let (code, text, err) = call(&["stackup", path, "--freq-ghz", "2", "--html", html_path]);
+        assert_eq!((code, text.is_empty()), (2, true));
+        assert!(err.contains("never replaced"), "{err}");
+        assert_eq!(std::fs::read(&html).unwrap(), before);
+        // The words follow --lang and the JSON on the screen is not changed.
+        let other = dir.path().join("pila.html");
+        let other_path = other.to_str().unwrap();
+        let (code, json, _) = call(&[
+            "stackup",
+            path,
+            "--freq-ghz",
+            "2",
+            "--json",
+            "--lang",
+            "es",
+            "--html",
+            other_path,
+        ]);
+        assert_eq!(code, 0);
+        assert!(json.starts_with('{') && json.ends_with("}\n"));
+        assert!(std::fs::read_to_string(&other).unwrap().contains("Apilado"));
+        // The option needs a file.
+        let (code, _, err) = call(&["stackup", path, "--freq-ghz", "2", "--html"]);
+        assert_eq!(code, 2);
+        assert!(err.contains("phoenix stackup"));
     }
 
     #[test]

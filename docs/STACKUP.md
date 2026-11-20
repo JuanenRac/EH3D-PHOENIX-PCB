@@ -152,12 +152,14 @@ Every error and warning has a code `PHOENIX-STACK-<NNN>` (see `ERROR_CODES.md`) 
 ## The command
 
 ```text
-phoenix stackup <job.json> --freq-ghz <GHz> [--material ID ...] [--settings FILE] [--field2d] [--lang xx] [--json]
+phoenix stackup <job.json> --freq-ghz <GHz> [--material ID ...] [--settings FILE] [--field2d] [--html FILE] [--lang xx] [--json]
 ```
 
 `--material ID` adds a material of the database of the suite (see below); it may be repeated and the job file may then leave out its `materials` list.
 
 `--field2d` solves the same lines with the two-dimensional field solver (`docs/FIELD2D.md`) and adds its result after the report, with the difference in percent from the closed formulas (a key `field2d` in the JSON). It is the second opinion on the formulas of this page: the even and odd modes, the common impedance and the mutual capacitance and inductance of a pair are in that report and not here.
+
+`--html FILE` also writes the layers of the stack-up as a page of HTML to a new file (a file that exists is never replaced and stops the command with exit code 2 before anything is computed): a table with the kind, name, material and thickness of every layer from the top, the depth at which each starts, a bar whose length follows the thickness (at least 1 per cent of the longest, so that a thin layer shows), the total thickness and the number of copper layers, all in micrometres with three decimals and with the words of `--lang`; the names are escaped, the page holds no script and the same stack-up gives the same bytes. The library functions are `stackup_html` and `stackup_rows`.
 
 Exit code 0 when every line was computed, 1 when at least one line could not be (the others are still printed) and 2 when the arguments, the settings or the job file cannot be used. The report holds no date, host name or user name, and the same job gives the same bytes.
 

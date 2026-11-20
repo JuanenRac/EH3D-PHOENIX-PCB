@@ -17,6 +17,8 @@
 //!   to `PHOENIX-HEAT-012`;
 //! * [`job`]: the job file and the reports of `phoenix stackup`;
 //! * [`settings`]: the tuned values, read from `config/stackup.cfg`;
+//! * [`report_html`]: the layers of a stack-up as a page of HTML in the eight languages of the
+//!   suite, with the depth at which each starts and the total thickness;
 //! * [`spread`]: the lowest and the highest impedance of a line when the width, the height of the
 //!   dielectric and the permittivity are each off by a stated amount;
 //! * [`error`]: typed errors and warnings with the codes `PHOENIX-STACK-001` to
@@ -42,6 +44,7 @@ pub mod materials_adapter;
 pub mod models;
 #[cfg(test)]
 mod property_tests;
+pub mod report_html;
 pub mod settings;
 pub mod spread;
 pub mod stackup;
@@ -50,5 +53,6 @@ pub use error::{Language, StackupError, Warning};
 pub use job::{report_json, report_text, LineOutcome, StackupJob};
 pub use line::{analyze, synthesize_width, LineKind, LineResult, LineSpec, Synthesis};
 pub use material::MaterialSample;
+pub use report_html::{stackup_html, stackup_rows, StackRow};
 pub use settings::StackupSettings;
 pub use stackup::{CopperThickness, Layer, Stackup};
