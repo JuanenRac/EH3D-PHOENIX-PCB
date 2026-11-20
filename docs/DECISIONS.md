@@ -56,7 +56,7 @@ State: **accepted**. The stack is egui with the wgpu backend, inside the window 
 
 The rule fixed from the start still holds: the interface talks to the engine only through model operations, and no engineering logic lives in the interface. The measurements on a real screen (small, medium and large boards, integrated graphics, 1080p and 4K) stay as the acceptance checks of the window, not as a condition of the choice.
 
-Evidence in the code: the viewer and the editor keep their state outside any window (`eh3d-phoenix-viewer`, `eh3d-phoenix-boardedit`) and only the `gui` feature draws it. Accepted, not yet done: the window still draws with the glow backend and fixed side panels; moving it to wgpu and to `eh3d-dock` is the open item of phase F6.
+Evidence in the code: the viewer and the editor keep their state outside any window (`eh3d-phoenix-viewer`, `eh3d-phoenix-boardedit`) and only the `gui` feature draws it. The window is laid out with the frame `eh3d-dock` (panels that dock, float and fold, workspaces by task, the menu bar and the arrangement kept in the file of preferences; `docs/VIEWER.md`), and the canvas is drawn behind one interface (`CanvasEngine`, the setting `canvas_engine`). Accepted, not yet done: the window still draws with the painter of egui on the glow backend; the callback of wgpu and the measurements that accept it (below and in the record) are the open item of phase F6.
 
 ## Imported scripts are disabled by default
 

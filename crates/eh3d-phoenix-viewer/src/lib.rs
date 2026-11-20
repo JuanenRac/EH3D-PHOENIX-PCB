@@ -109,6 +109,18 @@
 //!   texts in the eight languages (the window is in `cfg_gui`, behind the `gui` feature);
 //! * [`help_text`] and [`window_text`]: the help of each mode and the texts of these parts in the
 //!   eight languages;
+//! * [`panels`] and [`dock_text`]: the panels of the window (the board, the layers, the properties, the
+//!   components, the nets, the problems of the rules, the library, the console, the report and the
+//!   tasks), the workspaces by task (Edit, Review and Compact), the menu bar and the entries that are
+//!   off at each moment, for the docking frame of the suite (`eh3d-dock`), and the texts of the panels
+//!   in the eight languages (the drawing is in `gui`, behind the `gui` feature);
+//! * [`canvas_engine`]: the engine that draws the canvas (the painter of egui today, the callback of wgpu of
+//!   the decision record of the stack when it is written), what a request for an engine that is not built
+//!   does, and the frame times with the verdict of the decision record;
+//! * [`console_log`], [`object_list`] and [`report_panel`]: what the console, the list of components and
+//!   the report panels show, as data: the lines written in order without repeats, the components in
+//!   the order a person reads them with the counts of the kinds of object, and the report of the
+//!   document;
 //! * [`settings`], [`codes`], [`msg`] and [`editmsg`]: the settings file, the codes
 //!   `PHOENIX-VIEW-<NNN>` and the texts in the eight languages.
 //!
@@ -149,12 +161,15 @@ pub mod board_zone;
 #[cfg(feature = "gui")]
 pub mod board_zone_gui;
 pub mod board_zone_text;
+pub mod canvas_engine;
 pub mod cfg_edit;
 #[cfg(feature = "gui")]
 pub mod cfg_gui;
 pub mod cfg_kinds;
 pub mod cfg_text;
 pub mod codes;
+pub mod console_log;
+pub mod dock_text;
 #[cfg(feature = "gui")]
 pub mod drc_gui;
 pub mod drc_panel;
@@ -184,10 +199,12 @@ pub mod load;
 pub mod measure;
 pub mod measure_set;
 pub mod msg;
+pub mod object_list;
 #[cfg(feature = "gui")]
 pub mod panel_gui;
 pub mod panel_scene;
 pub mod panel_text;
+pub mod panels;
 pub mod prefs;
 pub mod prim;
 pub mod print_export;
@@ -195,6 +212,7 @@ pub mod print_export;
 pub mod print_gui;
 pub mod print_scene;
 pub mod print_text;
+pub mod report_panel;
 #[cfg(test)]
 pub(crate) mod sample;
 pub mod scene;

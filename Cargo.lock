@@ -592,7 +592,7 @@ dependencies = [
 
 [[package]]
 name = "eh3d-common"
-version = "0.2.0"
+version = "0.2.7"
 dependencies = [
  "chrono",
  "eh3d-container",
@@ -628,6 +628,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "eh3d-dock"
+version = "0.0.1"
+dependencies = [
+ "egui",
+ "eh3d-view",
+]
+
+[[package]]
+name = "eh3d-geometry"
+version = "0.1.2"
+dependencies = [
+ "eh3d-parser-excellon",
+ "eh3d-parser-gerber",
+]
+
+[[package]]
 name = "eh3d-materials"
 version = "0.0.1"
 dependencies = [
@@ -638,18 +654,18 @@ dependencies = [
 
 [[package]]
 name = "eh3d-parser-common"
-version = "0.0.8"
+version = "0.1.2"
 
 [[package]]
 name = "eh3d-parser-excellon"
-version = "0.0.8"
+version = "0.1.2"
 dependencies = [
  "eh3d-parser-common",
 ]
 
 [[package]]
 name = "eh3d-parser-gerber"
-version = "0.0.8"
+version = "0.1.2"
 dependencies = [
  "eh3d-parser-common",
 ]
@@ -895,8 +911,11 @@ name = "eh3d-phoenix-gerber"
 version = "0.1.4"
 dependencies = [
  "eh3d-diagnostic",
+ "eh3d-geometry",
+ "eh3d-parser-gerber",
  "eh3d-phoenix-board",
  "eh3d-phoenix-export",
+ "eh3d-phoenix-ipc2581",
  "eh3d-phoenix-model",
  "eh3d-phoenix-rules",
  "serde_json",
@@ -1247,6 +1266,7 @@ name = "eh3d-phoenix-viewer"
 version = "0.1.4"
 dependencies = [
  "eframe",
+ "eh3d-dock",
  "eh3d-phoenix-assembly3d",
  "eh3d-phoenix-autoroute",
  "eh3d-phoenix-board",
@@ -1272,6 +1292,7 @@ dependencies = [
  "eh3d-phoenix-sync",
  "eh3d-phoenix-testpoints",
  "eh3d-phoenix-zones",
+ "eh3d-view",
  "png 0.17.16",
  "tempfile",
  "thiserror 2.0.21",
@@ -1293,15 +1314,23 @@ name = "eh3d-serverclient"
 version = "0.0.1"
 
 [[package]]
+name = "eh3d-view"
+version = "0.0.1"
+dependencies = [
+ "eh3d-common",
+ "eh3d-serverclient",
+]
+
+[[package]]
 name = "eh3d-writer-excellon"
-version = "0.0.8"
+version = "0.1.2"
 dependencies = [
  "eh3d-parser-excellon",
 ]
 
 [[package]]
 name = "eh3d-writer-gerber"
-version = "0.0.8"
+version = "0.1.2"
 dependencies = [
  "eh3d-parser-gerber",
 ]

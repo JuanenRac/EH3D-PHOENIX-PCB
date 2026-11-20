@@ -10,7 +10,7 @@ The official state of each capability is in REQUIREMENTS.md: 31 requirements: 28
 
 ## Open questions
 
-* Which user-interface and rendering stack to use: candidates are egui on wgpu with a custom canvas, iced, Slint, or everything on wgpu. It is decided after a short prototype measured on small, medium and large boards. The prototype exists (egui on eframe with a canvas of our own, `docs/adr/0009-first-interface-stack.md`) and its choice stays provisional until the drawing is measured on a real screen; only the preparation of the data has been timed.
+* Which user-interface and rendering stack to use: candidates are egui on wgpu with a custom canvas, iced, Slint, or everything on wgpu. It is decided after a short prototype measured on small, medium and large boards. The prototype exists (egui on eframe with a canvas of our own, laid out with the docking frame of the suite, `docs/adr/0009-first-interface-stack.md`) and its choice stays provisional until the drawing is measured on a real screen; only the preparation of the data has been timed, and the report panel of the window keeps the frame times for the measurement.
 * Which 2D geometry library to use for offsets and boolean operations, decided with a benchmark on degenerate input.
 * Whether the first golden files can be produced semi-automatically from the command line of the reference tool.
 * Whether the simulator of our own (`docs/adr/0010-own-circuit-simulator.md`, provisional) stays the engine of the circuit simulation, and which existing engine to compare it with, once its licence and platform support are checked.
@@ -23,7 +23,7 @@ The official state of each capability is in REQUIREMENTS.md: 31 requirements: 28
 
 ## Known technical debt and omitted tests
 
-* 5116 tests of the Rust code and 62 of the base; the inventory tests build their own folders and never touch a real project.
+* 5207 tests of the Rust code and 62 of the base; the inventory tests build their own folders and never touch a real project.
 * The review of security (`docs/SECURITY_REVIEW.md`) was made by the project itself and no one else has read the code for it: it finds what a search of the source and the changes of a fixed generator find, it bounds the size of the input and not the memory, and it says what it does not cover.
 * The tutorials (`docs/tutorials/`) are run by a test that compares the beginning of each output with the documented text, on small files written for them; several steps whose output was not worked out (the rule check of the schematic, the synchronisation, the fabrication package, the connectivity of the EAGLE pair, the Gerber check, the DXF of the panel, the comparison of footprints, the list of RF structures and three of the signal integrity analyses) are shown without being run, and none of the files has been opened in EAGLE, KiCad or a manufacturer's tool. The help in the eight languages is one paragraph for each topic and one line for each command: the lines of usage with every option stay in English.
 * The advanced analyses of the simulator (`docs/SIM_ADVANCED.md`) have been tried on circuits written by the tests and on closed-form cases only: the poles and zeros come from a fit of the AC response that is refused when no model of up to `max_pole_order` poles fits, the crossings are interpolated between the points of the sweep, the Monte Carlo study has uncorrelated tolerances of resistors, capacitors and inductors only, and nothing has been compared with SPICE or with a measurement.

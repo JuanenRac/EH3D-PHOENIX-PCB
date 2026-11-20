@@ -7,6 +7,7 @@ use std::collections::BTreeMap;
 use eh3d_phoenix_rules::report_export::CATEGORIES;
 
 use crate::appearance::{Theme, FONT_MAX, FONT_MIN, SCALE_MAX, SCALE_MIN};
+use crate::canvas_engine::Engine;
 use crate::codes::{ViewError, SETTINGS_INVALID};
 use crate::drc_panel::DrcSort;
 use crate::keymap::Keymap;
@@ -331,6 +332,16 @@ pub struct ViewerSettings {
     pub prefs_save_interval_s: f64,
     /// How much a zoom must change, as a fraction of itself, to be remembered.
     pub zoom_note_step: f64,
+    /// How many frames pass between two looks at the arrangement of the panels, to keep it when it changed.
+    pub dock_check_every_frames: usize,
+    /// The most lines that the console panel keeps.
+    pub console_max_lines: usize,
+    /// The most rows that the list of components shows.
+    pub component_rows_max: usize,
+    /// The engine that draws the canvas; one that is not built makes the painter of egui draw.
+    pub canvas_engine: Engine,
+    /// How many frame times the report panel keeps for the median and the percentiles.
+    pub frame_log_frames: usize,
     /// The keys of the actions of the window.
     pub keymap: Keymap,
     /// The colours of the dark theme by name, each red, green, blue and alpha.
@@ -440,6 +451,11 @@ impl Default for ViewerSettings {
             prefs_write_retry_ms: 50,
             prefs_save_interval_s: 1.0,
             zoom_note_step: 0.05,
+            dock_check_every_frames: 20,
+            console_max_lines: 500,
+            component_rows_max: 2000,
+            canvas_engine: Engine::Painter,
+            frame_log_frames: 600,
             keymap: Keymap::default(),
             dark_colours: table(&DEFAULT_COLOURS),
             light_colours: table(&LIGHT_COLOURS),
@@ -662,6 +678,14 @@ impl ViewerSettings {
                 "prefs_write_retry_ms" => s.prefs_write_retry_ms = whole(value, line, key)?,
                 "prefs_save_interval_s" => s.prefs_save_interval_s = number(value, line, key)?,
                 "zoom_note_step" => s.zoom_note_step = number(value, line, key)?,
+                "dock_check_every_frames" => s.dock_check_every_frames = count(value, line, key)?,
+                "console_max_lines" => s.console_max_lines = count(value, line, key)?,
+                "component_rows_max" => s.component_rows_max = count(value, line, key)?,
+                "canvas_engine" => {
+                    s.canvas_engine = Engine::from_key(value)
+                        .ok_or_else(|| invalid(line, format!("{key}: painter or wgpu")))?;
+                }
+                "frame_log_frames" => s.frame_log_frames = count(value, line, key)?,
                 "max_file_bytes" => s.max_file_bytes = whole(value, line, key)?,
                 "max_primitives" => s.max_primitives = count(value, line, key)?,
                 "zoom_min_px_per_mm" => s.zoom_min_px_per_mm = number(value, line, key)?,
@@ -1015,7 +1039,7 @@ mod tests {
     #[test]
     fn the_settings_of_the_window_are_read_and_checked() {
         let s = ViewerSettings::parse(
-            "theme = light\nui_scale_percent = 150\nfont_size_pt = 16\nmeasure_unit = MIL\nmeasure_decimals = 2\nmeasure_snap = false\nmeasure_snap_px = 12\nmeasure_max_kept = 5\nsearch_max_results = 50\nsearch_context_mm = 4\nhistory_shown = 30\npreset_max = 12\nprefs_file = mine.cfg\nprefs_max_bytes = 2048\nprefs_write_retries = 2\nprefs_write_retry_ms = 10\nprefs_save_interval_s = 2.5\nzoom_note_step = 0.1\n",
+            "theme = light\nui_scale_percent = 150\nfont_size_pt = 16\nmeasure_unit = MIL\nmeasure_decimals = 2\nmeasure_snap = false\nmeasure_snap_px = 12\nmeasure_max_kept = 5\nsearch_max_results = 50\nsearch_context_mm = 4\nhistory_shown = 30\npreset_max = 12\nprefs_file = mine.cfg\nprefs_max_bytes = 2048\nprefs_write_retries = 2\nprefs_write_retry_ms = 10\nprefs_save_interval_s = 2.5\nzoom_note_step = 0.1\ndock_check_every_frames = 5\nconsole_max_lines = 40\ncomponent_rows_max = 80\ncanvas_engine = wgpu\nframe_log_frames = 120\n",
         )
         .unwrap();
         assert_eq!(s.theme, Theme::Light);
@@ -1036,6 +1060,12 @@ mod tests {
         assert_eq!(s.prefs_write_retry_ms, 10);
         assert_eq!(s.prefs_save_interval_s, 2.5_f64);
         assert_eq!(s.zoom_note_step, 0.1_f64);
+        assert_eq!(s.dock_check_every_frames, 5);
+        assert_eq!(s.console_max_lines, 40);
+        assert_eq!(s.component_rows_max, 80);
+        assert_eq!(s.canvas_engine, Engine::Wgpu);
+        assert_eq!(s.frame_log_frames, 120);
+        assert_eq!(ViewerSettings::default().canvas_engine, Engine::Painter);
         assert_eq!(s.format_length(2.54), "100.00 mil");
         let d = ViewerSettings::default();
         assert_eq!(d.theme, Theme::Dark);
@@ -1063,6 +1093,15 @@ mod tests {
             "prefs_file = a/b",
             "prefs_save_interval_s = -1",
             "zoom_note_step = 0",
+            "dock_check_every_frames = 0",
+            "dock_check_every_frames = 1.5",
+            "console_max_lines = 0",
+            "console_max_lines = -3",
+            "component_rows_max = 0",
+            "component_rows_max = many",
+            "canvas_engine = glow",
+            "canvas_engine = ",
+            "frame_log_frames = 0",
             "key.nothing = z",
             "key.undo = alt+z",
             "key.fit = v",

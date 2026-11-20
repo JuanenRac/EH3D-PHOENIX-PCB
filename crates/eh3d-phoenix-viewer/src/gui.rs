@@ -3,20 +3,28 @@
 //! eframe and passes on what the person does. Everything that can be decided without a screen is
 //! decided in the workspace, in code that is tested. This file has not been seen on a screen.
 
+use std::cell::RefCell;
 use std::path::{Path, PathBuf};
+use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
 use eframe::egui::{self, Color32, FontData, FontDefinitions, FontFamily, Pos2, Rect, Stroke};
+use eh3d_dock::core::AboutInfo;
+use eh3d_dock::gui::Dock;
+use eh3d_dock::menu::{Chosen, DockAction, MenuBar, StdAction};
 use eh3d_phoenix_route::{Mode, RouteSettings};
 use eh3d_phoenix_rules::Lang;
 
 use crate::appearance;
 use crate::board_gui::{self, BoardEditUi};
 use crate::board_text::BoardMsg;
+use crate::canvas_engine::{self, Engine, FrameLog};
 use crate::cfg_edit::CfgEditor;
 use crate::cfg_gui;
 use crate::cfg_text::CfgMsg;
 use crate::codes::{ViewError, FILE_UNUSABLE, WINDOW_FAILED};
+use crate::console_log::{ConsoleLog, Level};
+use crate::dock_text::DockMsg;
 use crate::drc_gui;
 use crate::editmsg::EditMsg;
 use crate::gerber_gui::GerberUi;
@@ -28,10 +36,13 @@ use crate::launcher_text::LauncherText;
 use crate::library_gui::LibraryUi;
 use crate::library_text::LibText;
 use crate::msg::Msg;
+use crate::object_list;
 use crate::panel_gui::PanelUi;
 use crate::panel_scene::parse_files;
+use crate::panels::{self, Cmd, LayoutWatch, MenuFacts};
 use crate::prim::{arc_points, triangulate, Shape, P};
 use crate::print_gui::PrintUi;
+use crate::report_panel::Report;
 use crate::scene::SceneKind;
 use crate::schematic_gui::{self, SchematicEditUi};
 use crate::schematic_text::SchMsg;
@@ -67,6 +78,42 @@ pub(crate) fn ui_ok() -> Color32 {
 
 pub(crate) fn ui_danger() -> Color32 {
     rgba(appearance::current().danger)
+}
+
+/// What draws the primitives of the scene in the canvas. The window draws with the painter of egui; the
+/// engine of the decision record of the interface stack (a callback of wgpu fed by the same primitives) is
+/// another implementation of this trait, chosen by the setting `canvas_engine`, so that changing the engine
+/// does not touch the viewer or the panels.
+trait CanvasEngine {
+    /// Which engine this is.
+    fn engine(&self) -> Engine;
+    /// Draws the visible layers of the workspace in a rectangle of the window.
+    fn paint(&self, workspace: &Workspace, painter: &egui::Painter, rect: Rect);
+}
+
+/// The painter of egui: it tessellates the primitives on the processor at every frame.
+struct PainterEngine;
+
+impl CanvasEngine for PainterEngine {
+    fn engine(&self) -> Engine {
+        Engine::Painter
+    }
+
+    fn paint(&self, workspace: &Workspace, painter: &egui::Painter, rect: Rect) {
+        paint(workspace, painter, rect);
+    }
+}
+
+/// The engine for a request, and whether it is not the one that was asked for (one that is not built makes
+/// the painter draw).
+fn engine_for(asked: Engine) -> (Box<dyn CanvasEngine>, bool) {
+    let choice = canvas_engine::choose(asked);
+    let engine: Box<dyn CanvasEngine> = match choice.engine {
+        Engine::Painter => Box::new(PainterEngine),
+        // the callback of wgpu is not written, and `choose` never gives it
+        Engine::Wgpu => Box::new(PainterEngine),
+    };
+    (engine, choice.fell_back)
 }
 
 fn language_name(lang: Lang) -> &'static str {
@@ -132,6 +179,20 @@ struct App {
     rules: Option<CfgEditor>,
     /// The actions whose keys were pressed in this frame.
     actions: Vec<Action>,
+    /// What the console panel shows.
+    console: ConsoleLog,
+    /// The words typed to filter the list of components.
+    comp_filter: String,
+    /// What the menus asked of the frame (show a panel, ...), done after the frame is drawn.
+    pending_dock: Vec<DockAction>,
+    /// The files that were opened in this frame, for the list of recent files of the menu.
+    recent_added: Vec<String>,
+    /// The box of the path takes the keyboard in the next frame.
+    focus_path: bool,
+    /// What draws the primitives in the canvas.
+    engine: Box<dyn CanvasEngine>,
+    /// The time of the last frames, for the report panel.
+    frames: FrameLog,
     /// The picture mode, while the window is there only to be photographed.
     shot: Option<ShotState>,
 }
@@ -163,6 +224,7 @@ impl App {
         } else {
             Launcher::new(&settings, None)
         };
+        let (engine, fell_back) = engine_for(settings.canvas_engine);
         let mut app = App {
             lang,
             settings: settings.clone(),
@@ -190,8 +252,19 @@ impl App {
             win,
             rules: None,
             actions: Vec::new(),
+            console: ConsoleLog::new(settings.console_max_lines),
+            comp_filter: String::new(),
+            pending_dock: Vec::new(),
+            recent_added: Vec::new(),
+            focus_path: false,
+            engine,
+            frames: FrameLog::new(settings.frame_log_frames),
             shot: None,
         };
+        if fell_back {
+            app.console
+                .push(Level::Info, DockMsg::EngineFellBack.tr(lang));
+        }
         if let Some(path) = initial {
             app.path_text = path.to_string_lossy().into_owned();
             app.open(&path);
@@ -212,6 +285,7 @@ impl App {
                 self.brd = None;
                 self.error = None;
                 self.launcher.opened(path);
+                self.recent_added.push(path.to_string_lossy().into_owned());
             } else if let Some(e) = self.lib.take_error() {
                 self.error = Some(ViewError::new(FILE_UNUSABLE, e.message(Lang::En)));
             }
@@ -231,6 +305,7 @@ impl App {
                 self.sch = None;
                 self.brd = None;
                 self.launcher.opened(path);
+                self.recent_added.push(path.to_string_lossy().into_owned());
             }
             Err(error) => self.error = Some(error),
         }
@@ -345,10 +420,36 @@ impl App {
         }
     }
 
-    fn top_bar(&mut self, ui: &mut egui::Ui) {
+    /// The line of a panel that needs a document while nothing is open.
+    fn no_document(ui: &mut egui::Ui, lang: Lang) {
+        ui.add_space(6.0);
+        ui.add(egui::Label::new(dim(DockMsg::NoDocument.tr(lang))).wrap());
+    }
+
+    /// The line of a panel that reads the document while an editor has it.
+    fn editor_has_document(ui: &mut egui::Ui, lang: Lang) {
+        ui.add_space(6.0);
+        ui.add(egui::Label::new(dim(DockMsg::EditorHasDocument.tr(lang))).wrap());
+    }
+
+    /// The box that chooses the language of the window.
+    fn language_combo(&mut self, ui: &mut egui::Ui) {
         let lang = self.lang;
-        egui::Panel::top("top").show(ui, |ui| {
-            ui.horizontal(|ui| {
+        egui::ComboBox::from_id_salt("language")
+            .selected_text(language_name(self.lang))
+            .show_ui(ui, |ui| {
+                for l in Lang::ALL {
+                    ui.selectable_value(&mut self.lang, l, language_name(l));
+                }
+            });
+        ui.label(dim(Msg::Language.tr(lang)));
+    }
+
+    /// The bar above a window of its own (the library): where to open another file.
+    fn overlay_bar(&mut self, ui: &mut egui::Ui) {
+        let lang = self.lang;
+        egui::Panel::top("overlay_bar").show(ui, |ui| {
+            ui.horizontal_wrapped(|ui| {
                 ui.label(
                     egui::RichText::new("EH3D-PHOENIX-PCB")
                         .strong()
@@ -364,35 +465,35 @@ impl App {
                     let path = PathBuf::from(self.path_text.trim());
                     self.open(&path);
                 }
-                if ui.button(LibText::Title.tr(lang)).clicked() {
-                    self.lib.new_library();
-                    self.workspace = None;
-                    self.sch = None;
-                    self.brd = None;
+                self.language_combo(ui);
+            });
+        });
+    }
+
+    /// The tasks: the file of the document and the tools of the window that the menus also have.
+    fn panel_tasks(&mut self, ui: &mut egui::Ui) {
+        let lang = self.lang;
+        egui::ScrollArea::vertical().show(ui, |ui| {
+            ui.add_space(4.0);
+            ui.label(heading(DockMsg::SectionDocument.tr(lang)));
+            ui.add(egui::Label::new(dim(Msg::PathHint.tr(lang))).wrap());
+            ui.horizontal(|ui| {
+                let width = (ui.available_width() - 90.0).clamp(80.0, 420.0);
+                let edit = egui::TextEdit::singleline(&mut self.path_text).desired_width(width);
+                let response = ui.add(edit);
+                if self.focus_path {
+                    response.request_focus();
+                    self.focus_path = false;
                 }
-                if ui.button(CfgMsg::Title.tr(lang)).clicked() && self.rules.take().is_none() {
-                    self.rules = Some(CfgEditor::new(&self.settings));
+                let enter = response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
+                if ui.button(Msg::Open.tr(lang)).clicked() || enter {
+                    let path = PathBuf::from(self.path_text.trim());
+                    self.open(&path);
                 }
-                let has_scene = self.workspace.is_some();
-                if ui
-                    .add_enabled(has_scene, egui::Button::new(Msg::Fit.tr(lang)))
-                    .clicked()
-                {
-                    self.fit_pending = true;
-                }
-                if self.workspace.as_ref().is_some_and(|w| w.is_board()) {
-                    ui.separator();
-                    ui.label(dim(View3dText::ModelsTable.tr(lang)));
-                    let table =
-                        egui::TextEdit::singleline(&mut self.models_text).desired_width(150.0);
-                    ui.add(table);
-                    if ui.button(View3dText::Show3d.tr(lang)).clicked() {
-                        self.open_3d();
-                    }
-                }
-                let editing = self.sch.is_some() || self.brd.is_some();
-                if let Some(w) = self.workspace.as_mut() {
-                    ui.separator();
+            });
+            let editing = self.sch.is_some() || self.brd.is_some();
+            if let Some(w) = self.workspace.as_mut() {
+                ui.horizontal_wrapped(|ui| {
                     if ui
                         .add_enabled(
                             !editing && w.can_undo(),
@@ -411,9 +512,14 @@ impl App {
                     {
                         w.redo();
                     }
-                    ui.separator();
-                    ui.label(dim(EditMsg::SavePath.tr(lang)));
-                    let save = egui::TextEdit::singleline(&mut self.save_text).desired_width(260.0);
+                    if w.dirty() {
+                        ui.label(egui::RichText::new(EditMsg::Unsaved.tr(lang)).color(ui_danger()));
+                    }
+                });
+                ui.label(dim(EditMsg::SavePath.tr(lang)));
+                ui.horizontal(|ui| {
+                    let width = (ui.available_width() - 90.0).clamp(80.0, 420.0);
+                    let save = egui::TextEdit::singleline(&mut self.save_text).desired_width(width);
                     let response = ui.add(save);
                     if self.focus_save {
                         response.request_focus();
@@ -423,206 +529,523 @@ impl App {
                         let target = PathBuf::from(self.save_text.trim());
                         w.save_as(&target);
                     }
-                    if w.dirty() {
-                        ui.label(egui::RichText::new(EditMsg::Unsaved.tr(lang)).color(ui_danger()));
-                    }
-                    ui.separator();
-                    self.print.show(ui, w, lang);
-                }
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    egui::ComboBox::from_id_salt("language")
-                        .selected_text(language_name(self.lang))
-                        .show_ui(ui, |ui| {
-                            for l in Lang::ALL {
-                                ui.selectable_value(&mut self.lang, l, language_name(l));
-                            }
-                        });
-                    ui.label(dim(Msg::Language.tr(lang)));
                 });
+                ui.separator();
+                ui.horizontal_wrapped(|ui| self.print.show(ui, w, lang));
+            }
+            ui.separator();
+            ui.label(heading(DockMsg::SectionTools.tr(lang)));
+            ui.horizontal_wrapped(|ui| {
+                if ui.button(LibText::Title.tr(lang)).clicked() {
+                    self.launch(Launch::NewLibrary);
+                }
+                if ui.button(CfgMsg::Title.tr(lang)).clicked() && self.rules.take().is_none() {
+                    self.rules = Some(CfgEditor::new(&self.settings));
+                }
+                let has_scene = self.workspace.is_some();
+                if ui
+                    .add_enabled(has_scene, egui::Button::new(Msg::Fit.tr(lang)))
+                    .clicked()
+                {
+                    self.fit_pending = true;
+                }
             });
+            if self.workspace.as_ref().is_some_and(|w| w.is_board()) {
+                ui.label(dim(View3dText::ModelsTable.tr(lang)));
+                ui.horizontal(|ui| {
+                    let width = (ui.available_width() - 90.0).clamp(80.0, 300.0);
+                    let table =
+                        egui::TextEdit::singleline(&mut self.models_text).desired_width(width);
+                    ui.add(table);
+                    if ui.button(View3dText::Show3d.tr(lang)).clicked() {
+                        self.open_3d();
+                    }
+                });
+            }
+            ui.separator();
+            ui.horizontal_wrapped(|ui| self.language_combo(ui));
         });
     }
 
-    fn side_panel(&mut self, ui: &mut egui::Ui) {
+    /// The tools of the document and the settings of the tool in use; while an editor of the board or the
+    /// schematic has the document, the tools of the editor.
+    fn panel_properties(&mut self, ui: &mut egui::Ui) {
         let lang = self.lang;
-        egui::Panel::left("layers")
-            .default_size(260.0)
-            .show(ui, |ui| {
-                let Some(workspace) = self.workspace.as_mut() else {
-                    return;
-                };
-                egui::ScrollArea::vertical().show(ui, |ui| {
-                    ui.add_space(4.0);
-                    let mut leave = false;
-                    if let Some(sch) = self.sch.as_mut() {
-                        leave = schematic_gui::tools_panel(ui, sch, lang);
-                        if leave {
-                            schematic_gui::finish(sch, workspace);
-                        }
-                    }
-                    if leave {
-                        self.sch = None;
-                        self.fit_pending = true;
-                    }
-                    if self.sch.is_some() {
-                        return;
-                    }
-                    let mut leave_board = false;
-                    if let Some(brd) = self.brd.as_mut() {
-                        leave_board = board_gui::tools_panel(ui, brd, lang);
-                        if leave_board {
-                            board_gui::finish(brd, workspace);
-                        }
-                    }
-                    if leave_board {
-                        self.brd = None;
-                        self.fit_pending = true;
-                    }
-                    if self.brd.is_some() {
-                        return;
-                    }
-                    let board = workspace.is_board();
-                    let viewer = &mut workspace.viewer;
-                    let kind = match viewer.scene.kind {
-                        SceneKind::Board => Msg::Board,
-                        SceneKind::Schematic => Msg::Schematic,
-                    };
-                    ui.label(heading(kind.tr(lang)));
-                    ui.label(dim(format!(
-                        "{} {} · {} {} · {} {}",
-                        viewer.scene.prims.len(),
-                        Msg::Primitives.tr(lang),
-                        viewer.scene.items.len(),
-                        Msg::Items.tr(lang),
-                        viewer.scene.nets.len(),
-                        Msg::Nets.tr(lang)
-                    )));
-                    let not_drawn = viewer.scene.skipped + workspace.unread;
-                    if not_drawn > 0 {
-                        ui.label(dim(format!("{} {}", not_drawn, Msg::Skipped.tr(lang))));
-                    }
-                    ui.separator();
-                    let mut tool = workspace.viewer.tool;
-                    ui.horizontal_wrapped(|ui| {
-                        ui.selectable_value(&mut tool, Tool::Select, Msg::ToolSelect.tr(lang));
-                        ui.selectable_value(&mut tool, Tool::Measure, Msg::ToolMeasure.tr(lang));
-                    });
-                    if board {
-                        ui.label(heading(EditMsg::EditTitle.tr(lang)));
-                        ui.horizontal_wrapped(|ui| {
-                            for (value, text) in [
-                                (Tool::MoveComponent, EditMsg::ToolMove),
-                                (Tool::RotateComponent, EditMsg::ToolRotate),
-                                (Tool::DeleteTrack, EditMsg::ToolDeleteTrack),
-                                (Tool::MoveVertex, EditMsg::ToolMoveVertex),
-                                (Tool::SetWidth, EditMsg::ToolWidth),
-                                (Tool::AddVia, EditMsg::ToolVia),
-                                (Tool::Route, EditMsg::ToolRoute),
-                            ] {
-                                ui.selectable_value(&mut tool, value, text.tr(lang));
-                            }
-                        });
-                    }
-                    if tool != workspace.viewer.tool {
-                        workspace.set_tool(tool);
-                    }
-                    if !board && ui.button(SchMsg::EditSchematic.tr(lang)).clicked() {
-                        self.sch = schematic_gui::start(workspace);
-                        self.fit_pending = true;
-                    }
-                    if board && ui.button(BoardMsg::EditBoard.tr(lang)).clicked() {
-                        self.brd = board_gui::start(workspace);
-                        self.fit_pending = true;
-                    }
-                    if board {
-                        ui.horizontal(|ui| {
-                            ui.label(dim(EditMsg::ActiveWidth.tr(lang)));
-                            ui.add(
-                                egui::DragValue::new(&mut workspace.active_width_mm)
-                                    .speed(0.01)
-                                    .range(0.02..=10.0)
-                                    .fixed_decimals(3),
-                            );
-                        });
-                        ui.radio_value(
-                            &mut workspace.route_mode,
-                            Mode::Around,
-                            EditMsg::ModeAround.tr(lang),
-                        );
-                        ui.radio_value(
-                            &mut workspace.route_mode,
-                            Mode::Stop,
-                            EditMsg::ModeStop.tr(lang),
-                        );
-                        ui.checkbox(&mut workspace.show_ratsnest, EditMsg::ShowRatsnest.tr(lang));
-                    }
-                    if ui.button(Msg::ClearSelection.tr(lang)).clicked() {
-                        workspace.cancel();
-                    }
-                    ui.label(dim(EditMsg::ShortcutsHint.tr(lang)));
-                    ui.separator();
-                    ui.label(heading(Msg::Layers.tr(lang)));
-                    let viewer = &mut workspace.viewer;
-                    ui.horizontal(|ui| {
-                        if ui.small_button(Msg::ShowAll.tr(lang)).clicked() {
-                            viewer.set_all_visible(true);
-                        }
-                        if ui.small_button(Msg::HideAll.tr(lang)).clicked() {
-                            viewer.set_all_visible(false);
-                        }
-                    });
-                    let counts = viewer.layer_counts();
-                    for i in 0..viewer.scene.layers.len() {
-                        let (name, mut visible, colour) = {
-                            let layer = &viewer.scene.layers[i];
-                            let name = Msg::for_role(layer.role)
-                                .map_or_else(|| layer.name.clone(), |m| m.tr(lang).to_string());
-                            (name, layer.visible, layer.colour)
-                        };
-                        let count = counts.get(i).copied().unwrap_or(0);
-                        ui.horizontal(|ui| {
-                            if ui
-                                .checkbox(&mut visible, format!("{name} ({count})"))
-                                .changed()
-                            {
-                                viewer.set_layer_visible(i, visible);
-                            }
-                            let mut chosen = rgba(colour);
-                            if ui.color_edit_button_srgba(&mut chosen).changed() {
-                                viewer.set_layer_colour(
-                                    i,
-                                    [chosen.r(), chosen.g(), chosen.b(), chosen.a()],
-                                );
-                            }
-                        });
+        let Some(workspace) = self.workspace.as_mut() else {
+            App::no_document(ui, lang);
+            return;
+        };
+        egui::ScrollArea::vertical().show(ui, |ui| {
+            ui.add_space(4.0);
+            let mut leave = false;
+            if let Some(sch) = self.sch.as_mut() {
+                leave = schematic_gui::tools_panel(ui, sch, lang);
+                if leave {
+                    schematic_gui::finish(sch, workspace);
+                }
+            }
+            if leave {
+                self.sch = None;
+                self.fit_pending = true;
+            }
+            if self.sch.is_some() {
+                return;
+            }
+            let mut leave_board = false;
+            if let Some(brd) = self.brd.as_mut() {
+                leave_board = board_gui::tools_panel(ui, brd, lang);
+                if leave_board {
+                    board_gui::finish(brd, workspace);
+                }
+            }
+            if leave_board {
+                self.brd = None;
+                self.fit_pending = true;
+            }
+            if self.brd.is_some() {
+                return;
+            }
+            let board = workspace.is_board();
+            let viewer = &mut workspace.viewer;
+            let kind = match viewer.scene.kind {
+                SceneKind::Board => Msg::Board,
+                SceneKind::Schematic => Msg::Schematic,
+            };
+            ui.label(heading(kind.tr(lang)));
+            ui.label(dim(format!(
+                "{} {} · {} {} · {} {}",
+                viewer.scene.prims.len(),
+                Msg::Primitives.tr(lang),
+                viewer.scene.items.len(),
+                Msg::Items.tr(lang),
+                viewer.scene.nets.len(),
+                Msg::Nets.tr(lang)
+            )));
+            let not_drawn = viewer.scene.skipped + workspace.unread;
+            if not_drawn > 0 {
+                ui.label(dim(format!("{} {}", not_drawn, Msg::Skipped.tr(lang))));
+            }
+            ui.separator();
+            let mut tool = workspace.viewer.tool;
+            ui.horizontal_wrapped(|ui| {
+                ui.selectable_value(&mut tool, Tool::Select, Msg::ToolSelect.tr(lang));
+                ui.selectable_value(&mut tool, Tool::Measure, Msg::ToolMeasure.tr(lang));
+            });
+            if board {
+                ui.label(heading(EditMsg::EditTitle.tr(lang)));
+                ui.horizontal_wrapped(|ui| {
+                    for (value, text) in [
+                        (Tool::MoveComponent, EditMsg::ToolMove),
+                        (Tool::RotateComponent, EditMsg::ToolRotate),
+                        (Tool::DeleteTrack, EditMsg::ToolDeleteTrack),
+                        (Tool::MoveVertex, EditMsg::ToolMoveVertex),
+                        (Tool::SetWidth, EditMsg::ToolWidth),
+                        (Tool::AddVia, EditMsg::ToolVia),
+                        (Tool::Route, EditMsg::ToolRoute),
+                    ] {
+                        ui.selectable_value(&mut tool, value, text.tr(lang));
                     }
                 });
+            }
+            if tool != workspace.viewer.tool {
+                workspace.set_tool(tool);
+            }
+            if !board && ui.button(SchMsg::EditSchematic.tr(lang)).clicked() {
+                self.sch = schematic_gui::start(workspace);
+                self.fit_pending = true;
+            }
+            if board && ui.button(BoardMsg::EditBoard.tr(lang)).clicked() {
+                self.brd = board_gui::start(workspace);
+                self.fit_pending = true;
+            }
+            if board {
+                ui.horizontal(|ui| {
+                    ui.label(dim(EditMsg::ActiveWidth.tr(lang)));
+                    ui.add(
+                        egui::DragValue::new(&mut workspace.active_width_mm)
+                            .speed(0.01)
+                            .range(0.02..=10.0)
+                            .fixed_decimals(3),
+                    );
+                });
+                ui.radio_value(
+                    &mut workspace.route_mode,
+                    Mode::Around,
+                    EditMsg::ModeAround.tr(lang),
+                );
+                ui.radio_value(
+                    &mut workspace.route_mode,
+                    Mode::Stop,
+                    EditMsg::ModeStop.tr(lang),
+                );
+                ui.checkbox(&mut workspace.show_ratsnest, EditMsg::ShowRatsnest.tr(lang));
+            }
+            if ui.button(Msg::ClearSelection.tr(lang)).clicked() {
+                workspace.cancel();
+            }
+            ui.label(dim(EditMsg::ShortcutsHint.tr(lang)));
+        });
+    }
+
+    /// The layers of the document, each with its box and its colour.
+    fn panel_layers(&mut self, ui: &mut egui::Ui) {
+        let lang = self.lang;
+        if self.sch.is_some() || self.brd.is_some() {
+            App::editor_has_document(ui, lang);
+            return;
+        }
+        let Some(workspace) = self.workspace.as_mut() else {
+            App::no_document(ui, lang);
+            return;
+        };
+        egui::ScrollArea::vertical().show(ui, |ui| {
+            ui.add_space(4.0);
+            let viewer = &mut workspace.viewer;
+            ui.horizontal(|ui| {
+                if ui.small_button(Msg::ShowAll.tr(lang)).clicked() {
+                    viewer.set_all_visible(true);
+                }
+                if ui.small_button(Msg::HideAll.tr(lang)).clicked() {
+                    viewer.set_all_visible(false);
+                }
+            });
+            let counts = viewer.layer_counts();
+            for i in 0..viewer.scene.layers.len() {
+                let (name, mut visible, colour) = {
+                    let layer = &viewer.scene.layers[i];
+                    let name = Msg::for_role(layer.role)
+                        .map_or_else(|| layer.name.clone(), |m| m.tr(lang).to_string());
+                    (name, layer.visible, layer.colour)
+                };
+                let count = counts.get(i).copied().unwrap_or(0);
+                ui.horizontal(|ui| {
+                    if ui
+                        .checkbox(&mut visible, format!("{name} ({count})"))
+                        .changed()
+                    {
+                        viewer.set_layer_visible(i, visible);
+                    }
+                    let mut chosen = rgba(colour);
+                    if ui.color_edit_button_srgba(&mut chosen).changed() {
+                        viewer
+                            .set_layer_colour(i, [chosen.r(), chosen.g(), chosen.b(), chosen.a()]);
+                    }
+                });
+            }
+        });
+    }
+
+    /// The components of the board (or the parts of the schematic) with a filter, and the counts of the objects.
+    fn panel_components(&mut self, ui: &mut egui::Ui) {
+        let lang = self.lang;
+        if self.sch.is_some() || self.brd.is_some() {
+            App::editor_has_document(ui, lang);
+            return;
+        }
+        let Some(workspace) = self.workspace.as_mut() else {
+            App::no_document(ui, lang);
+            return;
+        };
+        ui.add_space(4.0);
+        ui.add(
+            egui::TextEdit::singleline(&mut self.comp_filter)
+                .hint_text(DockMsg::ComponentsFilter.tr(lang))
+                .desired_width(f32::INFINITY),
+        );
+        let list = object_list::components(
+            &workspace.viewer.scene,
+            &self.comp_filter,
+            self.settings.component_rows_max,
+        );
+        ui.label(dim(format!(
+            "{} / {} {}",
+            list.rows.len(),
+            list.total,
+            DockMsg::Shown.tr(lang)
+        )));
+        let counts = object_list::counts(&workspace.viewer.scene);
+        ui.collapsing(DockMsg::ObjectsTitle.tr(lang), |ui| {
+            for (kind, n) in &counts {
+                ui.label(dim(format!("{}: {n}", kind.name(lang))));
+            }
+        });
+        ui.separator();
+        let selected = workspace.viewer.selected;
+        let mut chosen: Option<u32> = None;
+        egui::ScrollArea::vertical().show(ui, |ui| {
+            for row in &list.rows {
+                if ui
+                    .selectable_label(selected == Some(row.item), &row.label)
+                    .clicked()
+                {
+                    chosen = Some(row.item);
+                }
+            }
+        });
+        if let Some(item) = chosen {
+            object_list::focus(&mut workspace.viewer, item);
+        }
+    }
+
+    /// The nets, with the connections of each that are still to be routed.
+    fn panel_nets(&mut self, ui: &mut egui::Ui) {
+        let lang = self.lang;
+        if self.sch.is_some() || self.brd.is_some() {
+            App::editor_has_document(ui, lang);
+            return;
+        }
+        let Some(workspace) = self.workspace.as_mut() else {
+            App::no_document(ui, lang);
+            return;
+        };
+        egui::ScrollArea::vertical().show(ui, |ui| {
+            ui.add_space(4.0);
+            net_list(ui, workspace, lang);
+        });
+    }
+
+    /// The problems of the rules of the board, or the electrical rule check of the schematic.
+    fn panel_drc(&mut self, ui: &mut egui::Ui) {
+        let lang = self.lang;
+        if self.sch.is_some() || self.brd.is_some() {
+            App::editor_has_document(ui, lang);
+            return;
+        }
+        let Some(workspace) = self.workspace.as_mut() else {
+            App::no_document(ui, lang);
+            return;
+        };
+        egui::ScrollArea::vertical().show(ui, |ui| {
+            ui.add_space(4.0);
+            if workspace.is_board() {
+                board_panel(ui, workspace, &mut self.rules_text, lang);
+            } else {
+                schematic_panel(
+                    ui,
+                    workspace,
+                    &mut self.board_text,
+                    &mut self.board_save_text,
+                    lang,
+                );
+            }
+        });
+    }
+
+    /// The libraries: a new one, and the ones that were opened lately.
+    fn panel_library(&mut self, ui: &mut egui::Ui) {
+        let lang = self.lang;
+        ui.add_space(4.0);
+        ui.label(heading(LibText::Title.tr(lang)));
+        ui.add(egui::Label::new(dim(DockMsg::LibraryHint.tr(lang))).wrap());
+        if ui
+            .button(crate::launcher_text::LauncherText::NewLibrary.tr(lang))
+            .clicked()
+        {
+            self.launch(Launch::NewLibrary);
+        }
+        ui.separator();
+        ui.label(dim(crate::launcher_text::LauncherText::Recent.tr(lang)));
+        let libraries: Vec<PathBuf> = self
+            .launcher
+            .recent()
+            .entries()
+            .iter()
+            .filter(|p| p.extension().is_some_and(|e| e.eq_ignore_ascii_case("lbr")))
+            .cloned()
+            .collect();
+        if libraries.is_empty() {
+            ui.label(dim(crate::launcher_text::LauncherText::NoRecent.tr(lang)));
+        }
+        let mut open: Option<PathBuf> = None;
+        egui::ScrollArea::vertical().show(ui, |ui| {
+            for path in &libraries {
+                let name = path
+                    .file_name()
+                    .map_or_else(String::new, |n| n.to_string_lossy().into_owned());
+                if ui
+                    .selectable_label(false, name)
+                    .on_hover_text(path.to_string_lossy())
+                    .clicked()
+                {
+                    open = Some(path.clone());
+                }
+            }
+        });
+        if let Some(path) = open {
+            self.path_text = path.to_string_lossy().into_owned();
+            self.open(&path);
+        }
+    }
+
+    /// What the window had to say: the notes, the errors and the answers of the checks, in order.
+    fn panel_console(&mut self, ui: &mut egui::Ui) {
+        let lang = self.lang;
+        ui.add_space(4.0);
+        ui.horizontal(|ui| {
+            if ui.small_button(DockMsg::ConsoleClear.tr(lang)).clicked() {
+                self.console.clear();
+            }
+        });
+        if self.console.is_empty() {
+            ui.label(dim(DockMsg::ConsoleEmpty.tr(lang)));
+        }
+        egui::ScrollArea::vertical()
+            .stick_to_bottom(true)
+            .auto_shrink([false, false])
+            .show(ui, |ui| {
+                for line in self.console.lines() {
+                    let colour = match line.level {
+                        Level::Error => ui_danger(),
+                        Level::Info => ui_text(),
+                    };
+                    ui.add(egui::Label::new(egui::RichText::new(&line.text).color(colour)).wrap());
+                }
             });
     }
 
-    fn right_panel(&mut self, ui: &mut egui::Ui) {
+    /// The report of the document: its counts, the problems of the rules and the connections still to be routed.
+    fn panel_report(&mut self, ui: &mut egui::Ui) {
         let lang = self.lang;
-        egui::Panel::right("findings")
-            .default_size(340.0)
-            .show(ui, |ui| {
-                let Some(workspace) = self.workspace.as_mut() else {
-                    return;
-                };
-                egui::ScrollArea::vertical().show(ui, |ui| {
-                    ui.add_space(4.0);
-                    if workspace.is_board() {
-                        board_panel(ui, workspace, &mut self.rules_text, lang);
-                    } else {
-                        schematic_panel(
-                            ui,
-                            workspace,
-                            &mut self.board_text,
-                            &mut self.board_save_text,
-                            lang,
-                        );
-                    }
-                });
-            });
+        if self.sch.is_some() || self.brd.is_some() {
+            App::editor_has_document(ui, lang);
+            return;
+        }
+        let Some(workspace) = self.workspace.as_ref() else {
+            App::no_document(ui, lang);
+            return;
+        };
+        let mut report = Report::of_scene(&workspace.viewer.scene);
+        if let Some(session) = workspace.board_session() {
+            report = report
+                .with_findings(&session.findings)
+                .with_unrouted(session.rat.len());
+        } else if let Some(session) = workspace.schematic_session() {
+            report = report.with_severities(session.erc.confirmed.iter().map(|f| f.severity));
+        }
+        ui.add_space(4.0);
+        if ui.button(DockMsg::ReportCopy.tr(lang)).clicked() {
+            ui.ctx().copy_text(report.text(lang));
+        }
+        ui.separator();
+        for line in report.lines(lang) {
+            ui.label(line);
+        }
+        if let Some(s) = self.frames.stats() {
+            ui.separator();
+            ui.label(dim(format!(
+                "{}: {:.1} / {:.1} / {:.1} ms ({} · {})",
+                DockMsg::FrameTime.tr(lang),
+                s.median_ms,
+                s.p95_ms,
+                s.p99_ms,
+                s.frames,
+                self.engine.engine().key()
+            )));
+        }
+    }
+
+    /// The board or the schematic, drawn; the start screen while nothing is open.
+    fn panel_board_view(&mut self, ui: &mut egui::Ui) {
+        let lang = self.lang;
+        let background = rgba(self.settings.colour("background"));
+        if let (Some(sch), Some(workspace)) = (self.sch.as_mut(), self.workspace.as_mut()) {
+            schematic_gui::canvas(ui, sch, workspace, lang, background, &mut self.fit_pending);
+            return;
+        }
+        if let (Some(brd), Some(workspace)) = (self.brd.as_mut(), self.workspace.as_mut()) {
+            board_gui::canvas(ui, brd, workspace, lang, background, &mut self.fit_pending);
+            return;
+        }
+        if self.workspace.is_none() {
+            // nothing is open: the start screen
+            ui.painter().rect_filled(ui.max_rect(), 0.0, background);
+            if let Some(asked) =
+                launcher_gui::show(ui, &mut self.launcher, lang, &mut self.launch_note)
+            {
+                self.launch(asked);
+            }
+            return;
+        }
+        let size = ui.available_size();
+        let (response, painter) = ui.allocate_painter(size, egui::Sense::click_and_drag());
+        let rect = response.rect;
+        painter.rect_filled(rect, 0.0, background);
+        let Some(workspace) = self.workspace.as_mut() else {
+            return;
+        };
+        workspace
+            .viewer
+            .resize(f64::from(rect.width()), f64::from(rect.height()));
+        if self.fit_pending && rect.width() > 40.0 && rect.height() > 40.0 {
+            workspace.viewer.fit();
+            self.fit_pending = false;
+        }
+        let local = |p: Pos2| {
+            let at = p - rect.min;
+            (f64::from(at.x), f64::from(at.y))
+        };
+        if response.double_clicked() && !workspace.viewer.tool.edits() {
+            workspace.viewer.fit();
+        }
+        if response.drag_started() {
+            if let Some(p) = ui.input(|i| i.pointer.press_origin()) {
+                let (sx, sy) = local(p);
+                self.tool_drag = workspace.press(sx, sy);
+            }
+        }
+        if response.dragged() {
+            if self.tool_drag {
+                if let Some(p) = response.interact_pointer_pos() {
+                    let (sx, sy) = local(p);
+                    workspace.drag_to(sx, sy);
+                }
+            } else {
+                let d = response.drag_delta();
+                workspace.viewer.pan_px(f64::from(d.x), f64::from(d.y));
+            }
+        }
+        if response.drag_stopped() && self.tool_drag {
+            let end = response
+                .interact_pointer_pos()
+                .or_else(|| ui.input(|i| i.pointer.latest_pos()));
+            match end {
+                Some(p) => {
+                    let (sx, sy) = local(p);
+                    workspace.release(sx, sy);
+                }
+                None => workspace.drag = None,
+            }
+            self.tool_drag = false;
+        }
+        match response.hover_pos() {
+            Some(p) => {
+                let (sx, sy) = local(p);
+                workspace.hover(sx, sy);
+                let (scroll, pinch) = ui.input(|i| (i.smooth_scroll_delta.y, i.zoom_delta()));
+                if scroll.abs() > f32::EPSILON || (pinch - 1.0).abs() > 1e-6 {
+                    workspace
+                        .viewer
+                        .zoom_at_px(sx, sy, f64::from(scroll), f64::from(pinch));
+                }
+            }
+            None => workspace.leave(),
+        }
+        if response.clicked() {
+            if let Some(p) = response.interact_pointer_pos() {
+                let (sx, sy) = local(p);
+                workspace.click(sx, sy);
+            }
+        }
+        for action in &self.actions {
+            if let Some(shortcut) = action.workspace_shortcut() {
+                workspace.shortcut(shortcut);
+            }
+        }
+        if workspace.want_save {
+            workspace.want_save = false;
+            self.focus_save = true;
+        }
+        self.engine.paint(workspace, &painter, rect);
     }
 
     fn status_bar(&mut self, ui: &mut egui::Ui) {
@@ -649,111 +1072,6 @@ impl App {
                     ui.label(dim(Msg::ZoomHint.tr(lang)));
                 });
             });
-        });
-    }
-
-    fn canvas(&mut self, ui: &mut egui::Ui) {
-        let lang = self.lang;
-        let background = rgba(self.settings.colour("background"));
-        egui::CentralPanel::no_frame().show(ui, |ui| {
-            if let (Some(sch), Some(workspace)) = (self.sch.as_mut(), self.workspace.as_mut()) {
-                schematic_gui::canvas(ui, sch, workspace, lang, background, &mut self.fit_pending);
-                return;
-            }
-            if let (Some(brd), Some(workspace)) = (self.brd.as_mut(), self.workspace.as_mut()) {
-                board_gui::canvas(ui, brd, workspace, lang, background, &mut self.fit_pending);
-                return;
-            }
-            if self.workspace.is_none() {
-                // nothing is open: the start screen
-                ui.painter().rect_filled(ui.max_rect(), 0.0, background);
-                if let Some(asked) =
-                    launcher_gui::show(ui, &mut self.launcher, lang, &mut self.launch_note)
-                {
-                    self.launch(asked);
-                }
-                return;
-            }
-            let size = ui.available_size();
-            let (response, painter) = ui.allocate_painter(size, egui::Sense::click_and_drag());
-            let rect = response.rect;
-            painter.rect_filled(rect, 0.0, background);
-            let Some(workspace) = self.workspace.as_mut() else {
-                return;
-            };
-            workspace
-                .viewer
-                .resize(f64::from(rect.width()), f64::from(rect.height()));
-            if self.fit_pending && rect.width() > 40.0 && rect.height() > 40.0 {
-                workspace.viewer.fit();
-                self.fit_pending = false;
-            }
-            let local = |p: Pos2| {
-                let at = p - rect.min;
-                (f64::from(at.x), f64::from(at.y))
-            };
-            if response.double_clicked() && !workspace.viewer.tool.edits() {
-                workspace.viewer.fit();
-            }
-            if response.drag_started() {
-                if let Some(p) = ui.input(|i| i.pointer.press_origin()) {
-                    let (sx, sy) = local(p);
-                    self.tool_drag = workspace.press(sx, sy);
-                }
-            }
-            if response.dragged() {
-                if self.tool_drag {
-                    if let Some(p) = response.interact_pointer_pos() {
-                        let (sx, sy) = local(p);
-                        workspace.drag_to(sx, sy);
-                    }
-                } else {
-                    let d = response.drag_delta();
-                    workspace.viewer.pan_px(f64::from(d.x), f64::from(d.y));
-                }
-            }
-            if response.drag_stopped() && self.tool_drag {
-                let end = response
-                    .interact_pointer_pos()
-                    .or_else(|| ui.input(|i| i.pointer.latest_pos()));
-                match end {
-                    Some(p) => {
-                        let (sx, sy) = local(p);
-                        workspace.release(sx, sy);
-                    }
-                    None => workspace.drag = None,
-                }
-                self.tool_drag = false;
-            }
-            match response.hover_pos() {
-                Some(p) => {
-                    let (sx, sy) = local(p);
-                    workspace.hover(sx, sy);
-                    let (scroll, pinch) = ui.input(|i| (i.smooth_scroll_delta.y, i.zoom_delta()));
-                    if scroll.abs() > f32::EPSILON || (pinch - 1.0).abs() > 1e-6 {
-                        workspace
-                            .viewer
-                            .zoom_at_px(sx, sy, f64::from(scroll), f64::from(pinch));
-                    }
-                }
-                None => workspace.leave(),
-            }
-            if response.clicked() {
-                if let Some(p) = response.interact_pointer_pos() {
-                    let (sx, sy) = local(p);
-                    workspace.click(sx, sy);
-                }
-            }
-            for action in &self.actions {
-                if let Some(shortcut) = action.workspace_shortcut() {
-                    workspace.shortcut(shortcut);
-                }
-            }
-            if workspace.want_save {
-                workspace.want_save = false;
-                self.focus_save = true;
-            }
-            paint(workspace, &painter, rect);
         });
     }
 }
@@ -809,8 +1127,10 @@ fn board_panel(ui: &mut egui::Ui, workspace: &mut Workspace, rules_text: &mut St
     }
     // the problems of the rules with their filters, their order and the steps between them
     drc_gui::section(ui, workspace, lang);
-    ui.separator();
-    ui.label(heading(EditMsg::NetList.tr(lang)));
+}
+
+/// The nets, each a button that lights it; the connections still to be routed are counted.
+fn net_list(ui: &mut egui::Ui, workspace: &mut Workspace, lang: Lang) {
     let highlighted = workspace.viewer.highlight;
     let mut chosen: Option<u32> = None;
     for row in workspace.net_rows() {
@@ -1151,9 +1471,8 @@ impl App {
         self.win.frame(ctx, &mut self.settings, &actions, frame);
     }
 
-    fn body(&mut self, ui: &mut egui::Ui) {
-        let ctx = ui.ctx().clone();
-        // a file dropped on the window is opened
+    /// A file dropped on the window is opened.
+    fn handle_drops(&mut self, ctx: &egui::Context) {
         let dropped: Vec<PathBuf> = ctx.input(|i| {
             i.raw
                 .dropped_files
@@ -1161,19 +1480,120 @@ impl App {
                 .map(|f| f.path().to_path_buf())
                 .collect()
         });
-        if !dropped.is_empty() {
-            match Launcher::dropped_launch(&dropped) {
-                Ok(asked) => {
-                    self.launch_note = None;
-                    self.launch(asked);
-                }
-                Err(note) => self.launch_note = Some(note),
-            }
+        if dropped.is_empty() {
+            return;
         }
-        let has_document = self.workspace.is_some() && !self.overlay();
-        self.win.toolbar(ui, self.lang, has_document);
+        match Launcher::dropped_launch(&dropped) {
+            Ok(asked) => {
+                self.launch_note = None;
+                self.launch(asked);
+            }
+            Err(note) => self.launch_note = Some(note),
+        }
+    }
+
+    /// What the window knows when it decides which entries of the menus can be chosen.
+    fn menu_facts(&self) -> MenuFacts {
+        MenuFacts {
+            has_document: self.workspace.is_some(),
+            is_board: self.workspace.as_ref().is_some_and(|w| w.is_board()),
+            editing: self.sch.is_some() || self.brd.is_some(),
+            overlay: self.overlay(),
+            can_undo: self.workspace.as_ref().is_some_and(|w| w.can_undo()),
+            can_redo: self.workspace.as_ref().is_some_and(|w| w.can_redo()),
+        }
+    }
+
+    /// Writes to the console what the window says in its status bar when it changes: the error of a file,
+    /// the error of the preferences and the note of the document.
+    fn feed_console(&mut self) {
+        let lang = self.lang;
+        let error = self
+            .error
+            .as_ref()
+            .map(|e| e.message(lang))
+            .unwrap_or_default();
+        self.console.feed(0, Level::Error, &error);
+        let prefs = self.win.error_text(lang).unwrap_or_default();
+        self.console.feed(1, Level::Error, &prefs);
+        let (level, note) = match self.workspace.as_ref().and_then(|w| w.note.as_ref()) {
+            Some(note) if note.is_error() => (Level::Error, note.text(lang)),
+            Some(note) => (Level::Info, note.text(lang)),
+            None => (Level::Info, String::new()),
+        };
+        self.console.feed(2, level, &note);
+    }
+
+    /// Does what a menu entry asks for.
+    fn run_cmd(&mut self, cmd: Cmd, ctx: &egui::Context) {
+        match cmd {
+            Cmd::Std(action) => self.run_std(action, ctx),
+            Cmd::Fit => self.fit_pending = true,
+            Cmd::ClearSelection => {
+                if let Some(w) = self.workspace.as_mut() {
+                    w.cancel();
+                }
+            }
+            Cmd::RunErc => {
+                if let Some(w) = self.workspace.as_mut() {
+                    w.run_erc();
+                    self.pending_dock
+                        .push(DockAction::ShowPanel(panels::id::DRC.to_string()));
+                }
+            }
+            Cmd::View3d => self.open_3d(),
+            Cmd::SettingsFiles => {
+                if self.rules.take().is_none() {
+                    self.rules = Some(CfgEditor::new(&self.settings));
+                }
+            }
+            Cmd::Search => self.win.show_window(ShotWindow::Search),
+            Cmd::Measures => self.win.show_window(ShotWindow::Measures),
+            Cmd::LayerPresets => self.win.show_window(ShotWindow::Layers),
+            Cmd::History => self.win.show_window(ShotWindow::History),
+            Cmd::Shortcuts => self.win.show_window(ShotWindow::Shortcuts),
+        }
+    }
+
+    /// Does what an entry that every program has asks for.
+    fn run_std(&mut self, action: StdAction, ctx: &egui::Context) {
+        let show_tasks = DockAction::ShowPanel(panels::id::TASKS.to_string());
+        match action {
+            StdAction::New => self.launch(Launch::NewLibrary),
+            StdAction::Open => {
+                self.pending_dock.push(show_tasks);
+                self.focus_path = true;
+            }
+            StdAction::Save | StdAction::SaveAs => {
+                if let (Some(w), Some(key)) =
+                    (self.workspace.as_mut(), Action::Save.workspace_shortcut())
+                {
+                    w.shortcut(key);
+                }
+                self.pending_dock.push(show_tasks);
+            }
+            StdAction::Export => self.pending_dock.push(show_tasks),
+            StdAction::Undo => {
+                if let Some(w) = self.workspace.as_mut() {
+                    w.undo();
+                }
+            }
+            StdAction::Redo => {
+                if let Some(w) = self.workspace.as_mut() {
+                    w.redo();
+                }
+            }
+            StdAction::Quit => ctx.send_viewport_cmd(egui::ViewportCommand::Close),
+            StdAction::Preferences => self.win.show_window(ShotWindow::Appearance),
+            StdAction::OnlineHelp => self.win.show_window(ShotWindow::Help),
+            StdAction::Cut | StdAction::Copy | StdAction::Paste | StdAction::CheckUpdates => {}
+        }
+    }
+
+    /// The windows of their own (library, Gerber, 3D, panel of boards) take the place of the panels.
+    fn overlay_body(&mut self, ui: &mut egui::Ui) {
         if self.lib.is_open() {
-            self.top_bar(ui);
+            self.overlay_bar(ui);
             self.lib.show(ui, self.lang);
             return;
         }
@@ -1193,28 +1613,147 @@ impl App {
             if window.show(ui, self.lang, &self.settings) {
                 self.panel = None;
             }
-            return;
         }
-        self.top_bar(ui);
-        self.status_bar(ui);
-        self.side_panel(ui);
-        self.right_panel(ui);
-        self.canvas(ui);
     }
 }
 
-impl eframe::App for App {
-    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
-        self.actions = window_gui::pressed_actions(ui.ctx(), &self.settings.keymap);
-        self.body(ui);
+/// How a panel of the window is drawn: with the program and the room the frame gives it.
+type PanelDraw = fn(&mut App, &mut egui::Ui);
+
+/// The window: the frame of the suite with the panels of the program in it and the menu bar above.
+struct Shell {
+    app: Rc<RefCell<App>>,
+    dock: Dock,
+    bar: MenuBar<Cmd>,
+    watch: LayoutWatch,
+    /// The frames that are left before the arrangement of the panels is looked at again.
+    countdown: usize,
+}
+
+impl Shell {
+    fn new(app: App) -> Shell {
+        let lang = app.lang;
+        let dock_text = panels::dock_text(app.win.dock_pairs());
+        let app = Rc::new(RefCell::new(app));
+        let mut dock = Dock::new(panels::defs(), panels::workspaces());
+        let draw: [(&str, PanelDraw); 10] = [
+            (panels::id::BOARD_VIEW, App::panel_board_view),
+            (panels::id::LAYERS, App::panel_layers),
+            (panels::id::PROPERTIES, App::panel_properties),
+            (panels::id::COMPONENTS, App::panel_components),
+            (panels::id::NETS, App::panel_nets),
+            (panels::id::DRC, App::panel_drc),
+            (panels::id::LIBRARY, App::panel_library),
+            (panels::id::CONSOLE, App::panel_console),
+            (panels::id::REPORT, App::panel_report),
+            (panels::id::TASKS, App::panel_tasks),
+        ];
+        for (name, f) in draw {
+            let a = app.clone();
+            dock.register(name, move |ui| f(&mut a.borrow_mut(), ui));
+        }
+        dock.load_config(&dock_text);
+        dock.set_language(panels::view_lang(lang));
+        let watch = LayoutWatch::new(&dock.core().config_pairs());
+        Shell {
+            app,
+            dock,
+            bar: panels::menu_bar(),
+            watch,
+            countdown: 1,
+        }
+    }
+
+    /// What the program says about itself in the window «About».
+    fn about(lang: Lang) -> AboutInfo {
+        AboutInfo {
+            app_name: "EH3D-PHOENIX-PCB".to_string(),
+            version: env!("CARGO_PKG_VERSION").to_string(),
+            license: "GPL-3.0-or-later".to_string(),
+            extra: vec![Msg::Prototype.tr(lang).to_string()],
+        }
+    }
+
+    /// Does what was chosen in the menus and what the menus asked of the frame, and keeps the list of recent files.
+    fn after(&mut self, chosen: Option<Chosen<Cmd>>, ctx: &egui::Context) {
+        let mut app = self.app.borrow_mut();
+        match chosen {
+            Some(Chosen::App(cmd)) => app.run_cmd(cmd, ctx),
+            Some(Chosen::Recent(path)) => {
+                app.path_text = path.clone();
+                app.open(Path::new(&path));
+            }
+            Some(Chosen::Dock(_)) | None => {}
+        }
+        for action in std::mem::take(&mut app.pending_dock) {
+            let _ = self.dock.apply(action);
+        }
+        for path in std::mem::take(&mut app.recent_added) {
+            self.dock.core_mut().recent_mut().push(&path);
+        }
+    }
+
+    /// Keeps the arrangement of the panels in the preferences when it changed; it looks at it a few times
+    /// a second and not at every frame.
+    fn keep_layout(&mut self) {
+        let mut app = self.app.borrow_mut();
+        self.countdown = self.countdown.saturating_sub(1);
+        if self.countdown > 0 {
+            return;
+        }
+        self.countdown = app.settings.dock_check_every_frames.max(1);
+        let pairs = self.dock.core().config_pairs();
+        if self.watch.changed(&pairs) {
+            app.win.keep_dock(&pairs);
+        }
+    }
+}
+
+impl Shell {
+    /// Draws one frame of the window in the space of `ui`.
+    fn run(&mut self, ui: &mut egui::Ui) {
         let ctx = ui.ctx().clone();
-        self.common(&ctx);
-        let lang = self.lang;
-        if let Some(editor) = self.rules.as_mut() {
+        let (lang, facts, overlay) = {
+            let mut app = self.app.borrow_mut();
+            app.actions = window_gui::pressed_actions(&ctx, &app.settings.keymap);
+            let frame_ms = f64::from(ctx.input(|i| i.unstable_dt)) * 1000.0;
+            app.frames.push(frame_ms);
+            app.handle_drops(&ctx);
+            app.feed_console();
+            (app.lang, app.menu_facts(), app.overlay())
+        };
+        self.dock.set_language(panels::view_lang(lang));
+        self.dock.set_about(Shell::about(lang));
+        self.dock
+            .set_menu_state(panels::disabled_entries(&facts), Vec::new());
+        let mut chosen = None;
+        egui::Panel::top("menu").show(ui, |ui| {
+            chosen = self.dock.menu_bar(ui, &self.bar);
+        });
+        self.app.borrow_mut().status_bar(ui);
+        if overlay {
+            self.app.borrow_mut().overlay_body(ui);
+        } else {
+            egui::CentralPanel::default()
+                .frame(egui::Frame::NONE)
+                .show(ui, |ui| self.dock.show(ui));
+        }
+        self.after(chosen, &ctx);
+        self.keep_layout();
+        let mut app = self.app.borrow_mut();
+        app.common(&ctx);
+        let lang = app.lang;
+        if let Some(editor) = app.rules.as_mut() {
             if !cfg_gui::window(&ctx, editor, lang) {
-                self.rules = None;
+                app.rules = None;
             }
         }
+    }
+}
+
+impl eframe::App for Shell {
+    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        self.run(ui);
     }
 }
 
@@ -1378,7 +1917,7 @@ fn run_with(
             if let Some(request) = shot {
                 app.begin_shot(request, window_file.as_deref(), outcome_for_app);
             }
-            Ok(Box::new(app))
+            Ok(Box::new(Shell::new(app)))
         }),
     )
     .map_err(|e| ViewError::new(WINDOW_FAILED, e.to_string()))?;
@@ -1423,4 +1962,238 @@ fn save_shot_png(image: &egui::ColorImage, path: &Path, replace: bool) -> Result
     writer.write_image_data(&data).map_err(|e| e.to_string())?;
     // the end of the file is written here, so that a failure is reported and not lost in a drop
     writer.finish().map_err(|e| e.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::load::{Document, Loaded};
+    use crate::sample;
+
+    /// A window with nothing open, as a picture opens it (no file of preferences is read or written).
+    fn app() -> App {
+        let settings = ViewerSettings::default();
+        let win = WindowUi::ephemeral(&settings);
+        App::new(Lang::En, settings, win, None, false)
+    }
+
+    fn with_board(app: &mut App) {
+        let loaded = Loaded {
+            document: Document::Board(Box::new(sample::board())),
+            unread: 0,
+        };
+        app.workspace = Workspace::new(
+            loaded,
+            None,
+            ViewerSettings::default(),
+            RouteSettings::default(),
+        )
+        .ok();
+        assert!(app.workspace.is_some(), "the sample board does not open");
+        app.fit_pending = true;
+    }
+
+    fn with_schematic(app: &mut App) {
+        let loaded = Loaded {
+            document: Document::Schematic(Box::new(sample::schematic())),
+            unread: 0,
+        };
+        app.workspace = Workspace::new(
+            loaded,
+            None,
+            ViewerSettings::default(),
+            RouteSettings::default(),
+        )
+        .ok();
+        assert!(
+            app.workspace.is_some(),
+            "the sample schematic does not open"
+        );
+        app.fit_pending = true;
+    }
+
+    /// Frames of the window drawn in a context with no screen.
+    struct Harness {
+        ctx: egui::Context,
+        shell: Shell,
+        t: f64,
+    }
+
+    impl Harness {
+        fn new(app: App) -> Harness {
+            Harness {
+                ctx: egui::Context::default(),
+                shell: Shell::new(app),
+                t: 0.0,
+            }
+        }
+
+        fn frames(&mut self, n: usize) {
+            for _ in 0..n {
+                self.t += 0.05;
+                let input = egui::RawInput {
+                    screen_rect: Some(Rect::from_min_size(Pos2::ZERO, egui::vec2(1400.0, 900.0))),
+                    time: Some(self.t),
+                    ..Default::default()
+                };
+                let shell = &mut self.shell;
+                let out = self.ctx.run_ui(input, |ui| shell.run(ui));
+                out.drop_without_applying_deltas();
+            }
+        }
+
+        fn switch(&mut self, workspace: &str) {
+            self.shell
+                .dock
+                .apply(DockAction::SwitchWorkspace(workspace.to_string()))
+                .unwrap();
+        }
+    }
+
+    #[test]
+    fn every_workspace_draws_with_nothing_open() {
+        let mut h = Harness::new(app());
+        for name in [panels::WS_EDIT, panels::WS_REVIEW, panels::WS_COMPACT] {
+            h.switch(name);
+            h.frames(4);
+            assert_eq!(h.shell.dock.core().workspaces().current_name(), name);
+        }
+    }
+
+    #[test]
+    fn every_workspace_draws_a_board_and_a_schematic() {
+        for open in [with_board as fn(&mut App), with_schematic] {
+            let mut a = app();
+            open(&mut a);
+            let mut h = Harness::new(a);
+            for name in [panels::WS_EDIT, panels::WS_REVIEW, panels::WS_COMPACT] {
+                h.switch(name);
+                h.frames(4);
+            }
+            // the frames moved the pointer of nobody and changed no document
+            assert!(h.shell.app.borrow().workspace.is_some());
+        }
+    }
+
+    #[test]
+    fn a_workspace_shows_the_panels_it_was_given() {
+        let mut h = Harness::new(app());
+        h.switch(panels::WS_EDIT);
+        h.frames(2);
+        let core = h.shell.dock.core();
+        for p in [
+            panels::id::BOARD_VIEW,
+            panels::id::PROPERTIES,
+            panels::id::LAYERS,
+            panels::id::COMPONENTS,
+            panels::id::CONSOLE,
+        ] {
+            assert!(core.layout().is_shown(p), "{p}");
+        }
+        h.switch(panels::WS_REVIEW);
+        assert!(!h.shell.dock.core().layout().is_shown(panels::id::TASKS));
+    }
+
+    #[test]
+    fn the_open_entry_shows_the_tasks_panel_and_asks_for_the_box_of_the_path() {
+        let mut h = Harness::new(app());
+        h.switch(panels::WS_REVIEW);
+        h.frames(1);
+        assert!(!h.shell.dock.core().layout().is_shown(panels::id::TASKS));
+        let ctx = h.ctx.clone();
+        h.shell
+            .after(Some(Chosen::App(Cmd::Std(StdAction::Open))), &ctx);
+        assert!(h.shell.dock.core().layout().is_shown(panels::id::TASKS));
+        assert!(h.shell.app.borrow().focus_path);
+        h.frames(2);
+        assert!(!h.shell.app.borrow().focus_path);
+    }
+
+    #[test]
+    fn a_file_that_is_opened_reaches_the_list_of_recent_files_of_the_menu() {
+        let mut h = Harness::new(app());
+        h.shell
+            .app
+            .borrow_mut()
+            .recent_added
+            .push("a.brd".to_string());
+        let ctx = h.ctx.clone();
+        h.shell.after(None, &ctx);
+        assert_eq!(h.shell.dock.core().recent().items().len(), 1);
+        assert!(h.shell.app.borrow().recent_added.is_empty());
+    }
+
+    #[test]
+    fn the_arrangement_goes_to_the_preferences_and_comes_back_in_the_next_window() {
+        let mut a = app();
+        a.settings.dock_check_every_frames = 1;
+        let mut h = Harness::new(a);
+        h.frames(2);
+        h.shell
+            .dock
+            .apply(DockAction::HidePanel(panels::id::LAYERS.to_string()))
+            .unwrap();
+        h.frames(3);
+        let pairs = h.shell.app.borrow().win.dock_pairs().to_vec();
+        assert!(!pairs.is_empty());
+        assert!(pairs.iter().all(|(k, _)| k.starts_with("dock.")));
+        // the next window reads them
+        let mut b = app();
+        b.win.keep_dock(&pairs);
+        let h2 = Harness::new(b);
+        assert!(!h2.shell.dock.core().layout().is_shown(panels::id::LAYERS));
+        assert!(h2
+            .shell
+            .dock
+            .core()
+            .layout()
+            .is_shown(panels::id::BOARD_VIEW));
+    }
+
+    #[test]
+    fn a_quiet_window_writes_the_arrangement_once_and_never_again() {
+        let mut a = app();
+        a.settings.dock_check_every_frames = 1;
+        let mut h = Harness::new(a);
+        h.frames(5);
+        // the arrangement is the factory one that was read: nothing to write
+        assert!(h.shell.app.borrow().win.dock_pairs().is_empty());
+    }
+
+    #[test]
+    fn the_errors_and_the_notes_reach_the_console_once() {
+        let mut a = app();
+        a.error = Some(ViewError::new(FILE_UNUSABLE, "x.brd".to_owned()));
+        let mut h = Harness::new(a);
+        h.frames(10);
+        let lines = h.shell.app.borrow().console.len();
+        assert_eq!(lines, 1);
+        h.frames(10);
+        assert_eq!(h.shell.app.borrow().console.len(), 1);
+    }
+
+    #[test]
+    fn the_painter_draws_when_another_engine_is_asked_for() {
+        let (engine, fell_back) = engine_for(Engine::Wgpu);
+        assert!(fell_back);
+        assert_eq!(engine.engine(), Engine::Painter);
+        let (engine, fell_back) = engine_for(Engine::Painter);
+        assert!(!fell_back);
+        assert_eq!(engine.engine(), Engine::Painter);
+        // a window that asked for wgpu says it in the console from the first frame
+        let settings = ViewerSettings {
+            canvas_engine: Engine::Wgpu,
+            ..ViewerSettings::default()
+        };
+        let win = WindowUi::ephemeral(&settings);
+        let a = App::new(Lang::En, settings, win, None, false);
+        assert_eq!(a.console.len(), 1);
+    }
+
+    #[test]
+    fn the_frame_times_are_kept_for_the_report() {
+        let mut h = Harness::new(app());
+        h.frames(6);
+        assert_eq!(h.shell.app.borrow().frames.len(), 6);
+    }
 }

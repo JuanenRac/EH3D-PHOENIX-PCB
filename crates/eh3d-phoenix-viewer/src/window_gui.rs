@@ -363,6 +363,19 @@ impl WindowUi {
         self.prefs.apply_to(settings);
     }
 
+    /// The lines of the arrangement of the panels that the preferences hold (`dock.*`).
+    pub fn dock_pairs(&self) -> &[(String, String)] {
+        &self.prefs.dock
+    }
+
+    /// Keeps the arrangement of the panels in the preferences; the file is written with the next one that
+    /// is due, and only when the lines changed. A picture has no file, so it writes none.
+    pub fn keep_dock(&mut self, pairs: &[(String, String)]) {
+        if self.prefs.note_dock(pairs) {
+            self.saver.mark();
+        }
+    }
+
     /// The size the window had when it was last closed, in logical pixels.
     pub fn window_size(&self) -> Option<[f32; 2]> {
         self.prefs.window.map(|(w, h)| [w as f32, h as f32])

@@ -9,8 +9,8 @@ description = "Prototype viewer and editor of boards and schematics: the drawing
 
 [features]
 default = []
-# the window (egui on eframe, with the icon of the program): `cargo run --features gui -- view <file>`
-gui = ["dep:eframe", "dep:png"]
+# the window (egui on eframe, with the icon of the program and the docking frame of the suite): `cargo run --features gui -- view <file>`
+gui = ["dep:eframe", "dep:png", "eh3d-dock/gui"]
 
 [dependencies]
 eh3d-phoenix-assembly3d = { path = "../eh3d-phoenix-assembly3d" }
@@ -38,6 +38,8 @@ eh3d-phoenix-stats = { path = "../eh3d-phoenix-stats" }
 eh3d-phoenix-sync = { path = "../eh3d-phoenix-sync" }
 eh3d-phoenix-testpoints = { path = "../eh3d-phoenix-testpoints" }
 eh3d-phoenix-zones = { path = "../eh3d-phoenix-zones" }
+eh3d-dock.workspace = true
+eh3d-view.workspace = true
 thiserror.workspace = true
 
 # the window

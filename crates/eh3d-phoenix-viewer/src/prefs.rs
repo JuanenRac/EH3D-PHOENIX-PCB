@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! The preferences that the window remembers between runs, without a screen: the theme, the scale
 //! of the interface, the size of the letters, the unit of the measures, the size of
-//! the window, the zoom and the layers of each mode, and the layer presets. They live in a text file
+//! the window, the zoom and the layers of each mode, the layer presets and the arrangement of the
+//! panels (the lines `dock.*` of the frame of the suite, kept as they are). They live in a text file
 //! in the settings folder of the user (named by the setting `prefs_file`), one `key = value` line
 //! each, read strictly (an unknown key or a value out of its range is an error with its line) and
 //! written to a side file that is renamed over the old one, so that a crash never leaves half a file.
@@ -28,6 +29,26 @@ pub const MODES: [&str; 2] = ["board", "schematic"];
 const WINDOW_MIN: u32 = 200;
 const WINDOW_MAX: u32 = 16_000;
 
+/// The longest name of a line of the arrangement of the panels that is kept.
+const DOCK_KEY_MAX: usize = 96;
+/// The longest value of a line of the arrangement of the panels that is kept (a tree of the panels is
+/// at most 64 KiB for the frame).
+const DOCK_VALUE_MAX: usize = 70_000;
+/// The most lines of the arrangement of the panels that are kept.
+const DOCK_LINES_MAX: usize = 1_024;
+
+/// Whether a line of the arrangement of the panels is one that the file may hold: a name of the frame
+/// (`dock.` and letters, digits, `.`, `_` and `-`) and a value of one line with no control character.
+pub fn dock_line_is_valid(key: &str, value: &str) -> bool {
+    key.starts_with("dock.")
+        && key.len() <= DOCK_KEY_MAX
+        && key
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'.' | b'_' | b'-'))
+        && value.len() <= DOCK_VALUE_MAX
+        && !value.chars().any(char::is_control)
+}
+
 /// What the window remembers.
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Prefs {
@@ -47,6 +68,8 @@ pub struct Prefs {
     pub layers: BTreeMap<String, Vec<PresetLayer>>,
     /// The layer presets that were saved.
     pub presets: Presets,
+    /// The lines of the arrangement of the panels (`dock.*`), as the frame wrote them.
+    pub dock: Vec<(String, String)>,
 }
 
 fn bad(line: usize, why: impl AsRef<str>) -> ViewError {
@@ -150,6 +173,18 @@ impl Prefs {
                         bad(line, "preset: the name is not valid or there are too many")
                     })?;
                 }
+                _ if key.starts_with("dock.") => {
+                    if !dock_line_is_valid(key, value) {
+                        return Err(bad(line, format!("{key}: not a line of the panels")));
+                    }
+                    if prefs.dock.iter().any(|(k, _)| k == key) {
+                        return Err(bad(line, format!("{key} is given twice")));
+                    }
+                    if prefs.dock.len() >= DOCK_LINES_MAX {
+                        return Err(bad(line, "too many lines of the panels"));
+                    }
+                    prefs.dock.push((key.to_string(), value.to_string()));
+                }
                 _ if key.starts_with("zoom.") => {
                     let mode = mode_of(key, "zoom.", line)?;
                     let zoom: f64 = value
@@ -209,7 +244,26 @@ impl Prefs {
         for preset in self.presets.items() {
             out.push_str(&format!("preset = {}\n", preset.to_line()));
         }
+        for (key, value) in &self.dock {
+            out.push_str(&format!("{key} = {value}\n"));
+        }
         out
+    }
+
+    /// Remembers the arrangement of the panels; lines that the file may not hold are left out. The answer
+    /// is true when what is kept changed (so the file is to be written).
+    pub fn note_dock(&mut self, pairs: &[(String, String)]) -> bool {
+        let kept: Vec<(String, String)> = pairs
+            .iter()
+            .filter(|(k, v)| dock_line_is_valid(k, v))
+            .take(DOCK_LINES_MAX)
+            .cloned()
+            .collect();
+        if kept == self.dock {
+            return false;
+        }
+        self.dock = kept;
+        true
     }
 
     /// Puts what was chosen into the settings. A value that the person never chose stays as the
@@ -618,5 +672,86 @@ mod tests {
         saver.mark();
         saver.retry();
         assert!(saver.pending());
+    }
+
+    #[test]
+    fn the_lines_of_the_panels_are_kept_as_they_are_and_written_in_one_order() {
+        let text = "theme = light\ndock.version = 1\ndock.current = 2\ndock.ws.1.name = Edit\ndock.ws.1.tree = H200(T0(a,b),T0(c))\n";
+        let prefs = Prefs::parse(text, 30).unwrap();
+        assert_eq!(prefs.dock.len(), 4);
+        assert_eq!(
+            prefs.dock[3],
+            (
+                "dock.ws.1.tree".to_string(),
+                "H200(T0(a,b),T0(c))".to_string()
+            )
+        );
+        let back = Prefs::parse(&prefs.to_text(), 30).unwrap();
+        assert_eq!(back, prefs);
+        assert_eq!(back.to_text(), prefs.to_text());
+        assert!(prefs.to_text().contains("dock.current = 2\n"));
+    }
+
+    #[test]
+    fn a_line_of_the_panels_that_is_not_valid_is_an_error_with_its_line() {
+        for text in [
+            "dock.version = 1\ndock.version = 2",
+            "dock.a b = 1",
+            "dock./x = 1",
+            "dock.é = 1",
+        ] {
+            let error = Prefs::parse(text, 30).unwrap_err();
+            assert_eq!(error.code, SETTINGS_INVALID, "{text}");
+        }
+        let long = format!("dock.x = {}", "a".repeat(70_001));
+        assert!(Prefs::parse(&long, 30).is_err());
+        let error = Prefs::parse("theme = dark\ndock.a b = 1", 30).unwrap_err();
+        assert!(error.detail.starts_with("line 2"), "{}", error.detail);
+    }
+
+    #[test]
+    fn noting_the_panels_says_whether_anything_changed_and_leaves_out_what_the_file_may_not_hold() {
+        let mut prefs = Prefs::parse("", 30).unwrap();
+        let pairs = vec![
+            ("dock.version".to_string(), "1".to_string()),
+            ("dock.current".to_string(), "0".to_string()),
+        ];
+        assert!(prefs.note_dock(&pairs));
+        assert!(!prefs.note_dock(&pairs));
+        let mut more = pairs.clone();
+        more.push(("theme".to_string(), "dark".to_string()));
+        more.push(("dock.bad key".to_string(), "1".to_string()));
+        more.push(("dock.line".to_string(), "a\nb".to_string()));
+        // only the two valid lines are kept, so nothing changed
+        assert!(!prefs.note_dock(&more));
+        assert_eq!(prefs.dock, pairs);
+        assert!(prefs.note_dock(&[]));
+        assert!(prefs.dock.is_empty());
+    }
+
+    #[test]
+    fn what_is_written_for_any_lines_is_read_back_the_same() {
+        // lines drawn from a generator with a fixed seed
+        let mut seed = 0xd0c_u64;
+        let mut next = || {
+            seed = seed
+                .wrapping_mul(6_364_136_223_846_793_005)
+                .wrapping_add(1_442_695_040_888_963_407);
+            seed >> 33
+        };
+        for _ in 0..50 {
+            let mut prefs = Prefs::parse("", 30).unwrap();
+            let pairs: Vec<(String, String)> = (0..(next() % 12))
+                .map(|i| {
+                    (
+                        format!("dock.ws.{}.k{}", next() % 4, i),
+                        format!("v{}(T0(a,b),{})", next() % 1000, next()),
+                    )
+                })
+                .collect();
+            prefs.note_dock(&pairs);
+            let back = Prefs::parse(&prefs.to_text(), 30).unwrap();
+            assert_eq!(back.dock, prefs.dock);
+        }
     }
 }
