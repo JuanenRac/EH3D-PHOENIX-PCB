@@ -1,5 +1,7 @@
 # EH3D-PHOENIX-PCB: checking a board against the capability profile of a maker
 
+The same profiles also check the geometry of Gerber and Excellon files that come from outside, with `phoenix check --gerber-dfm FOLDER|ZIP --profile NAME` (`docs/GERBER_DFM.md`).
+
 `phoenix check --dfm FILE <board>` checks a board against what a board maker can build. The profile is a plain text file of `key = value` lines (`#` starts a comment); `config/dfm/example.cfg` shows the form. `phoenix check --dfm-profile NAME <board>` does the same with a profile that comes with the program (`jlcpcb`, `pcbway`, `ncab`, the profiles `*-dru` of `docs/FAB_PROFILES.md` or `example`, see below). It does two things at once:
 
 * its limits (`min_track_width_nm`, `min_clearance_nm`, `min_drill_nm`, `min_via_diameter_nm`, `min_annular_ring_nm`, `min_edge_clearance_nm`, `min_mask_bridge_nm`, `min_drill_spacing_nm`, `connect_tolerance_nm`, `silkscreen_over_pads`, `silkscreen_over_mask_openings`) are the values of the usual rule check (`docs/RULES.md`) and replace the rules of the board for this run; `--dfm` and `--dfm-profile` cannot be given together, nor with `--rules` or `--rules-dru`;

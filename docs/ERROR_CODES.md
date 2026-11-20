@@ -1156,6 +1156,24 @@ The titles of these codes also exist in the eight languages of the suite (`TITLE
 | PHOENIX-GX2-009 | Region not opened or not closed | error: `G36` inside a region, `G37` without `G36`, or a region still open at the end |
 | PHOENIX-GX2-010 | Aperture defined twice or numbered below 10 | error: an aperture defined again, or a number below `D10` |
 
+## Geometric checks of Gerber files (`eh3d-phoenix-gerber`, `src/geodfm_text.rs`)
+
+The titles of these codes also exist in the eight languages of the suite (`TITLES` in `src/geodfm_text.rs`); the command is `phoenix check --gerber-dfm` (`docs/GERBER_DFM.md`).
+
+| Code | Title | Raised by |
+|---|---|---|
+| PHOENIX-GDF-001 | Copper closer than the profile allows | error: two separate things of a copper layer closer than `min_clearance_nm` of the profile |
+| PHOENIX-GDF-002 | Conductor narrower than the profile allows | error: a track or an arc drawn with a pen narrower than `min_track_width_nm` |
+| PHOENIX-GDF-003 | Annular ring too thin in the worst case | error: the copper round a plated hole of an outer layer, less the registration error of the drill, thinner than `min_annular_ring_nm` |
+| PHOENIX-GDF-004 | Copper too close to the board edge | error: copper within `min_edge_clearance_nm` of the things of the outline layer |
+| PHOENIX-GDF-005 | Solder mask bridge narrower than the profile allows | error: two openings of the mask layer closer than `min_mask_bridge_nm` |
+| PHOENIX-GDF-006 | Legend printed over an exposed pad | error: legend over copper that the mask leaves open, when the profile asks for the check |
+| PHOENIX-GDF-007 | Via inside the opening of a pad | error: the centre of a via inside copper that the mask leaves open, when the profile forbids it |
+| PHOENIX-GDF-008 | Floating copper: nothing connects it | warning: a piece of copper with no flash, track end or hole inside it |
+| PHOENIX-GDF-009 | A check could not be done | warning: a limit of the settings was reached, an operation of the geometry was refused or the layer has clear polarity |
+| PHOENIX-GDF-010 | A layer that a check needs is not among the files | warning: no copper layer, or no outline layer for the check of the edge |
+| PHOENIX-GDF-011 | The figures of the profile are not verified against the maker | information: the profile does not say `verified = true` |
+
 ## Panelization (`eh3d-phoenix-panel`, `src/codes.rs`)
 
 The titles of these codes also exist in the eight languages of the suite (`TITLES` in `src/codes.rs`); the detail of a message is in English.

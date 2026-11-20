@@ -28,10 +28,13 @@ const KICAD_NEEDS_RULES: &str =
 const MAX_INPUT_BYTES: u64 = 256 * 1024 * 1024;
 
 pub(crate) const USAGE: &str = "\
+phoenix check --gerber-dfm FOLDER|ZIP --profile NAME|FILE [--config FILE] [--json] [--csv FILE] [--lang CODE]
 phoenix check --ipc2581 FILE [--json] [--lang CODE] [--html FILE] [--stackup-out FILE] [--overwrite] [--config FILE]
 phoenix check [--rules FILE | --rules-dru FILE | --dfm FILE | --dfm-profile NAME | --dfm-compare LIST] [--advanced] [--drc-config FILE] [--limits FILE] [--json | --sarif] [--csv FILE] [--html FILE] [--time] [--lang CODE] <board.brd>
 
-  check         with --ipc2581 FILE: read an IPC-2581 file, or a ZIP archive that holds one, and report its
+  check         with --gerber-dfm FOLDER|ZIP: check the geometry of Gerber and Excellon files against a
+                capability profile (--profile, a name or a file); exit code 2 when the verification is not
+                passed (docs/GERBER_DFM.md). Otherwise, with --ipc2581 FILE: read an IPC-2581 file, or a ZIP archive that holds one, and report its
                 revision, unit, what the reader does not know and the counts (the reading mode of
                 `phoenix ipc2581`, same exit codes). Otherwise run the design rules on an EAGLE board. The limits come from FILE (a JSON rule
                 file, format phoenix-rules/1 or phoenix-rules/2, which adds net classes with
@@ -314,6 +317,9 @@ fn check_ipc2581(args: &[&str], out: &mut dyn Write, err: &mut dyn Write) -> i32
 }
 
 pub(crate) fn check(args: &[&str], out: &mut dyn Write, err: &mut dyn Write) -> i32 {
+    if args.contains(&"--gerber-dfm") {
+        return crate::gerber_dfm::check_gerber_dfm(args, out, err);
+    }
     if args.contains(&"--ipc2581") {
         return check_ipc2581(args, out, err);
     }

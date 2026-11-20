@@ -6,12 +6,17 @@
 //! * [`core_adapter`]: the first step of the move to the shared reader of EH3D-CORE-LIBS, an
 //!   adapter to the model of this crate with the comparison of both readings (the reader of
 //!   [`parse`] is not replaced yet);
+//! * [`geodfm`]: geometric checks of imported files against a capability profile of a maker (spacing,
+//!   width, annular ring, copper at the edge, mask bridge, legend over pads, via in pad, floating
+//!   copper), with the codes `PHOENIX-GDF-<NNN>` in [`geodfm_text`];
 //! * [`macros`]: the aperture macros, with their expressions and basic primitives;
 //! * [`drill`]: the Excellon reader (tools, units, zeros, holes, slots and routed paths);
 //! * [`identify`]: the layer a file belongs to, from its X2 attributes or its name (EAGLE,
 //!   Protel and KiCad);
 //! * [`odb`]: a basic reader of the matrix file of an ODB++ job (the steps and the layers), strict
 //!   and with an ordered refusal of whatever it does not read;
+//! * [`odb_archive`]: the bounded reader of the archive of an ODB++ job (`.tgz` or tar) for the basic
+//!   subset: the entries, the steps and the matrix, with the dangerous paths and the bombs refused;
 //! * [`import`]: a set of files read together, each kept with its error when it cannot be read;
 //! * [`compare`]: the round trip, the files that the export writes for a board read back and
 //!   compared with that board;
@@ -33,11 +38,14 @@ pub mod codes;
 pub mod compare;
 pub mod core_adapter;
 pub mod drill;
+pub mod geodfm;
+pub mod geodfm_text;
 pub mod identify;
 pub mod import;
 pub mod macros;
 pub mod model;
 pub mod odb;
+pub mod odb_archive;
 #[cfg(test)]
 mod odb_tests;
 pub mod parse;
@@ -47,14 +55,16 @@ pub mod units;
 pub mod x2check;
 
 pub use codes::{title, Finding, GbrError, Severity, TITLES};
-pub use core_adapter::{adapt_gerber, compare_layers, Adapted, CoreNote, Equivalence};
 pub use compare::{compare_files, compare_files_with, round_trip, Difference, RoundTrip};
+pub use core_adapter::{adapt_gerber, compare_layers, Adapted, CoreNote, Equivalence};
 pub use drill::parse_drill;
+pub use geodfm::{check_set, GeoFinding, GeoReport, GeoSettings, GeoSeverity};
 pub use identify::{drill_span, identify, DrillSpan, Identified, Role, Source};
 pub use import::{import_file, import_files, Content, ImportedFile, ImportedSet};
 pub use model::{
     Aperture, ApertureShape, DrillFile, GerberLayer, Hit, Item, MacroShape, Slot, Units, P,
 };
 pub use odb::{parse_matrix, OdbContext, OdbLayer, OdbLayerKind, OdbLimits, OdbMatrix};
+pub use odb_archive::{read_odb_archive, ArchiveEntry, ArchiveLimits, OdbJob};
 pub use parse::parse_gerber;
 pub use settings::{ImportSettings, ZeroOmission};

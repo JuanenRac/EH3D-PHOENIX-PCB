@@ -62,6 +62,7 @@ mod export;
 mod fabpack;
 mod field2d;
 mod gerber_check;
+mod gerber_dfm;
 mod gerber_import;
 mod help;
 mod help_topics;

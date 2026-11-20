@@ -53,6 +53,8 @@ phoenix gerber-import [--config FILE] [--json] [--lang CODE] [--profile NAME] [-
 
 A folder is read file by file, not below. The files are only read: the summary goes to the screen, and `--out` writes the JSON summary to a new file (an existing file, and any input, is refused). With `--roundtrip` the board is exported in memory and nothing is written. Exit code 0 is done, 1 a file could not be read or the round trip found a difference, 2 the arguments, the settings or the output are unusable.
 
+The matrix of an ODB++ job is read by `parse_matrix`, and the archive of a job (`.tgz`, `.tar.gz` or a tar) by `read_odb_archive`, which lists the entries and the steps and reads `matrix/matrix` in memory with limits on the size, the entries, the unpacked size, the growth of the unpacking, the depth and the names; it refuses by name an empty, absolute, drive-letter, backslash, `.` or `..` path, a path twice, a link or device entry, an extension header and a damaged checksum or CRC. Only the basic subset is read: the features of the layers, the components and the nets are not.
+
 The structure of Gerber X2 and Excellon files can be checked with `phoenix gerber-check <file or folder> ...`, which reports the codes `PHOENIX-GX2-001` to `-010` (`docs/GERBER_X2.md`).
 
 ## What is not here
