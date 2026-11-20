@@ -206,7 +206,7 @@ impl Ipc2581Settings {
                 "zip_max_total_bytes",
                 self.zip_max_total_bytes,
                 1,
-                8_000_000_000,
+                4_000_000_000,
             ),
             ("zip_max_entries", self.zip_max_entries, 1, 100_000),
             ("zip_max_ratio", self.zip_max_ratio, 1, 100_000),

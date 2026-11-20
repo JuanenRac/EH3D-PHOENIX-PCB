@@ -4,6 +4,7 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **The limit of the unpacked size of a ZIP fits a 32-bit program:** the biggest value of `zip_max_total_bytes` is now 4000000000, because a larger one did not fit the address size of the 32-bit Windows build and stopped it from compiling.
 - **Lints of the IPC-2581 reader, the spacing of parts and the rules of a maker fixed:** the reader no longer keeps a note method that nothing calls, the test helper of the spacing of parts names its tuple with a type alias, and the tests that draw random numbers ask `is_multiple_of` instead of taking a remainder.
 
 ## [0.1.3] - A reader of IPC-2581 files with stack-up, libraries of laminates and stack-ups, rules and export profiles of makers, panel rules and a single drill file
