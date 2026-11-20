@@ -34,6 +34,14 @@ pub const DRY_RUN: &str = "PHOENIX-SERVER-012";
 pub const NOTHING_TO_SEND: &str = "PHOENIX-SERVER-013";
 /// The token travels as plain text to an address that is not local.
 pub const PLAIN_TOKEN: &str = "PHOENIX-SERVER-014";
+/// The file of the store exists and the write did not name the version it was made from.
+pub const PROJECT_NEEDS_TAG: &str = "PHOENIX-SERVER-015";
+/// The file of the store was changed by somebody since the version it was made from.
+pub const PROJECT_CHANGED: &str = "PHOENIX-SERVER-016";
+/// The name of the project or of the file of the store is not valid.
+pub const PROJECT_NAME_INVALID: &str = "PHOENIX-SERVER-017";
+/// The file to write exists already and is never replaced.
+pub const OUTPUT_EXISTS: &str = "PHOENIX-SERVER-018";
 
 /// Code, then the title in English, Spanish, German, French, Italian, Japanese, Chinese and
 /// European Portuguese.
@@ -220,6 +228,58 @@ pub const TITLES: &[(&str, [&str; 8])] = &[
             "O token viaja em texto simples para um endereço que não é local",
         ],
     ),
+    (
+        PROJECT_NEEDS_TAG,
+        [
+            "The file is in the store: name the version it was made from",
+            "El archivo ya está en el almacén: indique la versión de la que parte",
+            "Die Datei liegt im Speicher: Geben Sie die Version an, von der sie stammt",
+            "Le fichier est dans le magasin : indiquez la version dont il vient",
+            "Il file è già nell'archivio: indica la versione da cui deriva",
+            "ファイルは既にストアにあります。元にしたバージョンを指定してください",
+            "该文件已在存储中：请指明它所基于的版本",
+            "O ficheiro já está no armazém: indique a versão de que partiu",
+        ],
+    ),
+    (
+        PROJECT_CHANGED,
+        [
+            "Somebody changed the file in the store: read it again",
+            "Alguien cambió el archivo en el almacén: léalo de nuevo",
+            "Jemand hat die Datei im Speicher geändert: Lesen Sie sie erneut",
+            "Quelqu'un a modifié le fichier dans le magasin : relisez-le",
+            "Qualcuno ha modificato il file nell'archivio: rileggilo",
+            "ストア内のファイルが他の人に変更されました。読み直してください",
+            "有人修改了存储中的文件：请重新读取",
+            "Alguém alterou o ficheiro no armazém: leia-o de novo",
+        ],
+    ),
+    (
+        PROJECT_NAME_INVALID,
+        [
+            "The name of the project or of the file is not valid",
+            "El nombre del proyecto o del archivo no es válido",
+            "Der Name des Projekts oder der Datei ist ungültig",
+            "Le nom du projet ou du fichier n'est pas valide",
+            "Il nome del progetto o del file non è valido",
+            "プロジェクトまたはファイルの名前が無効です",
+            "项目或文件的名称无效",
+            "O nome do projeto ou do ficheiro não é válido",
+        ],
+    ),
+    (
+        OUTPUT_EXISTS,
+        [
+            "The file to write already exists and is never replaced",
+            "El archivo que se va a escribir ya existe y nunca se reemplaza",
+            "Die zu schreibende Datei existiert bereits und wird nie ersetzt",
+            "Le fichier à écrire existe déjà et n'est jamais remplacé",
+            "Il file da scrivere esiste già e non viene mai sostituito",
+            "書き込むファイルは既に存在し、置き換えられることはありません",
+            "要写入的文件已存在，且绝不会被替换",
+            "O ficheiro a escrever já existe e nunca é substituído",
+        ],
+    ),
 ];
 
 /// The title of a code in a language; empty for a code that is not in the table.
@@ -340,7 +400,7 @@ mod tests {
                 assert!(!text.is_empty(), "{code} column {column}");
             }
         }
-        assert_eq!(TITLES.len(), 14);
+        assert_eq!(TITLES.len(), 18);
     }
 
     #[test]

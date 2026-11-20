@@ -238,6 +238,8 @@ The checks of `phoenix check --advanced`, with the limits and the levels of `con
 | PHOENIX-DRC-018 | Annular ring thinner than the minimum of its net class | A via or a drilled pad whose annular ring is thinner than the ring_min_nm of the class of its net |
 | PHOENIX-DRC-019 | More vias on a net than the limit | A net with more vias than via_count_max |
 | PHOENIX-DRC-020 | Sharp corner in the board outline or in a cutout | A corner of the outline or of a cutout that is sharper than outline_corner_min_angle_deg |
+| PHOENIX-DRC-021 | Spelling problem in the name of a net | A name that is empty, has a space or a character that is not allowed, is longer than `net_name_max_len`, differs from another only in case, is one a program made up (`N$12`) or is half of a pair (`_P`/`_N`) whose other half is missing; one finding for each thing, written `net NAME` with its kind |
+| PHOENIX-DRC-022 | Solder mask strip too narrow between two openings | Two openings of the mask on one side whose gap is more than nothing and less than `mask_sliver_min_nm`; a pad that is not a square-cornered rectangle is taken as its box and its pairs are told only as information |
 | PHOENIX-DFM-001 | More copper layers than the profile offers | `phoenix check --dfm`: the board has more copper layers than `max_copper_layers` of the capability profile |
 | PHOENIX-DFM-002 | Board smaller than the profile accepts | `phoenix check --dfm`: the short or the long side of the outline is below `min_board_short_nm` or `min_board_long_nm` |
 | PHOENIX-DFM-003 | Board larger than the profile accepts | `phoenix check --dfm`: the short or the long side of the outline is above `max_board_short_nm` or `max_board_long_nm` |
@@ -282,6 +284,8 @@ Titles of the same codes in the other seven languages (Portuguese is the Portugu
 | PHOENIX-DRC-018 | Anillo anular más fino que el mínimo de su clase de red | Restring dünner als das Minimum seiner Netzklasse | Anneau de cuivre plus fin que le minimum de sa classe de réseau | Anello anulare più sottile del minimo della sua classe di rete | アニュラリングがネットクラスの最小値より薄い | 环形焊环比其网络类别的最小值更薄 | Anel anular mais fino do que o mínimo da sua classe de rede |
 | PHOENIX-DRC-019 | Más vías en una red que el límite | Mehr Durchkontaktierungen in einem Netz als erlaubt | Plus de vias sur un réseau que la limite | Più via su una rete del limite | ネット上のビア数が上限を超えている | 网络上的过孔数超过上限 | Mais vias numa rede do que o limite |
 | PHOENIX-DRC-020 | Esquina aguda en el contorno de la placa o en un recorte | Spitze Ecke im Platinenumriss oder in einem Ausschnitt | Angle aigu dans le contour de la carte ou dans une découpe | Angolo acuto nel contorno della scheda o in un ritaglio | 基板外形または切り欠きの鋭い角 | 板框或开孔中的尖角 | Canto agudo no contorno da placa ou num recorte |
+| PHOENIX-DRC-021 | Problema de escritura en el nombre de una red | Schreibproblem im Namen eines Netzes | Problème d'écriture dans le nom d'un réseau | Problema di scrittura nel nome di una rete | ネット名の表記の問題 | 网络名称的拼写问题 | Problema de escrita no nome de uma rede |
+| PHOENIX-DRC-022 | Franja de máscara de soldadura demasiado estrecha entre dos aberturas | Lötstoppmaskensteg zwischen zwei Öffnungen zu schmal | Bande de masque de soudure trop étroite entre deux ouvertures | Striscia di maschera di saldatura troppo stretta tra due aperture | 2つの開口部の間のソルダーマスクが細すぎる | 两个开口之间的阻焊条太窄 | Tira de máscara de soldadura demasiado estreita entre duas aberturas |
 
 ## Stack-up and transmission lines (`eh3d-phoenix-stackup`, `src/error.rs`)
 
@@ -305,6 +309,9 @@ The titles of these codes also exist in the eight languages of the suite (`title
 | PHOENIX-STACK-014 | Quasi-static limit exceeded | a substrate height above the fraction of the guided wavelength set (a warning) |
 | PHOENIX-STACK-015 | Solder mask over the line is not modelled | solder mask over the open side of a microstrip or coplanar line (a warning) |
 | PHOENIX-STACK-016 | Approximate model | an offset stripline, a coupled pair, or a coplanar line whose plane under the substrate is left out (a warning) |
+| PHOENIX-SPREAD-001 | The settings of the spread are not valid | a line of `config/spread.cfg` that is not `key = value`, an unknown key, or a value that is not a number inside its range (the error names the key) |
+| PHOENIX-SPREAD-002 | An option of the spread is not valid | `phoenix spread` with an unknown option, a missing value, a number out of its range, a kind other than `microstrip` or `stripline`, a missing `--kind`, `--width-um`, `--height-um` or `--er`, or `--percent` or `--max-width-tolerance` without `--target` |
+| PHOENIX-SPREAD-003 | The line cannot be worked out for these values | a tolerance of more than half of its value, a permittivity that the tolerance takes below one, or a corner that the model of the line refuses |
 
 ## Heating of tracks and vias (`eh3d-phoenix-stackup`, `src/heating.rs`)
 
@@ -1044,6 +1051,10 @@ The titles of these codes also exist in the eight languages of the suite (`TITLE
 | PHOENIX-SERVER-012 | Nothing was sent: the request was made and shown | information: always given by a run without `--send` |
 | PHOENIX-SERVER-013 | The board or the file has nothing for the report asked for | a board with no tracks, gaps or holes (`rules`), no holes (`drill`), no parts (`bom`) or a file with no measurements |
 | PHOENIX-SERVER-014 | The token travels as plain text to an address that is not local | warning: `server_address` is not a local address, so the token is sent without encryption |
+| PHOENIX-SERVER-015 | The file is in the store: name the version it was made from | `--save-project` over a file that already exists in the project store without `--tag` (the server's `428`) |
+| PHOENIX-SERVER-016 | Somebody changed the file in the store: read it again | `--save-project` with a `--tag` that is no longer the current version of the file (the server's `412`); nothing was written, read the file again with `--load-project` and decide |
+| PHOENIX-SERVER-017 | The name of the project or of the file is not valid | a project that is not letters, digits, `_`, `-` and `.` up to 128, or a file name that is not pieces of those joined by single `/` up to 240 (no empty piece, no `.` or `..`) |
+| PHOENIX-SERVER-018 | The file to write already exists and is never replaced | `--load-project` with an `--out` that exists |
 
 ## Signal integrity (`eh3d-phoenix-si`, `src/codes.rs`)
 

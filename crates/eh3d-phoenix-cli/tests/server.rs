@@ -472,3 +472,124 @@ fn a_bad_option_a_bad_setting_or_a_missing_file_is_refused_with_its_code() {
     assert!(err.contains("PHOENIX-SERVER-003"), "{err}");
     assert_eq!(names(dir.path()), vec!["bad.cfg", "board.json"]);
 }
+
+#[test]
+fn saving_and_loading_a_project_need_the_switch_and_say_so_in_every_language() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = write_board(dir.path());
+    let off = write_text(dir.path(), "off.cfg", &settings_text("127.0.0.1:9", false));
+    let out_file = dir.path().join("back.json");
+    let out_file = out_file.to_str().unwrap();
+    let mut seen = Vec::new();
+    for tag in ["en", "es", "de", "fr", "it", "ja", "zh", "pt"] {
+        let (code, out, err) = command(&[
+            "server",
+            "--save-project",
+            "p-1",
+            "--config",
+            &off,
+            "--lang",
+            tag,
+            &path,
+        ]);
+        assert_eq!((code, out.as_str()), (2, ""), "{tag}");
+        assert!(err.contains("PHOENIX-SERVER-005"), "{tag}: {err}");
+        assert!(!err.contains("cli-secret-token"), "{err}");
+        assert!(!seen.contains(&err), "{tag} repeats a text");
+        seen.push(err);
+        let (code, _, err) = command(&[
+            "server",
+            "--load-project",
+            "p-1",
+            "--name",
+            "board.json",
+            "--out",
+            out_file,
+            "--config",
+            &off,
+            "--lang",
+            tag,
+        ]);
+        assert_eq!(code, 2, "{tag}");
+        assert!(err.contains("PHOENIX-SERVER-005"), "{tag}: {err}");
+    }
+    // nothing was written
+    assert_eq!(names(dir.path()), vec!["board.json", "off.cfg"]);
+}
+
+#[test]
+fn the_options_of_the_store_are_checked_before_any_connection() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = write_board(dir.path());
+    let on = write_text(dir.path(), "on.cfg", &settings_text("127.0.0.1:9", true));
+    let existing = path.as_str();
+    for args in [
+        // both at once, or neither
+        vec![
+            "server",
+            "--save-project",
+            "p",
+            "--load-project",
+            "q",
+            &path,
+        ],
+        // a save takes one file and none of the options of a load
+        vec!["server", "--save-project", "p"],
+        vec!["server", "--save-project", "p", "--out", "x.json", &path],
+        vec!["server", "--save-project", "p", "--version", "2", &path],
+        // a load needs the name and the file to write, takes no file and no tag
+        vec!["server", "--load-project", "p", "--out", "x.json"],
+        vec!["server", "--load-project", "p", "--name", "a.json"],
+        vec![
+            "server",
+            "--load-project",
+            "p",
+            "--name",
+            "a.json",
+            "--out",
+            "x.json",
+            "--tag",
+            "t",
+        ],
+        // the options of the store belong to the store
+        vec!["server", "--tag", "t", &path],
+        vec!["server", "--health", "--name", "a.json"],
+        vec!["server", "--save-project", "p", "--send", &path],
+        // a version is a whole number from 1
+        vec!["server", "--load-project", "p", "--version", "x"],
+        vec!["server", "--load-project", "p", "--version"],
+    ] {
+        let mut full = args.clone();
+        full.extend(["--config", on.as_str()]);
+        let (code, out, err) = command(&full);
+        assert_eq!((code, out.as_str()), (2, ""), "{args:?}");
+        assert!(err.contains("PHOENIX-SERVER-002"), "{args:?}: {err}");
+    }
+    // names that cannot be a project or a file of the store never reach the server
+    for args in [
+        vec!["server", "--save-project", "a b", &path],
+        vec!["server", "--save-project", "p", "--name", "../x", &path],
+        vec!["server", "--save-project", "p", "--name", "a b.json", &path],
+    ] {
+        let mut full = args.clone();
+        full.extend(["--config", on.as_str()]);
+        let (code, _, err) = command(&full);
+        assert_eq!(code, 2, "{args:?}");
+        assert!(err.contains("PHOENIX-SERVER-017"), "{args:?}: {err}");
+    }
+    // a file to write that exists is never replaced
+    let (code, _, err) = command(&[
+        "server",
+        "--load-project",
+        "p",
+        "--name",
+        "a.json",
+        "--out",
+        existing,
+        "--config",
+        &on,
+    ]);
+    assert_eq!(code, 2);
+    assert!(err.contains("PHOENIX-SERVER-018"), "{err}");
+    assert_eq!(names(dir.path()), vec!["board.json", "on.cfg"]);
+}

@@ -9,8 +9,10 @@
 //!   limit, read from `config/server.cfg`;
 //! * [`request`]: a board reduced to plain facts and written as the JSON text of the request;
 //! * [`session`]: the job on the server, over the client of the suite (`eh3d-serverclient`);
+//! * [`store`]: the project store of the server: a file of a board is saved and read back with
+//!   the version it was made from (`If-Match`), and a file somebody else changed is refused;
 //! * [`report`]: the text, with its words in the eight languages, and the JSON of a report;
-//! * [`codes`]: the codes `PHOENIX-SERVER-001` to `PHOENIX-SERVER-014` with their titles in the
+//! * [`codes`]: the codes `PHOENIX-SERVER-001` to `PHOENIX-SERVER-018` with their titles in the
 //!   eight languages.
 //!
 //! **State: prototype.** It has been tried only against a server in memory that answers the way
@@ -24,6 +26,7 @@ pub mod report;
 pub mod request;
 pub mod session;
 pub mod settings;
+pub mod store;
 
 use eh3d_phoenix_board::Board;
 
@@ -35,6 +38,9 @@ pub use session::{
     Pause, Probe, SleepPause, APP,
 };
 pub use settings::ServerSettings;
+pub use store::{
+    fetched_json, fetched_text, load_project, save_project, saved_json, saved_text, Fetched, Saved,
+};
 
 /// A request that is ready to be shown or sent.
 #[derive(Debug, Clone, PartialEq, Eq)]

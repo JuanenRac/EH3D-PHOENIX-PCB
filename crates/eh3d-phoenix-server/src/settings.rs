@@ -52,6 +52,8 @@ pub struct ServerSettings {
     pub rule_min_edge_nm: i64,
     /// The most problems that a report lists.
     pub max_listed: usize,
+    /// The most MiB of a file that is saved to the project store of the server.
+    pub project_max_mib: u32,
 }
 
 impl Default for ServerSettings {
@@ -73,6 +75,7 @@ impl Default for ServerSettings {
             rule_max_drill_nm: 0,
             rule_min_edge_nm: 0,
             max_listed: 100,
+            project_max_mib: 16,
         }
     }
 }
@@ -147,6 +150,7 @@ impl ServerSettings {
                     s.rule_min_edge_nm = rule_value(value, 1, 10_000_000).ok_or_else(bad)?
                 }
                 "max_listed" => s.max_listed = value.parse().map_err(|_| bad())?,
+                "project_max_mib" => s.project_max_mib = value.parse().map_err(|_| bad())?,
                 _ => {
                     return Err(ServerError::new(
                         SETTINGS_INVALID,
@@ -185,6 +189,9 @@ impl ServerSettings {
         }
         if !(1..=10_000).contains(&self.max_listed) {
             return fail("max_listed must be between 1 and 10000");
+        }
+        if !(1..=256).contains(&self.project_max_mib) {
+            return fail("project_max_mib must be between 1 and 256");
         }
         Ok(())
     }
