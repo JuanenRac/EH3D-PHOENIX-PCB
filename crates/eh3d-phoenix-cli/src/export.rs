@@ -12,7 +12,8 @@ use eh3d_phoenix_board::Board;
 use eh3d_phoenix_eagle_board::read_board_with_limits;
 use eh3d_phoenix_export::messages::{localize, written};
 use eh3d_phoenix_export::{
-    build, export_package_reproducible, verify, ExportError, Lang, Profile, ProfileSet,
+    build, export_package_reproducible, maker_profile, verify, ExportError, Lang, Profile,
+    ProfileSet,
 };
 
 use crate::check::{id_source, read_text};
@@ -31,7 +32,9 @@ phoenix export [--profile NAME] [--profiles FILE] [--lang CODE] [--eh3dproj FILE
                 with the SHA-256 of each file. <board> is an EAGLE board (.brd) or the JSON board of
                 a project (.json). The files are read back and compared with the board before
                 anything is written (exit 1 when they differ)
-  --profile     the profile to use (default: generic); --profiles FILE is the JSON file that holds
+  --profile     the profile to use (default: generic; a name of a manufacturer such as
+                jlcpcb-2l-cam, oshpark-4l-cam or isocam-cam when the default file has none of that
+                name, see docs/FAB_PROFILES.md); --profiles FILE is the JSON file that holds
                 the profiles (default: config/export_profiles.json when it exists)
   --eh3dproj    also write the files as a reproducible .eh3dproj package
   --lang CODE   the messages in en, es, de, fr, it, ja, zh or pt
@@ -108,7 +111,9 @@ fn profile_of(options: &Options) -> Result<Profile, ExportError> {
 }
 
 /// The export profile `name` from the JSON file `file`, or from `config/export_profiles.json` when
-/// that exists; the generic profile when there is no file at all.
+/// that exists; the generic profile when there is no file at all. A name that the default file does
+/// not hold (the file is not named on the command line) is looked for among the manufacturers that
+/// come with the program (`jlcpcb-2l-cam`, `oshpark-4l-cam`, ...).
 pub(crate) fn load_profile(name: &str, file: Option<&str>) -> Result<Profile, ExportError> {
     let path = file.or_else(|| {
         Path::new(DEFAULT_PROFILES)
@@ -119,11 +124,16 @@ pub(crate) fn load_profile(name: &str, file: Option<&str>) -> Result<Profile, Ex
         return if name == "generic" {
             Ok(Profile::default())
         } else {
-            Err(ExportError::ProfileNotFound(name.to_owned()))
+            maker_profile(name).ok_or_else(|| ExportError::ProfileNotFound(name.to_owned()))
         };
     };
     let text = read_text(path).map_err(ExportError::Profile)?;
-    ProfileSet::from_json(&text)?.get(name).cloned()
+    match ProfileSet::from_json(&text)?.get(name).cloned() {
+        Err(ExportError::ProfileNotFound(_)) if file.is_none() => {
+            maker_profile(name).ok_or_else(|| ExportError::ProfileNotFound(name.to_owned()))
+        }
+        other => other,
+    }
 }
 
 fn error_line(error: &ExportError, lang: Lang) -> String {

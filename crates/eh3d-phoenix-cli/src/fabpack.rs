@@ -25,7 +25,7 @@ use eh3d_phoenix_export::fabpack::{
 };
 use eh3d_phoenix_export::pnp::{plan, PnpSettings};
 use eh3d_phoenix_export::stencil::{build_stencil, StencilSettings};
-use eh3d_phoenix_export::{build, FileRole, Lang, Profile, ProfileSet};
+use eh3d_phoenix_export::{build, maker_profile, ExportError, FileRole, Lang, Profile, ProfileSet};
 
 use crate::export::read_board_file;
 use crate::pnp::pnp_files;
@@ -56,8 +56,9 @@ phoenix fabpack [--profile NAME] [--profiles FILE] [--pnp-config FILE] [--stenci
                 manifest before it is written. A dry run unless --out names a destination, which
                 must not exist (a name ending in .zip is a zip file, anything else a new folder).
                 A prototype: never sent to a manufacturer
-  --profile     the export profile (default: generic); --profiles FILE holds the profiles
-                (default: config/export_profiles.json when it exists)
+  --profile     the export profile (default: generic; the name of a manufacturer such as
+                jlcpcb-2l-cam works when the default file has none of that name); --profiles FILE
+                holds the profiles (default: config/export_profiles.json when it exists)
   --pnp-config  the settings of the pick and place files (default: config/pnp_rotations.cfg when
                 it exists); --maker picks the section of a machine or maker
   --stencil-config the settings of the stencil (default: config/stencil.cfg when it exists)
@@ -119,6 +120,8 @@ pub(crate) fn load_profile(name: &str, file: Option<&str>) -> Result<Profile, Fa
     let Some(path) = path else {
         return if name == "generic" {
             Ok(Profile::default())
+        } else if let Some(profile) = maker_profile(name) {
+            Ok(profile)
         } else {
             Err(FabError::new(
                 FABPACK_PROFILE,
@@ -127,9 +130,18 @@ pub(crate) fn load_profile(name: &str, file: Option<&str>) -> Result<Profile, Fa
         };
     };
     let text = read_small(path, MAX_SMALL_BYTES)?;
-    ProfileSet::from_json(&text)
-        .and_then(|set| set.get(name).cloned())
-        .map_err(|e| FabError::new(FABPACK_PROFILE, e.to_string()))
+    let found = ProfileSet::from_json(&text).and_then(|set| set.get(name).cloned());
+    match found {
+        Err(ExportError::ProfileNotFound(_)) if file.is_none() => {
+            maker_profile(name).ok_or_else(|| {
+                FabError::new(
+                    FABPACK_PROFILE,
+                    format!("profile '{name}' is not in the profile file"),
+                )
+            })
+        }
+        other => other.map_err(|e| FabError::new(FABPACK_PROFILE, e.to_string())),
+    }
 }
 
 /// The designators of the parts that are not fitted: those the file of part data says so of, and

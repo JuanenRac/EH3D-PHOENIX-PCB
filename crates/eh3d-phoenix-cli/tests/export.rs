@@ -318,3 +318,42 @@ fn export_arguments_and_boards_that_cannot_be_used_exit_2() {
         assert!(!err.is_empty(), "{list:?}");
     }
 }
+
+#[test]
+fn export_names_the_files_as_the_job_of_a_manufacturer_does() {
+    let f = Files::new();
+    let json = f.board();
+    let out_dir = f.path("jlc");
+    let (code, out, err) = call(&[
+        "export",
+        "--profile",
+        "jlcpcb-2l-cam",
+        "--out",
+        out_dir.to_str().unwrap(),
+        json.as_str(),
+    ]);
+    assert_eq!(code, 0, "{err}");
+    assert!(out.contains("6 files written"), "{out}");
+    for name in [
+        "cli_board.GTL",
+        "cli_board.GKO",
+        "cli_board.XLN",
+        "placement.csv",
+        "bom.csv",
+        "manifest.json",
+    ] {
+        assert!(out_dir.join(name).is_file(), "{name}");
+    }
+    assert!(!out_dir.join("01_top.gbr").exists());
+    // a name that no manufacturer has is still refused
+    let again = f.path("none");
+    let (code, _, _) = call(&[
+        "export",
+        "--profile",
+        "nobody-cam",
+        "--out",
+        again.to_str().unwrap(),
+        json.as_str(),
+    ]);
+    assert_ne!(code, 0);
+}

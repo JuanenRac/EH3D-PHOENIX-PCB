@@ -1,0 +1,534 @@
+{
+  "format": "phoenix-export/1",
+  "profiles": [
+    {
+      "name": "jlcpcb-2l-cam",
+      "description": "Export profile from the CAM job of the manufacturer as shipped with EAGLE: JLCPCB 2 layers. Gerber coordinates 3.4 in millimetres. Excellon coordinates 3.3 in millimetres. Only the file names, the formats and the order of the files are taken. The job writes the plated and the not plated holes to one drill file; the export keeps two, and the not plated one is the same name with _npth before the extension. Not compared with the manufacturer.",
+      "gerber": {
+        "names": {
+          "copper_top": "{board}.GTL",
+          "copper_bottom": "{board}.GBL",
+          "mask_top": "{board}.GTS",
+          "mask_bottom": "{board}.GBS",
+          "silk_top": "{board}.GTO",
+          "silk_bottom": "{board}.GBO",
+          "paste_top": "{board}.GTP",
+          "paste_bottom": "{board}.GBP",
+          "outline": "{board}.GKO",
+          "order": [
+            "outline",
+            "copper_top",
+            "copper_bottom",
+            "mask_top",
+            "mask_bottom",
+            "paste_top",
+            "paste_bottom",
+            "silk_top",
+            "silk_bottom"
+          ]
+        },
+        "decimal_digits": 4
+      },
+      "drill": {
+        "plated_file": "{board}.XLN",
+        "non_plated_file": "{board}_npth.XLN",
+        "style": "fixed",
+        "fixed_integer_digits": 3,
+        "fixed_decimal_digits": 3
+      }
+    },
+    {
+      "name": "jlcpcb-4l-cam",
+      "description": "Export profile from the CAM job of the manufacturer as shipped with EAGLE: JLCPCB 4 layers. Gerber coordinates 3.4 in millimetres. Excellon coordinates 3.3 in millimetres. Only the file names, the formats and the order of the files are taken. The job writes the plated and the not plated holes to one drill file; the export keeps two, and the not plated one is the same name with _npth before the extension. Not compared with the manufacturer.",
+      "gerber": {
+        "names": {
+          "copper_top": "{board}.GTL",
+          "copper_inner": "{board}.G{inner}",
+          "copper_bottom": "{board}.GBL",
+          "mask_top": "{board}.GTS",
+          "mask_bottom": "{board}.GBS",
+          "silk_top": "{board}.GTO",
+          "silk_bottom": "{board}.GBO",
+          "paste_top": "{board}.GTP",
+          "paste_bottom": "{board}.GBP",
+          "outline": "{board}.GKO",
+          "order": [
+            "outline",
+            "copper_top",
+            "copper_inner",
+            "copper_bottom",
+            "mask_top",
+            "mask_bottom",
+            "paste_top",
+            "paste_bottom",
+            "silk_top",
+            "silk_bottom"
+          ]
+        },
+        "decimal_digits": 4
+      },
+      "drill": {
+        "plated_file": "{board}_drill.XLN",
+        "non_plated_file": "{board}_drill_npth.XLN",
+        "style": "fixed",
+        "fixed_integer_digits": 3,
+        "fixed_decimal_digits": 3
+      }
+    },
+    {
+      "name": "jlcpcb-6l-cam",
+      "description": "Export profile from the CAM job of the manufacturer as shipped with EAGLE: JLCPCB 6 layers. Gerber coordinates 3.4 in millimetres. Excellon coordinates 3.3 in millimetres. Only the file names, the formats and the order of the files are taken. The job writes the plated and the not plated holes to one drill file; the export keeps two, and the not plated one is the same name with _npth before the extension. Not compared with the manufacturer.",
+      "gerber": {
+        "names": {
+          "copper_top": "{board}.GTL",
+          "copper_inner": "{board}.G{inner}",
+          "copper_bottom": "{board}.GBL",
+          "mask_top": "{board}.GTS",
+          "mask_bottom": "{board}.GBS",
+          "silk_top": "{board}.GTO",
+          "silk_bottom": "{board}.GBO",
+          "paste_top": "{board}.GTP",
+          "paste_bottom": "{board}.GBP",
+          "outline": "{board}.GKO",
+          "order": [
+            "outline",
+            "copper_top",
+            "copper_inner",
+            "copper_bottom",
+            "mask_top",
+            "mask_bottom",
+            "paste_top",
+            "paste_bottom",
+            "silk_top",
+            "silk_bottom"
+          ]
+        },
+        "decimal_digits": 4
+      },
+      "drill": {
+        "plated_file": "{board}_drill.XLN",
+        "non_plated_file": "{board}_drill_npth.XLN",
+        "style": "fixed",
+        "fixed_integer_digits": 3,
+        "fixed_decimal_digits": 3
+      }
+    },
+    {
+      "name": "pcbway-cam",
+      "description": "Export profile from the CAM job of the manufacturer as shipped with EAGLE: PCBWay 2 layers. Gerber coordinates 3.4 in millimetres. Excellon coordinates 3.3 in millimetres. Only the file names, the formats and the order of the files are taken. The job writes the plated and the not plated holes to one drill file; the export keeps two, and the not plated one is the same name with _npth before the extension. Not compared with the manufacturer.",
+      "gerber": {
+        "names": {
+          "copper_top": "{board}.top",
+          "copper_bottom": "{board}.bot",
+          "mask_top": "{board}.smt",
+          "mask_bottom": "{board}.smb",
+          "silk_top": "{board}.sst",
+          "outline": "{board}.out",
+          "order": [
+            "copper_top",
+            "copper_bottom",
+            "outline",
+            "mask_top",
+            "mask_bottom",
+            "silk_top"
+          ]
+        },
+        "decimal_digits": 4
+      },
+      "drill": {
+        "plated_file": "{board}.drd",
+        "non_plated_file": "{board}_npth.drd",
+        "style": "fixed",
+        "fixed_integer_digits": 3,
+        "fixed_decimal_digits": 3
+      }
+    },
+    {
+      "name": "oshpark-2l-cam",
+      "description": "Export profile from the CAM job of the manufacturer as shipped with EAGLE: OSH Park 2 layers. Gerber coordinates 3.4 in millimetres. Excellon coordinates 3.3 in millimetres. Only the file names, the formats and the order of the files are taken. The job writes the plated and the not plated holes to one drill file; the export keeps two, and the not plated one is the same name with _npth before the extension. Not compared with the manufacturer.",
+      "gerber": {
+        "names": {
+          "copper_top": "{board}.toplayer.ger",
+          "copper_bottom": "{board}.bottomlayer.ger",
+          "mask_top": "{board}.topsoldermask.ger",
+          "mask_bottom": "{board}.bottomsoldermask.ger",
+          "silk_top": "{board}.topsilkscreen.ger",
+          "silk_bottom": "{board}.bottomsilkscreen.ger",
+          "paste_top": "{board}.tcream.ger",
+          "paste_bottom": "{board}.bcream.ger",
+          "outline": "{board}.boardoutline.ger",
+          "order": [
+            "paste_top",
+            "paste_bottom",
+            "copper_top",
+            "copper_bottom",
+            "silk_top",
+            "silk_bottom",
+            "mask_top",
+            "mask_bottom",
+            "outline"
+          ]
+        },
+        "decimal_digits": 4
+      },
+      "drill": {
+        "plated_file": "{board}.drills.xln",
+        "non_plated_file": "{board}.drills_npth.xln",
+        "style": "fixed",
+        "fixed_integer_digits": 3,
+        "fixed_decimal_digits": 3
+      }
+    },
+    {
+      "name": "oshpark-4l-cam",
+      "description": "Export profile from the CAM job of the manufacturer as shipped with EAGLE: OSH Park 4 layers. The job gives no Gerber coordinate format, so the profile keeps the default. Only the file names, the formats and the order of the files are taken. The job writes the plated and the not plated holes to one drill file; the export keeps two, and the not plated one is the same name with _npth before the extension. Not compared with the manufacturer.",
+      "gerber": {
+        "names": {
+          "copper_top": "{board}.toplayer.ger",
+          "copper_inner": "{board}.internalplane{inner}.ger",
+          "copper_bottom": "{board}.bottomlayer.ger",
+          "mask_top": "{board}.topsoldermask.ger",
+          "mask_bottom": "{board}.bottomsoldermask.ger",
+          "silk_top": "{board}.topsilkscreen.ger",
+          "silk_bottom": "{board}.bottomsilkscreen.ger",
+          "paste_top": "{board}.tcream.ger",
+          "paste_bottom": "{board}.bcream.ger",
+          "outline": "{board}.boardoutline.ger",
+          "order": [
+            "paste_top",
+            "paste_bottom",
+            "copper_top",
+            "copper_inner",
+            "copper_bottom",
+            "silk_top",
+            "silk_bottom",
+            "mask_top",
+            "mask_bottom",
+            "outline"
+          ]
+        }
+      },
+      "drill": {
+        "plated_file": "{board}.drills.xln",
+        "non_plated_file": "{board}.drills_npth.xln"
+      }
+    },
+    {
+      "name": "sunstone-2l-cam",
+      "description": "Export profile from the CAM job of the manufacturer as shipped with EAGLE: Sunstone 2 layers. Gerber coordinates 3.4 in millimetres. Excellon coordinates 3.3 in millimetres. Only the file names, the formats and the order of the files are taken. The job writes the plated and the not plated holes to one drill file; the export keeps two, and the not plated one is the same name with _npth before the extension. Not compared with the manufacturer.",
+      "gerber": {
+        "names": {
+          "copper_top": "{board}.top",
+          "copper_bottom": "{board}.bot",
+          "mask_top": "{board}.smt",
+          "mask_bottom": "{board}.smb",
+          "silk_top": "{board}.slk",
+          "silk_bottom": "{board}.bsk",
+          "paste_top": "{board}.tsp",
+          "paste_bottom": "{board}.bsp",
+          "outline": "{board}.oln",
+          "order": [
+            "silk_top",
+            "outline",
+            "copper_top",
+            "copper_bottom",
+            "mask_top",
+            "mask_bottom",
+            "silk_bottom",
+            "paste_top",
+            "paste_bottom"
+          ]
+        },
+        "decimal_digits": 4
+      },
+      "drill": {
+        "plated_file": "drills_1_16.xln",
+        "non_plated_file": "drills_1_16_npth.xln",
+        "style": "fixed",
+        "fixed_integer_digits": 3,
+        "fixed_decimal_digits": 3
+      }
+    },
+    {
+      "name": "elecrow-cam",
+      "description": "Export profile from the CAM job of the manufacturer as shipped with EAGLE: Elecrow. The job gives no Gerber coordinate format, so the profile keeps the default. Only the file names, the formats and the order of the files are taken. The job writes the plated and the not plated holes to one drill file; the export keeps two, and the not plated one is the same name with _npth before the extension. Not compared with the manufacturer.",
+      "gerber": {
+        "names": {
+          "copper_top": "{board}.GTL",
+          "copper_bottom": "{board}.GBL",
+          "mask_top": "{board}.GTS",
+          "mask_bottom": "{board}.GBS",
+          "silk_top": "{board}.GTO",
+          "silk_bottom": "{board}.GBO",
+          "paste_top": "{board}.GTP",
+          "paste_bottom": "{board}.GBP",
+          "outline": "{board}.GML",
+          "order": [
+            "outline",
+            "paste_bottom",
+            "paste_top",
+            "mask_bottom",
+            "mask_top",
+            "silk_bottom",
+            "silk_top",
+            "copper_bottom",
+            "copper_top"
+          ]
+        }
+      },
+      "drill": {
+        "plated_file": "{board}.TXT",
+        "non_plated_file": "{board}_npth.TXT"
+      }
+    },
+    {
+      "name": "apc-2l-cam",
+      "description": "Export profile from the CAM job of the manufacturer as shipped with EAGLE: APC 2 layers. The job gives no Gerber coordinate format, so the profile keeps the default. Only the file names, the formats and the order of the files are taken. The job writes the plated and the not plated holes to one drill file; the export keeps two, and the not plated one is the same name with _npth before the extension. Not compared with the manufacturer.",
+      "gerber": {
+        "names": {
+          "copper_top": "{board}.TOP",
+          "copper_bottom": "{board}.BOTTOM",
+          "mask_top": "{board}.MASK_TOP",
+          "mask_bottom": "{board}.MASK_BOTTOM",
+          "silk_top": "{board}.SILK_TOP",
+          "order": [
+            "copper_top",
+            "copper_bottom",
+            "silk_top",
+            "mask_top",
+            "mask_bottom"
+          ]
+        }
+      },
+      "drill": {
+        "plated_file": "{board}.NcDrill",
+        "non_plated_file": "{board}_npth.NcDrill"
+      }
+    },
+    {
+      "name": "apc-4l-cam",
+      "description": "Export profile from the CAM job of the manufacturer as shipped with EAGLE: APC 4 layers. The job gives no Gerber coordinate format, so the profile keeps the default. Only the file names, the formats and the order of the files are taken. The job writes the plated and the not plated holes to one drill file; the export keeps two, and the not plated one is the same name with _npth before the extension. Not compared with the manufacturer.",
+      "gerber": {
+        "names": {
+          "copper_top": "{board}.TOP",
+          "copper_inner": "{board}.L{layer}",
+          "copper_bottom": "{board}.BOTTOM",
+          "mask_top": "{board}.TMASK",
+          "mask_bottom": "{board}.BMASK",
+          "silk_top": "{board}.TSILK",
+          "order": [
+            "copper_top",
+            "copper_inner",
+            "copper_bottom",
+            "silk_top",
+            "mask_top",
+            "mask_bottom"
+          ]
+        }
+      },
+      "drill": {
+        "plated_file": "{board}.NcDrill",
+        "non_plated_file": "{board}_npth.NcDrill"
+      }
+    },
+    {
+      "name": "seeed-2l-cam",
+      "description": "Export profile from the CAM job of the manufacturer as shipped with EAGLE: Seeed 2 layers. The job gives no Gerber coordinate format, so the profile keeps the default. Only the file names, the formats and the order of the files are taken. The job writes the plated and the not plated holes to one drill file; the export keeps two, and the not plated one is the same name with _npth before the extension. Not compared with the manufacturer.",
+      "gerber": {
+        "names": {
+          "copper_top": "{board}.GTL",
+          "copper_bottom": "{board}.GBL",
+          "mask_top": "{board}.GTS",
+          "mask_bottom": "{board}.GBS",
+          "silk_top": "{board}.GTO",
+          "silk_bottom": "{board}.GBO",
+          "paste_top": "{board}.GTP",
+          "paste_bottom": "{board}.GBP",
+          "outline": "{board}.GML",
+          "order": [
+            "outline",
+            "paste_bottom",
+            "paste_top",
+            "mask_bottom",
+            "mask_top",
+            "silk_bottom",
+            "silk_top",
+            "copper_bottom",
+            "copper_top"
+          ]
+        }
+      },
+      "drill": {
+        "plated_file": "{board}.TXT",
+        "non_plated_file": "{board}_npth.TXT"
+      }
+    },
+    {
+      "name": "seeed-4l-cam",
+      "description": "Export profile from the CAM job of the manufacturer as shipped with EAGLE: Seeed 4 layers. The job gives no Gerber coordinate format, so the profile keeps the default. Only the file names, the formats and the order of the files are taken. The job writes the plated and the not plated holes to one drill file; the export keeps two, and the not plated one is the same name with _npth before the extension. Not compared with the manufacturer.",
+      "gerber": {
+        "names": {
+          "copper_top": "{board}.GTL",
+          "copper_inner": "{board}.GL{layer}",
+          "copper_bottom": "{board}.GBL",
+          "mask_top": "{board}.GTS",
+          "mask_bottom": "{board}.GBS",
+          "silk_top": "{board}.GTO",
+          "silk_bottom": "{board}.GBO",
+          "paste_top": "{board}.GTP",
+          "paste_bottom": "{board}.GBP",
+          "outline": "{board}.GML",
+          "order": [
+            "outline",
+            "paste_bottom",
+            "paste_top",
+            "mask_bottom",
+            "mask_top",
+            "silk_bottom",
+            "silk_top",
+            "copper_bottom",
+            "copper_top",
+            "copper_inner"
+          ]
+        }
+      },
+      "drill": {
+        "plated_file": "{board}.TXT",
+        "non_plated_file": "{board}_npth.TXT"
+      }
+    },
+    {
+      "name": "lpkf-2l-cam",
+      "description": "Export profile from the CAM job of the manufacturer as shipped with EAGLE: LPKF 2 layers. The job gives no Gerber coordinate format, so the profile keeps the default. Only the file names, the formats and the order of the files are taken. The job writes the plated and the not plated holes to one drill file; the export keeps two, and the not plated one is the same name with _npth before the extension. Not compared with the manufacturer.",
+      "gerber": {
+        "names": {
+          "copper_top": "{board}.TOP",
+          "copper_bottom": "{board}.BOT",
+          "silk_top": "{board}.SST",
+          "paste_top": "{board}.SMT",
+          "paste_bottom": "{board}.SMB",
+          "outline": "{board}.BOA",
+          "order": [
+            "copper_top",
+            "copper_bottom",
+            "outline",
+            "paste_top",
+            "paste_bottom",
+            "silk_top"
+          ]
+        }
+      },
+      "drill": {
+        "plated_file": "{board}.DRD",
+        "non_plated_file": "{board}_npth.DRD"
+      }
+    },
+    {
+      "name": "advancedcircuits-2l-cam",
+      "description": "Export profile from the CAM job of the manufacturer as shipped with EAGLE: Advanced Circuits 2 layers. Gerber coordinates 3.4 in millimetres. Excellon coordinates 3.3 in millimetres. Only the file names, the formats and the order of the files are taken. The job writes the plated and the not plated holes to one drill file; the export keeps two, and the not plated one is the same name with _npth before the extension. Not compared with the manufacturer.",
+      "gerber": {
+        "names": {
+          "copper_top": "{board}.cmp",
+          "copper_bottom": "{board}.sol",
+          "mask_top": "{board}.stc",
+          "mask_bottom": "{board}.sts",
+          "silk_top": "{board}.plc",
+          "silk_bottom": "{board}.pls",
+          "order": [
+            "silk_top",
+            "copper_top",
+            "copper_bottom",
+            "silk_bottom",
+            "mask_top",
+            "mask_bottom"
+          ]
+        },
+        "decimal_digits": 4
+      },
+      "drill": {
+        "plated_file": "drills_1_16.xln",
+        "non_plated_file": "drills_1_16_npth.xln",
+        "style": "fixed",
+        "fixed_integer_digits": 3,
+        "fixed_decimal_digits": 3
+      }
+    },
+    {
+      "name": "isocam-cam",
+      "description": "Export profile from the CAM job of the manufacturer as shipped with EAGLE: ISOCAM of the Bungard machine. The job gives no Gerber coordinate format, so the profile keeps the default. Only the file names, the formats and the order of the files are taken. The job writes the plated and the not plated holes to one drill file; the export keeps two, and the not plated one is the same name with _npth before the extension. Not compared with the manufacturer.",
+      "gerber": {
+        "names": {
+          "copper_top": "{board}.TOP",
+          "copper_bottom": "{board}.BOTTOM",
+          "outline": "{board}.DIM",
+          "order": [
+            "copper_top",
+            "copper_bottom",
+            "outline"
+          ]
+        }
+      },
+      "drill": {
+        "plated_file": "{board}.DRD",
+        "non_plated_file": "{board}_npth.DRD"
+      }
+    },
+    {
+      "name": "jlcpcb-kicad-names",
+      "description": "File names in the KiCad style that the JLCPCB page lists (-F_Cu, -B_Cu, -Edge_Cuts, -PTH, -NPTH). Public naming of the manufacturer page; not compared with the manufacturer.",
+      "gerber": {
+        "names": {
+          "copper_top": "{board}-F_Cu.gbr",
+          "copper_bottom": "{board}-B_Cu.gbr",
+          "outline": "{board}-Edge_Cuts.gbr",
+          "mask_top": "{board}-F_Mask.gbr",
+          "silk_top": "{board}-F_SilkS.gbr",
+          "paste_top": "{board}-F_Paste.gbr"
+        }
+      },
+      "drill": {
+        "plated_file": "{board}-PTH.drl",
+        "non_plated_file": "{board}-NPTH.drl"
+      }
+    },
+    {
+      "name": "jlcpcb-altium-names",
+      "description": "File names in the Altium style that the JLCPCB page lists (.gtl .gbl .gko .gts .gbs .gto .gbo .gtp .gbp and a .txt drill file). The file of the holes that are not plated is the same name with _npth, a choice of ours. Public naming of the manufacturer page; not compared with the manufacturer.",
+      "gerber": {
+        "names": {
+          "copper_top": "{board}.gtl",
+          "copper_bottom": "{board}.gbl",
+          "outline": "{board}.gko",
+          "mask_top": "{board}.gts",
+          "mask_bottom": "{board}.gbs",
+          "silk_top": "{board}.gto",
+          "silk_bottom": "{board}.gbo",
+          "paste_top": "{board}.gtp",
+          "paste_bottom": "{board}.gbp"
+        }
+      },
+      "drill": {
+        "plated_file": "{board}.txt",
+        "non_plated_file": "{board}_npth.txt"
+      }
+    },
+    {
+      "name": "jlcpcb-eagle-names",
+      "description": "File names in the EAGLE style that the JLCPCB page lists (Copper_top, Copper_bottom, Profile, Soldermask_top, Silkscreen_top, Solderpaste_top, Drill_1_16.xln). The file of the holes that are not plated is the same name with _npth, a choice of ours. Public naming of the manufacturer page; not compared with the manufacturer.",
+      "gerber": {
+        "names": {
+          "copper_top": "Copper_top.gbr",
+          "copper_bottom": "Copper_bottom.gbr",
+          "outline": "Profile.gbr",
+          "mask_top": "Soldermask_top.gbr",
+          "silk_top": "Silkscreen_top.gbr",
+          "paste_top": "Solderpaste_top.gbr"
+        }
+      },
+      "drill": {
+        "plated_file": "Drill_1_16.xln",
+        "non_plated_file": "Drill_1_16_npth.xln"
+      }
+    }
+  ]
+}

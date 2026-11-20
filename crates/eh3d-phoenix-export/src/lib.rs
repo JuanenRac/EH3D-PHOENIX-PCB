@@ -5,7 +5,9 @@
 //!   `.FileFunction` and `.FilePolarity`;
 //! * [`excellon`]: the holes as Excellon files, plated and not plated apart, with slots (`G85`);
 //! * [`assembly`]: the placement (pick and place) file and the bill of materials, as CSV;
-//! * [`profile`]: the export profiles, read from a JSON file (`config/export_profiles.json`);
+//! * [`profile`]: the export profiles, read from a JSON file (`config/export_profiles.json`), and
+//!   those of the manufacturers that come with the program (the names of the files, the formats
+//!   and the order of the files of their CAM jobs);
 //! * [`fab`]: the whole set of files of a board, its manifest of SHA-256 sums and the folder it is
 //!   written to;
 //! * [`package`]: an `.eh3dproj` 1.0.0 package (EH3D-COMMON) with those files, written without
@@ -59,5 +61,5 @@ pub use package::{
     export_package, export_package_reproducible, export_package_with, package_of, ExportError,
     ExportOptions, Exported,
 };
-pub use profile::{Profile, ProfileSet};
+pub use profile::{maker_names, maker_profile, FileNames, Profile, ProfileSet};
 pub use verify::verify;

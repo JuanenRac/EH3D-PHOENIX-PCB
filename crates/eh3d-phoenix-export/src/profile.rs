@@ -248,6 +248,121 @@ fn column(key: &str, header: &str) -> Column {
     }
 }
 
+/// The roles of the layer files that a profile can give a name to, in the order they are listed.
+pub const NAME_ROLES: [&str; 10] = [
+    "copper_top",
+    "copper_inner",
+    "copper_bottom",
+    "mask_top",
+    "mask_bottom",
+    "silk_top",
+    "silk_bottom",
+    "paste_top",
+    "paste_bottom",
+    "outline",
+];
+
+/// The names of the layer files that a manufacturer asks for, and the order of the files.
+///
+/// Each field is the template of the name of one role. `{board}` is the name of the board as a
+/// plain file name; in the template of the inner copper layers `{inner}` is the number of the
+/// inner layer counted from 1 and `{layer}` is its place in the copper stack counted from 1 at the
+/// top (the first inner layer is 2). A role whose template is empty, and a layer that has no role
+/// (a documentation layer, a legend without a side), keeps the usual numbered name with the
+/// extension of the profile. `order` lists roles: the files of those roles come first, in that
+/// order; the rest follow in the usual order.
+#[derive(Debug, Clone, PartialEq, Eq, Default, Deserialize)]
+#[serde(deny_unknown_fields, default)]
+pub struct FileNames {
+    /// The top copper layer.
+    pub copper_top: String,
+    /// Each inner copper layer.
+    pub copper_inner: String,
+    /// The bottom copper layer.
+    pub copper_bottom: String,
+    /// The solder mask of the top side.
+    pub mask_top: String,
+    /// The solder mask of the bottom side.
+    pub mask_bottom: String,
+    /// The legend (silkscreen) of the top side.
+    pub silk_top: String,
+    /// The legend of the bottom side.
+    pub silk_bottom: String,
+    /// The solder paste of the top side.
+    pub paste_top: String,
+    /// The solder paste of the bottom side.
+    pub paste_bottom: String,
+    /// The board outline.
+    pub outline: String,
+    /// The roles in the order the files are listed; empty keeps the usual order.
+    pub order: Vec<String>,
+}
+
+/// The template with its placeholders replaced.
+pub(crate) fn expand_name(template: &str, board: &str, inner: usize, layer: usize) -> String {
+    template
+        .replace("{board}", board)
+        .replace("{inner}", &inner.to_string())
+        .replace("{layer}", &layer.to_string())
+}
+
+impl FileNames {
+    /// The template of a role (one of [`NAME_ROLES`]); empty for any other word.
+    pub fn template(&self, role: &str) -> &str {
+        match role {
+            "copper_top" => &self.copper_top,
+            "copper_inner" => &self.copper_inner,
+            "copper_bottom" => &self.copper_bottom,
+            "mask_top" => &self.mask_top,
+            "mask_bottom" => &self.mask_bottom,
+            "silk_top" => &self.silk_top,
+            "silk_bottom" => &self.silk_bottom,
+            "paste_top" => &self.paste_top,
+            "paste_bottom" => &self.paste_bottom,
+            "outline" => &self.outline,
+            _ => "",
+        }
+    }
+
+    /// The place of a role in `order`; `usize::MAX` for a role that is not listed.
+    pub fn rank(&self, role: Option<&str>) -> usize {
+        role.and_then(|r| self.order.iter().position(|o| o == r))
+            .unwrap_or(usize::MAX)
+    }
+
+    fn validate(&self, name: &str) -> Result<(), ExportError> {
+        for role in NAME_ROLES {
+            let template = self.template(role);
+            if template.is_empty() {
+                continue;
+            }
+            let not_usable = || bad(format!("{name}: gerber.names.{role} is not usable"));
+            if role != "copper_inner"
+                && (template.contains("{inner}") || template.contains("{layer}"))
+            {
+                return Err(not_usable());
+            }
+            let sample = expand_name(template, "board", 1, 2);
+            if sample.contains(['{', '}']) || !plain_file_name(&sample) {
+                return Err(not_usable());
+            }
+        }
+        for (i, role) in self.order.iter().enumerate() {
+            if !NAME_ROLES.contains(&role.as_str()) {
+                return Err(bad(format!(
+                    "{name}: gerber.names.order names the unknown role '{role}'"
+                )));
+            }
+            if self.order[..i].contains(role) {
+                return Err(bad(format!(
+                    "{name}: gerber.names.order names '{role}' twice"
+                )));
+            }
+        }
+        Ok(())
+    }
+}
+
 /// The choices for the Gerber files.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(deny_unknown_fields, default)]
@@ -281,6 +396,8 @@ pub struct GerberProfile {
     pub zone_island_min_area_nm2: i64,
     /// The Gerber X2 attributes.
     pub x2: X2Profile,
+    /// The names of the layer files and their order; empty keeps the numbered names.
+    pub names: FileNames,
 }
 
 impl Default for GerberProfile {
@@ -297,6 +414,7 @@ impl Default for GerberProfile {
             zone_thermal_spoke_width_nm: 250_000,
             zone_island_min_area_nm2: 0,
             x2: X2Profile::default(),
+            names: FileNames::default(),
         }
     }
 }
@@ -313,9 +431,10 @@ pub struct DrillProfile {
     pub fixed_integer_digits: u32,
     /// Digits after the point of the fixed style (1 to 8).
     pub fixed_decimal_digits: u32,
-    /// The name of the file of the plated holes.
+    /// The name of the file of the plated holes; `{board}` is the name of the board as a plain
+    /// file name.
     pub plated_file: String,
-    /// The name of the file of the holes that are not plated.
+    /// The name of the file of the holes that are not plated; `{board}` as above.
     pub non_plated_file: String,
     /// Write a drilled oblong pad as a slot (`G85`).
     pub oblong_as_slot: bool,
@@ -449,7 +568,7 @@ fn bad(message: String) -> ExportError {
 }
 
 /// A name that is one plain file name: letters, digits, `.`, `_` and `-`, not starting with a dot.
-fn plain_file_name(name: &str) -> bool {
+pub(crate) fn plain_file_name(name: &str) -> bool {
     !name.is_empty()
         && name.len() <= 64
         && !name.starts_with('.')
@@ -536,6 +655,7 @@ impl Profile {
             }
         }
         g.x2.validate(name)?;
+        g.names.validate(name)?;
         let d = &self.drill;
         for (field, value) in [
             ("drill.decimals", d.decimals),
@@ -555,7 +675,13 @@ impl Profile {
         let b = &self.bom;
         check_delimiter(&format!("{name}: bom"), b.delimiter)?;
         check_columns(&format!("{name}: bom"), &b.columns, &BOM_KEYS)?;
-        let files = [&d.plated_file, &d.non_plated_file, &p.file, &b.file];
+        let drill_sample = |file: &str| file.replace("{board}", "board");
+        let files = [
+            drill_sample(&d.plated_file),
+            drill_sample(&d.non_plated_file),
+            p.file.clone(),
+            b.file.clone(),
+        ];
         for (i, file) in files.iter().enumerate() {
             if !plain_file_name(file) {
                 return Err(bad(format!("{name}: '{file}' is not a plain file name")));
@@ -571,6 +697,25 @@ impl Profile {
         }
         Ok(())
     }
+}
+
+/// The export profiles of the manufacturers that come with the program: the names of the files,
+/// the formats and the order of the files of their CAM jobs. The text is `config/export_profiles_makers.json`,
+/// written by `tools/import_eagle_profiles.py`.
+pub const MAKERS_JSON: &str = include_str!("../../../config/export_profiles_makers.json");
+
+/// The export profile of a manufacturer that comes with the program, by name; `None` when there is
+/// none of that name.
+pub fn maker_profile(name: &str) -> Option<Profile> {
+    let set = ProfileSet::from_json(MAKERS_JSON).ok()?;
+    set.get(name).ok().cloned()
+}
+
+/// The names of the export profiles of the manufacturers that come with the program, in order.
+pub fn maker_names() -> Vec<String> {
+    ProfileSet::from_json(MAKERS_JSON)
+        .map(|set| set.profiles.into_iter().map(|p| p.name).collect())
+        .unwrap_or_default()
 }
 
 /// The profiles of a profile file.

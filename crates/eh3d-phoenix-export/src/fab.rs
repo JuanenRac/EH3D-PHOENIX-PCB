@@ -19,7 +19,7 @@ use crate::codes;
 use crate::excellon::{write_drill_files, DrillOptions};
 use crate::gerber::{format_with_decimals, write_layer, LayerError, LayerFileSpec, ZoneThermal};
 use crate::package::ExportError;
-use crate::profile::{DrillStyle, Profile};
+use crate::profile::{expand_name, plain_file_name, DrillStyle, Profile};
 
 /// The name of the manifest file of a folder.
 pub const MANIFEST_FILE: &str = "manifest.json";
@@ -164,6 +164,62 @@ fn file_function(board: &Board, kind: LayerKind, layer: Id) -> Option<Vec<String
     }
 }
 
+/// The role of a layer in the names of a profile (one of `NAME_ROLES`); `None` for a layer that has
+/// none (documentation, a legend, a mask or a paste layer without a side).
+fn layer_role(board: &Board, kind: LayerKind, layer: Id) -> Option<&'static str> {
+    let side = board.layers.get(&layer).and_then(|l| l.side);
+    let by_side = |top: &'static str, bottom: &'static str| match side {
+        Some(Side::Top) => Some(top),
+        Some(Side::Bottom) => Some(bottom),
+        None => None,
+    };
+    match kind {
+        LayerKind::Copper => match board.stack_position(layer) {
+            Some((_, StackFunction::Top)) => Some("copper_top"),
+            Some((_, StackFunction::Inner)) => Some("copper_inner"),
+            Some((_, StackFunction::Bottom)) => Some("copper_bottom"),
+            None => by_side("copper_top", "copper_bottom"),
+        },
+        LayerKind::SolderMask => by_side("mask_top", "mask_bottom"),
+        LayerKind::Silkscreen => by_side("silk_top", "silk_bottom"),
+        LayerKind::Paste => by_side("paste_top", "paste_bottom"),
+        LayerKind::Outline => Some("outline"),
+        LayerKind::Documentation => None,
+    }
+}
+
+/// The path of the file of a layer: the template of the profile for its role, or the numbered name
+/// with the extension of the profile.
+fn layer_path(
+    board: &Board,
+    profile: &Profile,
+    kind: LayerKind,
+    layer: &eh3d_phoenix_board::Layer,
+    id: Id,
+    board_name: &str,
+    index: usize,
+) -> Result<String, ExportError> {
+    let role = layer_role(board, kind, id);
+    let template = role.map_or("", |r| profile.gerber.names.template(r));
+    if template.is_empty() {
+        return Ok(format!(
+            "layers/{:02}_{}.{}",
+            index + 1,
+            slug(&layer.name),
+            profile.gerber.extension
+        ));
+    }
+    let place = board.stack_position(id).map_or(0, |(number, _)| number);
+    let name = expand_name(template, board_name, place.saturating_sub(1), place);
+    if !plain_file_name(&name) {
+        return Err(ExportError::Profile(format!(
+            "{}: the file name '{name}' of the layer {} is not usable",
+            profile.name, layer.name
+        )));
+    }
+    Ok(format!("layers/{name}"))
+}
+
 /// The polarity attribute of a kind of layer: copper, legend and paste are drawn where the material
 /// is; a solder mask file draws the openings, which are where the mask is not.
 fn polarity(kind: LayerKind) -> Option<&'static str> {
@@ -197,9 +253,18 @@ pub fn build(board: &Board, profile: &Profile) -> Result<FabSet, ExportError> {
         board.name.clone()
     };
     let format = format_with_decimals(profile.gerber.decimal_digits);
+    let board_name = slug(&name);
+    let names = &profile.gerber.names;
     let mut layers: Vec<(&Id, &eh3d_phoenix_board::Layer)> = board.layers.iter().collect();
     layers.sort_by(|a, b| {
-        (rank(a.1.kind), a.1.name.as_str(), a.0).cmp(&(rank(b.1.kind), b.1.name.as_str(), b.0))
+        let place =
+            |l: &(&Id, &eh3d_phoenix_board::Layer)| names.rank(layer_role(board, l.1.kind, *l.0));
+        (place(a), rank(a.1.kind), a.1.name.as_str(), a.0).cmp(&(
+            place(b),
+            rank(b.1.kind),
+            b.1.name.as_str(),
+            b.0,
+        ))
     });
     let mut files: Vec<FabFile> = Vec::new();
     let mut copper_without_function = false;
@@ -248,12 +313,7 @@ pub fn build(board: &Board, profile: &Profile) -> Result<FabSet, ExportError> {
             })?;
         diagnostics.append(&mut found);
         files.push(FabFile {
-            path: format!(
-                "layers/{:02}_{}.{}",
-                index + 1,
-                slug(&layer.name),
-                profile.gerber.extension
-            ),
+            path: layer_path(board, profile, layer.kind, layer, **id, &board_name, index)?,
             bytes: output.text.into_bytes(),
             role: FileRole::Layer {
                 layer: **id,
@@ -285,14 +345,24 @@ pub fn build(board: &Board, profile: &Profile) -> Result<FabSet, ExportError> {
         x2: profile.gerber.x2.clone(),
         board_name: name.clone(),
     };
+    let plated_file = d.plated_file.replace("{board}", &board_name);
+    let non_plated_file = d.non_plated_file.replace("{board}", &board_name);
+    for file in [&plated_file, &non_plated_file] {
+        if !plain_file_name(file) {
+            return Err(ExportError::Profile(format!(
+                "{}: the file name '{file}' of the drill files is not usable",
+                profile.name
+            )));
+        }
+    }
     let mut drills = write_drill_files(board, &drill_options).map_err(|e| match e {
         LayerError::Field(f) => ExportError::Attribute(format!("drill file: {f}")),
         other => ExportError::Drill(other.to_string()),
     })?;
     diagnostics.append(&mut drills.diagnostics);
     for (text, file_name, plated) in [
-        (drills.plated, &d.plated_file, true),
-        (drills.non_plated, &d.non_plated_file, false),
+        (drills.plated, &plated_file, true),
+        (drills.non_plated, &non_plated_file, false),
     ] {
         if let Some(text) = text {
             files.push(FabFile {
@@ -306,7 +376,7 @@ pub fn build(board: &Board, profile: &Profile) -> Result<FabSet, ExportError> {
         files.push(FabFile {
             path: format!(
                 "layers/{}",
-                span_file_name(&d.plated_file, span.from, span.to, span.buried)
+                span_file_name(&plated_file, span.from, span.to, span.buried)
             ),
             bytes: span.text.into_bytes(),
             role: FileRole::DrillSpan {
@@ -329,6 +399,15 @@ pub fn build(board: &Board, profile: &Profile) -> Result<FabSet, ExportError> {
         bytes: bom.into_bytes(),
         role: FileRole::Bom,
     });
+    for (i, file) in files.iter().enumerate() {
+        if files[..i].iter().any(|other| other.path == file.path) {
+            return Err(ExportError::Profile(format!(
+                "{}: two files are called '{}'",
+                profile.name,
+                file.folder_name()
+            )));
+        }
+    }
     Ok(FabSet {
         name,
         files,
