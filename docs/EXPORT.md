@@ -60,7 +60,7 @@ The files above are the simple ones of a profile. The pick and place files with 
 
 ## Profiles
 
-A profile file is JSON: `{"format": "phoenix-export/1", "profiles": [...]}`. `config/export_profiles.json` holds `generic`, `jlc-like` (shaped after the files low-cost assemblers ask for and not compared with any manufacturer), `x2-full` (the generic profile with every Gerber X2 attribute) and `x1` (the generic profile without any attribute). A missing field takes the default of its profile section; an unknown field, a value out of its range or a file name that is not a plain name is an error (`PHOENIX-EXPORT-011`). Lengths are integer nanometres.
+A profile file is JSON: `{"format": "phoenix-export/1", "profiles": [...]}`. `config/export_profiles.json` holds `generic`, `jlc-like` (shaped after the files low-cost assemblers ask for and not compared with any manufacturer), `x2-full` (the generic profile with every Gerber X2 attribute) and `x1` (the generic profile without any attribute). The profiles of the manufacturers (names of the files, formats and order of the CAM jobs of several makers, and the names that the page of JLCPCB lists for three programs) are in `config/export_profiles_makers.json` and are found by name when the default file has none of that name (`phoenix export --profile jlcpcb-2l-cam`); see `docs/FAB_PROFILES.md`. A missing field takes the default of its profile section; an unknown field, a value out of its range or a file name that is not a plain name is an error (`PHOENIX-EXPORT-011`). Lengths are integer nanometres.
 
 | Section | Field | Meaning (default) |
 |---|---|---|
@@ -69,13 +69,15 @@ A profile file is JSON: `{"format": "phoenix-export/1", "profiles": [...]}`. `co
 | | `zone_thermal_spokes`, `zone_thermal_gap_nm`, `zone_thermal_spoke_width_nm` | The thermal relief of the pads of the net of a pour: 0 (the default) leaves them solid, 4 clears four gaps, 2 clears a gap above and a gap below; the gap and the spoke are 1 to 5000000 nm (250000 each, the values of `thermal_gap_nm` and `thermal_spoke_width_nm` of `config/zones.cfg`) |
 | | `mask_expansion_nm`, `paste_shrink_nm` | Opening past the pad in the mask (50000) and inside the pad in the paste (0), per side, within 1 mm |
 | | `outline_width_nm` | Width of the line of the profile (100000) |
+| `gerber.names` | `copper_top`, `copper_inner`, `copper_bottom`, `mask_top`, `mask_bottom`, `silk_top`, `silk_bottom`, `paste_top`, `paste_bottom`, `outline` | The template of the file name of each role, with `{board}` (the name of the board as a plain file name) and, for `copper_inner`, `{inner}` (the inner layer from 1) and `{layer}` (its place in the copper stack, the first inner layer being 2). Empty (the default) keeps the numbered name `NN_<layer>.<extension>`; a layer without a role keeps it too. Two files with one name are an error |
+| | `order` | The roles whose files come first, in that order (empty keeps the usual order) |
 | `gerber.x2` | `level`, `object_attributes`, `strict` | `legacy`, `x1`, `file`, `aperture` or `full` (`legacy`); the object attributes `net`, `pin`, `component` of the level `full` (all three); refuse instead of escaping text a field cannot hold (false) |
 | | `creation_date`, `project_id`, `project_revision`, `same_coordinates` | `.CreationDate` (not written unless given), the UUID of `.ProjectId` (derived from the name of the board), its revision (`1`) and the identifier of `.SameCoordinates` (`Original`) |
 | | `fiducial_names`, `fiducial_scope`, `heatsink_pad_numbers` | Words of a footprint name that make its pads fiducials (`fiducial`), `local` or `global` (`local`) and the pad numbers that are heatsink pads (`EP`) |
 | | `testpoint_prefixes`, `testpoint_names` | Words that start the reference of a part (`TP`; the next character is not a letter) or that a footprint name holds (`testpoint`) and make its pads test pads, `TestPad` at the levels `aperture` and `full`; an empty list switches that way off |
 | `drill` | `style`, `decimals` | `decimal` or `fixed`, and the decimals of the decimal style (`decimal`, 6) |
 | | `fixed_integer_digits`, `fixed_decimal_digits` | The fixed format (3 and 3) |
-| | `plated_file`, `non_plated_file`, `oblong_as_slot` | File names and slots for oblong pads (`drill_pth.drl`, `drill_npth.drl`, false) |
+| | `plated_file`, `non_plated_file`, `oblong_as_slot` | File names (`{board}` is allowed) and slots for oblong pads (`drill_pth.drl`, `drill_npth.drl`, false) |
 | `placement` | `file`, `delimiter` | `placement.csv` and `,` |
 | | `coordinate_decimals`, `rotation_decimals` | 4 and 2, each 0 to 6 |
 | | `bottom_rotation`, `origin` | `keep` and `absolute` |
