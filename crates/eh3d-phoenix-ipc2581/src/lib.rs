@@ -37,6 +37,8 @@ mod read_tests;
 pub mod settings;
 pub mod stack_summary;
 pub mod units;
+pub mod xform;
+pub mod zipread;
 
 pub use codes::{title, Finding, Ipc2581Error, Severity};
 pub use d356::{d356, D356};
@@ -47,3 +49,5 @@ pub use read_report::report_text;
 pub use settings::Ipc2581Settings;
 pub use stack_summary::{stack_summary, StackKind, StackRow, StackSummary};
 pub use units::Unit;
+pub use xform::Xf;
+pub use zipread::{read_archive, ZipLimits};

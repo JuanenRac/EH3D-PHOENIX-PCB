@@ -1015,6 +1015,8 @@ The titles of these codes also exist in the eight languages of the suite (`TITLE
 | PHOENIX-IPC2581-012 | An element of the file is not read | warning: an element the reader does not know is left out, named, with the number of times it appears |
 | PHOENIX-IPC2581-013 | A value of the file is not valid and is left out | warning: a length, a number or a unit that cannot be read is left out, named, with the number of times |
 | PHOENIX-IPC2581-014 | The stack-up lacks a value that the model of the stack-up needs | warning: a layer without a thickness, a dielectric without a constant or a loss tangent |
+| PHOENIX-IPC2581-015 | The ZIP archive is damaged, unsupported or not safe | error: a name that leaves the folder, a name used twice, encryption, ZIP64, a method other than stored or deflate, a size, a ratio or a count over the limits of the settings, a size or a CRC-32 that does not match |
+| PHOENIX-IPC2581-016 | The ZIP archive holds no IPC-2581 file | error: none of the entries named `.xml`, `.cvg` or `.ipc2581` reads as an IPC-2581 file |
 
 ## Comparison of two boards (`eh3d-phoenix-boarddiff`, `src/codes.rs`)
 

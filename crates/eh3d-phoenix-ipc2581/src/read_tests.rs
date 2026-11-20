@@ -551,3 +551,86 @@ fn mutated_files_never_panic_with_a_fixed_seed() {
         let _ = read_bytes(&bytes, &opts);
     }
 }
+
+fn top_after_replacing(from: &str, to: &str) -> crate::read_model::LayerContent {
+    assert!(REV_C.contains(from), "{from}");
+    let text = REV_C.replace(from, to);
+    let doc = read_str(&text, &options()).unwrap();
+    doc.steps[0]
+        .contents
+        .iter()
+        .find(|c| c.layer == "TOP")
+        .unwrap()
+        .clone()
+}
+
+#[test]
+fn a_quarter_turn_of_a_group_of_features_moves_its_points() {
+    let top = top_after_replacing(
+        r#"<Features><Location x="1" y="1"/><Line startX="0" startY="0" endX="2" endY="0">"#,
+        r#"<Features><Xform rotation="90"/><Location x="1" y="1"/><Line startX="0" startY="0" endX="2" endY="0">"#,
+    );
+    // (0,0) -> (0,0) and (2,0) -> (0,2), then the location (1,1)
+    assert_eq!(top.line_items[1].from_nm, (1_000_000, 1_000_000));
+    assert_eq!(top.line_items[1].to_nm, (1_000_000, 3_000_000));
+    assert_eq!(top.placed_features, 1);
+}
+
+#[test]
+fn a_mirror_changes_the_side_of_x_and_the_direction_of_an_arc() {
+    let top = top_after_replacing(
+        r#"<Features><Location x="0" y="0"/><Arc startX="0" startY="0" endX="2" endY="2" centerX="2" centerY="0" clockwise="true">"#,
+        r#"<Features><Xform mirror="true"/><Location x="0" y="0"/><Arc startX="0" startY="0" endX="2" endY="2" centerX="2" centerY="0" clockwise="true">"#,
+    );
+    let arc = &top.arc_items[0];
+    assert_eq!(arc.to_nm, (-2_000_000, 2_000_000));
+    assert_eq!(arc.center_nm, (-2_000_000, 0));
+    assert!(!arc.clockwise);
+}
+
+#[test]
+fn the_turn_comes_after_the_mirror_and_before_the_move_in_polylines_and_regions() {
+    let top = top_after_replacing(
+        r#"<Features><Location x="0" y="0"/><Polyline><PolyBegin x="0" y="0"/>"#,
+        r#"<Features><Xform rotation="180" mirror="true" xOffset="1" yOffset="0"/><Location x="0" y="1"/><Polyline><PolyBegin x="0" y="0"/>"#,
+    );
+    let poly = &top.polyline_items[0];
+    // mirror (5,0) -> (-5,0), turn 180 -> (5,0), move (1,1) -> (6,1)
+    assert_eq!(
+        (poly.points[1].x_nm, poly.points[1].y_nm),
+        (6_000_000, 1_000_000)
+    );
+    // the curve ran counter-clockwise and the mirror makes it clockwise
+    assert!(poly.points[2].clockwise);
+}
+
+#[test]
+fn a_scale_and_a_bad_angle_are_handled_and_the_bad_value_is_named() {
+    let top = top_after_replacing(
+        r#"<Features><Location x="0" y="0"/><Line startX="1" startY="2" endX="3" endY="2">"#,
+        r#"<Features><Xform scale="2"/><Location x="0" y="0"/><Line startX="1" startY="2" endX="3" endY="2">"#,
+    );
+    assert_eq!(top.line_items[0].to_nm, (6_000_000, 4_000_000));
+    let text = REV_C.replace(
+        r#"<Features><Location x="0" y="0"/><Line startX="1" startY="2" endX="3" endY="2">"#,
+        r#"<Features><Xform rotation="abc" scale="-1"/><Location x="0" y="0"/><Line startX="1" startY="2" endX="3" endY="2">"#,
+    );
+    let doc = read_str(&text, &options()).unwrap();
+    let named = |key: &str| {
+        doc.findings
+            .iter()
+            .any(|f| f.subject.as_deref() == Some(key))
+    };
+    assert!(named("Xform@rotation") && named("Xform@scale"));
+}
+
+#[test]
+fn a_file_without_xform_keeps_the_coordinates_and_counts_no_placed_feature() {
+    let doc = read_str(REV_C, &options()).unwrap();
+    let top = doc.steps[0]
+        .contents
+        .iter()
+        .find(|c| c.layer == "TOP")
+        .unwrap();
+    assert_eq!(top.placed_features, 0);
+}

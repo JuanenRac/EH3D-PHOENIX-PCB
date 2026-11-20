@@ -28,9 +28,12 @@ const KICAD_NEEDS_RULES: &str =
 const MAX_INPUT_BYTES: u64 = 256 * 1024 * 1024;
 
 pub(crate) const USAGE: &str = "\
+phoenix check --ipc2581 FILE [--json] [--lang CODE] [--html FILE] [--stackup-out FILE] [--overwrite] [--config FILE]
 phoenix check [--rules FILE | --rules-dru FILE | --dfm FILE | --dfm-profile NAME | --dfm-compare LIST] [--advanced] [--drc-config FILE] [--limits FILE] [--json | --sarif] [--csv FILE] [--html FILE] [--time] [--lang CODE] <board.brd>
 
-  check         run the design rules on an EAGLE board. The limits come from FILE (a JSON rule
+  check         with --ipc2581 FILE: read an IPC-2581 file, or a ZIP archive that holds one, and report its
+                revision, unit, what the reader does not know and the counts (the reading mode of
+                `phoenix ipc2581`, same exit codes). Otherwise run the design rules on an EAGLE board. The limits come from FILE (a JSON rule
                 file, format phoenix-rules/1 or phoenix-rules/2, which adds net classes with
                 limits of their own for tracks and vias) or, without --rules, from the
                 <designrules> of the board. The report keeps confirmed and inconclusive findings
@@ -269,7 +272,51 @@ fn fail(err: &mut dyn Write, message: &str) -> i32 {
     2
 }
 
+/// `phoenix check --ipc2581 FILE`: the file is an IPC-2581 file (or a ZIP archive that holds one)
+/// and not a board; the command is the reading mode of `phoenix ipc2581`, which reports the
+/// revision, the unit, what the reader does not know and the counts of the file.
+fn check_ipc2581(args: &[&str], out: &mut dyn Write, err: &mut dyn Write) -> i32 {
+    let mut file: Option<&str> = None;
+    let mut forwarded: Vec<&str> = Vec::new();
+    let mut iter = args.iter();
+    while let Some(arg) = iter.next() {
+        match *arg {
+            "--ipc2581" => match iter.next() {
+                Some(path) => file = Some(*path),
+                None => {
+                    let _ = writeln!(err, "error: --ipc2581 needs a file");
+                    return usage(err);
+                }
+            },
+            "--json" | "--overwrite" => forwarded.push(*arg),
+            "--lang" | "--html" | "--stackup-out" | "--config" => {
+                forwarded.push(*arg);
+                match iter.next() {
+                    Some(value) => forwarded.push(*value),
+                    None => {
+                        let _ = writeln!(err, "error: {arg} needs a value");
+                        return usage(err);
+                    }
+                }
+            }
+            other => {
+                let _ = writeln!(err, "error: --ipc2581 cannot be given with {other}");
+                return usage(err);
+            }
+        }
+    }
+    let Some(file) = file else {
+        return usage(err);
+    };
+    let mut full: Vec<&str> = vec!["--read", file];
+    full.extend(forwarded);
+    crate::ipc2581::ipc2581_command(&full, out, err)
+}
+
 pub(crate) fn check(args: &[&str], out: &mut dyn Write, err: &mut dyn Write) -> i32 {
+    if args.contains(&"--ipc2581") {
+        return check_ipc2581(args, out, err);
+    }
     let options = match parse_options(args) {
         Ok(options) => options,
         Err(message) => {

@@ -177,7 +177,7 @@ fn the_files_that_cannot_be_read_are_refused_with_a_code() {
     fs::write(&archive, b"PK\x03\x04 not really an archive").unwrap();
     let (code, _, err) = command(&["ipc2581", "--read", archive.to_str().unwrap()]);
     assert_eq!(code, 2);
-    assert!(err.contains("archive"), "{err}");
+    assert!(err.contains("PHOENIX-IPC2581-015"), "{err}");
     let missing = dir.path().join("none.xml");
     let (code, _, err) = command(&["ipc2581", "--read", missing.to_str().unwrap()]);
     assert_eq!(code, 2);
@@ -252,4 +252,138 @@ fn the_help_of_the_command_mentions_the_reading_mode() {
     let (code, out, _) = command(&["help", "ipc2581"]);
     assert_eq!(code, 0);
     assert!(out.contains("--read"), "{out}");
+}
+
+/// An archive of stored entries, written by the test.
+fn stored_zip(entries: &[(&str, &[u8])]) -> Vec<u8> {
+    use eh3d_phoenix_ipc2581::zipread::crc32;
+    let mut out = Vec::new();
+    let mut central = Vec::new();
+    for (name, data) in entries {
+        let local = u32::try_from(out.len()).unwrap();
+        let crc = crc32(data);
+        let size = u32::try_from(data.len()).unwrap();
+        let name_len = u16::try_from(name.len()).unwrap();
+        out.extend_from_slice(&0x0403_4b50u32.to_le_bytes());
+        out.extend_from_slice(&[20, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+        out.extend_from_slice(&crc.to_le_bytes());
+        out.extend_from_slice(&size.to_le_bytes());
+        out.extend_from_slice(&size.to_le_bytes());
+        out.extend_from_slice(&name_len.to_le_bytes());
+        out.extend_from_slice(&[0, 0]);
+        out.extend_from_slice(name.as_bytes());
+        out.extend_from_slice(data);
+        central.extend_from_slice(&0x0201_4b50u32.to_le_bytes());
+        central.extend_from_slice(&[20, 0, 20, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+        central.extend_from_slice(&crc.to_le_bytes());
+        central.extend_from_slice(&size.to_le_bytes());
+        central.extend_from_slice(&size.to_le_bytes());
+        central.extend_from_slice(&name_len.to_le_bytes());
+        central.extend_from_slice(&[0; 12]);
+        central.extend_from_slice(&local.to_le_bytes());
+        central.extend_from_slice(name.as_bytes());
+    }
+    let at = u32::try_from(out.len()).unwrap();
+    let count = u16::try_from(entries.len()).unwrap();
+    out.extend_from_slice(&central);
+    out.extend_from_slice(&0x0605_4b50u32.to_le_bytes());
+    out.extend_from_slice(&[0, 0, 0, 0]);
+    out.extend_from_slice(&count.to_le_bytes());
+    out.extend_from_slice(&count.to_le_bytes());
+    out.extend_from_slice(&u32::try_from(central.len()).unwrap().to_le_bytes());
+    out.extend_from_slice(&at.to_le_bytes());
+    out.extend_from_slice(&[0, 0]);
+    out
+}
+
+fn write_zip(dir: &Path, name: &str, entries: &[(&str, &[u8])]) -> String {
+    let path = dir.join(name);
+    fs::write(&path, stored_zip(entries)).unwrap();
+    path.to_str().unwrap().to_owned()
+}
+
+#[test]
+fn an_archive_is_read_in_memory_and_the_entry_is_named() {
+    let dir = tempfile::tempdir().unwrap();
+    let zip = write_zip(
+        dir.path(),
+        "sample.zip",
+        &[
+            ("readme.txt", b"hello"),
+            ("data/board.xml", FILE.as_bytes()),
+        ],
+    );
+    let (code, out, err) = command(&["ipc2581", "--read", &zip]);
+    assert_eq!((code, err.as_str()), (0, ""), "{err}");
+    assert!(out.starts_with("ZIP: data/board.xml\n"), "{out}");
+    let (_, plain, _) = command(&["ipc2581", "--read", &write_text(dir.path(), "b.xml", FILE)]);
+    assert_eq!(
+        out.lines().skip(1).collect::<Vec<_>>(),
+        plain.lines().collect::<Vec<_>>()
+    );
+    let (code, json, _) = command(&["ipc2581", "--read", &zip, "--json"]);
+    assert_eq!(code, 0);
+    let value: serde_json::Value = serde_json::from_str(&json).unwrap();
+    assert_eq!(value["archive_entry"], "data/board.xml");
+    // nothing was written next to the archive
+    assert_eq!(names(dir.path()), ["b.xml", "sample.zip"]);
+}
+
+#[test]
+fn an_archive_with_a_name_that_leaves_the_folder_or_no_ipc2581_file_is_refused() {
+    let dir = tempfile::tempdir().unwrap();
+    let slip = write_zip(dir.path(), "slip.zip", &[("../board.xml", FILE.as_bytes())]);
+    let (code, _, err) = command(&["ipc2581", "--read", &slip]);
+    assert_eq!(code, 2);
+    assert!(err.contains("PHOENIX-IPC2581-015"), "{err}");
+    assert!(err.contains("leave the folder"), "{err}");
+    let none = write_zip(
+        dir.path(),
+        "none.zip",
+        &[("a.txt", b"x"), ("b.xml", b"<other/>")],
+    );
+    let (code, _, err) = command(&["ipc2581", "--read", &none]);
+    assert_eq!(code, 2);
+    assert!(err.contains("PHOENIX-IPC2581-016"), "{err}");
+    let cfg = write_text(dir.path(), "z.cfg", "zip_max_entries = 1\n");
+    let two = write_zip(
+        dir.path(),
+        "two.zip",
+        &[("a.txt", b"x"), ("b.xml", FILE.as_bytes())],
+    );
+    let (code, _, err) = command(&["ipc2581", "--read", &two, "--config", &cfg]);
+    assert_eq!(code, 2);
+    assert!(
+        err.contains("PHOENIX-IPC2581-015") && err.contains("limit"),
+        "{err}"
+    );
+}
+
+#[test]
+fn check_ipc2581_is_the_reading_mode_with_the_same_report_and_exit_codes() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = write_text(dir.path(), "board.xml", FILE);
+    let zip = write_zip(dir.path(), "board.zip", &[("board.xml", FILE.as_bytes())]);
+    for lang in ["en", "es", "pt"] {
+        let (a, out_a, _) = command(&["ipc2581", "--read", &path, "--lang", lang]);
+        let (b, out_b, _) = command(&["check", "--ipc2581", &path, "--lang", lang]);
+        assert_eq!((a, &out_a), (b, &out_b), "{lang}");
+    }
+    let (code, out, _) = command(&["check", "--ipc2581", &zip, "--json"]);
+    assert_eq!(code, 0);
+    assert!(out.contains("\"revision\": \"C\""), "{out}");
+    // the revision, the unit and what is not known are in the report
+    let (_, text, _) = command(&["check", "--ipc2581", &path]);
+    assert!(text.contains('C') && text.contains("Mystery"), "{text}");
+    // refusals
+    let (code, _, err) = command(&["check", "--ipc2581"]);
+    assert_eq!(code, 2);
+    assert!(err.contains("--ipc2581 needs a file"), "{err}");
+    let (code, _, err) = command(&["check", "--ipc2581", &path, "--advanced"]);
+    assert_eq!(code, 2);
+    assert!(err.contains("cannot be given with --advanced"), "{err}");
+    let missing = dir.path().join("none.xml");
+    let (code, _, err) = command(&["check", "--ipc2581", missing.to_str().unwrap()]);
+    assert_eq!(code, 2);
+    assert!(err.contains("PHOENIX-IPC2581-003"), "{err}");
 }

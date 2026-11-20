@@ -35,6 +35,10 @@ pub const READ_SKIPPED: &str = "PHOENIX-IPC2581-012";
 pub const READ_VALUE_INVALID: &str = "PHOENIX-IPC2581-013";
 /// The stack-up lacks a value that the model of the stack-up needs.
 pub const READ_STACKUP_INCOMPLETE: &str = "PHOENIX-IPC2581-014";
+/// A ZIP archive is damaged, uses something the reader does not read, or is not safe.
+pub const READ_ZIP_INVALID: &str = "PHOENIX-IPC2581-015";
+/// A ZIP archive holds no IPC-2581 file.
+pub const READ_ZIP_NO_IPC2581: &str = "PHOENIX-IPC2581-016";
 
 /// Code, then the title in English, Spanish, German, French, Italian, Japanese, Chinese and
 /// European Portuguese.
@@ -219,6 +223,32 @@ pub const TITLES: &[(&str, [&str; 8])] = &[
             "スタックアップに、スタックアップのモデルが必要とする値がありません",
             "叠层缺少叠层模型所需的值",
             "O empilhamento não tem um valor de que o modelo do empilhamento precisa",
+        ],
+    ),
+    (
+        READ_ZIP_INVALID,
+        [
+            "The ZIP archive is damaged, unsupported or not safe",
+            "El archivo ZIP está dañado, no se admite o no es seguro",
+            "Das ZIP-Archiv ist beschädigt, nicht unterstützt oder nicht sicher",
+            "L'archive ZIP est endommagée, non prise en charge ou peu sûre",
+            "L'archivio ZIP è danneggiato, non supportato o non sicuro",
+            "ZIP アーカイブが破損しているか、未対応か、安全ではありません",
+            "ZIP 压缩包已损坏、不受支持或不安全",
+            "O ficheiro ZIP está danificado, não é suportado ou não é seguro",
+        ],
+    ),
+    (
+        READ_ZIP_NO_IPC2581,
+        [
+            "The ZIP archive holds no IPC-2581 file",
+            "El archivo ZIP no contiene ningún fichero IPC-2581",
+            "Das ZIP-Archiv enthält keine IPC-2581-Datei",
+            "L'archive ZIP ne contient aucun fichier IPC-2581",
+            "L'archivio ZIP non contiene alcun file IPC-2581",
+            "ZIP アーカイブに IPC-2581 ファイルがありません",
+            "ZIP 压缩包中没有 IPC-2581 文件",
+            "O ficheiro ZIP não contém nenhum ficheiro IPC-2581",
         ],
     ),
 ];

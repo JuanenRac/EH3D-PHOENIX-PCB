@@ -7,16 +7,18 @@
 //! unless `--html` or `--stackup-out` names a file, and a file that exists is never replaced
 //! unless `--overwrite` is given. The file that is read is not trusted: its size, depth, elements
 //! and items are limited by the settings (`read_max_bytes`, `read_max_depth`,
-//! `read_max_elements`, `read_max_items`), and an archive is refused with a message that says to
-//! unpack it first.
+//! `read_max_elements`, `read_max_items`). A ZIP archive is read in memory (nothing is written to a
+//! folder) with the limits `zip_max_total_bytes`, `zip_max_entries` and `zip_max_ratio`: the entry
+//! that reads as an IPC-2581 file is the one reported.
 
 use std::collections::BTreeMap;
 use std::io::{Read, Write};
 
 use eh3d_phoenix_ipc2581::codes::{Finding, INPUT_UNREADABLE, READ_LIMIT, READ_STACKUP_INCOMPLETE};
+use eh3d_phoenix_ipc2581::zipread::looks_like_zip;
 use eh3d_phoenix_ipc2581::{
-    read_bytes, report_text, stack_summary, Counts, Ipc2581Error, Ipc2581Settings, ReadOptions,
-    StackKind, StackSummary,
+    read_archive, read_bytes, report_text, stack_summary, Counts, Ipc2581Error, Ipc2581Settings,
+    ReadOptions, StackKind, StackSummary, ZipLimits,
 };
 use eh3d_phoenix_rules::Lang;
 use eh3d_phoenix_stackup::{
@@ -167,6 +169,7 @@ struct JobTemplate<'a> {
 
 #[derive(Serialize)]
 struct ReadJson<'a> {
+    archive_entry: Option<&'a str>,
     revision: &'a str,
     units: Option<&'static str>,
     software: &'a str,
@@ -192,12 +195,6 @@ fn read_file(path: &str, limit: usize) -> Result<Vec<u8>, Ipc2581Error> {
             format!("{path} is larger than the {limit} bytes that read_max_bytes allows"),
         ));
     }
-    if bytes.starts_with(b"PK\x03\x04") {
-        return Err(Ipc2581Error::new(
-            INPUT_UNREADABLE,
-            format!("{path} is an archive: unpack it and read the XML file inside"),
-        ));
-    }
     Ok(bytes)
 }
 
@@ -207,8 +204,23 @@ pub(crate) fn read_command(
     settings: &Ipc2581Settings,
     out: &mut dyn Write,
 ) -> Result<i32, Ipc2581Error> {
-    let bytes = read_file(request.path, settings.read_max_bytes)?;
-    let doc = read_bytes(&bytes, &ReadOptions::from(settings))?;
+    let file_limit = settings.read_max_bytes.max(settings.zip_max_total_bytes);
+    let bytes = read_file(request.path, file_limit)?;
+    let options = ReadOptions::from(settings);
+    let (entry, doc) = if looks_like_zip(&bytes) {
+        let (name, doc) = read_archive(&bytes, &options, &ZipLimits::from(settings))?;
+        (Some(name), doc)
+    } else if bytes.len() > settings.read_max_bytes {
+        return Err(Ipc2581Error::new(
+            READ_LIMIT,
+            format!(
+                "{} is larger than the {} bytes that read_max_bytes allows",
+                request.path, settings.read_max_bytes
+            ),
+        ));
+    } else {
+        (None, read_bytes(&bytes, &options)?)
+    };
     drop(bytes);
     let summary = stack_summary(&doc, 0);
     let reference_ghz = settings.read_reference_mhz as f64 / 1000.0;
@@ -236,6 +248,7 @@ pub(crate) fn read_command(
     }
     let mut text = if request.json {
         let report = ReadJson {
+            archive_entry: entry.as_deref(),
             revision: &doc.revision,
             units: doc.units.map(|u| u.name()),
             software: &doc.software,
@@ -247,7 +260,11 @@ pub(crate) fn read_command(
         json.push('\n');
         json
     } else {
-        let mut text = report_text(&doc, summary.as_ref(), request.lang);
+        let mut text = String::new();
+        if let Some(name) = &entry {
+            text.push_str(&format!("ZIP: {name}\n"));
+        }
+        text.push_str(&report_text(&doc, summary.as_ref(), request.lang));
         if let Some(mapped) = &mapped {
             for note in &mapped.notes {
                 text.push_str(&format!("note: {note}\n"));

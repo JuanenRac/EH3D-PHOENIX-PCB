@@ -328,6 +328,8 @@ pub struct LayerContent {
     pub holes: usize,
     /// The slots (`SlotCavity`).
     pub slots: usize,
+    /// The groups of features placed with a mirror, a scale or a turn.
+    pub placed_features: usize,
     /// The geometry, when kept: lines.
     pub line_items: Vec<IpcLine>,
     /// The geometry, when kept: arcs.

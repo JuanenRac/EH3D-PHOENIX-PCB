@@ -52,6 +52,13 @@ pub struct Ipc2581Settings {
     /// The frequency, in MHz, of the single point of a material that is made from a file (the
     /// file gives a dielectric constant and a loss tangent but not the frequency).
     pub read_reference_mhz: usize,
+    /// The most bytes that all the entries of a ZIP archive may hold once unpacked (the archive
+    /// is unpacked in memory and never written to a folder).
+    pub zip_max_total_bytes: usize,
+    /// The most entries a ZIP archive may list.
+    pub zip_max_entries: usize,
+    /// The most that an entry may grow when unpacked, as a multiple of its packed size.
+    pub zip_max_ratio: usize,
 }
 
 impl Default for Ipc2581Settings {
@@ -75,6 +82,9 @@ impl Default for Ipc2581Settings {
             read_max_attrs: 256,
             read_max_findings: 200,
             read_reference_mhz: 1000,
+            zip_max_total_bytes: 1024 * 1024 * 1024,
+            zip_max_entries: 10_000,
+            zip_max_ratio: 1100,
         }
     }
 }
@@ -142,6 +152,11 @@ impl Ipc2581Settings {
                 "read_max_attrs" => s.read_max_attrs = value.parse().map_err(|_| bad())?,
                 "read_max_findings" => s.read_max_findings = value.parse().map_err(|_| bad())?,
                 "read_reference_mhz" => s.read_reference_mhz = value.parse().map_err(|_| bad())?,
+                "zip_max_total_bytes" => {
+                    s.zip_max_total_bytes = value.parse().map_err(|_| bad())?
+                }
+                "zip_max_entries" => s.zip_max_entries = value.parse().map_err(|_| bad())?,
+                "zip_max_ratio" => s.zip_max_ratio = value.parse().map_err(|_| bad())?,
                 _ => {
                     return Err(Ipc2581Error::new(
                         SETTINGS_INVALID,
@@ -174,7 +189,7 @@ impl Ipc2581Settings {
                 "max_items must be between 1 and 100000000",
             ));
         }
-        let ranges: [(&str, usize, usize, usize); 7] = [
+        let ranges: [(&str, usize, usize, usize); 10] = [
             ("read_max_bytes", self.read_max_bytes, 1, 2_000_000_000),
             ("read_max_depth", self.read_max_depth, 4, 1000),
             (
@@ -187,6 +202,14 @@ impl Ipc2581Settings {
             ("read_max_attrs", self.read_max_attrs, 1, 10_000),
             ("read_max_findings", self.read_max_findings, 1, 100_000),
             ("read_reference_mhz", self.read_reference_mhz, 1, 1_000_000),
+            (
+                "zip_max_total_bytes",
+                self.zip_max_total_bytes,
+                1,
+                8_000_000_000,
+            ),
+            ("zip_max_entries", self.zip_max_entries, 1, 100_000),
+            ("zip_max_ratio", self.zip_max_ratio, 1, 100_000),
         ];
         for (key, value, low, high) in ranges {
             if !(low..=high).contains(&value) {
@@ -244,6 +267,29 @@ mod tests {
             .unwrap();
         assert!(!s.d356_include_smd);
         assert_eq!(s.d356_unconnected_name, "NONET");
+    }
+
+    #[test]
+    fn the_limits_of_the_zip_reader_are_settings_and_name_their_key() {
+        let s = Ipc2581Settings::parse(
+            "zip_max_total_bytes = 5000
+zip_max_entries = 3
+zip_max_ratio = 50
+",
+        )
+        .unwrap();
+        assert_eq!(
+            (s.zip_max_total_bytes, s.zip_max_entries, s.zip_max_ratio),
+            (5000, 3, 50)
+        );
+        for line in [
+            "zip_max_total_bytes = 0",
+            "zip_max_entries = 100001",
+            "zip_max_ratio = 0",
+        ] {
+            let e = Ipc2581Settings::parse(line).unwrap_err();
+            assert!(e.detail.contains(line.split(' ').next().unwrap()), "{line}");
+        }
     }
 
     #[test]

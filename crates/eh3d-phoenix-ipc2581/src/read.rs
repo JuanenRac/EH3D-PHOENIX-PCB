@@ -16,9 +16,10 @@
 //! legend; and the bills of materials. The dictionaries of shapes are counted and not kept.
 //!
 //! **State:** checked against the sample files of several makers of design tools in revisions A,
-//! B and C; not against the schema of the standard, and a feature that is placed with a rotation
-//! or a mirror keeps the coordinates it is written with (the number of such features is
-//! reported).
+//! B and C; not against the schema of the standard. A group of features placed with an `Xform`
+//! (a mirror, a scale, a turn and a move, [`crate::xform`]) is read with its coordinates already
+//! placed, and an arc that is mirrored runs the other way round; the number of such groups is
+//! counted for every layer.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -34,6 +35,7 @@ use crate::read_model::{
 };
 use crate::settings::Ipc2581Settings;
 use crate::units::{to_f64, to_nm, Unit};
+use crate::xform::Xf;
 
 /// The limits and choices of one read.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -616,7 +618,7 @@ impl Reader {
         }
     }
 
-    fn poly_points(&mut self, poly: &Node<'_>, offset: (i64, i64)) -> Vec<PolyPoint> {
+    fn poly_points(&mut self, poly: &Node<'_>, xf: Xf) -> Vec<PolyPoint> {
         let mut points = Vec::new();
         for step in &poly.children {
             let curve = match step.name() {
@@ -629,16 +631,18 @@ impl Reader {
             };
             let center_nm = if curve {
                 self.coord(step, "centerX", "centerY", "PolyStepCurve@centerX,centerY")
-                    .map(|(cx, cy)| (cx.saturating_add(offset.0), cy.saturating_add(offset.1)))
+                    .map(|center| xf.apply(center))
             } else {
                 None
             };
             let clockwise = step
                 .attr("clockwise")
-                .is_some_and(|c| c.trim().eq_ignore_ascii_case("true"));
+                .is_some_and(|c| c.trim().eq_ignore_ascii_case("true"))
+                != xf.reverses_arcs();
+            let (px, py) = xf.apply((x, y));
             points.push(PolyPoint {
-                x_nm: x.saturating_add(offset.0),
-                y_nm: y.saturating_add(offset.1),
+                x_nm: px,
+                y_nm: py,
                 center_nm,
                 clockwise,
             });
@@ -648,10 +652,10 @@ impl Reader {
 
     fn read_outline(&mut self, node: &Node<'_>) -> Option<IpcOutline> {
         let polygon = node.child("Polygon")?;
-        let outer = self.poly_points(polygon, (0, 0));
+        let outer = self.poly_points(polygon, Xf::at(0, 0));
         let mut cutouts = Vec::new();
         for cut in node.children_named("Cutout") {
-            cutouts.push(self.poly_points(cut, (0, 0)));
+            cutouts.push(self.poly_points(cut, Xf::at(0, 0)));
         }
         Some(IpcOutline { outer, cutouts })
     }
@@ -892,24 +896,46 @@ impl Reader {
                         .child("Location")
                         .and_then(|l| self.coord(l, "x", "y", "Features@Location"))
                         .unwrap_or((0, 0));
-                    if let Some(xf) = child.child("Xform") {
-                        let turned = xf
-                            .attr("rotation")
-                            .and_then(to_f64)
-                            .is_some_and(|r| r != 0.0);
-                        let mirrored = xf
-                            .attr("mirror")
-                            .is_some_and(|m| m.trim().eq_ignore_ascii_case("true"));
-                        if turned || mirrored {
-                            self.note("features placed with a rotation or a mirror");
-                        }
-                    }
-                    self.geometry(child, &net, offset)?;
+                    let xf = self.features_xform(child, offset);
+                    self.geometry(child, &net, xf)?;
                 }
                 other => self.skip_named(other, 1),
             }
         }
         Ok(())
+    }
+
+    /// The placement of a group of features: the `Xform` of the element and its `Location`.
+    fn features_xform(&mut self, features: &Node<'_>, offset: (i64, i64)) -> Xf {
+        let mut xf = Xf::at(offset.0, offset.1);
+        let Some(node) = features.child("Xform") else {
+            return xf;
+        };
+        if let Some(text) = node.attr("rotation") {
+            match to_f64(text) {
+                Some(r) => xf.rotation_deg = r,
+                None => self.bad("Xform@rotation"),
+            }
+        }
+        if let Some(text) = node.attr("scale") {
+            match to_f64(text) {
+                Some(s) if s > 0.0 => xf.scale = s,
+                _ => self.bad("Xform@scale"),
+            }
+        }
+        xf.mirror = node
+            .attr("mirror")
+            .is_some_and(|m| m.trim().eq_ignore_ascii_case("true"));
+        if let Some(dx) = self.len(node.attr("xOffset"), "Xform@xOffset") {
+            xf.dx = xf.dx.saturating_add(dx);
+        }
+        if let Some(dy) = self.len(node.attr("yOffset"), "Xform@yOffset") {
+            xf.dy = xf.dy.saturating_add(dy);
+        }
+        if !xf.is_plain() {
+            self.content_mut(|c| c.placed_features += 1);
+        }
+        xf
     }
 
     fn content_mut(&mut self, f: impl FnOnce(&mut LayerContent)) {
@@ -919,12 +945,7 @@ impl Reader {
         }
     }
 
-    fn geometry(
-        &mut self,
-        parent: &Node<'_>,
-        net: &str,
-        offset: (i64, i64),
-    ) -> Result<(), Ipc2581Error> {
+    fn geometry(&mut self, parent: &Node<'_>, net: &str, xf: Xf) -> Result<(), Ipc2581Error> {
         let keep = self.options.keep_geometry;
         for child in &parent.children {
             match child.name() {
@@ -937,8 +958,8 @@ impl Reader {
                     if let (true, Some(f), Some(t)) = (keep, from, to) {
                         let item = IpcLine {
                             net: net.to_owned(),
-                            from_nm: shift(f, offset),
-                            to_nm: shift(t, offset),
+                            from_nm: xf.apply(f),
+                            to_nm: xf.apply(t),
                             width_nm: width,
                         };
                         self.content_mut(|c| c.line_items.push(item));
@@ -952,14 +973,15 @@ impl Reader {
                     let width = self.width_of(child);
                     let clockwise = child
                         .attr("clockwise")
-                        .is_some_and(|c| c.trim().eq_ignore_ascii_case("true"));
+                        .is_some_and(|c| c.trim().eq_ignore_ascii_case("true"))
+                        != xf.reverses_arcs();
                     self.content_mut(|c| c.arcs += 1);
                     if let (true, Some(f), Some(t), Some(m)) = (keep, from, to, center) {
                         let item = IpcArc {
                             net: net.to_owned(),
-                            from_nm: shift(f, offset),
-                            to_nm: shift(t, offset),
-                            center_nm: shift(m, offset),
+                            from_nm: xf.apply(f),
+                            to_nm: xf.apply(t),
+                            center_nm: xf.apply(m),
                             clockwise,
                             width_nm: width,
                         };
@@ -971,7 +993,7 @@ impl Reader {
                     let width = self.width_of(child);
                     self.content_mut(|c| c.polylines += 1);
                     if keep {
-                        let points = self.poly_points(child, offset);
+                        let points = self.poly_points(child, xf);
                         let item = IpcPolyline {
                             net: net.to_owned(),
                             width_nm: width,
@@ -986,11 +1008,11 @@ impl Reader {
                     if keep {
                         let outer = child
                             .child("Polygon")
-                            .map(|p| self.poly_points(p, offset))
+                            .map(|p| self.poly_points(p, xf))
                             .unwrap_or_default();
                         let mut cutouts = Vec::new();
                         for cut in child.children_named("Cutout") {
-                            cutouts.push(self.poly_points(cut, offset));
+                            cutouts.push(self.poly_points(cut, xf));
                         }
                         let item = IpcRegion {
                             net: net.to_owned(),
@@ -1000,7 +1022,7 @@ impl Reader {
                         self.content_mut(|c| c.region_items.push(item));
                     }
                 }
-                "UserSpecial" => self.geometry(child, net, offset)?,
+                "UserSpecial" => self.geometry(child, net, xf)?,
                 other => self.skip_named(other, 1),
             }
         }
@@ -1079,11 +1101,4 @@ impl Reader {
         self.doc.findings = findings;
         self.doc
     }
-}
-
-fn shift(point: (i64, i64), offset: (i64, i64)) -> (i64, i64) {
-    (
-        point.0.saturating_add(offset.0),
-        point.1.saturating_add(offset.1),
-    )
 }
