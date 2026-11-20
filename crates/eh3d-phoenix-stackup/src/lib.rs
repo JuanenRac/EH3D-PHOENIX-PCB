@@ -17,6 +17,8 @@
 //!   to `PHOENIX-HEAT-012`;
 //! * [`job`]: the job file and the reports of `phoenix stackup`;
 //! * [`settings`]: the tuned values, read from `config/stackup.cfg`;
+//! * [`spread`]: the lowest and the highest impedance of a line when the width, the height of the
+//!   dielectric and the permittivity are each off by a stated amount;
 //! * [`error`]: typed errors and warnings with the codes `PHOENIX-STACK-001` to
 //!   `PHOENIX-STACK-016` and their titles in the eight languages of the suite.
 //!
@@ -38,7 +40,10 @@ pub mod material;
 #[cfg(feature = "materials")]
 pub mod materials_adapter;
 pub mod models;
+#[cfg(test)]
+mod property_tests;
 pub mod settings;
+pub mod spread;
 pub mod stackup;
 
 pub use error::{Language, StackupError, Warning};
