@@ -16,6 +16,7 @@ gui = ["dep:eframe", "dep:png"]
 eh3d-phoenix-assembly3d = { path = "../eh3d-phoenix-assembly3d" }
 eh3d-phoenix-autoroute = { path = "../eh3d-phoenix-autoroute" }
 eh3d-phoenix-board = { path = "../eh3d-phoenix-board" }
+eh3d-phoenix-boarddiff = { path = "../eh3d-phoenix-boarddiff" }
 eh3d-phoenix-bom = { path = "../eh3d-phoenix-bom" }
 eh3d-phoenix-boardedit = { path = "../eh3d-phoenix-boardedit" }
 eh3d-phoenix-dxf = { path = "../eh3d-phoenix-dxf" }

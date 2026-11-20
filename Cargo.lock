@@ -1249,6 +1249,7 @@ dependencies = [
  "eh3d-phoenix-assembly3d",
  "eh3d-phoenix-autoroute",
  "eh3d-phoenix-board",
+ "eh3d-phoenix-boarddiff",
  "eh3d-phoenix-boardedit",
  "eh3d-phoenix-bom",
  "eh3d-phoenix-dxf",

@@ -54,6 +54,14 @@ pub enum AnalysisMsg {
     Findings,
     /// What the report of the nets says when no net of the board has a pin.
     NetsNone,
+    /// The button that marks the state of the board to compare with later.
+    Mark,
+    /// The button that makes the report of what changed since the mark.
+    Changes,
+    /// What the report of the changes says when no state was marked.
+    MarkNeeded,
+    /// What is said when the state of the board was marked.
+    Marked,
     /// The button that copies the text of the report.
     Copy,
     /// The button that closes the report.
@@ -329,6 +337,58 @@ const TABLE: [(AnalysisMsg, [&str; 8]); AnalysisMsg::COUNT] = [
         ],
     ),
     (
+        AnalysisMsg::Mark,
+        [
+            "Mark this state",
+            "Marcar este estado",
+            "Stand markieren",
+            "Marquer cet état",
+            "Segna questo stato",
+            "この状態をマーク",
+            "标记此状态",
+            "Marcar este estado",
+        ],
+    ),
+    (
+        AnalysisMsg::Changes,
+        [
+            "Changes since the mark",
+            "Cambios desde la marca",
+            "Änderungen seit der Markierung",
+            "Changements depuis la marque",
+            "Modifiche dal segno",
+            "マーク以降の変更",
+            "自标记以来的更改",
+            "Alterações desde a marca",
+        ],
+    ),
+    (
+        AnalysisMsg::MarkNeeded,
+        [
+            "No state was marked: press Mark this state first",
+            "No se marcó ningún estado: pulse primero Marcar este estado",
+            "Kein Stand markiert: zuerst Stand markieren drücken",
+            "Aucun état marqué : appuyez d'abord sur Marquer cet état",
+            "Nessuno stato segnato: premi prima Segna questo stato",
+            "マークされた状態がありません。先に「この状態をマーク」を押してください",
+            "尚未标记任何状态：请先点击“标记此状态”",
+            "Nenhum estado foi marcado: prima primeiro Marcar este estado",
+        ],
+    ),
+    (
+        AnalysisMsg::Marked,
+        [
+            "The state of the board was marked",
+            "Se marcó el estado de la placa",
+            "Der Stand der Platine wurde markiert",
+            "L'état de la carte a été marqué",
+            "Lo stato della scheda è stato segnato",
+            "基板の状態をマークしました",
+            "已标记电路板的状态",
+            "O estado da placa foi marcado",
+        ],
+    ),
+    (
         AnalysisMsg::Copy,
         [
             "Copy report",
@@ -440,6 +500,10 @@ mod tests {
             AnalysisMsg::LargestNets,
             AnalysisMsg::Findings,
             AnalysisMsg::NetsNone,
+            AnalysisMsg::Mark,
+            AnalysisMsg::Changes,
+            AnalysisMsg::MarkNeeded,
+            AnalysisMsg::Marked,
             AnalysisMsg::Copy,
             AnalysisMsg::Close,
             AnalysisMsg::Hint,

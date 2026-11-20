@@ -42,6 +42,12 @@ pub fn panel(ui: &mut egui::Ui, tool: &mut AnalysisTool, board: &Board, lang: La
         if ui.button(AnalysisMsg::Nets.tr(lang)).clicked() {
             tool.run(AnalysisKind::Nets, board, lang);
         }
+        if ui.button(AnalysisMsg::Mark.tr(lang)).clicked() {
+            tool.mark(board, lang);
+        }
+        if ui.button(AnalysisMsg::Changes.tr(lang)).clicked() {
+            tool.run(AnalysisKind::Changes, board, lang);
+        }
         if tool.shown.is_some() && ui.button(AnalysisMsg::Close.tr(lang)).clicked() {
             tool.clear();
         }

@@ -32,6 +32,8 @@ The length of a track is the sum of its pieces: a straight piece by its two ends
 
 ## Settings
 
+The board editor uses the same comparison: the section *Analysis* of its panel has the buttons *Mark this state* and *Changes since the mark*, which compare the board as it is now with the copy kept by the mark (`docs/BOARD_EDIT.md`), with the settings of this file and the words of the language of the window. The window has never been seen on a screen.
+
 `config/boarddiff.cfg` holds every value and is also the built-in default.
 
 | Key | Default | Meaning |

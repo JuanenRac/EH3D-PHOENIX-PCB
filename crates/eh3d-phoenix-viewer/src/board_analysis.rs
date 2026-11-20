@@ -10,6 +10,7 @@
 use std::fmt::Write as _;
 
 use eh3d_phoenix_board::{mm_text, Board, DimensionKind};
+use eh3d_phoenix_boarddiff::{compare_boards, report_text as diff_report_text, DiffSettings};
 use eh3d_phoenix_bom::codes::{FILE_TOO_LARGE, INPUT_UNREADABLE};
 use eh3d_phoenix_bom::{
     bom_text, build_bom, plan_sourcing, sourcing_text, BomError, BomInputs, CostSettings,
@@ -41,6 +42,9 @@ const COSTS_CONFIG: &str = "config/costs.cfg";
 /// The settings file of the nets.
 const NETS_CONFIG: &str = "config/nets.cfg";
 
+/// The settings file of the comparison of boards.
+const DIFF_CONFIG: &str = "config/boarddiff.cfg";
+
 /// How many of the largest nets the report of the nets lists.
 const NETS_TOP: usize = 5;
 
@@ -66,6 +70,9 @@ pub enum AnalysisKind {
     /// The nets: how many nets, parts and pins, the nets with the most pins and the findings of
     /// the lint of `phoenix nets --lint`, with the settings of `config/nets.cfg`.
     Nets,
+    /// What changed in the board since the state that was marked, by the comparison of
+    /// `phoenix boarddiff` with the settings of `config/boarddiff.cfg`.
+    Changes,
 }
 
 /// The settings of the reports.
@@ -81,6 +88,8 @@ pub struct AnalysisSettings {
     pub costs: CostSettings,
     /// The settings of the nets: the limits of the lint and the nets it leaves out.
     pub nets: NetsSettings,
+    /// The settings of the comparison of boards: the tolerances and what is left out.
+    pub diff: DiffSettings,
     /// The price file of the supplier assistant; empty when none was given.
     pub prices_file: String,
 }
@@ -92,6 +101,9 @@ pub struct AnalysisTool {
     pub shown: Option<(AnalysisKind, String)>,
     /// The path of the price file that the supplier assistant reads, as it was typed.
     pub prices_path: String,
+    /// The board as it was when the state was marked; the report of the changes compares the
+    /// board as it is now with it.
+    pub baseline: Option<Board>,
 }
 
 fn read_config(path: &str) -> Option<String> {
@@ -122,6 +134,9 @@ impl AnalysisSettings {
             nets: read_config(NETS_CONFIG)
                 .and_then(|text| NetsSettings::parse(&text).ok())
                 .unwrap_or_default(),
+            diff: read_config(DIFF_CONFIG)
+                .and_then(|text| DiffSettings::parse(&text).ok())
+                .unwrap_or_default(),
             prices_file: String::new(),
         }
     }
@@ -151,6 +166,7 @@ pub fn report_for(
         AnalysisKind::Dimensions => dimensions_text(board, lang),
         AnalysisKind::Sourcing => sourcing_report(board, settings, lang),
         AnalysisKind::Nets => nets_report(board, settings, lang),
+        AnalysisKind::Changes => changes_report(None, board, settings, lang),
         AnalysisKind::Bom => {
             let (parts, prices) = (PartsFile::default(), PriceBook::default());
             let inputs = BomInputs {
@@ -211,6 +227,24 @@ pub fn sourcing_report(board: &Board, settings: &AnalysisSettings, lang: Lang) -
     };
     match build_bom(&inputs) {
         Ok(bom) => sourcing_text(&plan_sourcing(&bom, &prices, &settings.costs), &bom),
+        Err(error) => error.message(lang),
+    }
+}
+
+/// What changed in a board since the state that was marked, in a language: the report of the
+/// comparison of two boards (`phoenix boarddiff`), the marked one being the old board, with the
+/// settings of `config/boarddiff.cfg`. Without a marked state it says that one must be marked.
+pub fn changes_report(
+    baseline: Option<&Board>,
+    board: &Board,
+    settings: &AnalysisSettings,
+    lang: Lang,
+) -> String {
+    let Some(baseline) = baseline else {
+        return AnalysisMsg::MarkNeeded.tr(lang).to_owned();
+    };
+    match compare_boards(baseline, board, &settings.diff) {
+        Ok(report) => diff_report_text(&report, lang),
         Err(error) => error.message(lang),
     }
 }
@@ -310,8 +344,21 @@ impl AnalysisTool {
     pub fn run(&mut self, kind: AnalysisKind, board: &Board, lang: Lang) {
         let mut settings = AnalysisSettings::load();
         settings.prices_file = self.prices_path.clone();
-        let text = report_for(kind, board, &settings, lang);
+        let text = match kind {
+            AnalysisKind::Changes => changes_report(self.baseline.as_ref(), board, &settings, lang),
+            _ => report_for(kind, board, &settings, lang),
+        };
         self.shown = Some((kind, text));
+    }
+
+    /// Marks the board as it is now: the report of the changes compares the board with this
+    /// state from now on. The marked state replaces an earlier one.
+    pub fn mark(&mut self, board: &Board, lang: Lang) {
+        self.baseline = Some(board.clone());
+        self.shown = Some((
+            AnalysisKind::Changes,
+            AnalysisMsg::Marked.tr(lang).to_owned(),
+        ));
     }
 
     /// Closes the report.
@@ -392,6 +439,92 @@ mod tests {
         }
         board.pad_nets.sort_by_key(PadNet::pad_ref);
         board
+    }
+
+    #[test]
+    fn the_changes_need_a_marked_state_and_say_so_in_each_language() {
+        let settings = AnalysisSettings::default();
+        let board = Board::default();
+        let mut seen = Vec::new();
+        for lang in Lang::ALL {
+            let text = changes_report(None, &board, &settings, lang);
+            assert_eq!(text, AnalysisMsg::MarkNeeded.tr(lang));
+            assert!(!seen.contains(&text), "{lang:?} repeats a text");
+            seen.push(text);
+        }
+        assert_eq!(
+            report_for(AnalysisKind::Changes, &board, &settings, Lang::En),
+            "No state was marked: press Mark this state first"
+        );
+    }
+
+    #[test]
+    fn the_changes_are_the_report_of_the_comparison_of_the_marked_state_with_the_board() {
+        use eh3d_phoenix_board::Net;
+        use eh3d_phoenix_model::ObjectId;
+        let settings = AnalysisSettings::default();
+        let marked = Board::default();
+        let direct = |old: &Board, new: &Board, lang: Lang| {
+            diff_report_text(
+                &compare_boards(old, new, &DiffSettings::default()).unwrap(),
+                lang,
+            )
+        };
+        // the same board: no differences
+        let same = changes_report(Some(&marked), &marked, &settings, Lang::En);
+        assert_eq!(same, direct(&marked, &marked, Lang::En));
+        assert!(same.contains("No differences"), "{same}");
+        // a net more is a difference, written in the language asked for
+        let mut now = marked.clone();
+        let id = ObjectId::from_parts(1_700_000_000_000, 7, 7).unwrap();
+        now.nets.insert(id, Net { name: "GND".into() });
+        for lang in Lang::ALL {
+            let text = changes_report(Some(&marked), &now, &settings, lang);
+            assert_eq!(text, direct(&marked, &now, lang));
+            assert!(
+                text.contains("PHOENIX-DIFF-006") && text.contains("GND"),
+                "{text}"
+            );
+        }
+        // and, the other way round, a net less
+        let lost = changes_report(Some(&now), &marked, &settings, Lang::En);
+        assert!(
+            lost.contains("PHOENIX-DIFF-006") && lost.contains("GND"),
+            "{lost}"
+        );
+    }
+
+    #[test]
+    fn marking_keeps_the_board_and_the_changes_follow_the_edits_after_it() {
+        use eh3d_phoenix_board::Net;
+        use eh3d_phoenix_model::ObjectId;
+        let mut tool = AnalysisTool::default();
+        let mut board = Board::default();
+        tool.run(AnalysisKind::Changes, &board, Lang::En);
+        assert_eq!(
+            tool.shown.as_ref().unwrap().1,
+            "No state was marked: press Mark this state first"
+        );
+        tool.mark(&board, Lang::Es);
+        assert!(tool.baseline.is_some());
+        assert_eq!(
+            tool.shown,
+            Some((
+                AnalysisKind::Changes,
+                "Se marcó el estado de la placa".to_owned()
+            ))
+        );
+        tool.run(AnalysisKind::Changes, &board, Lang::En);
+        assert!(tool.shown.as_ref().unwrap().1.contains("No differences"));
+        // the board is edited after the mark
+        let id = ObjectId::from_parts(1_700_000_000_000, 9, 9).unwrap();
+        board.nets.insert(id, Net { name: "VCC".into() });
+        tool.run(AnalysisKind::Changes, &board, Lang::En);
+        assert!(tool.shown.as_ref().unwrap().1.contains("VCC"));
+        // marking again takes the new state as the one to compare with
+        tool.mark(&board, Lang::En);
+        tool.run(AnalysisKind::Changes, &board, Lang::En);
+        assert!(tool.shown.as_ref().unwrap().1.contains("No differences"));
     }
 
     #[test]
