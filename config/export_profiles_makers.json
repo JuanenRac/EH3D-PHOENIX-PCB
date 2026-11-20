@@ -545,7 +545,9 @@
       "description": "The usual numbered names of the files and one drill file for the plated and the not plated holes, every tool saying which it is (MixedPlating, the mixed mode that several makers and design tools offer). It needs the X2 level with aperture attributes, which is what tells the tools apart. Not compared with the manufacturer.",
       "gerber": {
         "names": {},
-        "x2": { "level": "aperture" }
+        "x2": {
+          "level": "aperture"
+        }
       },
       "drill": {
         "mixed": true,

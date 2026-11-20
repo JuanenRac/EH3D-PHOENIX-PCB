@@ -103,6 +103,12 @@ EXTRA_EXPORT = [
      "names of the files are the usual numbered ones. Not compared with the manufacturer.",
      {}, {}, {"zone_thermal_spokes": 4, "zone_thermal_spoke_width_nm": 300000,
               "zone_thermal_gap_nm": 400000}),
+    ("jlcpcb-mixed-drill",
+     "The usual numbered names of the files and one drill file for the plated and the not plated "
+     "holes, every tool saying which it is (MixedPlating, the mixed mode that several makers and "
+     "design tools offer). It needs the X2 level with aperture attributes, which is what tells the "
+     "tools apart. Not compared with the manufacturer.",
+     {}, {"mixed": True, "mixed_file": "{board}.drl"}, {"x2": {"level": "aperture"}}),
 ]
 
 SOURCE_DRU = "design rules of the manufacturer as shipped with EAGLE"
