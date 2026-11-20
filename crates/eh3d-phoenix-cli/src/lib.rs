@@ -99,6 +99,7 @@ mod server;
 mod si;
 mod sim;
 mod spread;
+mod stackup_library;
 mod stats;
 mod stencil;
 mod testpoints;
@@ -129,6 +130,8 @@ phoenix eagle-rate <folder of originals> <new folder for the copies>
               and diagnostic codes only, never a name or a value
 
 phoenix stackup <job.json> --freq-ghz <GHz> [--material ID ...] [--settings FILE] [--field2d] [--html FILE] [--lang xx] [--json]
+phoenix stackup --library list [--layers N] [--json]
+phoenix stackup --library <ID> [--width-um W | --target-ohm Z] [--freq-ghz GHz] [--settings FILE] [--lang xx] [--json]
 
   stackup     compute the transmission lines of a stack-up (microstrip, stripline, coplanar
               waveguide, coupled pairs): impedance, effective permittivity, losses, delay and
@@ -137,7 +140,12 @@ phoenix stackup <job.json> --freq-ghz <GHz> [--material ID ...] [--settings FILE
               of the database (for example isola/370hr or rogers/ro4350b) that the layers name
               by its identifier, its Dk and Df taken from the published points; --field2d adds
               the result of the two-dimensional field solver of `phoenix field2d` on the same
-              lines; --html writes the layers of the stack-up as a page of HTML to a new file
+              lines; --html writes the layers of the stack-up as a page of HTML to a new file.
+              --library list shows the typical stack-ups of 6, 8 and 10 layers that come with the
+              program (the figures of a public guideline, not verified with the maker) and
+              --library ID computes a microstrip on each outer layer and a stripline on each inner
+              one of one of them, for a width (--width-um) or for an impedance (--target-ohm, 50
+              ohm unless given), at --freq-ghz (1 GHz unless given)
               (one that exists is never replaced); a prototype estimate, not a simulation;
               --lang is one of en, es, de, fr, it, ja, zh, pt
 
@@ -790,6 +798,9 @@ fn read_bounded(path: &str) -> Result<String, String> {
 }
 
 fn stackup_command(args: &[&str], out: &mut dyn Write, err: &mut dyn Write) -> i32 {
+    if args.contains(&"--library") {
+        return stackup_library::library_command(args, out, err);
+    }
     let mut file: Option<&str> = None;
     let mut freq: Option<f64> = None;
     let mut settings_path: Option<&str> = None;

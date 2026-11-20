@@ -19,6 +19,10 @@
 //! * [`laminates`]: a small library of laminates (epoxy, high-frequency, polyimide, metal base,
 //!   copper) with the figures their data sheets state, none of them verified, and a figure that
 //!   the sheet does not state clearly left undefined;
+//! * [`libstack`]: a library of typical stack-ups of 6, 8 and 10 layers with the thickness of every
+//!   layer (data in `config/stackup_library.json`, none of it verified), the common prepregs and
+//!   cores, the copper after plating, and the jobs that compute the lines of a stack-up of the
+//!   library;
 //! * [`settings`]: the tuned values, read from `config/stackup.cfg`;
 //! * [`report_html`]: the layers of a stack-up as a page of HTML in the eight languages of the
 //!   suite, with the depth at which each starts and the total thickness;
@@ -43,6 +47,7 @@ pub mod error;
 pub mod heating;
 pub mod job;
 pub mod laminates;
+pub mod libstack;
 pub mod line;
 pub mod material;
 #[cfg(feature = "materials")]

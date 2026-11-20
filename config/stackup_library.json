@@ -1,0 +1,89 @@
+{
+ "format": "phoenix-stack-library/1",
+ "verified": false,
+ "source": "suggested stackups, common prepregs, cores and plated copper of a public guideline of a board maker, and the dielectric constants of the public impedance calculator of a maker; none of it compared with the maker",
+ "notes": [
+  "A copper layer of 35 um is the outer foil of 0.5 oz with plating or the inner foil of 1 oz.",
+  "The guideline gives no type of prepreg for a stackup, since each factory chooses its own.",
+  "The loss tangent is not stated by the sources and is written as 0, so no dielectric loss follows from these stackups.",
+  "The 8 layer stackup of 2.00 mm is left out: its list and its total thickness disagree in the source.",
+  "No 2 layer or 4 layer stackup is here, because the sources give none."
+ ],
+ "materials": [
+  {"name": "fr4-library", "dk": 4.5, "df": 0.0, "ghz": 1.0},
+  {"name": "mask-library", "dk": 3.8, "df": 0.0, "ghz": 1.0}
+ ],
+ "prepregs": [
+  {"type": "106", "thickness_um": 50, "resin_percent": 65},
+  {"type": "1080", "thickness_um": 75, "resin_percent": 65},
+  {"type": "2116", "thickness_um": 120, "resin_percent": 55},
+  {"type": "7628", "thickness_um": 200, "resin_percent": 46}
+ ],
+ "core_thickness_um": [100, 150, 200, 250, 360, 430, 510, 630, 710, 780, 830, 930, 1000, 1200, 2000],
+ "outer_copper": [
+  {"base_um": 12, "class2_tenth_um": 293, "class3_tenth_um": 343},
+  {"base_um": 18, "class2_tenth_um": 334, "class3_tenth_um": 384},
+  {"base_um": 35, "class2_tenth_um": 479, "class3_tenth_um": 529},
+  {"base_um": 70, "class2_tenth_um": 787, "class3_tenth_um": 837},
+  {"base_um": 105, "class2_tenth_um": 1086, "class3_tenth_um": 1136},
+  {"base_um": 140, "class2_tenth_um": 1395, "class3_tenth_um": 1445}
+ ],
+ "stackups": [
+  {
+   "id": "6l-1.6",
+   "layers": 6,
+   "nominal_um": 1600,
+   "source": "suggested stackup, 6 layers, 1.60 mm",
+   "sequence": ["mask:20", "cu:35", "pp:200", "cu:35", "core:360", "cu:35", "pp:240", "cu:35", "core:360", "cu:35", "pp:200", "cu:35", "mask:20"]
+  },
+  {
+   "id": "6l-2.0",
+   "layers": 6,
+   "nominal_um": 2000,
+   "source": "suggested stackup, 6 layers, 2.00 mm",
+   "sequence": ["mask:20", "cu:35", "pp:150", "cu:35", "core:630", "cu:35", "pp:200", "cu:35", "core:630", "cu:35", "pp:150", "cu:35", "mask:20"]
+  },
+  {
+   "id": "6l-2.4",
+   "layers": 6,
+   "nominal_um": 2400,
+   "source": "suggested stackup, 6 layers, 2.40 mm",
+   "sequence": ["mask:20", "cu:35", "pp:200", "cu:35", "core:780", "cu:35", "pp:200", "cu:35", "core:780", "cu:35", "pp:200", "cu:35", "mask:20"]
+  },
+  {
+   "id": "8l-1.6",
+   "layers": 8,
+   "nominal_um": 1600,
+   "source": "suggested stackup, 8 layers, 1.60 mm",
+   "sequence": ["mask:20", "cu:35", "pp:150", "cu:35", "core:200", "cu:35", "pp:200", "cu:35", "core:200", "cu:35", "pp:200", "cu:35", "core:200", "cu:35", "pp:150", "cu:35", "mask:20"]
+  },
+  {
+   "id": "8l-2.4",
+   "layers": 8,
+   "nominal_um": 2400,
+   "source": "suggested stackup, 8 layers, 2.40 mm",
+   "sequence": ["mask:20", "cu:35", "pp:200", "cu:35", "core:430", "cu:35", "pp:200", "cu:35", "core:430", "cu:35", "pp:200", "cu:35", "core:430", "cu:35", "pp:200", "cu:35", "mask:20"]
+  },
+  {
+   "id": "10l-1.6",
+   "layers": 10,
+   "nominal_um": 1600,
+   "source": "suggested stackup, 10 layers, 1.60 mm",
+   "sequence": ["mask:20", "cu:35", "pp:120", "cu:35", "core:150", "cu:35", "pp:120", "cu:35", "core:150", "cu:35", "pp:150", "cu:35", "core:150", "cu:35", "pp:120", "cu:35", "core:150", "cu:35", "pp:120", "cu:35", "mask:20"]
+  },
+  {
+   "id": "10l-2.0",
+   "layers": 10,
+   "nominal_um": 2000,
+   "source": "suggested stackup, 10 layers, 2.00 mm",
+   "sequence": ["mask:20", "cu:35", "pp:150", "cu:35", "core:200", "cu:35", "pp:150", "cu:35", "core:200", "cu:35", "pp:225", "cu:35", "core:200", "cu:35", "pp:150", "cu:35", "core:200", "cu:35", "pp:150", "cu:35", "mask:20"]
+  },
+  {
+   "id": "10l-2.4",
+   "layers": 10,
+   "nominal_um": 2400,
+   "source": "suggested stackup, 10 layers, 2.40 mm",
+   "sequence": ["mask:20", "cu:35", "pp:120", "cu:35", "core:360", "cu:35", "pp:120", "cu:35", "core:360", "cu:35", "pp:100", "cu:35", "core:360", "cu:35", "pp:120", "cu:35", "core:360", "cu:35", "pp:120", "cu:35", "mask:20"]
+  }
+ ]
+}
