@@ -62,6 +62,7 @@ All lengths are in nanometres. The rules of PCBWay ask other distances too (wire
 | `jlcpcb-kicad-names` | default | default | `{board}-F_Cu.gbr` | `{board}-B_Cu.gbr` | `{board}-PTH.drl` |
 | `jlcpcb-altium-names` | default | default | `{board}.gtl` | `{board}.gbl` | `{board}.txt` |
 | `jlcpcb-eagle-names` | default | default | `Copper_top.gbr` | `Copper_bottom.gbr` | `Drill_1_16.xln` |
+| `jlcpcb-thermal-relief` | default | default | numbered | numbered | default |
 
 The coordinate formats are in millimetres. The export always writes four digits before the point, so only the digits after it come from the job. A job that gives no format keeps the default (six decimals in Gerber, the default style in Excellon). The last three profiles are not from a job: they follow the names that the public page of JLCPCB lists for the files of three programs (KiCad, Altium and EAGLE), and the profiles hold only the names that the page lists; the rest of the files keep the numbered names.
 
@@ -73,6 +74,14 @@ Things to know:
 * a role with no template (the legend of the bottom side in the job of PCBWay, the paste in several jobs) and a layer without a role (documentation) keep the numbered name with the extension of the profile;
 * the files of the roles in `gerber.names.order` come first, in that order, as the jobs list them; the files that are not listed follow in the usual order;
 * two files with one name (for example every inner layer with a template that has no `{inner}` or `{layer}`), a name that is not a plain file name (letters, digits, `.`, `_`, `-`, at most 64 characters, no Windows device name) and an unknown role are errors that name the profile and the key (`PHOENIX-EXPORT-011`).
+
+## Thermal relief and paste
+
+These are public figures of the pages of JLCPCB and PCBWay; nothing was compared with a maker.
+
+* **Relief of a pad in a pour:** four spokes (IPC-2221B), a least radius of 0.2 mm. Thin passives: spoke 0.10 to 0.20 mm, gap 0.20 to 0.30 mm. General surface-mount parts: 0.20 to 0.30 mm and 0.25 to 0.40 mm. Holes through a plane: 0.30 to 0.50 mm and 0.40 to 0.60 mm. Above 3 A a pad has no relief. The profile `jlcpcb-thermal-relief` sets `zone_thermal_spokes = 4`, the spoke at 0.30 mm and the gap at 0.40 mm, the least of the ranges for a hole through a plane; the pads that are not round stay solid (`zone_thermal_non_round = false`).
+* **Thermal vias under an exposed pad:** drill 0.25 to 0.33 mm (0.2 mm for fine pitch), pitch 1.0 to 1.2 mm, 9 to 25 vias, at least 0.15 mm from the edge of the pad. No line of a profile holds them; they are in the comments of `config/dfm_jlcpcb.cfg`.
+* **Paste:** coverage of 50 to 75 % of a large pad with windows, voiding under 25 %, stencil 0.10 to 0.15 mm (0.08 mm ultra fine), area ratio above 0.66, aspect ratio at least 1.5, reduction of the openings 5 to 7 % (10 to 20 % for fine pitch), pads more than 1.27 mm apart and parts at least 1 mm apart. `config/stencil_smt.cfg` (`phoenix stencil --stencil-config config/stencil_smt.cfg`) holds 0.12 mm, 1.5, 0.66 and a reduction of 6 %; the splitting into windows keeps its defaults, and the reduction of fine pitch parts is left to a `reduce` line of your own.
 
 ## The job of ISOCAM
 

@@ -529,6 +529,16 @@
         "plated_file": "Drill_1_16.xln",
         "non_plated_file": "Drill_1_16_npth.xln"
       }
+    },
+    {
+      "name": "jlcpcb-thermal-relief",
+      "description": "Thermal relief of the pads in a pour as the public pages of JLCPCB and PCBWay give it: four spokes (IPC-2221B), a spoke 0.30 to 0.50 mm wide and a gap of 0.40 to 0.60 mm for a hole through a plane; the profile uses the least of each range. The pads that are not round stay solid. The names of the files are the usual numbered ones. Not compared with the manufacturer.",
+      "gerber": {
+        "names": {},
+        "zone_thermal_spokes": 4,
+        "zone_thermal_spoke_width_nm": 300000,
+        "zone_thermal_gap_nm": 400000
+      }
     }
   ]
 }

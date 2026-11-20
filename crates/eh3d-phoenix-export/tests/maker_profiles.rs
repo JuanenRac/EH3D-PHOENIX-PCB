@@ -185,6 +185,7 @@ fn the_manufacturers_that_come_with_the_program_are_these() {
             "jlcpcb-kicad-names",
             "jlcpcb-altium-names",
             "jlcpcb-eagle-names",
+            "jlcpcb-thermal-relief",
         ]
     );
     assert!(maker_profile("nobody").is_none());
@@ -550,4 +551,29 @@ fn a_template_that_is_not_usable_is_refused_with_its_key() {
     // an unknown key of the names is refused by the reader
     let text = r#"{"format": "phoenix-export/1", "profiles": [{"name": "a", "gerber": {"names": {"copper": "x"}}}]}"#;
     assert!(ProfileSet::from_json(text).is_err());
+}
+
+#[test]
+fn the_relief_profile_asks_for_four_spokes_inside_the_published_ranges() {
+    let profile = maker_profile("jlcpcb-thermal-relief").unwrap();
+    let g = &profile.gerber;
+    assert_eq!(g.zone_thermal_spokes, 4);
+    assert_eq!(g.zone_thermal_spoke_width_nm, 300_000);
+    assert_eq!(g.zone_thermal_gap_nm, 400_000);
+    assert!(!g.zone_thermal_non_round);
+    // the names of the files stay the numbered ones
+    let set = build(&four_layers("Maker board"), &profile).unwrap();
+    assert!(layer_names(&set).iter().all(|n| n.ends_with(".gbr")));
+}
+
+#[test]
+fn the_stencil_settings_of_the_public_pages_are_read_by_the_reader_of_the_program() {
+    use eh3d_phoenix_export::stencil::{Reduction, StencilSettings};
+    let s = StencilSettings::parse(include_str!("../../../config/stencil_smt.cfg")).unwrap();
+    assert_eq!(s.thickness_nm, 120_000);
+    assert_eq!(s.min_aspect_micro, 1_500_000);
+    assert_eq!(s.min_area_micro, 660_000);
+    assert_eq!(s.shrink, Reduction::Percent(6_000_000));
+    // the rest keeps the defaults
+    assert_eq!(s.window_max_nm, StencilSettings::default().window_max_nm);
 }

@@ -69,7 +69,7 @@ CAM_PROFILES = [
     ("isocam-cam", "BUNGARD_ISOCAM.cam", "ISOCAM of the Bungard machine"),
 ]
 
-# Export profiles from public naming conventions (not from a CAM job): name -> (description, names, drill)
+# Export profiles from public conventions (not from a CAM job): (name, description, names, drill[, gerber])
 EXTRA_EXPORT = [
     ("jlcpcb-kicad-names",
      "File names in the KiCad style that the JLCPCB page lists (-F_Cu, -B_Cu, -Edge_Cuts, -PTH, -NPTH). "
@@ -96,6 +96,13 @@ EXTRA_EXPORT = [
       "mask_top": "Soldermask_top.gbr", "silk_top": "Silkscreen_top.gbr",
       "paste_top": "Solderpaste_top.gbr"},
      {"plated_file": "Drill_1_16.xln", "non_plated_file": "Drill_1_16_npth.xln"}),
+    ("jlcpcb-thermal-relief",
+     "Thermal relief of the pads in a pour as the public pages of JLCPCB and PCBWay give it: four "
+     "spokes (IPC-2221B), a spoke 0.30 to 0.50 mm wide and a gap of 0.40 to 0.60 mm for a hole through "
+     "a plane; the profile uses the least of each range. The pads that are not round stay solid. The "
+     "names of the files are the usual numbered ones. Not compared with the manufacturer.",
+     {}, {}, {"zone_thermal_spokes": 4, "zone_thermal_spoke_width_nm": 300000,
+              "zone_thermal_gap_nm": 400000}),
 ]
 
 SOURCE_DRU = "design rules of the manufacturer as shipped with EAGLE"
@@ -430,9 +437,13 @@ def main(argv: list[str]) -> int:
         cam_rows.append(f"| `{name}` | {gf} | {df} | `{n.get('copper_top', '-')}` | "
                         f"`{n.get('copper_bottom', '-')}` | `{profile.get('drill', {}).get('plated_file', '-')}` | "
                         f"{', '.join(n['order'])} |")
-    for name, description, names, drill in EXTRA_EXPORT:
-        profiles.append({"name": name, "description": description,
-                         "gerber": {"names": dict(names)}, "drill": dict(drill)})
+    for name, description, names, drill, *more in EXTRA_EXPORT:
+        gerber = {"names": dict(names)}
+        gerber.update(more[0] if more else {})
+        entry = {"name": name, "description": description, "gerber": gerber}
+        if drill:
+            entry["drill"] = dict(drill)
+        profiles.append(entry)
     doc = {"format": "phoenix-export/1", "profiles": profiles}
     with open(os.path.join(args.out, "config", "export_profiles_makers.json"), "w", encoding="utf-8",
               newline="\n") as f:
