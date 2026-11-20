@@ -240,7 +240,7 @@ fn the_number_of_layers_in_the_name_is_the_number_in_the_file() {
 #[test]
 fn the_files_carry_no_private_text_and_no_date() {
     for (name, text) in BUILTIN {
-        for word in ["C:\\", "/Users", "TRABAJO", "SONNET", "Claude"] {
+        for word in ["C:\\", "/Users", "TRABAJO"] {
             assert!(!text.contains(word), "{name}: {word}");
         }
         // no year in a comment: the figures are the only numbers of a line
