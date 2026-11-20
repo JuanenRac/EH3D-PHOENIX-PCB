@@ -23,6 +23,8 @@
 //!   and the escaping of HTML;
 //! * [`import`]: the bill of another program read with a map of columns, written as part data or
 //!   compared with a board;
+//! * [`equivalents`]: the lines of a bill whose part numbers or alternatives meet, which can be
+//!   bought as one, with their totals;
 //! * [`formats`]: the formats of that bill (a generic CSV, the partlist of EAGLE, and the CSV and
 //!   the XML bills of KiCad), told apart by [`detect`] and read by [`import_as`];
 //! * [`range`]: the ranges of references (`R1-R5`) of a cell of a bill, expanded to single parts;
@@ -32,7 +34,8 @@
 //! **State: prototype.** It has been tried on small boards made by the tests only. The tariffs of
 //! the settings are an example and not the prices of any maker, so the cost of the boards is an
 //! estimate of the shape of a quote and never a quote; the prices are the ones of the file the
-//! user gives, with no check that they are current; the lines are not merged by equivalent parts.
+//! user gives, with no check that they are current; the lines are not merged by equivalent parts (the sets of
+//! lines that could be are listed by [`equivalent_groups`]).
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
@@ -40,6 +43,9 @@ pub mod assembler;
 pub mod assembly;
 pub mod bom;
 pub mod codes;
+pub mod equivalents;
+#[cfg(test)]
+mod equivalents_tests;
 pub mod formats;
 pub mod import;
 pub mod money;
@@ -56,6 +62,7 @@ pub mod text;
 
 pub use bom::{build_bom, natural_key, Bom, BomInputs, BomLine, Purchase};
 pub use codes::{title, BomError, Finding, Severity};
+pub use equivalents::{equivalent_groups, EquivalentGroup};
 pub use formats::{detect, import_as, ImportFormat};
 pub use import::{bill_from_table, import_bill, ImportMap, ImportedBill, ImportedLine};
 pub use parts::{PartData, PartsFile};

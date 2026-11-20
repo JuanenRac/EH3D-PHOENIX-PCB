@@ -143,6 +143,9 @@ The same file holds the formats of the placement (`placement.NAME`), which `phoe
 
 **The two formats are not verified.** They are written from the headers that the author knows those assemblers ask for; they have never been sent to an assembler, and the template that the assembler gives you wins over them. A cell that holds the delimiter, a quote or a line break is quoted, and a text cell that a spreadsheet could run as a formula gets a quote mark in front. A settings line that is not valid is `PHOENIX-BOM-001` with its number, a format that does not exist or an option used alone is `PHOENIX-BOM-014`, and the file that exists is `PHOENIX-BOM-015`.
 
+## Lines that can be bought as one
+
+The same resistor given by two part numbers is two lines of the bill, because the lines are grouped by value, footprint, maker and part number. When the file of part data names alternatives, a part number of one line may be the part number or an alternative of another, and the quantity to buy is then that of the lines together. The library function `equivalent_groups` lists those sets without changing the bill: two lines are joined when a part number of one, its own or an alternative, is a part number of the other (in any case, blanks around it ignored), and the sets are the lines joined directly or through others. For each set of at least two lines it gives the positions of the lines, the part numbers of all of them without repeats, the parts of one board and the parts that the batch needs in all of them, and `mixed_kinds`, true when the lines do not all have the same value and footprint, because an alternative with another footprint is more likely a mistake in the file than a part that can be fitted. Lines with no part number and no alternative are never in a set. The lines of the bill itself are not merged and the command does not list the sets yet.
 ## The codes
 
 `PHOENIX-BOM-001` to `PHOENIX-BOM-024`, with their titles in the eight languages; the table is in `docs/ERROR_CODES.md`.
@@ -151,6 +154,6 @@ The same file holds the formats of the placement (`placement.NAME`), which `phoe
 
 * It does not fetch prices, stock or part numbers from a supplier, and it does not order anything.
 * It does not write the files of an assembler for the placement (see `docs/PNP.md`), and the formats of the assemblers are not verified.
-* It does not merge lines of equivalent parts, split a quantity between suppliers or choose by stock or lead time.
+* It does not merge lines of equivalent parts (it only lists the sets of lines that could be, in the library), split a quantity between suppliers or choose by stock or lead time.
 * It does not know the real tariff of any maker: the cost of the boards is the shape of a quote, with the numbers you put in the settings.
 * It reads the bills of EAGLE and KiCad and, through a map of columns that you write, any other CSV bill; it does not read the formats of other programs, nor spreadsheets (`.xlsx`).
