@@ -97,6 +97,7 @@ pub mod sec_codes;
 mod server;
 mod si;
 mod sim;
+mod spread;
 mod stats;
 mod stencil;
 mod testpoints;
@@ -138,6 +139,15 @@ phoenix stackup <job.json> --freq-ghz <GHz> [--material ID ...] [--settings FILE
               lines; --html writes the layers of the stack-up as a page of HTML to a new file
               (one that exists is never replaced); a prototype estimate, not a simulation;
               --lang is one of en, es, de, fr, it, ja, zh, pt
+
+phoenix spread [--config FILE] --kind microstrip|stripline --width-um W --height-um H --er DK [--thickness-um T]
+               [--tol-width-um X] [--tol-height-um X] [--tol-er X] [--target OHM [--percent P] [--max-width-tolerance]] [--json] [--lang xx]
+
+  spread      the lowest and the highest impedance of a microstrip or a centred stripline when the
+              width, the height of the dielectric and the permittivity are off by their tolerances,
+              and with --target whether the whole box is within a per cent of that impedance (exit
+              code 1 when it is not) and the largest tolerance of the width that fits; a
+              quasi-static estimate, not a simulation, with the defaults in config/spread.cfg
 
 phoenix materials list [--manufacturer NAME] [--kind KIND] [--min-tg C] [--min-dk X] [--max-dk X]
                        [--min-df X] [--max-df X] [--at-ghz F] [--phoenix] [--json]
@@ -475,15 +485,19 @@ phoenix ipc2581 [--config FILE] [--out FILE] [--d356 FILE] [--overwrite] [--json
 phoenix server [--config FILE] [--kind rules|drill|bom|inspect] [--send] [--json] [--lang xx] <board | measurements>
 phoenix server [--config FILE] --health [--json] [--lang xx]
 phoenix server [--config FILE] --job ID [--json] [--lang xx]
+phoenix server [--config FILE] --save-project PROJECT [--name NAME] [--tag TAG] [--json] [--lang xx] <file>
+phoenix server [--config FILE] --load-project PROJECT --name NAME --out FILE [--version N] [--json] [--lang xx]
 
   server        a report of a board made by the station of EH3D-SERVER, the server that the
                 machines and the other programs of the suite share: the rules of the maker against
                 the tracks, the gaps and the holes, the drilling, the parts list, or an inspection
                 of measurements, with the codes PHOENIX-SERVER-<NNN>; a dry run that shows the
                 request unless --send is given and allow_network is true in the settings, --health
-                asks whether the server is there and --job reads a job that is on it, a
-                prototype that has never talked to a running server, run `phoenix server` alone
-                for its options
+                asks whether the server is there, --job reads a job that is on it and
+                --save-project and --load-project keep a file of a board in the project store of
+                the server and read it back, a save over a file that exists naming the version it
+                was made from (--tag), a prototype that has never talked to a running server, run
+                `phoenix server` alone for its options
 
 phoenix boarddiff [--config FILE] [--csv FILE] [--json] [--lang xx] <old board> <new board>
 

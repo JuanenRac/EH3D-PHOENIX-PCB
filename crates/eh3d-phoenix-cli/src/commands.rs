@@ -87,6 +87,13 @@ pub static COMMANDS: &[Command] = &[
         run: Some(crate::stackup_command),
     },
     Command {
+        name: "spread",
+        topic: Topic::Signal,
+        doc: "docs/STACKUP.md",
+        summary: ["lowest and highest impedance of a line when its width, height and permittivity are off by their tolerances", "impedancia más baja y más alta de una línea cuando su ancho, altura y permitividad se desvían por sus tolerancias", "niedrigste und höchste Impedanz einer Leitung, wenn Breite, Höhe und Permittivität um ihre Toleranzen abweichen", "impédance la plus basse et la plus haute d'une ligne quand sa largeur, sa hauteur et sa permittivité s'écartent de leurs tolérances", "impedenza più bassa e più alta di una linea quando larghezza, altezza e permittività si scostano per le loro tolleranze", "幅・高さ・誘電率が許容差だけずれたときの線路の最低・最高インピーダンス", "线宽、介质高度和介电常数各偏离其公差时线路的最低和最高阻抗", "impedância mais baixa e mais alta de uma linha quando a largura, a altura e a permitividade se desviam pelas suas tolerâncias"],
+        run: Some(crate::spread::spread_command),
+    },
+    Command {
         name: "materials",
         topic: Topic::Libraries,
         doc: "docs/STACKUP.md",
