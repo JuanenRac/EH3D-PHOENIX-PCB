@@ -88,6 +88,7 @@ python -I -m unittest discover -s tools -p "test_*.py"
 <p align="center">
   <img src="images/screens/de/phoenix-pcb-01-start.png" alt="Startbildschirm von EH3D-PHOENIX-PCB" width="49%">
   <img src="images/screens/de/phoenix-pcb-02-document.png" alt="Platinenfenster von EH3D-PHOENIX-PCB" width="49%">
+  <img src="images/screens/de/phoenix-pcb-11-measures.png" alt="Messfenster von EH3D-PHOENIX-PCB" width="49%">
 </p>
 
 ## 🧪 Tests

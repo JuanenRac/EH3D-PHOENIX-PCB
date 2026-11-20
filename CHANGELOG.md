@@ -4,6 +4,8 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **The pictures of the windows are taken again with the newest build:** every picture of `images/screens/` comes from the Windows 64 bits program of the latest release, in the eight languages where the README shows one, and the README files show a new picture of the measures window.
+
 ## [0.1.2] - Project store of the server, impedance spread command, net name and mask sliver rules, library comparison and board changes since a mark
 
 - **Tests of the eight languages of the command line, through the table of commands:** the description of every command exists in each language and none is a copy of the English one, the ones of Japanese and Chinese are in their scripts and the Portuguese is that of Portugal (no `arquivo`, `tela`, `usuário`, `salvar` or `planilha`), `phoenix help --lang xx COMMAND` gives the page of every command in each of the eight languages with the same lines of usage in all of them, and the listing and the pages of five topics differ from language to language and name every command; a command that is added is checked without a line being added to the test.

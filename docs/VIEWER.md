@@ -92,7 +92,7 @@ The windows `document`, `3d`, `panel` and `gerber` need `--open`, and `start` ca
 
 #### Renewing the pictures at each version
 
-The pictures of the windows live in `images/screens/`, one folder for each language (`en`, `es`, `de`, `fr`, `it`, `ja`, `zh`, `pt`), and are renewed with every version, from the program of that version and not by hand. The English folder holds every window; the other seven hold the start screen and the board window, which the README files show in their language. The language of a run comes from the environment (`LC_ALL=de`), as for the program itself:
+The pictures of the windows live in `images/screens/`, one folder for each language (`en`, `es`, `de`, `fr`, `it`, `ja`, `zh`, `pt`), and are renewed with every version, from the program of that version and not by hand. The English folder holds every window; the other seven hold the start screen, the board window and the measures window (taken with `--window measures --open examples/tutorials/led_board.brd`), which the README files show in their language. The language of a run comes from the environment (`LC_ALL=de`), as for the program itself:
 
 ```
 LC_ALL=de py -3.14 -I tools/make_shots.py --exe PATH/phoenix.exe --out images/screens/de --only start,document
