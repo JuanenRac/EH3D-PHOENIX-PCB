@@ -8,7 +8,10 @@ use crate::models::{
     differential_microstrip, differential_stripline, microstrip, stripline_offset,
     stripline_symmetric,
 };
-use crate::spread::{impedance_spread, SpreadGeometry, SpreadKind, SpreadTolerances};
+use crate::spread::{
+    impedance_spread, max_width_tolerance, SpreadGeometry, SpreadKind, SpreadTolerances,
+    MAX_TOLERANCE_FRACTION,
+};
 
 const MM: f64 = 1.0e-3;
 
@@ -185,4 +188,54 @@ fn the_same_geometry_gives_the_same_spread_every_time() {
         er: 0.2,
     };
     assert_eq!(impedance_spread(&g, &t), impedance_spread(&g, &t));
+}
+
+#[test]
+fn the_largest_width_tolerance_fits_and_a_little_more_does_not() {
+    let mut rng = Lcg(0x5a_0008);
+    let mut limited = 0;
+    for round in 0..200 {
+        let kind = if round % 2 == 0 {
+            SpreadKind::Microstrip
+        } else {
+            SpreadKind::Stripline
+        };
+        let height = rng.between(0.1, 0.8) * MM;
+        let g = SpreadGeometry {
+            kind,
+            width_m: rng.between(0.2, 1.5) * height,
+            thickness_m: rng.between(0.0, 0.1) * height,
+            height_m: height,
+            er: rng.between(2.5, 9.0),
+        };
+        let others = SpreadTolerances {
+            width_m: 0.0,
+            height_m: rng.between(0.0, 0.03) * height,
+            er: rng.between(0.0, 0.1),
+        };
+        let nominal = impedance_spread(&g, &others).unwrap().nominal_ohm;
+        let percent = rng.between(3.0, 20.0);
+        let at = |w: f64| {
+            impedance_spread(
+                &g,
+                &SpreadTolerances {
+                    width_m: w,
+                    ..others
+                },
+            )
+            .unwrap()
+        };
+        match max_width_tolerance(&g, &others, nominal, percent).unwrap() {
+            None => assert!(!at(0.0).fits(nominal, percent)),
+            Some(found) => {
+                assert!(at(found).fits(nominal, percent), "{g:?} {others:?}");
+                let limit = g.width_m * MAX_TOLERANCE_FRACTION;
+                if found < limit {
+                    limited += 1;
+                    assert!(!at((found * 1.001).min(limit)).fits(nominal, percent));
+                }
+            }
+        }
+    }
+    assert!(limited > 20, "{limited}");
 }

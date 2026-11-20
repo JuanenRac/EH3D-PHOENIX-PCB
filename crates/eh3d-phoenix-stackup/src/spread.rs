@@ -171,6 +171,56 @@ pub fn impedance_spread(
     })
 }
 
+/// The largest plus or minus tolerance of the width of the track, in metres, for which every
+/// corner of the box stays within `percent` per cent of `target_ohm`, with the tolerances of the
+/// height and of the permittivity taken from `others` (its `width_m` is not used).
+///
+/// The spread grows with the tolerance of the width, so the answer is found by bisection between
+/// zero and the largest tolerance that [`impedance_spread`] accepts (half of the width). It is
+/// `Ok(None)` when even a width with no tolerance does not fit, that is, when the other
+/// tolerances or the nominal geometry alone already leave the target; `Ok(Some(limit))` with half
+/// of the width when every tolerance that can be asked fits. A target that is not a positive
+/// finite number and a percentage that is not a finite number from 0 to 100 are errors that name
+/// the value, as are the errors of [`impedance_spread`].
+pub fn max_width_tolerance(
+    geometry: &SpreadGeometry,
+    others: &SpreadTolerances,
+    target_ohm: f64,
+    percent: f64,
+) -> Result<Option<f64>, StackupError> {
+    if !target_ohm.is_finite() || target_ohm <= 0.0 {
+        return Err(bad(
+            "the target impedance is not a positive number".to_string()
+        ));
+    }
+    if !percent.is_finite() || !(0.0..=100.0).contains(&percent) {
+        return Err(bad(
+            "the percentage of the target is not a number from 0 to 100".to_string(),
+        ));
+    }
+    let with = |width_m: f64| SpreadTolerances { width_m, ..*others };
+    let fits = |width_m: f64| -> Result<bool, StackupError> {
+        Ok(impedance_spread(geometry, &with(width_m))?.fits(target_ohm, percent))
+    };
+    if !fits(0.0)? {
+        return Ok(None);
+    }
+    let limit = geometry.width_m * MAX_TOLERANCE_FRACTION;
+    if fits(limit)? {
+        return Ok(Some(limit));
+    }
+    let (mut low, mut high) = (0.0, limit);
+    for _ in 0..80 {
+        let middle = 0.5 * (low + high);
+        if fits(middle)? {
+            low = middle;
+        } else {
+            high = middle;
+        }
+    }
+    Ok(Some(low))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -343,5 +393,75 @@ mod tests {
             ..Default::default()
         };
         assert!(impedance_spread(&g, &t).is_err());
+    }
+
+    #[test]
+    fn the_largest_width_tolerance_is_the_edge_of_what_fits() {
+        let g = micro();
+        let others = SpreadTolerances {
+            width_m: 0.0,
+            height_m: 0.005 * MM,
+            er: 0.1,
+        };
+        let nominal = impedance_spread(&g, &others).unwrap().nominal_ohm;
+        let found = max_width_tolerance(&g, &others, nominal, 10.0)
+            .unwrap()
+            .unwrap();
+        let at = |w: f64| {
+            impedance_spread(
+                &g,
+                &SpreadTolerances {
+                    width_m: w,
+                    ..others
+                },
+            )
+            .unwrap()
+        };
+        assert!(found > 0.0 && found < g.width_m * MAX_TOLERANCE_FRACTION);
+        assert!(at(found).fits(nominal, 10.0));
+        assert!(!at(found * 1.01).fits(nominal, 10.0));
+    }
+
+    #[test]
+    fn a_target_that_the_other_tolerances_already_leave_gives_no_tolerance() {
+        let g = micro();
+        let others = SpreadTolerances {
+            width_m: 0.0,
+            height_m: 0.05 * MM,
+            er: 0.4,
+        };
+        let nominal = impedance_spread(&g, &others).unwrap().nominal_ohm;
+        assert_eq!(max_width_tolerance(&g, &others, nominal, 1.0), Ok(None));
+        assert_eq!(
+            max_width_tolerance(&g, &others, nominal * 2.0, 5.0),
+            Ok(None)
+        );
+    }
+
+    #[test]
+    fn a_wide_enough_percentage_accepts_every_tolerance_that_can_be_asked() {
+        let g = strip();
+        let others = SpreadTolerances::default();
+        let nominal = impedance_spread(&g, &others).unwrap().nominal_ohm;
+        let found = max_width_tolerance(&g, &others, nominal, 100.0).unwrap();
+        assert_eq!(found, Some(g.width_m * MAX_TOLERANCE_FRACTION));
+    }
+
+    #[test]
+    fn the_target_and_the_percentage_are_checked_and_named() {
+        let g = micro();
+        let none = SpreadTolerances::default();
+        for (target, percent, word) in [
+            (0.0, 10.0, "target"),
+            (f64::NAN, 10.0, "target"),
+            (50.0, -1.0, "percentage"),
+            (50.0, 101.0, "percentage"),
+            (50.0, f64::INFINITY, "percentage"),
+        ] {
+            let e = max_width_tolerance(&g, &none, target, percent)
+                .unwrap_err()
+                .to_string();
+            assert!(e.contains(word), "{e}");
+        }
     }
 }
