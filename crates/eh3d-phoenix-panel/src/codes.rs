@@ -48,6 +48,22 @@ pub const ROUNDTRIP_MISMATCH: &str = "PHOENIX-PANEL-019";
 pub const BOARD_NOT_JOINED: &str = "PHOENIX-PANEL-020";
 /// The layer files of the panel could not be written.
 pub const EXPORT_FAILED: &str = "PHOENIX-PANEL-021";
+/// The V-cut does not meet the limits of the maker.
+pub const FAB_VCUT_LIMITS: &str = "PHOENIX-PANEL-022";
+/// The V-cut lines are closer than the maker allows.
+pub const FAB_VCUT_SPACING: &str = "PHOENIX-PANEL-023";
+/// The routed gap is narrower than the maker allows.
+pub const FAB_ROUTE_GAP: &str = "PHOENIX-PANEL-024";
+/// The break-away holes do not meet the limits of the maker.
+pub const FAB_STAMP_HOLES: &str = "PHOENIX-PANEL-025";
+/// The tab is narrower than the maker allows.
+pub const FAB_TAB_NARROW: &str = "PHOENIX-PANEL-026";
+/// The fiducials differ from what the maker asks.
+pub const FAB_FIDUCIAL: &str = "PHOENIX-PANEL-027";
+/// The tooling edge is narrower than the maker allows.
+pub const FAB_TOOL_EDGE: &str = "PHOENIX-PANEL-028";
+/// The tooling holes differ from what the maker asks.
+pub const FAB_TOOL_HOLE: &str = "PHOENIX-PANEL-029";
 
 /// Code, then the title in English, Spanish, German, French, Italian, Japanese, Chinese and
 /// European Portuguese.
@@ -323,6 +339,110 @@ pub const TITLES: &[(&str, [&str; 8])] = &[
             "パネルの層を書き出せませんでした",
             "无法写出拼板的各层",
             "Não foi possível escrever as camadas do painel",
+        ],
+    ),
+    (
+        FAB_VCUT_LIMITS,
+        [
+            "The V-cut does not meet the limits of the maker",
+            "El corte en V no cumple los límites del fabricante",
+            "Der V-Schnitt erfüllt die Grenzwerte des Herstellers nicht",
+            "La découpe en V ne respecte pas les limites du fabricant",
+            "L'incisione a V non rispetta i limiti del produttore",
+            "V カットがメーカーの制限を満たしていません",
+            "V 形切割不满足制造商的限制",
+            "O corte em V não cumpre os limites do fabricante",
+        ],
+    ),
+    (
+        FAB_VCUT_SPACING,
+        [
+            "The V-cut lines are closer than the maker allows",
+            "Las líneas de corte en V están más cerca de lo que admite el fabricante",
+            "Die V-Schnitt-Linien liegen näher beieinander als der Hersteller erlaubt",
+            "Les lignes de découpe en V sont plus proches que le fabricant ne l'admet",
+            "Le linee di incisione a V sono più vicine di quanto il produttore ammetta",
+            "V カットの線同士がメーカーの許容より近すぎます",
+            "V 形切割线之间的距离小于制造商允许的值",
+            "As linhas de corte em V estão mais próximas do que o fabricante admite",
+        ],
+    ),
+    (
+        FAB_ROUTE_GAP,
+        [
+            "The routed gap is narrower than the maker allows",
+            "El hueco fresado es más estrecho de lo que admite el fabricante",
+            "Der gefräste Spalt ist schmaler als der Hersteller erlaubt",
+            "Le jeu fraisé est plus étroit que le fabricant ne l'admet",
+            "Il vuoto fresato è più stretto di quanto il produttore ammetta",
+            "ルーター溝がメーカーの許容より狭いです",
+            "铣削间隙比制造商允许的更窄",
+            "O intervalo fresado é mais estreito do que o fabricante admite",
+        ],
+    ),
+    (
+        FAB_STAMP_HOLES,
+        [
+            "The break-away holes do not meet the limits of the maker",
+            "Los agujeros de rotura no cumplen los límites del fabricante",
+            "Die Sollbruchlöcher erfüllen die Grenzwerte des Herstellers nicht",
+            "Les trous de rupture ne respectent pas les limites du fabricant",
+            "I fori di rottura non rispettano i limiti del produttore",
+            "ブレークアウェイ穴がメーカーの制限を満たしていません",
+            "断裂孔不满足制造商的限制",
+            "Os furos de rutura não cumprem os limites do fabricante",
+        ],
+    ),
+    (
+        FAB_TAB_NARROW,
+        [
+            "The tab is narrower than the maker allows",
+            "La pestaña es más estrecha de lo que admite el fabricante",
+            "Der Steg ist schmaler als der Hersteller erlaubt",
+            "Le pont est plus étroit que le fabricant ne l'admet",
+            "La linguetta è più stretta di quanto il produttore ammetta",
+            "タブがメーカーの許容より細いです",
+            "连接桥比制造商允许的更窄",
+            "A patilha é mais estreita do que o fabricante admite",
+        ],
+    ),
+    (
+        FAB_FIDUCIAL,
+        [
+            "The fiducials differ from what the maker asks",
+            "Los fiduciales difieren de lo que pide el fabricante",
+            "Die Passmarken weichen von den Vorgaben des Herstellers ab",
+            "Les repères diffèrent de ce que demande le fabricant",
+            "I fiducial differiscono da quanto richiede il produttore",
+            "フィデューシャルがメーカーの要求と異なります",
+            "基准点与制造商的要求不同",
+            "Os fiduciais diferem do que o fabricante pede",
+        ],
+    ),
+    (
+        FAB_TOOL_EDGE,
+        [
+            "The tooling edge is narrower than the maker allows",
+            "El borde de herramienta es más estrecho de lo que admite el fabricante",
+            "Der Werkzeugrand ist schmaler als der Hersteller erlaubt",
+            "Le bord d'outillage est plus étroit que le fabricant ne l'admet",
+            "Il bordo di lavorazione è più stretto di quanto il produttore ammetta",
+            "ツーリングエッジがメーカーの許容より狭いです",
+            "工艺边比制造商允许的更窄",
+            "A margem de ferramenta é mais estreita do que o fabricante admite",
+        ],
+    ),
+    (
+        FAB_TOOL_HOLE,
+        [
+            "The tooling holes differ from what the maker asks",
+            "Los agujeros de herramienta difieren de lo que pide el fabricante",
+            "Die Werkzeuglöcher weichen von den Vorgaben des Herstellers ab",
+            "Les trous d'outillage diffèrent de ce que demande le fabricant",
+            "I fori di lavorazione differiscono da quanto richiede il produttore",
+            "ツーリング穴がメーカーの要求と異なります",
+            "工艺孔与制造商的要求不同",
+            "Os furos de ferramenta diferem do que o fabricante pede",
         ],
     ),
 ];

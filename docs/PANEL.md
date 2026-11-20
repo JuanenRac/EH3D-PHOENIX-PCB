@@ -49,10 +49,16 @@ A difference is `PHOENIX-PANEL-019` and nothing is written. A refusal of the exp
 ## The command
 
 ```
-phoenix panel [--config FILE] [--template NAME] [--columns N] [--rows N] [--boards A,B,...] [--profile NAME] [--profiles FILE] [--json] [--lang CODE] [--out FOLDER] [<board>]
+phoenix panel [--config FILE] [--template NAME] [--fab-rules NAME] [--fab-config FILE] [--columns N] [--rows N] [--boards A,B,...] [--profile NAME] [--profiles FILE] [--json] [--lang CODE] [--out FOLDER] [<board>]
 ```
 
 It reads the board (an EAGLE `.brd`, a KiCad board or a JSON board) or the list of boards and prints a summary; it is a dry run unless `--out` names a folder. The folder must not exist (`PHOENIX-PANEL-008` otherwise), the files are never written over and the boards are never written. `--columns` and `--rows` apply to a matrix of one board. Exit code 0 is done and 2 is any refusal. The codes `PHOENIX-PANEL-001` to `021` are in `docs/ERROR_CODES.md` with their titles in the eight languages.
+
+### The rules of a maker
+
+`--fab-rules NAME` also judges the panel against a set of rules of a board maker, read from `config/panel_fab.cfg` (or the file of `--fab-config`). The file holds `smt_assembly` (the panel goes to assembly, which asks a wider tooling edge and tooling holes), `board_thickness_nm` (the board file does not give the thickness) and the sets `common`, `jlcpcb` and `pcbway`. A set holds, for V-cuts, the angle of the groove (said, not judged), the least copper-to-cut distance, the least thickness of the board, the least panel on both sides and the least distance between two parallel cuts; for routed tabs the least gap, the diameter, the distance between the edges and the number of the break-away holes, and the least tab (with holes and without); the fiducials (how many, the copper diameter, the least mask opening), the tooling edge (and the wider one for assembly) and the tooling holes. A figure of 0 is not checked, every set says `verified = false`, and the figures are public guiding numbers that nobody has compared with the maker.
+
+The findings are `PHOENIX-PANEL-022` (V-cut limits), `-023` (cuts too close), `-024` (routed gap), `-025` (break-away holes), `-026` (tab), `-027` (fiducials), `-028` (tooling edge) and `-029` (tooling holes), each an error or a warning, written in the language of `--lang` and, with `--json`, as the object `fab_rules` of the summary. Exit code 1 when a finding is an error; the panel is still described and, with `--out`, written. Only what the layout says is judged: nothing is moved. The check is in `crates/eh3d-phoenix-panel/src/fabrules.rs`.
 
 ### Named templates
 

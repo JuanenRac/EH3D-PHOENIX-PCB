@@ -13,6 +13,9 @@
 //! * [`layers`]: the copper, the solder mask, the paste, the legend and the drills of every copy,
 //!   written by the export of the suite from that board and read back with the Gerber importer;
 //! * [`vscore`]: the check that no V-score line passes too close to copper;
+//! * [`fabrules`]: the rules of a board maker for a panel as data (V-cuts, routed tabs with
+//!   break-away holes, fiducials, tooling edge and tooling holes), the check of a plan against
+//!   them and its report in the eight languages;
 //! * [`codes`]: the stable codes `PHOENIX-PANEL-<NNN>` with their titles in the eight languages.
 //!
 //! It is a prototype: nothing has been checked by a manufacturer, and the files have only been read
@@ -23,6 +26,7 @@
 
 pub mod codes;
 pub mod compose;
+pub mod fabrules;
 pub mod files;
 pub mod layers;
 pub mod layout;
@@ -35,6 +39,10 @@ use serde_json::{json, Value};
 
 pub use codes::{title, Note, PanelError, TITLES};
 pub use compose::{compose, panel_openings};
+pub use fabrules::{
+    check as check_fab_rules, facts_from, report_json as fab_report_json,
+    report_text as fab_report_text, FabConfig, FabFinding, FabRules, FabSeverity, PanelFacts,
+};
 pub use files::{panel_files, panel_files_with_cutouts, PanelFile};
 pub use layers::{panel_layers, PanelLayers};
 pub use layout::{plan, BoardShape, Hole, HoleKind, Line, Mark, PanelCopy, PanelPlan, Pt};

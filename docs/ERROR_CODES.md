@@ -1180,6 +1180,14 @@ The titles of these codes also exist in the eight languages of the suite (`TITLE
 | PHOENIX-PANEL-019 | Panel files differ from the plan when read back | the files of the panel read back with the importer of this suite do not hold the copies, the holes and the marks that the plan has |
 | PHOENIX-PANEL-020 | Board is not joined to the panel | warning: with `joint = mouse_bites` a board with no tab on any side (no board or rail at the distance `gap_nm` from an edge) |
 | PHOENIX-PANEL-021 | The layers of the panel could not be written | the export of the copper, solder mask, paste, legend and drill files of the copies refused the panel (the message of the export follows) |
+| PHOENIX-PANEL-022 | The V-cut does not meet the limits of the maker | error or warning: the panel is smaller than the least the maker V-cuts, the board is thinner than it allows, or the distance of the cut to copper in the settings is below the maker's |
+| PHOENIX-PANEL-023 | The V-cut lines are closer than the maker allows | error: the least distance between two parallel V-cut lines is below the least the maker asks |
+| PHOENIX-PANEL-024 | The routed gap is narrower than the maker allows | error: `gap_nm` with `joint = mouse_bites` is below the least routed gap of the maker |
+| PHOENIX-PANEL-025 | The break-away holes do not meet the limits of the maker | warning or error: the diameter of the holes, the distance between the edges of two holes or their number in a tab is outside the limits of the maker |
+| PHOENIX-PANEL-026 | The tab is narrower than the maker allows | error: `tab_width_nm` is below the least tab of the maker (one with holes or one without) |
+| PHOENIX-PANEL-027 | The fiducials differ from what the maker asks | warning or error: fewer fiducials than the maker asks, a copper diameter other than the maker's, or a solder mask opening smaller than the maker's |
+| PHOENIX-PANEL-028 | The tooling edge is narrower than the maker allows | error: the narrowest rail of the frame (or no frame) is below the tooling edge of the maker, which is wider for assembly |
+| PHOENIX-PANEL-029 | The tooling holes differ from what the maker asks | warning or error: fewer tooling holes than the maker asks for assembly, or a diameter other than the maker's |
 
 ## Bill of materials with costs (`eh3d-phoenix-bom`, `src/codes.rs`)
 

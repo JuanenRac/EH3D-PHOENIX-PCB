@@ -332,3 +332,140 @@ fn a_named_template_of_the_settings_is_applied_and_an_unknown_one_is_refused() {
     assert_eq!(code, 2);
     assert!(err.contains("no template nope"), "{err}");
 }
+
+fn fab_config() -> String {
+    format!("{}/../../config/panel_fab.cfg", env!("CARGO_MANIFEST_DIR"))
+}
+
+#[test]
+fn the_rules_of_a_maker_judge_the_panel_and_the_exit_code_follows_the_errors() {
+    let f = Files::new();
+    let json = f.board();
+    let fab = fab_config();
+    let (code, out, err) = call(&[
+        "panel",
+        "--fab-rules",
+        "common",
+        "--fab-config",
+        &fab,
+        json.as_str(),
+    ]);
+    assert_eq!(code, 1, "{err}");
+    assert!(
+        out.contains("Panel rules: common (the figures are not verified"),
+        "{out}"
+    );
+    assert!(out.contains("error: PHOENIX-PANEL-025"), "{out}");
+    assert!(out.contains("warning: PHOENIX-PANEL-029"), "{out}");
+    // the panel is still described
+    assert!(out.contains("panel 62.0 mm by 42.0 mm"), "{out}");
+    let (code, out, _) = call(&[
+        "panel",
+        "--fab-rules",
+        "common",
+        "--fab-config",
+        &fab,
+        "--lang",
+        "pt",
+        json.as_str(),
+    ]);
+    assert_eq!(code, 1);
+    assert!(out.contains("Regras de painel: common"), "{out}");
+    assert!(
+        out.contains("Os furos de rutura não cumprem os limites do fabricante"),
+        "{out}"
+    );
+}
+
+#[test]
+fn a_panel_set_to_the_figures_of_the_maker_meets_them() {
+    let f = Files::new();
+    let json = f.board();
+    let fab = fab_config();
+    let config = f.write(
+        "panel.cfg",
+        b"mouse_bite_pitch_nm = 1000000\nmouse_bite_holes = 5\ntab_width_nm = 5000000\ntabs_per_edge = 1\ntooling_hole_diameter_nm = 2000000\n",
+    );
+    let (code, out, err) = call(&[
+        "panel",
+        "--config",
+        &config,
+        "--fab-rules",
+        "pcbway",
+        "--fab-config",
+        &fab,
+        json.as_str(),
+    ]);
+    assert_eq!((code, err.as_str()), (0, ""), "{out}");
+    assert!(out.contains("the panel meets these rules"), "{out}");
+}
+
+#[test]
+fn a_v_cut_panel_is_judged_by_its_size_and_the_json_carries_the_report() {
+    let f = Files::new();
+    let json = f.board();
+    let fab = fab_config();
+    let config = f.write("v.cfg", b"joint = v_score\n");
+    let (code, out, err) = call(&[
+        "panel",
+        "--config",
+        &config,
+        "--fab-rules",
+        "common",
+        "--fab-config",
+        &fab,
+        "--json",
+        json.as_str(),
+    ]);
+    assert_eq!(code, 1, "{err}");
+    let value: serde_json::Value = serde_json::from_str(&out).unwrap();
+    let report = &value["fab_rules"];
+    assert_eq!(report["rules"], "common");
+    assert_eq!(report["verified"], false);
+    assert!(report["errors"].as_u64().unwrap() >= 1, "{report}");
+    let codes: Vec<&str> = report["findings"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|x| x["code"].as_str().unwrap())
+        .collect();
+    assert!(codes.contains(&"PHOENIX-PANEL-022"), "{codes:?}");
+    assert!(!codes.contains(&"PHOENIX-PANEL-024"), "{codes:?}");
+}
+
+#[test]
+fn the_options_of_the_rules_are_refused_by_name() {
+    let f = Files::new();
+    let json = f.board();
+    let fab = fab_config();
+    let (code, _, err) = call(&[
+        "panel",
+        "--fab-rules",
+        "nobody",
+        "--fab-config",
+        &fab,
+        json.as_str(),
+    ]);
+    assert_eq!(code, 2);
+    assert!(
+        err.contains("no rules called 'nobody' (the sets are: common, jlcpcb, pcbway)"),
+        "{err}"
+    );
+    let (code, _, err) = call(&["panel", "--fab-config", &fab, json.as_str()]);
+    assert_eq!(code, 2);
+    assert!(err.contains("--fab-config needs --fab-rules"), "{err}");
+    let bad = f.write("bad.cfg", b"[rules a]\nunknown_key = 1\n");
+    let (code, _, err) = call(&[
+        "panel",
+        "--fab-rules",
+        "a",
+        "--fab-config",
+        &bad,
+        json.as_str(),
+    ]);
+    assert_eq!(code, 2);
+    assert!(
+        err.contains("PHOENIX-PANEL-001") && err.contains("unknown key unknown_key"),
+        "{err}"
+    );
+}

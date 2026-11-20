@@ -18,7 +18,8 @@ use std::path::Path;
 use eh3d_phoenix_board::Board;
 use eh3d_phoenix_panel::codes::{OPTION_INVALID, OUTPUT_NOT_ALLOWED, SETTINGS_INVALID};
 use eh3d_phoenix_panel::{
-    items_from_settings, panel_layers, plan, plan_items, summary_json, summary_text, BoardShape,
+    check_fab_rules, fab_report_json, fab_report_text, facts_from, items_from_settings,
+    panel_layers, plan, plan_items, summary_json, summary_text, BoardShape, FabConfig, FabSeverity,
     Note, PanelError, PanelFile, PanelPlan, PanelSettings,
 };
 use eh3d_phoenix_rules::Lang;
@@ -28,11 +29,14 @@ use crate::export::{load_profile, read_board_file};
 /// The settings file that is read when `--config` is not given and the file exists.
 const DEFAULT_CONFIG: &str = "config/panel.cfg";
 
+/// The rules of the makers that are read when `--fab-config` is not given and the file exists.
+const DEFAULT_FAB_CONFIG: &str = "config/panel_fab.cfg";
+
 /// The largest settings file that is read, in bytes.
 const MAX_SETTINGS_BYTES: u64 = 1024 * 1024;
 
 pub(crate) const USAGE: &str = "\
-phoenix panel [--config FILE] [--template NAME] [--columns N] [--rows N] [--boards A,B,...] [--profile NAME] [--profiles FILE] [--json] [--lang CODE] [--out FOLDER] [<board>]
+phoenix panel [--config FILE] [--template NAME] [--fab-rules NAME] [--fab-config FILE] [--columns N] [--rows N] [--boards A,B,...] [--profile NAME] [--profiles FILE] [--json] [--lang CODE] [--out FOLDER] [<board>]
 
   panel         lay a board out in a matrix of columns and rows, or a list of different boards
                 packed by rows or placed with the `place` lines of the settings, with a routed gap
@@ -52,6 +56,11 @@ phoenix panel [--config FILE] [--template NAME] [--columns N] [--rows N] [--boar
                 appears twice is placed twice. Boards are numbered from 0 in `place` lines
   --profile     the export profile of the layer files (default: generic); --profiles FILE is the
                 JSON file that holds the profiles (default: config/export_profiles.json)
+  --fab-rules NAME  also judge the panel against the rules of a maker (V-cuts, routed tabs and
+                break-away holes, fiducials, tooling edge and tooling holes) from the sets of
+                config/panel_fab.cfg (common, jlcpcb, pcbway: public guiding figures, not verified
+                with the makers); the report is in --lang. Exit code 1 when a finding is an error
+                (the panel is still made). --fab-config FILE reads the sets from another file
   --out FOLDER  write the files to this folder (it is made; it must not exist)
   --json        print the summary as JSON
   --lang CODE   the messages in en, es, de, fr, it, ja, zh or pt
@@ -67,6 +76,8 @@ struct Options {
     boards: Option<Vec<String>>,
     profile: String,
     profiles: Option<String>,
+    fab_rules: Option<String>,
+    fab_config: Option<String>,
     out: Option<String>,
     files: Vec<String>,
 }
@@ -82,6 +93,8 @@ fn parse_options(args: &[&str]) -> Result<Options, PanelError> {
         boards: None,
         profile: "generic".to_owned(),
         profiles: None,
+        fab_rules: None,
+        fab_config: None,
         out: None,
         files: Vec::new(),
     };
@@ -104,6 +117,8 @@ fn parse_options(args: &[&str]) -> Result<Options, PanelError> {
             "--out" => o.out = Some(value("--out")?),
             "--profile" => o.profile = value("--profile")?,
             "--profiles" => o.profiles = Some(value("--profiles")?),
+            "--fab-rules" => o.fab_rules = Some(value("--fab-rules")?),
+            "--fab-config" => o.fab_config = Some(value("--fab-config")?),
             "--boards" => {
                 let list = value("--boards")?;
                 let names: Vec<String> = list.split(',').map(|n| n.trim().to_owned()).collect();
@@ -135,7 +150,48 @@ fn parse_options(args: &[&str]) -> Result<Options, PanelError> {
             other => o.files.push(other.to_owned()),
         }
     }
+    if o.fab_config.is_some() && o.fab_rules.is_none() {
+        return Err(bad("--fab-config needs --fab-rules"));
+    }
     Ok(o)
+}
+
+/// The rules of a maker: the set named by `--fab-rules` from the file of the sets.
+fn load_fab_rules(options: &Options, name: &str) -> Result<(FabConfig, usize), PanelError> {
+    let chosen = options.fab_config.as_deref().or_else(|| {
+        Path::new(DEFAULT_FAB_CONFIG)
+            .is_file()
+            .then_some(DEFAULT_FAB_CONFIG)
+    });
+    let config = match chosen {
+        Some(path) => {
+            let bad = |e: std::io::Error| PanelError::new(SETTINGS_INVALID, format!("{path}: {e}"));
+            let size = std::fs::metadata(path).map_err(bad)?.len();
+            if size > MAX_SETTINGS_BYTES {
+                return Err(PanelError::new(
+                    SETTINGS_INVALID,
+                    format!("{path} is {size} bytes, the limit is {MAX_SETTINGS_BYTES}"),
+                ));
+            }
+            FabConfig::parse(&std::fs::read_to_string(path).map_err(bad)?)?
+        }
+        None => {
+            return Err(PanelError::new(
+                SETTINGS_INVALID,
+                "--fab-rules needs config/panel_fab.cfg or --fab-config FILE",
+            ))
+        }
+    };
+    match config.rules.iter().position(|r| r.name == name) {
+        Some(index) => Ok((config, index)),
+        None => Err(PanelError::new(
+            OPTION_INVALID,
+            format!(
+                "no rules called '{name}' (the sets are: {})",
+                config.names().join(", ")
+            ),
+        )),
+    }
 }
 
 fn load_settings(options: &Options) -> Result<PanelSettings, PanelError> {
@@ -282,6 +338,18 @@ pub(crate) fn panel_command(args: &[&str], out: &mut dyn Write, err: &mut dyn Wr
             }
         }
     }
+    let fab = match options
+        .fab_rules
+        .as_deref()
+        .map(|n| load_fab_rules(&options, n))
+    {
+        Some(Ok(found)) => Some(found),
+        Some(Err(error)) => {
+            let _ = writeln!(err, "error {}", error.message(lang));
+            return 2;
+        }
+        None => None,
+    };
     let built = match build_panel(&boards, &settings, &options, options.boards.is_some()) {
         Ok(built) => built,
         Err(error) => {
@@ -295,14 +363,28 @@ pub(crate) fn panel_command(args: &[&str], out: &mut dyn Write, err: &mut dyn Wr
             return 2;
         }
     }
+    let judged = fab.as_ref().map(|(config, index)| {
+        let rules = &config.rules[*index];
+        let facts = facts_from(&built.plan, &settings, config.board_thickness_nm);
+        let findings = check_fab_rules(&facts, rules, config.smt_assembly);
+        (rules, findings)
+    });
+    let failed = judged
+        .as_ref()
+        .is_some_and(|(_, found)| found.iter().any(|f| f.severity == FabSeverity::Error));
     let text = if options.json {
-        serde_json::to_string_pretty(&summary_json(&built.plan, &settings, &built.files))
-            .unwrap_or_default()
-            + "\n"
+        let mut value = summary_json(&built.plan, &settings, &built.files);
+        if let (Some((rules, findings)), Some(map)) = (&judged, value.as_object_mut()) {
+            map.insert("fab_rules".to_owned(), fab_report_json(rules, findings));
+        }
+        serde_json::to_string_pretty(&value).unwrap_or_default() + "\n"
     } else {
         let mut text = summary_text(&built.plan, &settings, &built.files, lang);
         for message in &built.messages {
             text.push_str(&format!("export {message}\n"));
+        }
+        if let Some((rules, findings)) = &judged {
+            text.push_str(&fab_report_text(rules, findings, lang));
         }
         text.push_str(match &options.out {
             Some(_) => "written\n",
@@ -311,5 +393,5 @@ pub(crate) fn panel_command(args: &[&str], out: &mut dyn Write, err: &mut dyn Wr
         text
     };
     let _ = out.write_all(text.as_bytes());
-    0
+    i32::from(failed)
 }
