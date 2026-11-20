@@ -40,9 +40,8 @@ pub fn category(code: &str) -> &'static str {
         "PHOENIX-CHECK-005" | "PHOENIX-DRC-008" => "clearance",
         "PHOENIX-CHECK-006" | "PHOENIX-CHECK-007" | "PHOENIX-DRC-002" | "PHOENIX-DRC-003"
         | "PHOENIX-DRC-020" => "edge",
-        "PHOENIX-CHECK-008" | "PHOENIX-CHECK-011" | "PHOENIX-CHECK-012" | "PHOENIX-DRC-005" => {
-            "mask_silk"
-        }
+        "PHOENIX-CHECK-008" | "PHOENIX-CHECK-011" | "PHOENIX-CHECK-012" | "PHOENIX-DRC-005"
+        | "PHOENIX-DRC-022" => "mask_silk",
         "PHOENIX-CHECK-009" | "PHOENIX-CHECK-010" => "zones",
         "PHOENIX-DRC-014" | "PHOENIX-DRC-015" | "PHOENIX-CHECK-013" => "other",
         _ if code.starts_with("PHOENIX-CONN-") => "connectivity",
@@ -270,6 +269,8 @@ mod tests {
         assert_eq!(category("PHOENIX-DRC-018"), "size");
         assert_eq!(category("PHOENIX-DRC-017"), "advanced");
         assert_eq!(category("PHOENIX-DRC-019"), "advanced");
+        assert_eq!(category("PHOENIX-DRC-021"), "advanced");
+        assert_eq!(category("PHOENIX-DRC-022"), "mask_silk");
         assert_eq!(category("PHOENIX-DRC-020"), "edge");
         assert_eq!(category("PHOENIX-DFM-003"), "capability");
         assert_eq!(category(NOT_JUDGED), "other");

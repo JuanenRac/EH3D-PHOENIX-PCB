@@ -45,6 +45,10 @@ pub const RING_CLASS: &str = "PHOENIX-DRC-018";
 pub const VIA_COUNT: &str = "PHOENIX-DRC-019";
 /// A corner of the outline or of a cutout that is sharper than outline_corner_min_angle_deg.
 pub const OUTLINE_CORNER: &str = "PHOENIX-DRC-020";
+/// A problem in the spelling of the name of a net: empty, with a space or a character not allowed, too long, in two cases, made up by a program or half a pair.
+pub const NET_NAME: &str = "PHOENIX-DRC-021";
+/// A strip of solder mask between two openings that is narrower than mask_sliver_min_nm.
+pub const MASK_SLIVER: &str = "PHOENIX-DRC-022";
 
 /// Every code with its English title, in order.
 pub const REGISTRY: &[(&str, &str)] = &[
@@ -82,6 +86,11 @@ pub const REGISTRY: &[(&str, &str)] = &[
     (
         OUTLINE_CORNER,
         "Sharp corner in the board outline or in a cutout",
+    ),
+    (NET_NAME, "Spelling problem in the name of a net"),
+    (
+        MASK_SLIVER,
+        "Solder mask strip too narrow between two openings",
     ),
 ];
 
@@ -344,6 +353,32 @@ const TITLES: &[(&str, [&str; 8])] = &[
             "基板外形または切り欠きの鋭い角",
             "板框或开孔中的尖角",
             "Canto agudo no contorno da placa ou num recorte",
+        ],
+    ),
+    (
+        NET_NAME,
+        [
+            "Spelling problem in the name of a net",
+            "Problema de escritura en el nombre de una red",
+            "Schreibproblem im Namen eines Netzes",
+            "Problème d'écriture dans le nom d'un réseau",
+            "Problema di scrittura nel nome di una rete",
+            "ネット名の表記の問題",
+            "网络名称的拼写问题",
+            "Problema de escrita no nome de uma rede",
+        ],
+    ),
+    (
+        MASK_SLIVER,
+        [
+            "Solder mask strip too narrow between two openings",
+            "Franja de máscara de soldadura demasiado estrecha entre dos aberturas",
+            "Lötstoppmaskensteg zwischen zwei Öffnungen zu schmal",
+            "Bande de masque de soudure trop étroite entre deux ouvertures",
+            "Striscia di maschera di saldatura troppo stretta tra due aperture",
+            "2つの開口部の間のソルダーマスクが細すぎる",
+            "两个开口之间的阻焊条太窄",
+            "Tira de máscara de soldadura demasiado estreita entre duas aberturas",
         ],
     ),
 ];

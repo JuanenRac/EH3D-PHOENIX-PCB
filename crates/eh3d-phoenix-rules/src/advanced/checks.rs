@@ -10,7 +10,9 @@ use eh3d_phoenix_board::{Board, Id, PadRef, Segment, Via};
 use eh3d_phoenix_model::Point;
 
 use super::checks_extra::{self, RingItem};
+use super::checks_mask;
 use super::checks_more;
+use super::checks_names;
 use super::grid::{pairs, Bx, Index};
 use super::{
     make, not_judged, AdvancedConfig, IndexMode, RuleInfo, R_ACID_TRAP, R_COPPER_EDGE,
@@ -244,6 +246,8 @@ pub(super) fn run_all(ctx: &Ctx<'_>, out: &mut Report) {
     checks_extra::ring_classes(ctx.board, ctx.cfg, &ring_items(ctx), out);
     checks_extra::via_counts(ctx.board, ctx.cfg, out);
     checks_extra::outline_corners(ctx.board, ctx.cfg, out);
+    checks_names::net_names(ctx.board, ctx.cfg, out);
+    checks_mask::mask_sliver_findings(ctx.board, &ctx.pads, ctx.cfg, out);
 }
 
 /// The drilled pads of the parts, as the items the check of the ring by class judges.

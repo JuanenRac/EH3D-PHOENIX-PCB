@@ -23,8 +23,10 @@
 //! * `PHOENIX-DRC-014` what could not be judged (information);
 //! * `PHOENIX-DRC-016` short tracks, `PHOENIX-DRC-017` pieces of tracks off a grid of angles,
 //!   `PHOENIX-DRC-018` the annular ring by net class, `PHOENIX-DRC-019` the number of vias on a
-//!   net and `PHOENIX-DRC-020` sharp corners of the outline (all five off in the settings that come
-//!   with the program).
+//!   net and `PHOENIX-DRC-020` sharp corners of the outline;
+//! * `PHOENIX-DRC-021` the spelling of the names of the nets and `PHOENIX-DRC-022` strips of solder
+//!   mask between two openings that are narrower than a maker keeps (all seven further checks are
+//!   off in the settings that come with the program).
 //!
 //! The pairs of items that are close to each other are found with a uniform grid. The grid only
 //! chooses which pairs are compared, so the report is the one of the search that compares every
@@ -36,7 +38,9 @@
 mod cfg;
 mod checks;
 mod checks_extra;
+mod checks_mask;
 mod checks_more;
+mod checks_names;
 pub mod codes;
 mod grid;
 mod sarif;
@@ -145,6 +149,16 @@ pub(crate) const R_OUTLINE_CORNER: RuleInfo = RuleInfo {
     rank: 39,
     name: "outline_corner",
     code: codes::OUTLINE_CORNER,
+};
+pub(crate) const R_NET_NAME: RuleInfo = RuleInfo {
+    rank: 40,
+    name: "net_name",
+    code: codes::NET_NAME,
+};
+pub(crate) const R_MASK_SLIVER: RuleInfo = RuleInfo {
+    rank: 41,
+    name: "mask_sliver",
+    code: codes::MASK_SLIVER,
 };
 pub(crate) const R_NOT_JUDGED: RuleInfo = RuleInfo {
     rank: 34,
