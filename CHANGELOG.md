@@ -4,6 +4,8 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+## [0.1.4] - Build fix: the limit of the unpacked size of a ZIP fits a 32-bit program
+
 - **The limit of the unpacked size of a ZIP fits a 32-bit program:** the biggest value of `zip_max_total_bytes` is now 4000000000, because a larger one did not fit the address size of the 32-bit Windows build and stopped it from compiling.
 - **Lints of the IPC-2581 reader, the spacing of parts and the rules of a maker fixed:** the reader no longer keeps a note method that nothing calls, the test helper of the spacing of parts names its tuple with a type alias, and the tests that draw random numbers ask `is_multiple_of` instead of taking a remainder.
 
