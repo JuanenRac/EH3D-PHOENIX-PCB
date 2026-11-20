@@ -215,7 +215,7 @@ fn the_four_layer_board_gets_the_names_of_the_jlcpcb_job() {
             "maker_board.GBP",
             "maker_board.GTO",
             "maker_board.GBO",
-            "11_notes.gbr",
+            "12_notes.gbr",
         ]
     );
     assert_eq!(

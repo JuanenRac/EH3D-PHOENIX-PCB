@@ -791,7 +791,10 @@ pub(crate) mod tests {
     fn the_profiles_that_come_with_the_program_hold_the_figures_of_their_files() {
         assert_eq!(builtin_profile("JLCPCB"), Some(BUILTIN[1].1));
         assert_eq!(builtin_profile("nobody"), None);
-        assert_eq!(builtin_names(), "example, jlcpcb, pcbway");
+        assert_eq!(
+            builtin_names(),
+            "example, jlcpcb, pcbway, ncab, pcbway-dru, oshpark-2l-dru, oshpark-4l-dru, eurocircuits-1l-dru, eurocircuits-2l-dru, eurocircuits-4l-dru, eurocircuits-6l-dru, pcbpool-dru, allpcb-1l-dru, allpcb-2l-dru, allpcb-4l-dru, allpcb-6l-dru, generic-8mil-dru, generic-10mil-dru"
+        );
         let jlc = DfmProfile::parse(builtin_profile("jlcpcb").unwrap()).unwrap();
         assert_eq!(jlc.name, "JLCPCB standard rigid FR-4");
         assert!(jlc.source.starts_with("https://jlcpcb.com/"));

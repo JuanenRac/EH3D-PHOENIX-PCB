@@ -8,3 +8,4 @@
 
 # The profiles of board makers keep their bytes as they are on every platform.
 config/dfm_*.cfg -text
+config/dfm/*.cfg -text
