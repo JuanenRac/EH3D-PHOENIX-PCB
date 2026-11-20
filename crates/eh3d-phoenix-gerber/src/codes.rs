@@ -45,6 +45,8 @@ pub const NO_END: &str = "PHOENIX-GBR-017";
 pub const OPTION_INVALID: &str = "PHOENIX-GBR-018";
 /// The export that the round trip needs failed.
 pub const ROUND_TRIP_FAILED: &str = "PHOENIX-GBR-019";
+/// An ODB++ file is not valid or is not read.
+pub const ODB_UNSUPPORTED: &str = "PHOENIX-GBR-020";
 
 /// Code, then the title in English, Spanish, German, French, Italian, Japanese, Chinese and
 /// European Portuguese.
@@ -294,6 +296,19 @@ pub const TITLES: &[(&str, [&str; 8])] = &[
             "往復確認用のエクスポートに失敗しました",
             "往返检查的导出失败",
             "A exportação para a ida e volta falhou",
+        ],
+    ),
+    (
+        ODB_UNSUPPORTED,
+        [
+            "ODB++ file is not valid or not supported",
+            "El fichero ODB++ no es válido o no se admite",
+            "Die ODB++-Datei ist ungültig oder wird nicht unterstützt",
+            "Le fichier ODB++ n'est pas valide ou n'est pas pris en charge",
+            "Il file ODB++ non è valido o non è supportato",
+            "ODB++ ファイルが無効か、サポートされていません",
+            "ODB++ 文件无效或不受支持",
+            "O ficheiro ODB++ não é válido ou não é suportado",
         ],
     ),
 ];

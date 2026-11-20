@@ -1115,6 +1115,7 @@ The titles of these codes also exist in the eight languages of the suite (`TITLE
 | PHOENIX-GBR-017 | File ends without an end command | warning: no `M02` in a Gerber file or no `M30` in a drill file; what was read is kept |
 | PHOENIX-GBR-018 | Command option not valid | an option of `phoenix gerber-import` that the command does not know or needs a value for, an unknown language code, files together with `--roundtrip`, `--profile` without `--roundtrip`, a profile that is not in the profile file, an output file that exists or is an input |
 | PHOENIX-GBR-019 | Export for the round trip failed | the export of the board with the profile refused it, so there is nothing to read back |
+| PHOENIX-GBR-020 | ODB++ file is not valid or not supported | the matrix file of an ODB++ job that is compressed or an archive, is not text, has a block other than `STEP` and `LAYER`, a block inside a block, a line outside a block, a block that is not closed, a layer with no row, with a row that is not a positive whole number or that is repeated, with no name or a repeated one, with a context other than `BOARD` and `MISC`, with a type that is not read or a polarity other than `POSITIVE` and `NEGATIVE`, or a job with no layer; a file over the limits is `PHOENIX-GBR-002` or `PHOENIX-GBR-003` |
 
 ## Gerber X2 check (`eh3d-phoenix-gerber`, `src/x2check.rs`)
 

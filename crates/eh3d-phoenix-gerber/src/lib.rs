@@ -7,6 +7,8 @@
 //! * [`drill`]: the Excellon reader (tools, units, zeros, holes, slots and routed paths);
 //! * [`identify`]: the layer a file belongs to, from its X2 attributes or its name (EAGLE,
 //!   Protel and KiCad);
+//! * [`odb`]: a basic reader of the matrix file of an ODB++ job (the steps and the layers), strict
+//!   and with an ordered refusal of whatever it does not read;
 //! * [`import`]: a set of files read together, each kept with its error when it cannot be read;
 //! * [`compare`]: the round trip, the files that the export writes for a board read back and
 //!   compared with that board;
@@ -31,6 +33,9 @@ pub mod identify;
 pub mod import;
 pub mod macros;
 pub mod model;
+pub mod odb;
+#[cfg(test)]
+mod odb_tests;
 pub mod parse;
 pub mod report;
 pub mod settings;
@@ -45,5 +50,6 @@ pub use import::{import_file, import_files, Content, ImportedFile, ImportedSet};
 pub use model::{
     Aperture, ApertureShape, DrillFile, GerberLayer, Hit, Item, MacroShape, Slot, Units, P,
 };
+pub use odb::{parse_matrix, OdbContext, OdbLayer, OdbLayerKind, OdbLimits, OdbMatrix};
 pub use parse::parse_gerber;
 pub use settings::{ImportSettings, ZeroOmission};
