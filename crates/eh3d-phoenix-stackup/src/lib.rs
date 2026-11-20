@@ -16,9 +16,9 @@
 //!   IPC-2221 and by the convection model of EH3D-THERMAL-LAB, with the codes `PHOENIX-HEAT-001`
 //!   to `PHOENIX-HEAT-012`;
 //! * [`job`]: the job file and the reports of `phoenix stackup`;
-//! * [`laminates`]: a small library of laminates (epoxy, high-frequency, polyimide, metal base,
-//!   copper) with the figures their data sheets state, none of them verified, and a figure that
-//!   the sheet does not state clearly left undefined;
+//! * `laminates` (feature `materials`): a short library of laminates whose figures are read from
+//!   the materials database of the suite, none of them verified, and a figure that the record
+//!   does not give left undefined;
 //! * [`libstack`]: a library of typical stack-ups of 6, 8 and 10 layers with the thickness of every
 //!   layer (data in `config/stackup_library.json`, none of it verified), the common prepregs and
 //!   cores, the copper after plating, and the jobs that compute the lines of a stack-up of the
@@ -46,6 +46,7 @@ pub mod elliptic;
 pub mod error;
 pub mod heating;
 pub mod job;
+#[cfg(feature = "materials")]
 pub mod laminates;
 pub mod libstack;
 pub mod line;
@@ -63,7 +64,8 @@ pub mod stackup;
 
 pub use error::{Language, StackupError, Warning};
 pub use job::{report_json, report_text, LineOutcome, StackupJob};
-pub use laminates::{Family, Laminate, LAMINATES};
+#[cfg(feature = "materials")]
+pub use laminates::{laminates, Family, Laminate};
 pub use line::{analyze, synthesize_width, LineKind, LineResult, LineSpec, Synthesis};
 pub use material::MaterialSample;
 pub use report_html::{stackup_html, stackup_rows, StackRow};

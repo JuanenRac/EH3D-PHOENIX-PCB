@@ -1,0 +1,23 @@
+{
+  "format": "phoenix-laminate-links/1",
+  "note": "The laminates of the quick library are records of the materials database of the suite (eh3d-materials); this file only says which record each short identifier is, and at which frequency the constant and the loss are read. Every figure comes from the database; a conductor has its conductivity here because the database holds no figure for it.",
+  "entries": [
+    { "id": "arlon-med-85n", "common_id": "arlon/85n", "dk_ghz": 0.001, "df_ghz": 0.001 },
+    { "id": "copper-foil", "conductor": { "name": "Copper foil", "conductivity_s_per_m": 59590000.0 } },
+    { "id": "dupont-pyralux-ap", "common_id": "dupont/pyralux-ap-9111", "dk_ghz": 0.001, "df_ghz": 0.001 },
+    { "id": "isola-370hr", "common_id": "isola/370hr", "dk_ghz": 2.0, "df_ghz": 2.0 },
+    { "id": "isola-is400", "common_id": "isola/is400", "dk_ghz": 0.1, "df_ghz": 0.1 },
+    { "id": "iteq-it-158", "common_id": "iteq/it-158tc", "dk_ghz": 1.0, "df_ghz": 1.0 },
+    { "id": "rogers-ro3003", "common_id": "rogers/ro3003", "dk_ghz": 10.0, "df_ghz": 10.0 },
+    { "id": "rogers-ro3006", "common_id": "rogers/ro3006", "dk_ghz": 10.0, "df_ghz": 10.0 },
+    { "id": "rogers-ro3010", "common_id": "rogers/ro3010", "dk_ghz": 10.0, "df_ghz": 10.0 },
+    { "id": "rogers-ro4003c", "common_id": "rogers/ro4003c", "dk_ghz": 10.0, "df_ghz": 10.0 },
+    { "id": "rogers-ro4350b", "common_id": "rogers/ro4350b", "dk_ghz": 10.0, "df_ghz": 10.0 },
+    { "id": "shengyi-s1000-2", "common_id": "shengyi/s1000-2", "dk_ghz": 0.001, "df_ghz": 0.001 },
+    { "id": "taconic-rf-35", "common_id": "taconic/rf-35", "dk_ghz": 1.9, "df_ghz": 1.9 },
+    { "id": "taconic-tlc", "common_id": "taconic/tlc-32", "dk_ghz": 10.0, "df_ghz": 10.0 },
+    { "id": "taconic-tlx", "common_id": "taconic/tlx-9", "dk_ghz": 10.0, "df_ghz": 10.0 },
+    { "id": "thinflex-w-0505ed", "common_id": "thinflex/w-0505ed-n4", "dk_ghz": 1.0, "df_ghz": 1.0 },
+    { "id": "ventec-vt-4b3", "common_id": "ventec/vt-4b3", "dk_ghz": 0.001, "df_ghz": 0.001 }
+  ]
+}

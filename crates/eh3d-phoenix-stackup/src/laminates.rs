@@ -1,18 +1,38 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! A small library of laminates: the figures that the published data sheets of some common
-//! materials state, written down once so that a stack-up can start from them.
+//! A short library of laminates for a quick first estimate. The figures are not kept here: every
+//! entry is a record of the materials database of the suite (`eh3d-materials`, in
+//! EH3D-COMMON), which is the only source of them. The file `config/laminate_links.json` says
+//! which record each short identifier is and at which frequency the dielectric constant and the
+//! loss tangent are read; the rest (glass transition, decomposition, expansion, thermal
+//! conductivity, thicknesses) is copied from the record.
 //!
-//! **Nothing here is verified.** Every entry has `verified: false`: the figures were typed in from
-//! the data sheet of the maker, they were not measured and not compared with a second source, and
-//! a data sheet states them for a stated frequency, a stated resin content and a stated test
-//! method that a real board does not share. A figure that the sheet does not state clearly is
-//! left undefined (`None`), never guessed. Use the library to get a first estimate and replace the
-//! figures with the ones of the laminate the fabricator quotes.
+//! **Nothing here is verified.** Every entry has `verified: false`, as the figures of the
+//! database are the ones the data sheets state, not measurements, and a data sheet states them
+//! for a stated frequency, resin content and test method that a real board does not share. A
+//! figure that the record does not give is left undefined (`None`), never guessed; the figure of a
+//! frequency the record has no point for is `None` as well. Use the library to get a first
+//! estimate and replace the figures with the ones of the laminate the fabricator quotes.
 //!
 //! Frequencies are in GHz, temperatures in degrees Celsius, expansion in ppm per degree Celsius
-//! and thicknesses in micrometres (the commercial thicknesses of a core, as the sheet lists them).
+//! and thicknesses in micrometres. The glass transition is the one the database orders materials
+//! by (DSC, else DMA, else TMA); the database does not keep a lower bound ("over 280"), so
+//! `tg_is_lower_bound` is false for every entry.
+//!
+//! This module is compiled only with the feature `materials`.
+
+use std::sync::OnceLock;
+
+use eh3d_materials::model::{DkPoint, Kind, Material};
+use eh3d_materials::Database;
+use serde::Deserialize;
 
 use crate::material::MaterialSample;
+
+/// The data file that says which record of the database each short identifier is.
+pub const LINKS_TEXT: &str = include_str!("../../../config/laminate_links.json");
+
+/// The format the file must declare.
+pub const LINKS_FORMAT: &str = "phoenix-laminate-links/1";
 
 /// The kind of a laminate.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -29,16 +49,18 @@ pub enum Family {
     Conductor,
 }
 
-/// The figures a data sheet states for one laminate. `None` is a figure the sheet does not state
-/// clearly.
-#[derive(Debug, Clone, Copy, PartialEq)]
+/// The figures a data sheet states for one laminate. `None` is a figure the record does not
+/// give.
+#[derive(Debug, Clone, PartialEq)]
 pub struct Laminate {
     /// The identifier used by the library: lowercase, digits and hyphens.
-    pub id: &'static str,
+    pub id: String,
+    /// The identifier of the record in the materials database (empty for a conductor).
+    pub common_id: String,
     /// The maker.
-    pub maker: &'static str,
+    pub maker: String,
     /// The name of the product as the sheet writes it.
-    pub name: &'static str,
+    pub name: String,
     /// The kind of laminate.
     pub family: Family,
     /// The dielectric constant.
@@ -51,9 +73,9 @@ pub struct Laminate {
     pub df_ghz: Option<f64>,
     /// The glass transition temperature.
     pub tg_c: Option<f64>,
-    /// Whether `tg_c` is a lower bound (the sheet says "over" or "greater than").
+    /// Whether `tg_c` is a lower bound. The database does not say it, so it is false.
     pub tg_is_lower_bound: bool,
-    /// The decomposition temperature (5 % weight loss unless the sheet says otherwise).
+    /// The decomposition temperature.
     pub td_c: Option<f64>,
     /// The expansion in the plane (X), below the glass transition.
     pub cte_x_ppm: Option<f64>,
@@ -68,279 +90,167 @@ pub struct Laminate {
     /// The conductivity in siemens per metre (a conductor).
     pub conductivity_s_per_m: Option<f64>,
     /// The commercial thicknesses of a core, in micrometres, from the thinnest.
-    pub core_thicknesses_um: &'static [u32],
+    pub core_thicknesses_um: Vec<u32>,
     /// Whether the figures were checked against a second source. Always false here.
     pub verified: bool,
 }
 
-/// An entry with every figure undefined, to build the others from.
-const NONE: Laminate = Laminate {
-    id: "",
-    maker: "",
-    name: "",
-    family: Family::Epoxy,
-    dk: None,
-    dk_ghz: None,
-    df: None,
-    df_ghz: None,
-    tg_c: None,
-    tg_is_lower_bound: false,
-    td_c: None,
-    cte_x_ppm: None,
-    cte_y_ppm: None,
-    cte_z_ppm: None,
-    cte_z_above_tg_ppm: None,
-    thermal_w_per_mk: None,
-    conductivity_s_per_m: None,
-    core_thicknesses_um: &[],
-    verified: false,
-};
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RawConductor {
+    name: String,
+    conductivity_s_per_m: f64,
+}
 
-/// The laminates of the library, in the order of their identifiers.
-pub const LAMINATES: &[Laminate] = &[
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RawLink {
+    id: String,
+    #[serde(default)]
+    common_id: Option<String>,
+    #[serde(default)]
+    dk_ghz: Option<f64>,
+    #[serde(default)]
+    df_ghz: Option<f64>,
+    #[serde(default)]
+    conductor: Option<RawConductor>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RawLinks {
+    format: String,
+    #[serde(default)]
+    note: String,
+    entries: Vec<RawLink>,
+}
+
+/// The value of the point of a list at a frequency, when the list has a point there.
+fn point_at(list: &[DkPoint], ghz: Option<f64>) -> Option<(f64, f64)> {
+    let ghz = ghz?;
+    list.iter()
+        .find(|p| p.freq_ghz == Some(ghz))
+        .map(|p| (ghz, p.value))
+}
+
+fn family_of(kind: Kind) -> Family {
+    match kind {
+        Kind::FlexLaminate | Kind::Coverlay => Family::Polyimide,
+        Kind::MetalCore => Family::MetalBase,
+        Kind::Ptfe | Kind::CeramicFilled => Family::HighFrequency,
+        Kind::CopperFoil => Family::Conductor,
+        Kind::Laminate | Kind::Prepreg | Kind::BondingFilm | Kind::Other => Family::Epoxy,
+    }
+}
+
+/// The laminate of a record of the database, read at the frequencies the link states.
+fn from_record(id: &str, record: &Material, dk_ghz: Option<f64>, df_ghz: Option<f64>) -> Laminate {
+    let dk = point_at(&record.dk, dk_ghz);
+    let df = point_at(&record.df, df_ghz);
     Laminate {
-        id: "arlon-med-85n",
-        maker: "Arlon",
-        name: "85N",
-        family: Family::Polyimide,
-        tg_c: Some(250.0),
-        tg_is_lower_bound: true,
-        td_c: Some(407.0),
-        ..NONE
-    },
-    Laminate {
-        id: "copper-foil",
-        maker: "",
-        name: "Copper foil",
-        family: Family::Conductor,
-        conductivity_s_per_m: Some(59_590_000.0),
-        ..NONE
-    },
-    Laminate {
-        id: "dupont-pyralux-ap",
-        maker: "DuPont",
-        name: "Pyralux AP",
-        family: Family::Polyimide,
-        dk: Some(3.4),
-        dk_ghz: Some(0.001),
-        tg_c: Some(220.0),
-        cte_x_ppm: Some(25.0),
-        cte_y_ppm: Some(25.0),
-        ..NONE
-    },
-    Laminate {
-        id: "isola-370hr",
-        maker: "Isola",
-        name: "370HR",
-        family: Family::Epoxy,
-        dk: Some(4.04),
-        df: Some(0.0210),
-        tg_c: Some(180.0),
-        td_c: Some(340.0),
-        ..NONE
-    },
-    Laminate {
-        id: "isola-is400",
-        maker: "Isola",
-        name: "IS400",
-        family: Family::Epoxy,
-        dk: Some(4.00),
-        dk_ghz: Some(0.1),
-        df: Some(0.020),
-        df_ghz: Some(0.1),
-        tg_c: Some(150.0),
-        td_c: Some(330.0),
-        cte_x_ppm: Some(13.0),
-        cte_y_ppm: Some(13.0),
-        cte_z_ppm: Some(50.0),
-        cte_z_above_tg_ppm: Some(250.0),
-        ..NONE
-    },
-    Laminate {
-        id: "iteq-it-158",
-        maker: "ITEQ",
-        name: "IT-158",
-        family: Family::Epoxy,
-        tg_c: Some(150.0),
-        ..NONE
-    },
-    Laminate {
-        id: "rogers-ro3003",
-        maker: "Rogers",
-        name: "RO3003",
-        family: Family::HighFrequency,
-        dk: Some(3.00),
-        dk_ghz: Some(10.0),
-        df: Some(0.0013),
-        df_ghz: Some(10.0),
-        cte_x_ppm: Some(17.0),
-        cte_y_ppm: Some(16.0),
-        cte_z_ppm: Some(25.0),
-        thermal_w_per_mk: Some(0.50),
-        core_thicknesses_um: &[130, 250, 500, 750, 1520],
-        ..NONE
-    },
-    Laminate {
-        id: "rogers-ro3006",
-        maker: "Rogers",
-        name: "RO3006",
-        family: Family::HighFrequency,
-        dk: Some(6.15),
-        dk_ghz: Some(10.0),
-        df: Some(0.0020),
-        df_ghz: Some(10.0),
-        cte_x_ppm: Some(17.0),
-        cte_y_ppm: Some(17.0),
-        cte_z_ppm: Some(24.0),
-        thermal_w_per_mk: Some(0.79),
-        core_thicknesses_um: &[130, 250, 640, 1280],
-        ..NONE
-    },
-    Laminate {
-        id: "rogers-ro3010",
-        maker: "Rogers",
-        name: "RO3010",
-        family: Family::HighFrequency,
-        dk: Some(10.2),
-        dk_ghz: Some(10.0),
-        df: Some(0.0022),
-        df_ghz: Some(10.0),
-        cte_x_ppm: Some(13.0),
-        cte_y_ppm: Some(11.0),
-        cte_z_ppm: Some(16.0),
-        thermal_w_per_mk: Some(0.95),
-        core_thicknesses_um: &[130, 250, 640, 1280],
-        ..NONE
-    },
-    Laminate {
-        id: "rogers-ro4003c",
-        maker: "Rogers",
-        name: "RO4003C",
-        family: Family::HighFrequency,
-        dk: Some(3.38),
-        dk_ghz: Some(10.0),
-        df: Some(0.0027),
-        df_ghz: Some(10.0),
-        tg_c: Some(280.0),
-        tg_is_lower_bound: true,
-        td_c: Some(425.0),
-        cte_x_ppm: Some(11.0),
-        cte_y_ppm: Some(14.0),
-        cte_z_ppm: Some(46.0),
-        thermal_w_per_mk: Some(0.71),
-        core_thicknesses_um: &[203, 305, 406, 508, 813, 1524],
-        ..NONE
-    },
-    Laminate {
-        id: "rogers-ro4350b",
-        maker: "Rogers",
-        name: "RO4350B",
-        family: Family::HighFrequency,
-        dk: Some(3.48),
-        dk_ghz: Some(10.0),
-        df: Some(0.0037),
-        df_ghz: Some(10.0),
-        tg_c: Some(280.0),
-        tg_is_lower_bound: true,
-        td_c: Some(390.0),
-        cte_x_ppm: Some(10.0),
-        cte_y_ppm: Some(12.0),
-        cte_z_ppm: Some(32.0),
-        thermal_w_per_mk: Some(0.69),
-        core_thicknesses_um: &[101, 168, 254, 338, 422, 508, 762, 1524],
-        ..NONE
-    },
-    Laminate {
-        id: "shengyi-s1000-2",
-        maker: "Shengyi",
-        name: "S1000-2",
-        family: Family::Epoxy,
-        dk: Some(4.80),
-        df: Some(0.013),
-        tg_c: Some(180.0),
-        td_c: Some(345.0),
-        cte_z_ppm: Some(45.0),
-        cte_z_above_tg_ppm: Some(220.0),
-        thermal_w_per_mk: Some(0.62),
-        ..NONE
-    },
-    Laminate {
-        id: "taconic-rf-35",
-        maker: "Taconic",
-        name: "RF-35",
-        family: Family::HighFrequency,
-        dk: Some(3.50),
-        dk_ghz: Some(1.9),
-        df: Some(0.0018),
-        df_ghz: Some(1.9),
-        tg_c: Some(315.0),
-        tg_is_lower_bound: true,
-        thermal_w_per_mk: Some(0.24),
-        ..NONE
-    },
-    Laminate {
-        id: "taconic-tlc",
-        maker: "Taconic",
-        name: "TLC",
-        family: Family::HighFrequency,
-        df: Some(0.0030),
-        df_ghz: Some(10.0),
-        cte_z_ppm: Some(70.0),
-        thermal_w_per_mk: Some(0.24),
-        ..NONE
-    },
-    Laminate {
-        id: "taconic-tlx",
-        maker: "Taconic",
-        name: "TLX",
-        family: Family::HighFrequency,
-        dk: Some(2.50),
-        dk_ghz: Some(10.0),
-        df: Some(0.0019),
-        df_ghz: Some(10.0),
-        ..NONE
-    },
-    Laminate {
-        id: "thinflex-w-0505ed",
-        maker: "Thinflex",
-        name: "W-0505ED",
-        family: Family::Polyimide,
-        dk: Some(3.3),
-        dk_ghz: Some(1.0),
-        df: Some(0.01),
-        df_ghz: Some(1.0),
-        cte_x_ppm: Some(24.0),
-        cte_y_ppm: Some(24.0),
-        ..NONE
-    },
-    Laminate {
-        id: "ventec-vt-4b3",
-        maker: "Ventec",
-        name: "VT-4B3",
-        family: Family::MetalBase,
-        dk: Some(4.8),
-        dk_ghz: Some(0.001),
-        df: Some(0.016),
-        df_ghz: Some(0.001),
-        tg_c: Some(130.0),
-        td_c: Some(380.0),
-        thermal_w_per_mk: Some(3.0),
-        ..NONE
-    },
-];
+        id: id.to_owned(),
+        common_id: record.id.clone(),
+        maker: record.manufacturer.clone(),
+        name: record.name.clone(),
+        family: family_of(record.kind),
+        dk: dk.map(|p| p.1),
+        dk_ghz: dk.map(|p| p.0),
+        df: df.map(|p| p.1),
+        df_ghz: df.map(|p| p.0),
+        tg_c: record.tg_c(),
+        tg_is_lower_bound: false,
+        td_c: record.td_c,
+        cte_x_ppm: record.cte_x_ppm,
+        cte_y_ppm: record.cte_y_ppm,
+        cte_z_ppm: record.cte_z_below_tg_ppm,
+        cte_z_above_tg_ppm: record.cte_z_above_tg_ppm,
+        thermal_w_per_mk: record.thermal_conductivity_w_mk,
+        conductivity_s_per_m: None,
+        core_thicknesses_um: record
+            .thicknesses_mm
+            .iter()
+            .filter(|mm| mm.is_finite() && **mm > 0.0)
+            .map(|mm| (mm * 1000.0).round() as u32)
+            .collect(),
+        verified: false,
+    }
+}
+
+/// Build the library from a text of links and a database. A bad file, or a link to a record the
+/// database does not have, is an error that says what is wrong.
+pub fn build(links_text: &str, database: &Database) -> Result<Vec<Laminate>, String> {
+    let raw: RawLinks =
+        serde_json::from_str(links_text).map_err(|e| format!("laminate links: {e}"))?;
+    if raw.format != LINKS_FORMAT {
+        return Err(format!(
+            "laminate links: the format is {:?}, not {LINKS_FORMAT:?}",
+            raw.format
+        ));
+    }
+    let _ = raw.note;
+    let mut out = Vec::new();
+    for link in raw.entries {
+        if let Some(c) = link.conductor {
+            out.push(Laminate {
+                id: link.id,
+                common_id: String::new(),
+                maker: String::new(),
+                name: c.name,
+                family: Family::Conductor,
+                dk: None,
+                dk_ghz: None,
+                df: None,
+                df_ghz: None,
+                tg_c: None,
+                tg_is_lower_bound: false,
+                td_c: None,
+                cte_x_ppm: None,
+                cte_y_ppm: None,
+                cte_z_ppm: None,
+                cte_z_above_tg_ppm: None,
+                thermal_w_per_mk: None,
+                conductivity_s_per_m: Some(c.conductivity_s_per_m),
+                core_thicknesses_um: Vec::new(),
+                verified: false,
+            });
+            continue;
+        }
+        let common = link
+            .common_id
+            .ok_or_else(|| format!("laminate links: {} has no record", link.id))?;
+        let record = database
+            .get(&common)
+            .ok_or_else(|| format!("laminate links: {} is not in the database", common))?;
+        out.push(from_record(&link.id, record, link.dk_ghz, link.df_ghz));
+    }
+    Ok(out)
+}
+
+/// The library: the entries of `config/laminate_links.json` read from the embedded database.
+/// An empty slice when the database or the file cannot be read (the tests of the module fail
+/// then).
+pub fn laminates() -> &'static [Laminate] {
+    static CELL: OnceLock<Vec<Laminate>> = OnceLock::new();
+    CELL.get_or_init(|| {
+        Database::embedded()
+            .ok()
+            .and_then(|db| build(LINKS_TEXT, &db).ok())
+            .unwrap_or_default()
+    })
+}
 
 /// The laminate with an identifier, in any case.
 pub fn find(id: &str) -> Option<&'static Laminate> {
-    LAMINATES
+    laminates()
         .iter()
         .find(|l| l.id.eq_ignore_ascii_case(id.trim()))
 }
 
 impl Laminate {
     /// The material sample of the laminate: the dielectric constant and the loss tangent at the
-    /// frequencies the sheet states them at. `None` when the sheet states no constant, no loss
-    /// tangent or no frequency for one of them, because a sample needs all of them; a figure is
-    /// never completed with a guess.
+    /// frequencies the link states them at. `None` when the record has no constant, no loss
+    /// tangent or no point at that frequency for one of them, because a sample needs all of them;
+    /// a figure is never completed with a guess.
     pub fn sample(&self) -> Option<MaterialSample> {
         let sample = MaterialSample {
             name: format!("{} {}", self.maker, self.name).trim().to_owned(),
@@ -359,7 +269,7 @@ mod tests {
 
     #[test]
     fn the_identifiers_are_unique_sorted_and_made_of_lowercase_digits_and_hyphens() {
-        let ids: Vec<&str> = LAMINATES.iter().map(|l| l.id).collect();
+        let ids: Vec<&str> = laminates().iter().map(|l| l.id.as_str()).collect();
         let mut sorted = ids.clone();
         sorted.sort_unstable();
         assert_eq!(ids, sorted);
@@ -378,14 +288,14 @@ mod tests {
 
     #[test]
     fn nothing_in_the_library_is_verified() {
-        assert!(LAMINATES.len() >= 15);
-        assert!(LAMINATES.iter().all(|l| !l.verified));
+        assert!(laminates().len() >= 15);
+        assert!(laminates().iter().all(|l| !l.verified));
     }
 
     #[test]
     fn every_figure_is_in_a_plausible_range() {
-        for l in LAMINATES {
-            let id = l.id;
+        for l in laminates() {
+            let id = &l.id;
             for (name, value, low, high) in [
                 ("dk", l.dk, 1.0, 100.0),
                 ("df", l.df, 0.0, 0.1),
@@ -404,21 +314,43 @@ mod tests {
                 }
             }
             // a frequency is stated only with its figure
-            assert_eq!(
-                l.dk.is_some() && l.dk_ghz.is_some(),
-                l.dk_ghz.is_some(),
-                "{id}"
-            );
-            assert_eq!(
-                l.df.is_some() && l.df_ghz.is_some(),
-                l.df_ghz.is_some(),
-                "{id}"
-            );
-            assert!(!l.tg_is_lower_bound || l.tg_c.is_some(), "{id}");
+            assert_eq!(l.dk.is_some(), l.dk_ghz.is_some(), "{id}");
+            assert_eq!(l.df.is_some(), l.df_ghz.is_some(), "{id}");
+            assert!(!l.tg_is_lower_bound, "{id}");
             assert!(
                 l.core_thicknesses_um.windows(2).all(|w| w[0] < w[1]),
                 "{id}"
             );
+        }
+    }
+
+    #[test]
+    fn every_entry_is_the_record_of_the_database_it_links_to() {
+        let db = Database::embedded().unwrap();
+        for l in laminates() {
+            if l.family == Family::Conductor {
+                assert!(l.common_id.is_empty());
+                continue;
+            }
+            let record = db.get(&l.common_id).unwrap();
+            assert_eq!(l.maker, record.manufacturer, "{}", l.id);
+            assert_eq!(l.td_c, record.td_c, "{}", l.id);
+            assert_eq!(l.tg_c, record.tg_c(), "{}", l.id);
+            assert_eq!(
+                l.thermal_w_per_mk, record.thermal_conductivity_w_mk,
+                "{}",
+                l.id
+            );
+            if let (Some(dk), Some(ghz)) = (l.dk, l.dk_ghz) {
+                assert!(
+                    record
+                        .dk
+                        .iter()
+                        .any(|p| p.value == dk && p.freq_ghz == Some(ghz)),
+                    "{}",
+                    l.id
+                );
+            }
         }
     }
 
@@ -429,7 +361,7 @@ mod tests {
             (r.dk, r.df, r.td_c),
             (Some(3.48), Some(0.0037), Some(390.0))
         );
-        assert!(r.tg_is_lower_bound);
+        assert_eq!(r.common_id, "rogers/ro4350b");
         assert_eq!(r.core_thicknesses_um.last(), Some(&1524));
         assert!(find("nothing").is_none());
         assert!(find("").is_none());
@@ -444,18 +376,10 @@ mod tests {
         assert_eq!(s.name, "Rogers RO3003");
         assert_eq!(s.dk_points, [(10.0, 3.0)]);
         assert_eq!(s.df_points, [(10.0, 0.0013)]);
-        // no frequency, no constant, or no loss: no sample
-        for id in [
-            "isola-370hr",
-            "taconic-tlc",
-            "iteq-it-158",
-            "arlon-med-85n",
-            "copper-foil",
-        ] {
-            assert!(find(id).unwrap().sample().is_none(), "{id}");
-        }
-        let with_sample = LAMINATES.iter().filter(|l| l.sample().is_some()).count();
-        assert_eq!(with_sample, 10);
+        // a conductor has neither constant nor loss
+        assert!(find("copper-foil").unwrap().sample().is_none());
+        let with_sample = laminates().iter().filter(|l| l.sample().is_some()).count();
+        assert!(with_sample >= 14, "{with_sample}");
     }
 
     #[test]
@@ -465,5 +389,19 @@ mod tests {
         assert!(df("rogers-ro3006") < df("rogers-ro3010"));
         assert!(df("rogers-ro4003c") < df("rogers-ro4350b"));
         assert!(df("rogers-ro4350b") < df("isola-is400"));
+    }
+
+    #[test]
+    fn a_bad_links_file_is_refused_with_what_is_wrong() {
+        let db = Database::embedded().unwrap();
+        assert!(build("{", &db).is_err());
+        let wrong_format = r#"{"format":"x","entries":[]}"#;
+        assert!(build(wrong_format, &db).unwrap_err().contains("format"));
+        let unknown = format!(
+            r#"{{"format":"{LINKS_FORMAT}","entries":[{{"id":"a","common_id":"nobody/nothing"}}]}}"#
+        );
+        assert!(build(&unknown, &db).unwrap_err().contains("nobody/nothing"));
+        let empty = format!(r#"{{"format":"{LINKS_FORMAT}","entries":[{{"id":"a"}}]}}"#);
+        assert!(build(&empty, &db).unwrap_err().contains("no record"));
     }
 }

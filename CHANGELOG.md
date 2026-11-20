@@ -4,6 +4,7 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **The quick library of laminates reads the materials database of the suite instead of keeping figures of its own:** the 17 entries of the stack-up crate are now records of `eh3d-materials`, linked by `config/laminate_links.json` (format `phoenix-laminate-links/1`, which also says at which frequency the constant and the loss are read), so there is one source of the figures. The module needs the feature `materials` (on in the command line), a figure the record lacks is undefined, a bad links file or a link to a record that does not exist is refused with what is wrong, and the figures that the database should gain are listed in `docs/MATERIALS_GAPS.md`.
 - **The export builds against the newer readers and writers of the shared geometry and format libraries:** the Gerber and the Excellon files that are written now fill the fields that the readers gained (dialect, image parameters, attributes of X2, declared plating and notes of the tools) with their neutral values, so the files are byte for byte the same as before.
 
 ## [0.1.4] - Build fix: the limit of the unpacked size of a ZIP fits a 32-bit program
