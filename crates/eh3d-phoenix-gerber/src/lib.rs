@@ -58,7 +58,7 @@ pub use codes::{title, Finding, GbrError, Severity, TITLES};
 pub use compare::{compare_files, compare_files_with, round_trip, Difference, RoundTrip};
 pub use core_adapter::{adapt_gerber, compare_layers, Adapted, CoreNote, Equivalence};
 pub use drill::parse_drill;
-pub use geodfm::{check_set, GeoFinding, GeoReport, GeoSettings, GeoSeverity};
+pub use geodfm::{check_set, GeoFinding, GeoReport, GeoSettings, GeoSeverity, GeoVerdict};
 pub use identify::{drill_span, identify, DrillSpan, Identified, Role, Source};
 pub use import::{import_file, import_files, Content, ImportedFile, ImportedSet};
 pub use model::{

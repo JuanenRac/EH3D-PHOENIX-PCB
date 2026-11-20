@@ -37,6 +37,12 @@ struct RawMaterial {
     dk: f64,
     df: f64,
     ghz: f64,
+    /// The record of the materials database of the suite this material is, when there is one.
+    #[serde(default)]
+    common_id: Option<String>,
+    /// Why the material has no record in the database yet.
+    #[serde(default)]
+    common_id_note: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -126,6 +132,9 @@ pub struct StackLibrary {
     pub notes: Vec<String>,
     /// The materials the layers refer to.
     pub materials: Vec<MaterialSample>,
+    /// For each material, in the same order, the id of its record in the materials database of
+    /// the suite (`maker/name`), or `None` when it is still kept by name with a note in the file.
+    pub material_common_ids: Vec<Option<String>>,
     /// The common prepregs.
     pub prepregs: Vec<Prepreg>,
     /// The thicknesses of the cores in stock, in micrometres.
@@ -228,6 +237,16 @@ impl StackLibrary {
                 raw.format
             )));
         }
+        for m in &raw.materials {
+            if m.common_id.is_none() && m.common_id_note.as_deref().is_none_or(str::is_empty) {
+                return Err(bad(format!(
+                    "the material {} has neither a database id nor a note that says why",
+                    m.name
+                )));
+            }
+        }
+        let material_common_ids: Vec<Option<String>> =
+            raw.materials.iter().map(|m| m.common_id.clone()).collect();
         let materials: Vec<MaterialSample> = raw
             .materials
             .iter()
@@ -300,6 +319,7 @@ impl StackLibrary {
             source: raw.source,
             notes: raw.notes,
             materials,
+            material_common_ids,
             prepregs: raw.prepregs,
             core_thickness_um: raw.core_thickness_um,
             outer_copper: raw.outer_copper,
@@ -388,6 +408,7 @@ mod tests {
             .iter()
             .any(|n| n.contains("8 layer stackup of 2.00 mm is left out")));
         assert_eq!(lib.materials.len(), 2);
+        assert_eq!(lib.material_common_ids.len(), 2);
         assert_eq!(lib.prepregs.len(), 4);
         assert_eq!(lib.core_thickness_um.len(), 15);
     }
@@ -551,6 +572,26 @@ mod tests {
             e.to_string().contains("no stack-up is called nobody"),
             "{e}"
         );
+    }
+
+    #[cfg(feature = "materials")]
+    #[test]
+    fn every_database_id_the_library_names_is_in_the_database() {
+        let db = eh3d_materials::Database::embedded().unwrap();
+        let lib = library();
+        for id in lib.material_common_ids.iter().flatten() {
+            assert!(db.get(id).is_some(), "{id} is not in the database");
+        }
+    }
+
+    #[test]
+    fn a_material_with_no_database_id_must_say_why() {
+        let mut value: serde_json::Value = serde_json::from_str(LIBRARY_TEXT).unwrap();
+        value["materials"][0]["common_id_note"] = serde_json::Value::from("");
+        let text = value.to_string();
+        assert!(StackLibrary::parse(&text).is_err());
+        value["materials"][0]["common_id"] = serde_json::Value::from("maker/name");
+        assert!(StackLibrary::parse(&value.to_string()).is_ok());
     }
 
     fn edited(from: &str, to: &str) -> Result<StackLibrary, StackupError> {

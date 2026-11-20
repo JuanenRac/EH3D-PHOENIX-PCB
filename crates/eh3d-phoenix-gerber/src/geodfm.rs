@@ -181,12 +181,70 @@ pub struct GeoReport {
     pub dropped: Vec<(&'static str, usize)>,
 }
 
+/// What the checks can claim: a failure is always a failure, but a pass only counts as confirmed
+/// when no check was skipped, no layer was missing and the figures of the profile were verified.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GeoVerdict {
+    /// At least one finding is an error.
+    Failed,
+    /// No error, but a check could not be done or the profile is not verified: not a confirmation.
+    Inconclusive,
+    /// No error and every check was done against a verified profile.
+    Confirmed,
+}
+
+impl GeoVerdict {
+    /// The word used in the JSON of a report.
+    pub fn word(self) -> &'static str {
+        match self {
+            GeoVerdict::Failed => "failed",
+            GeoVerdict::Inconclusive => "inconclusive",
+            GeoVerdict::Confirmed => "confirmed",
+        }
+    }
+}
+
+impl GeoFinding {
+    /// True for a finding that says a check could not be made (skipped, a layer missing or an
+    /// unverified profile) instead of reporting something measured.
+    pub fn is_inconclusive(&self) -> bool {
+        matches!(
+            self.code,
+            text::SKIPPED | text::LAYER_MISSING | text::UNVERIFIED
+        )
+    }
+}
+
 impl GeoReport {
     /// True when no finding is an error.
     pub fn passed(&self) -> bool {
         self.findings
             .iter()
             .all(|f| f.severity != GeoSeverity::Error)
+    }
+
+    /// The findings that are measurements, not notes about checks that could not be made.
+    pub fn confirmed_findings(&self) -> usize {
+        self.findings
+            .iter()
+            .filter(|f| !f.is_inconclusive())
+            .count()
+    }
+
+    /// The findings that say a check could not be made.
+    pub fn inconclusive_findings(&self) -> usize {
+        self.findings.iter().filter(|f| f.is_inconclusive()).count()
+    }
+
+    /// The verdict: failed, inconclusive or confirmed (see [`GeoVerdict`]).
+    pub fn verdict(&self) -> GeoVerdict {
+        if !self.passed() {
+            GeoVerdict::Failed
+        } else if self.inconclusive_findings() > 0 || !self.profile_verified {
+            GeoVerdict::Inconclusive
+        } else {
+            GeoVerdict::Confirmed
+        }
     }
 
     /// The number of findings with a code.

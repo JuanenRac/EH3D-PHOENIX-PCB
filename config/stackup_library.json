@@ -10,8 +10,8 @@
   "No 2 layer or 4 layer stackup is here, because the sources give none."
  ],
  "materials": [
-  {"name": "fr4-library", "dk": 4.5, "df": 0.0, "ghz": 1.0},
-  {"name": "mask-library", "dk": 3.8, "df": 0.0, "ghz": 1.0}
+  {"name": "fr4-library", "dk": 4.5, "df": 0.0, "ghz": 1.0, "common_id": null, "common_id_note": "a figure of the impedance calculator of a maker, not a laminate; no record of the materials database has it, and a record would bring its own figures"},
+  {"name": "mask-library", "dk": 3.8, "df": 0.0, "ghz": 1.0, "common_id": null, "common_id_note": "the solder mask figure of the same calculator; the database has no record of a generic mask"}
  ],
  "prepregs": [
   {"type": "106", "thickness_um": 50, "resin_percent": 65},

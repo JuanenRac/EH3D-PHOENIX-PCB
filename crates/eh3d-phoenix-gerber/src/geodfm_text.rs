@@ -2,9 +2,10 @@
 //! The codes of the geometric checks of Gerber files (`PHOENIX-GDF-<NNN>`), their titles in the
 //! eight languages, and the report as text, JSON and CSV.
 
+use eh3d_diagnostic::{Category, Diagnostic, Location, Recoverability, Severity};
 use eh3d_phoenix_rules::Lang;
 
-use crate::geodfm::{GeoReport, GeoSeverity};
+use crate::geodfm::{GeoFinding, GeoReport, GeoSeverity};
 
 /// A conductor or a gap between conductors narrower than the profile allows: the spacing.
 pub const SPACING: &str = "PHOENIX-GDF-001";
@@ -402,6 +403,18 @@ pub fn report_json(report: &GeoReport) -> serde_json::Value {
         serde_json::Value::from(report.passed()),
     );
     root.insert(
+        "verdict".to_owned(),
+        serde_json::Value::from(report.verdict().word()),
+    );
+    root.insert(
+        "confirmed_findings".to_owned(),
+        serde_json::Value::from(report.confirmed_findings()),
+    );
+    root.insert(
+        "inconclusive_findings".to_owned(),
+        serde_json::Value::from(report.inconclusive_findings()),
+    );
+    root.insert(
         "profile".to_owned(),
         serde_json::Value::from(report.profile.clone()),
     );
@@ -413,6 +426,43 @@ pub fn report_json(report: &GeoReport) -> serde_json::Value {
     root.insert("findings".to_owned(), serde_json::Value::Array(findings));
     root.insert("not_listed".to_owned(), serde_json::Value::Object(dropped));
     serde_json::Value::Object(root)
+}
+
+/// The finding as the common diagnostic of the suite: the stable code, the English title, the
+/// layer as the location and the numbers as arguments. A finding that says a check could not be
+/// made is `inconclusive`; the others are `recoverable` (the rest of the report can be used).
+pub fn finding_diagnostic(f: &GeoFinding) -> Diagnostic {
+    let severity = match f.severity {
+        GeoSeverity::Error => Severity::Error,
+        GeoSeverity::Warning => Severity::Warning,
+        GeoSeverity::Info => Severity::Info,
+    };
+    let recoverability = if f.is_inconclusive() {
+        Recoverability::Inconclusive
+    } else {
+        Recoverability::Recoverable
+    };
+    let mut d = Diagnostic::new(0, severity, title(f.code, Lang::En).unwrap_or(f.code))
+        .with_code(f.code)
+        .with_category(Category::Manufacturing)
+        .with_recoverability(recoverability)
+        .with_location(Location::Entry(f.layer.clone()))
+        .with_arg("x_nm", f.x_nm.to_string())
+        .with_arg("y_nm", f.y_nm.to_string());
+    if f.limit_nm > 0 {
+        d = d
+            .with_arg("measured_nm", f.measured_nm.to_string())
+            .with_arg("limit_nm", f.limit_nm.to_string());
+    }
+    if !f.detail.is_empty() {
+        d = d.with_arg("detail", f.detail.clone());
+    }
+    d
+}
+
+/// Every finding of the report as a common diagnostic, in the order of the report.
+pub fn report_diagnostics(report: &GeoReport) -> Vec<Diagnostic> {
+    report.findings.iter().map(finding_diagnostic).collect()
 }
 
 fn csv_field(text: &str) -> String {
@@ -464,6 +514,84 @@ mod tests {
         for (key, texts) in WORDS {
             assert!(texts.iter().all(|t| !t.is_empty()), "{key}");
         }
+    }
+
+    fn finding(code: &'static str, severity: GeoSeverity) -> GeoFinding {
+        GeoFinding {
+            code,
+            severity,
+            layer: "top.gtl".to_owned(),
+            x_nm: 1_000_000,
+            y_nm: -2_000_000,
+            measured_nm: 90_000,
+            limit_nm: 100_000,
+            detail: String::new(),
+        }
+    }
+
+    fn report(profile_verified: bool, findings: Vec<GeoFinding>) -> GeoReport {
+        GeoReport {
+            profile: "p".to_owned(),
+            profile_verified,
+            files: 1,
+            findings,
+            dropped: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn a_finding_becomes_the_common_diagnostic_with_its_code_and_numbers() {
+        let d = finding_diagnostic(&finding(SPACING, GeoSeverity::Error));
+        assert_eq!(d.code.as_deref(), Some(SPACING));
+        assert_eq!(d.severity, Severity::Error);
+        assert_eq!(d.category, Some(Category::Manufacturing));
+        assert_eq!(d.recoverability, Some(Recoverability::Recoverable));
+        assert_eq!(d.location, Some(Location::Entry("top.gtl".to_owned())));
+        assert!(d
+            .args
+            .contains(&("limit_nm".to_owned(), "100000".to_owned())));
+        assert!(d.args.contains(&("x_nm".to_owned(), "1000000".to_owned())));
+    }
+
+    #[test]
+    fn the_notes_about_checks_that_could_not_be_made_are_inconclusive() {
+        for code in [SKIPPED, LAYER_MISSING, UNVERIFIED] {
+            let f = finding(code, GeoSeverity::Info);
+            assert!(f.is_inconclusive(), "{code}");
+            assert_eq!(
+                finding_diagnostic(&f).recoverability,
+                Some(Recoverability::Inconclusive)
+            );
+        }
+        assert!(!finding(RING, GeoSeverity::Warning).is_inconclusive());
+    }
+
+    #[test]
+    fn the_verdict_is_confirmed_only_when_nothing_was_skipped_and_the_profile_is_verified() {
+        use crate::geodfm::GeoVerdict;
+        let clean = report(true, Vec::new());
+        assert_eq!(clean.verdict(), GeoVerdict::Confirmed);
+        assert_eq!(
+            report(false, Vec::new()).verdict(),
+            GeoVerdict::Inconclusive
+        );
+        let skipped = report(true, vec![finding(SKIPPED, GeoSeverity::Info)]);
+        assert_eq!(skipped.verdict(), GeoVerdict::Inconclusive);
+        let failed = report(
+            true,
+            vec![
+                finding(SKIPPED, GeoSeverity::Info),
+                finding(SPACING, GeoSeverity::Error),
+            ],
+        );
+        assert_eq!(failed.verdict(), GeoVerdict::Failed);
+        assert_eq!(failed.confirmed_findings(), 1);
+        assert_eq!(failed.inconclusive_findings(), 1);
+        let json = report_json(&failed);
+        assert_eq!(json["verdict"], "failed");
+        assert_eq!(json["confirmed_findings"], 1);
+        assert_eq!(json["inconclusive_findings"], 1);
+        assert_eq!(report_diagnostics(&failed).len(), 2);
     }
 
     #[test]

@@ -894,6 +894,7 @@ dependencies = [
 name = "eh3d-phoenix-gerber"
 version = "0.1.4"
 dependencies = [
+ "eh3d-diagnostic",
  "eh3d-phoenix-board",
  "eh3d-phoenix-export",
  "eh3d-phoenix-model",
