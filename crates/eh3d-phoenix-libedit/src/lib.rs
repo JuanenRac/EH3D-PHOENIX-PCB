@@ -12,6 +12,8 @@
 //!   paste; gates and the connection of pins to pads), applied all or nothing, with undo and redo;
 //! * [`check`]: the checks of the library with the codes `PHOENIX-LIB-001` to `014` and a
 //!   deterministic report;
+//! * [`compare`]: the footprints of two libraries matched by name, with the pads that only one has,
+//!   that moved, changed size, kind, drill or layer;
 //! * [`footprints`]: the generators of footprints by the method of IPC-7351B, with the values of
 //!   `config/footprints.cfg`;
 //! * [`plan`]: the plan to replace an item by the master candidate of the sanitizer, which is not
@@ -26,6 +28,9 @@
 
 pub mod check;
 pub mod codes;
+pub mod compare;
+#[cfg(test)]
+mod compare_tests;
 pub mod footprints;
 pub mod geom;
 pub mod model;
@@ -37,6 +42,7 @@ pub mod write;
 
 pub use check::{check_library, CheckReport, Finding, Severity};
 pub use codes::{LibError, REGISTRY};
+pub use compare::{compare_libraries, FootprintChange, LibraryComparison, PadSummary};
 pub use footprints::{generate, FootprintConfig, Generated, FAMILIES};
 pub use model::{Item, Kind, Library};
 pub use ops::{apply_all, parse_operations, History, Operation};
