@@ -4,6 +4,8 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+## [0.1.1] - Server mode and board comparison, nets, copper by region, KiCad netlists, IPC-D-356, impedance spread and an ODB++ matrix reader
+
 - **The largest tolerance of the width of a track for a target impedance can be worked out:** the library function `max_width_tolerance` of `eh3d-phoenix-stackup` takes the nominal geometry of a microstrip or a centred stripline, the tolerances of the height and of the permittivity, a target impedance and a per cent, and finds by bisection the largest plus or minus tolerance of the width for which every corner of the box stays within that per cent of the target, `None` when even a width with no tolerance does not fit and half of the width when every tolerance fits; a target or a per cent that is not valid is an error that names the value (`docs/STACKUP.md`).
 - **A test with a fixed seed checks the largest tolerance of the width:** on 200 generated geometries of both kinds the tolerance that is found fits the target and the per cent, and a tolerance a thousandth larger does not, and the answer is `None` only where a width with no tolerance does not fit.
 - **More tests of the sets of equivalent lines of a bill, with a fixed seed:** bills of up to forty lines with part numbers and alternatives taken from a small pool, in upper and lower case and some without a part number, give the same sets as a slow search written apart, a part number is never in two sets, the totals of a set are the sums of its lines, the sets are in the order of their first line and the order of the lines does not change the part numbers of the sets.
