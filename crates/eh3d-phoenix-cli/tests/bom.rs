@@ -277,6 +277,48 @@ fn assembly3d_builds_the_scene_checks_it_and_writes_new_files_only() {
 }
 
 #[test]
+fn assembly3d_writes_a_binary_gltf_with_the_board_and_the_parts_as_nodes() {
+    let dir = tempfile::tempdir().unwrap();
+    let board = write_board(dir.path(), (4 * MM, 3 * MM));
+    fs::write(dir.path().join("r.step"), box_step()).unwrap();
+    let models = dir.path().join("models.csv");
+    fs::write(
+        &models,
+        "footprint,model,dx_mm,dy_mm
+R0603,r.step,-2,-1
+",
+    )
+    .unwrap();
+    let glb = dir.path().join("a.glb");
+    let args = [
+        "assembly3d",
+        "--models",
+        models.to_str().unwrap(),
+        "--glb",
+        glb.to_str().unwrap(),
+        board.as_str(),
+    ];
+    let (code, out, err) = command(&args);
+    assert_eq!((code, err.as_str()), (1, ""), "{out}");
+    let bytes = fs::read(&glb).unwrap();
+    assert_eq!(&bytes[0..4], b"glTF");
+    assert_eq!(u32::from_le_bytes(bytes[4..8].try_into().unwrap()), 2);
+    assert_eq!(
+        u32::from_le_bytes(bytes[8..12].try_into().unwrap()) as usize,
+        bytes.len()
+    );
+    let json_length = u32::from_le_bytes(bytes[12..16].try_into().unwrap()) as usize;
+    let json: serde_json::Value = serde_json::from_slice(&bytes[20..20 + json_length]).unwrap();
+    assert_eq!(json["nodes"][0]["name"], "board");
+    assert_eq!(json["nodes"][1]["name"], "R1");
+    assert_eq!(json["asset"]["extras"]["profile"], "phoenix-board-glb/1");
+    // a second run replaces nothing
+    let (code, _, err) = command(&args);
+    assert_eq!(code, 2);
+    assert!(err.contains("PHOENIX-3D-015"), "{err}");
+}
+
+#[test]
 fn assembly3d_without_a_collision_exits_0_and_without_options_writes_nothing() {
     let dir = tempfile::tempdir().unwrap();
     let board = write_board(dir.path(), (7 * MM, 7 * MM));

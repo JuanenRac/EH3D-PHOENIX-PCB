@@ -42,6 +42,17 @@ pub fn scene_step(scene: &Scene3d) -> String {
     prisms_step(&scene_prisms(scene))
 }
 
+/// The scene as a binary glTF file (profile `phoenix-board-glb/1`, `docs/ASSEMBLY3D.md`): the board and
+/// each component as a prism, with the colours of `config/glb_profile.cfg`.
+pub fn scene_glb(scene: &Scene3d) -> Result<Vec<u8>, crate::glb::GlbError> {
+    let profile = crate::glb::parse_profile(crate::glb::PROFILE_TEXT)?;
+    crate::glb::prisms_glb(
+        &scene_prisms(scene),
+        &profile,
+        &std::collections::BTreeMap::new(),
+    )
+}
+
 /// The finding that tells that the export is a simplified model.
 pub fn export_note(scene: &Scene3d) -> Finding {
     Finding::new(

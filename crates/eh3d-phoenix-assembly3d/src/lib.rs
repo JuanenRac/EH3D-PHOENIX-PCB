@@ -37,6 +37,7 @@ pub mod enclosure;
 pub mod enclosure_codes;
 pub mod export;
 pub mod geom;
+pub mod glb;
 pub mod models;
 pub mod prism;
 pub mod report;
@@ -50,7 +51,8 @@ pub use enclosure::{
     board_holes, check_enclosure, enclosure_json, enclosure_text, usable_holes, Cavity, Clearances,
     EnclosureChecks, EnclosureSpec, Inner, Post,
 };
-pub use export::{export_note, scene_obj, scene_prisms, scene_step};
+pub use export::{export_note, scene_glb, scene_obj, scene_prisms, scene_step};
+pub use glb::{prisms_glb, GlbError};
 pub use models::{ModelEntry, ModelSource, ModelTable};
 pub use prism::{board_step, Hole, Prism};
 pub use report::{all_findings, scene_json, scene_text};

@@ -53,12 +53,14 @@ A run lists at most `max_findings` findings of each kind and says how many more 
 
 ```
 phoenix assembly3d [--config FILE] --models FILE [--stackup FILE] [--obj FILE] [--step FILE]
-                   [--json-file FILE] [--json] [--lang CODE] <board>
+                   [--glb FILE] [--json-file FILE] [--json] [--lang CODE] <board>
 ```
 
-It is a dry run: without `--obj`, `--step` and `--json-file` nothing is written, and the text report goes to the screen (`--json` prints the JSON instead). Each of the three options writes a new file; a file that exists is never replaced, the input included, and when one of them exists none is written. The default settings file is `config/assembly3d.cfg` when it exists. Exit codes: 0 done, 1 a check found an error, 2 the arguments or the input are unusable.
+It is a dry run: without `--obj`, `--step`, `--glb` and `--json-file` nothing is written, and the text report goes to the screen (`--json` prints the JSON instead). Each of the three options writes a new file; a file that exists is never replaced, the input included, and when one of them exists none is written. The default settings file is `config/assembly3d.cfg` when it exists. Exit codes: 0 done, 1 a check found an error, 2 the arguments or the input are unusable.
 
 ## The export
+
+`--glb FILE` writes the same prisms as a binary glTF 2.0 file with a profile of our own, `phoenix-board-glb/1`, written from the glTF specification and tested by the conformance tests of `src/glb.rs`: one scene; one node, one mesh and one triangle primitive for each prism, in the order of the OBJ; the name of the prism is the name of the node and its stable identifier (`extras.id` is `phoenix:<name>`, and two prisms with one name are refused); positions in metres as 32-bit floats with the axes of glTF (the height of the board is Y); a flat normal for each face and 32-bit indices; the bounds of every position accessor; one material for each role told by the start of the name (`copper`, `mask`, `silk`, `dielectric`, `board`, anything else `part`) with the colours of `config/glb_profile.cfg`; `asset.extras` carries the profile and the metadata the caller gives. There is no date, host or program version, so the same scene gives the same bytes. A concave outline is cut into triangles by ear clipping; a prism that crosses itself, has no height or no area is refused with its name. **Not in the file yet:** the drilled holes (the faces are not cut), the copper, the mask, the legend and the dielectrics as layers of the board (the scene has the board as one prism and the components as boxes), and the real shape of the parts.
 
 The OBJ and the STEP file hold the board as a prism of its outline and thickness and each component as a box, in millimetres, in the same order every time and with no date or program version. `PHOENIX-3D-018` says that this is a simplified model: no copper, no pads, no holes and no real shape of the parts. The STEP file is a boundary representation with plane faces and straight edges (one solid for each prism); it has only been checked for its structure (header, entity numbers, references, counts).
 

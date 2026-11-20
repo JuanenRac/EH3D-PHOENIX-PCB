@@ -16,7 +16,7 @@ use eh3d_phoenix_assembly3d::codes::{
     OUTPUT_FAILED, STEP_EMPTY, STEP_INVALID, STEP_UNIT,
 };
 use eh3d_phoenix_assembly3d::{
-    build_scene, check_scene, export_note, read_step, scene_json, scene_obj, scene_step,
+    build_scene, check_scene, export_note, read_step, scene_glb, scene_json, scene_obj, scene_step,
     scene_text, AssemblyError, AssemblySettings, ModelTable, Severity, StepError, StepSolid,
 };
 use eh3d_phoenix_rules::Lang;
@@ -28,7 +28,7 @@ use crate::export::read_board_file;
 const DEFAULT_CONFIG: &str = "config/assembly3d.cfg";
 
 pub(crate) const USAGE: &str = "\
-phoenix assembly3d [--config FILE] --models FILE [--stackup FILE] [--obj FILE] [--step FILE]
+phoenix assembly3d [--config FILE] --models FILE [--stackup FILE] [--obj FILE] [--step FILE] [--glb FILE]
                    [--json-file FILE] [--json] [--lang CODE] <board>
 
   assembly3d    the board with the thickness of its stack-up and each component as a box, from the
@@ -37,8 +37,9 @@ phoenix assembly3d [--config FILE] --models FILE [--stackup FILE] [--obj FILE] [
                 box that encloses it with a finding, a footprint without a model is left out with
                 a finding and no model is ever made up. It checks the boxes for collisions, the
                 height of the components and the components that leave the outline. A prototype
-                that has been tried on files made by the tests only. Without --obj, --step and
-                --json-file nothing is written; each of them writes a new file (an existing file
+                that has been tried on files made by the tests only. --glb writes a binary glTF
+                (profile phoenix-board-glb/1, prisms without holes). Without --obj, --step, --glb
+                and --json-file nothing is written; each of them writes a new file (an existing file
                 is never replaced and none is written when one exists). --json prints the JSON
                 on the screen instead of the text
   --config      the thickness, tolerances and limits (default: config/assembly3d.cfg when it
@@ -57,6 +58,7 @@ struct Options {
     stackup: Option<String>,
     obj: Option<String>,
     step: Option<String>,
+    glb: Option<String>,
     json_file: Option<String>,
     files: Vec<String>,
 }
@@ -70,6 +72,7 @@ fn parse_options(args: &[&str]) -> Result<Options, AssemblyError> {
         stackup: None,
         obj: None,
         step: None,
+        glb: None,
         json_file: None,
         files: Vec::new(),
     };
@@ -92,6 +95,7 @@ fn parse_options(args: &[&str]) -> Result<Options, AssemblyError> {
             "--stackup" => options.stackup = Some(value("--stackup needs a file")?),
             "--obj" => options.obj = Some(value("--obj needs a file")?),
             "--step" => options.step = Some(value("--step needs a file")?),
+            "--glb" => options.glb = Some(value("--glb needs a file")?),
             "--json-file" => options.json_file = Some(value("--json-file needs a file")?),
             other if other.starts_with("--") => {
                 return Err(AssemblyError::new(
@@ -166,7 +170,7 @@ fn fail(err: &mut dyn Write, error: &AssemblyError, lang: Lang) -> i32 {
 }
 
 /// Checks that none of the outputs exists or is named twice, then writes each as a new file.
-fn write_new_files(files: &[(&str, String)]) -> Result<(), AssemblyError> {
+fn write_new_files(files: &[(&str, Vec<u8>)]) -> Result<(), AssemblyError> {
     for (i, (path, _)) in files.iter().enumerate() {
         if Path::new(path).exists() {
             return Err(AssemblyError::new(
@@ -188,7 +192,7 @@ fn write_new_files(files: &[(&str, String)]) -> Result<(), AssemblyError> {
             .create_new(true)
             .open(path)
             .map_err(failed)?;
-        file.write_all(text.as_bytes()).map_err(failed)?;
+        file.write_all(text).map_err(failed)?;
     }
     Ok(())
 }
@@ -225,21 +229,29 @@ fn assembly3d(options: &Options, out: &mut dyn Write) -> Result<i32, AssemblyErr
     let scene = build_scene(&board, thickness, &table, &settings, &mut resolve)?;
     let checks = check_scene(&scene, &settings);
 
-    let wants_export = options.obj.is_some() || options.step.is_some();
+    let wants_export = options.obj.is_some() || options.step.is_some() || options.glb.is_some();
     let extra = if wants_export {
         vec![export_note(&scene)]
     } else {
         Vec::new()
     };
-    let mut files: Vec<(&str, String)> = Vec::new();
+    let mut files: Vec<(&str, Vec<u8>)> = Vec::new();
     if let Some(path) = &options.obj {
-        files.push((path.as_str(), scene_obj(&scene)));
+        files.push((path.as_str(), scene_obj(&scene).into_bytes()));
     }
     if let Some(path) = &options.step {
-        files.push((path.as_str(), scene_step(&scene)));
+        files.push((path.as_str(), scene_step(&scene).into_bytes()));
+    }
+    if let Some(path) = &options.glb {
+        let bytes = scene_glb(&scene)
+            .map_err(|e| AssemblyError::new(OUTPUT_FAILED, format!("{path}: {e}")))?;
+        files.push((path.as_str(), bytes));
     }
     if let Some(path) = &options.json_file {
-        files.push((path.as_str(), scene_json(&scene, &checks, &extra)));
+        files.push((
+            path.as_str(),
+            scene_json(&scene, &checks, &extra).into_bytes(),
+        ));
     }
     write_new_files(&files)?;
 
