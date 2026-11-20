@@ -258,7 +258,7 @@ fn a_wrong_call_a_bad_setting_or_a_missing_file_is_refused_with_its_code() {
     let (code, _, err) = command(&["boarddiff", "--config", bad.to_str().unwrap(), &a, &a]);
     assert_eq!(code, 2);
     assert!(
-        err.contains("PHOENIX-DIFF-001") && err.contains("line 1"),
+        err.contains("PHOENIX-DIFF-001") && err.contains("move_tolerance_nm"),
         "{err}"
     );
     let missing = dir.path().join("missing.json");
