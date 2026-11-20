@@ -341,11 +341,70 @@ impl DfmProfile {
 }
 
 /// The profiles that come with the program: their names and the text of their files in `config/`.
-/// The figures are in those files and nowhere else; the program only reads them.
+/// The figures are in those files and nowhere else; the program only reads them. The names that
+/// end in `-dru` are the limits of the design rules that a maker ships with the EAGLE editor,
+/// written by `tools/import_eagle_profiles.py` (one file for each number of copper layers).
 pub const BUILTIN: &[(&str, &str)] = &[
     ("example", include_str!("../../../config/dfm/example.cfg")),
     ("jlcpcb", include_str!("../../../config/dfm_jlcpcb.cfg")),
     ("pcbway", include_str!("../../../config/dfm_pcbway.cfg")),
+    ("ncab", include_str!("../../../config/dfm_ncab.cfg")),
+    (
+        "pcbway-dru",
+        include_str!("../../../config/dfm/pcbway-dru.cfg"),
+    ),
+    (
+        "oshpark-2l-dru",
+        include_str!("../../../config/dfm/oshpark-2l-dru.cfg"),
+    ),
+    (
+        "oshpark-4l-dru",
+        include_str!("../../../config/dfm/oshpark-4l-dru.cfg"),
+    ),
+    (
+        "eurocircuits-1l-dru",
+        include_str!("../../../config/dfm/eurocircuits-1l-dru.cfg"),
+    ),
+    (
+        "eurocircuits-2l-dru",
+        include_str!("../../../config/dfm/eurocircuits-2l-dru.cfg"),
+    ),
+    (
+        "eurocircuits-4l-dru",
+        include_str!("../../../config/dfm/eurocircuits-4l-dru.cfg"),
+    ),
+    (
+        "eurocircuits-6l-dru",
+        include_str!("../../../config/dfm/eurocircuits-6l-dru.cfg"),
+    ),
+    (
+        "pcbpool-dru",
+        include_str!("../../../config/dfm/pcbpool-dru.cfg"),
+    ),
+    (
+        "allpcb-1l-dru",
+        include_str!("../../../config/dfm/allpcb-1l-dru.cfg"),
+    ),
+    (
+        "allpcb-2l-dru",
+        include_str!("../../../config/dfm/allpcb-2l-dru.cfg"),
+    ),
+    (
+        "allpcb-4l-dru",
+        include_str!("../../../config/dfm/allpcb-4l-dru.cfg"),
+    ),
+    (
+        "allpcb-6l-dru",
+        include_str!("../../../config/dfm/allpcb-6l-dru.cfg"),
+    ),
+    (
+        "generic-8mil-dru",
+        include_str!("../../../config/dfm/generic-8mil-dru.cfg"),
+    ),
+    (
+        "generic-10mil-dru",
+        include_str!("../../../config/dfm/generic-10mil-dru.cfg"),
+    ),
 ];
 
 /// The text of a profile that comes with the program, by name (without regard to case).

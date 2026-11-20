@@ -570,3 +570,98 @@ fn dfm_compare_takes_the_profiles_that_come_with_the_program() {
     let (code, _, err) = call(&["check", "--dfm-compare"]);
     assert_eq!(code, 2, "{err}");
 }
+
+const DRU_LIST_A: &str = "jlcpcb,pcbway-dru,oshpark-2l-dru,oshpark-4l-dru,eurocircuits-2l-dru,pcbpool-dru,allpcb-2l-dru,generic-8mil-dru";
+const DRU_LIST_B: &str = "jlcpcb,eurocircuits-1l-dru,eurocircuits-4l-dru,eurocircuits-6l-dru,allpcb-1l-dru,allpcb-4l-dru,allpcb-6l-dru,generic-10mil-dru";
+
+#[test]
+fn a_profile_made_from_design_rules_judges_the_track_of_the_board() {
+    let f = Files::new();
+    let brd = f.write("b.brd", &write_board(&board()).text);
+    // the track of 0.10 mm is narrower than the 6 mil of the design rules of PCBWay
+    let (code, out, err) = call(&["check", "--dfm-profile", "pcbway-dru", brd.as_str()]);
+    assert_eq!(code, 1, "{out}{err}");
+    assert!(out.contains("PHOENIX-CHECK-001"), "{out}");
+    assert!(out.contains("PHOENIX-DFM-006"), "{out}");
+    // NCAB gives 0.05 mm, so the track passes
+    let (code, out, err) = call(&["check", "--dfm-profile", "ncab", brd.as_str()]);
+    assert_eq!(code, 0, "{out}{err}");
+    assert!(!out.contains("PHOENIX-CHECK-001"), "{out}");
+}
+
+#[test]
+fn the_design_rule_profiles_of_the_makers_are_compared_side_by_side() {
+    let f = Files::new();
+    let brd = f.write("b.brd", &write_board(&board()).text);
+    let (code, out, err) = call(&["check", "--dfm-compare", DRU_LIST_A, brd.as_str()]);
+    // jlcpcb takes the track of 0.10 mm, so one profile accepts the board
+    assert_eq!((code, err.as_str()), (0, ""), "{out}");
+    assert!(out.starts_with("Profiles compared: 8\n"), "{out}");
+    assert!(
+        out.contains("- jlcpcb (verified: no): passes: yes"),
+        "{out}"
+    );
+    for name in [
+        "pcbway-dru",
+        "oshpark-2l-dru",
+        "oshpark-4l-dru",
+        "eurocircuits-2l-dru",
+        "pcbpool-dru",
+        "allpcb-2l-dru",
+        "generic-8mil-dru",
+    ] {
+        assert!(
+            out.contains(&format!("- {name} (verified: no): passes: no")),
+            "{name}: {out}"
+        );
+    }
+    assert!(
+        out.contains(
+            "Track narrower than the minimum: jlcpcb 0 | pcbway-dru 1 | oshpark-2l-dru 1 | oshpark-4l-dru 1 | eurocircuits-2l-dru 1 | pcbpool-dru 1 | allpcb-2l-dru 1 | generic-8mil-dru 1"
+        ),
+        "{out}"
+    );
+    // the profiles of one layer find the board of two layers too big for them
+    let (code, out, err) = call(&["check", "--dfm-compare", DRU_LIST_B, brd.as_str()]);
+    assert_eq!((code, err.as_str()), (0, ""), "{out}");
+    assert!(
+        out.contains(
+            "jlcpcb 0 | eurocircuits-1l-dru 1 | eurocircuits-4l-dru 0 | eurocircuits-6l-dru 0 | allpcb-1l-dru 1 | allpcb-4l-dru 0 | allpcb-6l-dru 0 | generic-10mil-dru 0"
+        ),
+        "{out}"
+    );
+    assert!(out.contains("PHOENIX-DFM-001"), "{out}");
+}
+
+#[test]
+fn the_comparison_of_the_makers_is_written_in_the_eight_languages() {
+    let f = Files::new();
+    let brd = f.write("b.brd", &write_board(&board()).text);
+    let mut reports = std::collections::BTreeSet::new();
+    for lang in ["en", "es", "de", "fr", "it", "ja", "zh", "pt"] {
+        let (code, out, err) = call(&[
+            "check",
+            "--dfm-compare",
+            DRU_LIST_A,
+            "--lang",
+            lang,
+            brd.as_str(),
+        ]);
+        assert_eq!((code, err.as_str()), (0, ""), "{lang}: {out}");
+        // the names of the profiles are never translated
+        for name in ["pcbway-dru", "eurocircuits-2l-dru", "generic-8mil-dru"] {
+            assert!(out.contains(name), "{lang} {name}: {out}");
+        }
+        reports.insert(out);
+    }
+    assert_eq!(reports.len(), 8, "every language has its own words");
+    let (_, pt, _) = call(&[
+        "check",
+        "--dfm-compare",
+        DRU_LIST_A,
+        "--lang",
+        "pt",
+        brd.as_str(),
+    ]);
+    assert!(pt.starts_with("Perfis comparados: 8\n"), "{pt}");
+}

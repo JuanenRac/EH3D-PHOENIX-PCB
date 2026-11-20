@@ -166,6 +166,7 @@ pub static KINDS: &[CfgKind] = &[
     kind!("dfm/example.cfg", check_dfm),
     kind!("dfm_jlcpcb.cfg", check_dfm),
     kind!("dfm_pcbway.cfg", check_dfm),
+    kind!("dfm_ncab.cfg", check_dfm),
 ];
 
 #[cfg(test)]
