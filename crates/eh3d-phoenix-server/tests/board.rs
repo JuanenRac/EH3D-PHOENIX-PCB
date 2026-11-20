@@ -342,3 +342,93 @@ fn an_outline_without_area_sends_no_outline_and_says_so() {
     let text = rules_request(&facts, &settings()).unwrap();
     assert!(!text.contains("\"outline\""));
 }
+
+/// A generator with a fixed seed, so every run makes the same boards.
+fn next(seed: &mut u64) -> u64 {
+    *seed = seed
+        .wrapping_mul(6_364_136_223_846_793_005)
+        .wrapping_add(1_442_695_040_888_963_407);
+    *seed >> 33
+}
+
+#[test]
+fn the_gaps_of_generated_horizontal_tracks_follow_an_independent_calculation() {
+    let mut seed = 0x5eed_0004_u64;
+    let mut found_any = 0;
+    for _ in 0..25 {
+        let mut b = Board {
+            name: "generated".into(),
+            outline: vec![
+                pt(0, 0),
+                pt(40 * MM, 0),
+                pt(40 * MM, 20 * MM),
+                pt(0, 20 * MM),
+            ],
+            ..Board::default()
+        };
+        for (n, name) in [(1, "Top"), (2, "Bottom")] {
+            b.layers.insert(
+                id(n),
+                Layer {
+                    name: name.into(),
+                    kind: LayerKind::Copper,
+                    side: None,
+                },
+            );
+        }
+        for (n, name) in [(5, "A"), (6, "B"), (7, "C")] {
+            b.nets.insert(id(n), Net { name: name.into() });
+        }
+        // net, layer, y, from x, to x and width of each track, in nanometres
+        let mut shapes = Vec::new();
+        for k in 0..10 {
+            let net = next(&mut seed) % 3;
+            let layer = next(&mut seed) % 2;
+            let y = (next(&mut seed) % 20) as i64 * 100_000;
+            let x1 = (next(&mut seed) % 30) as i64 * 100_000;
+            let x2 = x1 + (1 + next(&mut seed) % 20) as i64 * 100_000;
+            let width = (1 + next(&mut seed) % 4) as i64 * 50_000;
+            b.tracks.insert(
+                id(100 + k),
+                track(
+                    5 + net as u32,
+                    1 + layer as u32,
+                    width,
+                    vec![line((x1, y), (x2, y))],
+                ),
+            );
+            shapes.push((net, layer, y, x1, x2, width));
+        }
+        let below = 1_000_000;
+        let s = ServerSettings {
+            clearance_below_nm: below,
+            clearance_max: 1_000,
+            ..settings()
+        };
+        let facts = facts_from_board(&b, &s).unwrap();
+        let found: Vec<i64> = facts.clearances.iter().map(|c| c.gap_nm).collect();
+        // the same gaps from the formula for two horizontal pieces: the distance along x that
+        // separates them and the distance across, less the two half widths
+        let mut expected = Vec::new();
+        for (i, a) in shapes.iter().enumerate() {
+            for c in &shapes[i + 1..] {
+                if a.0 == c.0 || a.1 != c.1 {
+                    continue;
+                }
+                let along = (a.3.max(c.3) - a.4.min(c.4)).max(0) as f64;
+                let across = (a.2 - c.2).abs() as f64;
+                let distance = along.hypot(across);
+                let gap = (distance - (a.5 + c.5) as f64 / 2.0).max(0.0).floor() as i64;
+                if gap < below {
+                    expected.push(gap);
+                }
+            }
+        }
+        expected.sort_unstable();
+        assert_eq!(found, expected, "{shapes:?}");
+        assert!(found.windows(2).all(|w| w[0] <= w[1]));
+        found_any += found.len();
+    }
+    // the generator puts tracks close enough that the check was not met by empty lists
+    assert!(found_any > 50, "{found_any}");
+}

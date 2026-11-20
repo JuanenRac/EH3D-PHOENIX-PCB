@@ -35,6 +35,9 @@ pub struct DiffSettings {
     pub max_items: usize,
     /// The most differences a report lists; the rest are counted.
     pub max_differences: usize,
+    /// Whether a cell of the CSV file that a spreadsheet would read as a formula (it starts with
+    /// `=`, `+`, `-` or `@`) gets a quote mark in front.
+    pub csv_guard_formulas: bool,
 }
 
 impl Default for DiffSettings {
@@ -51,6 +54,7 @@ impl Default for DiffSettings {
             ignore_nets: Vec::new(),
             max_items: 1_000_000,
             max_differences: 1_000,
+            csv_guard_formulas: true,
         }
     }
 }
@@ -117,6 +121,7 @@ impl DiffSettings {
                 "ignore_nets" => s.ignore_nets = parse_list(value),
                 "max_items" => s.max_items = value.parse().map_err(|_| bad())?,
                 "max_differences" => s.max_differences = value.parse().map_err(|_| bad())?,
+                "csv_guard_formulas" => s.csv_guard_formulas = parse_bool(value).ok_or_else(bad)?,
                 _ => {
                     return Err(DiffError::new(
                         SETTINGS_INVALID,
@@ -182,9 +187,11 @@ mod tests {
     #[test]
     fn lines_change_the_values_and_lists_are_split_at_commas() {
         let s = DiffSettings::parse(
-            "move_tolerance_nm = 5000\nlength_tolerance_nm = 0\ncompare_pins = false\ncompare_tracks = false\ncompare_vias = false\ncompare_zones = false\ncompare_outline = false\nignore_parts = TP*, FID1\nignore_nets = N$*\nmax_items = 50\nmax_differences = 7\n",
+            "move_tolerance_nm = 5000\nlength_tolerance_nm = 0\ncompare_pins = false\ncompare_tracks = false\ncompare_vias = false\ncompare_zones = false\ncompare_outline = false\nignore_parts = TP*, FID1\nignore_nets = N$*\nmax_items = 50\nmax_differences = 7\ncsv_guard_formulas = false\n",
         )
         .unwrap();
+        assert!(!s.csv_guard_formulas);
+        assert!(DiffSettings::default().csv_guard_formulas);
         assert_eq!((s.move_tolerance_nm, s.length_tolerance_nm), (5000, 0));
         assert!(!s.compare_pins && !s.compare_tracks && !s.compare_vias);
         assert!(!s.compare_zones && !s.compare_outline);
@@ -212,6 +219,7 @@ mod tests {
             "max_items = 100000001\n",
             "max_differences = 0\n",
             "max_differences = 1000001\n",
+            "csv_guard_formulas = yes\n",
             "no equals sign\n",
         ] {
             assert!(DiffSettings::parse(text).is_err(), "{text}");

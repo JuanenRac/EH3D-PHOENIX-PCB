@@ -31,7 +31,7 @@ use eh3d_phoenix_board::Board;
 
 pub use codes::{title, DiffError, Difference};
 pub use compare::{compare, Count, DiffReport};
-pub use report::{report_json, report_text, FORMAT};
+pub use report::{report_csv, report_json, report_text, FORMAT};
 pub use settings::DiffSettings;
 pub use snapshot::{snapshot, Snapshot};
 

@@ -41,6 +41,8 @@ pub const OUTLINE_DIFF: &str = "PHOENIX-DIFF-015";
 pub const DUPLICATE_REF: &str = "PHOENIX-DIFF-016";
 /// The list of differences was cut.
 pub const LIST_CUT: &str = "PHOENIX-DIFF-017";
+/// An output file exists or cannot be written.
+pub const OUTPUT_FAILED: &str = "PHOENIX-DIFF-018";
 
 /// Code, then the title in English, Spanish, German, French, Italian, Japanese, Chinese and
 /// European Portuguese.
@@ -266,6 +268,19 @@ pub const TITLES: &[(&str, [&str; 8])] = &[
             "A lista de diferenças foi cortada",
         ],
     ),
+    (
+        OUTPUT_FAILED,
+        [
+            "The output file exists or cannot be written",
+            "El archivo de salida ya existe o no se puede escribir",
+            "Die Ausgabedatei existiert bereits oder kann nicht geschrieben werden",
+            "Le fichier de sortie existe déjà ou ne peut pas être écrit",
+            "Il file di uscita esiste già o non si può scrivere",
+            "出力ファイルが既に存在するか、書き込めません",
+            "输出文件已存在或无法写入",
+            "O ficheiro de saída já existe ou não pode ser escrito",
+        ],
+    ),
 ];
 
 /// The title of a code in a language; empty for a code that is not in the table.
@@ -365,7 +380,7 @@ mod tests {
                 assert!(!text.is_empty(), "{code} column {column}");
             }
         }
-        assert_eq!(TITLES.len(), 17);
+        assert_eq!(TITLES.len(), 18);
     }
 
     #[test]

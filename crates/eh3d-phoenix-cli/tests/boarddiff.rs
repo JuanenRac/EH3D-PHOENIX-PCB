@@ -187,6 +187,42 @@ fn the_json_report_and_the_language_of_the_words() {
 }
 
 #[test]
+fn the_differences_can_be_written_as_a_table_to_a_new_file_and_never_over_one() {
+    let dir = tempfile::tempdir().unwrap();
+    let a = write_board(dir.path(), "a.json", &board("rev A", "10k", false));
+    let b = write_board(dir.path(), "b.json", &board("rev B", "22k", true));
+    let table = dir.path().join("diff.csv");
+    let table_text = table.to_str().unwrap();
+    let (code, out, err) = command(&["boarddiff", "--csv", table_text, &a, &b]);
+    assert_eq!(code, 1, "{err}");
+    assert!(out.contains(&format!("written: {table_text}")), "{out}");
+    assert_eq!(
+        fs::read_to_string(&table).unwrap(),
+        "code,subject,detail\nPHOENIX-DIFF-007,R2,\"added (1k, R_0603, top)\"\nPHOENIX-DIFF-008,R1,10k -> 22k\n"
+    );
+    // a file that is there is kept as it is and the command stops
+    fs::write(&table, "keep me").unwrap();
+    let (code, out, err) = command(&["boarddiff", "--csv", table_text, &a, &b]);
+    assert_eq!(code, 2);
+    assert!(out.is_empty(), "{out}");
+    assert!(err.contains("PHOENIX-DIFF-018"), "{err}");
+    assert_eq!(fs::read_to_string(&table).unwrap(), "keep me");
+    // with --json the text is not added to
+    let other = dir.path().join("other.csv");
+    let (code, out, _) = command(&[
+        "boarddiff",
+        "--json",
+        "--csv",
+        other.to_str().unwrap(),
+        &a,
+        &b,
+    ]);
+    assert_eq!(code, 1);
+    assert!(out.starts_with('{') && !out.contains("written:"), "{out}");
+    assert!(other.is_file());
+}
+
+#[test]
 fn a_settings_file_changes_what_is_compared() {
     let dir = tempfile::tempdir().unwrap();
     let a = write_board(dir.path(), "a.json", &board("rev A", "10k", false));

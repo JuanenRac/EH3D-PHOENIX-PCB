@@ -1024,6 +1024,7 @@ The titles of these codes also exist in the eight languages of the suite (`TITLE
 | PHOENIX-DIFF-015 | Board outline changed | another number of corners or cutouts, another box or another area; with `compare_outline` |
 | PHOENIX-DIFF-016 | A reference is used by more than one part | information about one of the boards: only the first part of that reference is compared |
 | PHOENIX-DIFF-017 | The list of differences was cut | information: more differences than `max_differences`; the rest are counted |
+| PHOENIX-DIFF-018 | The output file exists or cannot be written | the file named by `--csv` exists (it is never replaced), is a link or a folder, or cannot be created |
 
 ## Server mode (`eh3d-phoenix-server`, `src/codes.rs`)
 

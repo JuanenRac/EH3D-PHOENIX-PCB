@@ -3,13 +3,17 @@
 //! has that the old one has not, what it lost and what it changed.
 //!
 //! Exit codes: 0 the boards do not differ in anything compared, 1 they differ, 2 the arguments or
-//! the input are unusable. Nothing is written: the report goes to the output stream.
+//! the input are unusable. Nothing is written unless `--csv` names a new file: the report goes to
+//! the output stream, and an existing file is never replaced.
 
+use std::fs::OpenOptions;
 use std::io::Write;
 use std::path::Path;
 
-use eh3d_phoenix_boarddiff::codes::{INPUT_UNREADABLE, OPTION_INVALID};
-use eh3d_phoenix_boarddiff::{compare_boards, report_json, report_text, DiffError, DiffSettings};
+use eh3d_phoenix_boarddiff::codes::{INPUT_UNREADABLE, OPTION_INVALID, OUTPUT_FAILED};
+use eh3d_phoenix_boarddiff::{
+    compare_boards, report_csv, report_json, report_text, DiffError, DiffSettings,
+};
 use eh3d_phoenix_rules::Lang;
 
 use crate::export::read_board_file;
@@ -18,7 +22,7 @@ use crate::export::read_board_file;
 const DEFAULT_CONFIG: &str = "config/boarddiff.cfg";
 
 pub(crate) const USAGE: &str =
-    "phoenix boarddiff [--config FILE] [--json] [--lang CODE] <old board> <new board>
+    "phoenix boarddiff [--config FILE] [--csv FILE] [--json] [--lang CODE] <old board> <new board>
 
   boarddiff     the comparison of two revisions of a board: the layers, nets and parts that only
                 one has, the parts with another value, footprint, place, turn or side, the pins
@@ -26,9 +30,11 @@ pub(crate) const USAGE: &str =
                 the tracks), the vias, the zones and the outline, in a fixed order, with the
                 codes PHOENIX-DIFF-<NNN>. Parts are matched by reference and pins by reference
                 and pad number, never by the ids of the objects; exit code 1 when they differ.
-                A prototype, read-only
+                A prototype; read-only unless --csv names a new file
   --config      the tolerances, the kinds of object compared, the parts and nets left out and the
                 limits (default: config/boarddiff.cfg when it exists)
+  --csv FILE    write the differences to a new file as a table for a spreadsheet (an existing
+                file is never replaced)
   --json        print the report as JSON, the same every time
   --lang CODE   the words in en, es, de, fr, it, ja, zh or pt
 ";
@@ -37,6 +43,7 @@ struct Options {
     json: bool,
     lang: Lang,
     config: Option<String>,
+    csv: Option<String>,
     files: Vec<String>,
 }
 
@@ -45,6 +52,7 @@ fn parse_options(args: &[&str]) -> Result<Options, DiffError> {
         json: false,
         lang: Lang::En,
         config: None,
+        csv: None,
         files: Vec::new(),
     };
     let bad = |what: &str| DiffError::new(OPTION_INVALID, what.to_owned());
@@ -62,6 +70,7 @@ fn parse_options(args: &[&str]) -> Result<Options, DiffError> {
                 options.lang = Lang::from_tag(&tag).ok_or_else(|| bad("unknown language code"))?;
             }
             "--config" => options.config = Some(value("--config needs a file")?),
+            "--csv" => options.csv = Some(value("--csv needs a file")?),
             other if other.starts_with("--") => {
                 return Err(DiffError::new(
                     OPTION_INVALID,
@@ -90,6 +99,17 @@ fn load_settings(path: Option<&str>) -> Result<DiffSettings, DiffError> {
     }
 }
 
+/// Writes a new file. An existing file is never replaced.
+fn write_new(path: &str, text: &str) -> Result<(), DiffError> {
+    let failed = |e: std::io::Error| DiffError::new(OUTPUT_FAILED, format!("{path}: {e}"));
+    let mut file = OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(path)
+        .map_err(failed)?;
+    file.write_all(text.as_bytes()).map_err(failed)
+}
+
 fn fail(err: &mut dyn Write, error: &DiffError, lang: Lang) -> i32 {
     let _ = writeln!(err, "error: {}", error.message(lang));
     2
@@ -106,11 +126,17 @@ fn boarddiff(options: &Options, out: &mut dyn Write) -> Result<i32, DiffError> {
     let old = read_board_file(old_path).map_err(|e| DiffError::new(INPUT_UNREADABLE, e))?;
     let new = read_board_file(new_path).map_err(|e| DiffError::new(INPUT_UNREADABLE, e))?;
     let report = compare_boards(&old, &new, &settings)?;
-    let text = if options.json {
+    if let Some(path) = &options.csv {
+        write_new(path, &report_csv(&report, settings.csv_guard_formulas))?;
+    }
+    let mut text = if options.json {
         report_json(&report)
     } else {
         report_text(&report, options.lang)
     };
+    if let (Some(path), false) = (&options.csv, options.json) {
+        text.push_str(&format!("written: {path}\n"));
+    }
     let _ = out.write_all(text.as_bytes());
     Ok(i32::from(report.differs()))
 }

@@ -196,6 +196,40 @@ fn quote(text: &str) -> String {
     out
 }
 
+/// One cell of the CSV file: a cell that a spreadsheet would run as a formula gets a quote mark in
+/// front when `guard` is on, and a cell with a comma, a quote or a line break is quoted.
+fn csv_cell(text: &str, guard: bool) -> String {
+    let mut cell = text.to_owned();
+    if guard
+        && matches!(
+            cell.chars().next(),
+            Some('=' | '+' | '-' | '@' | '\t' | '\r')
+        )
+    {
+        cell.insert(0, '\'');
+    }
+    if cell.contains([',', '"', '\n', '\r']) {
+        format!("\"{}\"", cell.replace('"', "\"\""))
+    } else {
+        cell
+    }
+}
+
+/// The differences as a table for a spreadsheet: the header `code,subject,detail` and one row for
+/// each difference of the report, in its order, with a line feed after each row.
+pub fn report_csv(report: &DiffReport, guard: bool) -> String {
+    let mut out = String::from("code,subject,detail\n");
+    for d in &report.differences {
+        out.push_str(&format!(
+            "{},{},{}\n",
+            csv_cell(d.code, guard),
+            csv_cell(&d.subject, guard),
+            csv_cell(&d.detail, guard)
+        ));
+    }
+    out
+}
+
 /// The report as JSON, the same every time.
 pub fn report_json(report: &DiffReport) -> String {
     let counts: Vec<String> = report
@@ -298,6 +332,41 @@ mod tests {
         seen.sort();
         seen.dedup();
         assert_eq!(seen.len(), 8);
+    }
+
+    #[test]
+    fn the_csv_has_a_header_and_a_row_for_each_difference() {
+        let csv = report_csv(&report(1), true);
+        assert_eq!(
+            csv,
+            "code,subject,detail\nPHOENIX-DIFF-008,R1,\"10k -> \"\"22k\"\"\"\n"
+        );
+        assert_eq!(report_csv(&report(0), true), "code,subject,detail\n");
+        // the header and the rows are read back by splitting at the commas outside quotes
+        assert_eq!(csv.lines().count(), 2);
+    }
+
+    #[test]
+    fn a_cell_that_a_spreadsheet_would_run_as_a_formula_gets_a_quote_mark() {
+        for text in ["=1+1", "+5V", "-3", "@SUM(A1)", "\tx", "\rx"] {
+            assert!(
+                csv_cell(text, true).trim_matches('"').starts_with('\''),
+                "{text:?}"
+            );
+            assert!(
+                !csv_cell(text, false).trim_matches('"').starts_with('\''),
+                "{text:?}"
+            );
+        }
+        // an ordinary cell, a number and a text in the middle are not changed
+        for text in ["R1", "10k -> 22k", "3.5", "a=b", "x+y", ""] {
+            assert_eq!(csv_cell(text, true), text);
+        }
+        assert_eq!(csv_cell("a,b", true), "\"a,b\"");
+        assert_eq!(csv_cell("say \"hi\"", true), "\"say \"\"hi\"\"\"");
+        assert_eq!(csv_cell("two\nlines", true), "\"two\nlines\"");
+        // a quote mark and a comma together: guarded, then quoted
+        assert_eq!(csv_cell("=a,b", true), "\"'=a,b\"");
     }
 
     #[test]

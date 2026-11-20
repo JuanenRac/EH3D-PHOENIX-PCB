@@ -764,4 +764,169 @@ mod tests {
         assert_eq!((get("parts").old, get("parts").new), (2, 1));
         assert_eq!(r.counts.len(), 6);
     }
+
+    /// A small generator with a fixed seed, so every run makes the same boards.
+    struct Lcg(u64);
+
+    impl Lcg {
+        fn next(&mut self) -> u64 {
+            self.0 = self
+                .0
+                .wrapping_mul(6_364_136_223_846_793_005)
+                .wrapping_add(1_442_695_040_888_963_407);
+            self.0 >> 33
+        }
+
+        fn below(&mut self, n: u64) -> u64 {
+            self.next() % n
+        }
+    }
+
+    fn generated(rng: &mut Lcg) -> Snapshot {
+        let mut s = Snapshot {
+            name: "g".into(),
+            ..Snapshot::default()
+        };
+        for name in ["Top", "Bottom", "Inner1", "Inner2"] {
+            if rng.below(4) != 0 {
+                s.layers.insert(name.into());
+            }
+        }
+        let nets = ["GND", "VCC", "SIG1", "SIG2", "CLK"];
+        for net in nets {
+            if rng.below(5) != 0 {
+                s.nets.insert(net.into());
+            }
+        }
+        for n in 1..=8 {
+            if rng.below(4) == 0 {
+                continue;
+            }
+            let value = ["1k", "10k", "100n"][rng.below(3) as usize];
+            let footprint = ["R_0603", "R_0805", "C_0603"][rng.below(3) as usize];
+            let mut p = part(
+                &format!("R{n}"),
+                value,
+                footprint,
+                (
+                    rng.below(40) as i64 * 1_000_000,
+                    rng.below(20) as i64 * 1_000_000,
+                ),
+            );
+            p.rotation_udeg = rng.below(4) as i64 * 90_000_000;
+            p.bottom = rng.below(5) == 0;
+            for pin in 1..=2 {
+                s.pins.insert(
+                    format!("R{n}.{pin}"),
+                    nets[rng.below(nets.len() as u64) as usize].into(),
+                );
+            }
+            s.parts.insert(p.refdes.clone(), p);
+        }
+        for net in nets {
+            for layer in ["Top", "Bottom"] {
+                if rng.below(3) == 0 {
+                    s.copper.insert(
+                        (net.into(), layer.into()),
+                        CopperFact {
+                            tracks: 1 + rng.below(4) as usize,
+                            length_nm: rng.below(50) as i64 * 1_000_000,
+                        },
+                    );
+                }
+            }
+            if rng.below(3) == 0 {
+                s.vias.insert(
+                    (net.into(), rng.below(10) as i64 * 1_000_000, 0),
+                    1 + rng.below(2) as usize,
+                );
+            }
+            if rng.below(4) == 0 {
+                s.zones.insert(
+                    (net.into(), "Bottom".into()),
+                    ZoneFact {
+                        count: 1 + rng.below(2) as usize,
+                        double_area: i128::from(rng.below(900)) * 2_000_000_000_000,
+                    },
+                );
+            }
+        }
+        s.outline = OutlineFact {
+            corners: 4 + rng.below(3) as usize,
+            cutouts: rng.below(2) as usize,
+            width_nm: 20_000_000 + rng.below(3) as i64 * 5_000_000,
+            height_nm: 10_000_000,
+            double_area: i128::from(200 + rng.below(3)) * 2_000_000_000_000,
+        };
+        s
+    }
+
+    #[test]
+    fn a_generated_board_compared_with_itself_has_no_difference() {
+        let mut rng = Lcg(0x5eed_0001);
+        for _ in 0..60 {
+            let s = generated(&mut rng);
+            let r = compare(&s, &s, &DiffSettings::default());
+            assert!(!r.differs(), "{:?}", r.differences);
+            assert!(r.differences.is_empty());
+        }
+    }
+
+    #[test]
+    fn the_number_of_differences_is_the_same_whichever_board_is_the_old_one() {
+        let mut rng = Lcg(0x5eed_0002);
+        let mut total = 0;
+        for _ in 0..80 {
+            let (a, b) = (generated(&mut rng), generated(&mut rng));
+            let s = DiffSettings {
+                max_differences: 1_000_000,
+                ..DiffSettings::default()
+            };
+            let forward = compare(&a, &b, &s);
+            let backward = compare(&b, &a, &s);
+            assert_eq!(forward.total, backward.total);
+            total += forward.total;
+            // what is added one way is removed the other way
+            let count = |r: &DiffReport, code: &str, word: &str| {
+                r.differences
+                    .iter()
+                    .filter(|d| d.code == code && d.detail.starts_with(word))
+                    .count()
+            };
+            for code in [LAYER_DIFF, NET_DIFF, PART_DIFF] {
+                assert_eq!(
+                    count(&forward, code, "added"),
+                    count(&backward, code, "removed")
+                );
+                assert_eq!(
+                    count(&forward, code, "removed"),
+                    count(&backward, code, "added")
+                );
+            }
+        }
+        // the generator makes boards that differ, so the property was not met by an empty list
+        assert!(total > 400, "{total}");
+    }
+
+    #[test]
+    fn the_kinds_come_in_the_order_of_their_codes_and_the_cut_note_is_last() {
+        let mut rng = Lcg(0x5eed_0003);
+        for _ in 0..60 {
+            let (a, b) = (generated(&mut rng), generated(&mut rng));
+            let r = compare(&a, &b, &DiffSettings::default());
+            let codes: Vec<&str> = r.differences.iter().map(|d| d.code).collect();
+            assert!(codes.windows(2).all(|w| w[0] <= w[1]), "{codes:?}");
+            let cut = DiffSettings {
+                max_differences: 3,
+                ..DiffSettings::default()
+            };
+            let r = compare(&a, &b, &cut);
+            if r.total > 3 {
+                assert_eq!(r.differences.len(), 4);
+                assert_eq!(r.differences[3].code, LIST_CUT);
+            } else {
+                assert_eq!(r.differences.len(), r.total);
+            }
+        }
+    }
 }

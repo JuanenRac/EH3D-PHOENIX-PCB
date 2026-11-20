@@ -482,14 +482,15 @@ phoenix server [--config FILE] --job ID [--json] [--lang xx]
                 prototype that has never talked to a running server, run `phoenix server` alone
                 for its options
 
-phoenix boarddiff [--config FILE] [--json] [--lang xx] <old board> <new board>
+phoenix boarddiff [--config FILE] [--csv FILE] [--json] [--lang xx] <old board> <new board>
 
   boarddiff     the comparison of two revisions of a board: the layers, nets and parts that only
                 one has, the parts with another value, footprint, place, turn or side, the pins
                 on another net, the copper of each net on each layer, the vias, the zones and the
                 outline, in a fixed order, with the codes PHOENIX-DIFF-<NNN>; parts are matched by
                 reference and never by the ids of the objects, exit code 1 when the boards
-                differ, a prototype, run `phoenix boarddiff` alone for its options
+                differ, a dry run unless --csv names a new file, a prototype, run
+                `phoenix boarddiff` alone for its options
 
 phoenix bom [--config FILE] [--prices FILE] [--parts FILE] [--schematic FILE] [--sourcing] [--stackup FILE]
             [--boards N] [--variant NAME [--variant-file FILE]] [--csv FILE] [--json-file FILE]

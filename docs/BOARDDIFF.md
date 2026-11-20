@@ -5,10 +5,10 @@ The crate `eh3d-phoenix-boarddiff` and the command `phoenix boarddiff` compare t
 **State: prototype.** It has been tried on boards made by hand and by the tests only.
 
 ```
-phoenix boarddiff [--config FILE] [--json] [--lang CODE] <old board> <new board>
+phoenix boarddiff [--config FILE] [--csv FILE] [--json] [--lang CODE] <old board> <new board>
 ```
 
-Each board is a `.json` board, an EAGLE `.brd` or a KiCad `.kicad_pcb`, as for the other commands. The command writes nothing. The exit code is 0 when the boards do not differ in anything that was compared, 1 when they do, and 2 when the arguments or an input are unusable.
+Each board is a `.json` board, an EAGLE `.brd` or a KiCad `.kicad_pcb`, as for the other commands. The command writes nothing unless `--csv` names a new file (see below). The exit code is 0 when the boards do not differ in anything that was compared, 1 when they do, and 2 when the arguments or an input are unusable.
 
 ## What is compared
 
@@ -42,14 +42,19 @@ The length of a track is the sum of its pieces: a straight piece by its two ends
 | `ignore_parts`, `ignore_nets` | empty | references and net names that are left out (any case; a word that ends in `*` matches every name that starts with the rest) |
 | `max_items` | 1000000 | the most parts, pins, tracks, vias and zones a board may hold for the comparison to run |
 | `max_differences` | 1000 | the most differences a report lists |
+| `csv_guard_formulas` | true | whether a cell of the CSV file that starts with `=`, `+`, `-` or `@` gets a quote mark in front |
 
 ## The report
 
 The text report names the two boards, the counts of parts, nets, pins, tracks, vias and zones in each, how many differences there are and each of them with its code, its title in the language of `--lang` (the eight languages of the suite), the part, net, pin or place it is about and what changed (`10k -> 22k`, `moved 2 mm, turned from 0 to 90 degrees`). `--json` prints the format `phoenix-boarddiff/1`, the same bytes for the same two boards.
 
+## The table for a spreadsheet
+
+`--csv FILE` also writes the differences to a new file as a table with the header `code,subject,detail` and one row for each difference of the report, in its order. The file is created exclusively: a name that exists stops the command (`PHOENIX-DIFF-018`) and the file is not touched. A cell that a spreadsheet would run as a formula, such as the net `+5V`, gets a quote mark in front unless `csv_guard_formulas` is false, and a cell with a comma, a quote or a line break is quoted. With the text report the command adds a line `written: FILE`; with `--json` it adds nothing.
+
 ## Codes
 
-`PHOENIX-DIFF-001` to `PHOENIX-DIFF-017`, with titles in the eight languages (`src/codes.rs`) and the table in `docs/ERROR_CODES.md`.
+`PHOENIX-DIFF-001` to `PHOENIX-DIFF-018`, with titles in the eight languages (`src/codes.rs`) and the table in `docs/ERROR_CODES.md`.
 
 ## Limits
 
