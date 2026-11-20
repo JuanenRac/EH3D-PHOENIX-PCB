@@ -7,8 +7,7 @@ use eh3d_phoenix_rules::Lang;
 use eh3d_serverclient::json::quote;
 
 use crate::codes::{Note, Severity};
-use crate::request::Kind;
-use crate::session::Outcome;
+use crate::session::{Outcome, Probe};
 
 /// The format name of the JSON report.
 pub const FORMAT: &str = "phoenix-server/1";
@@ -16,8 +15,8 @@ pub const FORMAT: &str = "phoenix-server/1";
 /// What a run of the command made.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ServerReport {
-    /// The kind of report asked of the station.
-    pub kind: Kind,
+    /// The kind of report, as the station names it (`rules_check`, `drill_report`...).
+    pub label: String,
     /// Whether the request was sent.
     pub sent: bool,
     /// The text of the request.
@@ -227,6 +226,19 @@ const WORDS: &[(&str, [&str; 8])] = &[
         ],
     ),
     (
+        "health",
+        [
+            "Server health",
+            "Estado del servidor",
+            "Zustand des Servers",
+            "Santé du serveur",
+            "Stato del server",
+            "サーバーの状態",
+            "服务器状态",
+            "Saúde do servidor",
+        ],
+    ),
+    (
         "notes",
         [
             "Notes",
@@ -255,7 +267,7 @@ pub fn report_text(report: &ServerReport, max_listed: usize, lang: Lang) -> Stri
     let mut out = format!(
         "{}: {} ({})\n",
         word("title", lang),
-        report.kind.request_kind(),
+        report.label,
         if report.sent {
             word("sent", lang)
         } else {
@@ -321,6 +333,31 @@ pub fn report_text(report: &ServerReport, max_listed: usize, lang: Lang) -> Stri
     out
 }
 
+/// What the server said of itself, as text in a language.
+pub fn probe_text(probe: &Probe, lang: Lang) -> String {
+    format!(
+        "{}: {} {}\n{}: {}\n  api_revision: {}\n",
+        word("health", lang),
+        probe.name,
+        probe.version,
+        word("state", lang),
+        probe.status,
+        probe.api_revision
+    )
+}
+
+/// What the server said of itself, as JSON of the format `phoenix-server/1`, the same every time.
+pub fn probe_json(probe: &Probe) -> String {
+    format!(
+        "{{\"format\":{},\"health\":{{\"name\":{},\"version\":{},\"status\":{},\"api_revision\":{}}}}}\n",
+        quote(FORMAT),
+        quote(&probe.name),
+        quote(&probe.version),
+        quote(&probe.status),
+        probe.api_revision
+    )
+}
+
 fn note_json(note: &Note) -> String {
     format!(
         "{{\"code\":{},\"severity\":{},\"detail\":{}}}",
@@ -337,7 +374,7 @@ pub fn report_json(report: &ServerReport, max_listed: usize) -> String {
     let mut out = format!(
         "{{\"format\":{},\"kind\":{},\"sent\":{},\"items\":{},\"notes\":[{}]",
         quote(FORMAT),
-        quote(report.kind.request_kind()),
+        quote(&report.label),
         report.sent,
         report.items,
         notes.join(",")
@@ -424,12 +461,13 @@ mod tests {
             ],
             figures: vec![("hits".into(), "12".into())],
             polls: 3,
+            kind: "rules_check".into(),
         }
     }
 
     fn report(sent: bool) -> ServerReport {
         ServerReport {
-            kind: Kind::Rules,
+            label: "rules_check".into(),
             sent,
             request: "{\"kind\":\"rules_check\"}".into(),
             items: 5,
@@ -544,6 +582,33 @@ mod tests {
         );
         // the same report gives the same bytes
         assert_eq!(json, report_json(&report(true), 10));
+    }
+
+    fn probe() -> Probe {
+        Probe {
+            name: "eh3d-server".into(),
+            version: "0.9.1".into(),
+            status: "ok".into(),
+            api_revision: 1,
+        }
+    }
+
+    #[test]
+    fn the_health_of_the_server_is_told_in_each_language_and_as_json() {
+        let en = probe_text(&probe(), Lang::En);
+        assert_eq!(
+            en,
+            "Server health: eh3d-server 0.9.1\nState: ok\n  api_revision: 1\n"
+        );
+        let mut seen: Vec<String> = Lang::ALL.iter().map(|l| probe_text(&probe(), *l)).collect();
+        seen.sort();
+        seen.dedup();
+        assert_eq!(seen.len(), 8);
+        let j = Json::parse(&probe_json(&probe())).unwrap();
+        assert_eq!(j.get("format").and_then(Json::as_str), Some(FORMAT));
+        let h = j.get("health").unwrap();
+        assert_eq!(h.get("version").and_then(Json::as_str), Some("0.9.1"));
+        assert_eq!(h.get("api_revision").and_then(Json::as_u64), Some(1));
     }
 
     #[test]

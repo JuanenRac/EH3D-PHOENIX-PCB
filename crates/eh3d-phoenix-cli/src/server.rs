@@ -13,8 +13,9 @@ use eh3d_phoenix_rules::Lang;
 use eh3d_phoenix_server::codes::{INPUT_UNREADABLE, OPTION_INVALID};
 use eh3d_phoenix_server::request::clean_name;
 use eh3d_phoenix_server::{
-    connect, dry_run, prepare_board, prepare_measurements, report_json, report_text, send, Kind,
-    ServerError, ServerSettings, SleepPause,
+    check_reachable, connect, dry_run, prepare_board, prepare_measurements, probe, probe_json,
+    probe_text, read_report, report_json, report_text, send, Kind, ServerError, ServerReport,
+    ServerSettings, SleepPause,
 };
 
 use crate::export::read_board_file;
@@ -23,6 +24,8 @@ use crate::export::read_board_file;
 const DEFAULT_CONFIG: &str = "config/server.cfg";
 
 pub(crate) const USAGE: &str = "phoenix server [--config FILE] [--kind rules|drill|bom|inspect] [--send] [--json] [--lang CODE] <board | measurements>
+phoenix server [--config FILE] --health [--json] [--lang CODE]
+phoenix server [--config FILE] --job ID [--json] [--lang CODE]
 
   server        a report of the board made by the station of EH3D-SERVER: the rules of the maker
                 against the tracks, the gaps and the holes (--kind rules, the default), the
@@ -33,10 +36,15 @@ pub(crate) const USAGE: &str = "phoenix server [--config FILE] [--kind rules|dri
                 pcb and the report of the station is read back, with the codes
                 PHOENIX-SERVER-<NNN>; the exit code is 1 when the verdict is not a pass. A
                 prototype that has been tried against a server in memory and a small server on
-                this computer only
+                this computer only. --health asks the server whether it is there and well, and
+                --job reads the report of a job that is already on the server (one made with
+                start_job = false and started by a person, for example); both need
+                allow_network = true in the settings and no file
   --config      the link to the server and every limit (default: config/server.cfg when it exists)
   --kind        the report asked of the station
   --send        send the request (the settings must allow it)
+  --health      ask the server whether it is there and well (no token is sent)
+  --job ID      read the state and the report of the job with this id
   --json        print the report as JSON, the same every time
   --lang CODE   the words in en, es, de, fr, it, ja, zh or pt
 ";
@@ -44,6 +52,8 @@ pub(crate) const USAGE: &str = "phoenix server [--config FILE] [--kind rules|dri
 struct Options {
     json: bool,
     send: bool,
+    health: bool,
+    job: Option<String>,
     lang: Lang,
     kind: Kind,
     config: Option<String>,
@@ -54,6 +64,8 @@ fn parse_options(args: &[&str]) -> Result<Options, ServerError> {
     let mut options = Options {
         json: false,
         send: false,
+        health: false,
+        job: None,
         lang: Lang::En,
         kind: Kind::Rules,
         config: None,
@@ -70,6 +82,8 @@ fn parse_options(args: &[&str]) -> Result<Options, ServerError> {
         match *arg {
             "--json" => options.json = true,
             "--send" => options.send = true,
+            "--health" => options.health = true,
+            "--job" => options.job = Some(value("--job needs the id of a job")?),
             "--lang" => {
                 let tag = value("--lang needs a language code")?;
                 options.lang = Lang::from_tag(&tag).ok_or_else(|| bad("unknown language code"))?;
@@ -113,7 +127,51 @@ fn fail(err: &mut dyn Write, error: &ServerError, lang: Lang) -> i32 {
     2
 }
 
+/// Prints a report and gives the exit code that goes with it.
+fn print_report(
+    report: &ServerReport,
+    options: &Options,
+    settings: &ServerSettings,
+    out: &mut dyn Write,
+) -> i32 {
+    let text = if options.json {
+        report_json(report, settings.max_listed)
+    } else {
+        report_text(report, settings.max_listed, options.lang)
+    };
+    let _ = out.write_all(text.as_bytes());
+    i32::from(report.has_errors())
+}
+
+/// `--health` and `--job`: what the server says of itself or of a job, with no file.
+fn ask_server(options: &Options, out: &mut dyn Write) -> Result<i32, ServerError> {
+    if (options.health && options.job.is_some()) || options.send || !options.files.is_empty() {
+        return Err(ServerError::new(
+            OPTION_INVALID,
+            "--health and --job take no file, no --send and are not given together",
+        ));
+    }
+    let settings = load_settings(options.config.as_deref())?;
+    let mut client = connect(&settings);
+    if let Some(id) = &options.job {
+        let report = read_report(&mut client, &settings, id, options.lang)?;
+        return Ok(print_report(&report, options, &settings, out));
+    }
+    check_reachable(&settings)?;
+    let found = probe(&mut client, options.lang)?;
+    let text = if options.json {
+        probe_json(&found)
+    } else {
+        probe_text(&found, options.lang)
+    };
+    let _ = out.write_all(text.as_bytes());
+    Ok(i32::from(found.status != "ok"))
+}
+
 fn server(options: &Options, out: &mut dyn Write) -> Result<i32, ServerError> {
+    if options.health || options.job.is_some() {
+        return ask_server(options, out);
+    }
     let [path] = options.files.as_slice() else {
         return Err(ServerError::new(
             OPTION_INVALID,
@@ -148,13 +206,7 @@ fn server(options: &Options, out: &mut dyn Write) -> Result<i32, ServerError> {
     } else {
         dry_run(prepared)
     };
-    let text = if options.json {
-        report_json(&report, settings.max_listed)
-    } else {
-        report_text(&report, settings.max_listed, options.lang)
-    };
-    let _ = out.write_all(text.as_bytes());
-    Ok(i32::from(report.has_errors()))
+    Ok(print_report(&report, options, &settings, out))
 }
 
 pub(crate) fn server_command(args: &[&str], out: &mut dyn Write, err: &mut dyn Write) -> i32 {

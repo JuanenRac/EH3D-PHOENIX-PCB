@@ -6,6 +6,8 @@ The crate `eh3d-phoenix-server` and the command `phoenix server` send a board, o
 
 ```
 phoenix server [--config FILE] [--kind rules|drill|bom|inspect] [--send] [--json] [--lang CODE] <board | measurements>
+phoenix server [--config FILE] --health [--json] [--lang CODE]
+phoenix server [--config FILE] --job ID [--json] [--lang CODE]
 ```
 
 The board is a `.json` board, an EAGLE `.brd` or a KiCad `.kicad_pcb`, as for the other commands; for `--kind inspect` the file is a text of lines `name, nominal, tolerance, value[, unit]` (blank lines and lines that start with `#` are ignored; the unit has up to 8 characters). The exit code is 0 for a dry run and for a report whose verdict is a pass, 1 when the verdict of the server is not a pass, and 2 when the arguments, the input or the link are unusable.
@@ -13,6 +15,13 @@ The board is a `.json` board, an EAGLE `.brd` or a KiCad `.kicad_pcb`, as for th
 ## Nothing is sent by chance
 
 Without `--send` the command makes the request and shows it (`PHOENIX-SERVER-012`); it opens no connection. To send it, **both** must hold: the settings say `allow_network = true` and the command is given `--send`. The program makes no other use of the network. The settings that come with the program have `allow_network = false` and no address.
+
+## Asking the server
+
+* `--health` asks the server whether it is there and well (`GET /api/v1/health`, which needs no login, so no token is sent) and prints its name, its version, its state and the revision of its API; the exit code is 0 when the state is `ok`, 1 when the server answered something else and 2 when it could not be reached. Only the switch `allow_network` and an address are needed.
+* `--job ID` reads a job that is already on the server (`GET /api/v1/work/jobs/{id}`), once, and reports it like a run that sent the request: the state, and the verdict and the problems when the job has a report. It is for a job that was made with `start_job = false` and started by a person, or by another program, and for finding out how a job ended after the command that sent it was closed. A job that has not ended is not an error: its state says so, and as it has no verdict the exit code is 1. The id is letters, digits, `_` and `-`, up to 64 (anything else is refused before a request is made, `PHOENIX-SERVER-002`), and the settings must allow sending as for `--send`.
+
+Neither takes a file, `--send` or the other.
 
 ## The kinds of report
 

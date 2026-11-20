@@ -469,12 +469,15 @@ phoenix ipc2581 [--config FILE] [--out FILE] [--d356 FILE] [--overwrite] [--json
                 its options
 
 phoenix server [--config FILE] [--kind rules|drill|bom|inspect] [--send] [--json] [--lang xx] <board | measurements>
+phoenix server [--config FILE] --health [--json] [--lang xx]
+phoenix server [--config FILE] --job ID [--json] [--lang xx]
 
   server        a report of a board made by the station of EH3D-SERVER, the server that the
                 machines and the other programs of the suite share: the rules of the maker against
                 the tracks, the gaps and the holes, the drilling, the parts list, or an inspection
                 of measurements, with the codes PHOENIX-SERVER-<NNN>; a dry run that shows the
-                request unless --send is given and allow_network is true in the settings, a
+                request unless --send is given and allow_network is true in the settings, --health
+                asks whether the server is there and --job reads a job that is on it, a
                 prototype that has never talked to a running server, run `phoenix server` alone
                 for its options
 

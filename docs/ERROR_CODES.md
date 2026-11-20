@@ -1008,11 +1008,11 @@ The titles of these codes also exist in the eight languages of the suite (`TITLE
 | Code | Title | Raised by |
 |---|---|---|
 | PHOENIX-SERVER-001 | Server settings are not valid | a line of `config/server.cfg` that is not `key = value`, an unknown key, a key of the link out of its range (`server_timeout_s`, `server_retries`...), a number that cannot be read or a value out of range |
-| PHOENIX-SERVER-002 | A command option is not valid | an option of `phoenix server` that is not known, lacks its value or has a value that is not valid, a number of files other than one, or the kind `inspect` with a board |
+| PHOENIX-SERVER-002 | A command option is not valid | an option of `phoenix server` that is not known, lacks its value or has a value that is not valid, a number of files other than one, `--health` or `--job` with a file, with `--send` or together, the id of a job that is not letters, digits, `_` and `-` up to 64, or the kind `inspect` with a board |
 | PHOENIX-SERVER-003 | An input file cannot be read | a board, a settings file or a file of measurements that cannot be opened, is too large or has a line that cannot be read |
 | PHOENIX-SERVER-004 | A limit of the request was exceeded | error: more tracks, gaps, holes, parts or measurements than `max_items` |
-| PHOENIX-SERVER-005 | Sending to the server is not allowed by the settings | `--send` while `allow_network` is false |
-| PHOENIX-SERVER-006 | The link to the server is not set up | `server_address`, `server_machine` or `server_token` empty when the request is to be sent |
+| PHOENIX-SERVER-005 | Sending to the server is not allowed by the settings | `--send`, `--health` or `--job` while `allow_network` is false |
+| PHOENIX-SERVER-006 | The link to the server is not set up | `server_address` empty for any use, `server_machine` or `server_token` empty when a request is to be sent or a job read |
 | PHOENIX-SERVER-007 | The server could not be reached or refused the request | a connection that failed after the retries, a refused token or role, or any other refusal of the server, with its text in the language of the report |
 | PHOENIX-SERVER-008 | The server answered something that cannot be read | an answer that is not JSON, that holds no job, or a job with no id |
 | PHOENIX-SERVER-009 | The job did not end in the time allowed | a job still open after `max_polls` questions; it is stopped on the server |

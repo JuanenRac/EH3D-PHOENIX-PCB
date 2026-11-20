@@ -189,14 +189,14 @@ fn answer(stream: &mut TcpStream, status: &str, body: &str) {
     let _ = stream.write_all(text.as_bytes());
 }
 
-/// Serves three requests (make, start, ask) and returns the address and what was seen.
-fn small_server() -> (String, Seen, thread::JoinHandle<()>) {
+/// Serves `connections` requests (make, start, ask, or health) and returns the address and what was seen.
+fn small_server(connections: usize) -> (String, Seen, thread::JoinHandle<()>) {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let address = listener.local_addr().unwrap().to_string();
     let seen: Seen = Arc::default();
     let log = seen.clone();
     let handle = thread::spawn(move || {
-        for _ in 0..3 {
+        for _ in 0..connections {
             let Ok((mut stream, _)) = listener.accept() else {
                 return;
             };
@@ -205,6 +205,11 @@ fn small_server() -> (String, Seen, thread::JoinHandle<()>) {
             };
             log.lock().unwrap().push((line.clone(), body));
             match line.as_str() {
+                "GET /api/v1/health" => answer(
+                    &mut stream,
+                    "200 OK",
+                    "{\"name\":\"eh3d-server\",\"version\":\"0.9.1\",\"api_revision\":1,\"status\":\"ok\"}",
+                ),
                 "POST /api/v1/work/jobs" => answer(
                     &mut stream,
                     "201 Created",
@@ -337,7 +342,7 @@ fn sending_needs_the_switch_the_address_the_machine_and_the_token() {
 fn a_report_is_made_over_a_real_connection_and_the_exit_code_follows_the_verdict() {
     let dir = tempfile::tempdir().unwrap();
     let path = write_board(dir.path());
-    let (address, seen, handle) = small_server();
+    let (address, seen, handle) = small_server(3);
     let cfg = write_text(dir.path(), "on.cfg", &settings_text(&address, true));
     let (code, out, err) = command(&["server", "--send", "--config", &cfg, "--lang", "pt", &path]);
     handle.join().unwrap();
@@ -365,6 +370,75 @@ fn a_report_is_made_over_a_real_connection_and_the_exit_code_follows_the_verdict
     assert_eq!(body["name"], "board");
     assert_eq!(body["request"]["kind"], "rules_check");
     assert_eq!(names(dir.path()), vec!["board.json", "on.cfg"]);
+}
+
+#[test]
+fn health_asks_the_server_whether_it_is_there_and_sends_no_token() {
+    let dir = tempfile::tempdir().unwrap();
+    let (address, seen, handle) = small_server(2);
+    let cfg = write_text(dir.path(), "on.cfg", &settings_text(&address, true));
+    let (code, out, err) = command(&["server", "--health", "--config", &cfg, "--lang", "es"]);
+    assert_eq!(code, 0, "{err}");
+    assert_eq!(
+        out,
+        "Estado del servidor: eh3d-server 0.9.1\nEstado: ok\n  api_revision: 1\n"
+    );
+    let (code, out, _) = command(&["server", "--health", "--json", "--config", &cfg]);
+    handle.join().unwrap();
+    assert_eq!(code, 0);
+    let j: serde_json::Value = serde_json::from_str(&out).unwrap();
+    assert_eq!(j["health"]["status"], "ok");
+    assert_eq!(j["health"]["api_revision"], 1);
+    let seen = seen.lock().unwrap();
+    assert_eq!(seen.len(), 2);
+    assert!(seen.iter().all(|(line, _)| line == "GET /api/v1/health"));
+}
+
+#[test]
+fn a_job_that_is_on_the_server_is_read_by_its_id() {
+    let dir = tempfile::tempdir().unwrap();
+    let (address, seen, handle) = small_server(1);
+    let cfg = write_text(dir.path(), "on.cfg", &settings_text(&address, true));
+    let (code, out, err) = command(&["server", "--job", "w-1", "--config", &cfg]);
+    handle.join().unwrap();
+    // the verdict of the report is a fail
+    assert_eq!(code, 1, "{err}\n{out}");
+    assert!(
+        out.contains("Server report: rules_check (sent to the server)"),
+        "{out}"
+    );
+    assert!(out.contains("Job: w-1 (State: done)"), "{out}");
+    assert!(out.contains("track_width [GND Top]"), "{out}");
+    assert_eq!(seen.lock().unwrap()[0].0, "GET /api/v1/work/jobs/w-1");
+}
+
+#[test]
+fn health_and_job_need_the_switch_and_take_no_file_and_a_bad_id_is_refused() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = write_board(dir.path());
+    let off = write_text(dir.path(), "off.cfg", &settings_text("127.0.0.1:9", false));
+    for args in [
+        vec!["server", "--health", "--config", off.as_str()],
+        vec!["server", "--job", "w-1", "--config", off.as_str()],
+    ] {
+        let (code, _, err) = command(&args);
+        assert_eq!(code, 2, "{args:?}");
+        assert!(err.contains("PHOENIX-SERVER-005"), "{args:?}: {err}");
+    }
+    let on = write_text(dir.path(), "on.cfg", &settings_text("127.0.0.1:9", true));
+    let (code, _, err) = command(&["server", "--job", "../etc", "--config", &on]);
+    assert_eq!(code, 2);
+    assert!(err.contains("PHOENIX-SERVER-002"), "{err}");
+    for args in [
+        vec!["server", "--health", "--job", "w-1"],
+        vec!["server", "--health", path.as_str()],
+        vec!["server", "--job", "w-1", "--send"],
+        vec!["server", "--job"],
+    ] {
+        let (code, _, err) = command(&args);
+        assert_eq!(code, 2, "{args:?}");
+        assert!(err.contains("PHOENIX-SERVER-002"), "{args:?}: {err}");
+    }
 }
 
 #[test]

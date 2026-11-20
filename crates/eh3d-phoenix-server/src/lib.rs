@@ -28,9 +28,12 @@ pub mod settings;
 use eh3d_phoenix_board::Board;
 
 pub use codes::{title, Note, ServerError, Severity};
-pub use report::{report_json, report_text, ServerReport, FORMAT};
+pub use report::{probe_json, probe_text, report_json, report_text, ServerReport, FORMAT};
 pub use request::{facts_from_board, parse_measurements, Facts, Kind, Measurement};
-pub use session::{check_ready, connect, run_job, Outcome, Pause, SleepPause, APP};
+pub use session::{
+    check_reachable, check_ready, connect, job_id_is_safe, probe, read_job, run_job, Outcome,
+    Pause, Probe, SleepPause, APP,
+};
 pub use settings::ServerSettings;
 
 /// A request that is ready to be shown or sent.
@@ -98,7 +101,7 @@ pub fn dry_run(prepared: Prepared) -> ServerReport {
     let mut notes = prepared.notes;
     notes.push(Note::new(codes::DRY_RUN, Severity::Info, ""));
     ServerReport {
-        kind: prepared.kind,
+        label: prepared.kind.request_kind().to_owned(),
         sent: false,
         request: prepared.request,
         items: prepared.items,
@@ -121,10 +124,34 @@ pub fn send(
     notes.extend(check_ready(settings)?);
     let outcome = run_job(client, pause, settings, name, &prepared.request, lang)?;
     Ok(ServerReport {
-        kind: prepared.kind,
+        label: prepared.kind.request_kind().to_owned(),
         sent: true,
         request: prepared.request,
         items: prepared.items,
+        notes,
+        outcome: Some(outcome),
+    })
+}
+
+/// Reads a job that is already on the server and reports what it says. The settings must allow it
+/// ([`check_ready`]).
+pub fn read_report(
+    client: &mut eh3d_serverclient::Client,
+    settings: &ServerSettings,
+    id: &str,
+    lang: eh3d_phoenix_rules::Lang,
+) -> Result<ServerReport, ServerError> {
+    let notes = check_ready(settings)?;
+    let outcome = read_job(client, id, lang)?;
+    Ok(ServerReport {
+        label: if outcome.kind.is_empty() {
+            "job".to_owned()
+        } else {
+            outcome.kind.clone()
+        },
+        sent: true,
+        request: String::new(),
+        items: 0,
         notes,
         outcome: Some(outcome),
     })
@@ -245,6 +272,29 @@ mod tests {
         let text = report_text(&report, 10, Lang::Pt);
         assert!(text.contains("reprovado"), "{text}");
         assert!(text.contains("track_width"));
+    }
+
+    #[test]
+    fn a_job_that_is_on_the_server_is_read_and_reported_without_a_request() {
+        let s = settings();
+        let mut client = sc::Client::new(s.link.clone(), Box::new(Station))
+            .with_sleeper(Box::new(SimServer::new().sleeper()));
+        let report = read_report(&mut client, &s, "w-9", Lang::En).unwrap();
+        assert!(report.sent && report.request.is_empty() && report.items == 0);
+        assert_eq!(report.label, "job");
+        let outcome = report.outcome.as_ref().unwrap();
+        assert_eq!(
+            (outcome.job_id.as_str(), outcome.state.as_str()),
+            ("w-9", "done")
+        );
+        assert!(report.has_errors());
+        let text = report_text(&report, 10, Lang::En);
+        assert!(text.contains("Job: w-9 (State: done)"), "{text}");
+        // the settings must allow it, as for sending
+        let mut off = settings();
+        off.allow_network = false;
+        let e = read_report(&mut client, &off, "w-9", Lang::En).unwrap_err();
+        assert_eq!(e.code, codes::NETWORK_NOT_ALLOWED);
     }
 
     #[test]
