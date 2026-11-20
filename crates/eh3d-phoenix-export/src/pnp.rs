@@ -694,10 +694,23 @@ fn centre_word(centre: Centre) -> &'static str {
     }
 }
 
-/// The JSON file of one face, format `phoenix-pnp/1`.
+/// The identity of the writer profile of a pick and place file: the format and the section of the
+/// settings file that is in force (`default` when none was chosen), made fit for a name.
+pub fn writer_id(settings: &PnpSettings) -> String {
+    use eh3d_phoenix_model::writer_profile::{fit_name, identity};
+    let name = fit_name(settings.maker.as_deref().unwrap_or("default"));
+    identity("phoenix-pnp/1", &name).unwrap_or_else(|_| "phoenix-pnp/1:default".to_owned())
+}
+
+/// The JSON file of one face, format `phoenix-pnp/1`; its field `writer_profile` names the profile.
+/// The CSV file has no such field, because a loader of a machine reads it line by line.
 pub fn pnp_json(plan: &PnpPlan, side: Side, settings: &PnpSettings) -> String {
     let mut text = String::from("{\n");
     text.push_str("  \"format\": \"phoenix-pnp/1\",\n");
+    text.push_str(&format!(
+        "  \"writer_profile\": {},\n",
+        json_string(&writer_id(settings))
+    ));
     text.push_str(&format!("  \"board\": {},\n", json_string(&plan.name)));
     text.push_str(&format!("  \"side\": \"{}\",\n", side_word(side)));
     text.push_str(&format!("  \"units\": \"{}\",\n", settings.unit.name()));

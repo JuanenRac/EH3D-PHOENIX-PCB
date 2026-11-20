@@ -102,6 +102,11 @@ impl FabFile {
 pub struct FabSet {
     /// The name of the board.
     pub name: String,
+    /// The identity of the profile that made the files (`phoenix-export/1:generic`). The Gerber and
+    /// Excellon files carry it as a comment; the placement file and the bill of materials, which are
+    /// CSV that a maker's loader reads line by line, do not, and the manifest of a package names the
+    /// profile for them.
+    pub writer_profile: String,
     /// The files, in a fixed order: layers, drills, placement, bill of materials.
     pub files: Vec<FabFile>,
     /// What the files cannot say, in order.
@@ -432,8 +437,21 @@ pub fn build(board: &Board, profile: &Profile) -> Result<FabSet, ExportError> {
             )));
         }
     }
+    let writer_profile = profile.writer_id()?;
+    for file in &mut files {
+        let stamp: fn(&str, &str) -> String = match file.role {
+            FileRole::Layer { .. } => eh3d_phoenix_model::writer_profile::stamp_gerber,
+            FileRole::Drill { .. } | FileRole::DrillMixed | FileRole::DrillSpan { .. } => {
+                eh3d_phoenix_model::writer_profile::stamp_excellon
+            }
+            FileRole::Placement | FileRole::Bom => continue,
+        };
+        let text = String::from_utf8_lossy(&file.bytes).into_owned();
+        file.bytes = stamp(&text, &writer_profile).into_bytes();
+    }
     Ok(FabSet {
         name,
+        writer_profile,
         files,
         diagnostics,
     })

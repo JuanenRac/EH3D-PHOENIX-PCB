@@ -36,6 +36,9 @@ pub struct Ipc2581Settings {
     pub d356_unconnected_name: String,
     /// The largest IPC-2581 file the reader accepts, in bytes (`phoenix ipc2581-read`).
     pub read_max_bytes: usize,
+    /// The name of the writer profile that the file carries as a comment (`phoenix-ipc2581/1:default`): from
+    /// 1 to 64 letters, digits, `.`, `_` and `-`.
+    pub profile: String,
     /// The deepest nesting of elements the reader accepts.
     pub read_max_depth: usize,
     /// The most elements a file may hold for the reader to accept it.
@@ -61,6 +64,9 @@ pub struct Ipc2581Settings {
     pub zip_max_ratio: usize,
 }
 
+/// The tag of the format of these settings, for the identity of the writer profile.
+pub const WRITER_FORMAT: &str = "phoenix-ipc2581/1";
+
 impl Default for Ipc2581Settings {
     fn default() -> Self {
         Ipc2581Settings {
@@ -75,6 +81,7 @@ impl Default for Ipc2581Settings {
             d356_include_smd: true,
             d356_unconnected_name: "N/C".to_owned(),
             read_max_bytes: 128 * 1024 * 1024,
+            profile: "default".to_owned(),
             read_max_depth: 64,
             read_max_elements: 50_000_000,
             read_max_items: 20_000_000,
@@ -144,6 +151,7 @@ impl Ipc2581Settings {
                 "max_items" => s.max_items = value.parse().map_err(|_| bad())?,
                 "d356_include_smd" => s.d356_include_smd = parse_bool(value).ok_or_else(bad)?,
                 "d356_unconnected_name" => value.clone_into(&mut s.d356_unconnected_name),
+                "profile" => value.clone_into(&mut s.profile),
                 "read_max_bytes" => s.read_max_bytes = value.parse().map_err(|_| bad())?,
                 "read_max_depth" => s.read_max_depth = value.parse().map_err(|_| bad())?,
                 "read_max_elements" => s.read_max_elements = value.parse().map_err(|_| bad())?,
@@ -169,8 +177,19 @@ impl Ipc2581Settings {
         Ok(s)
     }
 
+    /// The identity that the file carries: the tag of the format and the name of the profile.
+    pub fn writer_id(&self) -> Result<String, Ipc2581Error> {
+        eh3d_phoenix_model::writer_profile::identity(WRITER_FORMAT, &self.profile).map_err(|_| {
+            Ipc2581Error::new(
+                SETTINGS_INVALID,
+                "profile must be 1 to 64 letters, digits, '.', '_' or '-' (no two '-' in a row)",
+            )
+        })
+    }
+
     /// Checks the ranges that the writer relies on.
     pub fn validate(&self) -> Result<(), Ipc2581Error> {
+        self.writer_id()?;
         if !is_date_time(&self.origination) {
             return Err(Ipc2581Error::new(
                 SETTINGS_INVALID,

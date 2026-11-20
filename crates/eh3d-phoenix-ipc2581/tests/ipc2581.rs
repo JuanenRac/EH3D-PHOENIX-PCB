@@ -243,15 +243,17 @@ fn step(root: &Element) -> &Element {
 fn the_file_is_well_formed_and_gives_the_same_tree_when_read_and_written_again() {
     let (out, root) = file(&Ipc2581Settings::default());
     assert!(
-        out.xml
-            .starts_with("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<IPC-2581 "),
+        out.xml.starts_with(
+            "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!-- EH3D writer profile: phoenix-ipc2581/1:default -->\n<IPC-2581 "
+        ),
         "{}",
-        &out.xml[..80]
+        &out.xml[..120]
     );
     assert_eq!(root.name, "IPC-2581");
     assert_eq!(root.attr("revision"), Some("C"));
     assert_eq!(root.attr("xmlns"), Some("http://webstds.ipc.org/2581"));
-    let body = out.xml.split_once('\n').unwrap().1;
+    // the declaration and the comment that names the writer profile come before the root element
+    let body = out.xml.splitn(3, '\n').nth(2).unwrap();
     assert_eq!(root.to_xml(), body);
     // the same board gives the same bytes
     assert_eq!(
@@ -818,4 +820,51 @@ fn the_lines_of_the_dimensions_are_written_on_a_document_layer_and_their_texts_w
         "{}",
         f.detail
     );
+}
+
+#[test]
+fn the_file_names_its_writer_profile_once_and_the_same_settings_give_the_same_bytes() {
+    let (out, _) = file(&Ipc2581Settings::default());
+    assert_eq!(eh3d_phoenix_model::writer_profile::count(&out.xml), 1);
+    assert_eq!(
+        eh3d_phoenix_model::writer_profile::find(&out.xml).as_deref(),
+        Some("phoenix-ipc2581/1:default")
+    );
+    let other = Ipc2581Settings {
+        profile: "my-maker_2.0".to_owned(),
+        ..Ipc2581Settings::default()
+    };
+    let (a, _) = file(&other);
+    let (b, _) = file(&other);
+    assert_eq!(a.xml, b.xml);
+    assert_eq!(
+        eh3d_phoenix_model::writer_profile::find(&a.xml).as_deref(),
+        Some("phoenix-ipc2581/1:my-maker_2.0")
+    );
+    // nothing but the comment differs from the file with the default profile
+    let strip = |text: &str| -> String {
+        text.split_inclusive('\n')
+            .filter(|l| !l.contains(eh3d_phoenix_model::writer_profile::LABEL))
+            .collect()
+    };
+    assert_eq!(strip(&a.xml), strip(&out.xml));
+}
+
+#[test]
+fn a_profile_name_that_a_comment_cannot_hold_is_refused_with_the_settings_code() {
+    for name in ["", "a b", "a--b", "a*b", "é", &"a".repeat(65)] {
+        let settings = Ipc2581Settings {
+            profile: name.to_owned(),
+            ..Ipc2581Settings::default()
+        };
+        let error = export(&board(), &settings).unwrap_err();
+        assert_eq!(
+            error.code,
+            eh3d_phoenix_ipc2581::codes::SETTINGS_INVALID,
+            "{name:?}"
+        );
+    }
+    let from_text = Ipc2581Settings::parse("profile = my-maker\n").unwrap();
+    assert_eq!(from_text.profile, "my-maker");
+    assert!(Ipc2581Settings::parse("profile = a b\n").is_err());
 }

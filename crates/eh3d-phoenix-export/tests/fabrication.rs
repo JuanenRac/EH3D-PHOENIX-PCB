@@ -1204,3 +1204,243 @@ fn the_mixed_file_is_in_the_package_and_a_lost_mixed_file_is_found() {
         "{found:?}"
     );
 }
+
+// ---- the name of the writer profile in every file ----------------------------------------------------
+
+/// The text of a file without the line that names the writer profile.
+fn without_stamp(text: &str) -> String {
+    text.split_inclusive('\n')
+        .filter(|l| !l.contains(eh3d_phoenix_model::writer_profile::LABEL))
+        .collect()
+}
+
+#[test]
+fn every_gerber_and_excellon_file_carries_the_profile_once_and_the_csv_files_do_not() {
+    let set = build(&fixture(), &Profile::default()).unwrap();
+    assert_eq!(set.writer_profile, "phoenix-export/1:generic");
+    let mut stamped = 0;
+    for f in &set.files {
+        let text = f.text();
+        match f.role {
+            FileRole::Placement | FileRole::Bom => {
+                assert_eq!(
+                    eh3d_phoenix_model::writer_profile::count(text),
+                    0,
+                    "{}",
+                    f.path
+                );
+            }
+            _ => {
+                stamped += 1;
+                assert_eq!(
+                    eh3d_phoenix_model::writer_profile::count(text),
+                    1,
+                    "{}",
+                    f.path
+                );
+                assert_eq!(
+                    eh3d_phoenix_model::writer_profile::find(text).as_deref(),
+                    Some("phoenix-export/1:generic"),
+                    "{}",
+                    f.path
+                );
+            }
+        }
+    }
+    // the layers and the two drill files of the fixture
+    assert!(stamped >= 8, "{stamped}");
+}
+
+#[test]
+fn the_profile_is_the_first_line_of_a_gerber_file_and_the_line_after_m48_of_a_drill_file() {
+    let set = build(&fixture(), &Profile::default()).unwrap();
+    for f in &set.files {
+        let first_two: Vec<&str> = f.text().lines().take(2).collect();
+        match f.role {
+            FileRole::Layer { .. } => assert_eq!(
+                first_two[0], "G04 EH3D writer profile: phoenix-export/1:generic*",
+                "{}",
+                f.path
+            ),
+            FileRole::Drill { .. } | FileRole::DrillMixed | FileRole::DrillSpan { .. } => {
+                assert_eq!(first_two[0], "M48", "{}", f.path);
+                assert_eq!(
+                    first_two[1], "; EH3D writer profile: phoenix-export/1:generic",
+                    "{}",
+                    f.path
+                );
+            }
+            _ => {}
+        }
+    }
+}
+
+#[test]
+fn the_comment_says_the_profile_and_nothing_else() {
+    let set = build(&fixture(), &Profile::default()).unwrap();
+    for f in &set.files {
+        for line in f.text().lines() {
+            if line.contains(eh3d_phoenix_model::writer_profile::LABEL) {
+                assert!(
+                    line == "G04 EH3D writer profile: phoenix-export/1:generic*"
+                        || line == "; EH3D writer profile: phoenix-export/1:generic",
+                    "{}: {line}",
+                    f.path
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn the_files_with_the_profile_are_the_same_bytes_every_time_and_a_check_reads_them() {
+    let f = fixture();
+    let profile = Profile::default();
+    let a = build(&f, &profile).unwrap();
+    let b = build(&f, &profile).unwrap();
+    for (x, y) in a.files.iter().zip(&b.files) {
+        assert_eq!(x.path, y.path);
+        assert_eq!(x.bytes, y.bytes, "{}", x.path);
+    }
+    assert_eq!(a.manifest().unwrap(), b.manifest().unwrap());
+    // the files with the comment are read back by the check and by the parser of Gerber files
+    assert!(verify(&f, &profile, &a).is_empty());
+    let top = eh3d_parser_gerber::parse(file(&a, "layers/02_top_copper.gbr"));
+    let names: Vec<&str> = top.attributes.iter().map(|x| x.name.as_str()).collect();
+    assert_eq!(
+        names,
+        vec![".GenerationSoftware", ".FileFunction", ".FilePolarity"]
+    );
+}
+
+#[test]
+fn another_name_changes_the_comment_and_nothing_else() {
+    let f = fixture();
+    let other = Profile {
+        name: "my-maker_2.0".to_owned(),
+        ..Profile::default()
+    };
+    let a = build(&f, &Profile::default()).unwrap();
+    let b = build(&f, &other).unwrap();
+    assert_eq!(b.writer_profile, "phoenix-export/1:my-maker_2.0");
+    assert_eq!(a.files.len(), b.files.len());
+    for (x, y) in a.files.iter().zip(&b.files) {
+        assert_eq!(x.path, y.path);
+        assert_eq!(
+            without_stamp(x.text()),
+            without_stamp(y.text()),
+            "{}",
+            x.path
+        );
+        match x.role {
+            FileRole::Placement | FileRole::Bom => assert_eq!(x.bytes, y.bytes),
+            _ => assert_ne!(x.bytes, y.bytes, "{}", x.path),
+        }
+    }
+}
+
+#[test]
+fn the_profiles_of_the_files_and_of_the_makers_each_stamp_their_own_name() {
+    let f = fixture();
+    let own = ProfileSet::from_json(include_str!("../../../config/export_profiles.json")).unwrap();
+    let makers =
+        ProfileSet::from_json(include_str!("../../../config/export_profiles_makers.json")).unwrap();
+    let mut seen = 0;
+    for profile in own.profiles.iter().chain(&makers.profiles) {
+        let set = build(&f, profile).unwrap();
+        let want = format!("phoenix-export/1:{}", profile.name);
+        assert_eq!(set.writer_profile, want);
+        for file in &set.files {
+            if !matches!(file.role, FileRole::Placement | FileRole::Bom) {
+                assert_eq!(
+                    eh3d_phoenix_model::writer_profile::find(file.text()).as_deref(),
+                    Some(want.as_str()),
+                    "{} in {}",
+                    file.path,
+                    profile.name
+                );
+            }
+        }
+        seen += 1;
+    }
+    assert!(seen >= 20, "{seen}");
+}
+
+#[test]
+fn a_name_that_cannot_be_written_is_a_profile_error_and_not_a_file() {
+    let f = fixture();
+    for name in ["a b", "a*b", "a%b", "a--b", "é", &"a".repeat(65)] {
+        let profile = Profile {
+            name: name.to_owned(),
+            ..Profile::default()
+        };
+        let error = build(&f, &profile).unwrap_err();
+        assert_eq!(error.code(), codes::PROFILE_INVALID, "{name:?}");
+        assert!(profile.writer_id().is_err());
+    }
+}
+
+#[test]
+fn names_drawn_with_a_fixed_seed_are_stamped_or_refused_by_the_one_rule() {
+    // names from a generator with a fixed seed: the ones the rule accepts are stamped as they are, the
+    // others are refused before any file is made
+    let mut seed = 0x024_u64;
+    let mut next = || {
+        seed = seed
+            .wrapping_mul(6_364_136_223_846_793_005)
+            .wrapping_add(1_442_695_040_888_963_407);
+        seed >> 33
+    };
+    let alphabet = b"abcXYZ019._- *%,";
+    let f = fixture();
+    let (mut accepted, mut refused) = (0, 0);
+    for _ in 0..60 {
+        let len = (next() % 10 + 1) as usize;
+        let name: String = (0..len)
+            .map(|_| char::from(alphabet[(next() as usize) % alphabet.len()]))
+            .collect();
+        let profile = Profile {
+            name: name.clone(),
+            ..Profile::default()
+        };
+        let usable =
+            eh3d_phoenix_model::writer_profile::identity("phoenix-export/1", &name).is_ok();
+        match build(&f, &profile) {
+            Ok(set) => {
+                assert!(usable, "{name:?}");
+                assert_eq!(set.writer_profile, format!("phoenix-export/1:{name}"));
+                accepted += 1;
+            }
+            Err(e) => {
+                assert!(!usable, "{name:?}");
+                assert_eq!(e.code(), codes::PROFILE_INVALID);
+                refused += 1;
+            }
+        }
+    }
+    assert!(accepted > 0 && refused > 0, "{accepted} {refused}");
+}
+
+#[test]
+fn the_package_of_a_board_is_the_same_bytes_with_the_profile_and_holds_it_in_every_layer_file() {
+    let profile = Profile::default();
+    let a = export_package_reproducible(&fixture(), &profile).unwrap();
+    let b = export_package_reproducible(&fixture(), &profile).unwrap();
+    assert_eq!(a.package.to_bytes().unwrap(), b.package.to_bytes().unwrap());
+    let set = build(&fixture(), &profile).unwrap();
+    for f in &set.files {
+        if matches!(f.role, FileRole::Layer { .. }) {
+            let entry = a
+                .package
+                .entry(&f.path)
+                .expect("the entry is in the package");
+            let text = String::from_utf8_lossy(entry);
+            assert_eq!(
+                eh3d_phoenix_model::writer_profile::count(&text),
+                1,
+                "{}",
+                f.path
+            );
+        }
+    }
+}

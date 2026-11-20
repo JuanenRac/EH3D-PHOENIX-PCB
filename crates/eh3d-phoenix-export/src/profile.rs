@@ -612,12 +612,25 @@ fn check_delimiter(what: &str, delimiter: char) -> Result<(), ExportError> {
 }
 
 impl Profile {
+    /// The identity that every file made with this profile carries: the tag of the format of the profile
+    /// file and the name of the profile (`phoenix-export/1:generic`), written as a comment by the rule of
+    /// `eh3d_phoenix_model::writer_profile`.
+    pub fn writer_id(&self) -> Result<String, ExportError> {
+        eh3d_phoenix_model::writer_profile::identity(FORMAT_TAG, &self.name).map_err(|_| {
+            bad(format!(
+                "{}: the name of a profile holds only letters, digits, '.', '_' and '-' (up to 64, no two '-' in a row)",
+                self.name
+            ))
+        })
+    }
+
     /// Checks every value against its range.
     pub fn validate(&self) -> Result<(), ExportError> {
         let name = &self.name;
         if name.trim().is_empty() {
             return Err(bad("a profile has no name".to_owned()));
         }
+        self.writer_id()?;
         let g = &self.gerber;
         if g.extension.is_empty()
             || g.extension.len() > 8

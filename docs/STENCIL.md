@@ -39,7 +39,7 @@ A pad below a limit is flagged in the report (`aspect`, `area` or `aspect+area`)
 * `stencil_top.gbr`, `stencil_bottom.gbr`: Gerber, millimetres, format 4.6, dark polarity. The Gerber X2 attributes follow the export profile: at the level `legacy` the three attributes `.GenerationSoftware`, `.FileFunction` (`Paste,Top` or `Paste,Bot`) and `.FilePolarity` (`Positive`); at `x1` none; at `file`, `aperture` and `full` the file attributes of `docs/GERBER_X2.md`, and at `full` the object attributes `.C` and `.P` of each opening (`TO`, ended by `TD`). A face with no opening has no file.
 * `stencil_report.csv`: one line for each opening, also the ones taken away: `face,reference,pad,footprint,shape,pad_width_mm,pad_height_mm,aperture_width_mm,aperture_height_mm,windows,aspect_ratio,area_ratio,status`.
 
-The same board and settings always give the same bytes. A region with rounded corners or a turn that is not a right angle uses the sine and cosine of the machine once for each point, rounded to the nanometre.
+The same board and settings always give the same bytes. The Gerber files carry the name of the writer profile (`profile` in `config/stencil.cfg`) as the comment `G04 EH3D writer profile: phoenix-stencil/1:default*` in their first line; the report CSV does not. A region with rounded corners or a turn that is not a right angle uses the sine and cosine of the machine once for each point, rounded to the nanometre.
 
 ## The command
 

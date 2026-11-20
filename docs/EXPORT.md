@@ -85,6 +85,18 @@ A profile file is JSON: `{"format": "phoenix-export/1", "profiles": [...]}`. `co
 | | `side_top`, `side_bottom`, `columns` | Texts for the sides (`top`, `bottom`) and the columns |
 | `bom` | `file`, `delimiter`, `designator_separator`, `columns` | `bom.csv`, `,`, a space and the columns |
 
+## The writer profile in every file
+
+A writer gives the same bytes for the same board and the same profile, and the profile has a name. The name is written into the files as one comment, by one rule (`eh3d_phoenix_model::writer_profile`): the tag of the format of the profile file and the name of the profile, `phoenix-export/1:generic`.
+
+* A Gerber file has the line `G04 EH3D writer profile: phoenix-export/1:generic*` as its first line, at every level of X2 (a comment is not an attribute, so even the plain X1 files carry it).
+* An Excellon file has the line `; EH3D writer profile: phoenix-export/1:generic` after its `M48` line.
+* The placement file and the bill of materials, which a loader of a machine reads line by line, do not carry it; the manifest of a package (`docs/FABPACK.md`) names the profile for them, and `FabSet::writer_profile` holds it.
+* The comment says the profile and nothing else: no date, no name of a person, of a computer or of a file, and no version of the program. A name of a profile has 1 to 64 letters, digits, `.`, `_` and `-`, with no two `-` in a row; a profile with another name is refused (`PHOENIX-EXPORT-011`) before any file is made.
+* The stencil (`profile` in `config/stencil.cfg`, `phoenix-stencil/1`), the IPC-2581 file (`profile` in `config/ipc2581.cfg`, `phoenix-ipc2581/1`) and the JSON file of pick and place (`writer_profile`, `phoenix-pnp/1` with the section of the settings that is in force or `default`) carry it in the same way.
+
+The tests make every file twice and compare the bytes, check that taking the line out gives the files of another profile name byte for byte, and that the files with the line are read back by the check and by the parser.
+
 ## Check by reading back
 
 `verify` reads every file back with the parsers of EH3D-CORE-LIBS and compares it with the model, so that a loss shows in a test and not at the manufacturer:

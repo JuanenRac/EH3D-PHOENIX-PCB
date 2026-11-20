@@ -1,6 +1,6 @@
 //! Foundations of the design model.
 //!
-//! Three small, independent modules:
+//! Four small, independent modules:
 //!
 //! * [`units`] and [`geometry`]: lengths in integer nanometres inside a checked range, angles in
 //!   integer micro-degrees, orientation predicates that fit in `i64` by construction and arcs
@@ -9,6 +9,9 @@
 //!   source are injected, so tests are reproducible. Writers receive ids; they never create them.
 //! * [`canonical`] and [`quantise`]: canonical JSON as in RFC 8785 plus a final line feed, and the
 //!   quantisation of millimetre and degree values before they are written.
+//! * [`writer_profile`]: the name of the writer profile that every deterministic output carries, as one
+//!   comment with one rule (what a name may hold, how it is written for Gerber, Excellon and XML, how it is
+//!   read back).
 //!
 //! There is no project file here: only the pieces whose rules are fixed.
 
@@ -19,6 +22,7 @@ pub mod geometry;
 pub mod paths;
 pub mod quantise;
 pub mod units;
+pub mod writer_profile;
 
 pub use eh3d_container::{
     Clock, DeterministicRandom, IdError, IdGenerator, ObjectId, RandomSource, StepClock,

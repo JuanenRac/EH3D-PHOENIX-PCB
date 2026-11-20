@@ -890,9 +890,12 @@ pub fn export(board: &Board, settings: &Ipc2581Settings) -> Result<Ipc2581, Ipc2
         root = root.push(bom);
     }
     root = root.push(ecad);
-    let xml = format!(
-        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n{}",
-        root.to_xml()
+    let xml = eh3d_phoenix_model::writer_profile::stamp_xml(
+        &format!(
+            "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n{}",
+            root.to_xml()
+        ),
+        &settings.writer_id()?,
     );
 
     // ---- what was left out

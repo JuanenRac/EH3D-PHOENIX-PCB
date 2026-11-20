@@ -45,7 +45,7 @@ The set of designators that are not fitted comes from the file of part data of `
 For each face that has parts, in the order of the natural sort of the designators (`R2` before `R10`):
 
 * `pnp_top.csv`, `pnp_bottom.csv`: `Ref,Value,Package,PosX(mm),PosY(mm),Rot(deg),Side` (the unit is in the header), a header line and `\n` line ends, the separator of the settings and the quoting of the fields of the export;
-* `pnp_top.json`, `pnp_bottom.json`: `{"format": "phoenix-pnp/1", "board", "side", "units", "origin", "centre", "parts": [...], "not_fitted": [...]}` with one object for each part (`ref`, `value`, `footprint`, `x`, `y`, `rotation`, `side`, `fitted`); the numbers are the decimals of the CSV.
+* `pnp_top.json`, `pnp_bottom.json`: `{"format": "phoenix-pnp/1", "writer_profile", "board", "side", "units", "origin", "centre", "parts": [...], "not_fitted": [...]}` with one object for each part (`ref`, `value`, `footprint`, `x`, `y`, `rotation`, `side`, `fitted`); the numbers are the decimals of the CSV.
 
 The same board and settings always give the same bytes.
 

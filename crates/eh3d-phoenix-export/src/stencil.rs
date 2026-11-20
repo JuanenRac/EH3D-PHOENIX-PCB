@@ -107,7 +107,12 @@ pub struct StencilSettings {
     pub corner_segments: u32,
     /// The smallest side an opening may have, in nanometres.
     pub min_feature_nm: i64,
+    /// The name of the writer profile that the Gerber files carry (`phoenix-stencil/1:default`).
+    pub profile: String,
 }
+
+/// The tag of the format of the settings of the stencil, for the identity of its writer profile.
+pub const WRITER_FORMAT: &str = "phoenix-stencil/1";
 
 impl Default for StencilSettings {
     fn default() -> Self {
@@ -123,6 +128,7 @@ impl Default for StencilSettings {
             corner_radius_nm: 0,
             corner_segments: 4,
             min_feature_nm: 50_000,
+            profile: "default".to_owned(),
         }
     }
 }
@@ -167,6 +173,7 @@ impl StencilSettings {
                 "corner_radius_mm" => s.corner_radius_nm = micro()?,
                 "corner_segments" => s.corner_segments = value.parse().map_err(|_| invalid())?,
                 "min_feature_mm" => s.min_feature_nm = micro()?,
+                "profile" => value.clone_into(&mut s.profile),
                 _ => return Err(bad(format!("line {number}: unknown key {key}"))),
             }
         }
@@ -174,8 +181,20 @@ impl StencilSettings {
         Ok(s)
     }
 
+    /// The identity that the Gerber files of the stencil carry: the tag of the format and the name of the
+    /// profile.
+    pub fn writer_id(&self) -> Result<String, FabError> {
+        eh3d_phoenix_model::writer_profile::identity(WRITER_FORMAT, &self.profile).map_err(|_| {
+            bad(
+                "profile: letters, digits, '.', '_' and '-' only (up to 64, no two '-' in a row)"
+                    .to_owned(),
+            )
+        })
+    }
+
     /// Checks the ranges.
     pub fn validate(&self) -> Result<(), FabError> {
+        self.writer_id()?;
         let in_range = |name: &str, value: i64, low: i64, high: i64| {
             if (low..=high).contains(&value) {
                 Ok(())
@@ -833,6 +852,7 @@ pub fn build_stencil(
             continue;
         }
         let text = gerber_of(&board.name, side, &kept, settings, x2, &mut findings)?;
+        let text = eh3d_phoenix_model::writer_profile::stamp_gerber(&text, &settings.writer_id()?);
         files.push(StencilFile {
             name: name.to_owned(),
             bytes: text.into_bytes(),
