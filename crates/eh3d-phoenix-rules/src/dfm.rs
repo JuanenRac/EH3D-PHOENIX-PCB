@@ -222,6 +222,9 @@ pub struct DfmProfile {
     pub min_cutout_nm: i64,
     /// The least drill of a hole that is not plated; 0 turns the line off.
     pub min_unplated_drill_nm: i64,
+    /// The table of the least distance between surface-mount parts, by name (`jlcpcb`); empty
+    /// turns the check off.
+    pub smd_spacing: String,
 }
 
 fn length(value: &str) -> Option<Nm> {
@@ -326,6 +329,15 @@ impl DfmProfile {
                 "min_hole_edge_nm" => p.min_hole_edge_nm = len()?.get(),
                 "min_cutout_nm" => p.min_cutout_nm = len()?.get(),
                 "min_unplated_drill_nm" => p.min_unplated_drill_nm = len()?.get(),
+                "smd_spacing" => {
+                    if crate::smd_spacing::builtin_table(value).is_none() {
+                        return Err(fail(format!(
+                            "no table called {value} (the tables are: {})",
+                            crate::smd_spacing::builtin_table_names().join(", ")
+                        )));
+                    }
+                    p.smd_spacing = value.to_owned();
+                }
                 "max_drill_sizes" => {
                     p.max_drill_sizes = value
                         .parse::<u32>()

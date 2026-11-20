@@ -18,6 +18,10 @@
 //!   vias in pads, the silkscreen, the copper layers, the proportion of the board, blind vias and
 //!   surface-mount pads, the ring of drilled pads and the distance from a hole to the edge, the width of the cutouts and the unplated holes) with the
 //!   codes `PHOENIX-DFM-007` to `PHOENIX-DFM-019`;
+//! * [`smd_spacing`]: the least distance between surface-mount parts by the type of their
+//!   packages (chips, no-lead bodies, flat packs, small outlines, transistors and ball grids),
+//!   as a table in data, the classification of a footprint name and the check on a board
+//!   (`smd_spacing = NAME` in a profile, `PHOENIX-DFM-020`);
 //! * [`dfm`]: a capability profile of a board maker read from a text file, its limits for the rule
 //!   check and the checks of the layers, the size of the board and the holes (`PHOENIX-DFM-<NNN>`);
 //! * [`dfm_compare`]: the comparison of one board against the profiles of several makers, as text
@@ -62,6 +66,8 @@ pub mod notes;
 pub mod report;
 pub mod report_export;
 pub mod rulefile;
+mod smd_board;
+pub mod smd_spacing;
 
 pub use advanced::{
     advanced_findings, check_advanced, check_advanced_with, to_sarif, AdvancedConfig,

@@ -48,6 +48,7 @@ All lengths are in nanometres (1 mm is 1000000). A line that is missing, or has 
 | `min_pad_ring_nm` | the least annular ring of a plated drilled pad (half of its smaller side less the drill); the rule check has one ring limit for vias and pads together, this line is for the makers that ask more of the pads of parts |
 | `min_cutout_nm` | the least smaller side of the box of each cutout of the outline (a slot or a window that the milling bit has to cut); a diagonal slot is judged by its box, which is never narrower, so a cutout that is reported is certainly too narrow |
 | `min_unplated_drill_nm` | the least drill of a hole that is not plated (a mounting hole) |
+| `smd_spacing` | the name of a table of the least distance between surface-mount parts by the type of their packages (`jlcpcb`, in `config/dfm/smd_spacing.cfg`); empty turns it off |
 | `min_hole_edge_nm` | the least distance from the wall of a hole (a via or a drilled pad) to the straight pieces of the outline and of its cutouts; the arcs of an outline are not looked at |
 
 ## The findings
@@ -72,6 +73,7 @@ All lengths are in nanometres (1 mm is 1000000). A line that is missing, or has 
 | `PHOENIX-DFM-016` | the ring of a plated drilled pad is below `min_pad_ring_nm` (the location is the pad; the measured value is the ring) |
 | `PHOENIX-DFM-018` | the smaller side of the box of a cutout is below `min_cutout_nm` (the location is the number of the cutout, counted from 1; the measured value is the side) |
 | `PHOENIX-DFM-019` | the drill of a hole that is not plated is below `min_unplated_drill_nm` (the location is the pad) |
+| `PHOENIX-DFM-020` | two surface-mount parts on one side are closer than the table named by `smd_spacing` asks (a warning; the location is the two reference designators, the measured value the gap between the boxes of their pads) |
 | `PHOENIX-DFM-017` | the wall of a hole is closer to the edge than `min_hole_edge_nm` (the location is the via or the pad; the measured value is the gap) |
 
 Every finding is an error and makes the exit code 1, except `PHOENIX-DFM-006`, which is information. The titles are in the eight languages (`--lang`) and the findings go in the same report as the others, with `--json`, `--sarif`, `--csv` and `--html` (the category `capability` in the tables, `docs/DRC_ADVANCED.md`).

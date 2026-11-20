@@ -46,6 +46,8 @@ pub const HOLE_EDGE_CLOSE: &str = "PHOENIX-DFM-017";
 pub const CUTOUT_NARROW: &str = "PHOENIX-DFM-018";
 /// A hole that is not plated, smaller than the profile accepts.
 pub const UNPLATED_DRILL_SMALL: &str = "PHOENIX-DFM-019";
+/// Two surface-mount parts closer than the table of the profile asks.
+pub const PARTS_TOO_CLOSE: &str = "PHOENIX-DFM-020";
 
 /// Every code of this module with its English title, in order.
 pub const REGISTRY: &[(&str, &str)] = &[
@@ -97,6 +99,10 @@ pub const REGISTRY: &[(&str, &str)] = &[
     (
         UNPLATED_DRILL_SMALL,
         "Unplated hole smaller than the profile accepts",
+    ),
+    (
+        PARTS_TOO_CLOSE,
+        "Surface-mount parts closer than the profile asks",
     ),
 ];
 
@@ -270,6 +276,19 @@ const TITLES: &[(&str, [&str; 8])] = &[
             "Furo não metalizado mais pequeno do que o perfil aceita",
         ],
     ),
+    (
+        PARTS_TOO_CLOSE,
+        [
+            "Surface-mount parts closer than the profile asks",
+            "Piezas de montaje superficial más juntas de lo que pide el perfil",
+            "SMD-Bauteile näher beieinander, als das Profil verlangt",
+            "Composants CMS plus proches que ne le demande le profil",
+            "Componenti a montaggio superficiale più vicini di quanto chieda il profilo",
+            "表面実装部品の間隔がプロファイルの要求より狭い",
+            "表面贴装元件的间距小于配置文件的要求",
+            "Peças de montagem à superfície mais juntas do que o perfil pede",
+        ],
+    ),
 ];
 
 /// The title of a code of this module in a language; `None` for any other code.
@@ -312,6 +331,7 @@ pub(crate) fn findings(board: &Board, profile: &DfmProfile, name: &str, out: &mu
     silk_size(board, profile, out);
     via_in_pad(board, profile, out);
     hole_aspect(board, profile, out);
+    crate::smd_board::findings(board, profile, out);
 }
 
 fn drill_sizes(board: &Board, profile: &DfmProfile, name: &str, out: &mut Vec<Finding>) {

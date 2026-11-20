@@ -259,6 +259,7 @@ The checks of `phoenix check --advanced`, with the limits and the levels of `con
 | PHOENIX-DFM-017 | Hole closer to the board edge than the profile accepts | `phoenix check --dfm`: the wall of a via or of a drilled pad is closer than `min_hole_edge_nm` to a straight piece of the outline or of a cutout |
 | PHOENIX-DFM-018 | Cutout narrower than the profile accepts | `phoenix check --dfm`: the smaller side of the box of a cutout of the outline is below `min_cutout_nm` of the capability profile |
 | PHOENIX-DFM-019 | Unplated hole smaller than the profile accepts | `phoenix check --dfm`: the drill of a pad whose hole is not plated is below `min_unplated_drill_nm` of the capability profile |
+| PHOENIX-DFM-020 | Surface-mount parts closer than the profile asks | `phoenix check --dfm`: two parts on the same side, of types the table named by `smd_spacing` lists, whose boxes of pads are closer than the table asks (a warning; the location is the two reference designators) |
 
 Titles of the same codes in the other seven languages (Portuguese is the Portuguese of Portugal):
 
