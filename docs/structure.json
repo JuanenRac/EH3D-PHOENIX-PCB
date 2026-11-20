@@ -693,6 +693,19 @@
           }
         },
         {
+          "name": "SERVER.md",
+          "desc": {
+            "en": "server mode: reports made by the station of EH3D-SERVER",
+            "es": "modo servidor: informes hechos por la estación de EH3D-SERVER",
+            "de": "Servermodus: Berichte der Station von EH3D-SERVER",
+            "fr": "mode serveur : rapports faits par la station d'EH3D-SERVER",
+            "it": "modalità server: rapporti fatti dalla stazione di EH3D-SERVER",
+            "ja": "サーバーモード：EH3D-SERVER のステーションによるレポート",
+            "zh": "服务器模式：由 EH3D-SERVER 工位生成的报告",
+            "pt": "modo servidor: relatórios feitos pela estação do EH3D-SERVER"
+          }
+        },
+        {
           "name": "LENGTHS.md",
           "desc": {
             "en": "lengths, matching groups and differential pairs",

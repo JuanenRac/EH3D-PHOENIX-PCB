@@ -14,6 +14,7 @@
 //! field solver of the cross section of a line adds `field2d`, and the heating of tracks and vias
 //! by the current of their net adds `thermal`, and the statistics of a board add `stats`.
 //! The test points of a board add `testpoints`, and the IPC-2581 file of a board adds `ipc2581`.
+//! The report of a board made by the station of EH3D-SERVER adds `server`.
 //! The nets of a board as a text netlist, and their comparison with a netlist file, add `nets`.
 //! The writing of boards, schematics and libraries as KiCad 8 files adds `kicad-export`.
 //! The simulation netlist of a schematic, made from a table of models, adds `netlist`.
@@ -91,6 +92,7 @@ mod route;
 mod sanitize;
 mod schedit;
 mod script;
+mod server;
 pub mod sec_codes;
 mod si;
 mod sim;
@@ -465,6 +467,16 @@ phoenix ipc2581 [--config FILE] [--out FILE] [--d356 FILE] [--overwrite] [--json
                 writes the netlist of the board as an IPC-D-356A test file, a prototype whose
                 columns have not been compared with the standard, run `phoenix ipc2581` alone for
                 its options
+
+phoenix server [--config FILE] [--kind rules|drill|bom|inspect] [--send] [--json] [--lang xx] <board | measurements>
+
+  server        a report of a board made by the station of EH3D-SERVER, the server that the
+                machines and the other programs of the suite share: the rules of the maker against
+                the tracks, the gaps and the holes, the drilling, the parts list, or an inspection
+                of measurements, with the codes PHOENIX-SERVER-<NNN>; a dry run that shows the
+                request unless --send is given and allow_network is true in the settings, a
+                prototype that has never talked to a running server, run `phoenix server` alone
+                for its options
 
 phoenix bom [--config FILE] [--prices FILE] [--parts FILE] [--schematic FILE] [--sourcing] [--stackup FILE]
             [--boards N] [--variant NAME [--variant-file FILE]] [--csv FILE] [--json-file FILE]

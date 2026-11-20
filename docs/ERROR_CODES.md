@@ -2,7 +2,7 @@
 
 Codes have the form `PHOENIX-<AREA>-<NNN>`. A code is stable: it never changes its meaning and is never reused. Programs show the text through the key `diag.<code>`; the codes themselves are never translated. The object identity (UUID v7) is the one of the shared container, with its own codes `EH3D-ID-001` and `EH3D-ID-002`. The container codes `EH3D-PKG-001` to `EH3D-PKG-014` belong to the shared container and are listed in the registry of the documentation repository.
 
-Each table repeats the `REGISTRY` of a crate (`eh3d-phoenix-model` in `src/diagnostic.rs`, `eh3d-phoenix-project` and `eh3d-phoenix-eagle` in `src/codes.rs`, `eh3d-phoenix-hub` in `src/lib.rs`, `eh3d-phoenix-export` in `src/codes.rs` and `src/fabcodes.rs`, `eh3d-phoenix-schematic` in `src/model.rs`, `src/draw.rs`, `src/edit.rs`, `src/link.rs`, `src/hier.rs` and `src/bus.rs`, `eh3d-phoenix-board` in `src/validate.rs`, `src/connectivity.rs` and `src/rules.rs`, `eh3d-phoenix-rules` in `src/codes.rs` and `src/advanced/codes.rs`, `eh3d-phoenix-stackup` and `eh3d-phoenix-rf` in `src/error.rs`, `eh3d-phoenix-viewer`, `eh3d-phoenix-sanitizer`, `eh3d-phoenix-erc`, `eh3d-phoenix-sync`, `eh3d-phoenix-schedit`, `eh3d-phoenix-boardedit` (also in `src/pair_codes.rs`, `src/shove_codes.rs` and `src/zone_codes.rs`), `eh3d-phoenix-libedit`, `eh3d-phoenix-zones`, `eh3d-phoenix-autoroute`, `eh3d-phoenix-lengths`, `eh3d-phoenix-stats`, `eh3d-phoenix-testpoints`, `eh3d-phoenix-ipc2581`, `eh3d-phoenix-gerber`, `eh3d-phoenix-panel`, `eh3d-phoenix-bom`, `eh3d-phoenix-assembly3d`, `eh3d-phoenix-si`, `eh3d-phoenix-eagle-deep` and `eh3d-phoenix-oracle` in `src/codes.rs`, `eh3d-phoenix-corpus` in `src/suite/codes.rs`); a test of each crate checks that every code of its registry is in the table with the same title.
+Each table repeats the `REGISTRY` of a crate (`eh3d-phoenix-model` in `src/diagnostic.rs`, `eh3d-phoenix-project` and `eh3d-phoenix-eagle` in `src/codes.rs`, `eh3d-phoenix-hub` in `src/lib.rs`, `eh3d-phoenix-export` in `src/codes.rs` and `src/fabcodes.rs`, `eh3d-phoenix-schematic` in `src/model.rs`, `src/draw.rs`, `src/edit.rs`, `src/link.rs`, `src/hier.rs` and `src/bus.rs`, `eh3d-phoenix-board` in `src/validate.rs`, `src/connectivity.rs` and `src/rules.rs`, `eh3d-phoenix-rules` in `src/codes.rs` and `src/advanced/codes.rs`, `eh3d-phoenix-stackup` and `eh3d-phoenix-rf` in `src/error.rs`, `eh3d-phoenix-viewer`, `eh3d-phoenix-sanitizer`, `eh3d-phoenix-erc`, `eh3d-phoenix-sync`, `eh3d-phoenix-schedit`, `eh3d-phoenix-boardedit` (also in `src/pair_codes.rs`, `src/shove_codes.rs` and `src/zone_codes.rs`), `eh3d-phoenix-libedit`, `eh3d-phoenix-zones`, `eh3d-phoenix-autoroute`, `eh3d-phoenix-lengths`, `eh3d-phoenix-stats`, `eh3d-phoenix-testpoints`, `eh3d-phoenix-ipc2581`, `eh3d-phoenix-server`, `eh3d-phoenix-gerber`, `eh3d-phoenix-panel`, `eh3d-phoenix-bom`, `eh3d-phoenix-assembly3d`, `eh3d-phoenix-si`, `eh3d-phoenix-eagle-deep` and `eh3d-phoenix-oracle` in `src/codes.rs`, `eh3d-phoenix-corpus` in `src/suite/codes.rs`); a test of each crate checks that every code of its registry is in the table with the same title.
 
 ## Model foundations
 
@@ -1002,6 +1002,25 @@ The titles of these codes also exist in the eight languages of the suite (`TITLE
 | PHOENIX-IPC2581-006 | Parts of the board are left out of the file | information: always given, it lists what the file does not hold (the silkscreen items, the arcs of the outline, the copper fill of the zones, the holes that are not plated, the texts of the dimensions when the settings leave them out, the stack-up, and what the settings switch off) |
 | PHOENIX-IPC2581-007 | The board has no outline to write | warning: the outline has fewer than three corners, so the file has no profile |
 | PHOENIX-IPC2581-008 | A pad is on no layer that the file holds | warning: a pad of a part that is on none of the copper layers of the board |
+
+## Server mode (`eh3d-phoenix-server`, `src/codes.rs`)
+
+| Code | Title | Raised by |
+|---|---|---|
+| PHOENIX-SERVER-001 | Server settings are not valid | a line of `config/server.cfg` that is not `key = value`, an unknown key, a key of the link out of its range (`server_timeout_s`, `server_retries`...), a number that cannot be read or a value out of range |
+| PHOENIX-SERVER-002 | A command option is not valid | an option of `phoenix server` that is not known, lacks its value or has a value that is not valid, a number of files other than one, or the kind `inspect` with a board |
+| PHOENIX-SERVER-003 | An input file cannot be read | a board, a settings file or a file of measurements that cannot be opened, is too large or has a line that cannot be read |
+| PHOENIX-SERVER-004 | A limit of the request was exceeded | error: more tracks, gaps, holes, parts or measurements than `max_items` |
+| PHOENIX-SERVER-005 | Sending to the server is not allowed by the settings | `--send` while `allow_network` is false |
+| PHOENIX-SERVER-006 | The link to the server is not set up | `server_address`, `server_machine` or `server_token` empty when the request is to be sent |
+| PHOENIX-SERVER-007 | The server could not be reached or refused the request | a connection that failed after the retries, a refused token or role, or any other refusal of the server, with its text in the language of the report |
+| PHOENIX-SERVER-008 | The server answered something that cannot be read | an answer that is not JSON, that holds no job, or a job with no id |
+| PHOENIX-SERVER-009 | The job did not end in the time allowed | a job still open after `max_polls` questions; it is stopped on the server |
+| PHOENIX-SERVER-010 | The job ended on the server without a result | a job that ended `failed` or `cancelled` with no report |
+| PHOENIX-SERVER-011 | The request holds only a part of what the board has | information or warning: the arcs of the tracks taken as chords, gaps cut at `clearance_pair_budget` or not listed over `clearance_max_tracks`, an outline with no area |
+| PHOENIX-SERVER-012 | Nothing was sent: the request was made and shown | information: always given by a run without `--send` |
+| PHOENIX-SERVER-013 | The board or the file has nothing for the report asked for | a board with no tracks, gaps or holes (`rules`), no holes (`drill`), no parts (`bom`) or a file with no measurements |
+| PHOENIX-SERVER-014 | The token travels as plain text to an address that is not local | warning: `server_address` is not a local address, so the token is sent without encryption |
 
 ## Signal integrity (`eh3d-phoenix-si`, `src/codes.rs`)
 

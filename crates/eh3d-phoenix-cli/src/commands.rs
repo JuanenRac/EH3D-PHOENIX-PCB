@@ -395,6 +395,13 @@ pub static COMMANDS: &[Command] = &[
         run: Some(crate::ipc2581::ipc2581_command),
     },
     Command {
+        name: "server",
+        topic: Topic::Manufacturing,
+        doc: "docs/SERVER.md",
+        summary: ["report of a board made by the station of EH3D-SERVER: rules, drilling, parts list and inspection", "informe de una placa hecho por la estación de EH3D-SERVER: reglas, taladrado, lista de piezas e inspección", "Bericht einer Platine von der Station von EH3D-SERVER: Regeln, Bohren, Teileliste und Prüfung", "rapport d'une carte fait par la station d'EH3D-SERVER : règles, perçage, liste des pièces et inspection", "rapporto di una scheda fatto dalla stazione di EH3D-SERVER: regole, foratura, elenco dei componenti e ispezione", "EH3D-SERVER のステーションによる基板レポート：ルール、穴あけ、部品表、検査", "由 EH3D-SERVER 的工位生成的电路板报告：规则、钻孔、元件清单和检验", "relatório de uma placa feito pela estação do EH3D-SERVER: regras, furação, lista de peças e inspeção"],
+        run: Some(crate::server::server_command),
+    },
+    Command {
         name: "thermal",
         topic: Topic::Board,
         doc: "docs/THERMAL.md",

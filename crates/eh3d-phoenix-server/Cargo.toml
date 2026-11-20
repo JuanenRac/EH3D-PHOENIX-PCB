@@ -1,0 +1,14 @@
+[package]
+name = "eh3d-phoenix-server"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Server mode (prototype): a board or a file of measurements is sent to EH3D-SERVER as a job of its plugin pcb (rules check, drill report, bill report, inspection) and the report is read back, over the client of the suite, with every setting in a file and nothing sent unless the settings and the command both ask for it"
+
+[dependencies]
+eh3d-phoenix-board = { path = "../eh3d-phoenix-board" }
+eh3d-phoenix-model = { path = "../eh3d-phoenix-model" }
+eh3d-phoenix-rules = { path = "../eh3d-phoenix-rules" }
+eh3d-serverclient.workspace = true

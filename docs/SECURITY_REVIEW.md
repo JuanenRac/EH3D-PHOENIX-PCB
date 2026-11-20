@@ -8,7 +8,7 @@
 |---|---|
 | The files that are read (boards, schematics, libraries, Gerber and Excellon, DXF, netlists, scripts, parts tables, settings) | not trusted: they may be damaged, huge, deeply nested or made on purpose to make a reader fail |
 | The person who runs the program | the user of the computer: they choose the files to read and the places to write; the program must not write anywhere else, over a file that exists or to a place that is not a file |
-| The network | not used: the program opens no connection and starts no other program, except the optional adapter of an external autorouter that is off until it is turned on in the settings and named on the command line |
+| The network | not used: the program opens no connection and starts no other program, except the optional adapter of an external autorouter that is off until it is turned on in the settings and named on the command line, and the server mode (`phoenix server`), which sends a request to EH3D-SERVER only when `allow_network = true` is in the settings and `--send` is on the command line |
 
 ## What was looked at
 
@@ -137,7 +137,7 @@ The value of `--out`, `--dir`, `--into`, `--svg` and `--csv` is looked at before
 
 ## Network and processes
 
-The test `no_source_file_opens_the_network_or_starts_a_program_outside_the_list` reads every source file of the workspace and fails on a use of `std::net`, of a socket, of `Command::new`, of `std::process` or of the name of a library of networking that is not in an explicit list with its reason, and on an item of the list that nothing uses. The list holds the adapter of the external autorouter (`crates/eh3d-phoenix-route/src/autorouter.rs`: off unless `enabled = true` in `config/autorouter.cfg` and `--execute` on the command line, started directly without a shell and with an empty environment), the exit code of the two programs, and the number of the process in the name of the temporary folder of four tests. Another test fails when `Cargo.lock` holds a library of networking, and one fails when the shipped `config/autorouter.cfg` does not say `enabled = false`.
+The test `no_source_file_opens_the_network_or_starts_a_program_outside_the_list` reads every source file of the workspace and fails on a use of `std::net`, of a socket, of `Command::new`, of `std::process` or of the name of a library of networking that is not in an explicit list with its reason, and on an item of the list that nothing uses. The list holds the adapter of the external autorouter (`crates/eh3d-phoenix-route/src/autorouter.rs`: off unless `enabled = true` in `config/autorouter.cfg` and `--execute` on the command line, started directly without a shell and with an empty environment), the exit code of the two programs, and the number of the process in the name of the temporary folder of four tests. Another test fails when `Cargo.lock` holds a library of networking, and one fails when the shipped `config/autorouter.cfg` does not say `enabled = false`. The server mode reaches the network only through the client of the suite (`eh3d-serverclient` of EH3D-COMMON, which is not in this workspace): nothing is sent unless `allow_network = true` is in `config/server.cfg` and `--send` is given, a test fails when the shipped file says otherwise or names an address or a token, and the only files of the workspace that open a socket are two tests that serve the work queue on the loopback address of the computer (`crates/eh3d-phoenix-server/tests/loopback.rs` and `crates/eh3d-phoenix-cli/tests/server.rs`).
 
 ## The one place with unsafe code
 

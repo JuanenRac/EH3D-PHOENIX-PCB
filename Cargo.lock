@@ -755,6 +755,7 @@ dependencies = [
  "eh3d-phoenix-schedit",
  "eh3d-phoenix-schematic",
  "eh3d-phoenix-script",
+ "eh3d-phoenix-server",
  "eh3d-phoenix-si",
  "eh3d-phoenix-sim",
  "eh3d-phoenix-spatial",
@@ -1147,6 +1148,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "eh3d-phoenix-server"
+version = "0.1.0"
+dependencies = [
+ "eh3d-phoenix-board",
+ "eh3d-phoenix-model",
+ "eh3d-phoenix-rules",
+ "eh3d-serverclient",
+]
+
+[[package]]
 name = "eh3d-phoenix-si"
 version = "0.1.0"
 dependencies = [
@@ -1264,6 +1275,10 @@ dependencies = [
  "serde",
  "serde_json",
 ]
+
+[[package]]
+name = "eh3d-serverclient"
+version = "0.0.1"
 
 [[package]]
 name = "eh3d-writer-excellon"

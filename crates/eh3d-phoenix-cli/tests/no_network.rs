@@ -34,7 +34,7 @@ fn words() -> Vec<String> {
 fn allowed() -> Vec<(String, String, &'static str)> {
     let process = concat!("std", "::process").to_owned();
     let command = concat!("Command", "::new").to_owned();
-    vec![
+    let mut list = vec![
         (
             "crates/eh3d-phoenix-route/src/autorouter.rs".to_owned(),
             process.clone(),
@@ -70,7 +70,27 @@ fn allowed() -> Vec<(String, String, &'static str)> {
             process,
             "the number of the process in the name of a temporary folder of a test",
         ),
-    ]
+    ];
+    // the tests of the server mode talk to a small server on the loopback address of this
+    // computer; the program itself reaches the network only through the client of the suite,
+    // which is not in this workspace, and only when the settings and the command both ask
+    for file in [
+        "crates/eh3d-phoenix-server/tests/loopback.rs",
+        "crates/eh3d-phoenix-cli/tests/server.rs",
+    ] {
+        for word in [
+            concat!("std", "::net"),
+            concat!("Tcp", "Stream"),
+            concat!("Tcp", "Listener"),
+        ] {
+            list.push((
+                file.to_owned(),
+                word.to_owned(),
+                "a test that serves the routes of the work queue on the loopback address of this computer, so that the server mode is tried over a real connection and nothing leaves the computer",
+            ));
+        }
+    }
+    list
 }
 
 fn files_below(folder: &Path, found: &mut Vec<PathBuf>) {
@@ -181,6 +201,19 @@ fn the_lock_file_holds_no_library_of_networking() {
             continue;
         }
         assert!(!names.contains(&banned), "{banned} is in Cargo.lock");
+    }
+}
+
+#[test]
+fn the_server_mode_sends_nothing_in_the_settings_that_ship() {
+    let text = fs::read_to_string(root().join("config/server.cfg")).unwrap();
+    let lines: Vec<&str> = text.lines().map(str::trim).collect();
+    for wanted in [
+        "allow_network = false",
+        "server_address =",
+        "server_token =",
+    ] {
+        assert!(lines.contains(&wanted), "{wanted}");
     }
 }
 
