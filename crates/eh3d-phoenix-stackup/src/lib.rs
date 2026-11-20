@@ -21,6 +21,8 @@
 //!   suite, with the depth at which each starts and the total thickness;
 //! * [`spread`]: the lowest and the highest impedance of a line when the width, the height of the
 //!   dielectric and the permittivity are each off by a stated amount;
+//! * [`spread_report`]: the spread and the largest tolerance of the width as text in the eight
+//!   languages of the suite;
 //! * [`error`]: typed errors and warnings with the codes `PHOENIX-STACK-001` to
 //!   `PHOENIX-STACK-016` and their titles in the eight languages of the suite.
 //!
@@ -47,6 +49,7 @@ mod property_tests;
 pub mod report_html;
 pub mod settings;
 pub mod spread;
+pub mod spread_report;
 pub mod stackup;
 
 pub use error::{Language, StackupError, Warning};
@@ -55,4 +58,5 @@ pub use line::{analyze, synthesize_width, LineKind, LineResult, LineSpec, Synthe
 pub use material::MaterialSample;
 pub use report_html::{stackup_html, stackup_rows, StackRow};
 pub use settings::StackupSettings;
+pub use spread_report::{max_width_tolerance_text, spread_text};
 pub use stackup::{CopperThickness, Layer, Stackup};
