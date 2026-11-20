@@ -225,4 +225,77 @@ mod tests {
             assert!(DiffSettings::parse(text).is_err(), "{text}");
         }
     }
+
+    /// A generator with a fixed seed, so every run makes the same texts.
+    struct Lcg(u64);
+
+    impl Lcg {
+        fn next(&mut self) -> u64 {
+            self.0 = self
+                .0
+                .wrapping_mul(6_364_136_223_846_793_005)
+                .wrapping_add(1_442_695_040_888_963_407);
+            self.0 >> 33
+        }
+    }
+
+    #[test]
+    fn a_text_of_valid_values_is_read_back_as_the_values_that_were_written() {
+        let mut rng = Lcg(0x5e77_0003);
+        for _ in 0..80 {
+            let (moved, length) = (rng.next() % (1 << 30), rng.next() % (1 << 30));
+            let items = 1 + rng.next() % 100_000_000;
+            let listed = 1 + rng.next() % 1_000_000;
+            let flags: Vec<bool> = (0..6).map(|_| rng.next() & 1 == 0).collect();
+            let text = format!(
+                "move_tolerance_nm = {moved}\nlength_tolerance_nm = {length}\nmax_items = {items}\nmax_differences = {listed}\ncompare_pins = {}\ncompare_tracks = {}\ncompare_vias = {}\ncompare_zones = {}\ncompare_outline = {}\ncsv_guard_formulas = {}\n",
+                flags[0], flags[1], flags[2], flags[3], flags[4], flags[5]
+            );
+            let s = DiffSettings::parse(&text).unwrap();
+            assert_eq!(
+                (s.move_tolerance_nm, s.length_tolerance_nm),
+                (moved as i64, length as i64)
+            );
+            assert_eq!(
+                (s.max_items as u64, s.max_differences as u64),
+                (items, listed)
+            );
+            assert_eq!(
+                [
+                    s.compare_pins,
+                    s.compare_tracks,
+                    s.compare_vias,
+                    s.compare_zones,
+                    s.compare_outline,
+                    s.csv_guard_formulas
+                ],
+                flags.as_slice()
+            );
+        }
+    }
+
+    #[test]
+    fn a_name_matches_a_pattern_the_way_a_prefix_and_a_star_say_in_any_case() {
+        let mut rng = Lcg(0x5e77_0004);
+        for _ in 0..200 {
+            let prefix: String = (0..1 + rng.next() % 4)
+                .map(|_| char::from(b'A' + (rng.next() % 26) as u8))
+                .collect();
+            let rest: String = (0..rng.next() % 5)
+                .map(|_| char::from(b'a' + (rng.next() % 26) as u8))
+                .collect();
+            let s = DiffSettings {
+                ignore_parts: vec![format!("{prefix}*")],
+                ignore_nets: vec![prefix.to_lowercase()],
+                ..DiffSettings::default()
+            };
+            assert!(s.ignores_part(&format!("{prefix}{rest}")));
+            assert!(s.ignores_part(&format!("{}{rest}", prefix.to_lowercase())));
+            // a name that does not start with the prefix is not left out
+            assert!(!s.ignores_part(&format!("_{prefix}{rest}")));
+            // without the star only the whole name counts
+            assert!(s.ignores_net(&prefix));
+            assert!(!s.ignores_net(&format!("{prefix}{rest}x")));
+        }
+    }
 }

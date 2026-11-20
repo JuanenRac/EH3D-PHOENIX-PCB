@@ -331,4 +331,85 @@ mod tests {
             assert!(ServerSettings::parse(text).is_err(), "{text}");
         }
     }
+
+    /// A generator with a fixed seed, so every run makes the same texts.
+    struct Lcg(u64);
+
+    impl Lcg {
+        fn next(&mut self) -> u64 {
+            self.0 = self
+                .0
+                .wrapping_mul(6_364_136_223_846_793_005)
+                .wrapping_add(1_442_695_040_888_963_407);
+            self.0 >> 33
+        }
+
+        fn pick<'a>(&mut self, words: &[&'a str]) -> &'a str {
+            words[(self.next() % words.len() as u64) as usize]
+        }
+    }
+
+    #[test]
+    fn a_text_of_valid_values_is_read_back_as_the_values_that_were_written() {
+        let mut rng = Lcg(0x5e77_0001);
+        for _ in 0..80 {
+            let poll = 10 + rng.next() % 59_991;
+            let polls = 1 + rng.next() % 100_000;
+            let items = 1 + rng.next() % 200_000;
+            let max = rng.next() % 10_001;
+            let below = rng.next() % (1 << 30);
+            let timeout = 1 + rng.next() % 120;
+            let retries = rng.next() % 6;
+            let allow = rng.next() & 1 == 0;
+            let text = format!(
+                "allow_network = {allow}\npoll_ms = {poll}\nmax_polls = {polls}\nmax_items = {items}\nclearance_max = {max}\nclearance_below_nm = {below}\nserver_timeout_s = {timeout}\nserver_retries = {retries}\n"
+            );
+            let s = ServerSettings::parse(&text).unwrap();
+            assert_eq!(s.allow_network, allow);
+            assert_eq!((s.poll_ms, u64::from(s.max_polls)), (poll, polls));
+            assert_eq!((s.max_items as u64, s.clearance_max as u64), (items, max));
+            assert_eq!(s.clearance_below_nm, below as i64);
+            assert_eq!(s.link.server_timeout_s, timeout);
+            assert_eq!(u64::from(s.link.server_retries), retries);
+        }
+    }
+
+    #[test]
+    fn random_lines_never_panic_and_a_refusal_always_names_its_line() {
+        let keys = [
+            "allow_network",
+            "poll_ms",
+            "max_items",
+            "server_address",
+            "server_retries",
+            "rule_min_track_nm",
+            "clearance_max",
+            "nope",
+            "",
+        ];
+        let values = ["true", "0", "-1", "99999999999", "x", "", "1 2", "=", "#"];
+        let mut rng = Lcg(0x5e77_0002);
+        let (mut accepted, mut refused) = (0, 0);
+        for _ in 0..300 {
+            let mut text = String::new();
+            for _ in 0..(1 + rng.next() % 4) {
+                text.push_str(&format!("{} = {}\n", rng.pick(&keys), rng.pick(&values)));
+            }
+            match ServerSettings::parse(&text) {
+                Ok(_) => accepted += 1,
+                Err(e) => {
+                    refused += 1;
+                    assert_eq!(e.code, SETTINGS_INVALID);
+                    // a refusal of a line says which; a refusal of a range may not
+                    assert!(
+                        e.detail.contains("line ") || e.detail.contains("must be"),
+                        "{}",
+                        e.detail
+                    );
+                }
+            }
+        }
+        // both outcomes happen, so neither was met by chance
+        assert!(accepted > 10 && refused > 10, "{accepted} {refused}");
+    }
 }
