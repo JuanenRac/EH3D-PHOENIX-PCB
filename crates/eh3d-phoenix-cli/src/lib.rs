@@ -492,7 +492,7 @@ phoenix boarddiff [--config FILE] [--csv FILE] [--json] [--lang xx] <old board> 
                 differ, a dry run unless --csv names a new file, a prototype, run
                 `phoenix boarddiff` alone for its options
 
-phoenix bom [--config FILE] [--prices FILE] [--parts FILE] [--schematic FILE] [--sourcing] [--stackup FILE]
+phoenix bom [--config FILE] [--prices FILE] [--parts FILE] [--schematic FILE] [--sourcing] [--equivalents] [--stackup FILE]
             [--boards N] [--variant NAME [--variant-file FILE]] [--csv FILE] [--json-file FILE]
             [--html FILE] [--assembler NAME --assembler-file FILE [--assembler-config FILE]]
             [--json] [--lang xx] <board>
@@ -503,7 +503,7 @@ phoenix assembly3d [--config FILE] --models FILE [--stackup FILE] [--obj FILE] [
                 cheapest supplier from a local price file, the cost per board and per batch with
                 the waste, and an estimate of the cost of the boards from example tariffs (with
                 --sourcing also where to buy it: each supplier, the cheapest single one and a
-                split purchase); CSV, JSON and HTML are written only to new files, a prototype, run `phoenix bom`
+                split purchase, with --equivalents the lines that can be bought as one); CSV, JSON and HTML are written only to new files, a prototype, run `phoenix bom`
                 alone for its options
   assembly3d    the board and its components as a 3D scene from the models of a table (STEP files
                 or boxes), with collisions and a height limit checked on the boxes and a

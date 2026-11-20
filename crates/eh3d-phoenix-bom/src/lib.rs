@@ -25,6 +25,8 @@
 //!   compared with a board;
 //! * [`equivalents`]: the lines of a bill whose part numbers or alternatives meet, which can be
 //!   bought as one, with their totals;
+//! * [`equivalents_report`]: those sets as text in the eight languages and as JSON, for
+//!   `phoenix bom --equivalents`;
 //! * [`formats`]: the formats of that bill (a generic CSV, the partlist of EAGLE, and the CSV and
 //!   the XML bills of KiCad), told apart by [`detect`] and read by [`import_as`];
 //! * [`range`]: the ranges of references (`R1-R5`) of a cell of a bill, expanded to single parts;
@@ -44,6 +46,7 @@ pub mod assembly;
 pub mod bom;
 pub mod codes;
 pub mod equivalents;
+pub mod equivalents_report;
 #[cfg(test)]
 mod equivalents_tests;
 pub mod formats;
@@ -63,6 +66,7 @@ pub mod text;
 pub use bom::{build_bom, natural_key, Bom, BomInputs, BomLine, Purchase};
 pub use codes::{title, BomError, Finding, Severity};
 pub use equivalents::{equivalent_groups, EquivalentGroup};
+pub use equivalents_report::{equivalents_json, equivalents_text};
 pub use formats::{detect, import_as, ImportFormat};
 pub use import::{bill_from_table, import_bill, ImportMap, ImportedBill, ImportedLine};
 pub use parts::{PartData, PartsFile};

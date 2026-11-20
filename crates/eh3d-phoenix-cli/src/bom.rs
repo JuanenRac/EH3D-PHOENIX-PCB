@@ -15,9 +15,9 @@ use eh3d_phoenix_bom::assembler::{assembler_csv, AssemblerSettings};
 use eh3d_phoenix_bom::codes::{FILE_TOO_LARGE, INPUT_UNREADABLE, OPTION_INVALID, OUTPUT_FAILED};
 use eh3d_phoenix_bom::report::counts;
 use eh3d_phoenix_bom::{
-    bom_csv_with, bom_html, bom_json, bom_text, build_bom, import_as, plan_sourcing, sourcing_json,
-    sourcing_text, BomError, BomInputs, CostSettings, ImportFormat, ImportMap, PartsFile,
-    PriceBook,
+    bom_csv_with, bom_html, bom_json, bom_text, build_bom, equivalent_groups, equivalents_json,
+    equivalents_text, import_as, plan_sourcing, sourcing_json, sourcing_text, BomError, BomInputs,
+    CostSettings, ImportFormat, ImportMap, PartsFile, PriceBook,
 };
 use eh3d_phoenix_parts::{entries_of, link_bom, load as load_parts, PartsSettings};
 use eh3d_phoenix_rules::Lang;
@@ -38,7 +38,7 @@ const DEFAULT_IMPORT_MAP: &str = "config/bom_import.cfg";
 const DEFAULT_ASSEMBLER_CONFIG: &str = "config/assembler.cfg";
 
 pub(crate) const USAGE: &str = "\
-phoenix bom [--config FILE] [--prices FILE] [--parts FILE] [--import FILE [--import-format NAME] [--import-map FILE]] [--parts-out FILE] [--parts-db PATH] [--schematic FILE] [--sourcing]
+phoenix bom [--config FILE] [--prices FILE] [--parts FILE] [--import FILE [--import-format NAME] [--import-map FILE]] [--parts-out FILE] [--parts-db PATH] [--schematic FILE] [--sourcing] [--equivalents]
             [--stackup FILE] [--boards N] [--variant NAME [--variant-file FILE]] [--csv FILE] [--json-file FILE] [--html FILE]
             [--assembler NAME --assembler-file FILE [--assembler-config FILE]] [--json] [--lang CODE]
             <board>
@@ -84,6 +84,12 @@ phoenix bom [--config FILE] [--prices FILE] [--parts FILE] [--import FILE [--imp
                 with its shipping and its least order, the cheapest single supplier and a split
                 purchase (a line may be priced through one of its alternative part numbers); with
                 --json the plan is the key `sourcing`
+  --equivalents list the lines of the bill that can be bought as one: lines whose part number, or
+                an alternative of the file of part data, is a part number of another line (in any
+                case, also through a third line), with the part numbers, the parts of a board and
+                the parts the batch needs in all of them, and a warning for a set whose lines do
+                not all have the same value and footprint; the lines themselves are not changed;
+                with --json the sets are the key `equivalents`
   --stackup     a stack-up job file (the file of `phoenix stackup`) for the thickness of the board
   --boards N    the number of boards of the batch (default: the settings)
   --variant     an assembly variant of an EAGLE file: the parts it does not fit are left out and the
@@ -111,6 +117,7 @@ struct Options {
     schematic: Option<String>,
     stackup: Option<String>,
     sourcing: bool,
+    equivalents: bool,
     boards: Option<u64>,
     variant: Option<String>,
     variant_file: Option<String>,
@@ -138,6 +145,7 @@ fn parse_options(args: &[&str]) -> Result<Options, BomError> {
         schematic: None,
         stackup: None,
         sourcing: false,
+        equivalents: false,
         boards: None,
         variant: None,
         variant_file: None,
@@ -176,6 +184,7 @@ fn parse_options(args: &[&str]) -> Result<Options, BomError> {
             "--schematic" => options.schematic = Some(value("--schematic needs a file")?),
             "--stackup" => options.stackup = Some(value("--stackup needs a file")?),
             "--sourcing" => options.sourcing = true,
+            "--equivalents" => options.equivalents = true,
             "--boards" => {
                 let n = value("--boards needs a number")?;
                 options.boards = Some(
@@ -489,11 +498,17 @@ fn bom(options: &Options, out: &mut dyn Write) -> Result<i32, BomError> {
     let plan = options
         .sourcing
         .then(|| plan_sourcing(&bom, &prices, &settings));
+    let groups = options.equivalents.then(|| equivalent_groups(&bom.lines));
     let text = if options.json {
         let json = bom_json(&bom);
-        match (&plan, serde_json::from_str::<serde_json::Value>(&json)) {
-            (Some(plan), Ok(serde_json::Value::Object(mut map))) => {
-                map.insert("sourcing".to_owned(), sourcing_json(plan, &bom));
+        match serde_json::from_str::<serde_json::Value>(&json) {
+            Ok(serde_json::Value::Object(mut map)) if plan.is_some() || groups.is_some() => {
+                if let Some(plan) = &plan {
+                    map.insert("sourcing".to_owned(), sourcing_json(plan, &bom));
+                }
+                if let Some(groups) = &groups {
+                    map.insert("equivalents".to_owned(), equivalents_json(groups));
+                }
                 let mut text =
                     serde_json::to_string_pretty(&serde_json::Value::Object(map)).unwrap_or(json);
                 text.push('\n');
@@ -506,6 +521,9 @@ fn bom(options: &Options, out: &mut dyn Write) -> Result<i32, BomError> {
         text.push_str(&bom_text(&bom, options.lang));
         if let Some(plan) = &plan {
             text.push_str(&sourcing_text(plan, &bom));
+        }
+        if let Some(groups) = &groups {
+            text.push_str(&equivalents_text(&bom.lines, groups, options.lang));
         }
         for (path, _) in &files {
             text.push_str(&format!("written: {path}\n"));

@@ -675,3 +675,79 @@ fn bom_refuses_a_wrong_use_of_the_assembler_options() {
     }
     assert!(!Path::new(out).exists());
 }
+
+#[test]
+fn the_lines_that_can_be_bought_as_one_are_listed_in_the_language_asked_and_as_json() {
+    let dir = tempfile::tempdir().unwrap();
+    let board = write_board(dir.path(), (6 * MM, 6 * MM));
+    let parts = dir.path().join("parts.csv");
+    fs::write(
+        &parts,
+        "match,manufacturer,mpn,alternatives
+R1,Acme,RC-A,RC-B
+R2,Acme,RC-B,ALT-X
+",
+    )
+    .unwrap();
+    let parts = parts.to_str().unwrap();
+    let (code, out, err) = command(&["bom", "--equivalents", "--parts", parts, board.as_str()]);
+    assert_eq!((code, err.as_str()), (0, ""), "{out}");
+    assert!(
+        out.contains(
+            "Lines that can be bought as one (sets): 1
+"
+        ),
+        "{out}"
+    );
+    assert!(
+        out.contains(
+            "set 1: lines 1, 2 (10k R0603); part numbers: ALT-X, RC-A, RC-B; per board: 2;"
+        ),
+        "{out}"
+    );
+    // The language changes the words and nothing else.
+    let (_, es, _) = command(&[
+        "bom",
+        "--equivalents",
+        "--lang",
+        "es",
+        "--parts",
+        parts,
+        board.as_str(),
+    ]);
+    assert!(
+        es.contains("conjunto 1: líneas 1, 2 (10k R0603); números de pieza: ALT-X, RC-A, RC-B; por placa: 2;"),
+        "{es}"
+    );
+    // Without the option the text is the one it always was.
+    let (_, plain, _) = command(&["bom", "--parts", parts, board.as_str()]);
+    assert!(!plain.contains("set 1"));
+    assert!(out.starts_with(&plain));
+    // With --json the sets are the key equivalents, next to the rest.
+    let (code, text, err) = command(&[
+        "bom",
+        "--equivalents",
+        "--json",
+        "--parts",
+        parts,
+        board.as_str(),
+    ]);
+    assert_eq!((code, err.as_str()), (0, ""), "{text}");
+    let json: serde_json::Value = serde_json::from_str(&text).unwrap();
+    assert_eq!(
+        json["equivalents"]["sets"][0]["lines"],
+        serde_json::json!([0, 1])
+    );
+    assert_eq!(json["equivalents"]["sets"][0]["mixed_kinds"], false);
+    assert!(json["lines"].is_array());
+    // A bill with one line has no set to list.
+    let (code, none, _) = command(&["bom", "--equivalents", board.as_str()]);
+    assert_eq!(code, 0);
+    assert!(
+        none.ends_with(
+            "No line of the bill can be bought as one.
+"
+        ),
+        "{none}"
+    );
+}
