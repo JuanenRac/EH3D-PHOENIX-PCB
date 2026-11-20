@@ -402,6 +402,13 @@ pub static COMMANDS: &[Command] = &[
         run: Some(crate::server::server_command),
     },
     Command {
+        name: "boarddiff",
+        topic: Topic::Board,
+        doc: "docs/BOARDDIFF.md",
+        summary: ["compare two revisions of a board: parts, nets, pins, copper, vias, zones and outline", "compara dos revisiones de una placa: piezas, redes, pines, cobre, vías, zonas y contorno", "vergleicht zwei Revisionen einer Platine: Bauteile, Netze, Pins, Kupfer, Durchkontaktierungen, Zonen und Umriss", "compare deux révisions d'une carte : composants, réseaux, broches, cuivre, vias, zones et contour", "confronta due revisioni di una scheda: componenti, reti, pin, rame, via, zone e contorno", "基板の 2 つのリビジョンを比較：部品、ネット、ピン、銅、ビア、ゾーン、外形", "比较电路板的两个版本：元件、网络、引脚、铜、过孔、敷铜区和板框", "compara duas revisões de uma placa: peças, redes, pinos, cobre, vias, zonas e contorno"],
+        run: Some(crate::boarddiff::boarddiff_command),
+    },
+    Command {
         name: "thermal",
         topic: Topic::Board,
         doc: "docs/THERMAL.md",

@@ -706,6 +706,19 @@
           }
         },
         {
+          "name": "BOARDDIFF.md",
+          "desc": {
+            "en": "comparison of two revisions of a board",
+            "es": "comparación de dos revisiones de una placa",
+            "de": "Vergleich zweier Revisionen einer Platine",
+            "fr": "comparaison de deux révisions d'une carte",
+            "it": "confronto di due revisioni di una scheda",
+            "ja": "基板の 2 つのリビジョンの比較",
+            "zh": "电路板两个版本的比较",
+            "pt": "comparação de duas revisões de uma placa"
+          }
+        },
+        {
           "name": "LENGTHS.md",
           "desc": {
             "en": "lengths, matching groups and differential pairs",

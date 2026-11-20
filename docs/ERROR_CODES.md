@@ -2,7 +2,7 @@
 
 Codes have the form `PHOENIX-<AREA>-<NNN>`. A code is stable: it never changes its meaning and is never reused. Programs show the text through the key `diag.<code>`; the codes themselves are never translated. The object identity (UUID v7) is the one of the shared container, with its own codes `EH3D-ID-001` and `EH3D-ID-002`. The container codes `EH3D-PKG-001` to `EH3D-PKG-014` belong to the shared container and are listed in the registry of the documentation repository.
 
-Each table repeats the `REGISTRY` of a crate (`eh3d-phoenix-model` in `src/diagnostic.rs`, `eh3d-phoenix-project` and `eh3d-phoenix-eagle` in `src/codes.rs`, `eh3d-phoenix-hub` in `src/lib.rs`, `eh3d-phoenix-export` in `src/codes.rs` and `src/fabcodes.rs`, `eh3d-phoenix-schematic` in `src/model.rs`, `src/draw.rs`, `src/edit.rs`, `src/link.rs`, `src/hier.rs` and `src/bus.rs`, `eh3d-phoenix-board` in `src/validate.rs`, `src/connectivity.rs` and `src/rules.rs`, `eh3d-phoenix-rules` in `src/codes.rs` and `src/advanced/codes.rs`, `eh3d-phoenix-stackup` and `eh3d-phoenix-rf` in `src/error.rs`, `eh3d-phoenix-viewer`, `eh3d-phoenix-sanitizer`, `eh3d-phoenix-erc`, `eh3d-phoenix-sync`, `eh3d-phoenix-schedit`, `eh3d-phoenix-boardedit` (also in `src/pair_codes.rs`, `src/shove_codes.rs` and `src/zone_codes.rs`), `eh3d-phoenix-libedit`, `eh3d-phoenix-zones`, `eh3d-phoenix-autoroute`, `eh3d-phoenix-lengths`, `eh3d-phoenix-stats`, `eh3d-phoenix-testpoints`, `eh3d-phoenix-ipc2581`, `eh3d-phoenix-server`, `eh3d-phoenix-gerber`, `eh3d-phoenix-panel`, `eh3d-phoenix-bom`, `eh3d-phoenix-assembly3d`, `eh3d-phoenix-si`, `eh3d-phoenix-eagle-deep` and `eh3d-phoenix-oracle` in `src/codes.rs`, `eh3d-phoenix-corpus` in `src/suite/codes.rs`); a test of each crate checks that every code of its registry is in the table with the same title.
+Each table repeats the `REGISTRY` of a crate (`eh3d-phoenix-model` in `src/diagnostic.rs`, `eh3d-phoenix-project` and `eh3d-phoenix-eagle` in `src/codes.rs`, `eh3d-phoenix-hub` in `src/lib.rs`, `eh3d-phoenix-export` in `src/codes.rs` and `src/fabcodes.rs`, `eh3d-phoenix-schematic` in `src/model.rs`, `src/draw.rs`, `src/edit.rs`, `src/link.rs`, `src/hier.rs` and `src/bus.rs`, `eh3d-phoenix-board` in `src/validate.rs`, `src/connectivity.rs` and `src/rules.rs`, `eh3d-phoenix-rules` in `src/codes.rs` and `src/advanced/codes.rs`, `eh3d-phoenix-stackup` and `eh3d-phoenix-rf` in `src/error.rs`, `eh3d-phoenix-viewer`, `eh3d-phoenix-sanitizer`, `eh3d-phoenix-erc`, `eh3d-phoenix-sync`, `eh3d-phoenix-schedit`, `eh3d-phoenix-boardedit` (also in `src/pair_codes.rs`, `src/shove_codes.rs` and `src/zone_codes.rs`), `eh3d-phoenix-libedit`, `eh3d-phoenix-zones`, `eh3d-phoenix-autoroute`, `eh3d-phoenix-lengths`, `eh3d-phoenix-stats`, `eh3d-phoenix-testpoints`, `eh3d-phoenix-ipc2581`, `eh3d-phoenix-server`, `eh3d-phoenix-boarddiff`, `eh3d-phoenix-gerber`, `eh3d-phoenix-panel`, `eh3d-phoenix-bom`, `eh3d-phoenix-assembly3d`, `eh3d-phoenix-si`, `eh3d-phoenix-eagle-deep` and `eh3d-phoenix-oracle` in `src/codes.rs`, `eh3d-phoenix-corpus` in `src/suite/codes.rs`); a test of each crate checks that every code of its registry is in the table with the same title.
 
 ## Model foundations
 
@@ -1002,6 +1002,28 @@ The titles of these codes also exist in the eight languages of the suite (`TITLE
 | PHOENIX-IPC2581-006 | Parts of the board are left out of the file | information: always given, it lists what the file does not hold (the silkscreen items, the arcs of the outline, the copper fill of the zones, the holes that are not plated, the texts of the dimensions when the settings leave them out, the stack-up, and what the settings switch off) |
 | PHOENIX-IPC2581-007 | The board has no outline to write | warning: the outline has fewer than three corners, so the file has no profile |
 | PHOENIX-IPC2581-008 | A pad is on no layer that the file holds | warning: a pad of a part that is on none of the copper layers of the board |
+
+## Comparison of two boards (`eh3d-phoenix-boarddiff`, `src/codes.rs`)
+
+| Code | Title | Raised by |
+|---|---|---|
+| PHOENIX-DIFF-001 | Board comparison settings are not valid | a line of `config/boarddiff.cfg` that is not `key = value`, an unknown key, a number that cannot be read or a value out of range |
+| PHOENIX-DIFF-002 | A command option is not valid | an option of `phoenix boarddiff` that is not known, lacks its value or has a value that is not valid, or a number of files other than two |
+| PHOENIX-DIFF-003 | An input file cannot be read | a board or a settings file that cannot be opened, is too large or is not valid |
+| PHOENIX-DIFF-004 | A limit of the comparison was exceeded | error: a board with more objects than `max_items` |
+| PHOENIX-DIFF-005 | Layer added or removed | a layer name that only one of the boards has |
+| PHOENIX-DIFF-006 | Net added or removed | a net name that only one of the boards has (the nets of `ignore_nets` are left out) |
+| PHOENIX-DIFF-007 | Part added or removed | a reference that only one of the boards has, with its value, footprint and side (the parts of `ignore_parts` are left out) |
+| PHOENIX-DIFF-008 | Value of a part changed | a reference in both boards with another value |
+| PHOENIX-DIFF-009 | Footprint of a part changed | a reference in both boards with another footprint name |
+| PHOENIX-DIFF-010 | Part moved, turned or put on the other side | a reference in both boards that is farther apart than `move_tolerance_nm`, has another turn or is on the other side |
+| PHOENIX-DIFF-011 | Pin connected to another net | a pin of a part that both boards have (`REF.PAD`) on another net, or on a net in one board and none in the other; with `compare_pins` |
+| PHOENIX-DIFF-012 | Copper of a net on a layer changed | another number of tracks, or a length that differs by more than `length_tolerance_nm`, for a net on a layer; with `compare_tracks` |
+| PHOENIX-DIFF-013 | Via added or removed | a via (net and place) that one board has more of; with `compare_vias` |
+| PHOENIX-DIFF-014 | Zone added, removed or changed | a net and layer with zones in one board only, or with another number of zones or another area; with `compare_zones` |
+| PHOENIX-DIFF-015 | Board outline changed | another number of corners or cutouts, another box or another area; with `compare_outline` |
+| PHOENIX-DIFF-016 | A reference is used by more than one part | information about one of the boards: only the first part of that reference is compared |
+| PHOENIX-DIFF-017 | The list of differences was cut | information: more differences than `max_differences`; the rest are counted |
 
 ## Server mode (`eh3d-phoenix-server`, `src/codes.rs`)
 

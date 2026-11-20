@@ -14,7 +14,7 @@
 //! field solver of the cross section of a line adds `field2d`, and the heating of tracks and vias
 //! by the current of their net adds `thermal`, and the statistics of a board add `stats`.
 //! The test points of a board add `testpoints`, and the IPC-2581 file of a board adds `ipc2581`.
-//! The report of a board made by the station of EH3D-SERVER adds `server`.
+//! The report of a board made by the station of EH3D-SERVER adds `server`, and the comparison of two revisions of a board adds `boarddiff`.
 //! The nets of a board as a text netlist, and their comparison with a netlist file, add `nets`.
 //! The writing of boards, schematics and libraries as KiCad 8 files adds `kicad-export`.
 //! The simulation netlist of a schematic, made from a table of models, adds `netlist`.
@@ -46,6 +46,7 @@ mod annotate;
 mod assembly3d;
 mod autoroute;
 mod autoroute_native;
+mod boarddiff;
 mod boardedit;
 mod bom;
 pub mod bounded;
@@ -92,8 +93,8 @@ mod route;
 mod sanitize;
 mod schedit;
 mod script;
-mod server;
 pub mod sec_codes;
+mod server;
 mod si;
 mod sim;
 mod stats;
@@ -480,6 +481,15 @@ phoenix server [--config FILE] --job ID [--json] [--lang xx]
                 asks whether the server is there and --job reads a job that is on it, a
                 prototype that has never talked to a running server, run `phoenix server` alone
                 for its options
+
+phoenix boarddiff [--config FILE] [--json] [--lang xx] <old board> <new board>
+
+  boarddiff     the comparison of two revisions of a board: the layers, nets and parts that only
+                one has, the parts with another value, footprint, place, turn or side, the pins
+                on another net, the copper of each net on each layer, the vias, the zones and the
+                outline, in a fixed order, with the codes PHOENIX-DIFF-<NNN>; parts are matched by
+                reference and never by the ids of the objects, exit code 1 when the boards
+                differ, a prototype, run `phoenix boarddiff` alone for its options
 
 phoenix bom [--config FILE] [--prices FILE] [--parts FILE] [--schematic FILE] [--sourcing] [--stackup FILE]
             [--boards N] [--variant NAME [--variant-file FILE]] [--csv FILE] [--json-file FILE]

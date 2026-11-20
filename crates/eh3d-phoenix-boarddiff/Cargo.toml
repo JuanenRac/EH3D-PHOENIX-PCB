@@ -1,0 +1,13 @@
+[package]
+name = "eh3d-phoenix-boarddiff"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Comparison of two boards (prototype): the layers, nets, parts, pins, copper, vias, zones and outline that the new revision has, lost or changed against the old one, with every tolerance in a settings file, as text in eight languages and as JSON"
+
+[dependencies]
+eh3d-phoenix-board = { path = "../eh3d-phoenix-board" }
+eh3d-phoenix-model = { path = "../eh3d-phoenix-model" }
+eh3d-phoenix-rules = { path = "../eh3d-phoenix-rules" }
