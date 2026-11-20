@@ -4,6 +4,8 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **The export builds against the newer readers and writers of the shared geometry and format libraries:** the Gerber and the Excellon files that are written now fill the fields that the readers gained (dialect, image parameters, attributes of X2, declared plating and notes of the tools) with their neutral values, so the files are byte for byte the same as before.
+
 ## [0.1.4] - Build fix: the limit of the unpacked size of a ZIP fits a 32-bit program
 
 - **The limit of the unpacked size of a ZIP fits a 32-bit program:** the biggest value of `zip_max_total_bytes` is now 4000000000, because a larger one did not fit the address size of the 32-bit Windows build and stopped it from compiling.

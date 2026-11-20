@@ -9,8 +9,8 @@ use std::collections::BTreeMap;
 
 use eh3d_diagnostic::{Diagnostic, Severity};
 use eh3d_parser_gerber::{
-    Aperture, Attribute, Command, CoordinateFormat, GerberFile, Operation, Point as GPoint,
-    Polarity, QuadrantMode, Units, ZeroOmission,
+    Aperture, Attribute, Command, CoordinateFormat, Dialect, GerberFile, ImageParams, Operation,
+    Point as GPoint, Polarity, QuadrantMode, Units, ZeroOmission,
 };
 use eh3d_phoenix_board::connectivity::{pad_position, point_in_polygon};
 use eh3d_phoenix_board::{Board, Id, LayerKind, Pad, PadRef, PadShape, Segment, Via, Zone};
@@ -884,6 +884,8 @@ pub fn write_layer(
         attributes: Vec::new(),
         commands: Vec::new(),
         ended: true,
+        image: ImageParams::default(),
+        dialect: Dialect::default(),
         diagnostics: Vec::new(),
     };
     let mut fields = Fields::new(spec.x2.strict);

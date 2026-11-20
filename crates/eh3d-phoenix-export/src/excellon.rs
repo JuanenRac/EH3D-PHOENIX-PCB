@@ -19,7 +19,7 @@
 use std::collections::BTreeMap;
 
 use eh3d_diagnostic::{Diagnostic, Severity};
-use eh3d_parser_excellon::{ExcellonFile, Hit, Point as EPoint, Slot, Tool, Units};
+use eh3d_parser_excellon::{Dialect, ExcellonFile, Hit, Point as EPoint, Slot, Tool, Units};
 use eh3d_phoenix_board::connectivity::pad_position;
 use eh3d_phoenix_board::{Board, Id, LayerKind, PadRef, PadShape, Via};
 use eh3d_writer_excellon::{CoordinateStyle, ExcellonOptions};
@@ -234,6 +234,10 @@ fn write_one(
             })
             .collect(),
         routes: Vec::new(),
+        attributes: Vec::new(),
+        notes: BTreeMap::new(),
+        declared_plating: None,
+        dialect: Dialect::default(),
         ended: true,
         diagnostics: Vec::new(),
     };
