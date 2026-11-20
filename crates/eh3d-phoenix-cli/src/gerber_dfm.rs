@@ -191,10 +191,18 @@ pub(crate) fn check_gerber_dfm(args: &[&str], out: &mut dyn Write, err: &mut dyn
         let set = import_files(&files, &import).map_err(|e| e.to_string())?;
         let report = check_set(&set, &profile, &settings);
         if let Some(csv) = options.csv {
-            if Path::new(csv).exists() {
-                return Err(format!("{csv} exists; a file is never replaced"));
-            }
-            std::fs::write(csv, report_csv(&report, options.lang))
+            let mut file = std::fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(csv)
+                .map_err(|e| {
+                    if Path::new(csv).exists() {
+                        format!("{csv} exists; a file is never replaced")
+                    } else {
+                        format!("{csv}: {e}")
+                    }
+                })?;
+            file.write_all(report_csv(&report, options.lang).as_bytes())
                 .map_err(|e| format!("{csv}: {e}"))?;
         }
         let text = if options.json {
