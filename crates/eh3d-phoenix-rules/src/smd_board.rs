@@ -16,6 +16,9 @@ use crate::items::placed_pads;
 use crate::report::{Finding, Severity};
 use crate::smd_spacing::{builtin_table, classify_footprint, find_violations, SmdPart};
 
+/// The box of the pads of a part and whether one of them is drilled.
+type PadBox = (i64, i64, i64, i64, bool);
+
 fn half_extent(shape: PadShape) -> i64 {
     let longest = match shape {
         PadShape::Circle { diameter } => diameter.get(),
@@ -30,7 +33,7 @@ fn half_extent(shape: PadShape) -> i64 {
 /// order of their reference designators.
 pub(crate) fn parts_of(board: &Board) -> Vec<SmdPart> {
     // reference designator -> (min x, min y, max x, max y, has a drilled pad)
-    let mut boxes: BTreeMap<String, (i64, i64, i64, i64, bool)> = BTreeMap::new();
+    let mut boxes: BTreeMap<String, PadBox> = BTreeMap::new();
     for pad in placed_pads(board) {
         let half = half_extent(pad.shape);
         let (x, y) = (pad.at.x_nm.get(), pad.at.y_nm.get());
@@ -141,7 +144,10 @@ mod tests {
         }
     }
 
-    fn board_with(parts: &[(&str, &str, i64, i64, Side, Option<i64>)]) -> Board {
+    /// A part: reference designator, footprint name, place, side and drill of its pads.
+    type PartSpec<'a> = (&'a str, &'a str, i64, i64, Side, Option<i64>);
+
+    fn board_with(parts: &[PartSpec<'_>]) -> Board {
         let mut b = Board::default();
         b.layers.insert(
             id(1),

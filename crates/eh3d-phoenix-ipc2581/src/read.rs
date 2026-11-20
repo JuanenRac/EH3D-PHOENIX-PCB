@@ -220,10 +220,6 @@ impl Reader {
         }
     }
 
-    fn note(&mut self, text: &str) {
-        *self.notes.entry(text.to_owned()).or_insert(0) += 1;
-    }
-
     /// A length attribute in the unit of the header; `None` when it is absent, and a bad value is
     /// counted.
     fn len(&mut self, value: Option<&str>, key: &str) -> Option<i64> {

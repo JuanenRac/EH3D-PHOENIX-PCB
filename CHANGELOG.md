@@ -4,6 +4,8 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **Lints of the IPC-2581 reader, the spacing of parts and the rules of a maker fixed:** the reader no longer keeps a note method that nothing calls, the test helper of the spacing of parts names its tuple with a type alias, and the tests that draw random numbers ask `is_multiple_of` instead of taking a remainder.
+
 ## [0.1.3] - A reader of IPC-2581 files with stack-up, libraries of laminates and stack-ups, rules and export profiles of makers, panel rules and a single drill file
 
 - **The plated and the not plated holes can go in one drill file:** the new keys `drill.mixed` and `drill.mixed_file` of an export profile write a single Excellon file in the mixed mode that several makers and design tools offer: the tools of the plated holes come first and keep their numbers, those of the other holes follow, the selection lines of the body are renumbered, every tool keeps its own `TA.AperFunction` (so a plated tool and a tool that is not plated of one diameter stay apart) and the file says `TF.FileFunction,MixedPlating`. The key needs the X2 level `aperture` or `full`, which is what tells the tools apart, and a profile without it is refused with the key named; the file is the two files joined as text, so the same board always gives the same bytes.

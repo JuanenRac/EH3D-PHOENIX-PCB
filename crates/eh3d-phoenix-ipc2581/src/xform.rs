@@ -215,7 +215,7 @@ mod tests {
             let quarter = [0.0, 90.0, 180.0, 270.0][(next() % 4) as usize];
             let there = Xf {
                 rotation_deg: quarter,
-                mirror: next() % 2 == 0,
+                mirror: next().is_multiple_of(2),
                 ..Xf::at(0, 0)
             };
             let back = Xf {

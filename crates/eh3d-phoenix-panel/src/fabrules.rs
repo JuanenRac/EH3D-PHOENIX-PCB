@@ -1078,7 +1078,7 @@ mod tests {
         };
         for _ in 0..500 {
             let mut f = facts();
-            f.v_score = next() % 2 == 0;
+            f.v_score = next().is_multiple_of(2);
             f.width_nm = (next() % 300_000_000) as i64;
             f.height_nm = (next() % 300_000_000) as i64;
             f.thickness_nm = (next() % 4_000_000) as i64;
@@ -1088,12 +1088,12 @@ mod tests {
             f.stamp_pitch_nm = (next() % 2_000_000) as i64;
             f.stamp_holes = (next() % 9) as u32;
             f.rail_nm = (next() % 12_000_000) as i64;
-            f.score_gap_nm = if next() % 3 == 0 {
+            f.score_gap_nm = if next().is_multiple_of(3) {
                 None
             } else {
                 Some((next() % 6_000_000) as i64)
             };
-            let smt = next() % 2 == 0;
+            let smt = next().is_multiple_of(2);
             for r in &c.rules {
                 let found = check(&f, r, smt);
                 // the same facts always give the same findings
