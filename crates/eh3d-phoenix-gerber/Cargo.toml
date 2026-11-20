@@ -11,6 +11,7 @@ description = "Read-only import of Gerber RS-274X and Excellon files for review 
 eh3d-phoenix-board = { path = "../eh3d-phoenix-board" }
 eh3d-phoenix-export = { path = "../eh3d-phoenix-export" }
 eh3d-phoenix-rules = { path = "../eh3d-phoenix-rules" }
+eh3d-parser-gerber = { version = ">=0.0.4", path = "../../../EH3D-CORE-LIBS/crates/eh3d-parser-gerber" }
 serde_json.workspace = true
 
 [dev-dependencies]

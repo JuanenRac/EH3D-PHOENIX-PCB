@@ -3,6 +3,9 @@
 //!
 //! * [`parse`]: the Gerber reader (apertures `C`, `R`, `O`, `P` and macros, polarity, regions,
 //!   lines, flashes and arcs, the file attributes);
+//! * [`core_adapter`]: the first step of the move to the shared reader of EH3D-CORE-LIBS, an
+//!   adapter to the model of this crate with the comparison of both readings (the reader of
+//!   [`parse`] is not replaced yet);
 //! * [`macros`]: the aperture macros, with their expressions and basic primitives;
 //! * [`drill`]: the Excellon reader (tools, units, zeros, holes, slots and routed paths);
 //! * [`identify`]: the layer a file belongs to, from its X2 attributes or its name (EAGLE,
@@ -28,6 +31,7 @@
 
 pub mod codes;
 pub mod compare;
+pub mod core_adapter;
 pub mod drill;
 pub mod identify;
 pub mod import;
@@ -43,6 +47,7 @@ pub mod units;
 pub mod x2check;
 
 pub use codes::{title, Finding, GbrError, Severity, TITLES};
+pub use core_adapter::{adapt_gerber, compare_layers, Adapted, CoreNote, Equivalence};
 pub use compare::{compare_files, compare_files_with, round_trip, Difference, RoundTrip};
 pub use drill::parse_drill;
 pub use identify::{drill_span, identify, DrillSpan, Identified, Role, Source};

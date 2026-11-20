@@ -58,3 +58,11 @@ The structure of Gerber X2 and Excellon files can be checked with `phoenix gerbe
 ## What is not here
 
 The imported layers are shown by the window of the viewer (`docs/VIEWER.md`). See `docs/NOT_YET.md`: showing them over the board in one drawing, the step and repeat and aperture blocks, a comparison with a reference viewer and with files of real CAD programs, and the comparison of copper pours and silkscreen text.
+
+## Moving the reader to the shared one
+
+The plan of the suite is to keep one Gerber reader, the one of EH3D-CORE-LIBS, with a set of snapshots as the safety net. The first step is done here and nothing is replaced yet: the module `core_adapter` reads a file with the shared reader (`adapt_gerber`) and gives the model of this crate, and `compare_layers` compares that reading with the one of `parse_gerber` on the same text (units, apertures, the number of every kind of object and the objects in order, each point within a tolerance in nanometres). The tests of the module run both readers over boards with flashes, lines, a region, an arc, clear polarity and inches and they agree.
+
+What the adapter gives: the units, the apertures that are not macros, the attributes of the file, the flashes, the lines with a round pen, the arcs and the regions (their arcs as straight pieces). What it names in `not_converted` and marks with `complete = false`: the primitives of a macro aperture, a flash that is turned or scaled, a pen that is not round, the apertures of blocks, the attributes of apertures and objects and a negative image. The remarks of the shared reader come in `notes` with their own codes.
+
+What is still to do before the old reader can go, following the plan of the shared repository: take its corpus of boards and snapshots into this repository (`-text` in `.gitattributes`), write the adapter that gives the snapshot lines and compare each board and each line, convert the macros, the object attributes and the blocks, put the new reader behind a switch and run both over the corpus for a stated number of releases, and only then remove the old reader and keep the comparison as a permanent test.
