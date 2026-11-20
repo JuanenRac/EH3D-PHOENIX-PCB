@@ -52,15 +52,19 @@ No geometry kernel or constraint solver has been chosen. Candidates are compared
 
 ## User-interface and rendering stack
 
-State: **proposed**.
+State: **accepted**. The stack is egui with the wgpu backend, inside the window frame of the suite (`eh3d-dock` in EH3D-COMMON: docked, tabbed, split and floating panels, named workspaces, menus declared as data, eight languages). The record is `docs/adr/0009-first-interface-stack.md`.
 
-The stack is decided after a one-week prototype measured on small, medium and large reference boards on the author's machine; targets are set after measuring, and a frame rate is only an orientation. The criteria are dense tool interfaces, performance on an integrated GPU, Linux on ARM support, accessibility (keyboard navigation, no colour-only signalling) and eight-language text. The rule is already fixed: the interface talks to the engine only through model operations, and no engineering logic lives in the interface. A first, provisional choice is written in `docs/adr/0009-first-interface-stack.md`: egui on eframe with a canvas of our own and all of the logic kept outside egui; it is accepted or replaced after the measurements on a real screen that the record lists.
+The rule fixed from the start still holds: the interface talks to the engine only through model operations, and no engineering logic lives in the interface. The measurements on a real screen (small, medium and large boards, integrated graphics, 1080p and 4K) stay as the acceptance checks of the window, not as a condition of the choice.
+
+Evidence in the code: the viewer and the editor keep their state outside any window (`eh3d-phoenix-viewer`, `eh3d-phoenix-boardedit`) and only the `gui` feature draws it. Accepted, not yet done: the window still draws with the glow backend and fixed side panels; moving it to wgpu and to `eh3d-dock` is the open item of phase F6.
 
 ## Imported scripts are disabled by default
 
-State: **proposed**.
+State: **accepted**, with the sandbox as an open item.
 
 Scripts, output jobs and plugins found in a project are never run automatically. Running one needs explicit confirmation, happens inside a sandbox that starts from nothing allowed (read-only access to the object model and pure computation are allowed; output only inside a private per-run folder with a size limit; operating-system commands, network, environment and user folders are denied; limits on time, memory and number of model operations) and is logged with the hash of the script, the parameters and the resulting changes. The sandbox is also a separate low-privilege process; a child process alone is not a boundary.
+
+Evidence in the code: the script interpreter (`eh3d-phoenix-script`) never starts a program and never reaches the network, reaches a file only through three commands that are off in its settings, and refuses a run that needs more operations than the limit (`config/script.cfg`). Accepted, not yet done: the separate low-privilege process, the confirmation step with the hash of the script and the log of changes. The interpreter of the original script language is decided in `docs/adr/0011-ulp-interpreter-for-the-owner-list.md`.
 
 ## Every result states its kind
 
@@ -82,9 +86,9 @@ Formats are learned from public specifications, from files of the author's own a
 
 ## Stable diagnostic codes
 
-State: **proposed** for the numbering and the registry; the two prefixes (`EH3D-` for shared code, `PHOENIX-` for this tool) and the shared diagnostic crate are accepted.
+State: **accepted**.
 
-Failures that a reader or a check cannot hide become diagnostics with a stable code of the form `PHOENIX-<AREA>-<NNN>` (the registry is kept in the board tool). The model foundations return typed errors and do not carry codes yet. A code is never reused or renumbered, its message may be translated but the code and field names are not, and a repository never keeps a private list: it asks for numbers in the registry in the same change that uses them, together with a test.
+Failures that a reader or a check cannot hide become diagnostics with a stable code of the form `PHOENIX-<AREA>-<NNN>` (the registry is `docs/ERROR_CODES.md`, repeated by the `REGISTRY` of each crate and kept in agreement by a test). A code is never reused or renumbered, its message may be translated but the code and field names are not, and a repository never keeps a private list: it asks for numbers in the registry in the same change that uses them, together with a test. The two prefixes are `EH3D-` for shared code and `PHOENIX-` for this tool. See also the section on diagnostic codes above.
 
 ## Nothing here moves a machine
 
@@ -100,6 +104,118 @@ The real projects of the author are never committed, pasted into issues or sent 
 
 ## Circuit simulation starts with a solver of our own
 
-State: **proposed**.
+State: **accepted**. The simulator is our own (modified nodal analysis, with diodes, transistors, op-amp macromodels and the analyses of the record), and an existing engine is used only to compare: in the CI, as an external program that is started and read back, never linked. The record is `docs/adr/0010-own-circuit-simulator.md`.
 
-The first circuit simulator is a solver of our own (modified nodal analysis of linear circuits and circuits with diodes, transistors and op-amp macromodels, with no dependency beyond the complex numbers of the RF tools), not a binding to an existing engine, because the licence and the platform support of the engines are not settled and the first cases need very little. Its results say that they are an own numerical approximation and a prototype. An existing engine stays the way to validate it: it is chosen later, the reference cases run through both and the differences are recorded. The record is `docs/adr/0010-own-circuit-simulator.md`, with the risks and what has to be shown before it is accepted.
+Its results say that they are an own numerical approximation and a prototype until the reference cases have run through both and the differences are written down; no such comparison has been made yet.
+
+## Library format of the project, with `.lbr` for import and export
+
+State: **accepted**.
+
+Libraries live in the own project format and the `.lbr` of the reference tool is an import and an export, not the storage.
+
+Evidence in the code: `eh3d-phoenix-libedit` edits a library in memory and writes a new `.lbr` (`phoenix libedit --out`, `docs/LIBRARY_EDIT.md`), the sanitizer plans and applies changes with a backup, and `phoenix libedit --compare` reads two `.lbr` files. Accepted, not yet done: the own library domain inside `.phoenixproj` (the project format knows domains and links, but no library domain is registered yet) and its schema with a device and its versions.
+
+## Object identity is separate from the identity of the bytes
+
+State: **accepted**, not yet implemented.
+
+Besides the identity of a design object (a UUID version 7), a produced file or package has an artifact identity that is separate from the SHA-256 of its bytes: the same design built twice has the same artifact identity and may have different bytes when a writer profile says so, and two different designs never share one.
+
+Evidence in the code: none yet. The packages carry a manifest of SHA-256 sums (`phoenix fabpack`, `docs/FABPACK.md`), which is the identity of the bytes; the artifact identity waits for the contract of the server and the passport of a design.
+
+## Determinism in two guarantees, with named writer profiles
+
+State: **accepted**, partly implemented.
+
+A writer gives the same bytes for the same input and the same profile (first guarantee), and the content of a result does not depend on the order of its inputs or on the machine (second guarantee). The profile that decides the form of a file has a name, and the files carry no date, user name or path.
+
+Evidence in the code: the tests that write twice and compare bytes (`saving_twice_gives_the_same_bytes_and_a_reopened_project_saves_the_same_bytes`, `the_same_files_give_the_same_bytes_in_any_order`), the deterministic zip of `phoenix fabpack`, canonical JSON for every new file and the export profiles of `config/export_profiles.json` and `config/export_profiles_makers.json`. Accepted, not yet done: the name of the profile written into every output, as one field with one rule.
+
+## Versions 0.x, critical domains and `must_understand`
+
+State: **accepted**.
+
+While the major version is 0 a change of a format may break readers, and says so by its version and a migration. A domain of the project is critical when it changes electrical or geometric meaning: a reader that does not understand a critical domain, or an object marked `must_understand`, refuses the project or opens it read-only, and never drops it.
+
+Evidence in the code: `eh3d-phoenix-project` (critical domains, links, migrations, opaque preservation of the domains it does not know, read-only opening), with the codes `PHOENIX-MODEL-004`, `PHOENIX-MODEL-006` and `PHOENIX-PROJECT-001` to `PHOENIX-PROJECT-006`. No migration is registered yet.
+
+## Exact SPDX identifiers
+
+State: **accepted**.
+
+The software carries the identifier `GPL-3.0-or-later` in the manifest of the workspace and an SPDX line at the head of its source files; hardware uses `CERN-OHL-S-2.0`; a repository that mixes firmware and hardware states the licence of each file.
+
+Evidence in the code: `license = "GPL-3.0-or-later"` in the workspace and a SPDX line in the source files. This repository has no hardware.
+
+## The common diagnostic crate lives in EH3D-COMMON
+
+State: **accepted**.
+
+`eh3d-diagnostic` is in EH3D-COMMON and not in the general library, because the container of EH3D-COMMON emits diagnostics and EH3D-COMMON cannot depend on the general library.
+
+Evidence in the code: the model, project, board and the other crates depend on `eh3d-diagnostic` (workspace dependency) and map their errors to it; the geometric checks of Gerber files map their findings to it too (`finding_diagnostic`, with the `inconclusive` recoverability for a check that could not be made). Several finding types of other crates still have their own shape, with the same code; converting them is a small item per crate.
+
+## Two registries of codes
+
+State: **accepted**.
+
+`EH3D-` (EH3D-COMMON, the general library, the server and the machine tools; registry in the documentation hub) and `PHOENIX-` (this family; registry in `docs/ERROR_CODES.md`).
+
+Evidence in the code: every crate with codes has a `REGISTRY` table and the test that the codes follow the pattern, are unique, and are in `docs/ERROR_CODES.md`.
+
+## Height maps in the exchange package
+
+State: **accepted**, not applicable here yet.
+
+The exchange package 1.1.0 has a root `heightmaps/` for the height maps of the levelling tool. This repository writes and reads none; the container and its policy are in EH3D-COMMON.
+
+Evidence in the code: none in this repository, by design.
+
+## The server owns projects and artifacts
+
+State: **accepted**, implemented in the server and not here.
+
+The server decides the owner and the sharing of projects and artifacts, answers "not found" for what a caller may not see, and filters its events. This repository only sends work and reads the report (`phoenix server`); it keeps no copy of these rules.
+
+Evidence in the code: `eh3d-phoenix-server` sends a job and never assumes more than the routes it uses (`docs/DEPENDENCIES.md`).
+
+## Canonical JSON with quantised values
+
+State: **accepted**. The record is `docs/adr/0005-canonical-json-and-quantised-values.md`.
+
+New JSON files use the canonical form of RFC 8785; exchange values in millimetres are quantised to six decimals before writing; integers with the unit in the name are used in the design domain.
+
+Evidence in the code: `eh3d-phoenix-model::canonical` and `quantise` over the writer of `eh3d-container`, with the vectors of the standard as tests.
+
+## The `.eh3dproj` package is exported at 1.0.0 by default
+
+State: **accepted**.
+
+An export writes the package at version 1.0.0 unless the consumer declares that it reads 1.1.0, and the identity of the exported package is derived deterministically from its content.
+
+Evidence in the code: `phoenix export --eh3dproj` writes the 1.0.0 package (`PPCB-011`). Version 1.1.0 and the derived package identity are not written yet.
+
+## Circuit simulation is compared with an external engine in the CI
+
+State: **accepted**, comparison pending.
+
+The own solver stays the engine of the program. An existing circuit engine, started as an external program and read back (never linked into the program), is used in the CI to compare the reference cases. The difference of each case is written down with its tolerance.
+
+Evidence in the code: none yet; the reference cases are in `eh3d-phoenix-sim` and in the oracle frame. The comparison needs the external engine in the CI image.
+
+## Automatic routing is our own, with an adapter to an external router that is off
+
+State: **accepted**.
+
+The router of the program is our own (`eh3d-phoenix-autoroute`, `docs/AUTOROUTE_NATIVE.md`). The exchange with an external router through the DSN and SES files stays as an adapter that is off by default and runs only on request.
+
+Evidence in the code: the native router and the DSN and SES export and import (`docs/AUTOROUTE.md`), with the adapter off in `config/autorouter.cfg`.
+
+## An interpreter of the original script language, only for the list of the owner
+
+State: **accepted**, not implemented. The record is `docs/adr/0011-ulp-interpreter-for-the-owner-list.md`.
+
+An interpreter of the user programs of the reference tool is written only for the programs the owner lists, with a compatibility report per program, and never as a promise of the whole language.
+
+Evidence in the code: none; the second script language (`phoenix-script/2`) and the command interpreter exist, and `phoenix script` reports what of a script file it could translate.
