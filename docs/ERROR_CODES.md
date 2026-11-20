@@ -1009,6 +1009,12 @@ The titles of these codes also exist in the eight languages of the suite (`TITLE
 | PHOENIX-IPC2581-006 | Parts of the board are left out of the file | information: always given, it lists what the file does not hold (the silkscreen items, the arcs of the outline, the copper fill of the zones, the holes that are not plated, the texts of the dimensions when the settings leave them out, the stack-up, and what the settings switch off) |
 | PHOENIX-IPC2581-007 | The board has no outline to write | warning: the outline has fewer than three corners, so the file has no profile |
 | PHOENIX-IPC2581-008 | A pad is on no layer that the file holds | warning: a pad of a part that is on none of the copper layers of the board |
+| PHOENIX-IPC2581-009 | The file is not well-formed XML | error: the file to read cannot be parsed (the byte where it stops is in the detail) |
+| PHOENIX-IPC2581-010 | The document is not an IPC-2581 file | error: the root element is not `IPC-2581` |
+| PHOENIX-IPC2581-011 | A limit of the reader was exceeded | error: the file is larger, deeper or holds more elements or items than the settings allow |
+| PHOENIX-IPC2581-012 | An element of the file is not read | warning: an element the reader does not know is left out, named, with the number of times it appears |
+| PHOENIX-IPC2581-013 | A value of the file is not valid and is left out | warning: a length, a number or a unit that cannot be read is left out, named, with the number of times |
+| PHOENIX-IPC2581-014 | The stack-up lacks a value that the model of the stack-up needs | warning: a layer without a thickness, a dielectric without a constant or a loss tangent |
 
 ## Comparison of two boards (`eh3d-phoenix-boarddiff`, `src/codes.rs`)
 

@@ -34,6 +34,24 @@ pub struct Ipc2581Settings {
     /// The name of the net that a pad on no net has in the IPC-D-356A file: from 1 to 14 printable
     /// characters without a blank.
     pub d356_unconnected_name: String,
+    /// The largest IPC-2581 file the reader accepts, in bytes (`phoenix ipc2581-read`).
+    pub read_max_bytes: usize,
+    /// The deepest nesting of elements the reader accepts.
+    pub read_max_depth: usize,
+    /// The most elements a file may hold for the reader to accept it.
+    pub read_max_elements: usize,
+    /// The most items (holes, parts, nets, pads, tracks, regions) the reader keeps counting
+    /// before it refuses the file.
+    pub read_max_items: usize,
+    /// Keep the geometry of the tracks, arcs, polylines and regions (the counts are always kept).
+    pub read_keep_geometry: bool,
+    /// The most attributes the reader accepts on one element.
+    pub read_max_attrs: usize,
+    /// The most findings the reader lists for a file; the rest are counted in one last finding.
+    pub read_max_findings: usize,
+    /// The frequency, in MHz, of the single point of a material that is made from a file (the
+    /// file gives a dielectric constant and a loss tangent but not the frequency).
+    pub read_reference_mhz: usize,
 }
 
 impl Default for Ipc2581Settings {
@@ -49,6 +67,14 @@ impl Default for Ipc2581Settings {
             max_items: 1_000_000,
             d356_include_smd: true,
             d356_unconnected_name: "N/C".to_owned(),
+            read_max_bytes: 128 * 1024 * 1024,
+            read_max_depth: 64,
+            read_max_elements: 50_000_000,
+            read_max_items: 20_000_000,
+            read_keep_geometry: true,
+            read_max_attrs: 256,
+            read_max_findings: 200,
+            read_reference_mhz: 1000,
         }
     }
 }
@@ -108,6 +134,14 @@ impl Ipc2581Settings {
                 "max_items" => s.max_items = value.parse().map_err(|_| bad())?,
                 "d356_include_smd" => s.d356_include_smd = parse_bool(value).ok_or_else(bad)?,
                 "d356_unconnected_name" => value.clone_into(&mut s.d356_unconnected_name),
+                "read_max_bytes" => s.read_max_bytes = value.parse().map_err(|_| bad())?,
+                "read_max_depth" => s.read_max_depth = value.parse().map_err(|_| bad())?,
+                "read_max_elements" => s.read_max_elements = value.parse().map_err(|_| bad())?,
+                "read_max_items" => s.read_max_items = value.parse().map_err(|_| bad())?,
+                "read_keep_geometry" => s.read_keep_geometry = parse_bool(value).ok_or_else(bad)?,
+                "read_max_attrs" => s.read_max_attrs = value.parse().map_err(|_| bad())?,
+                "read_max_findings" => s.read_max_findings = value.parse().map_err(|_| bad())?,
+                "read_reference_mhz" => s.read_reference_mhz = value.parse().map_err(|_| bad())?,
                 _ => {
                     return Err(Ipc2581Error::new(
                         SETTINGS_INVALID,
@@ -139,6 +173,28 @@ impl Ipc2581Settings {
                 SETTINGS_INVALID,
                 "max_items must be between 1 and 100000000",
             ));
+        }
+        let ranges: [(&str, usize, usize, usize); 7] = [
+            ("read_max_bytes", self.read_max_bytes, 1, 2_000_000_000),
+            ("read_max_depth", self.read_max_depth, 4, 1000),
+            (
+                "read_max_elements",
+                self.read_max_elements,
+                1,
+                1_000_000_000,
+            ),
+            ("read_max_items", self.read_max_items, 1, 1_000_000_000),
+            ("read_max_attrs", self.read_max_attrs, 1, 10_000),
+            ("read_max_findings", self.read_max_findings, 1, 100_000),
+            ("read_reference_mhz", self.read_reference_mhz, 1, 1_000_000),
+        ];
+        for (key, value, low, high) in ranges {
+            if !(low..=high).contains(&value) {
+                return Err(Ipc2581Error::new(
+                    SETTINGS_INVALID,
+                    format!("{key} must be between {low} and {high}"),
+                ));
+            }
         }
         let name = &self.d356_unconnected_name;
         if !(1..=14).contains(&name.len()) || !name.bytes().all(|c| c.is_ascii_graphic()) {
@@ -191,6 +247,38 @@ mod tests {
     }
 
     #[test]
+    fn the_limits_of_the_reader_are_settings_and_name_their_key() {
+        let s = Ipc2581Settings::parse(
+            "read_max_bytes = 1000\nread_max_depth = 10\nread_max_elements = 99\nread_max_items = 7\nread_keep_geometry = false\n",
+        )
+        .unwrap();
+        assert_eq!(
+            (
+                s.read_max_bytes,
+                s.read_max_depth,
+                s.read_max_elements,
+                s.read_max_items
+            ),
+            (1000, 10, 99, 7)
+        );
+        assert!(!s.read_keep_geometry);
+        let bad = Ipc2581Settings::parse("read_max_depth = 2\n").unwrap_err();
+        assert!(bad.detail.contains("read_max_depth"), "{}", bad.detail);
+        let bad = Ipc2581Settings::parse("read_max_items = 0\n").unwrap_err();
+        assert!(bad.detail.contains("read_max_items"), "{}", bad.detail);
+        let s = Ipc2581Settings::parse(
+            "read_max_attrs = 8\nread_max_findings = 3\nread_reference_mhz = 2500\n",
+        )
+        .unwrap();
+        assert_eq!(
+            (s.read_max_attrs, s.read_max_findings, s.read_reference_mhz),
+            (8, 3, 2500)
+        );
+        let bad = Ipc2581Settings::parse("read_reference_mhz = 0\n").unwrap_err();
+        assert!(bad.detail.contains("read_reference_mhz"), "{}", bad.detail);
+    }
+
+    #[test]
     fn a_bad_line_is_refused_with_its_number() {
         let unknown = Ipc2581Settings::parse("a = 1\n").unwrap_err();
         assert_eq!(unknown.code, SETTINGS_INVALID);
@@ -212,6 +300,18 @@ mod tests {
             "d356_unconnected_name =\n",
             "d356_unconnected_name = THE_NAME_IS_TOO_LONG\n",
             "d356_unconnected_name = caf\u{e9}\n",
+            "read_max_bytes = 0\n",
+            "read_max_bytes = 2000000001\n",
+            "read_max_depth = 3\n",
+            "read_max_depth = 1001\n",
+            "read_max_elements = 0\n",
+            "read_max_items = x\n",
+            "read_keep_geometry = 1\n",
+            "read_max_attrs = 0\n",
+            "read_max_attrs = 10001\n",
+            "read_max_findings = 0\n",
+            "read_reference_mhz = 0\n",
+            "read_reference_mhz = 1000001\n",
         ] {
             assert!(Ipc2581Settings::parse(text).is_err(), "{text}");
         }

@@ -67,6 +67,7 @@ mod help;
 mod help_topics;
 mod hier;
 mod ipc2581;
+mod ipc2581_read;
 mod ipclib;
 mod kicad;
 mod kicad_export;
@@ -474,6 +475,7 @@ phoenix nets [--config FILE] [--out FILE] [--csv FILE] [--compare NETLIST] [--im
                 alone for its options
 
 phoenix ipc2581 [--config FILE] [--out FILE] [--d356 FILE] [--overwrite] [--json] [--lang xx] <board>
+phoenix ipc2581 --read FILE [--config FILE] [--html FILE] [--stackup-out FILE] [--overwrite] [--json] [--lang xx]
 
   ipc2581       a board as an IPC-2581 file (revision C, a subset): the layers, the outline and
                 its cutouts, the pads with their padstacks, the vias, the tracks, the outlines of
@@ -482,7 +484,10 @@ phoenix ipc2581 [--config FILE] [--out FILE] [--d356 FILE] [--overwrite] [--json
                 PHOENIX-IPC2581-<NNN>; a dry run unless --out names the file, which is replaced
                 only with --overwrite, a prototype that no viewer has opened; with --d356 it also
                 writes the netlist of the board as an IPC-D-356A test file, a prototype whose
-                columns have not been compared with the standard, run `phoenix ipc2581` alone for
+                columns have not been compared with the standard; with --read it reads an IPC-2581
+                file of revision A, B or C instead (layers, stack-up with materials, holes, parts,
+                nets, copper, what was left out) and can write the stack-up as HTML (--html) and as
+                a job file for `phoenix stackup` (--stackup-out), run `phoenix ipc2581` alone for
                 its options
 
 phoenix server [--config FILE] [--kind rules|drill|bom|inspect] [--send] [--json] [--lang xx] <board | measurements>

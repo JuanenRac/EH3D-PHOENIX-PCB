@@ -130,6 +130,14 @@ A material gives points `[frequency in GHz, value]`. The value at a frequency is
 
 The impedance falls as the track widens. The crate searches the width in whole nanometres between `synth_min_width_nm` and `synth_max_width_nm` (settings) by bisection on the direct calculation, until the impedance is within `synth_tolerance_ohm` of the target. A target that the two limits do not enclose is `PHOENIX-STACK-007` (the error names the impedances the limits give); a search that runs out of steps or of nanometres is `PHOENIX-STACK-008`. For a pair the gap is fixed and the width is searched for the differential impedance.
 
+## A stack-up from an IPC-2581 file
+
+`phoenix ipc2581 --read FILE --stackup-out JOB` writes the stack-up of an IPC-2581 file, with the materials that the file describes, as the first two parts of a job file (the lines are left empty); `--html` writes the page of the stack-up. See `docs/IPC2581.md`. The file does not say at which frequency its dielectric constant and loss tangent hold, so every material gets one point at the frequency of the setting `read_reference_mhz` (1 GHz unless changed), to be corrected by hand.
+
+## The library of laminates
+
+The module `laminates` of the crate holds the figures that the data sheets of 17 common laminates state: an epoxy FR-4 family, high-frequency hydrocarbon and PTFE laminates, polyimide laminates and films, an aluminium-base dielectric and copper. For each one it has the dielectric constant and the loss tangent with the frequency they are stated at, the glass transition (and whether the sheet gives it as "over"), the decomposition temperature, the expansion in X, Y and Z, the thermal conductivity and the commercial thicknesses of a core, when the sheet states them clearly; a figure that is not clear on the sheet is `None`. **Every entry is `verified: false`**: the figures were typed in from the sheets, not measured and not compared with a second source, and they hold for the frequency, the resin content and the test method the sheet states. `Laminate::sample` makes a `MaterialSample` from an entry that has a constant, a loss tangent and both frequencies, and gives nothing for the others. Use the library as a first estimate and replace the figures with those of the laminate the fabricator quotes.
+
 ## Settings
 
 `config/stackup.cfg`, one `key = value` per line, read with `phoenix stackup --settings FILE`:

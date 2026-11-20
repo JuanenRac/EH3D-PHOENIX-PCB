@@ -23,6 +23,18 @@ pub const LEFT_OUT: &str = "PHOENIX-IPC2581-006";
 pub const NO_OUTLINE: &str = "PHOENIX-IPC2581-007";
 /// A pad is on no layer that the file holds.
 pub const PAD_NO_LAYER: &str = "PHOENIX-IPC2581-008";
+/// The file to read is not well-formed XML.
+pub const READ_NOT_XML: &str = "PHOENIX-IPC2581-009";
+/// The document is XML but not an IPC-2581 file.
+pub const READ_NOT_IPC2581: &str = "PHOENIX-IPC2581-010";
+/// A limit of the reader was exceeded.
+pub const READ_LIMIT: &str = "PHOENIX-IPC2581-011";
+/// An element of the file is not read.
+pub const READ_SKIPPED: &str = "PHOENIX-IPC2581-012";
+/// A value of the file is not valid and is left out.
+pub const READ_VALUE_INVALID: &str = "PHOENIX-IPC2581-013";
+/// The stack-up lacks a value that the model of the stack-up needs.
+pub const READ_STACKUP_INCOMPLETE: &str = "PHOENIX-IPC2581-014";
 
 /// Code, then the title in English, Spanish, German, French, Italian, Japanese, Chinese and
 /// European Portuguese.
@@ -129,6 +141,84 @@ pub const TITLES: &[(&str, [&str; 8])] = &[
             "ファイルにある層のどれにもないパッドがあります",
             "有焊盘不在文件包含的任何层上",
             "Uma pastilha não está em nenhuma camada do ficheiro",
+        ],
+    ),
+    (
+        READ_NOT_XML,
+        [
+            "The file is not well-formed XML",
+            "El archivo no es un XML bien formado",
+            "Die Datei ist kein wohlgeformtes XML",
+            "Le fichier n'est pas un XML bien formé",
+            "Il file non è un XML ben formato",
+            "ファイルは整形式の XML ではありません",
+            "文件不是格式良好的 XML",
+            "O ficheiro não é um XML bem formado",
+        ],
+    ),
+    (
+        READ_NOT_IPC2581,
+        [
+            "The document is not an IPC-2581 file",
+            "El documento no es un archivo IPC-2581",
+            "Das Dokument ist keine IPC-2581-Datei",
+            "Le document n'est pas un fichier IPC-2581",
+            "Il documento non è un file IPC-2581",
+            "このドキュメントは IPC-2581 ファイルではありません",
+            "该文档不是 IPC-2581 文件",
+            "O documento não é um ficheiro IPC-2581",
+        ],
+    ),
+    (
+        READ_LIMIT,
+        [
+            "A limit of the reader was exceeded",
+            "Se superó un límite del lector",
+            "Eine Grenze des Lesers wurde überschritten",
+            "Une limite du lecteur a été dépassée",
+            "È stato superato un limite del lettore",
+            "読み込みの上限を超えました",
+            "超出了读取器的限制",
+            "Foi excedido um limite do leitor",
+        ],
+    ),
+    (
+        READ_SKIPPED,
+        [
+            "An element of the file is not read",
+            "Un elemento del archivo no se lee",
+            "Ein Element der Datei wird nicht gelesen",
+            "Un élément du fichier n'est pas lu",
+            "Un elemento del file non viene letto",
+            "ファイルの要素が読み込まれていません",
+            "文件中的某个元素未被读取",
+            "Um elemento do ficheiro não é lido",
+        ],
+    ),
+    (
+        READ_VALUE_INVALID,
+        [
+            "A value of the file is not valid and is left out",
+            "Un valor del archivo no es válido y se omite",
+            "Ein Wert der Datei ist ungültig und wird ausgelassen",
+            "Une valeur du fichier n'est pas valide et est ignorée",
+            "Un valore del file non è valido e viene omesso",
+            "ファイルの値が無効なため除外されました",
+            "文件中的某个值无效,已被忽略",
+            "Um valor do ficheiro não é válido e é omitido",
+        ],
+    ),
+    (
+        READ_STACKUP_INCOMPLETE,
+        [
+            "The stack-up lacks a value that the model of the stack-up needs",
+            "El apilado no tiene un valor que necesita el modelo del apilado",
+            "Dem Lagenaufbau fehlt ein Wert, den das Aufbaumodell braucht",
+            "L'empilage n'a pas une valeur dont le modèle d'empilage a besoin",
+            "Allo stack-up manca un valore che serve al modello dello stack-up",
+            "スタックアップに、スタックアップのモデルが必要とする値がありません",
+            "叠层缺少叠层模型所需的值",
+            "O empilhamento não tem um valor de que o modelo do empilhamento precisa",
         ],
     ),
 ];

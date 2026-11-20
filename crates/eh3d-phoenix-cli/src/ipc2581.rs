@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! The command `ipc2581`: a board as an IPC-2581 file (write only).
+//! The command `ipc2581`: a board as an IPC-2581 file, and with `--read` an IPC-2581 file read and
+//! reported (see `ipc2581_read`).
 //!
 //! Exit codes: 0 done, 2 the arguments, the input or the output are unusable. Nothing is written
 //! unless `--out` or `--d356` names a file. A file that exists is never replaced unless `--overwrite` is
@@ -23,6 +24,8 @@ const DEFAULT_CONFIG: &str = "config/ipc2581.cfg";
 pub(crate) const USAGE: &str = "\
 phoenix ipc2581 [--config FILE] [--out FILE] [--d356 FILE] [--overwrite] [--json] [--lang CODE]
                 <board>
+phoenix ipc2581 --read FILE [--config FILE] [--html FILE] [--stackup-out FILE] [--overwrite]
+                [--json] [--lang CODE]
 
   ipc2581       a board as an IPC-2581 file (revision C, a subset): the layers, the outline and
                 its cutouts, the pads with their padstacks, the vias, the tracks, the outlines of
@@ -36,7 +39,18 @@ phoenix ipc2581 [--config FILE] [--out FILE] [--d356 FILE] [--overwrite] [--json
                 columns for each pad of a part: net, part, pin, hole, side, place and size, in
                 micrometres), a prototype whose columns have not been compared with the standard
                 or with a tester; what does not fit is listed
-  --overwrite   replace the files that --out and --d356 name when they exist
+  --overwrite   replace the files that --out, --d356, --html and --stackup-out name when they
+                exist
+  --read FILE   read an IPC-2581 file (revisions A, B and C, XML; an archive must be unpacked
+                first) instead of writing one: the layers, the stack-up with the thickness,
+                material, dielectric constant and loss tangent of each layer, the holes, the
+                parts, the nets and the copper, and what the reader left out; the limits of the
+                file are in the settings (read_max_bytes, read_max_depth, read_max_elements,
+                read_max_items, read_keep_geometry)
+  --html FILE   with --read: write the stack-up as a page of HTML in the language of --lang
+  --stackup-out FILE
+                with --read: write the stack-up and its materials as a job file for
+                `phoenix stackup` (add the lines to compute)
   --json        print the summary as JSON
   --lang CODE   the messages in en, es, de, fr, it, ja, zh or pt
 ";
@@ -48,6 +62,9 @@ struct Options {
     config: Option<String>,
     out: Option<String>,
     d356: Option<String>,
+    read: Option<String>,
+    html: Option<String>,
+    stackup_out: Option<String>,
     files: Vec<String>,
 }
 
@@ -59,6 +76,9 @@ fn parse_options(args: &[&str]) -> Result<Options, Ipc2581Error> {
         config: None,
         out: None,
         d356: None,
+        read: None,
+        html: None,
+        stackup_out: None,
         files: Vec::new(),
     };
     let bad = |what: &str| Ipc2581Error::new(OPTION_INVALID, what.to_owned());
@@ -79,6 +99,9 @@ fn parse_options(args: &[&str]) -> Result<Options, Ipc2581Error> {
             "--config" => options.config = Some(value("--config needs a file")?),
             "--out" => options.out = Some(value("--out needs a file")?),
             "--d356" => options.d356 = Some(value("--d356 needs a file")?),
+            "--read" => options.read = Some(value("--read needs a file")?),
+            "--html" => options.html = Some(value("--html needs a file")?),
+            "--stackup-out" => options.stackup_out = Some(value("--stackup-out needs a file")?),
             other if other.starts_with("--") => {
                 return Err(Ipc2581Error::new(
                     OPTION_INVALID,
@@ -87,6 +110,21 @@ fn parse_options(args: &[&str]) -> Result<Options, Ipc2581Error> {
             }
             other => options.files.push(other.to_owned()),
         }
+    }
+    if options.read.is_some() {
+        if !options.files.is_empty() || options.out.is_some() || options.d356.is_some() {
+            return Err(bad("--read takes no board, no --out and no --d356"));
+        }
+        if options.overwrite && options.html.is_none() && options.stackup_out.is_none() {
+            return Err(bad("--overwrite needs --html or --stackup-out"));
+        }
+        if options.html.is_some() && options.html == options.stackup_out {
+            return Err(bad("--html and --stackup-out name the same file"));
+        }
+        return Ok(options);
+    }
+    if options.html.is_some() || options.stackup_out.is_some() {
+        return Err(bad("--html and --stackup-out need --read"));
     }
     if options.overwrite && options.out.is_none() && options.d356.is_none() {
         return Err(bad("--overwrite needs --out or --d356"));
@@ -139,7 +177,12 @@ fn same_file(a: &str, b: &str) -> bool {
 /// Writes the file. A new name is created exclusively. A name that exists is refused without
 /// `overwrite`; with it, a plain file that is not the input is replaced by renaming a side file
 /// that was created exclusively next to it.
-fn write_file(path: &str, text: &str, overwrite: bool, input: &str) -> Result<(), Ipc2581Error> {
+pub(crate) fn write_file(
+    path: &str,
+    text: &str,
+    overwrite: bool,
+    input: &str,
+) -> Result<(), Ipc2581Error> {
     let failed = |what: String| Ipc2581Error::new(OUTPUT_FAILED, what);
     match std::fs::symlink_metadata(path) {
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => create_new(path, text),
@@ -201,7 +244,23 @@ fn d356_text(file: &D356, name: &str) -> String {
     out
 }
 
+fn read_mode(options: &Options, path: &str, out: &mut dyn Write) -> Result<i32, Ipc2581Error> {
+    let settings = load_settings(options.config.as_deref())?;
+    let request = crate::ipc2581_read::ReadRequest {
+        path,
+        html: options.html.as_deref(),
+        stackup_out: options.stackup_out.as_deref(),
+        overwrite: options.overwrite,
+        json: options.json,
+        lang: options.lang,
+    };
+    crate::ipc2581_read::read_command(&request, &settings, out)
+}
+
 fn ipc2581(options: &Options, out: &mut dyn Write) -> Result<i32, Ipc2581Error> {
+    if let Some(path) = &options.read {
+        return read_mode(options, path, out);
+    }
     let [board_path] = options.files.as_slice() else {
         return Err(Ipc2581Error::new(
             OPTION_INVALID,
