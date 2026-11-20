@@ -797,6 +797,32 @@
           }
         },
         {
+          "name": "GERBER_DFM.md",
+          "desc": {
+            "en": "geometric checks of Gerber files against a maker",
+            "es": "comprobaciones geométricas de Gerber frente a un fabricante",
+            "de": "geometrische Prüfung von Gerber-Dateien gegen einen Hersteller",
+            "fr": "vérifications géométriques de Gerber face à un fabricant",
+            "it": "controlli geometrici dei Gerber rispetto a un produttore",
+            "ja": "メーカーの能力に対する Gerber のジオメトリ検査",
+            "zh": "按制造商能力检查 Gerber 的几何形状",
+            "pt": "verificações geométricas de Gerber face a um fabricante"
+          }
+        },
+        {
+          "name": "MATERIALS_GAPS.md",
+          "desc": {
+            "en": "figures to add to the materials database",
+            "es": "cifras que faltan en la base de materiales",
+            "de": "Werte, die der Materialdatenbank fehlen",
+            "fr": "valeurs à ajouter à la base de matériaux",
+            "it": "valori da aggiungere alla base dei materiali",
+            "ja": "材料データベースに追加すべき数値",
+            "zh": "应补充到材料数据库的数值",
+            "pt": "valores a acrescentar à base de materiais"
+          }
+        },
+        {
           "name": "PANEL.md",
           "desc": {
             "en": "panelization: boards, frame, tabs, V-score, fiducials, holes, layers",
