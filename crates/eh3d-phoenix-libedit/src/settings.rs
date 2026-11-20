@@ -21,6 +21,9 @@ pub struct LibSettings {
     pub origin_tolerance_nm: i64,
     /// The clearance between silkscreen and a pad below which it is reported, in nanometres.
     pub silk_clearance_nm: i64,
+    /// How far a pad may move or change size between two libraries before `libedit --compare`
+    /// tells it, in nanometres.
+    pub compare_tolerance_nm: i64,
     /// The layers of silkscreen that are checked against the pads.
     pub silk_layers: Vec<u32>,
     /// The layers on which a surface-mount pad has copper.
@@ -69,6 +72,7 @@ impl Default for LibSettings {
             xml_max_nodes: 20_000_000,
             origin_tolerance_nm: 100_000,
             silk_clearance_nm: 0,
+            compare_tolerance_nm: 0,
             silk_layers: vec![21, 22],
             copper_layers: vec![1, 16],
             require_name_texts: true,
@@ -140,6 +144,9 @@ impl LibSettings {
                     s.origin_tolerance_nm = value.parse().map_err(|_| bad())?
                 }
                 "silk_clearance_nm" => s.silk_clearance_nm = value.parse().map_err(|_| bad())?,
+                "compare_tolerance_nm" => {
+                    s.compare_tolerance_nm = value.parse().map_err(|_| bad())?
+                }
                 "silk_layers" => s.silk_layers = parse_list(value).ok_or_else(bad)?,
                 "copper_layers" => s.copper_layers = parse_list(value).ok_or_else(bad)?,
                 "require_name_texts" => s.require_name_texts = parse_bool(value).ok_or_else(bad)?,
@@ -190,7 +197,10 @@ impl LibSettings {
         {
             return bad("the grids must be between 1 nm and 100 mm");
         }
-        if self.origin_tolerance_nm < 0 || self.silk_clearance_nm < 0 {
+        if self.origin_tolerance_nm < 0
+            || self.silk_clearance_nm < 0
+            || self.compare_tolerance_nm < 0
+        {
             return bad("the tolerances must not be negative");
         }
         if self.pick_px == 0 || self.pick_px > 100 {
@@ -251,6 +261,19 @@ mod tests {
         assert!(!s.snap);
         assert_eq!(s.silk_layers, vec![21, 22, 51]);
         assert_eq!(s.history_limit, 200);
+    }
+
+    #[test]
+    fn the_tolerance_of_the_comparison_is_read_and_is_not_negative() {
+        assert_eq!(LibSettings::default().compare_tolerance_nm, 0);
+        let s = LibSettings::parse("compare_tolerance_nm = 25000\n").unwrap();
+        assert_eq!(s.compare_tolerance_nm, 25_000);
+        for bad in ["compare_tolerance_nm = -1\n", "compare_tolerance_nm = x\n"] {
+            let e = LibSettings::parse(bad).unwrap_err();
+            assert_eq!(e.code, SETTINGS_INVALID, "{bad}");
+        }
+        let text = include_str!("../../../config/libedit.cfg");
+        assert_eq!(LibSettings::parse(text).unwrap().compare_tolerance_nm, 0);
     }
 
     #[test]

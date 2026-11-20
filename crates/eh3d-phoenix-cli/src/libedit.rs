@@ -14,8 +14,9 @@ use std::sync::Arc;
 use eh3d_phoenix_libedit::codes::{LibError, FILE_UNUSABLE, NAME_USED, OPTION_INVALID};
 use eh3d_phoenix_libedit::footprints::FootprintConfig;
 use eh3d_phoenix_libedit::{
-    apply_all, check_library, generate, parse_operations, read_library, replace_plan_from_json,
-    save_new, LibSettings, Library, Severity,
+    apply_all, check_library, compare_json, compare_libraries, compare_text, generate,
+    parse_operations, read_library, replace_plan_from_json, save_new, LibSettings, Library,
+    Severity,
 };
 use eh3d_phoenix_rules::Lang;
 use serde_json::json;
@@ -23,6 +24,7 @@ use serde_json::json;
 pub(crate) const USAGE: &str = "\
 phoenix libedit [--apply OPERATIONS.json] [--plan SANITIZER.plan.json] [--out NEW.lbr]
                 [--config FILE] [--json] [--lang xx] <library.lbr>
+phoenix libedit --compare NEW.lbr [--config FILE] [--json] [--lang xx] <old library.lbr>
 
   libedit    edit an EAGLE library with a file of operations (create, rename and delete symbols,
              footprints and devices; add, move, change and delete pads, lines, arcs, texts, pins
@@ -31,6 +33,11 @@ phoenix libedit [--apply OPERATIONS.json] [--plan SANITIZER.plan.json] [--out NE
              nothing is written unless --out names a new file; the library is read back from the
              file that was written and compared, a copy of the original is kept next to the new
              file, and a file that exists is never written over
+  --compare  compare the footprints of the library with those of NEW.lbr by name: the ones only
+             one has, and for the ones both have the pads that only one has, that moved, changed
+             size, kind, drill or layer (a shift of no more than compare_tolerance_nm of the
+             settings is not a difference). Nothing is written and neither library changes;
+             exit code 1 when they differ. It takes no --apply, --plan or --out
   --plan     show the steps of a plan of the sanitizer that would replace items of this library by
              the master candidate; they are never applied by this command
   --config   the settings (config/libedit.cfg shows every key)
@@ -87,6 +94,7 @@ struct Options {
     apply: Option<String>,
     plan: Option<String>,
     out: Option<String>,
+    compare: Option<String>,
     config: Option<String>,
     json: bool,
     lang: Lang,
@@ -99,6 +107,7 @@ fn parse_options(args: &[&str]) -> Result<Options, LibError> {
         apply: None,
         plan: None,
         out: None,
+        compare: None,
         config: None,
         json: false,
         lang: Lang::En,
@@ -108,6 +117,12 @@ fn parse_options(args: &[&str]) -> Result<Options, LibError> {
     while let Some(arg) = iter.next() {
         match *arg {
             "--json" => options.json = true,
+            "--compare" => {
+                let v = iter
+                    .next()
+                    .ok_or_else(|| bad("--compare needs a library"))?;
+                options.compare = Some((*v).to_owned());
+            }
             "--apply" => {
                 let v = iter.next().ok_or_else(|| bad("--apply needs a file"))?;
                 options.apply = Some((*v).to_owned());
@@ -164,6 +179,23 @@ fn libedit_inner(
     };
     let settings = settings_of(&options.config).map_err(fail)?;
     let original = read_library_file(file, &settings).map_err(fail)?;
+    if let Some(other) = &options.compare {
+        if options.apply.is_some() || options.plan.is_some() || options.out.is_some() {
+            return Err(fail(LibError::new(
+                OPTION_INVALID,
+                "--compare takes no --apply, --plan or --out",
+            )));
+        }
+        let newer = read_library_file(other, &settings).map_err(fail)?;
+        let found = compare_libraries(&original, &newer, settings.compare_tolerance_nm);
+        let text = if options.json {
+            compare_json(&found)
+        } else {
+            compare_text(&found, lang)
+        };
+        let _ = out.write_all(text.as_bytes());
+        return Ok(i32::from(!found.is_same()));
+    }
     let operations = match &options.apply {
         Some(path) => parse_operations(&read_small(path).map_err(fail)?).map_err(fail)?,
         None => Vec::new(),

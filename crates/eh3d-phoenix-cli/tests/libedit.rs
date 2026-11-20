@@ -369,3 +369,151 @@ fn a_footprint_that_cannot_be_made_exits_2_and_the_json_lists_the_pads() {
     assert_eq!(json["pads"][0]["type"], "smd");
     assert!(json["findings"].as_array().unwrap().is_empty());
 }
+
+/// The library of the tests with pad 1 of R0603 moved by 0.1 mm and a footprint C0603 more.
+fn newer_library() -> String {
+    LIBRARY
+        .replace(r#"<smd name="1" x="-0.8""#, r#"<smd name="1" x="-0.7""#)
+        .replace(
+            "</packages>",
+            "<package name=\"C0603\">\n<smd name=\"1\" x=\"-0.8\" y=\"0\" dx=\"0.8\" dy=\"0.9\" layer=\"1\"/>\n<text x=\"0\" y=\"1.2\" size=\"1\" layer=\"25\">&gt;NAME</text>\n<text x=\"0\" y=\"-1.2\" size=\"1\" layer=\"27\">&gt;VALUE</text>\n</package>\n</packages>",
+        )
+}
+
+#[test]
+fn a_library_compared_with_itself_is_the_same_and_nothing_is_written() {
+    let (dir, library) = setup();
+    let (code, out, err) = call(&["libedit", "--compare", &library, &library]);
+    assert_eq!((code, err.as_str()), (0, ""));
+    assert!(out.contains("Footprints with the same pads: 1\n"), "{out}");
+    assert!(
+        out.ends_with("The libraries have the same footprints with the same pads\n"),
+        "{out}"
+    );
+    assert_eq!(fs::read_dir(dir.path()).unwrap().count(), 1);
+}
+
+#[test]
+fn two_libraries_that_differ_are_listed_in_each_language_and_exit_1() {
+    let (dir, library) = setup();
+    let newer = path_of(dir.path(), "new.lbr");
+    fs::write(&newer, newer_library()).unwrap();
+    let (code, out, err) = call(&["libedit", "--compare", &newer, &library]);
+    assert_eq!((code, err.as_str()), (1, ""));
+    assert!(
+        out.contains("Footprints only in the new library: 1\n  C0603\n"),
+        "{out}"
+    );
+    assert!(
+        out.contains("Footprints only in the old library: 0\n"),
+        "{out}"
+    );
+    assert!(
+        out.contains("  R0603\n    pad 1 moved from (-800000, 0) to (-700000, 0)\n"),
+        "{out}"
+    );
+    assert!(out.ends_with("The libraries differ\n"), "{out}");
+    let mut seen = Vec::new();
+    for tag in ["en", "es", "de", "fr", "it", "ja", "zh", "pt"] {
+        let (code, text, _) = call(&["libedit", "--compare", &newer, "--lang", tag, &library]);
+        assert_eq!(code, 1, "{tag}");
+        assert!(
+            text.contains("C0603") && text.contains("pad 1 moved"),
+            "{text}"
+        );
+        assert!(!seen.contains(&text), "{tag} repeats a text");
+        seen.push(text);
+    }
+    let (_, es, _) = call(&["libedit", "--compare", &newer, "--lang", "es", &library]);
+    assert!(
+        es.contains("Huellas solo en la biblioteca nueva: 1\n"),
+        "{es}"
+    );
+    // the same comparison gives the same bytes, and the other way round swaps added and removed
+    assert_eq!(call(&["libedit", "--compare", &newer, &library]).1, out);
+    let (code, back, _) = call(&["libedit", "--compare", &library, &newer]);
+    assert_eq!(code, 1);
+    assert!(
+        back.contains("Footprints only in the old library: 1\n  C0603\n"),
+        "{back}"
+    );
+    assert_eq!(fs::read_dir(dir.path()).unwrap().count(), 2);
+}
+
+#[test]
+fn the_tolerance_of_the_settings_hides_a_small_shift_and_the_json_has_a_format() {
+    let (dir, library) = setup();
+    let newer = path_of(dir.path(), "new.lbr");
+    fs::write(&newer, newer_library()).unwrap();
+    let config = path_of(dir.path(), "tolerant.cfg");
+    fs::write(&config, "compare_tolerance_nm = 100000\n").unwrap();
+    let (code, out, _) = call(&[
+        "libedit",
+        "--compare",
+        &newer,
+        "--config",
+        &config,
+        &library,
+    ]);
+    assert_eq!(code, 1, "{out}");
+    assert!(out.contains("Footprints with other pads: 0\n"), "{out}");
+    assert!(!out.contains("moved"), "{out}");
+    let (code, out, err) = call(&["libedit", "--compare", &newer, "--json", &library]);
+    assert_eq!((code, err.as_str()), (1, ""));
+    let json: serde_json::Value = serde_json::from_str(&out).unwrap();
+    assert_eq!(json["format"], "phoenix-libcompare/1");
+    assert_eq!(json["same"], false);
+    assert_eq!(json["added"][0], "C0603");
+    assert_eq!(json["changed"][0]["name"], "R0603");
+    assert_eq!(json["unchanged"], 0);
+    let (code, _, err) = call(&[
+        "libedit",
+        "--compare",
+        &library,
+        "--config",
+        &path_of(dir.path(), "no.cfg"),
+        &library,
+    ]);
+    assert_eq!(code, 2);
+    assert!(err.contains("PHOENIX-LIB-020"), "{err}");
+}
+
+#[test]
+fn a_comparison_takes_no_edit_and_both_libraries() {
+    let (dir, library) = setup();
+    let out_file = path_of(dir.path(), "out.lbr");
+    for list in [
+        vec![
+            "libedit",
+            "--compare",
+            &library,
+            "--out",
+            &out_file,
+            &library,
+        ],
+        vec![
+            "libedit",
+            "--compare",
+            &library,
+            "--apply",
+            &library,
+            &library,
+        ],
+        vec![
+            "libedit",
+            "--compare",
+            &library,
+            "--plan",
+            &library,
+            &library,
+        ],
+        vec!["libedit", "--compare"],
+        vec!["libedit", "--compare", &library],
+        vec!["libedit", "--compare", "/no/such/file.lbr", &library],
+    ] {
+        let (code, out, err) = call(&list);
+        assert_eq!((code, out.as_str()), (2, ""), "{list:?}");
+        assert!(err.contains("PHOENIX-LIB-0"), "{list:?}: {err}");
+    }
+    assert!(!Path::new(&out_file).exists());
+}

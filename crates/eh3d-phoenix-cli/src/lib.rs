@@ -370,13 +370,16 @@ phoenix pairs [--config FILE] [--pairs FILE] [--stackup FILE] [--json] [--lang x
 
 phoenix libedit [--apply OPERATIONS.json] [--plan SANITIZER.plan.json] [--out NEW.lbr]
                 [--config FILE] [--json] [--lang xx] <library.lbr>
+phoenix libedit --compare NEW.lbr [--config FILE] [--json] [--lang xx] <old library.lbr>
 phoenix footprint <family> [--param NAME=VALUE ...] [--config FILE] [--into LIBRARY.lbr]
                   [--out NEW.lbr] [--json] [--lang xx]
 
   libedit       edit an EAGLE library with a file of operations (symbols, footprints, devices,
                 pads, pins, openings and connections), all or nothing, check it and, with --out,
                 save it as a new library that is read back and compared, with a copy of the
-                original; a dry run otherwise, and a file that exists is never written over
+                original; a dry run otherwise, and a file that exists is never written over;
+                with --compare it lists the footprints that only one of two libraries has and the
+                pads that differ in the ones both have, exit code 1 when they differ
   footprint     make a footprint (chip, SOIC, TSSOP, QFN, QFP, DIP, header) from parameters by the
                 method of IPC-7351B with the values of config/footprints.cfg, a prototype that is
                 not checked against a datasheet (run either command alone for its options)
