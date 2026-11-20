@@ -78,6 +78,7 @@ A profile file is JSON: `{"format": "phoenix-export/1", "profiles": [...]}`. `co
 | `drill` | `style`, `decimals` | `decimal` or `fixed`, and the decimals of the decimal style (`decimal`, 6) |
 | | `fixed_integer_digits`, `fixed_decimal_digits` | The fixed format (3 and 3) |
 | | `plated_file`, `non_plated_file`, `oblong_as_slot` | File names (`{board}` is allowed) and slots for oblong pads (`drill_pth.drl`, `drill_npth.drl`, false) |
+| | `mixed`, `mixed_file` | One drill file for the plated and the not plated holes, every tool saying which it is (`MixedPlating`), in the file `mixed_file` (false, `{board}.drl`); it needs `gerber.x2.level` of `aperture` or `full`, which is what tells the tools apart, and replaces the two files |
 | `placement` | `file`, `delimiter` | `placement.csv` and `,` |
 | | `coordinate_decimals`, `rotation_decimals` | 4 and 2, each 0 to 6 |
 | | `bottom_rotation`, `origin` | `keep` and `absolute` |

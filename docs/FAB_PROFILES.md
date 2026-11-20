@@ -63,6 +63,7 @@ All lengths are in nanometres. The rules of PCBWay ask other distances too (wire
 | `jlcpcb-altium-names` | default | default | `{board}.gtl` | `{board}.gbl` | `{board}.txt` |
 | `jlcpcb-eagle-names` | default | default | `Copper_top.gbr` | `Copper_bottom.gbr` | `Drill_1_16.xln` |
 | `jlcpcb-thermal-relief` | default | default | numbered | numbered | default |
+| `jlcpcb-mixed-drill` | default | default | numbered | numbered | `{board}.drl` (one file) |
 
 The coordinate formats are in millimetres. The export always writes four digits before the point, so only the digits after it come from the job. A job that gives no format keeps the default (six decimals in Gerber, the default style in Excellon). The last three profiles are not from a job: they follow the names that the public page of JLCPCB lists for the files of three programs (KiCad, Altium and EAGLE), and the profiles hold only the names that the page lists; the rest of the files keep the numbered names.
 

@@ -16,6 +16,7 @@ use eh3d_writer_excellon::CoordinateStyle;
 
 use crate::assembly::{bom_csv, placement_csv};
 use crate::codes;
+use crate::drillmix::merge_plated_and_not_plated;
 use crate::excellon::{write_drill_files, DrillOptions};
 use crate::gerber::{format_with_decimals, write_layer, LayerError, LayerFileSpec, ZoneThermal};
 use crate::package::ExportError;
@@ -41,6 +42,9 @@ pub enum FileRole {
         /// True for the plated holes.
         plated: bool,
     },
+    /// One Excellon file for the plated and the not plated holes, where every tool says whether
+    /// it is plated.
+    DrillMixed,
     /// An Excellon file of the blind or the buried vias that join one pair of layers.
     DrillSpan {
         /// The upper layer, counted from 1 at the top of the copper stack.
@@ -360,16 +364,36 @@ pub fn build(board: &Board, profile: &Profile) -> Result<FabSet, ExportError> {
         other => ExportError::Drill(other.to_string()),
     })?;
     diagnostics.append(&mut drills.diagnostics);
-    for (text, file_name, plated) in [
-        (drills.plated, &plated_file, true),
-        (drills.non_plated, &non_plated_file, false),
-    ] {
-        if let Some(text) = text {
+    if d.mixed {
+        let mixed_file = d.mixed_file.replace("{board}", &board_name);
+        if !plain_file_name(&mixed_file) {
+            return Err(ExportError::Profile(format!(
+                "{}: the file name '{mixed_file}' of the mixed drill file is not usable",
+                profile.name
+            )));
+        }
+        if drills.plated.is_some() || drills.non_plated.is_some() {
+            let merged =
+                merge_plated_and_not_plated(drills.plated.as_deref(), drills.non_plated.as_deref())
+                    .map_err(|e| ExportError::Drill(format!("mixed drill file: {e}")))?;
             files.push(FabFile {
-                path: format!("layers/{file_name}"),
-                bytes: text.into_bytes(),
-                role: FileRole::Drill { plated },
+                path: format!("layers/{mixed_file}"),
+                bytes: merged.into_bytes(),
+                role: FileRole::DrillMixed,
             });
+        }
+    } else {
+        for (text, file_name, plated) in [
+            (drills.plated, &plated_file, true),
+            (drills.non_plated, &non_plated_file, false),
+        ] {
+            if let Some(text) = text {
+                files.push(FabFile {
+                    path: format!("layers/{file_name}"),
+                    bytes: text.into_bytes(),
+                    role: FileRole::Drill { plated },
+                });
+            }
         }
     }
     for span in drills.spans {

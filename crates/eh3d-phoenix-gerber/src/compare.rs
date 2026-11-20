@@ -731,6 +731,25 @@ impl Checker<'_> {
         }
     }
 
+    /// A mixed drill file holds the plated and the not plated holes: only their number and the
+    /// units are compared, since the holes of the two kinds are listed one kind after the other.
+    fn drill_mixed(&mut self, name: &str, imported: &ImportedFile) {
+        let Some(file) = imported.drill() else {
+            return;
+        };
+        let (plated_holes, not_plated_holes) = holes_of(self.board);
+        let total = file.hits.len() + file.slots.len();
+        self.count(
+            name,
+            "holes",
+            plated_holes.len() + not_plated_holes.len(),
+            total,
+        );
+        if file.units != crate::model::Units::Millimetres {
+            self.differ(name, "the units are not millimetres".to_owned());
+        }
+    }
+
     fn drill(&mut self, name: &str, plated: bool, imported: &ImportedFile) {
         let Some(file) = imported.drill() else {
             return;
@@ -852,6 +871,16 @@ pub fn compare_files_with(
                 }
                 files.push(imported);
             }
+            FileRole::DrillMixed => {
+                let imported = import_file(&name, bytes, settings);
+                if let Content::Failed(error) = &imported.content {
+                    checker.differ(&name, format!("the file cannot be read back: {error}"));
+                } else {
+                    checker.drill_mixed(&name, &imported);
+                    checker.x2_drill(&name, &imported);
+                }
+                files.push(imported);
+            }
             FileRole::DrillSpan { from, to, buried } => {
                 let imported = import_file(&name, bytes, settings);
                 if let Content::Failed(error) = &imported.content {
@@ -867,9 +896,9 @@ pub fn compare_files_with(
     }
     let (plated, not_plated) = holes_of(board);
     for (is_plated, model) in [(true, plated.len()), (false, not_plated.len())] {
-        let present = set_files
-            .iter()
-            .any(|f| f.role == FileRole::Drill { plated: is_plated });
+        let present = set_files.iter().any(|f| {
+            f.role == FileRole::Drill { plated: is_plated } || f.role == FileRole::DrillMixed
+        });
         if model > 0 && !present {
             checker.differ(
                 "drill",

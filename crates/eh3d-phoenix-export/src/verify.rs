@@ -282,7 +282,9 @@ fn model_holes(board: &Board, plated: bool) -> usize {
     }
 }
 
-fn check_drill(file: &FabFile, model: usize, out: &mut Vec<Diagnostic>) {
+/// Compares a drill file with the model. `by_diameter` is true when the tools must be listed from
+/// the smallest diameter (not so in a mixed file, which lists those of the plated holes first).
+fn check_drill(file: &FabFile, model: usize, by_diameter: bool, out: &mut Vec<Diagnostic>) {
     let read = eh3d_parser_excellon::parse(file.text());
     if !read.is_clean() {
         unreadable(out, file, "the Excellon file has errors");
@@ -303,7 +305,7 @@ fn check_drill(file: &FabFile, model: usize, out: &mut Vec<Diagnostic>) {
         ));
     }
     let diameters: Vec<f64> = read.tools.values().map(|t| t.diameter).collect();
-    if diameters.windows(2).any(|w| w[0] > w[1]) {
+    if by_diameter && diameters.windows(2).any(|w| w[0] > w[1]) {
         out.push(codes::diagnostic(
             codes::VERIFY_MISMATCH,
             Severity::Error,
@@ -385,14 +387,20 @@ pub fn verify(board: &Board, profile: &Profile, set: &FabSet) -> Vec<Diagnostic>
             FileRole::Layer { layer, kind, .. } => {
                 check_layer(board, profile, file, *layer, *kind, &mut out)
             }
-            FileRole::Drill { plated } => check_drill(file, model_holes(board, *plated), &mut out),
+            FileRole::Drill { plated } => {
+                check_drill(file, model_holes(board, *plated), true, &mut out)
+            }
+            FileRole::DrillMixed => {
+                let model = model_holes(board, true) + model_holes(board, false);
+                check_drill(file, model, false, &mut out)
+            }
             FileRole::DrillSpan { from, to, buried } => {
                 let span = if *buried {
                     ViaSpan::Buried(*from, *to)
                 } else {
                     ViaSpan::Blind(*from, *to)
                 };
-                check_drill(file, vias_of_span(board, span), &mut out)
+                check_drill(file, vias_of_span(board, span), true, &mut out)
             }
             FileRole::Placement => check_placement(board, profile, file, &mut out),
             FileRole::Bom => check_bom(board, profile, file, &mut out),
@@ -407,6 +415,7 @@ pub fn verify(board: &Board, profile: &Profile, set: &FabSet) -> Vec<Diagnostic>
                 == FileRole::Drill {
                     plated: plated_file,
                 }
+                || f.role == FileRole::DrillMixed
         });
         if model > 0 && !present {
             out.push(codes::diagnostic(

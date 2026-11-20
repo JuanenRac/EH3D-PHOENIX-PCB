@@ -186,6 +186,7 @@ fn the_manufacturers_that_come_with_the_program_are_these() {
             "jlcpcb-altium-names",
             "jlcpcb-eagle-names",
             "jlcpcb-thermal-relief",
+            "jlcpcb-mixed-drill",
         ]
     );
     assert!(maker_profile("nobody").is_none());

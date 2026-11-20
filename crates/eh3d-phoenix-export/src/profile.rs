@@ -438,6 +438,12 @@ pub struct DrillProfile {
     pub non_plated_file: String,
     /// Write a drilled oblong pad as a slot (`G85`).
     pub oblong_as_slot: bool,
+    /// Write the plated and the not plated holes in one file (the mixed mode, `MixedPlating`),
+    /// where every tool says whether it is plated; it needs the X2 level with aperture
+    /// attributes, which is what tells the tools apart.
+    pub mixed: bool,
+    /// The name of the mixed file; `{board}` is the name of the board as a plain file name.
+    pub mixed_file: String,
 }
 
 impl Default for DrillProfile {
@@ -450,6 +456,8 @@ impl Default for DrillProfile {
             plated_file: "drill_pth.drl".to_owned(),
             non_plated_file: "drill_npth.drl".to_owned(),
             oblong_as_slot: false,
+            mixed: false,
+            mixed_file: "{board}.drl".to_owned(),
         }
     }
 }
@@ -675,13 +683,21 @@ impl Profile {
         let b = &self.bom;
         check_delimiter(&format!("{name}: bom"), b.delimiter)?;
         check_columns(&format!("{name}: bom"), &b.columns, &BOM_KEYS)?;
+        if d.mixed && !g.x2.level.has_aperture_attributes() {
+            return Err(bad(format!(
+                "{name}: drill.mixed needs the X2 level with aperture attributes (the level aperture or full)"
+            )));
+        }
         let drill_sample = |file: &str| file.replace("{board}", "board");
-        let files = [
+        let mut files = vec![
             drill_sample(&d.plated_file),
             drill_sample(&d.non_plated_file),
             p.file.clone(),
             b.file.clone(),
         ];
+        if d.mixed {
+            files.push(drill_sample(&d.mixed_file));
+        }
         for (i, file) in files.iter().enumerate() {
             if !plain_file_name(file) {
                 return Err(bad(format!("{name}: '{file}' is not a plain file name")));

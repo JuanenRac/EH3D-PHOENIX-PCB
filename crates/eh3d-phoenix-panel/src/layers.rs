@@ -134,7 +134,10 @@ pub fn panel_layers(
     for file in &set.files {
         if matches!(
             file.role,
-            FileRole::Layer { .. } | FileRole::Drill { .. } | FileRole::DrillSpan { .. }
+            FileRole::Layer { .. }
+                | FileRole::Drill { .. }
+                | FileRole::DrillMixed
+                | FileRole::DrillSpan { .. }
         ) {
             files.push(PanelFile {
                 name: format!("panel_{}", file.folder_name()),

@@ -4,6 +4,8 @@
 //!   the deterministic writer of EH3D-CORE-LIBS, with the attributes `.GenerationSoftware`,
 //!   `.FileFunction` and `.FilePolarity`;
 //! * [`excellon`]: the holes as Excellon files, plated and not plated apart, with slots (`G85`);
+//! * [`drillmix`]: the two drill files joined into one mixed file, where every tool says whether it
+//!   is plated, for the makers that take a single drill file;
 //! * [`assembly`]: the placement (pick and place) file and the bill of materials, as CSV;
 //! * [`profile`]: the export profiles, read from a JSON file (`config/export_profiles.json`), and
 //!   those of the manufacturers that come with the program (the names of the files, the formats
@@ -38,6 +40,7 @@
 
 pub mod assembly;
 pub mod codes;
+pub mod drillmix;
 pub mod excellon;
 pub mod fab;
 pub mod fabcodes;

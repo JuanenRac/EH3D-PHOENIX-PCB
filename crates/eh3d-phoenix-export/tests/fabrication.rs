@@ -1108,3 +1108,99 @@ fn the_x2_choices_of_a_profile_file_are_checked() {
         X2Level::Legacy
     );
 }
+
+#[test]
+fn the_mixed_profile_writes_one_drill_file_with_the_tools_of_both_kinds() {
+    let f = fixture();
+    let mut profile = with_level(X2Level::Aperture);
+    profile.drill.mixed = true;
+    profile.drill.mixed_file = "all.drl".to_owned();
+    let set = build(&f, &profile).unwrap();
+    assert!(set
+        .files
+        .iter()
+        .all(|x| !matches!(x.role, FileRole::Drill { .. })));
+    let mixed: Vec<_> = set
+        .files
+        .iter()
+        .filter(|x| x.role == FileRole::DrillMixed)
+        .collect();
+    assert_eq!(mixed.len(), 1);
+    assert_eq!(mixed[0].path, "layers/all.drl");
+    let text = file(&set, "layers/all.drl");
+    assert!(text.contains("TF.FileFunction,MixedPlating,1,2"), "{text}");
+    assert!(!text.contains("TF.FileFunction,Plated"), "{text}");
+    assert!(text.contains("TA.AperFunction,Plated,PTH"));
+    assert!(text.contains("TA.AperFunction,NonPlated,NPTH"));
+    let read = eh3d_parser_excellon::parse(text);
+    assert!(read.is_clean(), "{:?}", read.diagnostics);
+    // 2 vias and 4 pads that are plated, the 2 mounting holes that are not; 3 + 1 tools
+    assert_eq!(read.drills.len(), 2 + 2 * 2 + 2);
+    assert_eq!(read.tools.len(), 4);
+    assert!((read.tools[&4].diameter - 3.2).abs() < 1e-9);
+    assert!(verify(&f, &profile, &set).is_empty());
+}
+
+#[test]
+fn the_mixed_file_is_the_two_files_joined_and_always_the_same_bytes() {
+    let f = fixture();
+    let mut separate = with_level(X2Level::Aperture);
+    let apart = build(&f, &separate).unwrap();
+    let joined = eh3d_phoenix_export::drillmix::merge_plated_and_not_plated(
+        Some(file(&apart, "layers/drill_pth.drl")),
+        Some(file(&apart, "layers/drill_npth.drl")),
+    )
+    .unwrap();
+    separate.drill.mixed = true;
+    separate.drill.mixed_file = "all.drl".to_owned();
+    let once = build(&f, &separate).unwrap();
+    let twice = build(&f, &separate).unwrap();
+    assert_eq!(file(&once, "layers/all.drl"), joined);
+    assert_eq!(
+        file(&once, "layers/all.drl"),
+        file(&twice, "layers/all.drl")
+    );
+    let bytes = |s: &FabSet| -> Vec<(String, Vec<u8>)> {
+        s.files
+            .iter()
+            .map(|x| (x.path.clone(), x.bytes.clone()))
+            .collect()
+    };
+    assert_eq!(bytes(&once), bytes(&twice));
+}
+
+#[test]
+fn the_mixed_profile_needs_the_level_that_names_the_tools_and_a_file_of_its_own() {
+    let mut profile = Profile::default();
+    profile.drill.mixed = true;
+    let e = profile.validate().unwrap_err().to_string();
+    assert!(e.contains("drill.mixed needs the X2 level"), "{e}");
+    profile.gerber.x2.level = X2Level::Aperture;
+    assert!(profile.validate().is_ok());
+    profile.drill.mixed_file = "../x.drl".to_owned();
+    assert!(profile.validate().is_err());
+    profile.drill.mixed_file = "drill_pth.drl".to_owned();
+    let e = profile.validate().unwrap_err().to_string();
+    assert!(e.contains("used twice"), "{e}");
+    // a profile file can ask for it by two keys
+    let text = r#"{"format": "phoenix-export/1", "profiles": [{"name": "m", "gerber": {"x2": {"level": "full"}}, "drill": {"mixed": true}}]}"#;
+    let set = ProfileSet::from_json(text).unwrap();
+    let m = set.get("m").unwrap();
+    assert!(m.drill.mixed);
+    assert_eq!(m.drill.mixed_file, "{board}.drl");
+}
+
+#[test]
+fn the_mixed_file_is_in_the_package_and_a_lost_mixed_file_is_found() {
+    let f = fixture();
+    let mut profile = with_level(X2Level::Aperture);
+    profile.drill.mixed = true;
+    let set = build(&f, &profile).unwrap();
+    let mut lost = set.clone();
+    lost.files.retain(|x| x.role != FileRole::DrillMixed);
+    let found = verify(&f, &profile, &lost);
+    assert!(
+        found.iter().any(|d| d.message.contains("no file for them")),
+        "{found:?}"
+    );
+}
