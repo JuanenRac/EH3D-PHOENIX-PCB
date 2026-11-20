@@ -22,6 +22,10 @@
 //!   check and the checks of the layers, the size of the board and the holes (`PHOENIX-DFM-<NNN>`);
 //! * [`dfm_compare`]: the comparison of one board against the profiles of several makers, as text
 //!   in eight languages and as JSON;
+//! * [`mask`]: the strips of solder mask between two openings that are narrower than a maker can
+//!   print;
+//! * [`netlint`]: the spelling of the names of the nets (spaces, odd characters, length, case,
+//!   names a program made up and halves of pairs with no other half);
 //! * [`notes`]: the notes of the consistency checks of a board that a report carries as information
 //!   (a polygon over `max_polygon_points`, code `PHOENIX-BOARD-017`);
 //! * [`report`]: the report as text and as JSON, with proven (`confirmed`) and unjudged
@@ -48,6 +52,12 @@ pub mod dfm_more;
 pub mod engine;
 mod geometry;
 mod items;
+pub mod mask;
+#[cfg(test)]
+mod mask_tests;
+pub mod netlint;
+#[cfg(test)]
+mod netlint_tests;
 pub mod notes;
 pub mod report;
 pub mod report_export;
@@ -65,6 +75,8 @@ pub use dfm_compare::{compare_profiles, DfmComparison, ProfileRun};
 pub use engine::{
     check_board, check_board_with, clearance_work, edge_work, ClearanceWork, EdgeWork, Rule,
 };
+pub use mask::{mask_slivers, MaskOpening, MaskSliver};
+pub use netlint::{lint_net_names, NetIssue, NetIssueKind, NetLintConfig};
 pub use notes::board_notes;
 pub use report::{Finding, Report, Severity};
 pub use report_export::{category, category_counts, report_csv, report_html};
