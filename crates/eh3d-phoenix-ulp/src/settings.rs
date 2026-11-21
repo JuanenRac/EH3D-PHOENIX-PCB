@@ -135,8 +135,8 @@ impl UlpSettings {
         if !(1..=100_000).contains(&self.max_problems) {
             return fail("max_problems must be between 1 and 100000");
         }
-        if !(1..=10_000_000_000).contains(&self.max_steps) {
-            return fail("max_steps must be between 1 and 10000000000");
+        if !(1..=4_000_000_000).contains(&self.max_steps) {
+            return fail("max_steps must be between 1 and 4000000000");
         }
         if !(1024..=1 << 30).contains(&self.max_memory_bytes) {
             return fail("max_memory_bytes must be between 1024 and 1073741824");
@@ -221,7 +221,7 @@ mod tests {
             "max_problems = 0",
             "max_problems = 100001",
             "max_steps = 0",
-            "max_steps = 10000000001",
+            "max_steps = 4000000001",
             "max_memory_bytes = 1023",
             "max_eval_depth = 0",
             "max_eval_depth = 2001",
