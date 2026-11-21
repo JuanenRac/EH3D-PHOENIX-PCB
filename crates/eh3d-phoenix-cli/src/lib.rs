@@ -645,7 +645,8 @@ phoenix eagle-convert <dru-to-rules|rules-to-dru|cam-to-profile|layers|variants>
 
 phoenix view [--settings FILE] [--lang xx] [<board or schematic>]
 phoenix view --summary <file>  |  phoenix view --snapshot OUT.svg <file>  |  phoenix view --bench
-phoenix --shot FILE.png [--size WxH] [--theme dark|light|contrast] [--window NAME] [--wait N] [--replace] [--open FILE]
+phoenix --shot FILE.png [--size WxH] [--theme dark|light|contrast] [--window NAME] [--workspace edit|review|compact]
+              [--wait N] [--replace] [--open FILE]
 
   view          a viewer and editor window of a board or a schematic (a build with the gui
                 feature; a prototype), a text summary of a file, a picture of it as SVG, or a

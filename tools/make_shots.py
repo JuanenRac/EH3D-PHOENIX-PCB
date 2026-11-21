@@ -41,19 +41,23 @@ PNG_MAGIC = b"\x89PNG\r\n\x1a\n"
 # the windows that need no document, and the ones that need a board
 NO_FILE = ("start", "help", "shortcuts", "appearance")
 ON_BOARD = ("document", "3d", "panel", "layers", "search")
+# the workspaces of the panels that have a picture of their own besides the factory one (`--workspace`)
+WORKSPACES = ("review", "compact")
 BOARD_EXAMPLES = ("examples/tutorials/led_board.brd", "examples/tutorials/tut.brd")
 
 
 @dataclass(frozen=True)
 class Shot:
-    """One picture: the window and the theme."""
+    """One picture: the window, the theme and, for the document, the workspace of the panels."""
 
     window: str
     theme: str = "dark"
+    workspace: str = ""
 
     @property
     def label(self) -> str:
-        return self.window if self.theme == "dark" else f"{self.window}-{self.theme}"
+        label = self.window if self.theme == "dark" else f"{self.window}-{self.theme}"
+        return f"{label}-{self.workspace}" if self.workspace else label
 
 
 def parse_size(text: str) -> tuple[int, int]:
@@ -80,7 +84,10 @@ def plan(has_board: bool, gerber: bool) -> list[Shot]:
     """The pictures to take, in order. Without an example board only the windows that need none are shown."""
     shots = [Shot("start")]
     if has_board:
-        shots += [Shot("document"), Shot("document", "light"), Shot("3d"), Shot("panel"), Shot("layers"), Shot("search")]
+        shots += [Shot("document"), Shot("document", "light")]
+        # the same board in the other workspaces of the panels (the first picture is the Edit one)
+        shots += [Shot("document", "dark", name) for name in WORKSPACES]
+        shots += [Shot("3d"), Shot("panel"), Shot("layers"), Shot("search")]
     if gerber:
         shots.append(Shot("gerber"))
     shots += [Shot(window) for window in NO_FILE if window != "start"]
@@ -94,6 +101,8 @@ def file_name(number: int, shot: Shot) -> str:
 def program_arguments(exe: Path, shot: Shot, output: Path, size: str, wait: int, example: Path | None, gerber: Path | None) -> list[str]:
     """The command line that takes one picture. `--replace` is given because the pictures are renewed."""
     args = [str(exe), "--shot", str(output), "--replace", "--size", size, "--theme", shot.theme, "--wait", str(wait), "--window", shot.window]
+    if shot.workspace:
+        args += ["--workspace", shot.workspace]
     opened = gerber if shot.window == "gerber" else (example if shot.window in ON_BOARD else None)
     if opened is not None:
         args += ["--open", str(opened)]

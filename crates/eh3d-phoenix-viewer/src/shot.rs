@@ -3,8 +3,9 @@
 //! checked without a screen. The window opens at the size asked, shows the document and the
 //! window asked for, waits a number of frames so that the drawing is complete, saves what it
 //! drew as a PNG file and closes by itself. In this mode the window reads no file of
-//! preferences, writes none and keeps no list of recent files, so a run leaves nothing of the
-//! person's settings changed.
+//! preferences, writes none and keeps no list of recent files (the arrangement of the panels
+//! included, whichever workspace the picture asks for), so a run leaves nothing of the person's
+//! settings changed.
 
 use std::path::PathBuf;
 
@@ -119,6 +120,9 @@ pub struct ShotRequest {
     pub wait: u32,
     /// The window shown.
     pub window: ShotWindow,
+    /// The workspace of the panels that the picture shows (`Edit`, `Review` or `Compact`); none
+    /// keeps the one of the factory. It is never written to the preferences.
+    pub workspace: Option<&'static str>,
 }
 
 /// Reads a size written `WIDTHxHEIGHT` (`1280x720`, also with a capital X), each side between

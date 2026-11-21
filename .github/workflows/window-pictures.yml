@@ -1,0 +1,53 @@
+name: Window pictures
+
+# Takes the pictures of the window with the picture mode of the program (`phoenix --shot`) on a virtual screen and keeps them as an artifact of the run, so the pictures of the
+# README can be renewed without building the window on a personal machine. Run it by hand: Actions > Window pictures > Run workflow; then put the pictures of the artifact in
+# images/screens/ and in a pull request. The pictures are the windows of docs/VIEWER.md and the board in each workspace of the panels (Edit, Review and Compact).
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: window-pictures
+  cancel-in-progress: false
+
+env:
+  # The tag of the sibling repository the window is built against.
+  COMMON_REF: "v0.2.7"
+
+jobs:
+  pictures:
+    name: Take the pictures of the window
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+          path: EH3D-PHOENIX-PCB
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+      - name: The sibling repository of the common library
+        shell: bash
+        run: git -c advice.detachedHead=false clone --quiet --depth 1 --branch "${COMMON_REF}" "https://github.com/${GITHUB_REPOSITORY_OWNER}/EH3D-COMMON.git" EH3D-COMMON
+      - name: Libraries of the window and a virtual screen
+        run: sudo apt-get update && sudo apt-get install -y libxkbcommon-dev libwayland-dev libx11-dev libxcursor-dev libxrandr-dev libxi-dev libgl1-mesa-dev libgl1-mesa-dri xvfb
+      - name: Rust toolchain
+        working-directory: EH3D-PHOENIX-PCB
+        run: rustup toolchain install "$(sed -n 's/^channel = "\(.*\)"/\1/p' rust-toolchain.toml)" --profile minimal
+      - name: Build the window
+        working-directory: EH3D-PHOENIX-PCB
+        run: cargo build --release -p eh3d-phoenix-cli --features gui
+      - name: Take the pictures
+        working-directory: EH3D-PHOENIX-PCB
+        run: xvfb-run -a python -I tools/make_shots.py --exe target/release/phoenix --out window-pictures
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: window-pictures
+          path: EH3D-PHOENIX-PCB/window-pictures/*.png
+          if-no-files-found: error
+          retention-days: 14

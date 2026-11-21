@@ -45,7 +45,10 @@ class PlanTests(unittest.TestCase):
         labels = [s.label for s in shots.plan(True, False)]
         self.assertEqual(
             labels,
-            ["start", "document", "document-light", "3d", "panel", "layers", "search", "help", "shortcuts", "appearance"],
+            [
+                "start", "document", "document-light", "document-review", "document-compact", "3d", "panel",
+                "layers", "search", "help", "shortcuts", "appearance",
+            ],
         )
         self.assertNotIn("gerber", labels)
         self.assertIn("gerber", [s.label for s in shots.plan(True, True)])
@@ -54,7 +57,8 @@ class PlanTests(unittest.TestCase):
         names = [shots.file_name(n, s) for n, s in enumerate(shots.plan(True, False), 1)]
         self.assertEqual(names[0], "phoenix-pcb-01-start.png")
         self.assertEqual(names[2], "phoenix-pcb-03-document-light.png")
-        self.assertEqual(names[3], "phoenix-pcb-04-3d.png")
+        self.assertEqual(names[3], "phoenix-pcb-04-document-review.png")
+        self.assertEqual(names[5], "phoenix-pcb-06-3d.png")
         self.assertEqual(len(set(names)), len(names))
 
 
@@ -77,6 +81,18 @@ class ArgumentTests(unittest.TestCase):
         self.assertNotIn("--open", shots.program_arguments(exe, shots.Shot("help"), out, "1600x900", 6, board, None))
         folder = Path("gerbers")
         self.assertEqual(shots.program_arguments(exe, shots.Shot("gerber"), out, "800x600", 6, board, folder)[-2:], ["--open", "gerbers"])
+
+    def test_a_picture_of_a_workspace_asks_for_it_and_the_other_pictures_do_not(self) -> None:
+        exe, out, board = Path("gui.exe"), Path("out/p.png"), Path("b.brd")
+        review = shots.Shot("document", "dark", "review")
+        self.assertEqual(review.label, "document-review")
+        args = shots.program_arguments(exe, review, out, "1600x900", 12, board, None)
+        self.assertEqual(args[args.index("--workspace") + 1], "review")
+        self.assertEqual(args[args.index("--window") + 1], "document")
+        for shot in shots.plan(True, True):
+            args = shots.program_arguments(exe, shot, out, "1600x900", 12, board, Path("g"))
+            self.assertEqual("--workspace" in args, bool(shot.workspace), shot.label)
+        self.assertEqual(shots.WORKSPACES, ("review", "compact"))
 
     def test_the_example_board_is_the_first_known_one_that_exists(self) -> None:
         with tempfile.TemporaryDirectory() as folder:

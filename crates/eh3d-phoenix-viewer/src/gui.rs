@@ -39,6 +39,7 @@ use crate::msg::Msg;
 use crate::object_list;
 use crate::panel_gui::PanelUi;
 use crate::panel_scene::parse_files;
+use crate::panel_text::PanelText;
 use crate::panels::{self, Cmd, LayoutWatch, MenuFacts};
 use crate::prim::{arc_points, triangulate, Shape, P};
 use crate::print_gui::PrintUi;
@@ -195,6 +196,8 @@ struct App {
     frames: FrameLog,
     /// The picture mode, while the window is there only to be photographed.
     shot: Option<ShotState>,
+    /// The panel that has the focus in the frame, for the help and for the preferences.
+    focused: Option<String>,
 }
 
 /// How the picture mode ended: nothing yet, the file was written, or the reason it was not.
@@ -260,6 +263,7 @@ impl App {
             engine,
             frames: FrameLog::new(settings.frame_log_frames),
             shot: None,
+            focused: None,
         };
         if fell_back {
             app.console
@@ -280,12 +284,10 @@ impl App {
         {
             self.lib.open(path);
             if self.lib.is_open() {
-                self.workspace = None;
-                self.sch = None;
-                self.brd = None;
                 self.error = None;
                 self.launcher.opened(path);
                 self.recent_added.push(path.to_string_lossy().into_owned());
+                self.show_panel(panels::id::LIBRARY_EDITOR);
             } else if let Some(e) = self.lib.take_error() {
                 self.error = Some(ViewError::new(FILE_UNUSABLE, e.message(Lang::En)));
             }
@@ -293,7 +295,6 @@ impl App {
         }
         match Workspace::open(path, &self.settings, &self.route_settings) {
             Ok(workspace) => {
-                self.lib.close();
                 self.save_text = suggested_save_path(path).to_string_lossy().into_owned();
                 self.workspace = Some(workspace);
                 if let Some(w) = self.workspace.as_mut() {
@@ -311,39 +312,42 @@ impl App {
         }
     }
 
-    /// Does what the start screen asked for.
+    /// Asks the frame to show a panel (and to put it in front) after this frame is drawn.
+    fn show_panel(&mut self, id: &str) {
+        self.pending_dock
+            .push(DockAction::ShowPanel(id.to_string()));
+    }
+
+    /// Asks the frame to hide a panel after this frame is drawn.
+    fn hide_panel(&mut self, id: &str) {
+        self.pending_dock
+            .push(DockAction::HidePanel(id.to_string()));
+    }
+
+    /// Does what the start screen asked for. What is opened shows in a panel of its own beside the
+    /// others; nothing that is open is closed by it.
     fn launch(&mut self, asked: Launch) {
         match asked {
             Launch::Open(path) => {
-                self.gerber = None;
-                self.view3d = None;
-                self.panel = None;
                 self.path_text = path.to_string_lossy().into_owned();
                 self.open(&path);
             }
             Launch::OpenGerber(folder) => match GerberUi::open(&folder, &self.settings) {
                 Ok(window) => {
                     self.gerber = Some(window);
-                    self.view3d = None;
-                    self.panel = None;
                     self.error = None;
+                    self.show_panel(panels::id::GERBER);
                 }
                 Err(error) => self.error = Some(error),
             },
             Launch::OpenPanel(text) => {
-                self.gerber = None;
-                self.view3d = None;
                 self.panel = Some(PanelUi::new(&parse_files(&text), None, &self.settings));
                 self.error = None;
+                self.show_panel(panels::id::BOARDS);
             }
             Launch::NewLibrary => {
-                self.gerber = None;
-                self.view3d = None;
-                self.panel = None;
                 self.lib.new_library();
-                self.workspace = None;
-                self.sch = None;
-                self.brd = None;
+                self.show_panel(panels::id::LIBRARY_EDITOR);
             }
         }
     }
@@ -415,6 +419,7 @@ impl App {
             Ok(window) => {
                 self.view3d = Some(window);
                 self.error = None;
+                self.show_panel(panels::id::VIEW3D);
             }
             Err(error) => self.error = Some(error),
         }
@@ -443,31 +448,6 @@ impl App {
                 }
             });
         ui.label(dim(Msg::Language.tr(lang)));
-    }
-
-    /// The bar above a window of its own (the library): where to open another file.
-    fn overlay_bar(&mut self, ui: &mut egui::Ui) {
-        let lang = self.lang;
-        egui::Panel::top("overlay_bar").show(ui, |ui| {
-            ui.horizontal_wrapped(|ui| {
-                ui.label(
-                    egui::RichText::new("EH3D-PHOENIX-PCB")
-                        .strong()
-                        .size(18.0)
-                        .color(ui_accent()),
-                );
-                ui.separator();
-                ui.label(dim(Msg::PathHint.tr(lang)));
-                let edit = egui::TextEdit::singleline(&mut self.path_text).desired_width(300.0);
-                let response = ui.add(edit);
-                let enter = response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
-                if ui.button(Msg::Open.tr(lang)).clicked() || enter {
-                    let path = PathBuf::from(self.path_text.trim());
-                    self.open(&path);
-                }
-                self.language_combo(ui);
-            });
-        });
     }
 
     /// The tasks: the file of the document and the tools of the window that the menus also have.
@@ -1425,15 +1405,17 @@ fn paint(workspace: &Workspace, painter: &egui::Painter, rect: Rect) {
 }
 
 impl App {
-    /// Which mode of the window is shown, for the help and for the preferences.
+    /// Which mode of the window is shown, for the help and for the preferences: the one of the panel
+    /// that has the focus when it is a mode of its own that is open, and else the one of the document.
     fn help_mode(&self) -> HelpMode {
-        if self.lib.is_open() {
+        let open = |panel: &str| self.focused.as_deref() == Some(panel);
+        if open(panels::id::LIBRARY_EDITOR) && self.lib.is_open() {
             HelpMode::Library
-        } else if self.gerber.is_some() {
+        } else if open(panels::id::GERBER) && self.gerber.is_some() {
             HelpMode::Gerber
-        } else if self.view3d.is_some() {
+        } else if open(panels::id::VIEW3D) && self.view3d.is_some() {
             HelpMode::View3d
-        } else if self.panel.is_some() {
+        } else if open(panels::id::BOARDS) && self.panel.is_some() {
             HelpMode::Panel
         } else {
             match &self.workspace {
@@ -1444,28 +1426,18 @@ impl App {
         }
     }
 
-    /// True while a window of its own (library, Gerber, 3D or panel) takes the place of the drawing.
-    fn overlay(&self) -> bool {
-        self.lib.is_open() || self.gerber.is_some() || self.view3d.is_some() || self.panel.is_some()
-    }
-
     /// The search, the measures, the layers, the history, the appearance, the shortcuts and the help,
     /// and the preferences, after the rest of the window is drawn.
     fn common(&mut self, ctx: &egui::Context) {
         self.shot_tick(ctx);
         let mode = self.help_mode();
-        let overlay = self.overlay();
         let actions = std::mem::take(&mut self.actions);
         let frame = FrameContext {
             lang: self.lang,
             mode,
             fit_pending: self.fit_pending,
             editing: self.sch.is_some() || self.brd.is_some(),
-            workspace: if overlay {
-                None
-            } else {
-                self.workspace.as_mut()
-            },
+            workspace: self.workspace.as_mut(),
             view3d: self.view3d.as_mut(),
         };
         self.win.frame(ctx, &mut self.settings, &actions, frame);
@@ -1498,7 +1470,6 @@ impl App {
             has_document: self.workspace.is_some(),
             is_board: self.workspace.as_ref().is_some_and(|w| w.is_board()),
             editing: self.sch.is_some() || self.brd.is_some(),
-            overlay: self.overlay(),
             can_undo: self.workspace.as_ref().is_some_and(|w| w.can_undo()),
             can_redo: self.workspace.as_ref().is_some_and(|w| w.can_redo()),
         }
@@ -1590,29 +1561,69 @@ impl App {
         }
     }
 
-    /// The windows of their own (library, Gerber, 3D, panel of boards) take the place of the panels.
-    fn overlay_body(&mut self, ui: &mut egui::Ui) {
-        if self.lib.is_open() {
-            self.overlay_bar(ui);
-            self.lib.show(ui, self.lang);
+    /// The line of a panel of a mode of its own while nothing of its kind is open.
+    fn mode_empty(ui: &mut egui::Ui, lang: Lang) {
+        ui.add_space(6.0);
+        ui.add(egui::Label::new(dim(DockMsg::ModePanelEmpty.tr(lang))).wrap());
+    }
+
+    /// The editor of a library of footprints, symbols and devices.
+    fn panel_library_editor(&mut self, ui: &mut egui::Ui) {
+        let lang = self.lang;
+        if !self.lib.is_open() {
+            App::mode_empty(ui, lang);
             return;
         }
-        if let Some(window) = self.gerber.as_mut() {
-            if window.show(ui, self.lang, &self.settings) {
-                self.gerber = None;
-            }
-            return;
+        let mut close = false;
+        egui::Panel::top("library_bar").show(ui, |ui| {
+            ui.horizontal(|ui| {
+                ui.label(heading(LibText::Title.tr(lang)));
+                close = ui.button(PanelText::Close.tr(lang)).clicked();
+            });
+        });
+        self.lib.show(ui, lang);
+        if close {
+            self.lib.close();
+            self.hide_panel(panels::id::LIBRARY_EDITOR);
         }
-        if let Some(window) = self.view3d.as_mut() {
-            if window.show(ui, self.lang, &self.settings) {
-                self.view3d = None;
-            }
+    }
+
+    /// The imported Gerber and Excellon files of a folder.
+    fn panel_gerber(&mut self, ui: &mut egui::Ui) {
+        let lang = self.lang;
+        let Some(window) = self.gerber.as_mut() else {
+            App::mode_empty(ui, lang);
             return;
+        };
+        if window.show(ui, lang, &self.settings) {
+            self.gerber = None;
+            self.hide_panel(panels::id::GERBER);
         }
-        if let Some(window) = self.panel.as_mut() {
-            if window.show(ui, self.lang, &self.settings) {
-                self.panel = None;
-            }
+    }
+
+    /// The 3D view of the assembled board.
+    fn panel_view3d(&mut self, ui: &mut egui::Ui) {
+        let lang = self.lang;
+        let Some(window) = self.view3d.as_mut() else {
+            App::mode_empty(ui, lang);
+            return;
+        };
+        if window.show(ui, lang, &self.settings) {
+            self.view3d = None;
+            self.hide_panel(panels::id::VIEW3D);
+        }
+    }
+
+    /// The panel of boards laid out for manufacturing.
+    fn panel_boards(&mut self, ui: &mut egui::Ui) {
+        let lang = self.lang;
+        let Some(window) = self.panel.as_mut() else {
+            App::mode_empty(ui, lang);
+            return;
+        };
+        if window.show(ui, lang, &self.settings) {
+            self.panel = None;
+            self.hide_panel(panels::id::BOARDS);
         }
     }
 }
@@ -1636,7 +1647,7 @@ impl Shell {
         let dock_text = panels::dock_text(app.win.dock_pairs());
         let app = Rc::new(RefCell::new(app));
         let mut dock = Dock::new(panels::defs(), panels::workspaces());
-        let draw: [(&str, PanelDraw); 10] = [
+        let draw: [(&str, PanelDraw); 14] = [
             (panels::id::BOARD_VIEW, App::panel_board_view),
             (panels::id::LAYERS, App::panel_layers),
             (panels::id::PROPERTIES, App::panel_properties),
@@ -1647,12 +1658,21 @@ impl Shell {
             (panels::id::CONSOLE, App::panel_console),
             (panels::id::REPORT, App::panel_report),
             (panels::id::TASKS, App::panel_tasks),
+            (panels::id::LIBRARY_EDITOR, App::panel_library_editor),
+            (panels::id::GERBER, App::panel_gerber),
+            (panels::id::VIEW3D, App::panel_view3d),
+            (panels::id::BOARDS, App::panel_boards),
         ];
         for (name, f) in draw {
             let a = app.clone();
             dock.register(name, move |ui| f(&mut a.borrow_mut(), ui));
         }
         dock.load_config(&dock_text);
+        // a picture of a workspace: the arrangement of that workspace, which is not written anywhere
+        let asked = app.borrow().shot.as_ref().and_then(|s| s.request.workspace);
+        if let Some(name) = asked {
+            let _ = dock.apply(DockAction::SwitchWorkspace(name.to_string()));
+        }
         dock.set_language(panels::view_lang(lang));
         let watch = LayoutWatch::new(&dock.core().config_pairs());
         Shell {
@@ -1697,6 +1717,9 @@ impl Shell {
     /// a second and not at every frame.
     fn keep_layout(&mut self) {
         let mut app = self.app.borrow_mut();
+        if app.shot.is_some() {
+            return;
+        }
         self.countdown = self.countdown.saturating_sub(1);
         if self.countdown > 0 {
             return;
@@ -1713,14 +1736,15 @@ impl Shell {
     /// Draws one frame of the window in the space of `ui`.
     fn run(&mut self, ui: &mut egui::Ui) {
         let ctx = ui.ctx().clone();
-        let (lang, facts, overlay) = {
+        let (lang, facts) = {
             let mut app = self.app.borrow_mut();
+            app.focused = self.dock.core().focus().map(str::to_owned);
             app.actions = window_gui::pressed_actions(&ctx, &app.settings.keymap);
             let frame_ms = f64::from(ctx.input(|i| i.unstable_dt)) * 1000.0;
             app.frames.push(frame_ms);
             app.handle_drops(&ctx);
             app.feed_console();
-            (app.lang, app.menu_facts(), app.overlay())
+            (app.lang, app.menu_facts())
         };
         self.dock.set_language(panels::view_lang(lang));
         self.dock.set_about(Shell::about(lang));
@@ -1731,13 +1755,9 @@ impl Shell {
             chosen = self.dock.menu_bar(ui, &self.bar);
         });
         self.app.borrow_mut().status_bar(ui);
-        if overlay {
-            self.app.borrow_mut().overlay_body(ui);
-        } else {
-            egui::CentralPanel::default()
-                .frame(egui::Frame::NONE)
-                .show(ui, |ui| self.dock.show(ui));
-        }
+        egui::CentralPanel::default()
+            .frame(egui::Frame::NONE)
+            .show(ui, |ui| self.dock.show(ui));
         self.after(chosen, &ctx);
         self.keep_layout();
         let mut app = self.app.borrow_mut();
@@ -1913,6 +1933,7 @@ fn run_with(
             let mut app = App::new(lang, settings, win, first, !taking_picture);
             if let Some((files, config)) = panel {
                 app.panel = Some(PanelUi::new(&files, config.as_deref(), &app.settings));
+                app.show_panel(panels::id::BOARDS);
             }
             if let Some(request) = shot {
                 app.begin_shot(request, window_file.as_deref(), outcome_for_app);
@@ -2195,5 +2216,209 @@ mod tests {
         let mut h = Harness::new(app());
         h.frames(6);
         assert_eq!(h.shell.app.borrow().frames.len(), 6);
+    }
+
+    impl Harness {
+        fn shown(&self, panel: &str) -> bool {
+            self.shell.dock.core().layout().is_shown(panel)
+        }
+    }
+
+    fn gerber_folder() -> tempfile::TempDir {
+        let dir = tempfile::tempdir().unwrap();
+        let text = "%FSLAX24Y24*%\n%MOMM*%\n%ADD10C,0.5*%\nD10*\nX0Y0D02*\nX100000Y0D01*\nM02*\n";
+        std::fs::write(dir.path().join("board.gtl"), text).unwrap();
+        dir
+    }
+
+    #[test]
+    fn a_library_opens_in_a_panel_of_its_own_and_the_board_stays_where_it_was() {
+        let mut a = app();
+        with_board(&mut a);
+        a.launch(Launch::NewLibrary);
+        let mut h = Harness::new(a);
+        h.frames(4);
+        assert!(h.shown(panels::id::LIBRARY_EDITOR));
+        assert!(h.shown(panels::id::BOARD_VIEW));
+        let app = h.shell.app.borrow();
+        assert!(app.lib.is_open());
+        assert!(
+            app.workspace.is_some(),
+            "the board was closed by the library"
+        );
+        // the entries of the document are still on while the library is open
+        assert!(!panels::disabled_entries(&app.menu_facts()).contains(&"file.export".to_string()));
+    }
+
+    #[test]
+    fn the_3d_view_opens_in_its_panel_beside_the_board() {
+        let mut a = app();
+        with_board(&mut a);
+        a.open_3d();
+        assert!(
+            a.view3d.is_some(),
+            "{:?}",
+            a.error.as_ref().map(|e| e.message(Lang::En))
+        );
+        let mut h = Harness::new(a);
+        h.frames(4);
+        assert!(h.shown(panels::id::VIEW3D));
+        assert!(h.shown(panels::id::BOARD_VIEW));
+        assert!(h.shell.app.borrow().workspace.is_some());
+    }
+
+    #[test]
+    fn the_panel_of_boards_and_the_gerber_files_open_in_their_panels() {
+        let folder = gerber_folder();
+        let mut a = app();
+        a.launch(Launch::OpenPanel(String::new()));
+        a.launch(Launch::OpenGerber(folder.path().to_path_buf()));
+        assert!(
+            a.gerber.is_some(),
+            "{:?}",
+            a.error.as_ref().map(|e| e.message(Lang::En))
+        );
+        let mut h = Harness::new(a);
+        h.frames(4);
+        assert!(h.shown(panels::id::BOARDS));
+        assert!(h.shown(panels::id::GERBER));
+    }
+
+    #[test]
+    fn every_workspace_draws_with_all_the_modes_open() {
+        let folder = gerber_folder();
+        let mut a = app();
+        with_board(&mut a);
+        a.launch(Launch::NewLibrary);
+        a.launch(Launch::OpenPanel(String::new()));
+        a.launch(Launch::OpenGerber(folder.path().to_path_buf()));
+        a.open_3d();
+        let mut h = Harness::new(a);
+        h.frames(2);
+        for name in [panels::WS_EDIT, panels::WS_REVIEW, panels::WS_COMPACT] {
+            h.switch(name);
+            // each workspace has its own arrangement: the modes that are open are shown from the
+            // View menu in the one the person changed to
+            for panel in panels::id::MODES {
+                h.shell
+                    .dock
+                    .apply(DockAction::ShowPanel(panel.to_string()))
+                    .unwrap();
+            }
+            h.frames(3);
+            for panel in panels::id::MODES {
+                assert!(h.shown(panel), "{name}: {panel}");
+            }
+            assert!(h.shell.dock.core().layout_is_sound(), "{name}");
+        }
+        let app = h.shell.app.borrow();
+        assert!(app.lib.is_open() && app.gerber.is_some());
+        assert!(app.view3d.is_some() && app.panel.is_some());
+    }
+
+    #[test]
+    fn a_panel_of_a_mode_with_nothing_open_says_so_and_draws() {
+        let mut h = Harness::new(app());
+        for panel in panels::id::MODES {
+            h.shell
+                .dock
+                .apply(DockAction::ShowPanel(panel.to_string()))
+                .unwrap();
+        }
+        h.frames(4);
+        for panel in panels::id::MODES {
+            assert!(h.shown(panel), "{panel}");
+        }
+        let app = h.shell.app.borrow();
+        assert!(!app.lib.is_open() && app.gerber.is_none());
+        assert!(app.view3d.is_none() && app.panel.is_none());
+    }
+
+    #[test]
+    fn closing_a_mode_hides_its_panel_and_opening_it_again_shows_it() {
+        let mut a = app();
+        with_board(&mut a);
+        a.launch(Launch::NewLibrary);
+        let mut h = Harness::new(a);
+        h.frames(3);
+        assert!(h.shown(panels::id::LIBRARY_EDITOR));
+        {
+            let mut app = h.shell.app.borrow_mut();
+            app.lib.close();
+            app.hide_panel(panels::id::LIBRARY_EDITOR);
+        }
+        h.frames(3);
+        assert!(!h.shown(panels::id::LIBRARY_EDITOR));
+        h.shell.app.borrow_mut().launch(Launch::NewLibrary);
+        h.frames(3);
+        assert!(h.shown(panels::id::LIBRARY_EDITOR));
+        assert!(h.shown(panels::id::BOARD_VIEW));
+    }
+
+    #[test]
+    fn the_help_follows_the_panel_that_has_the_focus() {
+        let mut a = app();
+        with_board(&mut a);
+        a.open_3d();
+        let mut h = Harness::new(a);
+        h.frames(3);
+        assert_eq!(h.shell.app.borrow().help_mode(), HelpMode::View3d);
+        h.shell
+            .dock
+            .apply(DockAction::ShowPanel(panels::id::BOARD_VIEW.to_string()))
+            .unwrap();
+        h.frames(2);
+        assert_eq!(h.shell.app.borrow().help_mode(), HelpMode::Board);
+    }
+
+    #[test]
+    fn a_picture_of_a_workspace_shows_it_and_writes_nothing() {
+        for (asked, name) in [
+            ("edit", panels::WS_EDIT),
+            ("review", panels::WS_REVIEW),
+            ("compact", panels::WS_COMPACT),
+        ] {
+            let mut a = app();
+            with_board(&mut a);
+            a.settings.dock_check_every_frames = 1;
+            let request = ShotRequest {
+                output: PathBuf::from("picture.png"),
+                replace: true,
+                size: (800, 600),
+                theme: None,
+                wait: 2,
+                window: ShotWindow::Document,
+                workspace: panels::workspace_named(asked),
+            };
+            a.begin_shot(request, None, Arc::new(Mutex::new(None)));
+            let mut h = Harness::new(a);
+            h.frames(8);
+            assert_eq!(h.shell.dock.core().workspaces().current_name(), name);
+            assert!(
+                h.shell.app.borrow().win.dock_pairs().is_empty(),
+                "{name}: the picture wrote the arrangement"
+            );
+        }
+    }
+
+    #[test]
+    fn a_picture_without_a_workspace_keeps_the_factory_one() {
+        let mut a = app();
+        with_board(&mut a);
+        let request = ShotRequest {
+            output: PathBuf::from("picture.png"),
+            replace: true,
+            size: (800, 600),
+            theme: None,
+            wait: 2,
+            window: ShotWindow::Document,
+            workspace: None,
+        };
+        a.begin_shot(request, None, Arc::new(Mutex::new(None)));
+        let h = Harness::new(a);
+        assert_eq!(
+            h.shell.dock.core().workspaces().current_name(),
+            panels::WS_EDIT
+        );
     }
 }

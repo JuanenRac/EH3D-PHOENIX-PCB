@@ -53,11 +53,14 @@ pub enum DockMsg {
     FrameTime,
     /// The line of the console that says the engine asked for is not built and the painter of egui draws.
     EngineFellBack,
+    /// The line of a panel of a mode of its own (library, Gerber files, 3D view, panel of boards)
+    /// while nothing of its kind is open.
+    ModePanelEmpty,
 }
 
 impl DockMsg {
     /// Every text, in the order of the table.
-    pub const ALL: [DockMsg; 21] = [
+    pub const ALL: [DockMsg; 22] = [
         DockMsg::NoDocument,
         DockMsg::EditorHasDocument,
         DockMsg::ConsoleEmpty,
@@ -79,6 +82,7 @@ impl DockMsg {
         DockMsg::SectionTools,
         DockMsg::FrameTime,
         DockMsg::EngineFellBack,
+        DockMsg::ModePanelEmpty,
     ];
 
     /// The text in a language.
@@ -257,6 +261,16 @@ impl DockMsg {
                 "指定されたエンジンはまだ組み込まれていません。egui のペインターで描画します。",
                 "所请求的引擎尚未内置：由 egui 的绘制器绘制。",
                 "O motor pedido ainda não está incluído: desenha o pintor do egui.",
+            ],
+            DockMsg::ModePanelEmpty => [
+                "Nothing is open here. This panel fills when you open a library, a folder of Gerber and Excellon files, the 3D view of a board or a panel of boards.",
+                "Aquí no hay nada abierto. Este panel se llena al abrir una biblioteca, una carpeta de archivos Gerber y Excellon, la vista 3D de una placa o un panel de placas.",
+                "Hier ist nichts geöffnet. Dieser Bereich füllt sich, wenn Sie eine Bibliothek, einen Ordner mit Gerber- und Excellon-Dateien, die 3D-Ansicht einer Platine oder einen Nutzen aus Platinen öffnen.",
+                "Rien n'est ouvert ici. Ce panneau se remplit quand vous ouvrez une bibliothèque, un dossier de fichiers Gerber et Excellon, la vue 3D d'une carte ou un panneau de cartes.",
+                "Qui non è aperto nulla. Questo pannello si riempie quando si apre una libreria, una cartella di file Gerber ed Excellon, la vista 3D di una scheda o un pannello di schede.",
+                "ここには何も開かれていません。ライブラリ、Gerber / Excellon ファイルのフォルダ、基板の3D表示、基板のパネルを開くと、このパネルに表示されます。",
+                "此处没有打开任何内容。打开库、Gerber 和 Excellon 文件夹、电路板的三维视图或拼板后，此面板会显示内容。",
+                "Aqui não está nada aberto. Este painel enche-se quando abre uma biblioteca, uma pasta de ficheiros Gerber e Excellon, a vista 3D de uma placa ou um painel de placas.",
             ],
         }
     }

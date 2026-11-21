@@ -25,7 +25,10 @@ use eh3d_view::texts::Lang as ViewLang;
 
 use crate::cfg_text::CfgMsg;
 use crate::editmsg::EditMsg;
+use crate::gerber_text::GerberText;
+use crate::library_text::LibText;
 use crate::msg::Msg;
+use crate::panel_text::PanelText;
 use crate::view3d_text::View3dText;
 use crate::window_text::WinText;
 
@@ -51,11 +54,37 @@ pub mod id {
     pub const REPORT: &str = "report";
     /// The file of the document and the tools of the window.
     pub const TASKS: &str = "tasks";
+    /// The editor of a library of footprints, symbols and devices.
+    pub const LIBRARY_EDITOR: &str = "library_editor";
+    /// The imported Gerber and Excellon files of a folder.
+    pub const GERBER: &str = "gerber";
+    /// The 3D view of the assembled board.
+    pub const VIEW3D: &str = "view3d";
+    /// The panel of boards laid out for manufacturing.
+    pub const BOARDS: &str = "boards";
 
     /// Every panel, in the order of the View menu.
-    pub const ALL: [&str; 10] = [
-        BOARD_VIEW, LAYERS, PROPERTIES, COMPONENTS, NETS, DRC, LIBRARY, CONSOLE, REPORT, TASKS,
+    pub const ALL: [&str; 14] = [
+        BOARD_VIEW,
+        LAYERS,
+        PROPERTIES,
+        COMPONENTS,
+        NETS,
+        DRC,
+        LIBRARY,
+        CONSOLE,
+        REPORT,
+        TASKS,
+        LIBRARY_EDITOR,
+        GERBER,
+        VIEW3D,
+        BOARDS,
     ];
+
+    /// The panels that hold a mode of their own: they are hidden until the person opens what they
+    /// show (a library, a folder of Gerber files, the 3D view or a panel of boards), and they come
+    /// back to the place where they were when they are opened again.
+    pub const MODES: [&str; 4] = [LIBRARY_EDITOR, GERBER, VIEW3D, BOARDS];
 }
 
 /// The workspace of the design: the components and the nets on the left, the board in the middle, the
@@ -109,6 +138,26 @@ pub fn defs() -> Vec<PanelDef> {
             .icon("K")
             .min(220.0, 140.0),
     );
+    v.push(
+        PanelDef::new(id::LIBRARY_EDITOR, t8(|l| LibText::Title.tr(l)))
+            .icon("E")
+            .min(420.0, 240.0),
+    );
+    v.push(
+        PanelDef::new(id::GERBER, t8(|l| GerberText::Title.tr(l)))
+            .icon("G")
+            .min(420.0, 240.0),
+    );
+    v.push(
+        PanelDef::new(id::VIEW3D, t8(|l| View3dText::Title.tr(l)))
+            .icon("3")
+            .min(420.0, 240.0),
+    );
+    v.push(
+        PanelDef::new(id::BOARDS, t8(|l| PanelText::Title.tr(l)))
+            .icon("P")
+            .min(420.0, 240.0),
+    );
     v
 }
 
@@ -116,7 +165,9 @@ fn ws(name: &str, root: Node) -> Workspace {
     Workspace::new(name, Layout::with_root(root))
 }
 
-/// The factory workspaces, by task and not by experience:
+/// The factory workspaces, by task and not by experience. The four panels of the modes of their own
+/// (`id::MODES`) are in none of them: they are hidden until the person opens what they show, and then
+/// they join the group of the first panel, so the board stays on the screen beside them.
 ///
 /// * `Edit`: components, nets, library and tasks on the left; the board in the middle with the
 ///   console, the problems and the report below; the tools above the layers on the right.
@@ -310,8 +361,6 @@ pub struct MenuFacts {
     pub is_board: bool,
     /// An editor of the board or the schematic has the document.
     pub editing: bool,
-    /// A window of its own (library, Gerber, 3D or panel of boards) takes the place of the drawing.
-    pub overlay: bool,
     /// There is a step to undo.
     pub can_undo: bool,
     /// There is a step to redo.
@@ -327,7 +376,7 @@ pub fn disabled_entries(f: &MenuFacts) -> Vec<String> {
             off.extend_from_slice(ids);
         }
     };
-    let document = f.has_document && !f.overlay;
+    let document = f.has_document;
     when(
         !document,
         &["file.export", "view.fit", "edit.clear_selection"],
@@ -431,7 +480,7 @@ mod tests {
     #[test]
     fn the_panels_have_names_that_hold_and_titles_in_the_eight_languages() {
         let d = defs();
-        assert_eq!(d.len(), 10);
+        assert_eq!(d.len(), 14);
         let names: Vec<&str> = d.iter().map(|p| p.id.as_str()).collect();
         assert_eq!(names, id::ALL.to_vec());
         for p in &d {
@@ -475,9 +524,9 @@ mod tests {
         for name in c.workspaces().names() {
             assert!(workspace_title(name).is_some(), "{name}");
         }
-        // every panel is somewhere in a workspace (shown or folded), so the View menu can bring any of
-        // them back from a factory layout
-        for p in id::ALL {
+        // every panel of the document is somewhere in a workspace (shown or folded), so the View menu
+        // can bring any of them back from a factory layout
+        for p in id::ALL.iter().filter(|p| !id::MODES.contains(p)) {
             let shown = c
                 .workspaces()
                 .factory()
@@ -485,6 +534,131 @@ mod tests {
                 .any(|w| w.layout.is_shown(p));
             assert!(shown, "{p} is in no workspace");
         }
+        // the panels of the modes are hidden in all of them, and each can be shown from the View menu
+        for p in id::MODES {
+            for w in c.workspaces().factory() {
+                assert!(!w.layout.is_shown(p), "{} shows {p}", w.name);
+                assert!(w.layout.contains(p), "{} does not know {p}", w.name);
+            }
+        }
+    }
+
+    #[test]
+    fn a_panel_of_a_mode_opens_beside_the_board_and_closes_back_to_hidden() {
+        for name in [WS_EDIT, WS_REVIEW, WS_COMPACT] {
+            let mut c = core();
+            c.apply(&eh3d_dock::menu::DockAction::SwitchWorkspace(
+                name.to_string(),
+            ))
+            .unwrap();
+            for p in id::MODES {
+                c.apply(&eh3d_dock::menu::DockAction::ShowPanel(p.to_string()))
+                    .unwrap();
+                assert!(c.layout().is_shown(p), "{name}: {p}");
+                assert!(c.layout_is_sound(), "{name}: {p}");
+                assert!(c.layout().is_shown(id::BOARD_VIEW), "{name}: {p}");
+                assert_eq!(c.focus(), Some(p));
+            }
+            for p in id::MODES {
+                c.apply(&eh3d_dock::menu::DockAction::HidePanel(p.to_string()))
+                    .unwrap();
+                assert!(!c.layout().is_shown(p), "{name}: {p}");
+            }
+            assert!(c.layout_is_sound(), "{name}");
+        }
+    }
+
+    /// A core as the release before the modes were panels made it: ten panels and the three
+    /// workspaces.
+    fn old_core() -> DockCore {
+        let old: Vec<PanelDef> = defs()
+            .into_iter()
+            .filter(|p| !id::MODES.contains(&p.id.as_str()))
+            .collect();
+        DockCore::new(old, workspaces())
+    }
+
+    #[test]
+    fn an_arrangement_saved_before_the_modes_were_panels_loads_whole() {
+        let mut old = old_core();
+        // the person works in Review, hid the console there and floated the layers
+        old.apply(&eh3d_dock::menu::DockAction::SwitchWorkspace(
+            WS_REVIEW.to_string(),
+        ))
+        .unwrap();
+        old.apply(&eh3d_dock::menu::DockAction::HidePanel(
+            id::CONSOLE.to_string(),
+        ))
+        .unwrap();
+        old.apply(&eh3d_dock::menu::DockAction::FloatPanel(
+            id::LAYERS.to_string(),
+        ))
+        .unwrap();
+        let saved = dock_text(&old.config_pairs());
+        for mode in id::MODES {
+            assert!(!saved.contains(mode), "the old file knows {mode}");
+        }
+        let mut now = core();
+        now.load_config(&saved);
+        // only the repair that hides the new panels is noted; nothing is read as damaged
+        assert!(
+            now.warnings()
+                .iter()
+                .all(|w| w.kind == eh3d_dock::workspaces::WarnKind::Repaired),
+            "{:?}",
+            now.warnings()
+        );
+        assert!(now.layout_is_sound());
+        assert_eq!(now.workspaces().current_name(), WS_REVIEW);
+        assert!(!now.layout().is_shown(id::CONSOLE));
+        assert!(now.layout().is_shown(id::BOARD_VIEW));
+        assert_eq!(
+            now.layout().state_of(id::LAYERS),
+            old.layout().state_of(id::LAYERS)
+        );
+        for mode in id::MODES {
+            assert!(!now.layout().is_shown(mode), "{mode}");
+        }
+        // every other workspace came back as it was
+        for name in [WS_EDIT, WS_COMPACT] {
+            now.apply(&eh3d_dock::menu::DockAction::SwitchWorkspace(
+                name.to_string(),
+            ))
+            .unwrap();
+            old.apply(&eh3d_dock::menu::DockAction::SwitchWorkspace(
+                name.to_string(),
+            ))
+            .unwrap();
+            for p in id::ALL.iter().filter(|p| !id::MODES.contains(p)) {
+                assert_eq!(
+                    now.layout().state_of(p),
+                    old.layout().state_of(p),
+                    "{name}: {p}"
+                );
+            }
+        }
+        // and the first save after it writes the new panels, once
+        let mut watch = LayoutWatch::new(&old.config_pairs());
+        assert!(watch.changed(&now.config_pairs()));
+        let mut again = core();
+        again.load_config(&dock_text(&now.config_pairs()));
+        assert!(again.warnings().is_empty(), "{:?}", again.warnings());
+    }
+
+    #[test]
+    fn an_arrangement_with_the_modes_open_loads_in_a_release_that_does_not_know_them() {
+        // the other way round: a file written with the modes shown, read by the older set of panels
+        let mut now = core();
+        for p in id::MODES {
+            now.apply(&eh3d_dock::menu::DockAction::ShowPanel(p.to_string()))
+                .unwrap();
+        }
+        let saved = dock_text(&now.config_pairs());
+        let mut old = old_core();
+        old.load_config(&saved);
+        assert!(old.layout_is_sound());
+        assert!(old.layout().is_shown(id::BOARD_VIEW));
+        assert_eq!(old.workspaces().current_name(), WS_EDIT);
     }
 
     #[test]
@@ -678,21 +852,20 @@ mod tests {
             editing: true,
             can_undo: true,
             can_redo: true,
-            ..MenuFacts::default()
         });
         for id in ["file.save", "file.save_as", "edit.undo", "edit.redo"] {
             assert!(editing.contains(&id.to_string()), "{id}");
         }
-        // a window of its own takes the place of the drawing
-        let overlay = disabled_entries(&MenuFacts {
+        // a panel of a mode (library, Gerber, 3D, boards) does not take the place of the drawing, so it
+        // does not turn off what belongs to the document
+        let with_modes = disabled_entries(&MenuFacts {
             has_document: true,
             is_board: true,
-            overlay: true,
             can_undo: true,
             ..MenuFacts::default()
         });
-        assert!(overlay.contains(&"file.export".to_string()));
-        assert!(overlay.contains(&"view.fit".to_string()));
+        assert!(!with_modes.contains(&"file.export".to_string()));
+        assert!(!with_modes.contains(&"view.fit".to_string()));
     }
 
     #[test]
@@ -707,7 +880,6 @@ mod tests {
                 has_document: n & 1 != 0,
                 is_board: n & 2 != 0,
                 editing: n & 4 != 0,
-                overlay: n & 8 != 0,
                 can_undo: n & 16 != 0,
                 can_redo: n & 32 != 0,
             };
@@ -723,7 +895,7 @@ mod tests {
                 );
             }
             // what is off with a document that is open and drawn is a subset of what is off with none
-            if f.has_document && !f.overlay {
+            if f.has_document {
                 let none = disabled_entries(&MenuFacts::default());
                 for id in ["file.export", "view.fit"] {
                     assert!(none.contains(&id.to_string()));

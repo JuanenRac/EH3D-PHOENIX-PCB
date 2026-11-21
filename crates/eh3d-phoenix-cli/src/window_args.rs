@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! The options of the window of the program `phoenix`, which opens the viewer: an optional
 //! file (also `--open FILE`), `--settings FILE` and `--lang CODE`, and the picture mode
-//! (`--shot FILE.png` with `--size`, `--theme`, `--wait`, `--window` and `--replace`). They are
+//! (`--shot FILE.png` with `--size`, `--theme`, `--wait`, `--window`, `--workspace` and `--replace`). They are
 //! read here, and not in the program itself, so that they are tested without a window.
 
 use std::path::PathBuf;
 
 use eh3d_phoenix_rules::Lang;
 use eh3d_phoenix_viewer::appearance::Theme;
+use eh3d_phoenix_viewer::panels::workspace_named;
 use eh3d_phoenix_viewer::shot::{
     parse_size, ShotRequest, ShotWindow, DEFAULT_SIZE, DEFAULT_WAIT, WAIT_MAX,
 };
@@ -75,6 +76,13 @@ pub fn parse_window_args(args: &[String]) -> Result<WindowArgs, String> {
                     format!("--window is one of {}", names.join(", "))
                 })?);
             }
+            "--workspace" => {
+                let text = iter
+                    .next()
+                    .ok_or("--workspace needs edit, review or compact")?;
+                picture.workspace =
+                    Some(workspace_named(text).ok_or("--workspace is edit, review or compact")?);
+            }
             "--replace" => picture.replace = true,
             "--open" => {
                 let path = iter.next().ok_or("--open needs a file")?;
@@ -103,6 +111,7 @@ struct PictureOptions {
     theme: Option<Theme>,
     wait: Option<u32>,
     window: Option<ShotWindow>,
+    workspace: Option<&'static str>,
     replace: bool,
 }
 
@@ -120,9 +129,13 @@ impl PictureOptions {
                 || self.theme.is_some()
                 || self.wait.is_some()
                 || self.window.is_some()
+                || self.workspace.is_some()
                 || self.replace;
             return if given {
-                Err("--size, --theme, --wait, --window and --replace need --shot".to_owned())
+                Err(
+                    "--size, --theme, --wait, --window, --workspace and --replace need --shot"
+                        .to_owned(),
+                )
             } else {
                 Ok(None)
             };
@@ -148,6 +161,7 @@ impl PictureOptions {
             theme: self.theme,
             wait: self.wait.unwrap_or(DEFAULT_WAIT),
             window,
+            workspace: self.workspace,
         }))
     }
 }
@@ -194,6 +208,7 @@ mod tests {
                 theme: None,
                 wait: DEFAULT_WAIT,
                 window: ShotWindow::Start,
+                workspace: None,
             })
         );
         let with_file = parse_window_args(&args(&["--shot", "b.PNG", "board.brd"])).unwrap();
@@ -213,6 +228,8 @@ mod tests {
             "12",
             "--window",
             "3D",
+            "--workspace",
+            "Review",
             "--replace",
             "--open",
             "board.brd",
@@ -231,6 +248,7 @@ mod tests {
                 theme: Some(Theme::Light),
                 wait: 12,
                 window: ShotWindow::View3d,
+                workspace: Some("Review"),
             })
         );
     }
@@ -257,6 +275,15 @@ mod tests {
             ),
             (vec!["--size", "800x600"], "need --shot"),
             (vec!["--replace"], "need --shot"),
+            (vec!["--workspace", "edit"], "need --shot"),
+            (
+                vec!["--shot", "a.png", "--workspace"],
+                "needs edit, review or compact",
+            ),
+            (
+                vec!["--shot", "a.png", "--workspace", "expert"],
+                "is edit, review or compact",
+            ),
             (
                 vec!["--shot", "a.png", "--window", "3d"],
                 "needs a file to open",

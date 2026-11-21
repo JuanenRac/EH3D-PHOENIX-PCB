@@ -21,7 +21,7 @@ pub enum Mode {
 }
 
 /// The options that only the window knows. A first argument that is one of them starts the window.
-pub const WINDOW_OPTIONS: [&str; 9] = [
+pub const WINDOW_OPTIONS: [&str; 10] = [
     "--settings",
     "--lang",
     "--shot",
@@ -29,6 +29,7 @@ pub const WINDOW_OPTIONS: [&str; 9] = [
     "--theme",
     "--wait",
     "--window",
+    "--workspace",
     "--replace",
     "--open",
 ];
@@ -44,12 +45,13 @@ const VIEW_CONSOLE_OPTIONS: [&str; 5] = [
 ];
 
 /// The picture options of the window, which `phoenix view` hands over to the window.
-const PICTURE_OPTIONS: [&str; 6] = [
+const PICTURE_OPTIONS: [&str; 7] = [
     "--shot",
     "--size",
     "--theme",
     "--wait",
     "--window",
+    "--workspace",
     "--replace",
 ];
 
@@ -66,7 +68,7 @@ fn is_command_word(word: &str) -> bool {
 /// * No arguments: the window, or the help in a build without it.
 /// * A command of the command line (`check`, `bom`, `help`, `--config`, ...) runs on the console.
 ///   `view` opens the window, and when it is given picture options (`--shot`, `--size`, `--theme`,
-///   `--wait`, `--window`, `--replace`, `--open`) and none of the options that need the console
+///   `--wait`, `--window`, `--workspace`, `--replace`, `--open`) and none of the options that need the console
 ///   (`--summary`, `--snapshot`, `--bench`, `--panel`) they are read by the window.
 /// * A first argument that is an option of the window, or the name of an existing file that is not
 ///   a command, starts the window.
@@ -222,6 +224,21 @@ mod tests {
         assert_eq!(parsed.shot.unwrap().window.name(), "document");
         // the same options with the word `view` left in would be taken for a file
         assert!(crate::window_args::parse_window_args(&list).is_err());
+    }
+
+    #[test]
+    fn the_workspace_of_a_picture_is_handed_to_the_window_by_view_and_by_itself() {
+        let list = args(&["view", "--shot", "a.png", "--workspace", "review", "b.brd"]);
+        let Mode::Window { skip } = choose_mode(&list, true, &|_| false) else {
+            panic!("the window was expected");
+        };
+        let parsed = crate::window_args::parse_window_args(&list[skip..]).unwrap();
+        assert_eq!(parsed.shot.unwrap().workspace, Some("Review"));
+        let alone = args(&["--workspace", "compact", "--shot", "a.png"]);
+        assert_eq!(
+            choose_mode(&alone, true, &|_| false),
+            Mode::Window { skip: 0 }
+        );
     }
 
     #[test]
