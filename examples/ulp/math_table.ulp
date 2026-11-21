@@ -1,0 +1,12 @@
+#usage "A table of factorials and square roots, and the conversion of units"
+// An example written for this project; it needs no design.
+int factorial(int n) { return n <= 1 ? 1 : n * factorial(n - 1); }
+int gcd(int a, int b) {
+  while (b != 0) { int t = a % b; a = b; b = t; }
+  return a;
+}
+printf("%2s %6s %5s\n", "n", "n!", "sqrt");
+for (int n = 1; n <= 8; n++) printf("%2d %6d %5.3f\n", n, factorial(n), sqrt(n));
+printf("gcd(84, 36) = %d\n", gcd(84, 36));
+printf("%.3f mm = %d nm = %.2f mil\n", 0.254, mm2u(0.254), u2mil(mm2u(0.254)));
+printf("%g %g %e\n", 1000000.0, 0.00025, 12345.6789);

@@ -1,0 +1,8 @@
+3 words
+1 resistor    8 RES
+2 capacitor   9 CAP
+3 inductor    8 IND
+C:/work/designs | board_v2.brd | .brd | C:/work/designs/board_v2.json
+resistor+capacitor+inductor has 27 chars
+r first at 0, r last at 26, ind at 19, xyz at -1
+42 25.000000

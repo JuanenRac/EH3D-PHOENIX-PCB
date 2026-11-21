@@ -15,7 +15,7 @@
 //! by the current of their net adds `thermal`, and the statistics of a board add `stats`.
 //! The test points of a board add `testpoints`, and the IPC-2581 file of a board adds `ipc2581`.
 //! The report of a board made by the station of EH3D-SERVER adds `server`, and the comparison of two revisions of a board adds `boarddiff`.
-//! The reader and the compatibility report of the user programs of the reference tool add `ulp`.
+//! The reader, the compatibility report and the evaluator of the user programs of the reference tool add `ulp`.
 //! The nets of a board as a text netlist, and their comparison with a netlist file, add `nets`.
 //! The writing of boards, schematics and libraries as KiCad 8 files adds `kicad-export`.
 //! The simulation netlist of a schematic, made from a table of models, adds `netlist`.
@@ -351,13 +351,18 @@ phoenix cam-import [--config FILE] [--json] [--out FILE] [--lang xx] <job.cam>
   cam-import    read an output job into an export profile and report what could be translated
 
 phoenix ulp check|report [--config FILE] [--support FILE] [--json] [--lang xx] <program>...
+phoenix ulp run [--config FILE] [--board FILE] [--schematic FILE] [--expect FILE] <program>
 
-  ulp           read the user programs of the reference tool (files .ulp) without running them:
-                check lists what is wrong with their shape, with line and column and the codes
-                PHOENIX-ULP-<NNN>; report says what each program uses and what the list of
-                allowed names (config/ulp_support.cfg) covers, with a verdict of covered, partly
-                covered or not covered; exit code 1 when a program has a problem or is not
-                covered; there is no evaluator yet, a prototype, run `phoenix ulp` alone for its
+  ulp           the user programs of the reference tool (files .ulp): check lists what is wrong
+                with their shape, with line and column and the codes PHOENIX-ULP-<NNN>; report
+                says what each program uses and what the list of allowed names
+                (config/ulp_support.cfg) covers, with a verdict of covered, partly covered or not
+                covered, and whether the evaluator runs it; run runs one program (pure
+                computation and read-only walks over a board and a schematic, with limits of
+                steps, memory and output; no file, no process, nothing written to the design)
+                and prints what it prints; exit code 0 ran, 2 the verification (--expect, or exit
+                with a number other than 0) did not pass, 1 it could not be run; a prototype, the
+                sandbox in a process of its own is not written, run `phoenix ulp` alone for its
                 options
 
 phoenix schedit [--erc-config FILE] [--json] [--lang xx] --apply OPERATIONS.json [--out FILE]

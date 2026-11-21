@@ -1,0 +1,17 @@
+#usage "Lists the pads of every net of a board"
+// An example written for this project: for each net, the pads that belong to it.
+board(B) {
+  B.signals(S) {
+    string pins[];
+    int n = 0;
+    B.elements(E) {
+      E.pads(P) {
+        if (P.signal == S.name) {
+          pins[n] = E.name + "." + P.name;
+          n++;
+        }
+      }
+    }
+    printf("%-4s %d %s\n", S.name, n, strjoin(pins, " "));
+  }
+}

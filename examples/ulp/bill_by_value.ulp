@@ -1,0 +1,14 @@
+#usage "Groups the parts of a board by value and counts them"
+// An example written for this project: arrays that grow as they are written.
+string values[];
+int counts[];
+int kinds = 0;
+board(B) {
+  B.elements(E) {
+    int k = 0;
+    while (k < kinds && values[k] != E.value) k++;
+    if (k == kinds) { values[kinds] = E.value; counts[kinds] = 0; kinds++; }
+    counts[k]++;
+  }
+}
+for (int i = 0; i < kinds; i++) printf("%-6s x%d\n", values[i], counts[i]);

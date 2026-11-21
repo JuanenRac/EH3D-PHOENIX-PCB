@@ -1,0 +1,15 @@
+#usage "Counts the objects of a board and adds up the length of its tracks"
+// An example written for this project.
+int elements = 0, signals = 0, vias = 0, wires = 0, layers = 0;
+real copper = 0;
+board(B) {
+  B.elements(E) { elements++; }
+  B.signals(S) {
+    signals++;
+    S.wires(W) { wires++; copper += u2mm(W.length); }
+  }
+  B.vias(V) { vias++; }
+  B.layers(L) { layers++; }
+}
+printf("elements %d\nsignals %d\nvias %d\nlayers %d\nwires %d\ncopper %.3f mm\n",
+       elements, signals, vias, layers, wires, copper);

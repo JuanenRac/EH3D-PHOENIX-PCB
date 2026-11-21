@@ -1,0 +1,5 @@
+Schematic ""
+R1   10k
+R2   4k7
+net MID
+net GND

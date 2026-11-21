@@ -1,0 +1,7 @@
+#usage "Lists the parts and the nets of a schematic"
+// An example written for this project; it needs --schematic.
+schematic(S) {
+  printf("Schematic \"%s\"\n", S.name);
+  S.parts(P) { printf("%-4s %s\n", P.name, P.value); }
+  S.nets(N) { printf("net %s\n", N.name); }
+}

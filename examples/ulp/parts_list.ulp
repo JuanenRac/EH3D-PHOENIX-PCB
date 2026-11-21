@@ -1,0 +1,8 @@
+#usage "Lists the parts of a board: reference, value, package and place in millimetres"
+// An example written for this project; it reads the board and writes to the standard output.
+board(B) {
+  printf("Board \"%s\"\n", B.name);
+  B.elements(E) {
+    printf("%-4s %-5s %-6s %6.2f %6.2f\n", E.name, E.value, E.package.name, u2mm(E.x), u2mm(E.y));
+  }
+}

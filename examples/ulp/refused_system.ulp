@@ -1,0 +1,5 @@
+#usage "A program that asks for a command of the operating system, which is refused"
+// An example written for this project: the report says not covered and a run is refused.
+printf("before\n");
+system("echo hello");
+printf("after\n");
