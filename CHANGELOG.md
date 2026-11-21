@@ -4,6 +4,8 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+## [0.1.6] - Board editor operations, user programs that read most of a real folder, named values and files in one allowed folder, EAGLE reader measured on real boards
+
 - **Most of the user programs of the owner's list can now be read:** `#usage` texts one after the other, `f(void)`, `enum`, `numeric` arrays, `int(x)`, `real(x)`, `char(x)` and `string(x)` as conversions, a walk or a layout over a single statement, a backslash before a character that is no escape (it stands for the character), a text that goes on in the next line and the end-of-file mark of old systems are no longer problems of reading. Measured on the folder of the owner (893 programs, aggregate figures only): programs with problems of reading went from 748 to 38.
 - **More functions and values of the language run:** `sort` (several arrays by the first one, as numbers for numbers and `numeric` arrays), `lookup`, the character tests `isalnum`, `isalpha`, `isdigit`, `isspace`, `isupper`, `islower`, `ispunct`, `isxdigit`, `tolower`, `toupper`, `sheet(S)` over the sheets of the schematic, `dlgFileOpen`, `dlgFileSave` and `dlgDirectory` (cancelled without a window), `angle1` and `angle2` of an arc, and the constants `EXIT_SUCCESS`, `EXIT_FAILURE`, `EAGLE_VERSION`, `EAGLE_RELEASE` and `EAGLE_SIGNATURE`. The programs that the report counts as covered went from 21 to 207 and the ones the evaluator can run from 2 to 192.
 - **The board editor can swap two pads:** the new operation `swap_pads` gives each of two pads the net of the other (the swap of two pins that do the same), refuses a swap that changes nothing or touches a locked part, and is one step to undo and redo.
