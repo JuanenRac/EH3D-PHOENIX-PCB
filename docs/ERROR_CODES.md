@@ -2,7 +2,7 @@
 
 Codes have the form `PHOENIX-<AREA>-<NNN>`. A code is stable: it never changes its meaning and is never reused. Programs show the text through the key `diag.<code>`; the codes themselves are never translated. The object identity (UUID v7) is the one of the shared container, with its own codes `EH3D-ID-001` and `EH3D-ID-002`. The container codes `EH3D-PKG-001` to `EH3D-PKG-014` belong to the shared container and are listed in the registry of the documentation repository.
 
-Each table repeats the `REGISTRY` of a crate (`eh3d-phoenix-model` in `src/diagnostic.rs`, `eh3d-phoenix-project` and `eh3d-phoenix-eagle` in `src/codes.rs`, `eh3d-phoenix-hub` in `src/lib.rs`, `eh3d-phoenix-export` in `src/codes.rs` and `src/fabcodes.rs`, `eh3d-phoenix-schematic` in `src/model.rs`, `src/draw.rs`, `src/edit.rs`, `src/link.rs`, `src/hier.rs` and `src/bus.rs`, `eh3d-phoenix-board` in `src/validate.rs`, `src/connectivity.rs` and `src/rules.rs`, `eh3d-phoenix-rules` in `src/codes.rs` and `src/advanced/codes.rs`, `eh3d-phoenix-stackup` and `eh3d-phoenix-rf` in `src/error.rs`, `eh3d-phoenix-viewer`, `eh3d-phoenix-sanitizer`, `eh3d-phoenix-erc`, `eh3d-phoenix-sync`, `eh3d-phoenix-schedit`, `eh3d-phoenix-boardedit` (also in `src/pair_codes.rs`, `src/shove_codes.rs` and `src/zone_codes.rs`), `eh3d-phoenix-libedit`, `eh3d-phoenix-zones`, `eh3d-phoenix-autoroute`, `eh3d-phoenix-lengths`, `eh3d-phoenix-stats`, `eh3d-phoenix-testpoints`, `eh3d-phoenix-ipc2581`, `eh3d-phoenix-server`, `eh3d-phoenix-boarddiff`, `eh3d-phoenix-gerber`, `eh3d-phoenix-panel`, `eh3d-phoenix-bom`, `eh3d-phoenix-assembly3d`, `eh3d-phoenix-si`, `eh3d-phoenix-eagle-deep` and `eh3d-phoenix-oracle` in `src/codes.rs`, `eh3d-phoenix-corpus` in `src/suite/codes.rs`); a test of each crate checks that every code of its registry is in the table with the same title.
+Each table repeats the `REGISTRY` of a crate (`eh3d-phoenix-model` in `src/diagnostic.rs`, `eh3d-phoenix-project` and `eh3d-phoenix-eagle` in `src/codes.rs`, `eh3d-phoenix-hub` in `src/lib.rs`, `eh3d-phoenix-export` in `src/codes.rs` and `src/fabcodes.rs`, `eh3d-phoenix-schematic` in `src/model.rs`, `src/draw.rs`, `src/edit.rs`, `src/link.rs`, `src/hier.rs` and `src/bus.rs`, `eh3d-phoenix-board` in `src/validate.rs`, `src/connectivity.rs` and `src/rules.rs`, `eh3d-phoenix-rules` in `src/codes.rs` and `src/advanced/codes.rs`, `eh3d-phoenix-stackup` and `eh3d-phoenix-rf` in `src/error.rs`, `eh3d-phoenix-viewer`, `eh3d-phoenix-sanitizer`, `eh3d-phoenix-erc`, `eh3d-phoenix-sync`, `eh3d-phoenix-schedit`, `eh3d-phoenix-boardedit` (also in `src/pair_codes.rs`, `src/shove_codes.rs` and `src/zone_codes.rs`), `eh3d-phoenix-libedit`, `eh3d-phoenix-zones`, `eh3d-phoenix-autoroute`, `eh3d-phoenix-lengths`, `eh3d-phoenix-stats`, `eh3d-phoenix-testpoints`, `eh3d-phoenix-ipc2581`, `eh3d-phoenix-server`, `eh3d-phoenix-boarddiff`, `eh3d-phoenix-ulp`, `eh3d-phoenix-gerber`, `eh3d-phoenix-panel`, `eh3d-phoenix-bom`, `eh3d-phoenix-assembly3d`, `eh3d-phoenix-si`, `eh3d-phoenix-eagle-deep` and `eh3d-phoenix-oracle` in `src/codes.rs`, `eh3d-phoenix-corpus` in `src/suite/codes.rs`); a test of each crate checks that every code of its registry is in the table with the same title.
 
 ## Model foundations
 
@@ -1043,6 +1043,35 @@ The titles of these codes also exist in the eight languages of the suite (`TITLE
 | PHOENIX-DIFF-016 | A reference is used by more than one part | information about one of the boards: only the first part of that reference is compared |
 | PHOENIX-DIFF-017 | The list of differences was cut | information: more differences than `max_differences`; the rest are counted |
 | PHOENIX-DIFF-018 | The output file exists or cannot be written | the file named by `--csv` exists (it is never replaced), is a link or a folder, or cannot be created |
+
+## User programs of the reference tool (`eh3d-phoenix-ulp`, `src/codes.rs`)
+
+| Code | Title | Raised by |
+|---|---|---|
+| PHOENIX-ULP-001 | The settings of the reader of user programs are not valid | a line of `config/ulp.cfg` that is not `key = value`, an unknown key, a number that cannot be read or a value out of range |
+| PHOENIX-ULP-002 | A command option is not valid | an option of `phoenix ulp` that is not known or lacks its value, a first word that is not `check` or `report`, or no program |
+| PHOENIX-ULP-003 | An input file cannot be read | a program, a settings file or a list of names that cannot be opened or is too large |
+| PHOENIX-ULP-004 | The program is larger than the limit | error: a program of more than `max_source_bytes`; also a text or a name longer than `max_string_chars` or `max_name_chars` |
+| PHOENIX-ULP-005 | The program has more tokens than the limit | error: more than `max_tokens`; the place is the token that went over |
+| PHOENIX-ULP-006 | Blocks or expressions are nested deeper than the limit | error: blocks, parentheses, calls or unary operators nested more than `max_depth`, or a chain of operators, members, indexes or calls of more than eight times that |
+| PHOENIX-ULP-007 | The program has more statements than the limit | error: more than `max_statements` |
+| PHOENIX-ULP-008 | A text in quotes is not closed | a `"` with no closing quote on the line |
+| PHOENIX-ULP-009 | A comment is not closed | a `/*` with no `*/` |
+| PHOENIX-ULP-010 | A character is not valid where it stands | a character that no token starts with, a `#` with no name, or a character in single quotes that is not closed |
+| PHOENIX-ULP-011 | A number is not valid | a number with letters stuck to it, with no digits after `0x` or the exponent, with a second point, or too large |
+| PHOENIX-ULP-012 | An escape sequence of a text is not valid | a backslash followed by a letter that is not an escape, or `\x` with no digits |
+| PHOENIX-ULP-013 | A directive is not known | a `#` followed by a word that is not `include`, `usage` or `require` |
+| PHOENIX-ULP-014 | A directive is not well formed | `#include` with no file name, `#usage` with no text, `#require` with no number, or a `<` with no `>` |
+| PHOENIX-ULP-015 | A token is not expected where it stands | a token that cannot start or continue the statement or the expression |
+| PHOENIX-ULP-016 | A token that is needed is missing | a `;`, `)`, `]`, `}`, `:`, a name or a `while` that the shape needs |
+| PHOENIX-ULP-017 | A declaration is not valid | a parameter of a function with no type |
+| PHOENIX-ULP-018 | The list of allowed names is not valid | a line of the list of names that is not `kind name status`, an unknown kind or status, a name that is not a name or is listed twice, or a list larger than 1 MiB |
+| PHOENIX-ULP-019 | A function or member is not on the list | note of the report: a name that the list does not know (the program is at best partly covered) |
+| PHOENIX-ULP-020 | The sandbox never allows this | note of the report: a name with the status `denied` (the program is not covered) |
+| PHOENIX-ULP-021 | Not covered yet | note of the report: a name with the status `pending` (the program is at best partly covered) |
+| PHOENIX-ULP-022 | Allowed with limits | note of the report: a name with the status `limited` |
+| PHOENIX-ULP-023 | The list of problems was cut | information: more problems than `max_problems`; the rest are counted |
+| PHOENIX-ULP-024 | An output file exists or cannot be written | reserved for the output of a program when the evaluator exists; nothing writes it yet |
 
 ## Server mode (`eh3d-phoenix-server`, `src/codes.rs`)
 

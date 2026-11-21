@@ -199,6 +199,13 @@ pub static COMMANDS: &[Command] = &[
         run: Some(crate::script::cam_import_command),
     },
     Command {
+        name: "ulp",
+        topic: Topic::Scripts,
+        doc: "docs/ULP.md",
+        summary: ["read the user programs of the reference tool and report what they use and what is covered; nothing is run", "lee los programas de usuario de la herramienta de referencia e informa de lo que usan y de lo que está cubierto; no se ejecuta nada", "liest die Benutzerprogramme des Referenzwerkzeugs und berichtet, was sie verwenden und was abgedeckt ist; nichts wird ausgeführt", "lit les programmes utilisateur de l'outil de référence et indique ce qu'ils utilisent et ce qui est couvert ; rien n'est exécuté", "legge i programmi utente dello strumento di riferimento e riferisce cosa usano e cosa è coperto; non viene eseguito nulla", "参照ツールのユーザープログラムを読み、使用内容と対応状況を報告する（実行はしない）", "读取参照工具的用户程序，报告它们使用的内容和覆盖情况；不运行任何内容", "lê os programas de utilizador da ferramenta de referência e indica o que usam e o que está coberto; nada é executado"],
+        run: Some(crate::ulp::ulp_command),
+    },
+    Command {
         name: "route",
         topic: Topic::Board,
         doc: "docs/ROUTE.md",

@@ -789,6 +789,7 @@ dependencies = [
  "eh3d-phoenix-stats",
  "eh3d-phoenix-sync",
  "eh3d-phoenix-testpoints",
+ "eh3d-phoenix-ulp",
  "eh3d-phoenix-viewer",
  "eh3d-phoenix-zones",
  "serde",
@@ -1259,6 +1260,16 @@ dependencies = [
  "eh3d-phoenix-rules",
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "eh3d-phoenix-ulp"
+version = "0.1.4"
+dependencies = [
+ "eh3d-phoenix-rules",
+ "serde_json",
+ "sha2",
+ "tempfile",
 ]
 
 [[package]]

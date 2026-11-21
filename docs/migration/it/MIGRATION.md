@@ -36,7 +36,7 @@ Questa pagina affianca le idee e i comandi di EAGLE e KiCad a quelli di questo p
 ## Cosa si perde
 
 * Il modello di progetto non contiene grafica KiCad, bus, marcatori di non connessione, la configurazione della scheda, il rame riempito delle zone, le zone di esclusione né i modelli 3D; i lettori li contano come lasciati fuori e lo dicono nel rapporto.
-* EAGLE: i file binari non si leggono, i programmi ULP non si eseguono, e `phoenix eagle-check` elenca gli elementi che il modello semplifica, con codici in otto lingue.
+* EAGLE: i file binari non si leggono, i programmi ULP non si eseguono (`phoenix ulp report` dice cosa usa un programma e se l'elenco dei nomi lo copre), e `phoenix eagle-check` elenca gli elementi che il modello semplifica, con codici in otto lingue.
 * Nulla viene scritto su un ingresso: una conversione crea sempre un file nuovo.
 
 ## Primi passi

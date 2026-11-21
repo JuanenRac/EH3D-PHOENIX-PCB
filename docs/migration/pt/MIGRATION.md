@@ -36,7 +36,7 @@ Esta página coloca as ideias e os comandos do EAGLE e do KiCad ao lado dos dest
 ## O que se perde
 
 * O modelo de projeto não guarda gráficos do KiCad, barramentos, marcas de não ligação, a configuração da placa, o cobre preenchido das zonas, as zonas de exclusão nem os modelos 3D; os leitores contam-nos como deixados de fora e dizem-no no relatório.
-* EAGLE: os ficheiros binários não são lidos, os programas ULP não correm, e o `phoenix eagle-check` lista os elementos que o modelo simplifica, com códigos em oito idiomas.
+* EAGLE: os ficheiros binários não são lidos, os programas ULP não correm (`phoenix ulp report` diz o que um programa usa e se a lista de nomes o cobre), e o `phoenix eagle-check` lista os elementos que o modelo simplifica, com códigos em oito idiomas.
 * Nada é escrito sobre uma entrada: uma conversão cria sempre um ficheiro novo.
 
 ## Primeiros passos

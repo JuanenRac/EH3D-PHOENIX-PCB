@@ -1,0 +1,16 @@
+[package]
+name = "eh3d-phoenix-ulp"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Reader of the user programs of the reference tool (prototype): a bounded lexer and parser with limits and stable codes, and a compatibility report that says what a program uses and what the list of allowed names covers; nothing is run"
+
+[dependencies]
+eh3d-phoenix-rules = { path = "../eh3d-phoenix-rules" }
+serde_json.workspace = true
+sha2.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

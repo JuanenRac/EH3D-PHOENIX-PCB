@@ -36,7 +36,7 @@ Cette page place les notions et commandes d'EAGLE et de KiCad à côté de celle
 ## Ce qui est perdu
 
 * Le modèle de conception ne contient pas les graphiques KiCad, les bus, les marques de non-connexion, la configuration d'une carte, le cuivre rempli des zones, les zones d'exclusion ni les modèles 3D ; les lecteurs les comptent comme laissés de côté et le disent dans le rapport.
-* EAGLE : les fichiers binaires ne sont pas lus, les programmes ULP ne s'exécutent pas, et `phoenix eagle-check` liste les éléments que le modèle simplifie, avec des codes en huit langues.
+* EAGLE : les fichiers binaires ne sont pas lus, les programmes ULP ne s'exécutent pas (`phoenix ulp report` dit ce qu'un programme utilise et si la liste de noms le couvre), et `phoenix eagle-check` liste les éléments que le modèle simplifie, avec des codes en huit langues.
 * Rien n'est écrit sur une entrée : une conversion crée toujours un nouveau fichier.
 
 ## Premiers pas
