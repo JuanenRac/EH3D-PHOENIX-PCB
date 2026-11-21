@@ -36,7 +36,7 @@ Diese Seite stellt die Begriffe und Befehle von EAGLE und KiCad denen dieses Pro
 ## Was verloren geht
 
 * Das Entwurfsmodell enthält keine KiCad-Grafiken, Busse, No-Connect-Markierungen, das Setup einer Platine, das gefüllte Kupfer von Flächen, Sperrflächen und 3D-Modelle; die Leser zählen sie als ausgelassen und sagen das im Bericht.
-* EAGLE: Die Binärdateien werden nicht gelesen, ULP-Programme laufen nicht (`phoenix ulp report` sagt, was ein Programm verwendet und ob die Namensliste es abdeckt), und `phoenix eagle-check` listet die Elemente, die das Modell vereinfacht, mit Codes in acht Sprachen.
+* EAGLE: Die Binärdateien werden nicht gelesen, ULP-Programme laufen nur zum Teil (`phoenix ulp report` sagt, was ein Programm verwendet, ob die Namensliste es abdeckt und ob der Auswerter es ausführt; `phoenix ulp run` führt reine Berechnungen und schreibgeschützte Durchläufe aus, nie eine Datei, einen Befehl oder eine Änderung am Entwurf), und `phoenix eagle-check` listet die Elemente, die das Modell vereinfacht, mit Codes in acht Sprachen.
 * Eine Eingabe wird nie überschrieben: Eine Umwandlung erzeugt immer eine neue Datei.
 
 ## Erste Schritte

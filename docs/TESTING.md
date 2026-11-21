@@ -41,6 +41,7 @@ This page is the policy for tests of EH3D-PHOENIX-PCB. A test here proves someth
 | `tests/golden/` | the expected output of commands (`check` in text, JSON, CSV and HTML) and the rule file that gives it; `PHOENIX_BLESS_GOLDENS=1` writes them again when an output changes on purpose, and the difference is read before it is committed |
 | `examples/tutorials/` | the small files that the tutorials use |
 | `examples/scripts/` | the example scripts, each with the output it gives |
+| `examples/ulp/` | the example user programs of the reference tool, written for the project, each with the output it gives (`NAME.expected`), run by the tests of `phoenix ulp run` |
 | `config/*.cfg` | the settings of each tool; a value that is tuned lives here, not in the code |
 
 ## How to add a case to the corpus

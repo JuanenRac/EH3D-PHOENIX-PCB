@@ -343,14 +343,14 @@
         {
           "name": "ULP.md",
           "desc": {
-            "en": "the user programs of the reference tool: reader and report",
-            "es": "los programas de usuario de la herramienta de referencia: lector e informe",
-            "de": "die Benutzerprogramme des Referenzwerkzeugs: Leser und Bericht",
-            "fr": "les programmes utilisateur de l'outil de référence : lecteur et rapport",
-            "it": "i programmi utente dello strumento di riferimento: lettore e rapporto",
-            "ja": "参照ツールのユーザープログラム：リーダーとレポート",
-            "zh": "参照工具的用户程序：读取器与报告",
-            "pt": "os programas de utilizador da ferramenta de referência: leitor e relatório"
+            "en": "reference tool programs: reader, report, evaluator",
+            "es": "programas de la herramienta de referencia: lector, informe, evaluador",
+            "de": "Programme des Referenzwerkzeugs: Leser, Bericht, Auswerter",
+            "fr": "programmes de l'outil de référence : lecteur, rapport, évaluateur",
+            "it": "programmi dello strumento di riferimento: lettore, rapporto, valutatore",
+            "ja": "参照ツールのユーザープログラム：リーダー、レポート、評価器",
+            "zh": "参照工具的用户程序：读取器、报告与求值器",
+            "pt": "programas da ferramenta de referência: leitor, relatório, avaliador"
           }
         },
         {

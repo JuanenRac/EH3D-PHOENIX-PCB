@@ -36,7 +36,7 @@ Esta página pone las ideas y comandos de EAGLE y KiCad junto a los de este prog
 ## Qué se pierde
 
 * El modelo de diseño no guarda gráficos de KiCad, buses, marcas de no conexión, la configuración de la placa, el cobre relleno de las zonas, las zonas de exclusión ni los modelos 3D; los lectores los cuentan como omitidos y lo dicen en el informe.
-* EAGLE: los ficheros binarios no se leen, los programas ULP no se ejecutan (`phoenix ulp report` dice qué usa un programa y si la lista de nombres lo cubre), y `phoenix eagle-check` lista los elementos que el modelo simplifica, con códigos en ocho idiomas.
+* EAGLE: los ficheros binarios no se leen, los programas ULP solo se ejecutan en parte (`phoenix ulp report` dice qué usa un programa, si la lista de nombres lo cubre y si el evaluador lo ejecuta; `phoenix ulp run` ejecuta cálculo puro y recorridos de solo lectura, y nunca un archivo, un comando ni un cambio del diseño), y `phoenix eagle-check` lista los elementos que el modelo simplifica, con códigos en ocho idiomas.
 * Nada se escribe sobre una entrada: una conversión siempre crea un fichero nuevo.
 
 ## Primeros pasos

@@ -1,6 +1,6 @@
 # 0011: an interpreter of the user programs of the reference tool, only for the programs on the owner's list
 
-Status: accepted as a design. Steps 1 and 2 are written (the compatibility report and the reader, `docs/ULP.md`); the evaluator and the sandbox are not. The record prepares the work (phase F8b of the roadmap) and is pending a review by the project owner (to be confirmed).
+Status: accepted as a design. Steps 1 to 3 are written in part (the compatibility report, the reader and an evaluator of the part that only computes and reads, `docs/ULP.md`); the programs that edit the design and the sandbox of step 4 are not. The record prepares the work (phase F8b of the roadmap) and is pending a review by the project owner (to be confirmed).
 
 ## Context
 
@@ -36,7 +36,8 @@ A program outside the list is reported as `not covered` and is not run. No claim
 * A new crate (`eh3d-phoenix-ulp`) joins the workspace with the first step, with `config/ulp.cfg` for every limit and the text of the report in the eight languages.
 * The documentation of the language of the reference tool is used as a reference for names and meanings only; nothing of it is copied into the repository (`docs/adr/0006-clean-room.md`), and no program of another author is stored.
 * The programs of the owner are private; tests use small programs written here that exercise the same constructs.
-* The requirement for the script interpreter (PPCB-019) stays a prototype: the report and the reader exist, the evaluator and the sandbox do not.
+* The requirement for the script interpreter (PPCB-019) stays a prototype: the report, the reader and the read-only evaluator exist (PPCB-032), the programs that edit the design and the sandbox do not.
+* The evaluator runs in the process of the caller and is started only by the explicit command `phoenix ulp run`; it is confined by what it can do (no file, no process, no network, no clock, no write to the model) and by its limits of steps, memory, nesting and output, which is not the boundary that step 4 asks for. Until the sandbox exists nothing runs a program without the person asking for that one run, and the window runs none.
 
 ## How it will be verified
 

@@ -218,4 +218,4 @@ State: **accepted**; the first two steps are written (the compatibility report a
 
 An interpreter of the user programs of the reference tool is written only for the programs the owner lists, with a compatibility report per program, and never as a promise of the whole language.
 
-Evidence in the code: `eh3d-phoenix-ulp` and `phoenix ulp` read a program with limits and report what it uses against a list of names kept as a data file, and run nothing; the second script language (`phoenix-script/2`) and the command interpreter exist, and `phoenix script` reports what of a script file it could translate.
+Evidence in the code: `eh3d-phoenix-ulp` and `phoenix ulp` read a program with limits, report what it uses against a list of names kept as a data file, and run the part that only computes and reads (steps 1 to 3 of the record 0011; the sandbox in a process of its own, step 4, is not written); the second script language (`phoenix-script/2`) and the command interpreter exist, and `phoenix script` reports what of a script file it could translate.

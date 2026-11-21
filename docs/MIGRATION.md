@@ -36,7 +36,7 @@ This page sets the ideas and commands of EAGLE and KiCad beside those of this pr
 ## What is lost
 
 * The design model does not hold KiCad graphics, buses, no-connect flags, the setup of a board, the filled copper of zones, keep-out zones or 3D models; the readers count them as left out and say so in the report.
-* EAGLE: the binary files are not read, ULP programs do not run (`phoenix ulp report` says what a program uses and whether the list of names covers it), and the elements that the model simplifies are listed by `phoenix eagle-check` with codes in eight languages.
+* EAGLE: the binary files are not read, ULP programs run only in part (`phoenix ulp report` says what a program uses, whether the list of names covers it and whether the evaluator runs it; `phoenix ulp run` runs pure computation and read-only walks, and never a file, a command or a change to the design), and the elements that the model simplifies are listed by `phoenix eagle-check` with codes in eight languages.
 * Nothing is written over an input: a conversion always makes a new file.
 
 ## First steps
