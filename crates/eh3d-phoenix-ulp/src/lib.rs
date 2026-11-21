@@ -32,6 +32,7 @@
 pub mod ast;
 pub mod builtins;
 pub mod codes;
+pub mod constants;
 pub mod eval;
 pub mod evaluable;
 pub mod lexer;

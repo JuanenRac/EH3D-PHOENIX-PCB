@@ -31,6 +31,7 @@ pub const PURE: &[&str] = &[
     "min",
     "pow",
     "round",
+    "trunc",
     "sin",
     "sqrt",
     "tan",
@@ -56,6 +57,9 @@ pub const PURE: &[&str] = &[
     "islower",
     "ispunct",
     "isxdigit",
+    "isgraph",
+    "isprint",
+    "iscntrl",
     "tolower",
     "toupper",
     "lookup",
@@ -278,6 +282,7 @@ pub fn pure(name: &str, args: &[Value]) -> Result<Option<Value>, Fault> {
         "ceil" => to_int(one(args)?.ceil())?,
         "floor" => to_int(one(args)?.floor())?,
         "round" => to_int(one(args)?.round())?,
+        "trunc" => to_int(one(args)?.trunc())?,
         "frac" => real(one(args)?.fract())?,
         "log" | "log10" => {
             let x = one(args)?;
@@ -329,7 +334,7 @@ pub fn pure(name: &str, args: &[Value]) -> Result<Option<Value>, Fault> {
             Value::Str(string(&args[0])?.to_lowercase())
         }
         "isalnum" | "isalpha" | "isdigit" | "isspace" | "isupper" | "islower" | "ispunct"
-        | "isxdigit" | "tolower" | "toupper" => {
+        | "isxdigit" | "isgraph" | "isprint" | "iscntrl" | "tolower" | "toupper" => {
             arity(name, args, 1, 1)?;
             let code = int(&args[0])?;
             let c = u32::try_from(code)
@@ -346,6 +351,9 @@ pub fn pure(name: &str, args: &[Value]) -> Result<Option<Value>, Fault> {
                 "islower" => yes(c.is_ascii_lowercase()),
                 "ispunct" => yes(c.is_ascii_punctuation()),
                 "isxdigit" => yes(c.is_ascii_hexdigit()),
+                "isgraph" => yes(c.is_ascii_graphic()),
+                "isprint" => yes(c.is_ascii_graphic() || c == ' '),
+                "iscntrl" => yes(c.is_ascii_control()),
                 "tolower" => Value::Int(i64::from(c.to_ascii_lowercase() as u32)),
                 _ => Value::Int(i64::from(c.to_ascii_uppercase() as u32)),
             }
@@ -752,6 +760,12 @@ mod tests {
         assert_eq!(run("pow", &[int(2), int(10)]), Value::Real(1024.0));
         assert_eq!(run("sqrt", &[int(144)]), Value::Real(12.0));
         assert_eq!(run("round", &[Value::Real(2.5)]), int(3));
+        assert_eq!(run("trunc", &[Value::Real(-2.7)]), int(-2));
+        assert_eq!(run("trunc", &[Value::Real(2.7)]), int(2));
+        assert_eq!(run("isgraph", &[int(65)]), int(1));
+        assert_eq!(run("isgraph", &[int(32)]), int(0));
+        assert_eq!(run("isprint", &[int(32)]), int(1));
+        assert_eq!(run("iscntrl", &[int(10)]), int(1));
         assert_eq!(run("round", &[Value::Real(-2.5)]), int(-3));
         assert_eq!(run("floor", &[Value::Real(-0.5)]), int(-1));
         assert_eq!(run("ceil", &[Value::Real(0.2)]), int(1));

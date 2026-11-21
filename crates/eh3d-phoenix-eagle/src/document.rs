@@ -144,9 +144,26 @@ pub fn other_program(bytes: &[u8]) -> Option<&'static str> {
         Some("KiCad")
     } else if has(b"P-CAD") {
         Some("P-CAD")
+    } else if is_xml_drawing(bytes) {
+        Some("Xilinx ISE")
     } else {
         None
     }
+}
+
+/// True when the text is an XML file whose root is `drawing` with the attributes and the netlist
+/// of a Xilinx ISE schematic (`.sch` is also the extension of those files).
+fn is_xml_drawing(bytes: &[u8]) -> bool {
+    let head = &bytes[..bytes.len().min(1024)];
+    let text = String::from_utf8_lossy(head);
+    let text = text.trim_start_matches('\u{feff}');
+    let text = match text.trim_start().strip_prefix("<?xml") {
+        Some(rest) => rest.split_once("?>").map_or("", |(_, after)| after),
+        None => text,
+    };
+    text.trim_start().starts_with("<drawing ")
+        && (text.contains("<attr ") || text.contains("<netlist"))
+        && !text.contains("<eagle")
 }
 
 /// Reads `bytes` as an EAGLE XML file.
@@ -578,6 +595,24 @@ mod tests {
             assert!(r.diagnostics[0].message.contains(program));
         }
         assert_eq!(other_program(b"<eagle version=\"9.0.0\"/>"), None);
+    }
+
+    #[test]
+    fn an_xml_drawing_of_a_schematic_program_is_named_and_an_eagle_drawing_is_not() {
+        let ise = b"\r\n<drawing version=\"7\">\r\n <attr value=\"x\" name=\"DeviceFamilyName\">\r\n <trait delete=\"all:0\" />";
+        assert_eq!(other_program(ise), Some("Xilinx ISE"));
+        let with_decl = b"\xef\xbb\xbf<?xml version=\"1.0\"?>\n<drawing version=\"7\"><netlist></netlist></drawing>";
+        assert_eq!(other_program(with_decl), Some("Xilinx ISE"));
+        let r = read_bytes(ise, &Limits::default());
+        assert!(r.summary.is_none());
+        assert_eq!(r.diagnostics[0].code.as_deref(), Some(codes::OTHER_PROGRAM));
+        let eagle =
+            b"<?xml version=\"1.0\"?><eagle version=\"9.0.0\"><drawing><board/></drawing></eagle>";
+        assert_eq!(other_program(eagle), None);
+        assert_eq!(
+            other_program(b"<drawing version=\"7\"><something/></drawing>"),
+            None
+        );
     }
 
     #[test]

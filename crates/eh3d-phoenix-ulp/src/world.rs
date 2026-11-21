@@ -81,6 +81,53 @@ pub enum Obj {
         /// The pad.
         pad: Id,
     },
+    /// The device of a part of the schematic: its symbol and its package together (the model
+    /// keeps one device for each part).
+    Device(Id),
+    /// The one gate of the device of a part.
+    Gate(Id),
+    /// A symbol of the schematic, seen through a part when it was reached through one.
+    Symbol {
+        /// The symbol.
+        symbol: Id,
+        /// The part it was reached through.
+        part: Option<Id>,
+    },
+    /// A pin of a symbol.
+    SymPin {
+        /// The symbol.
+        symbol: Id,
+        /// The pin.
+        pin: Id,
+        /// The part it was reached through.
+        part: Option<Id>,
+    },
+    /// The segment of a net of the schematic: the model keeps the pins of a net, not its
+    /// drawing in pieces, so a net has one segment with all its pins.
+    Segment(Id),
+    /// A pin of a part that a net joins.
+    PinRef {
+        /// The part.
+        part: Id,
+        /// The pin.
+        pin: Id,
+    },
+    /// A pad that a signal of the board joins.
+    ContactRef {
+        /// The component.
+        element: Id,
+        /// The footprint of the component.
+        footprint: Id,
+        /// The pad.
+        pad: Id,
+    },
+    /// The grid of the board or the schematic.
+    Grid,
+    /// A circle of the silkscreen (a stroke of two half turns that close).
+    Circle(Id),
+    /// A rectangle of the silkscreen (a stroke of four straight pieces along the axes that
+    /// close).
+    Rectangle(Id),
 }
 
 impl Obj {
@@ -105,6 +152,16 @@ impl Obj {
             Obj::Instance(_) => "instance",
             Obj::Text(_) => "text",
             Obj::Hole { .. } => "hole",
+            Obj::Device(_) => "device",
+            Obj::Gate(_) => "gate",
+            Obj::Symbol { .. } => "symbol",
+            Obj::SymPin { .. } => "pin",
+            Obj::Segment(_) => "segment",
+            Obj::PinRef { .. } => "pinref",
+            Obj::ContactRef { .. } => "contactref",
+            Obj::Grid => "grid",
+            Obj::Circle(_) => "circle",
+            Obj::Rectangle(_) => "rectangle",
         }
     }
 }
@@ -128,13 +185,71 @@ pub const WALKS: &[&str] = &[
     "holes",
     "texts",
     "instances",
+    "gates",
+    "pins",
+    "segments",
+    "pinrefs",
+    "contactrefs",
+    "circles",
+    "rectangles",
 ];
 
 /// The names of the members the evaluator reads.
 pub const MEMBERS: &[&str] = &[
-    "name", "value", "package", "x", "y", "x1", "y1", "x2", "y2", "angle", "mirror", "diameter",
-    "width", "height", "drill", "shape", "signal", "number", "layer", "length", "area", "xc", "yc",
-    "radius", "pad", "smd", "part", "sheet", "size", "ratio", "mirrored", "angle1", "angle2",
+    "name",
+    "value",
+    "package",
+    "x",
+    "y",
+    "x1",
+    "y1",
+    "x2",
+    "y2",
+    "angle",
+    "mirror",
+    "diameter",
+    "width",
+    "height",
+    "drill",
+    "shape",
+    "signal",
+    "number",
+    "layer",
+    "length",
+    "area",
+    "xc",
+    "yc",
+    "radius",
+    "pad",
+    "smd",
+    "part",
+    "sheet",
+    "size",
+    "ratio",
+    "mirrored",
+    "angle1",
+    "angle2",
+    "arc",
+    "dx",
+    "dy",
+    "device",
+    "gate",
+    "schematic",
+    "symbol",
+    "contact",
+    "direction",
+    "element",
+    "pin",
+    "grid",
+    "unit",
+    "distance",
+    "altunit",
+    "altdistance",
+    "style",
+    "dots",
+    "multiple",
+    "library",
+    "visible",
 ];
 
 /// The model a run reads.
@@ -144,6 +259,11 @@ pub struct World<'a> {
     pub board: Option<&'a Board>,
     /// The schematic, when one was given.
     pub schematic: Option<&'a Schematic>,
+    /// The unit of the grid (0 micron, 1 millimetre, 2 mil, 3 inch); with a distance of 0 the
+    /// grid is 1 mm.
+    pub grid_unit: i64,
+    /// The distance of the grid, in nanometres; 0 means the default.
+    pub grid_nm: i64,
 }
 
 fn nm(v: i64) -> Value {
@@ -336,6 +456,73 @@ impl World<'_> {
             (Obj::Schematic, "sheets") => sch
                 .map(|s| s.sheets.keys().map(|k| Obj::Sheet(*k)).collect())
                 .unwrap_or_default(),
+            (Obj::Device(p), "gates") => sch
+                .filter(|s| s.parts.contains_key(p))
+                .map(|_| vec![Obj::Gate(*p)])
+                .unwrap_or_default(),
+            (Obj::Symbol { symbol, part }, "pins") => sch
+                .and_then(|s| s.symbols.get(symbol))
+                .map(|sym| {
+                    sym.pins
+                        .keys()
+                        .map(|pin| Obj::SymPin {
+                            symbol: *symbol,
+                            pin: *pin,
+                            part: *part,
+                        })
+                        .collect()
+                })
+                .unwrap_or_default(),
+            (Obj::SchNet(n), "segments") => sch
+                .filter(|s| s.nets.contains_key(n))
+                .map(|_| vec![Obj::Segment(*n)])
+                .unwrap_or_default(),
+            (Obj::Segment(n), "pinrefs") => sch
+                .and_then(|s| s.nets.get(n))
+                .map(|net| {
+                    net.pins
+                        .iter()
+                        .map(|r| Obj::PinRef {
+                            part: r.part,
+                            pin: r.pin,
+                        })
+                        .collect()
+                })
+                .unwrap_or_default(),
+            (Obj::Signal(n), "contactrefs") => board
+                .map(|b| {
+                    b.pad_nets
+                        .iter()
+                        .filter(|r| r.net == *n)
+                        .filter_map(|r| {
+                            let c = b.components.get(&r.component)?;
+                            Some(Obj::ContactRef {
+                                element: r.component,
+                                footprint: c.footprint,
+                                pad: r.pad,
+                            })
+                        })
+                        .collect()
+                })
+                .unwrap_or_default(),
+            (Obj::Board, "circles") => board
+                .map(|b| {
+                    b.silkscreen
+                        .iter()
+                        .filter(|(_, s)| circle_of(s).is_some())
+                        .map(|(k, _)| Obj::Circle(*k))
+                        .collect()
+                })
+                .unwrap_or_default(),
+            (Obj::Board, "rectangles") => board
+                .map(|b| {
+                    b.silkscreen
+                        .iter()
+                        .filter(|(_, s)| rectangle_of(s).is_some())
+                        .map(|(k, _)| Obj::Rectangle(*k))
+                        .collect()
+                })
+                .unwrap_or_default(),
             _ => {
                 return Err(not_written(format!(
                     "the walk {walk} over a {}",
@@ -344,6 +531,33 @@ impl World<'_> {
             }
         };
         Ok(list)
+    }
+
+    /// The pad of the board that a pin of a part stands for: the pad of the package of the part
+    /// with the number of the pin, on the component with the same designator when there is one.
+    fn contact_of(&self, part: Option<Id>, number: &str) -> Result<Value, Fault> {
+        let missing = || (RUN_TYPE, "a pin without a pad of the package".to_owned());
+        let p = part
+            .and_then(|id| self.schematic.and_then(|s| s.parts.get(&id)))
+            .ok_or_else(missing)?;
+        let footprint = p.footprint.ok_or_else(missing)?;
+        let pad = self
+            .board
+            .and_then(|b| b.footprints.get(&footprint))
+            .and_then(|f| f.pads.iter().find(|(_, pad)| pad.number == number))
+            .map(|(k, _)| *k)
+            .ok_or_else(missing)?;
+        let element = self.board.and_then(|b| {
+            b.components
+                .iter()
+                .find(|(_, c)| c.refdes == p.refdes && c.footprint == footprint)
+                .map(|(k, _)| *k)
+        });
+        Ok(Value::Obj(Obj::Pad {
+            element,
+            footprint,
+            pad,
+        }))
     }
 
     fn layer_number(&self, layer: &Id) -> i64 {
@@ -379,10 +593,12 @@ impl World<'_> {
         let value = match obj {
             Obj::Board => match name {
                 "name" => text(&b.map(|b| b.name.clone()).unwrap_or_default()),
+                "grid" => Value::Obj(Obj::Grid),
                 _ => return Err(unknown()),
             },
             Obj::Schematic => match name {
                 "name" => text(&self.schematic.map(|s| s.name.clone()).unwrap_or_default()),
+                "grid" => Value::Obj(Obj::Grid),
                 _ => return Err(unknown()),
             },
             Obj::Element(id) => {
@@ -454,6 +670,8 @@ impl World<'_> {
                     "y" => nm(pl.at.y_nm.get()),
                     "angle" => Value::Real(pl.rotation.get() as f64 / 1e6),
                     "part" => Value::Obj(Obj::Part(*id)),
+                    "device" => Value::Obj(Obj::Device(*id)),
+                    "gate" => Value::Obj(Obj::Gate(*id)),
                     "sheet" => Value::Obj(Obj::Sheet(pl.sheet)),
                     _ => return Err(unknown()),
                 }
@@ -509,6 +727,12 @@ impl World<'_> {
                         nm(if name == "x" { at.0 } else { at.1 })
                     }
                     "pad" | "smd" => Value::Obj(obj.clone()),
+                    "element" => match element {
+                        Some(e) => Value::Obj(Obj::Element(*e)),
+                        None => {
+                            return Err((RUN_TYPE, "a pad of a package has no element".to_owned()))
+                        }
+                    },
                     "diameter" => match p.shape {
                         PadShape::Circle { diameter } => nm(diameter.get()),
                         _ => nm(0),
@@ -516,10 +740,11 @@ impl World<'_> {
                     "width" => nm(w),
                     "height" => nm(h),
                     "drill" => nm(p.drill.map_or(0, |d| d.get())),
-                    "shape" => text(match p.shape {
-                        PadShape::Circle { .. } => "circle",
-                        PadShape::Rect { .. } => "rect",
-                        PadShape::Oblong { .. } => "oblong",
+                    // the numbers of PAD_SHAPE_ROUND, PAD_SHAPE_SQUARE and PAD_SHAPE_LONG
+                    "shape" => nm(match p.shape {
+                        PadShape::Circle { .. } => 1,
+                        PadShape::Rect { .. } => 0,
+                        PadShape::Oblong { .. } => 3,
                     }),
                     "signal" => {
                         let net = element.and_then(|e| {
@@ -592,6 +817,9 @@ impl World<'_> {
                         let d2 = a.distance_squared(z);
                         nm(isqrt(d2))
                     }
+                    "dx" => nm(z.x_nm.get() - a.x_nm.get()),
+                    "dy" => nm(z.y_nm.get() - a.y_nm.get()),
+                    "arc" => Value::Obj(obj.clone()),
                     _ => return Err(unknown()),
                 }
             }
@@ -639,6 +867,148 @@ impl World<'_> {
                     _ => return Err(unknown()),
                 }
             }
+            Obj::Device(id) => {
+                let part = self
+                    .schematic
+                    .and_then(|s| s.parts.get(id))
+                    .ok_or_else(|| {
+                        (RUN_TYPE, "a device that is not in the schematic".to_owned())
+                    })?;
+                match name {
+                    "name" => text(
+                        &self
+                            .schematic
+                            .and_then(|s| s.symbols.get(&part.symbol))
+                            .map(|s| s.name.clone())
+                            .unwrap_or_default(),
+                    ),
+                    "package" => match part.footprint {
+                        Some(f) => Value::Obj(Obj::Package(f)),
+                        None => return Err((RUN_TYPE, "a device without a package".to_owned())),
+                    },
+                    _ => return Err(unknown()),
+                }
+            }
+            Obj::Gate(id) => {
+                let part = self
+                    .schematic
+                    .and_then(|s| s.parts.get(id))
+                    .ok_or_else(|| (RUN_TYPE, "a gate that is not in the schematic".to_owned()))?;
+                match name {
+                    "name" => text("G$1"),
+                    "symbol" => Value::Obj(Obj::Symbol {
+                        symbol: part.symbol,
+                        part: Some(*id),
+                    }),
+                    "x" => nm(part.placement.as_ref().map_or(0, |p| p.at.x_nm.get())),
+                    "y" => nm(part.placement.as_ref().map_or(0, |p| p.at.y_nm.get())),
+                    _ => return Err(unknown()),
+                }
+            }
+            Obj::Symbol { symbol, .. } => match name {
+                "name" => text(
+                    &self
+                        .schematic
+                        .and_then(|s| s.symbols.get(symbol))
+                        .map(|s| s.name.clone())
+                        .unwrap_or_default(),
+                ),
+                _ => return Err(unknown()),
+            },
+            Obj::SymPin { symbol, pin, part } => {
+                let sch = self.schematic;
+                let p = sch
+                    .and_then(|s| s.symbols.get(symbol))
+                    .and_then(|s| s.pins.get(pin))
+                    .ok_or_else(|| (RUN_TYPE, "a pin that is not in the schematic".to_owned()))?;
+                match name {
+                    "name" => text(&p.number),
+                    "x" => nm(p.at.map_or(0, |a| a.x_nm.get())),
+                    "y" => nm(p.at.map_or(0, |a| a.y_nm.get())),
+                    "direction" => nm(sch
+                        .and_then(|s| s.pin_kinds.get(pin))
+                        .map_or(6, |k| pin_direction(*k))),
+                    "contact" => self.contact_of(*part, &p.number)?,
+                    _ => return Err(unknown()),
+                }
+            }
+            Obj::Segment(_) => return Err(unknown()),
+            Obj::PinRef { part, pin } => {
+                let p = self
+                    .schematic
+                    .and_then(|s| s.parts.get(part))
+                    .ok_or_else(|| (RUN_TYPE, "a pin of a part that is not there".to_owned()))?;
+                match name {
+                    "part" => Value::Obj(Obj::Part(*part)),
+                    "pin" => Value::Obj(Obj::SymPin {
+                        symbol: p.symbol,
+                        pin: *pin,
+                        part: Some(*part),
+                    }),
+                    "instance" if p.placement.is_some() => Value::Obj(Obj::Instance(*part)),
+                    _ => return Err(unknown()),
+                }
+            }
+            Obj::ContactRef {
+                element,
+                footprint,
+                pad,
+            } => match name {
+                "element" => Value::Obj(Obj::Element(*element)),
+                "contact" => Value::Obj(Obj::Pad {
+                    element: Some(*element),
+                    footprint: *footprint,
+                    pad: *pad,
+                }),
+                _ => return Err(unknown()),
+            },
+            Obj::Grid => {
+                let (unit, distance) = if self.grid_nm > 0 {
+                    (self.grid_unit, self.grid_nm)
+                } else {
+                    (1, 1_000_000)
+                };
+                match name {
+                    "unit" | "altunit" => nm(unit),
+                    "distance" | "altdistance" => nm(distance),
+                    "style" | "dots" => nm(0),
+                    "multiple" => nm(1),
+                    _ => return Err(unknown()),
+                }
+            }
+            Obj::Circle(id) | Obj::Rectangle(id) => {
+                let item = b
+                    .and_then(|b| b.silkscreen.get(id))
+                    .ok_or_else(|| (RUN_TYPE, "a drawing that is not in the board".to_owned()))?;
+                let layer = match item {
+                    SilkItem::Stroke { layer, .. } | SilkItem::Text { layer, .. } => *layer,
+                };
+                if let Obj::Circle(_) = obj {
+                    let (cx, cy, r, w) = circle_of(item)
+                        .ok_or_else(|| (RUN_TYPE, "a circle that is not one".to_owned()))?;
+                    match name {
+                        "x" => nm(cx),
+                        "y" => nm(cy),
+                        "radius" => nm(r),
+                        "width" => nm(w),
+                        "layer" => nm(self.layer_number(&layer)),
+                        _ => return Err(unknown()),
+                    }
+                } else {
+                    let (x1, y1, x2, y2, w) = rectangle_of(item)
+                        .ok_or_else(|| (RUN_TYPE, "a rectangle that is not one".to_owned()))?;
+                    match name {
+                        "x1" => nm(x1),
+                        "y1" => nm(y1),
+                        "x2" => nm(x2),
+                        "y2" => nm(y2),
+                        "width" => nm(w),
+                        "angle" => Value::Real(0.0),
+                        "layer" => nm(self.layer_number(&layer)),
+                        _ => return Err(unknown()),
+                    }
+                }
+            }
             Obj::Part(id) => {
                 let p = self
                     .schematic
@@ -647,6 +1017,9 @@ impl World<'_> {
                 match name {
                     "name" => text(&p.refdes),
                     "value" => text(&p.value),
+                    "device" => Value::Obj(Obj::Device(*id)),
+                    "gate" => Value::Obj(Obj::Gate(*id)),
+                    "schematic" => Value::Obj(Obj::Schematic),
                     _ => return Err(unknown()),
                 }
             }
@@ -682,6 +1055,74 @@ impl World<'_> {
             }
         };
         Ok(value)
+    }
+}
+
+/// The place and the size of a circle that a stroke draws: two half turns that close on each
+/// other. Its centre, radius and width, in nanometres.
+fn circle_of(item: &SilkItem) -> Option<(i64, i64, i64, i64)> {
+    let SilkItem::Stroke { width, path, .. } = item else {
+        return None;
+    };
+    let [a @ Segment::Arc { sweep: s1, .. }, z @ Segment::Arc { sweep: s2, .. }] = path.as_slice()
+    else {
+        return None;
+    };
+    let half = 180_000_000;
+    if s1.get().abs() != half || s2.get().abs() != half {
+        return None;
+    }
+    if a.end() != z.start() || z.end() != a.start() {
+        return None;
+    }
+    let (p, q) = (a.start(), a.end());
+    let cx = (p.x_nm.get() + q.x_nm.get()) / 2;
+    let cy = (p.y_nm.get() + q.y_nm.get()) / 2;
+    let r = isqrt(p.distance_squared(q)) / 2;
+    Some((cx, cy, r, width.get()))
+}
+
+/// The corners of a rectangle that a stroke draws: four straight pieces along the axes that close
+/// on each other. Its low corner, its high corner and the width, in nanometres.
+fn rectangle_of(item: &SilkItem) -> Option<(i64, i64, i64, i64, i64)> {
+    let SilkItem::Stroke { width, path, .. } = item else {
+        return None;
+    };
+    if path.len() != 4 {
+        return None;
+    }
+    for i in 0..4 {
+        let (p, q) = (path[i].start(), path[i].end());
+        if !matches!(path[i], Segment::Line { .. }) || path[(i + 1) % 4].start() != q {
+            return None;
+        }
+        if (p.x_nm == q.x_nm) == (p.y_nm == q.y_nm) {
+            return None;
+        }
+    }
+    let xs: Vec<i64> = path.iter().map(|s| s.start().x_nm.get()).collect();
+    let ys: Vec<i64> = path.iter().map(|s| s.start().y_nm.get()).collect();
+    let (x1, x2) = (*xs.iter().min()?, *xs.iter().max()?);
+    let (y1, y2) = (*ys.iter().min()?, *ys.iter().max()?);
+    if x1 == x2 || y1 == y2 {
+        return None;
+    }
+    Some((x1, y1, x2, y2, width.get()))
+}
+
+/// The direction of a pin as the language numbers it.
+fn pin_direction(kind: eh3d_phoenix_schematic::PinKind) -> i64 {
+    use eh3d_phoenix_schematic::PinKind;
+    match kind {
+        PinKind::NotConnected => 0,
+        PinKind::Input => 1,
+        PinKind::Output => 2,
+        PinKind::Bidirectional => 3,
+        PinKind::OpenCollector => 4,
+        PinKind::PowerIn => 5,
+        PinKind::Passive => 6,
+        PinKind::TriState => 7,
+        PinKind::PowerOut => 8,
     }
 }
 

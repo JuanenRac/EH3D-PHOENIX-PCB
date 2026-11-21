@@ -205,6 +205,7 @@ fn run_with(text: &str, settings: &UlpSettings) -> Result<Outcome, eh3d_phoenix_
         World {
             board: Some(&b),
             schematic: Some(&s),
+            ..World::default()
         },
     )
 }
@@ -320,8 +321,8 @@ fn walks_over_the_board() {
         "R1.1 VCC 9500000 5000000\nR1.2 GND 10500000 5000000\nC1.1 VCC 20000000 4500000\nC1.2 GND 20000000 5500000\n"
     );
     assert_eq!(
-        out("board(B) { B.packages(K) { K.pads(P) { printf(\"%s %s %d %d %d\\n\", K.name, P.shape, P.x, P.diameter, P.width); } } }"),
-        "R0603 circle -500000 600000 600000\nR0603 circle 500000 600000 600000\n"
+        out("board(B) { B.packages(K) { K.pads(P) { printf(\"%s %d %d %d %d\\n\", K.name, P.shape, P.x, P.diameter, P.width); } } }"),
+        "R0603 1 -500000 600000 600000\nR0603 1 500000 600000 600000\n"
     );
     assert_eq!(
         out("board(B) { B.signals(S) { int w = 0, v = 0; S.wires(W) { w++; } S.vias(V) { v++; } printf(\"%s %d %d\\n\", S.name, w, v); } }"),
@@ -420,6 +421,7 @@ fn a_run_cannot_reach_a_file_a_command_or_the_model() {
     let world = World {
         board: Some(&b),
         schematic: Some(&s),
+        ..World::default()
     };
     let _ = run_source(
         "board(B) { B.elements(E) { printf(\"%s\", E.name); } }",
@@ -658,6 +660,7 @@ fn random_pieces_of_the_language_never_panic_and_never_run_for_ever() {
         let world = World {
             board: Some(&b),
             schematic: Some(&s),
+            ..World::default()
         };
         let first = run_source(&text, &settings, &support, world);
         let second = run_source(&text, &settings, &support, world);
@@ -719,6 +722,7 @@ fn programs_made_of_good_pieces_end_inside_the_budget() {
         let world = World {
             board: Some(&b),
             schematic: Some(&s),
+            ..World::default()
         };
         match run_source(&text, &settings, &support, world) {
             Ok(o) => assert!(o.steps <= 20_000, "{text}"),
@@ -797,6 +801,7 @@ fn out_rich(text: &str) -> String {
         World {
             board: Some(&b),
             schematic: Some(&s),
+            ..World::default()
         },
     ) {
         Ok(o) => o.output,

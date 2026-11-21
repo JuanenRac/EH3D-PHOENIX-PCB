@@ -379,6 +379,8 @@ fn run_program(options: &Options, out: &mut dyn Write, err: &mut dyn Write) -> i
     let world = World {
         board: board.as_ref(),
         schematic: schematic.as_ref(),
+        grid_unit: i64::try_from(settings.grid_unit).unwrap_or(1),
+        grid_nm: i64::try_from(settings.grid_distance_nm).unwrap_or(1_000_000),
     };
     let mut settings = settings;
     if let Some(dir) = &options.dir {

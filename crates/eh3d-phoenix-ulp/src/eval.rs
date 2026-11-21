@@ -135,7 +135,7 @@ fn constant(name: &str) -> Option<Value> {
         "EAGLE_VERSION" => Value::Int(9),
         "EAGLE_RELEASE" => Value::Int(5),
         "EAGLE_SIGNATURE" => Value::Str("EH3D PHOENIX ULP evaluator".to_owned()),
-        _ => return None,
+        _ => return crate::constants::lookup(name).map(Value::Int),
     })
 }
 

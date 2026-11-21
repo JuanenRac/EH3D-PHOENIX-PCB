@@ -44,7 +44,7 @@ pub fn evaluates(kind: UseKind, name: &str) -> bool {
                 || matches!(name, "board" | "schematic" | "sheet")
         }
         UseKind::Member => WALKS.contains(&name) || MEMBERS.contains(&name),
-        UseKind::Constant => CONSTANTS.contains(&name),
+        UseKind::Constant => CONSTANTS.contains(&name) || crate::constants::lookup(name).is_some(),
     }
 }
 
