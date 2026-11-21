@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! The compatibility report of a program: what it uses, what the list of allowed names says about
 //! each use, the problems the reader found, and a verdict (`covered`, `partly covered` or `not
-//! covered`). It reads the program and runs nothing; the evaluator is not written, so the verdict
-//! says what the list would let through, not what runs today.
+//! covered`). It reads the program and runs nothing. The verdict says what the list of names would
+//! let through; whether the evaluator runs each name is said apart (`runs`, `runnable`).
 //!
 //! The report is the same for the same program and the same list: the uses are ordered by kind and
 //! name, the notes by place, and the JSON has its keys in a fixed order.
@@ -13,6 +13,7 @@ use sha2::{Digest, Sha256};
 use eh3d_phoenix_rules::Lang;
 
 use crate::codes::{title, Diag, ITEM_DENIED, ITEM_LIMITED, ITEM_PENDING, LIST_CUT, NAME_UNKNOWN};
+use crate::evaluable::evaluates;
 use crate::parser::parse;
 use crate::settings::UlpSettings;
 use crate::support::{Status, Support, UseKind};
@@ -58,6 +59,8 @@ pub struct Used {
     pub col: usize,
     /// What the list says; `None` when the list does not know the name.
     pub status: Option<Status>,
+    /// Whether the evaluator runs the name (`phoenix ulp run`).
+    pub runs: bool,
 }
 
 /// The report of one program.
@@ -83,6 +86,9 @@ pub struct Report {
     pub problems_dropped: usize,
     /// The limit that stopped the reading, when one did.
     pub stopped: Option<Diag>,
+    /// Whether the evaluator can run the program: it was read without a problem and every name it
+    /// uses is one that the evaluator runs. It does not mean that the run will end well.
+    pub runnable: bool,
 }
 
 fn sha256_hex(bytes: &[u8]) -> String {
@@ -105,6 +111,7 @@ pub fn analyse(name: &str, source: &str, settings: &UlpSettings, support: &Suppo
         problems: Vec::new(),
         problems_dropped: 0,
         stopped: None,
+        runnable: false,
     };
     match parse(source, settings) {
         Ok(parsed) => {
@@ -114,6 +121,7 @@ pub fn analyse(name: &str, source: &str, settings: &UlpSettings, support: &Suppo
                 .into_iter()
                 .map(|s| Used {
                     status: support.lookup(s.kind, &s.name),
+                    runs: evaluates(s.kind, &s.name),
                     kind: s.kind,
                     name: s.name,
                     count: s.count,
@@ -126,6 +134,9 @@ pub fn analyse(name: &str, source: &str, settings: &UlpSettings, support: &Suppo
         }
         Err(stopped) => report.stopped = Some(stopped),
     }
+    report.runnable = report.stopped.is_none()
+        && report.problems.is_empty()
+        && report.uses.iter().all(|u| u.runs);
     let refused = report.uses.iter().any(|u| u.status == Some(Status::Denied));
     report.verdict = if report.stopped.is_some() || !report.problems.is_empty() || refused {
         Verdict::NotCovered
@@ -168,6 +179,15 @@ impl Report {
         notes
     }
 
+    /// The names the evaluator does not run, as `kind name`, in the order of the report.
+    pub fn not_run(&self) -> Vec<String> {
+        self.uses
+            .iter()
+            .filter(|u| !u.runs)
+            .map(|u| format!("{} {}", u.kind.word(), u.name))
+            .collect()
+    }
+
     /// How many names there are with each status, in the order allowed, limited, pending, denied
     /// and not on the list.
     pub fn tally(&self) -> [usize; 5] {
@@ -196,6 +216,10 @@ enum Word {
     Partly,
     NotCovered,
     NothingRun,
+    Runs,
+    Yes,
+    No,
+    NotRun,
     Counts,
     Uses,
     Line,
@@ -269,14 +293,36 @@ fn word(w: Word, lang: Lang) -> &'static str {
             "não coberto",
         ],
         Word::NothingRun => [
-            "Nothing was run: the report only reads the program. The evaluator is not written yet, so the verdict says what the list of allowed names would let through.",
-            "No se ejecutó nada: el informe solo lee el programa. El evaluador todavía no está escrito, así que el veredicto dice lo que dejaría pasar la lista de nombres permitidos.",
-            "Es wurde nichts ausgeführt: Der Bericht liest das Programm nur. Der Auswerter ist noch nicht geschrieben, das Urteil sagt also, was die Liste der erlaubten Namen durchlassen würde.",
-            "Rien n'a été exécuté : le rapport ne fait que lire le programme. L'évaluateur n'est pas encore écrit, le verdict dit donc ce que laisserait passer la liste des noms autorisés.",
-            "Non è stato eseguito nulla: il rapporto si limita a leggere il programma. Il valutatore non è ancora scritto, quindi il verdetto dice ciò che l'elenco dei nomi consentiti lascerebbe passare.",
-            "何も実行していません。レポートはプログラムを読むだけです。評価器はまだ書かれていないため、判定は許可名一覧が通すものを示します。",
-            "未运行任何内容：报告只读取程序。求值器尚未编写，因此结论只说明允许名称列表会放行什么。",
-            "Nada foi executado: o relatório apenas lê o programa. O avaliador ainda não está escrito, pelo que o veredicto diz o que a lista de nomes permitidos deixaria passar.",
+            "Nothing was run: the report only reads the program. `phoenix ulp run` runs pure computation and read-only walks over the design; the sandbox in a process of its own is not written yet.",
+            "No se ejecutó nada: el informe solo lee el programa. `phoenix ulp run` ejecuta cálculo puro y recorridos de solo lectura sobre el diseño; el entorno aislado en un proceso aparte todavía no está escrito.",
+            "Es wurde nichts ausgeführt: Der Bericht liest das Programm nur. `phoenix ulp run` führt reine Berechnungen und schreibgeschützte Durchläufe über den Entwurf aus; die Sandbox in einem eigenen Prozess ist noch nicht geschrieben.",
+            "Rien n'a été exécuté : le rapport ne fait que lire le programme. `phoenix ulp run` exécute du calcul pur et des parcours en lecture seule de la conception ; le bac à sable dans un processus séparé n'est pas encore écrit.",
+            "Non è stato eseguito nulla: il rapporto si limita a leggere il programma. `phoenix ulp run` esegue calcolo puro e scansioni di sola lettura del progetto; la sandbox in un processo separato non è ancora scritta.",
+            "何も実行していません。レポートはプログラムを読むだけです。`phoenix ulp run` は純粋な計算と設計の読み取り専用の走査を実行します。別プロセスのサンドボックスはまだ書かれていません。",
+            "未运行任何内容：报告只读取程序。`phoenix ulp run` 运行纯计算和对设计的只读遍历；独立进程中的沙箱尚未编写。",
+            "Nada foi executado: o relatório apenas lê o programa. `phoenix ulp run` executa cálculo puro e percursos só de leitura sobre o projeto; o ambiente isolado num processo à parte ainda não está escrito.",
+        ],
+        Word::Runs => [
+            "Runs in the evaluator",
+            "Se ejecuta en el evaluador",
+            "Läuft im Auswerter",
+            "S'exécute dans l'évaluateur",
+            "Viene eseguito nel valutatore",
+            "評価器で実行可能",
+            "可在求值器中运行",
+            "Executa-se no avaliador",
+        ],
+        Word::Yes => ["yes", "sí", "ja", "oui", "sì", "はい", "是", "sim"],
+        Word::No => ["no", "no", "nein", "non", "no", "いいえ", "否", "não"],
+        Word::NotRun => [
+            "Names the evaluator does not run",
+            "Nombres que el evaluador no ejecuta",
+            "Namen, die der Auswerter nicht ausführt",
+            "Noms que l'évaluateur n'exécute pas",
+            "Nomi che il valutatore non esegue",
+            "評価器が実行しない名前",
+            "求值器不运行的名称",
+            "Nomes que o avaliador não executa",
         ],
         Word::Counts => [
             "Statements and functions",
@@ -448,6 +494,21 @@ pub fn report_text(report: &Report, lang: Lang) -> String {
     ));
     out.push_str(&format!("{}\n", word(Word::NothingRun, lang)));
     out.push_str(&format!(
+        "{}: {}\n",
+        word(Word::Runs, lang),
+        word(if report.runnable { Word::Yes } else { Word::No }, lang)
+    ));
+    if !report.runnable {
+        let names = report.not_run();
+        if !names.is_empty() {
+            out.push_str(&format!(
+                "{}: {}\n",
+                word(Word::NotRun, lang),
+                names.join(", ")
+            ));
+        }
+    }
+    out.push_str(&format!(
         "{}: {} / {}\n",
         word(Word::Counts, lang),
         report.statements,
@@ -520,6 +581,7 @@ pub fn report_json(report: &Report) -> String {
                 "line": u.line,
                 "col": u.col,
                 "status": u.status.map_or("unknown", Status::word),
+                "runs": u.runs,
             })
         })
         .collect();
@@ -529,8 +591,11 @@ pub fn report_json(report: &Report) -> String {
         "bytes": report.bytes,
         "sha256": report.sha256,
         "verdict": report.verdict.word(),
-        "evaluator": "not written",
+        "evaluator": "read_only",
+        "sandbox": "not_written",
         "ran": false,
+        "runnable": report.runnable,
+        "not_run": report.not_run(),
         "statements": report.statements,
         "functions": report.functions,
         "uses": uses,
@@ -642,8 +707,11 @@ mod tests {
         let v: Value = serde_json::from_str(&report_json(&r)).unwrap();
         assert_eq!(v["format"], FORMAT);
         assert_eq!(v["verdict"], "not_covered");
-        assert_eq!(v["evaluator"], "not written");
+        assert_eq!(v["evaluator"], "read_only");
+        assert_eq!(v["sandbox"], "not_written");
         assert_eq!(v["ran"], false);
+        assert_eq!(v["runnable"], false);
+        assert_eq!(v["not_run"][0], "function system");
         let system = v["uses"]
             .as_array()
             .unwrap()
@@ -661,6 +729,22 @@ mod tests {
             .collect();
         assert_eq!(denied.len(), 1);
         assert_eq!(denied[0]["line"], 1);
+    }
+
+    #[test]
+    fn the_report_says_whether_the_evaluator_runs_the_program() {
+        let yes =
+            report("int n = 0;\nboard(B) { B.elements(E) { n++; printf(\"%s\", E.name); } }\n");
+        assert!(yes.runnable, "{:?}", yes.not_run());
+        assert!(yes.uses.iter().all(|u| u.runs));
+        let no = report("int n = time();\noutput(\"a\", \"wt\") { }\n");
+        assert!(!no.runnable);
+        assert_eq!(no.not_run(), ["function output", "function time"]);
+        let unreadable = report("int a = ;\n");
+        assert!(!unreadable.runnable);
+        let text = report_text(&no, Lang::En);
+        assert!(text.contains("Runs in the evaluator: no"), "{text}");
+        assert!(text.contains("function output, function time"), "{text}");
     }
 
     #[test]

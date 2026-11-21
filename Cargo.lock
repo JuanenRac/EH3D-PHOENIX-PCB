@@ -1266,7 +1266,11 @@ dependencies = [
 name = "eh3d-phoenix-ulp"
 version = "0.1.4"
 dependencies = [
+ "eh3d-container",
+ "eh3d-phoenix-board",
+ "eh3d-phoenix-model",
  "eh3d-phoenix-rules",
+ "eh3d-phoenix-schematic",
  "serde_json",
  "sha2",
  "tempfile",

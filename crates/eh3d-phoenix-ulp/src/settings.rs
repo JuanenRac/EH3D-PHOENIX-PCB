@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! The settings of the reader of user programs, read from the plain `key = value` text
 //! `config/ulp.cfg`: every limit of size, tokens, nesting and statements, and how many problems a
-//! report lists. A missing line keeps the default; an unknown key or a value out of range is
+//! report lists, and the limits of a run (steps, memory, nesting, output and array size). A missing line keeps the default; an unknown key or a value out of range is
 //! refused with its line number.
 
 use crate::codes::{Diag, SETTINGS_INVALID};
@@ -23,6 +23,16 @@ pub struct UlpSettings {
     pub max_name_chars: usize,
     /// The most problems that are kept; the rest are counted and the reading goes on to the end.
     pub max_problems: usize,
+    /// The most steps a run may take: every statement and every part of an expression counts one.
+    pub max_steps: usize,
+    /// The most memory the variables of a run may hold, in bytes (text and array elements).
+    pub max_memory_bytes: usize,
+    /// The deepest nesting of statements, expressions and calls of functions during a run.
+    pub max_eval_depth: usize,
+    /// The most bytes a run may write.
+    pub max_output_bytes: usize,
+    /// The most elements one array may have.
+    pub max_array_elements: usize,
 }
 
 impl Default for UlpSettings {
@@ -35,12 +45,21 @@ impl Default for UlpSettings {
             max_string_chars: 65_536,
             max_name_chars: 128,
             max_problems: 50,
+            max_steps: 1_000_000,
+            max_memory_bytes: 16_777_216,
+            max_eval_depth: 200,
+            max_output_bytes: 1_048_576,
+            max_array_elements: 100_000,
         }
     }
 }
 
 /// The largest nesting that the settings may ask for: the reader calls itself once for each level.
 pub const DEPTH_CEILING: usize = 500;
+
+/// The largest nesting of a run that the settings may ask for: the evaluator calls itself once for
+/// each level, on a stack made for it.
+pub const EVAL_DEPTH_CEILING: usize = 2000;
 
 impl UlpSettings {
     /// Parses a settings text. Blank lines and lines starting with `#` are ignored.
@@ -73,6 +92,11 @@ impl UlpSettings {
                 "max_string_chars" => s.max_string_chars = number()?,
                 "max_name_chars" => s.max_name_chars = number()?,
                 "max_problems" => s.max_problems = number()?,
+                "max_steps" => s.max_steps = number()?,
+                "max_memory_bytes" => s.max_memory_bytes = number()?,
+                "max_eval_depth" => s.max_eval_depth = number()?,
+                "max_output_bytes" => s.max_output_bytes = number()?,
+                "max_array_elements" => s.max_array_elements = number()?,
                 _ => {
                     return Err(Diag::at(
                         SETTINGS_INVALID,
@@ -110,6 +134,21 @@ impl UlpSettings {
         }
         if !(1..=100_000).contains(&self.max_problems) {
             return fail("max_problems must be between 1 and 100000");
+        }
+        if !(1..=10_000_000_000).contains(&self.max_steps) {
+            return fail("max_steps must be between 1 and 10000000000");
+        }
+        if !(1024..=1 << 30).contains(&self.max_memory_bytes) {
+            return fail("max_memory_bytes must be between 1024 and 1073741824");
+        }
+        if !(1..=EVAL_DEPTH_CEILING).contains(&self.max_eval_depth) {
+            return fail("max_eval_depth must be between 1 and 2000");
+        }
+        if !(0..=1 << 30).contains(&self.max_output_bytes) {
+            return fail("max_output_bytes must be between 0 and 1073741824");
+        }
+        if !(1..=10_000_000).contains(&self.max_array_elements) {
+            return fail("max_array_elements must be between 1 and 10000000");
         }
         Ok(())
     }
@@ -181,6 +220,13 @@ mod tests {
             "max_name_chars = 4097",
             "max_problems = 0",
             "max_problems = 100001",
+            "max_steps = 0",
+            "max_steps = 10000000001",
+            "max_memory_bytes = 1023",
+            "max_eval_depth = 0",
+            "max_eval_depth = 2001",
+            "max_output_bytes = 1073741825",
+            "max_array_elements = 0",
         ] {
             let e = UlpSettings::parse(text).unwrap_err();
             assert_eq!(e.code, SETTINGS_INVALID, "{text}");

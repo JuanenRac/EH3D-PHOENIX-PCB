@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! The reader of the user programs of the reference tool: files with the extension `.ulp` that
-//! read the design and write reports, bills of materials and exports. This is the first two steps
-//! of the plan of `docs/adr/0011-ulp-interpreter-for-the-owner-list.md`: the compatibility report
-//! and the reader. **Nothing of a program is run**: there is no evaluator and no sandbox yet.
+//! The reader and the evaluator of the user programs of the reference tool: files with the
+//! extension `.ulp` that read the design and write reports, bills of materials and exports. This
+//! is the first three steps of the plan of `docs/adr/0011-ulp-interpreter-for-the-owner-list.md`:
+//! the compatibility report, the reader and the evaluator of the part that only computes and reads.
+//! The sandbox in a process of its own, the fourth step, is **not written**.
 //!
 //! * [`lexer`]: a program as tokens with line and column, with limits of size, tokens and the
 //!   length of names and texts;
@@ -12,6 +13,11 @@
 //!   named values), with counts and first places;
 //! * [`support`]: the list of names and what is decided for each one, a data file
 //!   (`config/ulp_support.cfg`) and not code;
+//! * [`eval`], [`builtins`], [`world`] and [`value`]: the evaluator. It runs pure computation (numbers,
+//!   texts, arrays, functions of the program, the usual statements) and read-only walks over the
+//!   model (`board(B)`, `B.elements(E)`), with a budget of steps, memory, nesting and output; it
+//!   opens no file, starts no program and writes nothing to the model. [`evaluable`] says which
+//!   names it runs;
 //! * [`report`]: the compatibility report with a verdict, as text in eight languages and as JSON;
 //! * [`settings`] and [`codes`]: every limit, read from `config/ulp.cfg`, and the codes
 //!   `PHOENIX-ULP-<NNN>` with their titles in the eight languages.
@@ -24,22 +30,31 @@
 #![warn(missing_docs)]
 
 pub mod ast;
+pub mod builtins;
 pub mod codes;
+pub mod eval;
+pub mod evaluable;
 pub mod lexer;
 pub mod parser;
 pub mod report;
 pub mod settings;
 pub mod support;
 pub mod uses;
+pub mod value;
+pub mod world;
 
 use std::io::Read;
 use std::path::Path;
 
 pub use codes::{title, Diag, UlpError};
+pub use eval::{run, run_source, Outcome};
+pub use evaluable::evaluates;
 pub use parser::{parse, Parsed};
 pub use report::{analyse, report_json, report_text, Report, Verdict, FORMAT};
 pub use settings::UlpSettings;
 pub use support::{Status, Support, UseKind};
+pub use value::Value;
+pub use world::{Obj, World};
 
 /// Reads a file as text, at most `max` bytes. A file larger than that is refused and a file
 /// that is not valid UTF-8 is read with the characters that cannot be read replaced, because

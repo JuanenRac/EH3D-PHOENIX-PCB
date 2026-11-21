@@ -1071,7 +1071,24 @@ The titles of these codes also exist in the eight languages of the suite (`TITLE
 | PHOENIX-ULP-021 | Not covered yet | note of the report: a name with the status `pending` (the program is at best partly covered) |
 | PHOENIX-ULP-022 | Allowed with limits | note of the report: a name with the status `limited` |
 | PHOENIX-ULP-023 | The list of problems was cut | information: more problems than `max_problems`; the rest are counted |
-| PHOENIX-ULP-024 | An output file exists or cannot be written | reserved for the output of a program when the evaluator exists; nothing writes it yet |
+| PHOENIX-ULP-024 | An output file exists or cannot be written | reserved for the output files of a program; the evaluator opens no file, so nothing writes it yet |
+| PHOENIX-ULP-025 | The run took more steps than the limit | error: more than `max_steps` statements and parts of expressions; the place is where the budget ran out |
+| PHOENIX-ULP-026 | The variables of the run hold more memory than the limit | error: more than `max_memory_bytes` of text and array elements, or an array of more than `max_array_elements` |
+| PHOENIX-ULP-027 | Statements, expressions or calls are nested deeper than the limit in the run | error: more than `max_eval_depth` levels, which a function that calls itself without end reaches |
+| PHOENIX-ULP-028 | The program wrote more than the limit | error: more than `max_output_bytes` printed |
+| PHOENIX-ULP-029 | A value has a type that the operation does not accept | error: a text added to a real, a condition that is a text, an index that is not a whole number, an array assigned as a whole |
+| PHOENIX-ULP-030 | Division by zero | error: `/` or `%` with a zero on the right |
+| PHOENIX-ULP-031 | A number is out of range | error: a whole number that overflows, a shift outside 0 to 63, a result that is not finite (`sqrt` of a negative number, `log` of zero), a negative size |
+| PHOENIX-ULP-032 | A name is not defined | error: a variable, a function or a value that is neither declared, defined by the program nor on the list of names |
+| PHOENIX-ULP-033 | An index is out of range | error: reading an array or a text beyond its end, or a negative index |
+| PHOENIX-ULP-034 | The program uses something that the sandbox does not allow | error: a name with the status `denied`, or `limited` and needing a file, a folder or a command (`system`, `output`, `fileread`, `#include`...); the evaluator opens nothing |
+| PHOENIX-ULP-035 | The evaluator does not run this yet | error: a name that is pending in the list, allowed but not written in the evaluator (`time`, `sort`), a member that is not written for an object, a dialog |
+| PHOENIX-ULP-036 | The program needs a board or a schematic that was not given | error: `board(B)` without `--board` or `schematic(S)` without `--schematic` |
+| PHOENIX-ULP-037 | A call has the wrong arguments | error: a wrong number of arguments of a built-in function or of a function of the program, or a walk without the name of a variable |
+| PHOENIX-ULP-038 | The program tries to change the design, which a run only reads | error: an assignment to a member of an object |
+| PHOENIX-ULP-039 | The program has problems of reading and was not run | error: a program with any problem of `phoenix ulp check`; the first problem is in the detail |
+| PHOENIX-ULP-040 | A format text is not valid for its arguments | error: `printf` or `sprintf` with a conversion that does not match its argument, too few arguments or a conversion that is not known |
+| PHOENIX-ULP-041 | The output of the run differs from the expected output | verification not passed: `phoenix ulp run --expect FILE` found other bytes than the file (exit code 2) |
 
 ## Server mode (`eh3d-phoenix-server`, `src/codes.rs`)
 

@@ -171,11 +171,13 @@ fn the_report_is_the_same_text_for_the_same_program_in_every_language() {
 }
 
 #[test]
-fn a_program_is_never_run_and_the_report_says_so() {
+fn the_report_never_runs_a_program_and_says_what_the_evaluator_is() {
     let r = report(RUNS_A_COMMAND);
     let json = report_json(&r);
     assert!(json.contains("\"ran\": false"), "{json}");
-    assert!(json.contains("\"evaluator\": \"not written\""), "{json}");
+    assert!(json.contains("\"evaluator\": \"read_only\""), "{json}");
+    assert!(json.contains("\"sandbox\": \"not_written\""), "{json}");
+    assert!(json.contains("\"runnable\": false"), "{json}");
 }
 
 #[test]

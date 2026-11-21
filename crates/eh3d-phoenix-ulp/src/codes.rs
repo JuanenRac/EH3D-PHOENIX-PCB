@@ -4,7 +4,9 @@
 //! program (line and column, both counted from one).
 //!
 //! Codes 001 to 003 and 018 and 024 belong to the settings, the command and the files; 004 to 017
-//! are what the reader finds in a program; 019 to 023 are the notes of the compatibility report.
+//! are what the reader finds in a program; 019 to 023 are the notes of the compatibility report;
+//! 025 to 041 are what stops a run (the limits, the errors of the evaluator and the check of the
+//! output).
 
 use std::fmt;
 
@@ -58,6 +60,41 @@ pub const ITEM_LIMITED: &str = "PHOENIX-ULP-022";
 pub const LIST_CUT: &str = "PHOENIX-ULP-023";
 /// An output file exists or cannot be written.
 pub const OUTPUT_FAILED: &str = "PHOENIX-ULP-024";
+
+/// The run took more steps than the limit.
+pub const RUN_STEP_LIMIT: &str = "PHOENIX-ULP-025";
+/// The variables of the run hold more memory than the limit.
+pub const RUN_MEMORY_LIMIT: &str = "PHOENIX-ULP-026";
+/// Statements, expressions or calls are nested deeper than the limit in the run.
+pub const RUN_DEPTH_LIMIT: &str = "PHOENIX-ULP-027";
+/// The program wrote more than the limit.
+pub const RUN_OUTPUT_LIMIT: &str = "PHOENIX-ULP-028";
+/// A value has a type that the operation does not accept.
+pub const RUN_TYPE: &str = "PHOENIX-ULP-029";
+/// Division by zero.
+pub const RUN_DIVISION: &str = "PHOENIX-ULP-030";
+/// A number is out of range.
+pub const RUN_RANGE: &str = "PHOENIX-ULP-031";
+/// A name is not defined.
+pub const RUN_NAME: &str = "PHOENIX-ULP-032";
+/// An index is out of range.
+pub const RUN_INDEX: &str = "PHOENIX-ULP-033";
+/// The program uses something that the sandbox does not allow.
+pub const RUN_NOT_ALLOWED: &str = "PHOENIX-ULP-034";
+/// The evaluator does not run this yet.
+pub const RUN_NOT_WRITTEN: &str = "PHOENIX-ULP-035";
+/// The program needs a board or a schematic that was not given.
+pub const RUN_NO_MODEL: &str = "PHOENIX-ULP-036";
+/// A call has the wrong arguments.
+pub const RUN_ARGUMENTS: &str = "PHOENIX-ULP-037";
+/// The program tries to change the design, which a run only reads.
+pub const RUN_READ_ONLY: &str = "PHOENIX-ULP-038";
+/// The program has problems of reading and was not run.
+pub const RUN_HAS_PROBLEMS: &str = "PHOENIX-ULP-039";
+/// A format text is not valid for its arguments.
+pub const RUN_FORMAT: &str = "PHOENIX-ULP-040";
+/// The output of the run differs from the expected output.
+pub const RUN_OUTPUT_DIFFERS: &str = "PHOENIX-ULP-041";
 
 /// Code, then the title in English, Spanish, German, French, Italian, Japanese, Chinese and
 /// European Portuguese.
@@ -374,6 +411,227 @@ pub const TITLES: &[(&str, [&str; 8])] = &[
             "Um ficheiro de saída já existe ou não pode ser escrito",
         ],
     ),
+    (
+        RUN_STEP_LIMIT,
+        [
+            "The run took more steps than the limit",
+            "La ejecución dio más pasos que el límite",
+            "Die Ausführung hat mehr Schritte gebraucht als die Grenze",
+            "L'exécution a fait plus de pas que la limite",
+            "L'esecuzione ha eseguito più passi del limite",
+            "実行のステップ数が上限を超えました",
+            "运行的步数超出限制",
+            "A execução deu mais passos do que o limite",
+        ],
+    ),
+    (
+        RUN_MEMORY_LIMIT,
+        [
+            "The variables of the run hold more memory than the limit",
+            "Las variables de la ejecución ocupan más memoria que el límite",
+            "Die Variablen der Ausführung belegen mehr Speicher als die Grenze",
+            "Les variables de l'exécution occupent plus de mémoire que la limite",
+            "Le variabili dell'esecuzione occupano più memoria del limite",
+            "実行の変数がメモリ上限を超えました",
+            "运行的变量占用内存超出限制",
+            "As variáveis da execução ocupam mais memória do que o limite",
+        ],
+    ),
+    (
+        RUN_DEPTH_LIMIT,
+        [
+            "Statements, expressions or calls are nested deeper than the limit in the run",
+            "En la ejecución, las sentencias, expresiones o llamadas se anidan más que el límite",
+            "In der Ausführung sind Anweisungen, Ausdrücke oder Aufrufe tiefer verschachtelt als die Grenze",
+            "Dans l'exécution, les instructions, expressions ou appels sont imbriqués plus profondément que la limite",
+            "Nell'esecuzione istruzioni, espressioni o chiamate sono annidate più del limite",
+            "実行中に文・式・呼び出しの入れ子が上限を超えました",
+            "运行中语句、表达式或调用的嵌套超出限制",
+            "Na execução, as instruções, expressões ou chamadas estão aninhadas mais fundo do que o limite",
+        ],
+    ),
+    (
+        RUN_OUTPUT_LIMIT,
+        [
+            "The program wrote more than the limit",
+            "El programa escribió más que el límite",
+            "Das Programm hat mehr geschrieben als die Grenze",
+            "Le programme a écrit plus que la limite",
+            "Il programma ha scritto più del limite",
+            "プログラムの出力が上限を超えました",
+            "程序写出的内容超出限制",
+            "O programa escreveu mais do que o limite",
+        ],
+    ),
+    (
+        RUN_TYPE,
+        [
+            "A value has a type that the operation does not accept",
+            "Un valor tiene un tipo que la operación no acepta",
+            "Ein Wert hat einen Typ, den die Operation nicht akzeptiert",
+            "Une valeur a un type que l'opération n'accepte pas",
+            "Un valore ha un tipo che l'operazione non accetta",
+            "値の型がこの操作では使えません",
+            "某个值的类型不被该操作接受",
+            "Um valor tem um tipo que a operação não aceita",
+        ],
+    ),
+    (
+        RUN_DIVISION,
+        [
+            "Division by zero",
+            "División por cero",
+            "Division durch null",
+            "Division par zéro",
+            "Divisione per zero",
+            "ゼロ除算です",
+            "除以零",
+            "Divisão por zero",
+        ],
+    ),
+    (
+        RUN_RANGE,
+        [
+            "A number is out of range",
+            "Un número está fuera de rango",
+            "Eine Zahl liegt außerhalb des Bereichs",
+            "Un nombre est hors limites",
+            "Un numero è fuori intervallo",
+            "数値が範囲外です",
+            "数值超出范围",
+            "Um número está fora do intervalo",
+        ],
+    ),
+    (
+        RUN_NAME,
+        [
+            "A name is not defined",
+            "Un nombre no está definido",
+            "Ein Name ist nicht definiert",
+            "Un nom n'est pas défini",
+            "Un nome non è definito",
+            "名前が定義されていません",
+            "名称未定义",
+            "Um nome não está definido",
+        ],
+    ),
+    (
+        RUN_INDEX,
+        [
+            "An index is out of range",
+            "Un índice está fuera de rango",
+            "Ein Index liegt außerhalb des Bereichs",
+            "Un indice est hors limites",
+            "Un indice è fuori intervallo",
+            "添字が範囲外です",
+            "索引超出范围",
+            "Um índice está fora do intervalo",
+        ],
+    ),
+    (
+        RUN_NOT_ALLOWED,
+        [
+            "The program uses something that the sandbox does not allow",
+            "El programa usa algo que el entorno aislado no permite",
+            "Das Programm verwendet etwas, das die Sandbox nicht erlaubt",
+            "Le programme utilise quelque chose que le bac à sable n'autorise pas",
+            "Il programma usa qualcosa che la sandbox non consente",
+            "プログラムがサンドボックスで許可されていないものを使っています",
+            "程序使用了沙箱不允许的内容",
+            "O programa usa algo que o ambiente isolado não permite",
+        ],
+    ),
+    (
+        RUN_NOT_WRITTEN,
+        [
+            "The evaluator does not run this yet",
+            "El evaluador todavía no ejecuta esto",
+            "Der Auswerter führt dies noch nicht aus",
+            "L'évaluateur n'exécute pas encore cela",
+            "Il valutatore non esegue ancora questo",
+            "評価器はまだこれを実行できません",
+            "求值器尚不能运行此内容",
+            "O avaliador ainda não executa isto",
+        ],
+    ),
+    (
+        RUN_NO_MODEL,
+        [
+            "The program needs a board or a schematic that was not given",
+            "El programa necesita una placa o un esquema que no se dio",
+            "Das Programm braucht eine Platine oder einen Schaltplan, der nicht angegeben wurde",
+            "Le programme a besoin d'une carte ou d'un schéma qui n'a pas été donné",
+            "Il programma richiede una scheda o uno schema che non è stato indicato",
+            "プログラムに必要な基板または回路図が指定されていません",
+            "程序需要的电路板或原理图未提供",
+            "O programa precisa de uma placa ou de um esquema que não foi indicado",
+        ],
+    ),
+    (
+        RUN_ARGUMENTS,
+        [
+            "A call has the wrong arguments",
+            "Una llamada tiene argumentos incorrectos",
+            "Ein Aufruf hat falsche Argumente",
+            "Un appel a des arguments incorrects",
+            "Una chiamata ha argomenti errati",
+            "呼び出しの引数が正しくありません",
+            "调用的参数不正确",
+            "Uma chamada tem argumentos errados",
+        ],
+    ),
+    (
+        RUN_READ_ONLY,
+        [
+            "The program tries to change the design, which a run only reads",
+            "El programa intenta cambiar el diseño, que una ejecución solo lee",
+            "Das Programm versucht, den Entwurf zu ändern, den eine Ausführung nur liest",
+            "Le programme essaie de modifier la conception, qu'une exécution ne fait que lire",
+            "Il programma cerca di modificare il progetto, che un'esecuzione si limita a leggere",
+            "プログラムが設計を変更しようとしましたが、実行は読み取り専用です",
+            "程序试图修改设计，而运行只读取设计",
+            "O programa tenta alterar o projeto, que uma execução apenas lê",
+        ],
+    ),
+    (
+        RUN_HAS_PROBLEMS,
+        [
+            "The program has problems of reading and was not run",
+            "El programa tiene problemas de lectura y no se ejecutó",
+            "Das Programm hat Lesefehler und wurde nicht ausgeführt",
+            "Le programme a des problèmes de lecture et n'a pas été exécuté",
+            "Il programma ha problemi di lettura e non è stato eseguito",
+            "プログラムに読み取りの問題があるため実行しませんでした",
+            "程序存在读取问题，未运行",
+            "O programa tem problemas de leitura e não foi executado",
+        ],
+    ),
+    (
+        RUN_FORMAT,
+        [
+            "A format text is not valid for its arguments",
+            "Un texto de formato no es válido para sus argumentos",
+            "Ein Formattext passt nicht zu seinen Argumenten",
+            "Un texte de format n'est pas valide pour ses arguments",
+            "Un testo di formato non è valido per i suoi argomenti",
+            "書式テキストが引数に対して無効です",
+            "格式文本与其参数不匹配",
+            "Um texto de formato não é válido para os seus argumentos",
+        ],
+    ),
+    (
+        RUN_OUTPUT_DIFFERS,
+        [
+            "The output of the run differs from the expected output",
+            "La salida de la ejecución difiere de la esperada",
+            "Die Ausgabe der Ausführung weicht von der erwarteten ab",
+            "La sortie de l'exécution diffère de la sortie attendue",
+            "L'output dell'esecuzione differisce da quello atteso",
+            "実行の出力が期待される出力と異なります",
+            "运行输出与预期输出不同",
+            "A saída da execução difere da esperada",
+        ],
+    ),
 ];
 
 /// The title of a code in a language; the code itself when it is not registered.
@@ -471,7 +729,7 @@ mod tests {
                 assert!(!text.is_empty(), "{code} column {column}");
             }
         }
-        assert_eq!(TITLES.len(), 24);
+        assert_eq!(TITLES.len(), 41);
     }
 
     #[test]
