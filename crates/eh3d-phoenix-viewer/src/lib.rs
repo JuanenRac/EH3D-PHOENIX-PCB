@@ -133,6 +133,7 @@
 
 pub mod appearance;
 pub mod bench;
+pub mod board_actions_text;
 pub mod board_analysis;
 #[cfg(feature = "gui")]
 pub mod board_analysis_gui;
@@ -172,6 +173,7 @@ pub mod console_log;
 pub mod dock_text;
 #[cfg(feature = "gui")]
 pub mod drc_gui;
+pub mod drc_live;
 pub mod drc_panel;
 pub mod drc_text;
 pub mod editmsg;

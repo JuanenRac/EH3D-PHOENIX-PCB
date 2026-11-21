@@ -31,6 +31,7 @@ use crate::shape::{
     legs, lines_through, piece_length, route_pieces, serpentine, MeanderSide, Shape, Tuning,
 };
 use crate::shove;
+use crate::tidy;
 
 /// What the planner reads besides the board.
 pub struct Env<'a> {
@@ -312,6 +313,33 @@ pub fn plan(
         }
         EditOp::DeleteNet { net } => delete_net(board, *net),
         EditOp::SwapPads { a, b } => swap_pads(board, env, *a, *b),
+        EditOp::SetTrackWidth { track, width_nm } => {
+            tidy::set_track_width(board, *track, *width_nm)
+        }
+        EditOp::MoveVia { via, to } => tidy::move_via(board, *via, *to),
+        EditOp::ResizeVia {
+            via,
+            drill_nm,
+            diameter_nm,
+        } => tidy::resize_via(board, *via, *drill_nm, *diameter_nm),
+        EditOp::SplitTrack { track, piece } => {
+            let new_id = ids.next_for(board);
+            tidy::split_track(board, *track, *piece, new_id)
+        }
+        EditOp::SplitTrackAt { track, at } => {
+            let new_id = ids.next_for(board);
+            tidy::split_track_at(board, *track, *at, new_id)
+        }
+        EditOp::JoinTracks { a, b } => tidy::join_tracks(board, *a, *b),
+        EditOp::TidyTracks { net } => tidy::tidy_tracks(board, *net),
+        EditOp::SetValue { component, value } => tidy::set_value(board, env, *component, value),
+        EditOp::SetRefdes { component, refdes } => tidy::set_refdes(board, env, *component, refdes),
+        EditOp::RenameNet { net, name } => tidy::rename_net(board, *net, name),
+        EditOp::MergeNets { from, into } => tidy::merge_nets(board, *from, *into),
+        EditOp::SnapToGrid {
+            components,
+            grid_nm,
+        } => tidy::snap_to_grid(board, env, components, *grid_nm),
         EditOp::RouteBetween {
             from,
             to,

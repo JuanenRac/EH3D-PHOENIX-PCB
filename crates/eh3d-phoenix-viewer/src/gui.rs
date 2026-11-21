@@ -1472,6 +1472,7 @@ impl App {
             editing: self.sch.is_some() || self.brd.is_some(),
             can_undo: self.workspace.as_ref().is_some_and(|w| w.can_undo()),
             can_redo: self.workspace.as_ref().is_some_and(|w| w.can_redo()),
+            actions: self.brd.as_ref().map_or(0, board_gui::actions_mask),
         }
     }
 
@@ -1523,6 +1524,11 @@ impl App {
             Cmd::LayerPresets => self.win.show_window(ShotWindow::Layers),
             Cmd::History => self.win.show_window(ShotWindow::History),
             Cmd::Shortcuts => self.win.show_window(ShotWindow::Shortcuts),
+            Cmd::BoardAction(action) => {
+                if let Some(brd) = self.brd.as_mut() {
+                    board_gui::run_action(brd, action);
+                }
+            }
         }
     }
 

@@ -17,6 +17,7 @@ use eh3d_phoenix_model::Point;
 use eh3d_phoenix_route::copper_layers;
 use eh3d_phoenix_rules::{Lang, Severity};
 
+use crate::board_actions_text::ActionMsg;
 use crate::board_analysis::AnalysisTool;
 use crate::board_analysis_text::AnalysisMsg;
 use crate::board_autoroute::AutorouteTool;
@@ -29,6 +30,7 @@ use crate::board_zone::ZoneTool;
 use crate::editmsg::EditMsg;
 use crate::gui::{ui_accent, ui_danger, ui_dim, ui_text};
 use crate::workspace::Workspace;
+use eh3d_phoenix_boardedit::actions::EditAction;
 
 // the colours of the theme Forge, as in the window of the viewer
 const TOP_COPPER: Color32 = Color32::from_rgb(0xd8, 0x4a, 0x4a);
@@ -356,6 +358,22 @@ fn select_net_at(st: &mut BoardEditUi, pointer: Option<Point>) {
 }
 
 /// A point in nanometres.
+/// The actions of the Edit menu that can be chosen now, as the bits of their places in
+/// `EditAction::ALL`.
+pub fn actions_mask(st: &BoardEditUi) -> u16 {
+    let available = st.state.available_actions();
+    EditAction::ALL
+        .iter()
+        .enumerate()
+        .filter(|(_, a)| available.contains(a))
+        .fold(0, |mask, (i, _)| mask | (1 << i))
+}
+
+/// Does an action of the Edit menu.
+pub fn run_action(st: &mut BoardEditUi, action: EditAction) {
+    st.state.run_action(action);
+}
+
 fn point_nm(p: Point) -> (i64, i64) {
     (p.x_nm.get(), p.y_nm.get())
 }
@@ -751,11 +769,17 @@ pub fn canvas(
         Tool::Tune => BoardMsg::HintTune,
         Tool::TestPad => BoardMsg::HintTestPad,
         Tool::Dimension => BoardMsg::HintDimension,
+        Tool::SwapPads => BoardMsg::HintSelect,
+    };
+    let hint_text = match (st.state.tool, st.state.swap_first) {
+        (Tool::SwapPads, Some(_)) => ActionMsg::SwapFirst.tr(lang),
+        (Tool::SwapPads, None) => ActionMsg::HintSwap.tr(lang),
+        _ => hint.tr(lang),
     };
     painter.text(
         rect.left_bottom() + egui::vec2(8.0, -8.0),
         egui::Align2::LEFT_BOTTOM,
-        hint.tr(lang),
+        hint_text,
         egui::FontId::proportional(13.0),
         ui_dim(),
     );
@@ -1015,10 +1039,35 @@ pub fn tools_panel(ui: &mut egui::Ui, st: &mut BoardEditUi, lang: Lang) -> bool 
         ] {
             ui.selectable_value(&mut tool, value, text.tr(lang));
         }
+        ui.selectable_value(&mut tool, Tool::SwapPads, ActionMsg::Swap.tr(lang));
     });
     if tool != st.state.tool {
         st.state.set_tool(tool);
     }
+    if let Some(outcome) = &st.state.last {
+        let live = crate::drc_live::summarise(&outcome.drc);
+        let colour = match live.tone {
+            crate::drc_live::Tone::Worse => Color32::from_rgb(0xe0, 0x60, 0x50),
+            crate::drc_live::Tone::Better => Color32::from_rgb(0x5f, 0xd0, 0xb0),
+            crate::drc_live::Tone::Same => ui_dim(),
+        };
+        ui.label(egui::RichText::new(live.line(lang)).color(colour));
+    }
+    let available = st.state.available_actions();
+    ui.horizontal_wrapped(|ui| {
+        for action in EditAction::ALL {
+            if action == EditAction::SwapPads {
+                continue;
+            }
+            let button = egui::Button::new(ActionMsg::of(action).tr(lang));
+            if ui
+                .add_enabled(available.contains(&action), button)
+                .clicked()
+            {
+                st.state.run_action(action);
+            }
+        }
+    });
 
     let layers: Vec<(Id, String)> = copper_layers(st.state.board())
         .into_iter()

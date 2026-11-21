@@ -233,6 +233,98 @@ pub enum EditOp {
         /// The second pad.
         b: PadRef,
     },
+    /// Changes the copper width of a track; refused when it has this width already or the width
+    /// is not above zero.
+    SetTrackWidth {
+        /// The track.
+        track: Id,
+        /// The new width in nanometres.
+        width_nm: i64,
+    },
+    /// Moves a via. The tracks that end at it stay where they are, so the rule check shows what
+    /// no longer meets.
+    MoveVia {
+        /// The via.
+        via: Id,
+        /// The new place.
+        to: Point,
+    },
+    /// Changes the drill and the pad diameter of a via (the pad is larger than the drill).
+    ResizeVia {
+        /// The via.
+        via: Id,
+        /// The new drill diameter in nanometres.
+        drill_nm: i64,
+        /// The new pad diameter in nanometres.
+        diameter_nm: i64,
+    },
+    /// Cuts a track in two after one of its pieces (counted from 0): the first part keeps the id.
+    SplitTrack {
+        /// The track.
+        track: Id,
+        /// The piece after which the track is cut; there must be a piece after it.
+        piece: usize,
+    },
+    /// Cuts a track in two at a point that lies on one of its straight pieces (the piece is
+    /// divided there); the first part keeps the id. A point at an end of a piece is a cut after
+    /// that piece, as `split_track`.
+    SplitTrackAt {
+        /// The track.
+        track: Id,
+        /// The place of the cut.
+        at: Point,
+    },
+    /// Joins two tracks of the same net, layer and width whose ends meet into one (the first keeps
+    /// its id).
+    JoinTracks {
+        /// The first track.
+        a: Id,
+        /// The second track.
+        b: Id,
+    },
+    /// Tidies the tracks of a net, or of every net: the pieces of no length go and two straight
+    /// pieces in a row that point the same way become one.
+    TidyTracks {
+        /// The net; every net when left out.
+        #[serde(default)]
+        net: Option<Id>,
+    },
+    /// Changes the value of a component (`10k`, `100nF`).
+    SetValue {
+        /// The component.
+        component: Id,
+        /// The new value.
+        value: String,
+    },
+    /// Changes the designator of a component; refused when another component has it.
+    SetRefdes {
+        /// The component.
+        component: Id,
+        /// The new designator.
+        refdes: String,
+    },
+    /// Renames a net; refused when another net has the name.
+    RenameNet {
+        /// The net.
+        net: Id,
+        /// The new name.
+        name: String,
+    },
+    /// Merges the net `from` into the net `into`: its pads, tracks and vias go to `into` and the
+    /// net is removed. Refused while a zone is on it.
+    MergeNets {
+        /// The net that goes.
+        from: Id,
+        /// The net that stays.
+        into: Id,
+    },
+    /// Puts components on the nearest point of a grid.
+    SnapToGrid {
+        /// The components.
+        components: Vec<Id>,
+        /// The grid in nanometres.
+        grid_nm: i64,
+    },
     /// Deletes every track and via of a net (its zones and the nets of its pads stay).
     DeleteNet {
         /// The net.

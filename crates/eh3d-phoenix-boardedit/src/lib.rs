@@ -62,6 +62,12 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
+pub mod actions;
+#[cfg(test)]
+mod actions_tests;
+pub mod advance;
+#[cfg(test)]
+mod advance_tests;
 #[cfg(test)]
 mod advanced_tests;
 mod arc;
@@ -102,6 +108,9 @@ pub mod shove_codes;
 mod shove_tests;
 #[cfg(test)]
 mod testutil;
+pub mod tidy;
+#[cfg(test)]
+mod tidy_tests;
 pub mod tool;
 #[cfg(test)]
 mod tool_tests;

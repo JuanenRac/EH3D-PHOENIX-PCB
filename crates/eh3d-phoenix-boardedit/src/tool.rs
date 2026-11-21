@@ -35,6 +35,8 @@ pub enum Tool {
     TestPad,
     /// Draw a dimension, one click for each point (see `EditState::dimension_kind`).
     Dimension,
+    /// Swap the nets of two pads: one click for each pad.
+    SwapPads,
 }
 
 /// A drag of components in progress.
@@ -78,6 +80,8 @@ pub struct EditState {
     pub route_net: Option<Id>,
     /// The points of the route in progress.
     pub route_points: Vec<Point>,
+    /// The first pad that the swap tool took.
+    pub swap_first: Option<PadRef>,
     /// The kind of dimension the dimension tool draws.
     pub dimension_kind: DimensionKind,
     /// The points of the dimension in progress.
@@ -124,6 +128,7 @@ impl EditState {
             marquee: None,
             route_net: None,
             route_points: Vec::new(),
+            swap_first: None,
             dimension_kind: DimensionKind::Aligned,
             dimension_points: Vec::new(),
             dimension_grab: None,
@@ -187,6 +192,7 @@ impl EditState {
         self.route_net = None;
         self.dimension_points.clear();
         self.dimension_grab = None;
+        self.swap_first = None;
     }
 
     /// Turns the editing mode of the dimension tool on or off and drops the dimension in
@@ -647,6 +653,10 @@ impl EditState {
                 self.toggle_test_point_at(p);
             }
             Tool::Dimension => self.press_dimension(p, shift),
+            Tool::SwapPads => {
+                let tolerance = self.edit.settings.grid_nm.max(100_000);
+                self.swap_click(p, tolerance);
+            }
             Tool::Tune => match self.pick_at(p).and_then(|item| item.net(self.board())) {
                 Some(net) => {
                     self.run(&EditOp::TuneLength {

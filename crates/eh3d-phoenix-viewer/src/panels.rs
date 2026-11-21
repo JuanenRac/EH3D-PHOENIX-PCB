@@ -20,9 +20,11 @@ use eh3d_dock::stdmenus::{
 };
 use eh3d_dock::texts::Text8;
 use eh3d_dock::workspaces::Workspace;
+use eh3d_phoenix_boardedit::actions::EditAction;
 use eh3d_phoenix_rules::Lang;
 use eh3d_view::texts::Lang as ViewLang;
 
+use crate::board_actions_text::ActionMsg;
 use crate::cfg_text::CfgMsg;
 use crate::editmsg::EditMsg;
 use crate::gerber_text::GerberText;
@@ -248,6 +250,8 @@ pub enum Cmd {
     History,
     /// The list of shortcuts of the window.
     Shortcuts,
+    /// An action of the board editor on what is selected (tidy, join, snap, widths, swap).
+    BoardAction(EditAction),
 }
 
 impl From<StdAction> for Cmd {
@@ -280,6 +284,14 @@ pub fn menu_bar() -> MenuBar<Cmd> {
         |l| Msg::ClearSelection.tr(l),
         Cmd::ClearSelection,
     ));
+    edit = edit.sep();
+    for action in EditAction::ALL {
+        edit = edit.entry(own(
+            &format!("edit.{}", action.key()),
+            move |l| ActionMsg::of(action).tr(l),
+            Cmd::BoardAction(action),
+        ));
+    }
     view = view
         .sep()
         .entry(own("view.fit", |l| Msg::Fit.tr(l), Cmd::Fit))
@@ -365,6 +377,9 @@ pub struct MenuFacts {
     pub can_undo: bool,
     /// There is a step to redo.
     pub can_redo: bool,
+    /// The actions of the board editor that can be chosen now: the bit of the place of the action
+    /// in `EditAction::ALL` is set.
+    pub actions: u16,
 }
 
 /// The ids of the entries that cannot be chosen now. The ones for things the program does not have (cut,
@@ -391,6 +406,11 @@ pub fn disabled_entries(f: &MenuFacts) -> Vec<String> {
     when(!document || f.is_board || f.editing, &["tools.erc"]);
     when(!document || !f.is_board, &["tools.view3d"]);
     let mut v: Vec<String> = off.into_iter().map(str::to_string).collect();
+    for (i, action) in EditAction::ALL.iter().enumerate() {
+        if f.actions & (1 << i) == 0 {
+            v.push(format!("edit.{}", action.key()));
+        }
+    }
     v.sort();
     v.dedup();
     v
@@ -852,6 +872,7 @@ mod tests {
             editing: true,
             can_undo: true,
             can_redo: true,
+            actions: 0,
         });
         for id in ["file.save", "file.save_as", "edit.undo", "edit.redo"] {
             assert!(editing.contains(&id.to_string()), "{id}");
@@ -882,6 +903,7 @@ mod tests {
                 editing: n & 4 != 0,
                 can_undo: n & 16 != 0,
                 can_redo: n & 32 != 0,
+                actions: (n >> 6) as u16 & 0x3f,
             };
             let off = disabled_entries(&f);
             let mut sorted = off.clone();
@@ -993,5 +1015,43 @@ mod tests {
         assert_eq!(t.0[5], Msg::Fit.tr(Lang::Pt));
         assert_eq!(t.0[6], Msg::Fit.tr(Lang::Zh));
         assert_eq!(t.0[7], Msg::Fit.tr(Lang::Ja));
+    }
+    #[test]
+    fn the_actions_of_the_board_editor_are_in_the_edit_menu_and_follow_the_facts() {
+        let bar = menu_bar();
+        let ids: Vec<&str> = entries(&bar).iter().map(|e| e.id.as_str()).collect();
+        let none = disabled_entries(&MenuFacts::default());
+        for (i, action) in EditAction::ALL.iter().enumerate() {
+            let id = format!("edit.{}", action.key());
+            assert!(ids.contains(&id.as_str()), "{id}");
+            assert!(none.contains(&id), "{id}");
+            let one = disabled_entries(&MenuFacts {
+                has_document: true,
+                is_board: true,
+                editing: true,
+                actions: 1 << i,
+                ..MenuFacts::default()
+            });
+            assert!(!one.contains(&id), "{id}");
+            for (j, other) in EditAction::ALL.iter().enumerate() {
+                if j != i {
+                    assert!(one.contains(&format!("edit.{}", other.key())), "{other:?}");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn a_choice_in_the_edit_menu_is_the_command_of_its_action() {
+        let bar = menu_bar();
+        for action in EditAction::ALL {
+            let id = format!("edit.{}", action.key());
+            let entry = entries(&bar).into_iter().find(|e| e.id == id).unwrap();
+            let shown = format!("{:?}", entry.action);
+            assert!(
+                shown.contains(&format!("BoardAction({action:?})")),
+                "{shown}"
+            );
+        }
     }
 }

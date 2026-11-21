@@ -71,6 +71,11 @@ pub struct BoardEditSettings {
     /// The width of the lines and of the strokes of the text of a dimension drawn in the editor,
     /// in nanometres.
     pub dimension_stroke_nm: i64,
+    /// The step of the actions that make the selected tracks wider or narrower, in nanometres.
+    pub width_step_nm: i64,
+    /// How many times the advance of a route halves its search for the last place that breaks no
+    /// rule (the distance is found to the nearest nanometre after about thirty).
+    pub advance_iterations: usize,
 }
 
 impl Default for BoardEditSettings {
@@ -121,6 +126,8 @@ impl BoardEditSettings {
             arc_margin_nm: 0,
             dimension_text_height_nm: 1,
             dimension_stroke_nm: 1,
+            width_step_nm: 1,
+            advance_iterations: 1,
         }
     }
 
@@ -203,6 +210,10 @@ impl BoardEditSettings {
                 "dimension_stroke_nm" => {
                     self.dimension_stroke_nm = value.parse().map_err(|_| bad())?;
                 }
+                "width_step_nm" => self.width_step_nm = value.parse().map_err(|_| bad())?,
+                "advance_iterations" => {
+                    self.advance_iterations = value.parse().map_err(|_| bad())?;
+                }
                 _ => return Err(fail(format!("unknown key {key}"))),
             }
         }
@@ -228,6 +239,7 @@ impl BoardEditSettings {
             ("arc_margin_nm", self.arc_margin_nm, 0),
             ("dimension_text_height_nm", self.dimension_text_height_nm, 1),
             ("dimension_stroke_nm", self.dimension_stroke_nm, 1),
+            ("width_step_nm", self.width_step_nm, 1),
         ];
         for (name, value, low) in ranges {
             if !(low..=limit).contains(&value) {
@@ -253,6 +265,7 @@ impl BoardEditSettings {
             ("shove_max_depth", self.shove_max_depth, 16),
             ("shove_max_moved", self.shove_max_moved, 256),
             ("arc_steps_per_quarter", self.arc_steps_per_quarter, 64),
+            ("advance_iterations", self.advance_iterations, 40),
         ];
         for (name, value, high) in counts {
             if !(1..=high).contains(&value) {
