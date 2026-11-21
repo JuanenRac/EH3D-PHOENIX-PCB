@@ -142,11 +142,11 @@ fn a_program_that_walks_layers_and_signals_is_covered() {
 }
 
 #[test]
-fn a_program_with_a_dialog_is_read_and_is_partly_covered() {
+fn a_program_with_a_dialog_is_read_covered_and_run_without_a_window() {
     let r = report(WITH_A_DIALOG);
     assert!(r.problems.is_empty(), "{:?}", r.problems);
-    assert_eq!(r.verdict, Verdict::Partly);
-    assert!(r.notes().iter().any(|n| n.detail.contains("dlgDialog")));
+    assert_eq!(r.verdict, Verdict::Covered);
+    assert!(r.uses.iter().any(|u| u.name == "dlgDialog" && u.runs));
 }
 
 #[test]

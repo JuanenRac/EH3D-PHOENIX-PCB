@@ -6,7 +6,7 @@
 //! "allowed" and "not run" and does not hide either.
 
 use crate::builtins::{PURE, WITH_VARIABLES};
-use crate::eval::{CONSTANTS, RUN_FUNCTIONS};
+use crate::eval::{is_dialog_name, CONSTANTS, IO_FUNCTIONS, RUN_FUNCTIONS};
 use crate::support::UseKind;
 use crate::world::{MEMBERS, WALKS};
 
@@ -39,7 +39,9 @@ pub fn evaluates(kind: UseKind, name: &str) -> bool {
             PURE.contains(&name)
                 || WITH_VARIABLES.contains(&name)
                 || RUN_FUNCTIONS.contains(&name)
-                || matches!(name, "board" | "schematic")
+                || IO_FUNCTIONS.contains(&name)
+                || is_dialog_name(name)
+                || matches!(name, "board" | "schematic" | "sheet")
         }
         UseKind::Member => WALKS.contains(&name) || MEMBERS.contains(&name),
         UseKind::Constant => CONSTANTS.contains(&name),
@@ -63,8 +65,10 @@ mod tests {
         assert!(evaluates(UseKind::Directive, "usage"));
         assert!(!evaluates(UseKind::Directive, "include"));
         assert!(!evaluates(UseKind::Function, "system"));
-        assert!(!evaluates(UseKind::Function, "output"));
-        assert!(!evaluates(UseKind::Function, "time"));
+        assert!(evaluates(UseKind::Function, "output"));
+        assert!(evaluates(UseKind::Function, "time"));
+        assert!(evaluates(UseKind::Function, "dlgLabel"));
+        assert!(!evaluates(UseKind::Function, "dlgNoSuchControl"));
         assert!(!evaluates(UseKind::Constant, "UL_WIRE"));
     }
 

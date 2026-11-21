@@ -23,7 +23,7 @@ fn command(args: &[&str]) -> (i32, String, String) {
 const GOOD: &str = "#usage \"Counts the parts\"\nint n = 0;\nboard(B) {\n  B.elements(E) { n++; }\n}\noutput(\"count.txt\", \"wt\") {\n  printf(\"%d\\n\", n);\n}\n";
 const BROKEN: &str = "int a = ;\nint b = 2\nstring s = \"open;\n";
 const SYSTEM: &str = "system(\"dir\");\n";
-const DIALOG: &str = "int ok = dlgDialog(\"Title\") { dlgLabel(\"x\"); };\n";
+const PENDING: &str = "string x = xmlelement(\"a\", 1);\n";
 
 fn write(dir: &Path, name: &str, text: &str) -> String {
     let path = dir.join(name);
@@ -81,10 +81,10 @@ fn report_says_covered_for_a_program_the_list_covers() {
 }
 
 #[test]
-fn report_says_not_covered_for_a_command_of_the_system_and_partly_for_a_dialog() {
+fn report_says_not_covered_for_a_command_of_the_system_and_partly_for_a_name_not_decided() {
     let dir = tempfile::tempdir().unwrap();
     let system = write(dir.path(), "system.ulp", SYSTEM);
-    let dialog = write(dir.path(), "dialog.ulp", DIALOG);
+    let dialog = write(dir.path(), "pending.ulp", PENDING);
     let (code, out, _) = command(&["ulp", "report", &system]);
     assert_eq!(code, 1);
     assert!(
@@ -495,4 +495,45 @@ fn the_help_of_the_command_names_run() {
     assert!(out.contains("run"), "{out}");
     let (_, _, err) = command(&["ulp"]);
     assert!(err.contains("phoenix ulp run"), "{err}");
+}
+
+#[test]
+fn a_run_writes_only_into_the_folder_it_is_given_and_takes_arguments_and_a_clock() {
+    let dir = tempfile::tempdir().unwrap();
+    let work = dir.path().join("work");
+    fs::create_dir(&work).unwrap();
+    let program = write(
+        dir.path(),
+        "files.ulp",
+        "output(\"made.txt\") { printf(\"%d %s %s\\n\", argc, argv[1], t2string(time(), \"yyyy-MM-dd\")); }\nstring l[]; int n = fileread(l, \"made.txt\");\nprintf(\"%d %s\\n\", n, l[0]);\n",
+    );
+    let (code, out, err) = command(&[
+        "ulp",
+        "run",
+        "--dir",
+        work.to_str().unwrap(),
+        "--time",
+        "1700000000",
+        &program,
+        "--",
+        "first",
+    ]);
+    assert_eq!(code, 0, "{err}");
+    assert_eq!(out, "1 2 first 2023-11-14\n");
+    assert_eq!(
+        fs::read_to_string(work.join("made.txt")).unwrap(),
+        "2 first 2023-11-14\n"
+    );
+    // a bad time is refused before the run
+    let (code, _, _) = command(&["ulp", "run", "--time", "soon", &program]);
+    assert_eq!(code, 1);
+    // outside the folder: refused
+    let escape = write(
+        dir.path(),
+        "escape.ulp",
+        "output(\"../escaped.txt\") { printf(\"x\"); }\n",
+    );
+    let (code, _, err) = command(&["ulp", "run", "--dir", work.to_str().unwrap(), &escape]);
+    assert_eq!(code, 1, "{err}");
+    assert!(!dir.path().join("escaped.txt").exists());
 }

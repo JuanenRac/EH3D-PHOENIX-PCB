@@ -643,7 +643,7 @@ mod tests {
 
     #[test]
     fn a_dialog_or_a_name_that_is_not_on_the_list_makes_it_partly_covered() {
-        let a = report("dlgDialog(\"x\") { dlgLabel(\"y\"); };\n");
+        let a = report("int n = xmlelement(\"x\");\n");
         assert_eq!(a.verdict, Verdict::Partly);
         assert!(a.notes().iter().any(|n| n.code == ITEM_PENDING));
         let b = report("int n = mysteryFunction(1);\n");
@@ -737,14 +737,17 @@ mod tests {
             report("int n = 0;\nboard(B) { B.elements(E) { n++; printf(\"%s\", E.name); } }\n");
         assert!(yes.runnable, "{:?}", yes.not_run());
         assert!(yes.uses.iter().all(|u| u.runs));
-        let no = report("int n = time();\noutput(\"a\", \"wt\") { }\n");
+        let no = report("int n = xmlelement(1);\nint p = palette(2);\n");
         assert!(!no.runnable);
-        assert_eq!(no.not_run(), ["function output", "function time"]);
+        assert_eq!(no.not_run(), ["function palette", "function xmlelement"]);
         let unreadable = report("int a = ;\n");
         assert!(!unreadable.runnable);
         let text = report_text(&no, Lang::En);
         assert!(text.contains("Runs in the evaluator: no"), "{text}");
-        assert!(text.contains("function output, function time"), "{text}");
+        assert!(
+            text.contains("function palette, function xmlelement"),
+            "{text}"
+        );
     }
 
     #[test]
@@ -763,7 +766,7 @@ mod tests {
 
     #[test]
     fn the_notes_are_in_the_order_of_the_program() {
-        let r = report("dlgDialog(\"x\") { };\nsystem(\"y\");\nint n = nothing(2);\n");
+        let r = report("int p = palette(1);\nsystem(\"y\");\nint n = nothing(2);\n");
         let lines: Vec<usize> = r.notes().iter().map(|n| n.line).collect();
         let mut sorted = lines.clone();
         sorted.sort_unstable();

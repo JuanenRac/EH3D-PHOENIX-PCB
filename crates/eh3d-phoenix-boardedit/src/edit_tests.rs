@@ -614,3 +614,56 @@ fn a_pad_reference_is_the_component_and_the_pad() {
         }
     );
 }
+
+#[test]
+fn swapping_two_pads_swaps_their_nets_and_undoes_as_one_step() {
+    let f = fixture();
+    let mut e = editor(&f);
+    e.apply(&EditOp::DeleteNet { net: f.sig }).unwrap();
+    let (a, b) = (f.pad(f.r1, f.pad1), f.pad(f.r1, f.pad2));
+    assert_eq!(
+        (e.board().net_of(a), e.board().net_of(b)),
+        (Some(f.gnd), Some(f.sig))
+    );
+    let steps = e.steps();
+    e.apply(&EditOp::SwapPads { a, b }).unwrap();
+    assert_eq!(
+        (e.board().net_of(a), e.board().net_of(b)),
+        (Some(f.sig), Some(f.gnd))
+    );
+    assert_eq!(e.steps(), steps + 1);
+    assert!(e.undo());
+    assert_eq!(
+        (e.board().net_of(a), e.board().net_of(b)),
+        (Some(f.gnd), Some(f.sig))
+    );
+    assert!(e.redo());
+    assert_eq!(e.board().net_of(a), Some(f.sig));
+}
+
+#[test]
+fn a_swap_of_pads_is_refused_when_it_changes_nothing_or_a_part_is_locked() {
+    let f = fixture();
+    let mut e = editor(&f);
+    let a = f.pad(f.r1, f.pad1);
+    for (x, y) in [
+        (a, a),
+        (a, f.pad(f.r2, f.pad2)),
+        (a, f.pad(id(900), f.pad1)),
+    ] {
+        assert_eq!(
+            e.apply(&EditOp::SwapPads { a: x, b: y }).unwrap_err().code,
+            OPERATION_REFUSED
+        );
+    }
+    e.apply(&EditOp::Lock { id: f.r1 }).unwrap();
+    assert_eq!(
+        e.apply(&EditOp::SwapPads {
+            a,
+            b: f.pad(f.r1, f.pad2)
+        })
+        .unwrap_err()
+        .code,
+        COMPONENT_LOCKED
+    );
+}

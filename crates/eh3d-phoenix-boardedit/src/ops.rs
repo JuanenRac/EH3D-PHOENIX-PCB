@@ -224,6 +224,15 @@ pub enum EditOp {
         /// The dimension.
         dimension: Id,
     },
+    /// Swaps the nets of two pads, the swap of two pins that do the same: each pad takes the net
+    /// of the other. The tracks stay where they are, so the rule check shows what no longer
+    /// fits.
+    SwapPads {
+        /// The first pad.
+        a: PadRef,
+        /// The second pad.
+        b: PadRef,
+    },
     /// Deletes every track and via of a net (its zones and the nets of its pads stay).
     DeleteNet {
         /// The net.

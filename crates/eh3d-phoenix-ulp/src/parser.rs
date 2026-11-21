@@ -48,6 +48,7 @@ pub fn parse(source: &str, settings: &UlpSettings) -> Result<Parsed, Diag> {
         statements: 0,
         problems: lexed.problems,
         settings: settings.clone(),
+        numeric_next: false,
     };
     let program = parser.program()?;
     // the problems of the characters come first from the lexer: put all of them in the order of
@@ -75,6 +76,8 @@ struct Parser {
     statements: usize,
     problems: Problems,
     settings: UlpSettings,
+    /// `numeric` was read before the declaration that comes next.
+    numeric_next: bool,
 }
 
 fn prec(op: &str) -> Option<u8> {
@@ -99,6 +102,35 @@ fn opens_a_block(e: &Expr) -> bool {
     match &e.kind {
         ExprKind::Call { .. } | ExprKind::Name(_) => true,
         ExprKind::Assign { value, .. } => matches!(value.kind, ExprKind::Call { .. }),
+        _ => false,
+    }
+}
+
+/// True for a call of a control of a dialog (`dlgPushButton(...)`), which may be followed by the
+/// statement it runs when it is used.
+fn is_dialog_call(e: &Expr) -> bool {
+    match &e.kind {
+        ExprKind::Call { callee, .. } => {
+            matches!(&callee.kind, ExprKind::Name(n) if n.starts_with("dlg"))
+        }
+        // a layout without parentheses, followed by the one control it holds
+        ExprKind::Name(n) => n.starts_with("dlg"),
+        _ => false,
+    }
+}
+
+/// True for a call that a walk, an output file or a dialog opens: `board(B)`, `B.elements(E)`,
+/// `output("file")`; the statement that follows it is run for each object.
+fn is_walk_call(e: &Expr) -> bool {
+    match &e.kind {
+        ExprKind::Call { callee, .. } => match &callee.kind {
+            ExprKind::Member { .. } => true,
+            ExprKind::Name(n) => matches!(
+                n.as_str(),
+                "board" | "schematic" | "library" | "output" | "sheet"
+            ),
+            _ => false,
+        },
         _ => false,
     }
 }
@@ -266,7 +298,77 @@ impl Parser {
         Ok(program)
     }
 
+    /// `numeric` before a type (an array that sorts as numbers) is read and left out.
+    fn skip_modifier(&mut self) {
+        let t = self.peek();
+        if t.kind == Kind::Ident && t.text == "numeric" && is_basic_type(&self.peek_at(1).text) {
+            self.advance();
+            self.numeric_next = true;
+        }
+    }
+
+    /// `enum { A, B = 5, C };`: whole numbers, each one more than the one before unless it is
+    /// given. They are read as the declaration of variables of type `int`.
+    fn enumeration(&mut self) -> Step<StmtKind> {
+        self.advance();
+        if self.peek().kind == Kind::Ident && !self.peek().is("{") {
+            self.advance();
+        }
+        self.expect("{")?;
+        let mut names: Vec<Declarator> = Vec::new();
+        while !self.peek().is("}") && !self.at_end() {
+            let pos = self.pos();
+            let name = self.expect_name("the name of a value")?;
+            let value = if self.peek().is("=") {
+                self.advance();
+                self.conditional()?
+            } else {
+                match names.last() {
+                    None => Expr {
+                        kind: ExprKind::Int("0".to_owned()),
+                        pos,
+                    },
+                    Some(prev) => Expr {
+                        kind: ExprKind::Binary {
+                            op: "+".to_owned(),
+                            left: Box::new(Expr {
+                                kind: ExprKind::Name(prev.name.clone()),
+                                pos,
+                            }),
+                            right: Box::new(Expr {
+                                kind: ExprKind::Int("1".to_owned()),
+                                pos,
+                            }),
+                        },
+                        pos,
+                    },
+                }
+            };
+            names.push(Declarator {
+                name: name.text,
+                array: false,
+                size: None,
+                init: Some(Init::Value(value)),
+                numeric: false,
+                pos,
+            });
+            self.chain_check(names.len())?;
+            if self.peek().is(",") {
+                self.advance();
+            } else {
+                break;
+            }
+        }
+        self.expect("}")?;
+        self.expect(";")?;
+        Ok(StmtKind::Decl(Decl {
+            ty: "int".to_owned(),
+            names,
+        }))
+    }
+
     fn top_level(&mut self, program: &mut Program) -> Step<()> {
+        self.skip_modifier();
         let t = self.peek().clone();
         if t.kind == Kind::Directive {
             if let Some(d) = self.directive() {
@@ -318,7 +420,12 @@ impl Parser {
                     ));
                     break;
                 }
-                args.push(self.advance().text);
+                let mut text = self.advance().text;
+                // texts written one after the other are one text, as in an expression
+                while self.peek().kind == Kind::Str {
+                    text.push_str(&self.advance().text);
+                }
+                args.push(text);
                 if self.peek().is(",") {
                     self.advance();
                 } else {
@@ -378,6 +485,10 @@ impl Parser {
         let name = self.advance().text;
         self.expect("(")?;
         let mut params = Vec::new();
+        if self.peek().is_word("void") && self.peek_at(1).is(")") {
+            // `f(void)`: no parameters
+            self.advance();
+        }
         if !self.peek().is(")") {
             loop {
                 if !self.starts_declaration() {
@@ -460,6 +571,7 @@ impl Parser {
     }
 
     fn statement_inner(&mut self) -> Step<Stmt> {
+        self.skip_modifier();
         let pos = self.pos();
         let t = self.peek().clone();
         let kind = if t.is(";") {
@@ -528,6 +640,7 @@ impl Parser {
                     StmtKind::Return(value)
                 }
                 "else" => return self.unexpected(),
+                "enum" => self.enumeration()?,
                 _ if self.starts_declaration() => StmtKind::Decl(self.declaration()?),
                 _ => self.expression_statement()?,
             }
@@ -606,6 +719,7 @@ impl Parser {
 
     /// `type name, name[] = {...}, name = value;`
     fn declaration(&mut self) -> Step<Decl> {
+        let numeric = std::mem::take(&mut self.numeric_next);
         let ty = self.advance().text;
         let mut names = Vec::new();
         loop {
@@ -655,6 +769,7 @@ impl Parser {
                 array,
                 size,
                 init,
+                numeric,
                 pos,
             });
             self.chain_check(names.len())?;
@@ -677,6 +792,23 @@ impl Parser {
                 self.advance();
             }
             return Ok(StmtKind::Loop { call: e, body });
+        }
+        if is_dialog_call(&e) && !self.peek().is(";") && !self.peek().is("}") {
+            // `dlgPushButton("+OK") dlgAccept();`: the action of a control is the statement that
+            // follows it
+            let action = self.statement()?;
+            return Ok(StmtKind::Loop {
+                call: e,
+                body: vec![action],
+            });
+        }
+        if is_walk_call(&e) && self.peek().kind == Kind::Ident {
+            // `B.elements(E) if (...) {...}`: a walk over a single statement
+            let single = self.statement()?;
+            return Ok(StmtKind::Loop {
+                call: e,
+                body: vec![single],
+            });
         }
         self.expect(";")?;
         Ok(StmtKind::Expr(e))
@@ -900,7 +1032,11 @@ impl Parser {
                 }
                 ExprKind::Str(text)
             }
-            Kind::Ident if !KEYWORDS.contains(&t.text.as_str()) => {
+            Kind::Ident
+                if !KEYWORDS.contains(&t.text.as_str())
+                    || (is_basic_type(&t.text) && self.peek_at(1).is("(")) =>
+            {
+                // a name; `int(x)`, `real(x)`, `char(x)` and `string(x)` are calls that convert
                 self.advance();
                 ExprKind::Name(t.text)
             }

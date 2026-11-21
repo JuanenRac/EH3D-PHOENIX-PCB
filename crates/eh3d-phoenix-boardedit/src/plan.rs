@@ -311,6 +311,7 @@ pub fn plan(
             Ok(single(Operation::RemoveDimension { id: *dimension }))
         }
         EditOp::DeleteNet { net } => delete_net(board, *net),
+        EditOp::SwapPads { a, b } => swap_pads(board, env, *a, *b),
         EditOp::RouteBetween {
             from,
             to,
@@ -772,6 +773,40 @@ fn delete_segment(
     let mut plan = single(Operation::Batch { ops });
     plan.created = created;
     Ok(plan)
+}
+
+/// A pad of the board, or a refusal.
+fn pad_of(board: &Board, pad: PadRef) -> Result<(), BoardEditError> {
+    let found = board
+        .components
+        .get(&pad.component)
+        .and_then(|c| board.footprints.get(&c.footprint))
+        .is_some_and(|f| f.pads.contains_key(&pad.pad));
+    if found {
+        Ok(())
+    } else {
+        Err(refused(format!("no pad {}.{}", pad.component, pad.pad)))
+    }
+}
+
+fn swap_pads(board: &Board, env: &Env, a: PadRef, b: PadRef) -> Result<Plan, BoardEditError> {
+    if a == b {
+        return Err(refused("the two pads are the same pad"));
+    }
+    pad_of(board, a)?;
+    pad_of(board, b)?;
+    check_unlocked(env, a.component)?;
+    check_unlocked(env, b.component)?;
+    let (na, nb) = (board.net_of(a), board.net_of(b));
+    if na == nb {
+        return Err(refused("the pads are on the same net, or on none"));
+    }
+    Ok(single(Operation::Batch {
+        ops: vec![
+            Operation::SetPadNet { pad: a, net: nb },
+            Operation::SetPadNet { pad: b, net: na },
+        ],
+    }))
 }
 
 fn delete_net(board: &Board, net: Id) -> Result<Plan, BoardEditError> {

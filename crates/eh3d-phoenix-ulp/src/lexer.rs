@@ -298,7 +298,8 @@ fn punct(cur: &Cursor) -> Option<&'static str> {
 fn skip_blank(cur: &mut Cursor, problems: &mut Problems) {
     loop {
         match cur.peek(0) {
-            Some(c) if c.is_whitespace() => {
+            Some(c) if c.is_whitespace() || c == '\u{1a}' => {
+                // the end-of-file mark of old systems is a blank
                 cur.bump();
             }
             Some('\\') if matches!(cur.peek(1), Some('\n')) => {
@@ -410,12 +411,24 @@ fn read_number(cur: &mut Cursor, problems: &mut Problems, line: usize, col: usiz
     }
 }
 
-/// Reads one escape after a backslash that was taken; the character it stands for.
-fn read_escape(cur: &mut Cursor, problems: &mut Problems) -> char {
+/// Reads one escape after a backslash that was taken; the character it stands for. A backslash at
+/// the end of a line continues the text on the next line and stands for nothing. Any other
+/// character after a backslash that is not an escape stands for itself, as it does in the text of
+/// a path or of a pattern.
+fn read_escape(cur: &mut Cursor, problems: &mut Problems) -> Option<char> {
     let (line, col) = (cur.line, cur.col.saturating_sub(1));
     let Some(c) = cur.peek(0) else {
-        return '\\';
+        return Some('\\');
     };
+    if c == '\r' && cur.peek(1) == Some('\n') {
+        cur.bump();
+        cur.bump();
+        return None;
+    }
+    if c == '\n' {
+        cur.bump();
+        return None;
+    }
     let plain = match c {
         'n' => Some('\n'),
         't' => Some('\t'),
@@ -429,7 +442,7 @@ fn read_escape(cur: &mut Cursor, problems: &mut Problems) -> char {
     };
     if let Some(value) = plain {
         cur.bump();
-        return value;
+        return Some(value);
     }
     if c == 'x' || c == 'X' {
         cur.bump();
@@ -446,9 +459,9 @@ fn read_escape(cur: &mut Cursor, problems: &mut Problems) -> char {
         }
         if digits == 0 {
             problems.push(Diag::at(ESCAPE_INVALID, line, col, "`\\x` without digits"));
-            return 'x';
+            return Some('x');
         }
-        return char::from_u32(value).unwrap_or('\u{fffd}');
+        return Some(char::from_u32(value).unwrap_or('\u{fffd}'));
     }
     if c.is_digit(8) {
         let mut value = 0u32;
@@ -462,16 +475,10 @@ fn read_escape(cur: &mut Cursor, problems: &mut Problems) -> char {
             digits += 1;
             cur.bump();
         }
-        return char::from_u32(value).unwrap_or('\u{fffd}');
+        return Some(char::from_u32(value).unwrap_or('\u{fffd}'));
     }
     cur.bump();
-    problems.push(Diag::at(
-        ESCAPE_INVALID,
-        line,
-        col,
-        format!("`\\{}`", c.escape_default()),
-    ));
-    c
+    Some(c)
 }
 
 fn read_string(
@@ -496,12 +503,13 @@ fn read_string(
             '\n' => break,
             '\\' => {
                 cur.bump();
-                let value = read_escape(cur, problems);
-                chars += 1;
-                if chars <= settings.max_string_chars {
-                    text.push(value);
-                } else {
-                    too_long = true;
+                if let Some(value) = read_escape(cur, problems) {
+                    chars += 1;
+                    if chars <= settings.max_string_chars {
+                        text.push(value);
+                    } else {
+                        too_long = true;
+                    }
                 }
             }
             _ => {
@@ -547,7 +555,7 @@ fn read_char(cur: &mut Cursor, problems: &mut Problems, line: usize, col: usize)
     let value = match cur.peek(0) {
         Some('\\') => {
             cur.bump();
-            Some(read_escape(cur, problems))
+            read_escape(cur, problems)
         }
         Some(c) if c != '\'' && c != '\n' => {
             cur.bump();
@@ -673,7 +681,18 @@ mod tests {
         assert_eq!(l.tokens[0].text, "a\tb\\c\"dAA");
         let bad = read(r#""\q \x""#);
         let codes: Vec<&str> = bad.problems.list.iter().map(|p| p.code).collect();
-        assert_eq!(codes, [ESCAPE_INVALID, ESCAPE_INVALID]);
+        assert_eq!(
+            codes,
+            [ESCAPE_INVALID],
+            "a letter after a backslash stands for itself"
+        );
+        assert_eq!(bad.tokens[0].text, "q x");
+        let kept = read("\"a\\%b\\\r\nc\"");
+        assert!(kept.problems.list.is_empty(), "{:?}", kept.problems);
+        assert_eq!(
+            kept.tokens[0].text, "a%bc",
+            "a backslash at the end of a line continues"
+        );
     }
 
     #[test]

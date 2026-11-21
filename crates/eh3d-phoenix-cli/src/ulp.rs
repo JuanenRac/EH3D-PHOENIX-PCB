@@ -3,7 +3,7 @@
 //! of the reference tool. `phoenix ulp check` reads programs and lists what is wrong with their
 //! shape; `phoenix ulp report` says what they use and what the list of allowed names covers;
 //! `phoenix ulp run` runs one program (pure computation and read-only walks over a board and a
-//! schematic) and prints what it prints. Nothing is written to a file, and only `run` runs a
+//! schematic) and prints what it prints. `run` writes only inside the folder it is given; the others write nothing, and only `run` runs a
 //! program.
 //!
 //! Exit codes of `check`: 0 every program was read without a problem, 1 some program has a
@@ -20,8 +20,8 @@ use std::path::Path;
 use eh3d_phoenix_rules::Lang;
 use eh3d_phoenix_ulp::codes::{INPUT_UNREADABLE, OPTION_INVALID, RUN_OUTPUT_DIFFERS};
 use eh3d_phoenix_ulp::{
-    analyse, parse, read_text_limited, report_json, report_text, run_source, Diag, Support,
-    UlpSettings, Verdict, World,
+    analyse, parse, read_text_limited, report_json, report_text, run_source_with, Diag, RunEnv,
+    Support, UlpSettings, Verdict, World,
 };
 use serde_json::json;
 
@@ -37,7 +37,7 @@ const MAX_FILES: usize = 10_000;
 pub(crate) const USAGE: &str =
     "phoenix ulp check|report [--config FILE] [--support FILE] [--json] [--lang CODE] <program>...
 phoenix ulp run [--config FILE] [--board FILE] [--schematic FILE] [--expect FILE] [--lang CODE]
-                <program>
+                [--dir FOLDER] [--time SECONDS] <program> [-- ARGUMENT...]
 
   ulp check     read the programs and list what is wrong with their shape, with the line and
                 the column and the codes PHOENIX-ULP-<NNN>: texts and comments that are not
@@ -52,13 +52,20 @@ phoenix ulp run [--config FILE] [--board FILE] [--schematic FILE] [--expect FILE
                 functions of the program) and read-only walks over the design (board(B),
                 B.elements(E), ...), within the limits of steps, memory, nesting and output of
                 the settings; what the program prints goes to the standard output, the same
-                bytes for the same program and design. It opens no file, starts no program and
-                changes nothing. The design is given with --board (a .json of the model, an
+                bytes for the same program and design. It starts no program and changes
+                nothing in the design. Files: only inside the folder of --dir (or of file_dir in the
+                settings), with relative names; `output` writes there, `fileread`, `fileglob`,
+                `filesize` and `filetime` read there, and without a folder none is opened. The
+                arguments after `--` are argv[1...] (argc counts the program); --time fixes the
+                clock of time() so the output is the same every time. Dialogs are answered as
+                accepted, without a window. The design is given with --board (a .json of the model, an
                 EAGLE .brd or a KiCad .kicad_pcb) and --schematic. --expect FILE compares the
                 output with a file (line ends normalised). Exit code 0 ran and, with --expect,
                 the output is the expected one; 2 the verification did not pass (other output,
                 or exit with a number other than 0); 1 it could not be run. The sandbox in a
                 process of its own is not written yet
+  --dir FOLDER  the one folder where a run may read and write files (run only)
+  --time N      the clock of a run, in seconds since 1970 UTC (run only)
   --config      the limits of the reader and of the run (default: config/ulp.cfg when it exists)
   --support     the list of allowed names (default: the list that ships with the program,
                 config/ulp_support.cfg)
@@ -83,6 +90,9 @@ struct Options {
     board: Option<String>,
     schematic: Option<String>,
     expect: Option<String>,
+    dir: Option<String>,
+    time: Option<i64>,
+    args: Vec<String>,
     files: Vec<String>,
 }
 
@@ -104,6 +114,9 @@ fn parse_options(args: &[&str]) -> Result<Options, Diag> {
         board: None,
         schematic: None,
         expect: None,
+        dir: None,
+        time: None,
+        args: Vec::new(),
         files: Vec::new(),
     };
     while let Some(arg) = iter.next() {
@@ -125,6 +138,19 @@ fn parse_options(args: &[&str]) -> Result<Options, Diag> {
             }
             "--schematic" if mode == Mode::Run => {
                 options.schematic = Some(value("--schematic needs a file")?);
+            }
+            "--dir" if mode == Mode::Run => {
+                options.dir = Some(value("--dir needs a folder")?);
+            }
+            "--time" if mode == Mode::Run => {
+                options.time = Some(
+                    value("--time needs a number of seconds")?
+                        .parse::<i64>()
+                        .map_err(|_| bad("--time needs a whole number of seconds"))?,
+                );
+            }
+            "--" if mode == Mode::Run => {
+                options.args = iter.by_ref().map(|a| (*a).to_owned()).collect();
             }
             "--expect" if mode == Mode::Run => {
                 options.expect = Some(value("--expect needs a file")?);
@@ -354,7 +380,17 @@ fn run_program(options: &Options, out: &mut dyn Write, err: &mut dyn Write) -> i
         board: board.as_ref(),
         schematic: schematic.as_ref(),
     };
-    let outcome = match run_source(&source, &settings, &support, world) {
+    let mut settings = settings;
+    if let Some(dir) = &options.dir {
+        settings.file_dir = dir.clone();
+    }
+    let mut argv = vec![path.clone()];
+    argv.extend(options.args.iter().cloned());
+    let env = RunEnv {
+        argv,
+        now: options.time,
+    };
+    let outcome = match run_source_with(&source, &settings, &support, world, &env) {
         Ok(outcome) => outcome,
         Err(d) => return stop(err, &d),
     };

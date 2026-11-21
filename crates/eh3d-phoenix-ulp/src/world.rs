@@ -8,7 +8,7 @@
 //! degrees. A member the evaluator does not know for an object is reported by the caller as
 //! "not written yet" and never answered with a made-up value.
 
-use eh3d_phoenix_board::{Board, Id, PadShape, Segment, Side};
+use eh3d_phoenix_board::{Board, Footprint, Id, Pad, PadShape, Segment, Side, SilkItem};
 use eh3d_phoenix_schematic::Schematic;
 
 use crate::codes::{RUN_NOT_WRITTEN, RUN_TYPE};
@@ -65,6 +65,22 @@ pub enum Obj {
     SchNet(Id),
     /// A sheet of the schematic.
     Sheet(Id),
+    /// The library of the design: its packages. It is made from the footprints of the board.
+    Library,
+    /// A part as placed on a sheet of the schematic.
+    Instance(Id),
+    /// A text of the silkscreen.
+    Text(Id),
+    /// A hole that is not plated: an unplated pad of a footprint, placed (with the component) or
+    /// not.
+    Hole {
+        /// The component, when the hole is a placed one.
+        element: Option<Id>,
+        /// The footprint.
+        footprint: Id,
+        /// The pad.
+        pad: Id,
+    },
 }
 
 impl Obj {
@@ -85,20 +101,40 @@ impl Obj {
             Obj::Part(_) => "part",
             Obj::SchNet(_) => "net",
             Obj::Sheet(_) => "sheet",
+            Obj::Library => "library",
+            Obj::Instance(_) => "instance",
+            Obj::Text(_) => "text",
+            Obj::Hole { .. } => "hole",
         }
     }
 }
 
 /// The names of the walks the evaluator knows (`X.name(V)`).
 pub const WALKS: &[&str] = &[
-    "elements", "signals", "layers", "wires", "vias", "polygons", "packages", "pads", "vertices",
-    "parts", "nets", "sheets",
+    "elements",
+    "signals",
+    "layers",
+    "wires",
+    "vias",
+    "polygons",
+    "packages",
+    "pads",
+    "vertices",
+    "parts",
+    "nets",
+    "sheets",
+    "contacts",
+    "smds",
+    "holes",
+    "texts",
+    "instances",
 ];
 
 /// The names of the members the evaluator reads.
 pub const MEMBERS: &[&str] = &[
     "name", "value", "package", "x", "y", "x1", "y1", "x2", "y2", "angle", "mirror", "diameter",
-    "width", "height", "drill", "shape", "signal", "number", "layer", "length", "area",
+    "width", "height", "drill", "shape", "signal", "number", "layer", "length", "area", "xc", "yc",
+    "radius", "pad", "smd", "part", "sheet", "size", "ratio", "mirrored", "angle1", "angle2",
 ];
 
 /// The model a run reads.
@@ -149,6 +185,7 @@ impl World<'_> {
         match name {
             "board" => Ok(self.board.map(|_| Obj::Board)),
             "schematic" => Ok(self.schematic.map(|_| Obj::Schematic)),
+            "library" => Ok(self.board.map(|_| Obj::Library)),
             _ => Err(not_written(format!("function {name}"))),
         }
     }
@@ -195,6 +232,63 @@ impl World<'_> {
                 .unwrap_or_default(),
             (Obj::Board, "packages") => board
                 .map(|b| b.footprints.keys().map(|k| Obj::Package(*k)).collect())
+                .unwrap_or_default(),
+            (Obj::Library, "packages") => board
+                .map(|b| b.footprints.keys().map(|k| Obj::Package(*k)).collect())
+                .unwrap_or_default(),
+            (Obj::Package(f), "contacts" | "smds" | "holes") => board
+                .and_then(|b| b.footprints.get(f))
+                .map(|fp| pads_of(fp, None, *f, walk))
+                .unwrap_or_default(),
+            (Obj::Element(e), "contacts" | "smds" | "holes") => board
+                .and_then(|b| {
+                    let c = b.components.get(e)?;
+                    let fp = b.footprints.get(&c.footprint)?;
+                    Some(pads_of(fp, Some(*e), c.footprint, walk))
+                })
+                .unwrap_or_default(),
+            (Obj::Board, "holes") => board
+                .map(|b| {
+                    let mut out = Vec::new();
+                    for (e, c) in &b.components {
+                        if let Some(fp) = b.footprints.get(&c.footprint) {
+                            out.extend(pads_of(fp, Some(*e), c.footprint, "holes"));
+                        }
+                    }
+                    out
+                })
+                .unwrap_or_default(),
+            (Obj::Board, "texts") => board
+                .map(|b| {
+                    b.silkscreen
+                        .iter()
+                        .filter(|(_, s)| matches!(s, SilkItem::Text { .. }))
+                        .map(|(k, _)| Obj::Text(*k))
+                        .collect()
+                })
+                .unwrap_or_default(),
+            (Obj::Schematic, "instances") => sch
+                .map(|s| {
+                    s.parts
+                        .iter()
+                        .filter(|(_, p)| p.placement.is_some())
+                        .map(|(k, _)| Obj::Instance(*k))
+                        .collect()
+                })
+                .unwrap_or_default(),
+            (Obj::Sheet(sh), "instances") => sch
+                .map(|s| {
+                    s.parts
+                        .iter()
+                        .filter(|(_, p)| p.placement.as_ref().is_some_and(|pl| pl.sheet == *sh))
+                        .map(|(k, _)| Obj::Instance(*k))
+                        .collect()
+                })
+                .unwrap_or_default(),
+            (Obj::Part(p), "instances") => sch
+                .and_then(|s| s.parts.get(p))
+                .filter(|part| part.placement.is_some())
+                .map(|_| vec![Obj::Instance(*p)])
                 .unwrap_or_default(),
             (Obj::Package(f), "pads") => board
                 .and_then(|b| b.footprints.get(f))
@@ -265,6 +359,19 @@ impl World<'_> {
             .unwrap_or_default()
     }
 
+    /// Where a pad stands, in nanometres: with the component when it is a placed one.
+    fn pad_place(&self, element: Option<Id>, p: &Pad) -> (i64, i64) {
+        let (px, py) = (p.at.x_nm.get(), p.at.y_nm.get());
+        match element.and_then(|e| self.board.and_then(|b| b.components.get(&e))) {
+            None => (px, py),
+            Some(c) => {
+                let px = if c.side == Side::Bottom { -px } else { px };
+                let (tx, ty) = turn(px, py, c.rotation.get());
+                (c.at.x_nm.get() + tx, c.at.y_nm.get() + ty)
+            }
+        }
+    }
+
     /// The value of a member of an object.
     pub fn member(&self, obj: &Obj, name: &str) -> Result<Value, Fault> {
         let unknown = || not_written(format!("the member {name} of a {}", obj.kind()));
@@ -290,6 +397,85 @@ impl World<'_> {
                     "y" => nm(c.at.y_nm.get()),
                     "angle" => Value::Real(c.rotation.get() as f64 / 1e6),
                     "mirror" => Value::Int(i64::from(c.side == Side::Bottom)),
+                    _ => return Err(unknown()),
+                }
+            }
+            Obj::Library => match name {
+                "name" => text(&b.map(|b| b.name.clone()).unwrap_or_default()),
+                _ => return Err(unknown()),
+            },
+            Obj::Text(id) => {
+                let Some(SilkItem::Text {
+                    layer,
+                    at,
+                    text: value,
+                    height,
+                    stroke,
+                    rotation,
+                    mirrored,
+                }) = b.and_then(|b| b.silkscreen.get(id))
+                else {
+                    return Err((RUN_TYPE, "a text that is not in the board".to_owned()));
+                };
+                match name {
+                    "value" | "name" => text(value),
+                    "x" => nm(at.x_nm.get()),
+                    "y" => nm(at.y_nm.get()),
+                    "size" | "height" => nm(height.get()),
+                    "angle" => Value::Real(rotation.get() as f64 / 1e6),
+                    "layer" => nm(self.layer_number(layer)),
+                    "ratio" => nm(if height.get() > 0 {
+                        stroke.get() * 100 / height.get()
+                    } else {
+                        0
+                    }),
+                    "mirrored" | "mirror" => nm(i64::from(*mirrored)),
+                    _ => return Err(unknown()),
+                }
+            }
+            Obj::Instance(id) => {
+                let part = self
+                    .schematic
+                    .and_then(|s| s.parts.get(id))
+                    .ok_or_else(|| {
+                        (
+                            RUN_TYPE,
+                            "an instance that is not in the schematic".to_owned(),
+                        )
+                    })?;
+                let pl = part
+                    .placement
+                    .as_ref()
+                    .ok_or_else(|| (RUN_TYPE, "an instance that is not placed".to_owned()))?;
+                match name {
+                    "name" => text(&part.refdes),
+                    "value" => text(&part.value),
+                    "x" => nm(pl.at.x_nm.get()),
+                    "y" => nm(pl.at.y_nm.get()),
+                    "angle" => Value::Real(pl.rotation.get() as f64 / 1e6),
+                    "part" => Value::Obj(Obj::Part(*id)),
+                    "sheet" => Value::Obj(Obj::Sheet(pl.sheet)),
+                    _ => return Err(unknown()),
+                }
+            }
+            Obj::Hole {
+                element,
+                footprint,
+                pad,
+            } => {
+                let p = b
+                    .and_then(|b| b.footprints.get(footprint))
+                    .and_then(|f| f.pads.get(pad))
+                    .ok_or_else(|| (RUN_TYPE, "a hole that is not in the board".to_owned()))?;
+                let drill = p.drill.map_or(0, |d| d.get());
+                match name {
+                    "x" | "y" => {
+                        let at = self.pad_place(*element, p);
+                        nm(if name == "x" { at.0 } else { at.1 })
+                    }
+                    "drill" | "diameter" => nm(drill),
+                    "radius" => nm(drill / 2),
+                    "name" => text(&p.number),
                     _ => return Err(unknown()),
                 }
             }
@@ -319,20 +505,10 @@ impl World<'_> {
                 match name {
                     "name" => text(&p.number),
                     "x" | "y" => {
-                        let (px, py) = (p.at.x_nm.get(), p.at.y_nm.get());
-                        match element.and_then(|e| b.and_then(|b| b.components.get(&e))) {
-                            None => nm(if name == "x" { px } else { py }),
-                            Some(c) => {
-                                let px = if c.side == Side::Bottom { -px } else { px };
-                                let (tx, ty) = turn(px, py, c.rotation.get());
-                                if name == "x" {
-                                    nm(c.at.x_nm.get() + tx)
-                                } else {
-                                    nm(c.at.y_nm.get() + ty)
-                                }
-                            }
-                        }
+                        let at = self.pad_place(*element, p);
+                        nm(if name == "x" { at.0 } else { at.1 })
                     }
+                    "pad" | "smd" => Value::Obj(obj.clone()),
                     "diameter" => match p.shape {
                         PadShape::Circle { diameter } => nm(diameter.get()),
                         _ => nm(0),
@@ -393,6 +569,25 @@ impl World<'_> {
                     "width" => nm(t.width.get()),
                     "layer" => nm(self.layer_number(&t.layer)),
                     "signal" => text(&self.net_name(&t.net)),
+                    "angle1" | "angle2" => match arc_centre(s) {
+                        Some((cx, cy, _)) => {
+                            let p = if name == "angle1" { a } else { z };
+                            let deg = (p.y_nm.get() as f64 - cy)
+                                .atan2(p.x_nm.get() as f64 - cx)
+                                .to_degrees();
+                            Value::Real(deg.rem_euclid(360.0))
+                        }
+                        None => Value::Real(0.0),
+                    },
+                    "xc" | "yc" | "radius" => {
+                        let c = arc_centre(s);
+                        match (name, c) {
+                            ("xc", Some(c)) => nm(c.0.round() as i64),
+                            ("yc", Some(c)) => nm(c.1.round() as i64),
+                            ("radius", Some(c)) => nm(c.2.round() as i64),
+                            _ => nm(0),
+                        }
+                    }
                     "length" => {
                         let d2 = a.distance_squared(z);
                         nm(isqrt(d2))
@@ -488,6 +683,65 @@ impl World<'_> {
         };
         Ok(value)
     }
+}
+
+/// The pads of a footprint a walk goes over: `contacts` all, `smds` those without a drill, `holes`
+/// the drilled ones that are not plated.
+fn pads_of(fp: &Footprint, element: Option<Id>, footprint: Id, walk: &str) -> Vec<Obj> {
+    fp.pads
+        .iter()
+        .filter(|(_, p)| match walk {
+            "smds" => p.drill.is_none(),
+            "holes" => p.is_npth(),
+            _ => true,
+        })
+        .map(|(k, _)| {
+            if walk == "holes" {
+                Obj::Hole {
+                    element,
+                    footprint,
+                    pad: *k,
+                }
+            } else {
+                Obj::Pad {
+                    element,
+                    footprint,
+                    pad: *k,
+                }
+            }
+        })
+        .collect()
+}
+
+/// The centre and the radius of the arc of a piece of track, in nanometres, when it is one.
+fn arc_centre(s: &Segment) -> Option<(f64, f64, f64)> {
+    let Segment::Arc { start, end, sweep } = s else {
+        return None;
+    };
+    let (x1, y1) = (start.x_nm.get() as f64, start.y_nm.get() as f64);
+    let (x2, y2) = (end.x_nm.get() as f64, end.y_nm.get() as f64);
+    let half = (sweep.get() as f64 / 1e6).to_radians() / 2.0;
+    let chord = ((x2 - x1).powi(2) + (y2 - y1).powi(2)).sqrt();
+    if half.sin().abs() < 1e-12 {
+        return None;
+    }
+    if chord == 0.0 {
+        // a full turn: the centre cannot be told from the end points alone
+        return None;
+    }
+    let r = chord / (2.0 * half.sin().abs());
+    let (mx, my) = ((x1 + x2) / 2.0, (y1 + y2) / 2.0);
+    let d = (r * r - chord * chord / 4.0).max(0.0).sqrt();
+    // left normal of the chord; the centre is on the left of a counter-clockwise arc that is
+    // shorter than a half turn
+    let (ux, uy) = ((x2 - x1) / chord, (y2 - y1) / chord);
+    let (nx, ny) = (-uy, ux);
+    let sign = if (sweep.get() > 0) == (half.abs() < std::f64::consts::FRAC_PI_2) {
+        1.0
+    } else {
+        -1.0
+    };
+    Some((mx + sign * nx * d, my + sign * ny * d, r))
 }
 
 fn wires_of(b: &Board, net: Option<Id>) -> Vec<Obj> {

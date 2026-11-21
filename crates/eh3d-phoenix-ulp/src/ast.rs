@@ -33,6 +33,9 @@ pub struct Declarator {
     pub size: Option<Expr>,
     /// The initial value: one expression or the list in braces.
     pub init: Option<Init>,
+    /// True when the declaration began with `numeric`: an array of texts that `sort` orders as
+    /// numbers.
+    pub numeric: bool,
     /// Where it stands.
     pub pos: Pos,
 }

@@ -244,7 +244,7 @@ mod tests {
         assert_eq!(s.lookup(UseKind::Function, "system"), Some(Status::Denied));
         assert_eq!(
             s.lookup(UseKind::Function, "dlgDialog"),
-            Some(Status::Pending)
+            Some(Status::Allowed)
         );
         assert_eq!(s.lookup(UseKind::Type, "UL_ELEMENT"), Some(Status::Allowed));
         assert_eq!(

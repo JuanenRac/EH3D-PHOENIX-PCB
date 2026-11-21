@@ -31,10 +31,16 @@ use crate::codes::{
     RUN_NOT_ALLOWED, RUN_NOT_WRITTEN, RUN_NO_MODEL, RUN_OUTPUT_LIMIT, RUN_RANGE, RUN_READ_ONLY,
     RUN_STEP_LIMIT, RUN_TYPE,
 };
+use crate::runenv::RunEnv;
 use crate::settings::UlpSettings;
 use crate::support::{Status, Support, UseKind};
 use crate::value::{Ty, Value};
 use crate::world::{Fault, World, WALKS};
+
+mod io;
+pub use io::{
+    is_dialog_name, Control, Dialog, DLG_ACTIONS, DLG_CONTROLS, DLG_LAYOUTS, IO_FUNCTIONS,
+};
 
 /// What a run gives back.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -45,6 +51,10 @@ pub struct Outcome {
     pub exit_code: i64,
     /// The steps the run took.
     pub steps: usize,
+    /// The names of the files the run wrote, in the order it first wrote them.
+    pub files: Vec<String>,
+    /// The dialogs and message boxes the program built, as a model: nothing was shown.
+    pub dialogs: Vec<Dialog>,
 }
 
 enum Halt {
@@ -65,6 +75,7 @@ struct Slot {
     name: String,
     ty: Ty,
     array: bool,
+    numeric: bool,
     value: Value,
     size: usize,
 }
@@ -88,6 +99,14 @@ struct Machine<'a> {
     steps: usize,
     depth: usize,
     out: String,
+    env: &'a RunEnv,
+    outfile: Option<io::OutFile>,
+    file_error: i64,
+    files_opened: usize,
+    written: Vec<String>,
+    dialogs: Vec<Dialog>,
+    dialog: Option<usize>,
+    dialog_depth: usize,
 }
 
 fn err(pos: Pos, code: &'static str, detail: impl Into<String>) -> Halt {
@@ -110,6 +129,12 @@ fn constant(name: &str) -> Option<Value> {
         "REAL_MIN" => Value::Real(f64::MIN_POSITIVE),
         "REAL_EPSILON" => Value::Real(f64::EPSILON),
         "EOF" => Value::Int(-1),
+        "EXIT_SUCCESS" => Value::Int(0),
+        "EXIT_FAILURE" => Value::Int(1),
+        // the level of the language the evaluator follows, for the programs that ask for it
+        "EAGLE_VERSION" => Value::Int(9),
+        "EAGLE_RELEASE" => Value::Int(5),
+        "EAGLE_SIGNATURE" => Value::Str("EH3D PHOENIX ULP evaluator".to_owned()),
         _ => return None,
     })
 }
@@ -125,6 +150,13 @@ pub const CONSTANTS: &[&str] = &[
     "REAL_MIN",
     "REAL_EPSILON",
     "EOF",
+    "EXIT_SUCCESS",
+    "EXIT_FAILURE",
+    "EAGLE_VERSION",
+    "EAGLE_RELEASE",
+    "EAGLE_SIGNATURE",
+    "argc",
+    "argv",
 ];
 
 /// The names of the functions of the run that are not pure: they use the output or the variables.
@@ -185,6 +217,7 @@ impl<'a> Machine<'a> {
             name: name.to_owned(),
             ty,
             array,
+            numeric: false,
             value,
             size,
         });
@@ -394,7 +427,9 @@ impl<'a> Machine<'a> {
                 Some(_) => return Err(err(at, RUN_TYPE, "an array starts from a list")),
                 None => {}
             }
-            return self.push(at, &n.name, ty, true, Value::Array(items));
+            let slot = self.push(at, &n.name, ty, true, Value::Array(items))?;
+            self.stack[slot].numeric = n.numeric;
+            return Ok(slot);
         }
         let value = match &n.init {
             None => ty.default_value(),
@@ -403,12 +438,9 @@ impl<'a> Machine<'a> {
                 self.coerce(e.pos, ty, v)?
             }
             Some(Init::List(_)) => return Err(err(at, RUN_TYPE, "a list starts an array")),
-            Some(Init::Block { .. }) => {
-                return Err(err(
-                    at,
-                    RUN_NOT_WRITTEN,
-                    "a dialog needs a window that the evaluator does not have",
-                ))
+            Some(Init::Block { call, body }) => {
+                let v = self.dialog_value(at, call, body)?;
+                self.coerce(at, ty, v)?
             }
         };
         self.push(at, &n.name, ty, false, value)
@@ -604,6 +636,9 @@ impl<'a> Machine<'a> {
     /// A call followed by a block: the walks over the design. Output files and dialogs are not
     /// run.
     fn walk(&mut self, call: &'a Expr, body: &'a [Stmt], pos: Pos) -> R<Flow> {
+        if let Some(flow) = self.io_block(call, body)? {
+            return Ok(flow);
+        }
         let ExprKind::Call { callee, args } = &call.kind else {
             return Err(err(
                 pos,
@@ -622,7 +657,7 @@ impl<'a> Machine<'a> {
             }
         };
         match &callee.kind {
-            ExprKind::Name(name) if name == "board" || name == "schematic" => {
+            ExprKind::Name(name) if name == "board" || name == "schematic" || name == "library" => {
                 let root = self
                     .world
                     .root(name)
@@ -649,6 +684,16 @@ impl<'a> Machine<'a> {
                     .world
                     .walk(&obj, name)
                     .map_err(|f| fault(call.pos, f))?;
+                self.bind_and_run(var(0)?, items, body, call.pos)
+            }
+            ExprKind::Name(name) if name == "sheet" => {
+                let items = self
+                    .world
+                    .walk(&crate::world::Obj::Schematic, "sheets")
+                    .map_err(|f| fault(call.pos, f))?;
+                if self.world.schematic.is_none() {
+                    return Err(err(call.pos, RUN_NO_MODEL, "sheet(...) needs a schematic"));
+                }
                 self.bind_and_run(var(0)?, items, body, call.pos)
             }
             ExprKind::Name(name) => Err(self.unavailable(call.pos, UseKind::Function, name)),
@@ -1005,6 +1050,9 @@ impl<'a> Machine<'a> {
             "strsplit" => return self.strsplit(pos, args),
             _ => {}
         }
+        if let Some(v) = self.io_call(pos, name, args)? {
+            return Ok(v);
+        }
         let mut values = Vec::with_capacity(args.len());
         for a in args {
             values.push(self.eval(a)?);
@@ -1015,14 +1063,7 @@ impl<'a> Machine<'a> {
                     return Err(err(pos, RUN_ARGUMENTS, "printf needs a format text"));
                 };
                 let text = format_c(f, &values[1..]).map_err(|f| fault(pos, f))?;
-                if self.out.len() + text.len() > self.settings.max_output_bytes {
-                    return Err(err(
-                        pos,
-                        RUN_OUTPUT_LIMIT,
-                        format!("more than {} bytes", self.settings.max_output_bytes),
-                    ));
-                }
-                self.out.push_str(&text);
+                self.emit(pos, &text)?;
                 Ok(Value::Int(text.len() as i64))
             }
             "exit" => match values.as_slice() {
@@ -1162,6 +1203,13 @@ impl<'a> Machine<'a> {
     // ---- the run --------------------------------------------------------------------------
 
     fn run(&mut self, program: &'a Program) -> R<()> {
+        let here = Pos::default();
+        let argc = self.env.argv.len() as i64;
+        let slot = self.push(here, "argc", Ty::Int, false, Value::Int(argc))?;
+        self.globals.insert("argc".to_owned(), slot);
+        let words: Vec<Value> = self.env.argv.iter().cloned().map(Value::Str).collect();
+        let slot = self.push(here, "argv", Ty::Str, true, Value::Array(words))?;
+        self.globals.insert("argv".to_owned(), slot);
         for d in &program.directives {
             if d.name == "include" {
                 return Err(err(
@@ -1197,12 +1245,23 @@ pub fn run(
     support: &Support,
     world: World<'_>,
 ) -> Result<Outcome, Diag> {
+    run_with(program, settings, support, world, &RunEnv::default())
+}
+
+/// Like [`run`], with the arguments, the clock and the folder for files of the caller.
+pub fn run_with(
+    program: &Program,
+    settings: &UlpSettings,
+    support: &Support,
+    world: World<'_>,
+    env: &RunEnv,
+) -> Result<Outcome, Diag> {
     let stack_bytes = (1 << 20) + settings.max_eval_depth * (64 << 10);
     std::thread::scope(|scope| {
         let handle = std::thread::Builder::new()
             .name("ulp-run".to_owned())
             .stack_size(stack_bytes)
-            .spawn_scoped(scope, || run_here(program, settings, support, world));
+            .spawn_scoped(scope, || run_here(program, settings, support, world, env));
         match handle {
             Ok(h) => match h.join() {
                 Ok(result) => result,
@@ -1221,6 +1280,7 @@ fn run_here(
     settings: &UlpSettings,
     support: &Support,
     world: World<'_>,
+    env: &RunEnv,
 ) -> Result<Outcome, Diag> {
     let mut machine = Machine {
         settings,
@@ -1238,6 +1298,14 @@ fn run_here(
         steps: 0,
         depth: 0,
         out: String::new(),
+        env,
+        outfile: None,
+        file_error: 0,
+        files_opened: 0,
+        written: Vec::new(),
+        dialogs: Vec::new(),
+        dialog: None,
+        dialog_depth: 0,
     };
     let result = machine.run(program);
     let mut exit_code = 0;
@@ -1250,6 +1318,8 @@ fn run_here(
         output: machine.out,
         exit_code,
         steps: machine.steps,
+        files: machine.written,
+        dialogs: machine.dialogs,
     })
 }
 
@@ -1260,6 +1330,17 @@ pub fn run_source(
     settings: &UlpSettings,
     support: &Support,
     world: World<'_>,
+) -> Result<Outcome, Diag> {
+    run_source_with(source, settings, support, world, &RunEnv::default())
+}
+
+/// Like [`run_source`], with the arguments, the clock and the folder for files of the caller.
+pub fn run_source_with(
+    source: &str,
+    settings: &UlpSettings,
+    support: &Support,
+    world: World<'_>,
+    env: &RunEnv,
 ) -> Result<Outcome, Diag> {
     let parsed = crate::parser::parse(source, settings)?;
     if let Some(first) = parsed.problems.list.first() {
@@ -1274,5 +1355,5 @@ pub fn run_source(
             ),
         ));
     }
-    run(&parsed.program, settings, support, world)
+    run_with(&parsed.program, settings, support, world, env)
 }

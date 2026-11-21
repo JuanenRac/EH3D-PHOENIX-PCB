@@ -391,9 +391,10 @@ fn the_errors_have_their_codes() {
         ("board(B) { B.elements(E) { E.x = 5; } }", RUN_READ_ONLY),
         ("board(B) { printf(\"%d\", B.nonsense); }", RUN_NOT_WRITTEN),
         ("board(B) { B.nonsense(E) { } }", RUN_NOT_WRITTEN),
-        ("int t = time();", RUN_NOT_WRITTEN),
-        ("dlgDialog(\"x\") { dlgLabel(\"y\"); };", RUN_NOT_WRITTEN),
-        ("library(L) { }", RUN_NOT_WRITTEN),
+        ("dlgLabel(\"y\");", RUN_TYPE),
+        ("dlgDialog(\"x\") { dlgDialog(\"y\") { } }", RUN_NOT_ALLOWED),
+        ("int t = time(1);", RUN_ARGUMENTS),
+        ("library(L) { L.devices(D) { } }", RUN_NOT_WRITTEN),
         ("int x = 1 +;", RUN_HAS_PROBLEMS),
     ] {
         assert_eq!(code(text), expected, "{text}");
@@ -734,4 +735,117 @@ fn programs_made_of_good_pieces_end_inside_the_budget() {
             ),
         }
     }
+}
+
+/// The board and the schematic of the tests with an unplated hole, a text of the silkscreen, a
+/// quarter-turn arc and two placed parts.
+fn richer() -> (Board, Schematic) {
+    let mut b = board();
+    let fp = *b.footprints.keys().next().unwrap();
+    b.footprints.get_mut(&fp).unwrap().pads.insert(
+        id(20),
+        Pad {
+            number: "H".into(),
+            shape: PadShape::Circle {
+                diameter: nm(2_000_000),
+            },
+            at: pt(0, 1_000_000),
+            rotation: Udeg::new(0).unwrap(),
+            drill: Some(nm(1_600_000)),
+            layers: Vec::new(),
+            roundness: 0,
+            plated: false,
+        },
+    );
+    let top = *b.layers.keys().next().unwrap();
+    b.silkscreen.insert(
+        id(21),
+        eh3d_phoenix_board::SilkItem::Text {
+            layer: top,
+            at: pt(7_000_000, 8_000_000),
+            text: "REV A".into(),
+            height: nm(1_000_000),
+            stroke: nm(150_000),
+            rotation: Udeg::new(90_000_000).unwrap(),
+            mirrored: false,
+        },
+    );
+    let t = b.tracks.get_mut(&id(10)).unwrap();
+    t.path.push(Segment::Arc {
+        start: pt(1_000_000, 0),
+        end: pt(0, 1_000_000),
+        sweep: Udeg::new(90_000_000).unwrap(),
+    });
+    let mut s = schematic();
+    let sheet = *s.sheets.keys().next().unwrap();
+    for (n, x) in [(1u16, 10_000_000), (2, 20_000_000)] {
+        s.parts.get_mut(&id(n)).unwrap().placement = Some(eh3d_phoenix_schematic::Placement {
+            sheet,
+            at: pt(x, 5_000_000),
+            rotation: Udeg::new(0).unwrap(),
+        });
+    }
+    (b, s)
+}
+
+fn out_rich(text: &str) -> String {
+    let (b, s) = richer();
+    match run_source(
+        text,
+        &UlpSettings::default(),
+        &Support::shipped(),
+        World {
+            board: Some(&b),
+            schematic: Some(&s),
+        },
+    ) {
+        Ok(o) => o.output,
+        Err(e) => panic!("{e}\n{text}"),
+    }
+}
+
+#[test]
+fn contacts_holes_texts_instances_and_arcs_are_read() {
+    // contacts: every pad of an element; smds: the ones without a drill
+    assert_eq!(
+        out_rich("board(B) { B.elements(E) { int n = 0; int s = 0; E.contacts(C) { n++; } E.smds(M) { s++; } printf(\"%s %d %d\\n\", E.name, n, s); } }"),
+        "R1 3 2\nC1 3 2\n"
+    );
+    assert_eq!(
+        out_rich("board(B) { B.elements(E) { E.contacts(C) { printf(\"%s \", C.pad.name); } } printf(\"\\n\"); }"),
+        "1 2 H 1 2 H \n"
+    );
+    // holes: the unplated pads, placed with the component (R1 at 10 mm, 5 mm; hole 1 mm up)
+    assert_eq!(
+        out_rich(
+            "board(B) { B.holes(H) { printf(\"%d %d %d %d\\n\", H.x, H.y, H.drill, H.radius); } }"
+        ),
+        "10000000 6000000 1600000 800000\n19000000 5000000 1600000 800000\n"
+    );
+    assert_eq!(
+        out_rich("board(B) { B.packages(K) { K.holes(H) { printf(\"%d\\n\", H.drill); } } }"),
+        "1600000\n"
+    );
+    assert_eq!(
+        out_rich("board(B) { B.texts(T) { printf(\"%s %d %d %d %f\\n\", T.value, T.x, T.y, T.size, T.angle); } }"),
+        "REV A 7000000 8000000 1000000 90.000000\n"
+    );
+    assert_eq!(
+        out_rich("schematic(S) { S.instances(I) { printf(\"%s %d %s\\n\", I.name, I.x, I.part.value); } }"),
+        "R2 10000000 1k\nR1 20000000 10k\n"
+    );
+    assert_eq!(
+        out_rich("schematic(S) { S.sheets(H) { H.instances(I) { printf(\"%s \", I.name); } } printf(\"\\n\"); }"),
+        "R2 R1 \n"
+    );
+    // the arc of the track: centre at the origin, radius 1 mm; a straight piece answers 0
+    assert_eq!(
+        out_rich("board(B) { B.wires(W) { printf(\"%d %d %d|\", W.xc, W.yc, W.radius); } printf(\"\\n\"); }"),
+        "0 0 0|0 0 0|0 0 1000000|\n"
+    );
+    // library(L) goes over the packages of the board
+    assert_eq!(
+        out_rich("library(L) { printf(\"%s:\", L.name); L.packages(K) { printf(\" %s\", K.name); } printf(\"\\n\"); }"),
+        "demo: R0603\n"
+    );
 }

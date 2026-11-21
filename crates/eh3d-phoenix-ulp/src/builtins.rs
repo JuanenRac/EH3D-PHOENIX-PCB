@@ -44,6 +44,21 @@ pub const PURE: &[&str] = &[
     "mm2u",
     "strchr",
     "strjoin",
+    "int",
+    "real",
+    "char",
+    "string",
+    "isalnum",
+    "isalpha",
+    "isdigit",
+    "isspace",
+    "isupper",
+    "islower",
+    "ispunct",
+    "isxdigit",
+    "tolower",
+    "toupper",
+    "lookup",
     "strlen",
     "strlwr",
     "strrchr",
@@ -231,6 +246,31 @@ pub fn pure(name: &str, args: &[Value]) -> Result<Option<Value>, Fault> {
             real(if name == "acos" { x.acos() } else { x.asin() })?
         }
         "atan" => real(one(args)?.atan())?,
+        "int" | "char" => {
+            arity(name, args, 1, 1)?;
+            match &args[0] {
+                Value::Int(i) => Value::Int(*i),
+                other => to_int(num(other)?.trunc())?,
+            }
+        }
+        "real" => {
+            arity(name, args, 1, 1)?;
+            real(num(&args[0])?)?
+        }
+        "string" => {
+            arity(name, args, 1, 1)?;
+            match &args[0] {
+                Value::Str(t) => Value::Str(t.clone()),
+                Value::Int(i) => Value::Str(i.to_string()),
+                Value::Real(r) => Value::Str(r.to_string()),
+                other => {
+                    return Err((
+                        RUN_TYPE,
+                        format!("a text cannot be made from a {}", other.type_name()),
+                    ))
+                }
+            }
+        }
         "sin" => real(one(args)?.sin())?,
         "cos" => real(one(args)?.cos())?,
         "tan" => real(one(args)?.tan())?,
@@ -287,6 +327,56 @@ pub fn pure(name: &str, args: &[Value]) -> Result<Option<Value>, Fault> {
         "strlwr" => {
             arity(name, args, 1, 1)?;
             Value::Str(string(&args[0])?.to_lowercase())
+        }
+        "isalnum" | "isalpha" | "isdigit" | "isspace" | "isupper" | "islower" | "ispunct"
+        | "isxdigit" | "tolower" | "toupper" => {
+            arity(name, args, 1, 1)?;
+            let code = int(&args[0])?;
+            let c = u32::try_from(code)
+                .ok()
+                .and_then(char::from_u32)
+                .unwrap_or(char::from(0u8));
+            let yes = |b: bool| Value::Int(i64::from(b));
+            match name {
+                "isalnum" => yes(c.is_ascii_alphanumeric()),
+                "isalpha" => yes(c.is_ascii_alphabetic()),
+                "isdigit" => yes(c.is_ascii_digit()),
+                "isspace" => yes(c.is_ascii_whitespace() || c == char::from(11u8)),
+                "isupper" => yes(c.is_ascii_uppercase()),
+                "islower" => yes(c.is_ascii_lowercase()),
+                "ispunct" => yes(c.is_ascii_punctuation()),
+                "isxdigit" => yes(c.is_ascii_hexdigit()),
+                "tolower" => Value::Int(i64::from(c.to_ascii_lowercase() as u32)),
+                _ => Value::Int(i64::from(c.to_ascii_uppercase() as u32)),
+            }
+        }
+        "lookup" => {
+            arity(name, args, 3, 4)?;
+            let Value::Array(lines) = &args[0] else {
+                return Err((RUN_TYPE, "lookup searches an array of texts".to_owned()));
+            };
+            let key = string(&args[1])?;
+            let field = usize::try_from(int(&args[2])?)
+                .map_err(|_| (RUN_RANGE, "the field is negative".to_owned()))?;
+            let sep = if args.len() == 4 {
+                string(&args[3])?.to_owned()
+            } else {
+                "\t".to_owned()
+            };
+            let mut found = String::new();
+            for line in lines {
+                let Value::Str(line) = line else { continue };
+                let mut parts = line.split(sep.as_str());
+                if parts.next() == Some(key) {
+                    found = line
+                        .split(sep.as_str())
+                        .nth(field)
+                        .unwrap_or_default()
+                        .to_owned();
+                    break;
+                }
+            }
+            Value::Str(found)
         }
         "strupr" => {
             arity(name, args, 1, 1)?;
