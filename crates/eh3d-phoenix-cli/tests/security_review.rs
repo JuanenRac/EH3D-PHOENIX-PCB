@@ -125,6 +125,10 @@ fn allowed() -> Vec<(&'static str, &'static str)> {
             "the save of a settings file by the rules window, into a side file that is then renamed, and never over a file without the order of the person",
         ),
         (
+            "crates/eh3d-phoenix-ulp/src/eval/io.rs",
+            "the files of a user program, only inside the folder that the settings give (`file_dir`), with a name that is checked, a size limit, and written when the block ends without an error",
+        ),
+        (
             "crates/eh3d-phoenix-route/src/autorouter.rs",
             "files of the external autorouter, in a folder that was made new for the run",
         ),
