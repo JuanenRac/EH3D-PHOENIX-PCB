@@ -2,19 +2,15 @@
 //! A board saved into an `.eh3d` project by the command line and read back by it.
 
 use std::fs;
-use std::process::Command;
 
+use eh3d_phoenix_cli::run;
 use eh3d_phoenix_project::pcb_branch::read_pcb;
 
 fn phoenix(args: &[&str]) -> (i32, String) {
-    let output = Command::new(env!("CARGO_BIN_EXE_phoenix"))
-        .args(args)
-        .output()
-        .unwrap();
-    (
-        output.status.code().unwrap_or(-1),
-        String::from_utf8_lossy(&output.stderr).into_owned(),
-    )
+    let args: Vec<String> = args.iter().map(|a| (*a).to_owned()).collect();
+    let (mut out, mut err) = (Vec::new(), Vec::new());
+    let code = run(&args, &mut out, &mut err);
+    (code, String::from_utf8_lossy(&err).into_owned())
 }
 
 const BOARD: &str = r#"<?xml version="1.0" encoding="utf-8"?>
