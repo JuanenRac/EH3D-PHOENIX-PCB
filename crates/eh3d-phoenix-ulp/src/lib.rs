@@ -18,6 +18,8 @@
 //!   model (`board(B)`, `B.elements(E)`), with a budget of steps, memory, nesting and output; it
 //!   opens no file, starts no program and writes nothing to the model. [`evaluable`] says which
 //!   names it runs;
+//! * [`pattern`]: the patterns of `strxstr`, searched without going back; `include` puts the files
+//!   a program names (only those of the folder for files) before it;
 //! * [`report`]: the compatibility report with a verdict, as text in eight languages and as JSON;
 //! * [`settings`] and [`codes`]: every limit, read from `config/ulp.cfg`, and the codes
 //!   `PHOENIX-ULP-<NNN>` with their titles in the eight languages.
@@ -35,8 +37,10 @@ pub mod codes;
 pub mod constants;
 pub mod eval;
 pub mod evaluable;
+mod include;
 pub mod lexer;
 pub mod parser;
+pub mod pattern;
 pub mod report;
 pub mod runenv;
 pub mod settings;

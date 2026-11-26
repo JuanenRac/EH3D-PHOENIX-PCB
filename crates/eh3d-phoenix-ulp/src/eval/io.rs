@@ -78,6 +78,7 @@ pub const IO_FUNCTIONS: &[&str] = &[
     "fileerror",
     "status",
     "language",
+    "country",
     "dlgDialog",
     "dlgMessageBox",
     "dlgFileOpen",
@@ -223,6 +224,8 @@ impl<'a> Machine<'a> {
                 Value::Int(0)
             }
             "language" => Value::Str("en".to_owned()),
+            // fixed like the language: the clock and the places of the machine are not asked
+            "country" => Value::Str("US".to_owned()),
             "filesize" | "filetime" => {
                 let file = self.text_arg(pos, args, 0, "the name of the file")?;
                 let path = self.file_path(pos, &file)?;

@@ -16,6 +16,9 @@ All notable changes to this project are documented here.
 - **Undo and redo are in sight while the board is edited:** the next step of each is written over the drawing.
 - **Undo and redo of the menu and of the Tasks panel work on the board editor:** they were switched off while it was on.
 - **The steps of the board editor are a list:** each with its description, and a click on one undoes or redoes up to it.
+- **A user program can include other files:** `#include` reads from the one folder for files, takes each file once and is bounded by `max_include_depth`, `max_files` and the size limits.
+- **A user program can search with patterns:** `strxstr` finds a regular expression of the common kind with its place and length, without going back and inside the step limit of the run.
+- **`country()` answers in a user program:** it is fixed, as `language()` is.
 
 ## [0.1.6] - Board editor operations, user programs that read most of a real folder, named values and files in one allowed folder, EAGLE reader measured on real boards
 

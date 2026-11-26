@@ -31,6 +31,7 @@ use crate::codes::{
     RUN_NOT_ALLOWED, RUN_NOT_WRITTEN, RUN_NO_MODEL, RUN_OUTPUT_LIMIT, RUN_RANGE, RUN_READ_ONLY,
     RUN_STEP_LIMIT, RUN_TYPE,
 };
+use crate::pattern::Pattern;
 use crate::runenv::RunEnv;
 use crate::settings::UlpSettings;
 use crate::support::{Status, Support, UseKind};
@@ -1048,6 +1049,7 @@ impl<'a> Machine<'a> {
         match name.as_str() {
             "sprintf" => return self.sprintf(pos, args),
             "strsplit" => return self.strsplit(pos, args),
+            "strxstr" => return self.strxstr(pos, args),
             _ => {}
         }
         if let Some(v) = self.io_call(pos, name, args)? {
@@ -1200,6 +1202,59 @@ impl<'a> Machine<'a> {
         Ok(Value::Int(count))
     }
 
+    /// `strxstr(text, pattern[, index[, length]])`: where the first match of the pattern is at or
+    /// after the index, -1 when there is none; its length goes into the variable.
+    fn strxstr(&mut self, pos: Pos, args: &'a [Expr]) -> R<Value> {
+        if !(2..=4).contains(&args.len()) {
+            return Err(err(
+                pos,
+                RUN_ARGUMENTS,
+                "strxstr takes a text, a pattern, a place and a variable for the length",
+            ));
+        }
+        let (Value::Str(text), Value::Str(pattern)) = (self.eval(&args[0])?, self.eval(&args[1])?)
+        else {
+            return Err(err(pos, RUN_TYPE, "strxstr searches a text for a pattern"));
+        };
+        let from = match args.get(2) {
+            Some(a) => match self.eval(a)? {
+                Value::Int(i) => usize::try_from(i)
+                    .map_err(|_| err(pos, RUN_INDEX, format!("the index {i} is negative")))?,
+                _ => return Err(err(pos, RUN_TYPE, "the place is a whole number")),
+            },
+            None => 0,
+        };
+        let length_place = match args.get(3) {
+            Some(a) => {
+                let place = self.place(a)?;
+                if self.stack[place.slot].ty != Ty::Int {
+                    return Err(err(pos, RUN_TYPE, "the length goes into a whole number"));
+                }
+                Some(place)
+            }
+            None => None,
+        };
+        let pattern = Pattern::new(&pattern).map_err(|f| fault(pos, f))?;
+        let chars: Vec<char> = text.chars().collect();
+        // the work of the search counts as steps of the run
+        let left = self.settings.max_steps.saturating_sub(self.steps);
+        let mut work = 0u64;
+        let found = pattern
+            .find(&chars, from.min(chars.len() + 1), &mut work, left as u64)
+            .map_err(|f| fault(pos, f))?;
+        self.steps = self
+            .steps
+            .saturating_add(usize::try_from(work).unwrap_or(usize::MAX));
+        let (start, length) = match found {
+            Some((start, length)) => (start as i64, length as i64),
+            None => (-1, 0),
+        };
+        if let Some(place) = length_place {
+            self.store(pos, place, Value::Int(length))?;
+        }
+        Ok(Value::Int(start))
+    }
+
     // ---- the run --------------------------------------------------------------------------
 
     fn run(&mut self, program: &'a Program) -> R<()> {
@@ -1210,15 +1265,6 @@ impl<'a> Machine<'a> {
         let words: Vec<Value> = self.env.argv.iter().cloned().map(Value::Str).collect();
         let slot = self.push(here, "argv", Ty::Str, true, Value::Array(words))?;
         self.globals.insert("argv".to_owned(), slot);
-        for d in &program.directives {
-            if d.name == "include" {
-                return Err(err(
-                    d.pos,
-                    RUN_NOT_ALLOWED,
-                    "`#include` reads a file, and the evaluator opens none",
-                ));
-            }
-        }
         for s in &program.body {
             self.tick(s.pos)?;
             if let StmtKind::Decl(d) = &s.kind {
@@ -1256,6 +1302,14 @@ pub fn run_with(
     world: World<'_>,
     env: &RunEnv,
 ) -> Result<Outcome, Diag> {
+    // the files that the program names are put before it
+    let expanded;
+    let program = if crate::include::needed(program) {
+        expanded = crate::include::expand(program, settings)?;
+        &expanded
+    } else {
+        program
+    };
     let stack_bytes = (1 << 20) + settings.max_eval_depth * (64 << 10);
     std::thread::scope(|scope| {
         let handle = std::thread::Builder::new()
