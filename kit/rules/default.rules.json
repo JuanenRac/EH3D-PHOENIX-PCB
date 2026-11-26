@@ -1,0 +1,14 @@
+{
+  "format": "phoenix-rules/1",
+  "name": "starter kit: general figures, not verified",
+  "rules": {
+    "min_track_width_nm": 150000,
+    "min_clearance_nm": 150000,
+    "min_drill_nm": 300000,
+    "min_via_diameter_nm": 600000,
+    "min_annular_ring_nm": 130000,
+    "min_edge_clearance_nm": 300000,
+    "min_drill_spacing_nm": 250000,
+    "connect_tolerance_nm": 0
+  }
+}

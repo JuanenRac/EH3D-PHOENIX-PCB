@@ -1,0 +1,1707 @@
+{
+  "format": "phoenix-kit/1",
+  "license": "GPL-3.0-or-later",
+  "provenance": "own",
+  "items": [
+    {
+      "id": "library-passives",
+      "name": "passives",
+      "type": "library",
+      "format": "eagle-lbr",
+      "license": "GPL-3.0-or-later",
+      "provenance": "own",
+      "verified": false,
+      "exports": [
+        "eagle-lbr"
+      ],
+      "title": {
+        "en": "Resistors and capacitors",
+        "es": "Resistencias y condensadores",
+        "de": "Widerstände und Kondensatoren",
+        "fr": "Résistances et condensateurs",
+        "it": "Resistenze e condensatori",
+        "ja": "抵抗とコンデンサ",
+        "zh": "电阻和电容",
+        "pt": "Resistências e condensadores"
+      },
+      "files": [
+        {
+          "path": "libraries/passives.lbr",
+          "sha256": "09f5ca735ddd06096ca821dfe6f30d34e62d5ba7cf02addaa88f3fbb7726183a"
+        }
+      ]
+    },
+    {
+      "id": "library-semiconductors",
+      "name": "semiconductors",
+      "type": "library",
+      "format": "eagle-lbr",
+      "license": "GPL-3.0-or-later",
+      "provenance": "own",
+      "verified": false,
+      "exports": [
+        "eagle-lbr"
+      ],
+      "title": {
+        "en": "LEDs, diodes, transistors and a regulator",
+        "es": "LED, diodos, transistores y un regulador",
+        "de": "LEDs, Dioden, Transistoren und ein Regler",
+        "fr": "LED, diodes, transistors et un régulateur",
+        "it": "LED, diodi, transistor e un regolatore",
+        "ja": "LED、ダイオード、トランジスタ、レギュレータ",
+        "zh": "LED、二极管、晶体管和稳压器",
+        "pt": "LED, díodos, transístores e um regulador"
+      },
+      "files": [
+        {
+          "path": "libraries/semiconductors.lbr",
+          "sha256": "863f01c8f5569b2ac2bb1255e2c5976c37278330149a18684ca895d326ad91e4"
+        }
+      ]
+    },
+    {
+      "id": "library-ics",
+      "name": "ics",
+      "type": "library",
+      "format": "eagle-lbr",
+      "license": "GPL-3.0-or-later",
+      "provenance": "own",
+      "verified": false,
+      "exports": [
+        "eagle-lbr"
+      ],
+      "title": {
+        "en": "Generic SOIC and TSSOP circuits",
+        "es": "Circuitos genéricos SOIC y TSSOP",
+        "de": "Allgemeine SOIC- und TSSOP-Bausteine",
+        "fr": "Circuits génériques SOIC et TSSOP",
+        "it": "Circuiti generici SOIC e TSSOP",
+        "ja": "汎用 SOIC・TSSOP IC",
+        "zh": "通用 SOIC 和 TSSOP 芯片",
+        "pt": "Circuitos genéricos SOIC e TSSOP"
+      },
+      "files": [
+        {
+          "path": "libraries/ics.lbr",
+          "sha256": "5cfe34ccff27ad6936a15962a446d6b99d384e25eb7d5b9dbc5e49c9be49d23c"
+        }
+      ]
+    },
+    {
+      "id": "library-connectors",
+      "name": "connectors",
+      "type": "library",
+      "format": "eagle-lbr",
+      "license": "GPL-3.0-or-later",
+      "provenance": "own",
+      "verified": false,
+      "exports": [
+        "eagle-lbr"
+      ],
+      "title": {
+        "en": "Pin headers and screw terminals",
+        "es": "Tiras de pines y borneras",
+        "de": "Stiftleisten und Schraubklemmen",
+        "fr": "Barrettes et borniers à vis",
+        "it": "Strip di pin e morsetti a vite",
+        "ja": "ピンヘッダと端子台",
+        "zh": "排针和接线端子",
+        "pt": "Barras de pinos e bornes de parafuso"
+      },
+      "files": [
+        {
+          "path": "libraries/connectors.lbr",
+          "sha256": "51bd66fcc775d217c3a962a543cf69bab71dfa8e37067c00ff195b1cd808d72d"
+        }
+      ]
+    },
+    {
+      "id": "library-modules",
+      "name": "modules",
+      "type": "library",
+      "format": "eagle-lbr",
+      "license": "GPL-3.0-or-later",
+      "provenance": "own",
+      "verified": false,
+      "exports": [
+        "eagle-lbr"
+      ],
+      "title": {
+        "en": "Modules of the ESP32 and STM32 types (indicative sizes)",
+        "es": "Módulos tipo ESP32 y STM32 (medidas orientativas)",
+        "de": "Module vom Typ ESP32 und STM32 (Richtmaße)",
+        "fr": "Modules de type ESP32 et STM32 (cotes indicatives)",
+        "it": "Moduli di tipo ESP32 e STM32 (misure indicative)",
+        "ja": "ESP32 型・STM32 型モジュール（参考寸法）",
+        "zh": "ESP32 类和 STM32 类模块（参考尺寸）",
+        "pt": "Módulos do tipo ESP32 e STM32 (medidas orientativas)"
+      },
+      "files": [
+        {
+          "path": "libraries/modules.lbr",
+          "sha256": "968434c6a95a84e4405301df174e8aee0a78eb0371d8b3151006f6b28442016b"
+        }
+      ]
+    },
+    {
+      "id": "board-led-indicator",
+      "name": "led_indicator",
+      "type": "board",
+      "format": "eagle-brd",
+      "license": "GPL-3.0-or-later",
+      "provenance": "own",
+      "verified": false,
+      "exports": [
+        "eagle-brd",
+        "kicad-pcb",
+        "gerber",
+        "excellon",
+        "ipc-2581"
+      ],
+      "title": {
+        "en": "LED with its resistor (board)",
+        "es": "LED con su resistencia (placa)",
+        "de": "LED mit Vorwiderstand (Platine)",
+        "fr": "LED avec sa résistance (carte)",
+        "it": "LED con la sua resistenza (scheda)",
+        "ja": "抵抗付き LED（基板）",
+        "zh": "带电阻的 LED（电路板）",
+        "pt": "LED com a sua resistência (placa)"
+      },
+      "files": [
+        {
+          "path": "boards/led_indicator.brd",
+          "sha256": "37e90e49ac048b81c5219bedd70da74d1f819133958093b4fa36b66ebfea8c05"
+        }
+      ]
+    },
+    {
+      "id": "schematic-led-indicator",
+      "name": "led_indicator",
+      "type": "schematic",
+      "format": "eagle-sch",
+      "license": "GPL-3.0-or-later",
+      "provenance": "own",
+      "verified": false,
+      "exports": [
+        "eagle-sch",
+        "kicad-sch"
+      ],
+      "title": {
+        "en": "LED with its resistor (schematic)",
+        "es": "LED con su resistencia (esquema)",
+        "de": "LED mit Vorwiderstand (Schaltplan)",
+        "fr": "LED avec sa résistance (schéma)",
+        "it": "LED con la sua resistenza (schema)",
+        "ja": "抵抗付き LED（回路図）",
+        "zh": "带电阻的 LED（原理图）",
+        "pt": "LED com a sua resistência (esquema)"
+      },
+      "files": [
+        {
+          "path": "schematics/led_indicator.sch",
+          "sha256": "1fff6350170f2026f7ab4bff0745a2cf1ae8184421f591daed32b4d878ebb25d"
+        }
+      ]
+    },
+    {
+      "id": "board-voltage-divider",
+      "name": "voltage_divider",
+      "type": "board",
+      "format": "eagle-brd",
+      "license": "GPL-3.0-or-later",
+      "provenance": "own",
+      "verified": false,
+      "exports": [
+        "eagle-brd",
+        "kicad-pcb",
+        "gerber",
+        "excellon",
+        "ipc-2581"
+      ],
+      "title": {
+        "en": "Voltage divider (board)",
+        "es": "Divisor de tensión (placa)",
+        "de": "Spannungsteiler (Platine)",
+        "fr": "Diviseur de tension (carte)",
+        "it": "Partitore di tensione (scheda)",
+        "ja": "分圧回路（基板）",
+        "zh": "分压器（电路板）",
+        "pt": "Divisor de tensão (placa)"
+      },
+      "files": [
+        {
+          "path": "boards/voltage_divider.brd",
+          "sha256": "4fc94f584abd11fc1ae1374b18deac06fffa5af70a9aaaef584865afd934e59c"
+        }
+      ]
+    },
+    {
+      "id": "schematic-voltage-divider",
+      "name": "voltage_divider",
+      "type": "schematic",
+      "format": "eagle-sch",
+      "license": "GPL-3.0-or-later",
+      "provenance": "own",
+      "verified": false,
+      "exports": [
+        "eagle-sch",
+        "kicad-sch"
+      ],
+      "title": {
+        "en": "Voltage divider (schematic)",
+        "es": "Divisor de tensión (esquema)",
+        "de": "Spannungsteiler (Schaltplan)",
+        "fr": "Diviseur de tension (schéma)",
+        "it": "Partitore di tensione (schema)",
+        "ja": "分圧回路（回路図）",
+        "zh": "分压器（原理图）",
+        "pt": "Divisor de tensão (esquema)"
+      },
+      "files": [
+        {
+          "path": "schematics/voltage_divider.sch",
+          "sha256": "51e0c0e4c8623852f671a74ed96c0f427a8f2b7dba173c2e630b5faf66d45d3c"
+        }
+      ]
+    },
+    {
+      "id": "board-led-bar",
+      "name": "led_bar",
+      "type": "board",
+      "format": "eagle-brd",
+      "license": "GPL-3.0-or-later",
+      "provenance": "own",
+      "verified": false,
+      "exports": [
+        "eagle-brd",
+        "kicad-pcb",
+        "gerber",
+        "excellon",
+        "ipc-2581"
+      ],
+      "title": {
+        "en": "Four LEDs with resistors (board)",
+        "es": "Cuatro LED con resistencias (placa)",
+        "de": "Vier LEDs mit Widerständen (Platine)",
+        "fr": "Quatre LED avec résistances (carte)",
+        "it": "Quattro LED con resistenze (scheda)",
+        "ja": "抵抗付き LED 4個（基板）",
+        "zh": "带电阻的四个 LED（电路板）",
+        "pt": "Quatro LED com resistências (placa)"
+      },
+      "files": [
+        {
+          "path": "boards/led_bar.brd",
+          "sha256": "6f88d9a24e46862e8ccd8b4873be4c5a7e8938d8da481a20baa5f42589de5e8f"
+        }
+      ]
+    },
+    {
+      "id": "schematic-led-bar",
+      "name": "led_bar",
+      "type": "schematic",
+      "format": "eagle-sch",
+      "license": "GPL-3.0-or-later",
+      "provenance": "own",
+      "verified": false,
+      "exports": [
+        "eagle-sch",
+        "kicad-sch"
+      ],
+      "title": {
+        "en": "Four LEDs with resistors (schematic)",
+        "es": "Cuatro LED con resistencias (esquema)",
+        "de": "Vier LEDs mit Widerständen (Schaltplan)",
+        "fr": "Quatre LED avec résistances (schéma)",
+        "it": "Quattro LED con resistenze (schema)",
+        "ja": "抵抗付き LED 4個（回路図）",
+        "zh": "带电阻的四个 LED（原理图）",
+        "pt": "Quatro LED com resistências (esquema)"
+      },
+      "files": [
+        {
+          "path": "schematics/led_bar.sch",
+          "sha256": "0108e53dcf1749a6e57777d59e066878e4b9926d907578596580b22286abc68e"
+        }
+      ]
+    },
+    {
+      "id": "board-transistor-switch",
+      "name": "transistor_switch",
+      "type": "board",
+      "format": "eagle-brd",
+      "license": "GPL-3.0-or-later",
+      "provenance": "own",
+      "verified": false,
+      "exports": [
+        "eagle-brd",
+        "kicad-pcb",
+        "gerber",
+        "excellon",
+        "ipc-2581"
+      ],
+      "title": {
+        "en": "Transistor switch with clamp diode (board)",
+        "es": "Interruptor con transistor y diodo de protección (placa)",
+        "de": "Transistorschalter mit Freilaufdiode (Platine)",
+        "fr": "Interrupteur à transistor avec diode de roue libre (carte)",
+        "it": "Interruttore a transistor con diodo di ricircolo (scheda)",
+        "ja": "保護ダイオード付きトランジスタスイッチ（基板）",
+        "zh": "带续流二极管的晶体管开关（电路板）",
+        "pt": "Interruptor a transístor com díodo de proteção (placa)"
+      },
+      "files": [
+        {
+          "path": "boards/transistor_switch.brd",
+          "sha256": "8323ed1205ab4000a5cb46b06578ebc5c61974ce47444a4fc8a59974a16b7336"
+        }
+      ]
+    },
+    {
+      "id": "schematic-transistor-switch",
+      "name": "transistor_switch",
+      "type": "schematic",
+      "format": "eagle-sch",
+      "license": "GPL-3.0-or-later",
+      "provenance": "own",
+      "verified": false,
+      "exports": [
+        "eagle-sch",
+        "kicad-sch"
+      ],
+      "title": {
+        "en": "Transistor switch with clamp diode (schematic)",
+        "es": "Interruptor con transistor y diodo de protección (esquema)",
+        "de": "Transistorschalter mit Freilaufdiode (Schaltplan)",
+        "fr": "Interrupteur à transistor avec diode de roue libre (schéma)",
+        "it": "Interruttore a transistor con diodo di ricircolo (schema)",
+        "ja": "保護ダイオード付きトランジスタスイッチ（回路図）",
+        "zh": "带续流二极管的晶体管开关（原理图）",
+        "pt": "Interruptor a transístor com díodo de proteção (esquema)"
+      },
+      "files": [
+        {
+          "path": "schematics/transistor_switch.sch",
+          "sha256": "e8c3467c688fc3608f892980ce0537adcb8ea2623cb8e9fb1a7c2a01f627feee"
+        }
+      ]
+    },
+    {
+      "id": "board-soic8-decoupled",
+      "name": "soic8_decoupled",
+      "type": "board",
+      "format": "eagle-brd",
+      "license": "GPL-3.0-or-later",
+      "provenance": "own",
+      "verified": false,
+      "exports": [
+        "eagle-brd",
+        "kicad-pcb",
+        "gerber",
+        "excellon",
+        "ipc-2581"
+      ],
+      "title": {
+        "en": "8 pin circuit with capacitor (board)",
+        "es": "Circuito de 8 patillas con condensador (placa)",
+        "de": "8-poliger Baustein mit Kondensator (Platine)",
+        "fr": "Circuit à 8 broches avec condensateur (carte)",
+        "it": "Circuito a 8 pin con condensatore (scheda)",
+        "ja": "コンデンサ付き 8 ピン IC（基板）",
+        "zh": "带电容的 8 引脚芯片（电路板）",
+        "pt": "Circuito de 8 pinos com condensador (placa)"
+      },
+      "files": [
+        {
+          "path": "boards/soic8_decoupled.brd",
+          "sha256": "f9024018e41cc295e8ebfca7b4038e6e72b338af10575f60ec780ebc348b9c6c"
+        }
+      ]
+    },
+    {
+      "id": "schematic-soic8-decoupled",
+      "name": "soic8_decoupled",
+      "type": "schematic",
+      "format": "eagle-sch",
+      "license": "GPL-3.0-or-later",
+      "provenance": "own",
+      "verified": false,
+      "exports": [
+        "eagle-sch",
+        "kicad-sch"
+      ],
+      "title": {
+        "en": "8 pin circuit with capacitor (schematic)",
+        "es": "Circuito de 8 patillas con condensador (esquema)",
+        "de": "8-poliger Baustein mit Kondensator (Schaltplan)",
+        "fr": "Circuit à 8 broches avec condensateur (schéma)",
+        "it": "Circuito a 8 pin con condensatore (schema)",
+        "ja": "コンデンサ付き 8 ピン IC（回路図）",
+        "zh": "带电容的 8 引脚芯片（原理图）",
+        "pt": "Circuito de 8 pinos com condensador (esquema)"
+      },
+      "files": [
+        {
+          "path": "schematics/soic8_decoupled.sch",
+          "sha256": "04e32316d0cbe8ca2c5725ddc5f96cf738bafb17612ddba99ddd51290826b024"
+        }
+      ]
+    },
+    {
+      "id": "board-tssop14-breakout",
+      "name": "tssop14_breakout",
+      "type": "board",
+      "format": "eagle-brd",
+      "license": "GPL-3.0-or-later",
+      "provenance": "own",
+      "verified": false,
+      "exports": [
+        "eagle-brd",
+        "kicad-pcb",
+        "gerber",
+        "excellon",
+        "ipc-2581"
+      ],
+      "title": {
+        "en": "TSSOP-14 breakout (board)",
+        "es": "Adaptador TSSOP-14 (placa)",
+        "de": "TSSOP-14-Adapterplatine (Platine)",
+        "fr": "Adaptateur TSSOP-14 (carte)",
+        "it": "Adattatore TSSOP-14 (scheda)",
+        "ja": "TSSOP-14 変換基板（基板）",
+        "zh": "TSSOP-14 转接板（电路板）",
+        "pt": "Adaptador TSSOP-14 (placa)"
+      },
+      "files": [
+        {
+          "path": "boards/tssop14_breakout.brd",
+          "sha256": "17e695b8de2ce218b7f22a71f06c6f59e7dc0342444240b35b65a08d01922bc8"
+        }
+      ]
+    },
+    {
+      "id": "schematic-tssop14-breakout",
+      "name": "tssop14_breakout",
+      "type": "schematic",
+      "format": "eagle-sch",
+      "license": "GPL-3.0-or-later",
+      "provenance": "own",
+      "verified": false,
+      "exports": [
+        "eagle-sch",
+        "kicad-sch"
+      ],
+      "title": {
+        "en": "TSSOP-14 breakout (schematic)",
+        "es": "Adaptador TSSOP-14 (esquema)",
+        "de": "TSSOP-14-Adapterplatine (Schaltplan)",
+        "fr": "Adaptateur TSSOP-14 (schéma)",
+        "it": "Adattatore TSSOP-14 (schema)",
+        "ja": "TSSOP-14 変換基板（回路図）",
+        "zh": "TSSOP-14 转接板（原理图）",
+        "pt": "Adaptador TSSOP-14 (esquema)"
+      },
+      "files": [
+        {
+          "path": "schematics/tssop14_breakout.sch",
+          "sha256": "4b110fae48ec5fa749bfef4bab9029ee4fb4bc3bc2f8c75d3fce9774efb18d46"
+        }
+      ]
+    },
+    {
+      "id": "board-soic16-breakout",
+      "name": "soic16_breakout",
+      "type": "board",
+      "format": "eagle-brd",
+      "license": "GPL-3.0-or-later",
+      "provenance": "own",
+      "verified": false,
+      "exports": [
+        "eagle-brd",
+        "kicad-pcb",
+        "gerber",
+        "excellon",
+        "ipc-2581"
+      ],
+      "title": {
+        "en": "SOIC-16 breakout (board)",
+        "es": "Adaptador SOIC-16 (placa)",
+        "de": "SOIC-16-Adapterplatine (Platine)",
+        "fr": "Adaptateur SOIC-16 (carte)",
+        "it": "Adattatore SOIC-16 (scheda)",
+        "ja": "SOIC-16 変換基板（基板）",
+        "zh": "SOIC-16 转接板（电路板）",
+        "pt": "Adaptador SOIC-16 (placa)"
+      },
+      "files": [
+        {
+          "path": "boards/soic16_breakout.brd",
+          "sha256": "8a3351fbb980110fe28ba9a2c1d69567ec4b03ee0bbe0703d3455f5621754d52"
+        }
+      ]
+    },
+    {
+      "id": "schematic-soic16-breakout",
+      "name": "soic16_breakout",
+      "type": "schematic",
+      "format": "eagle-sch",
+      "license": "GPL-3.0-or-later",
+      "provenance": "own",
+      "verified": false,
+      "exports": [
+        "eagle-sch",
+        "kicad-sch"
+      ],
+      "title": {
+        "en": "SOIC-16 breakout (schematic)",
+        "es": "Adaptador SOIC-16 (esquema)",
+        "de": "SOIC-16-Adapterplatine (Schaltplan)",
+        "fr": "Adaptateur SOIC-16 (schéma)",
+        "it": "Adattatore SOIC-16 (schema)",
+        "ja": "SOIC-16 変換基板（回路図）",
+        "zh": "SOIC-16 转接板（原理图）",
+        "pt": "Adaptador SOIC-16 (esquema)"
+      },
+      "files": [
+        {
+          "path": "schematics/soic16_breakout.sch",
+          "sha256": "d7ef116e03eedbd9fa62f993825236e6325450d52d5ae85eac907b1a981ef207"
+        }
+      ]
+    },
+    {
+      "id": "board-tht-led-pair",
+      "name": "tht_led_pair",
+      "type": "board",
+      "format": "eagle-brd",
+      "license": "GPL-3.0-or-later",
+      "provenance": "own",
+      "verified": false,
+      "exports": [
+        "eagle-brd",
+        "kicad-pcb",
+        "gerber",
+        "excellon",
+        "ipc-2581"
+      ],
+      "title": {
+        "en": "Two through hole LEDs (board)",
+        "es": "Dos LED de inserción (placa)",
+        "de": "Zwei bedrahtete LEDs (Platine)",
+        "fr": "Deux LED traversantes (carte)",
+        "it": "Due LED a foro passante (scheda)",
+        "ja": "リード LED 2個（基板）",
+        "zh": "两个直插 LED（电路板）",
+        "pt": "Dois LED de inserção (placa)"
+      },
+      "files": [
+        {
+          "path": "boards/tht_led_pair.brd",
+          "sha256": "8bb4e7621c23e1b138008a11a8a5a29dc469a7d8420c136bfa28e2448a120cda"
+        }
+      ]
+    },
+    {
+      "id": "schematic-tht-led-pair",
+      "name": "tht_led_pair",
+      "type": "schematic",
+      "format": "eagle-sch",
+      "license": "GPL-3.0-or-later",
+      "provenance": "own",
+      "verified": false,
+      "exports": [
+        "eagle-sch",
+        "kicad-sch"
+      ],
+      "title": {
+        "en": "Two through hole LEDs (schematic)",
+        "es": "Dos LED de inserción (esquema)",
+        "de": "Zwei bedrahtete LEDs (Schaltplan)",
+        "fr": "Deux LED traversantes (schéma)",
+        "it": "Due LED a foro passante (schema)",
+        "ja": "リード LED 2個（回路図）",
+        "zh": "两个直插 LED（原理图）",
+        "pt": "Dois LED de inserção (esquema)"
+      },
+      "files": [
+        {
+          "path": "schematics/tht_led_pair.sch",
+          "sha256": "c73950978a287baea1ca6a66cf8cb66807622aad1054e47df55c8a4ae3a5782a"
+        }
+      ]
+    },
+    {
+      "id": "board-power-input",
+      "name": "power_input",
+      "type": "board",
+      "format": "eagle-brd",
+      "license": "GPL-3.0-or-later",
+      "provenance": "own",
+      "verified": false,
+      "exports": [
+        "eagle-brd",
+        "kicad-pcb",
+        "gerber",
+        "excellon",
+        "ipc-2581"
+      ],
+      "title": {
+        "en": "Protected power input (board)",
+        "es": "Entrada de alimentación protegida (placa)",
+        "de": "Geschützter Stromeingang (Platine)",
+        "fr": "Entrée d'alimentation protégée (carte)",
+        "it": "Ingresso di alimentazione protetto (scheda)",
+        "ja": "保護付き電源入力（基板）",
+        "zh": "带保护的电源输入（电路板）",
+        "pt": "Entrada de alimentação protegida (placa)"
+      },
+      "files": [
+        {
+          "path": "boards/power_input.brd",
+          "sha256": "80854f0734cf507d90d21729d749e22526783c5560ec7db8d96d959fa5c7c3bb"
+        }
+      ]
+    },
+    {
+      "id": "schematic-power-input",
+      "name": "power_input",
+      "type": "schematic",
+      "format": "eagle-sch",
+      "license": "GPL-3.0-or-later",
+      "provenance": "own",
+      "verified": false,
+      "exports": [
+        "eagle-sch",
+        "kicad-sch"
+      ],
+      "title": {
+        "en": "Protected power input (schematic)",
+        "es": "Entrada de alimentación protegida (esquema)",
+        "de": "Geschützter Stromeingang (Schaltplan)",
+        "fr": "Entrée d'alimentation protégée (schéma)",
+        "it": "Ingresso di alimentazione protetto (schema)",
+        "ja": "保護付き電源入力（回路図）",
+        "zh": "带保护的电源输入（原理图）",
+        "pt": "Entrada de alimentação protegida (esquema)"
+      },
+      "files": [
+        {
+          "path": "schematics/power_input.sch",
+          "sha256": "b0668ca2e7a4259c705e828ed0916ea96a187b3c2fe1d7f4aeab7cb7cdcde5a8"
+        }
+      ]
+    },
+    {
+      "id": "board-regulator-sot223",
+      "name": "regulator_sot223",
+      "type": "board",
+      "format": "eagle-brd",
+      "license": "GPL-3.0-or-later",
+      "provenance": "own",
+      "verified": false,
+      "exports": [
+        "eagle-brd",
+        "kicad-pcb",
+        "gerber",
+        "excellon",
+        "ipc-2581"
+      ],
+      "title": {
+        "en": "Linear regulator (board)",
+        "es": "Regulador lineal (placa)",
+        "de": "Linearregler (Platine)",
+        "fr": "Régulateur linéaire (carte)",
+        "it": "Regolatore lineare (scheda)",
+        "ja": "リニアレギュレータ（基板）",
+        "zh": "线性稳压器（电路板）",
+        "pt": "Regulador linear (placa)"
+      },
+      "files": [
+        {
+          "path": "boards/regulator_sot223.brd",
+          "sha256": "2ae2e823986762fe72a90487328d0da3b21f9257fd5cb92b1779dbf69e5edbd5"
+        }
+      ]
+    },
+    {
+      "id": "schematic-regulator-sot223",
+      "name": "regulator_sot223",
+      "type": "schematic",
+      "format": "eagle-sch",
+      "license": "GPL-3.0-or-later",
+      "provenance": "own",
+      "verified": false,
+      "exports": [
+        "eagle-sch",
+        "kicad-sch"
+      ],
+      "title": {
+        "en": "Linear regulator (schematic)",
+        "es": "Regulador lineal (esquema)",
+        "de": "Linearregler (Schaltplan)",
+        "fr": "Régulateur linéaire (schéma)",
+        "it": "Regolatore lineare (schema)",
+        "ja": "リニアレギュレータ（回路図）",
+        "zh": "线性稳压器（原理图）",
+        "pt": "Regulador linear (esquema)"
+      },
+      "files": [
+        {
+          "path": "schematics/regulator_sot223.sch",
+          "sha256": "7e72885d59d6dd503b6616895dac10300aeb02aea33b1b836ae0da1749301ca4"
+        }
+      ]
+    },
+    {
+      "id": "board-esp32-carrier",
+      "name": "esp32_carrier",
+      "type": "board",
+      "format": "eagle-brd",
+      "license": "GPL-3.0-or-later",
+      "provenance": "own",
+      "verified": false,
+      "exports": [
+        "eagle-brd",
+        "kicad-pcb",
+        "gerber",
+        "excellon",
+        "ipc-2581"
+      ],
+      "title": {
+        "en": "Carrier for an ESP32 type module (board)",
+        "es": "Placa base para módulo tipo ESP32 (placa)",
+        "de": "Trägerplatine für ein ESP32-artiges Modul (Platine)",
+        "fr": "Carte porteuse pour module de type ESP32 (carte)",
+        "it": "Scheda di supporto per modulo di tipo ESP32 (scheda)",
+        "ja": "ESP32 型モジュール用キャリア基板（基板）",
+        "zh": "ESP32 类模块底板（电路板）",
+        "pt": "Placa de suporte para módulo do tipo ESP32 (placa)"
+      },
+      "files": [
+        {
+          "path": "boards/esp32_carrier.brd",
+          "sha256": "66d9f169410c5d8ccb07f44c026ac13713c4beac2f11e623d8a312c44b5973a6"
+        }
+      ]
+    },
+    {
+      "id": "schematic-esp32-carrier",
+      "name": "esp32_carrier",
+      "type": "schematic",
+      "format": "eagle-sch",
+      "license": "GPL-3.0-or-later",
+      "provenance": "own",
+      "verified": false,
+      "exports": [
+        "eagle-sch",
+        "kicad-sch"
+      ],
+      "title": {
+        "en": "Carrier for an ESP32 type module (schematic)",
+        "es": "Placa base para módulo tipo ESP32 (esquema)",
+        "de": "Trägerplatine für ein ESP32-artiges Modul (Schaltplan)",
+        "fr": "Carte porteuse pour module de type ESP32 (schéma)",
+        "it": "Scheda di supporto per modulo di tipo ESP32 (schema)",
+        "ja": "ESP32 型モジュール用キャリア基板（回路図）",
+        "zh": "ESP32 类模块底板（原理图）",
+        "pt": "Placa de suporte para módulo do tipo ESP32 (esquema)"
+      },
+      "files": [
+        {
+          "path": "schematics/esp32_carrier.sch",
+          "sha256": "c1f0f398158ebcba18b54377a06fa5ffd47cb04ac7b6c300cc2ae36b012c78bd"
+        }
+      ]
+    },
+    {
+      "id": "board-stm32-carrier",
+      "name": "stm32_carrier",
+      "type": "board",
+      "format": "eagle-brd",
+      "license": "GPL-3.0-or-later",
+      "provenance": "own",
+      "verified": false,
+      "exports": [
+        "eagle-brd",
+        "kicad-pcb",
+        "gerber",
+        "excellon",
+        "ipc-2581"
+      ],
+      "title": {
+        "en": "Carrier for an STM32 type module (board)",
+        "es": "Placa base para módulo tipo STM32 (placa)",
+        "de": "Trägerplatine für ein STM32-artiges Modul (Platine)",
+        "fr": "Carte porteuse pour module de type STM32 (carte)",
+        "it": "Scheda di supporto per modulo di tipo STM32 (scheda)",
+        "ja": "STM32 型モジュール用キャリア基板（基板）",
+        "zh": "STM32 类模块底板（电路板）",
+        "pt": "Placa de suporte para módulo do tipo STM32 (placa)"
+      },
+      "files": [
+        {
+          "path": "boards/stm32_carrier.brd",
+          "sha256": "4dd38f8d3f2426dbc651ed247c0f3930c61ccf6fb96de38f84aa518ede2351dc"
+        }
+      ]
+    },
+    {
+      "id": "schematic-stm32-carrier",
+      "name": "stm32_carrier",
+      "type": "schematic",
+      "format": "eagle-sch",
+      "license": "GPL-3.0-or-later",
+      "provenance": "own",
+      "verified": false,
+      "exports": [
+        "eagle-sch",
+        "kicad-sch"
+      ],
+      "title": {
+        "en": "Carrier for an STM32 type module (schematic)",
+        "es": "Placa base para módulo tipo STM32 (esquema)",
+        "de": "Trägerplatine für ein STM32-artiges Modul (Schaltplan)",
+        "fr": "Carte porteuse pour module de type STM32 (schéma)",
+        "it": "Scheda di supporto per modulo di tipo STM32 (schema)",
+        "ja": "STM32 型モジュール用キャリア基板（回路図）",
+        "zh": "STM32 类模块底板（原理图）",
+        "pt": "Placa de suporte para módulo do tipo STM32 (esquema)"
+      },
+      "files": [
+        {
+          "path": "schematics/stm32_carrier.sch",
+          "sha256": "f59f57c488739f07ec1c1a2008c2574fecca5c1fc332d47335d0aa89ec1763a5"
+        }
+      ]
+    },
+    {
+      "id": "ulp-count-parts",
+      "name": "count_parts",
+      "type": "program",
+      "format": "ulp",
+      "license": "GPL-3.0-or-later",
+      "provenance": "own",
+      "verified": false,
+      "exports": [],
+      "title": {
+        "en": "Count parts by letter",
+        "es": "Contar componentes por letra",
+        "de": "Bauteile nach Buchstabe zählen",
+        "fr": "Compter les composants par lettre",
+        "it": "Contare i componenti per lettera",
+        "ja": "先頭文字ごとの部品数",
+        "zh": "按字母统计元件",
+        "pt": "Contar componentes por letra"
+      },
+      "files": [
+        {
+          "path": "ulp/count_parts.ulp",
+          "sha256": "990e224d6d0b6d1dd73e1ff7d89bfafe4f4b1fecab261fb5b37ec9f287f10f77"
+        },
+        {
+          "path": "ulp/count_parts.expected",
+          "sha256": "4e848dca8640a44b5ca95611608fa5b3426baebf8ea6f24b8db28587eeb4bbcc"
+        }
+      ],
+      "runs_on": "boards/transistor_switch.brd"
+    },
+    {
+      "id": "ulp-bom-by-value",
+      "name": "bom_by_value",
+      "type": "program",
+      "format": "ulp",
+      "license": "GPL-3.0-or-later",
+      "provenance": "own",
+      "verified": false,
+      "exports": [],
+      "title": {
+        "en": "Bill of materials by value",
+        "es": "Lista de materiales por valor",
+        "de": "Stückliste nach Wert",
+        "fr": "Nomenclature par valeur",
+        "it": "Distinta base per valore",
+        "ja": "値ごとの部品表",
+        "zh": "按值汇总的物料清单",
+        "pt": "Lista de materiais por valor"
+      },
+      "files": [
+        {
+          "path": "ulp/bom_by_value.ulp",
+          "sha256": "8dd2ba35ac06c5fa6e00ff5730ed7fa6d6549b1ec62880e37f17d4eb4e4a15a8"
+        },
+        {
+          "path": "ulp/bom_by_value.expected",
+          "sha256": "14682a2ea0383354ec6e4962fe31ea7c06efcf298f9ebbcd6e3019f743c278c3"
+        }
+      ],
+      "runs_on": "boards/led_bar.brd"
+    },
+    {
+      "id": "ulp-bom-csv",
+      "name": "bom_csv",
+      "type": "program",
+      "format": "ulp",
+      "license": "GPL-3.0-or-later",
+      "provenance": "own",
+      "verified": false,
+      "exports": [],
+      "title": {
+        "en": "Bill of materials as CSV",
+        "es": "Lista de materiales en CSV",
+        "de": "Stückliste als CSV",
+        "fr": "Nomenclature en CSV",
+        "it": "Distinta base in CSV",
+        "ja": "CSV 部品表",
+        "zh": "CSV 物料清单",
+        "pt": "Lista de materiais em CSV"
+      },
+      "files": [
+        {
+          "path": "ulp/bom_csv.ulp",
+          "sha256": "3d85cf0047749aa5e969a538ce50f97721a3df85d02c1b9e6c2505b5ed08d06f"
+        },
+        {
+          "path": "ulp/bom_csv.expected",
+          "sha256": "c5dd39efaf2c8297d20535d31eb5c7ca999a322b933c26c6dfd6fc1d4d4cd6b0"
+        }
+      ],
+      "runs_on": "boards/regulator_sot223.brd"
+    },
+    {
+      "id": "ulp-drill-table",
+      "name": "drill_table",
+      "type": "program",
+      "format": "ulp",
+      "license": "GPL-3.0-or-later",
+      "provenance": "own",
+      "verified": false,
+      "exports": [],
+      "title": {
+        "en": "Drill table",
+        "es": "Tabla de taladros",
+        "de": "Bohrtabelle",
+        "fr": "Tableau des perçages",
+        "it": "Tabella dei fori",
+        "ja": "ドリル表",
+        "zh": "钻孔表",
+        "pt": "Tabela de furos"
+      },
+      "files": [
+        {
+          "path": "ulp/drill_table.ulp",
+          "sha256": "0c2d85141d0f09e3be6c233d560907bf46620545e5cebde45ae4e7cc66a11017"
+        },
+        {
+          "path": "ulp/drill_table.expected",
+          "sha256": "43109b67e7cd5a9f01cc12adb84d450de5f1642c4d51dada91f6320838c5a5e7"
+        }
+      ],
+      "runs_on": "boards/tht_led_pair.brd"
+    },
+    {
+      "id": "ulp-hole-summary",
+      "name": "hole_summary",
+      "type": "program",
+      "format": "ulp",
+      "license": "GPL-3.0-or-later",
+      "provenance": "own",
+      "verified": false,
+      "exports": [],
+      "title": {
+        "en": "Summary of holes",
+        "es": "Resumen de agujeros",
+        "de": "Übersicht der Bohrungen",
+        "fr": "Résumé des trous",
+        "it": "Riepilogo dei fori",
+        "ja": "穴の集計",
+        "zh": "孔数汇总",
+        "pt": "Resumo de furos"
+      },
+      "files": [
+        {
+          "path": "ulp/hole_summary.ulp",
+          "sha256": "d665fd4b1822527bd2b1cd9b0409c0b1d044f9e1fd04340f020c51c7e5d0d386"
+        },
+        {
+          "path": "ulp/hole_summary.expected",
+          "sha256": "fe5593389f63a5fddf652ba255694c98682ce32178bd1dc69f5739690b9519e6"
+        }
+      ],
+      "runs_on": "boards/tssop14_breakout.brd"
+    },
+    {
+      "id": "ulp-net-lengths",
+      "name": "net_lengths",
+      "type": "program",
+      "format": "ulp",
+      "license": "GPL-3.0-or-later",
+      "provenance": "own",
+      "verified": false,
+      "exports": [],
+      "title": {
+        "en": "Length of every net",
+        "es": "Longitud de cada red",
+        "de": "Länge jedes Netzes",
+        "fr": "Longueur de chaque net",
+        "it": "Lunghezza di ogni rete",
+        "ja": "ネットごとの配線長",
+        "zh": "各网络长度",
+        "pt": "Comprimento de cada rede"
+      },
+      "files": [
+        {
+          "path": "ulp/net_lengths.ulp",
+          "sha256": "df09e13ffc6993d939f530da52146bde68c06b2bd116ed5e1384310b8e3c0d0e"
+        },
+        {
+          "path": "ulp/net_lengths.expected",
+          "sha256": "47adf2dafcd712ef04b5d326b509f73db2434950584c490bb48fb57dc879f288"
+        }
+      ],
+      "runs_on": "boards/transistor_switch.brd"
+    },
+    {
+      "id": "ulp-longest-net",
+      "name": "longest_net",
+      "type": "program",
+      "format": "ulp",
+      "license": "GPL-3.0-or-later",
+      "provenance": "own",
+      "verified": false,
+      "exports": [],
+      "title": {
+        "en": "Longest net",
+        "es": "Red más larga",
+        "de": "Längstes Netz",
+        "fr": "Net le plus long",
+        "it": "Rete più lunga",
+        "ja": "最長ネット",
+        "zh": "最长网络",
+        "pt": "Rede mais longa"
+      },
+      "files": [
+        {
+          "path": "ulp/longest_net.ulp",
+          "sha256": "b6f012b8a5b904bd06f52ac3d194e0af2cf9cb810d21bcab10e3ea86121f7fc0"
+        },
+        {
+          "path": "ulp/longest_net.expected",
+          "sha256": "904a2cb724a94586d060aea87c7bac5add1be5622d38c148e1e4a61bf5b1db52"
+        }
+      ],
+      "runs_on": "boards/power_input.brd"
+    },
+    {
+      "id": "ulp-track-widths",
+      "name": "track_widths",
+      "type": "program",
+      "format": "ulp",
+      "license": "GPL-3.0-or-later",
+      "provenance": "own",
+      "verified": false,
+      "exports": [],
+      "title": {
+        "en": "Length by track width",
+        "es": "Longitud por ancho de pista",
+        "de": "Länge je Leiterbahnbreite",
+        "fr": "Longueur par largeur de piste",
+        "it": "Lunghezza per larghezza di pista",
+        "ja": "配線幅ごとの長さ",
+        "zh": "按线宽统计长度",
+        "pt": "Comprimento por largura de pista"
+      },
+      "files": [
+        {
+          "path": "ulp/track_widths.ulp",
+          "sha256": "bc52300f4301d8cf2bd5cc7f8887bb2032f4dc0a4c48482c35c5e726614f716f"
+        },
+        {
+          "path": "ulp/track_widths.expected",
+          "sha256": "c70782ee8c0e6362c481a98198abca44a9325391decf2c8db846a7ee2c03238d"
+        }
+      ],
+      "runs_on": "boards/power_input.brd"
+    },
+    {
+      "id": "ulp-via-list",
+      "name": "via_list",
+      "type": "program",
+      "format": "ulp",
+      "license": "GPL-3.0-or-later",
+      "provenance": "own",
+      "verified": false,
+      "exports": [],
+      "title": {
+        "en": "List of vias",
+        "es": "Lista de vías",
+        "de": "Liste der Durchkontaktierungen",
+        "fr": "Liste des vias",
+        "it": "Elenco dei via",
+        "ja": "ビア一覧",
+        "zh": "过孔列表",
+        "pt": "Lista de vias"
+      },
+      "files": [
+        {
+          "path": "ulp/via_list.ulp",
+          "sha256": "1bf83a8ae94f15961020438bc537d45625db82e4f5964a9ee0199a1ceca16104"
+        },
+        {
+          "path": "ulp/via_list.expected",
+          "sha256": "d2a935b3e2fbac3c8182e092f23a8ce890efed8d29c0aff50c5a12bc2d0e74d3"
+        }
+      ],
+      "runs_on": "boards/soic8_decoupled.brd"
+    },
+    {
+      "id": "ulp-pins-per-net",
+      "name": "pins_per_net",
+      "type": "program",
+      "format": "ulp",
+      "license": "GPL-3.0-or-later",
+      "provenance": "own",
+      "verified": false,
+      "exports": [],
+      "title": {
+        "en": "Pads of every net",
+        "es": "Pads de cada red",
+        "de": "Pads jedes Netzes",
+        "fr": "Pastilles de chaque net",
+        "it": "Piazzole di ogni rete",
+        "ja": "ネットごとのパッド",
+        "zh": "各网络的焊盘",
+        "pt": "Pads de cada rede"
+      },
+      "files": [
+        {
+          "path": "ulp/pins_per_net.ulp",
+          "sha256": "dc0f7bf2545dc5903c0587cc82cadd1ce36511b0fe8d974974ddc4ed8e01f31f"
+        },
+        {
+          "path": "ulp/pins_per_net.expected",
+          "sha256": "50235aabcaa90ca185b0ebe84a00214e2e95f056633bba59a0a0afd6ecaee322"
+        }
+      ],
+      "runs_on": "boards/voltage_divider.brd"
+    },
+    {
+      "id": "ulp-unconnected-pads",
+      "name": "unconnected_pads",
+      "type": "program",
+      "format": "ulp",
+      "license": "GPL-3.0-or-later",
+      "provenance": "own",
+      "verified": false,
+      "exports": [],
+      "title": {
+        "en": "Pads without a net",
+        "es": "Pads sin red",
+        "de": "Pads ohne Netz",
+        "fr": "Pastilles sans net",
+        "it": "Piazzole senza rete",
+        "ja": "未接続パッド",
+        "zh": "未连接焊盘",
+        "pt": "Pads sem rede"
+      },
+      "files": [
+        {
+          "path": "ulp/unconnected_pads.ulp",
+          "sha256": "cb52a7713c8360f693f2dc62302e1f33c664cb3b53eaf132fd24de67b8723477"
+        },
+        {
+          "path": "ulp/unconnected_pads.expected",
+          "sha256": "97f081e97367316780f5ec5a144be95989ce85b9943c957eedc8326319dd8464"
+        }
+      ],
+      "runs_on": "boards/soic16_breakout.brd"
+    },
+    {
+      "id": "ulp-pad-kinds",
+      "name": "pad_kinds",
+      "type": "program",
+      "format": "ulp",
+      "license": "GPL-3.0-or-later",
+      "provenance": "own",
+      "verified": false,
+      "exports": [],
+      "title": {
+        "en": "Surface mount and through hole pads",
+        "es": "Pads de montaje superficial y de inserción",
+        "de": "SMD- und bedrahtete Pads",
+        "fr": "Pastilles CMS et traversantes",
+        "it": "Piazzole SMD e passanti",
+        "ja": "表面実装とスルーホールのパッド",
+        "zh": "贴片与插件焊盘",
+        "pt": "Pads de montagem em superfície e de inserção"
+      },
+      "files": [
+        {
+          "path": "ulp/pad_kinds.ulp",
+          "sha256": "66492c3978331c426f5e64ba4b8a1a57d8e607a2e089c0484a340eb8df7a63cb"
+        },
+        {
+          "path": "ulp/pad_kinds.expected",
+          "sha256": "a73c1e1c1d79594638a6ad8c5cf0e8949ff4b1d04dc5b13af60a602c3f38de5b"
+        }
+      ],
+      "runs_on": "boards/regulator_sot223.brd"
+    },
+    {
+      "id": "ulp-pad-extent",
+      "name": "pad_extent",
+      "type": "program",
+      "format": "ulp",
+      "license": "GPL-3.0-or-later",
+      "provenance": "own",
+      "verified": false,
+      "exports": [],
+      "title": {
+        "en": "Box of all the pads",
+        "es": "Caja que contiene los pads",
+        "de": "Umrahmung aller Pads",
+        "fr": "Boîte englobant les pastilles",
+        "it": "Riquadro di tutte le piazzole",
+        "ja": "全パッドの範囲",
+        "zh": "全部焊盘的范围",
+        "pt": "Caixa que contém os pads"
+      },
+      "files": [
+        {
+          "path": "ulp/pad_extent.ulp",
+          "sha256": "cebcd314375a25e2da6aac186b1f308c32d7a21ac0acdf4ad6c4c8b09dc20fde"
+        },
+        {
+          "path": "ulp/pad_extent.expected",
+          "sha256": "331662eba19197e9abd6174cb7c892c79782887fa92671301717fd1fc9cf59cd"
+        }
+      ],
+      "runs_on": "boards/esp32_carrier.brd"
+    },
+    {
+      "id": "ulp-placement",
+      "name": "placement",
+      "type": "program",
+      "format": "ulp",
+      "license": "GPL-3.0-or-later",
+      "provenance": "own",
+      "verified": false,
+      "exports": [],
+      "title": {
+        "en": "Placement list",
+        "es": "Lista de colocación",
+        "de": "Bestückungsliste",
+        "fr": "Liste de placement",
+        "it": "Lista di posizionamento",
+        "ja": "実装位置リスト",
+        "zh": "贴装坐标列表",
+        "pt": "Lista de posicionamento"
+      },
+      "files": [
+        {
+          "path": "ulp/placement.ulp",
+          "sha256": "dcde92c3220d42c8b6481f65c00e476646455b88bc0cc996fcbc59d4190b6793"
+        },
+        {
+          "path": "ulp/placement.expected",
+          "sha256": "61a61a45e7fdbf5f99f93cf59f083b7362e5f7ec24a0f199d4e740cad5631ca0"
+        }
+      ],
+      "runs_on": "boards/led_indicator.brd"
+    },
+    {
+      "id": "ulp-packages-used",
+      "name": "packages_used",
+      "type": "program",
+      "format": "ulp",
+      "license": "GPL-3.0-or-later",
+      "provenance": "own",
+      "verified": false,
+      "exports": [],
+      "title": {
+        "en": "Packages in use",
+        "es": "Encapsulados usados",
+        "de": "Verwendete Gehäuse",
+        "fr": "Boîtiers utilisés",
+        "it": "Package usati",
+        "ja": "使用パッケージ",
+        "zh": "使用的封装",
+        "pt": "Encapsulamentos usados"
+      },
+      "files": [
+        {
+          "path": "ulp/packages_used.ulp",
+          "sha256": "388f9ff2653bdabc2ba8fb375c9deed9e6d545eeeca9848ec01dabfbb43be32b"
+        },
+        {
+          "path": "ulp/packages_used.expected",
+          "sha256": "d56af3ace6f1a17e9bcdff9b452568ab05939a648991f8913d1e1be1cfaa41ac"
+        }
+      ],
+      "runs_on": "boards/tht_led_pair.brd"
+    },
+    {
+      "id": "ulp-layer-usage",
+      "name": "layer_usage",
+      "type": "program",
+      "format": "ulp",
+      "license": "GPL-3.0-or-later",
+      "provenance": "own",
+      "verified": false,
+      "exports": [],
+      "title": {
+        "en": "Tracks on each layer",
+        "es": "Pistas en cada capa",
+        "de": "Leiterbahnen je Lage",
+        "fr": "Pistes par couche",
+        "it": "Piste su ogni strato",
+        "ja": "層ごとの配線",
+        "zh": "各层走线",
+        "pt": "Pistas em cada camada"
+      },
+      "files": [
+        {
+          "path": "ulp/layer_usage.ulp",
+          "sha256": "7d90a712d884c4bbd13c76f5e1861203dfda36eed81c4015bc775189b97b010f"
+        },
+        {
+          "path": "ulp/layer_usage.expected",
+          "sha256": "473bfcc6006399ace4cb1ccb77286f065969b15d9b20a89940831d9d6cdd86f9"
+        }
+      ],
+      "runs_on": "boards/soic8_decoupled.brd"
+    },
+    {
+      "id": "ulp-sch-netlist",
+      "name": "sch_netlist",
+      "type": "program",
+      "format": "ulp",
+      "license": "GPL-3.0-or-later",
+      "provenance": "own",
+      "verified": false,
+      "exports": [],
+      "title": {
+        "en": "Netlist of a schematic",
+        "es": "Netlist de un esquema",
+        "de": "Netzliste eines Schaltplans",
+        "fr": "Netlist d'un schéma",
+        "it": "Netlist di uno schema",
+        "ja": "回路図のネットリスト",
+        "zh": "原理图网表",
+        "pt": "Netlist de um esquema"
+      },
+      "files": [
+        {
+          "path": "ulp/sch_netlist.ulp",
+          "sha256": "b07ae1e7479c504a54cc1f4210482576d453030d87d7dde1127820eda63cdec1"
+        },
+        {
+          "path": "ulp/sch_netlist.expected",
+          "sha256": "75c846b7c4cf4306efb87ce7bac2801dac5a28c6af15885f10be2f30ab4757e8"
+        }
+      ],
+      "runs_on": "schematics/transistor_switch.sch"
+    },
+    {
+      "id": "ulp-sch-bom",
+      "name": "sch_bom",
+      "type": "program",
+      "format": "ulp",
+      "license": "GPL-3.0-or-later",
+      "provenance": "own",
+      "verified": false,
+      "exports": [],
+      "title": {
+        "en": "Parts of a schematic by value",
+        "es": "Componentes del esquema por valor",
+        "de": "Schaltplanbauteile nach Wert",
+        "fr": "Composants du schéma par valeur",
+        "it": "Componenti dello schema per valore",
+        "ja": "回路図の値ごとの部品",
+        "zh": "原理图元件按值汇总",
+        "pt": "Componentes do esquema por valor"
+      },
+      "files": [
+        {
+          "path": "ulp/sch_bom.ulp",
+          "sha256": "310bf72c0311d9fd8ac0ba3f77f823bae0331c5a0af70114384b5e51f9ad9f1f"
+        },
+        {
+          "path": "ulp/sch_bom.expected",
+          "sha256": "4801c71abefcd3a65e8035c7e85ebab7e7b052c0242451c524d1c423a78b523c"
+        }
+      ],
+      "runs_on": "schematics/led_bar.sch"
+    },
+    {
+      "id": "ulp-sch-net-sizes",
+      "name": "sch_net_sizes",
+      "type": "program",
+      "format": "ulp",
+      "license": "GPL-3.0-or-later",
+      "provenance": "own",
+      "verified": false,
+      "exports": [],
+      "title": {
+        "en": "Connections of every net",
+        "es": "Conexiones de cada red",
+        "de": "Verbindungen jedes Netzes",
+        "fr": "Connexions de chaque net",
+        "it": "Collegamenti di ogni rete",
+        "ja": "ネットごとの接続数",
+        "zh": "各网络连接数",
+        "pt": "Ligações de cada rede"
+      },
+      "files": [
+        {
+          "path": "ulp/sch_net_sizes.ulp",
+          "sha256": "c09f7fcc6ae8d7fd714fe836b96817a42ed058f8f5d1a04802c219585436c050"
+        },
+        {
+          "path": "ulp/sch_net_sizes.expected",
+          "sha256": "395281e7f1636956841b31829d887851d4933b252ea312055f644d5c7b66413a"
+        }
+      ],
+      "runs_on": "schematics/stm32_carrier.sch"
+    },
+    {
+      "id": "ulp-sch-sheet-parts",
+      "name": "sch_sheet_parts",
+      "type": "program",
+      "format": "ulp",
+      "license": "GPL-3.0-or-later",
+      "provenance": "own",
+      "verified": false,
+      "exports": [],
+      "title": {
+        "en": "Parts on each sheet",
+        "es": "Componentes de cada hoja",
+        "de": "Bauteile je Blatt",
+        "fr": "Composants par feuille",
+        "it": "Componenti per foglio",
+        "ja": "シートごとの部品",
+        "zh": "各图页的元件",
+        "pt": "Componentes de cada folha"
+      },
+      "files": [
+        {
+          "path": "ulp/sch_sheet_parts.ulp",
+          "sha256": "ecbb80b23157626e72ca07d98a0c1a1f3e5004219357ccea3e11c03cef3c6bc9"
+        },
+        {
+          "path": "ulp/sch_sheet_parts.expected",
+          "sha256": "c49543ed99d4b68a59c3c8ba6dd3f73508ad022f7c8097fb0852f4c37310318e"
+        }
+      ],
+      "runs_on": "schematics/power_input.sch"
+    },
+    {
+      "id": "rules-default",
+      "name": "default",
+      "type": "rules",
+      "format": "phoenix-rules",
+      "license": "GPL-3.0-or-later",
+      "provenance": "own",
+      "verified": false,
+      "exports": [],
+      "title": {
+        "en": "Design rules: general",
+        "es": "Reglas de diseño: generales",
+        "de": "Entwurfsregeln: allgemein",
+        "fr": "Règles de conception : générales",
+        "it": "Regole di progetto: generali",
+        "ja": "設計ルール：汎用",
+        "zh": "设计规则：通用",
+        "pt": "Regras de projeto: gerais"
+      },
+      "files": [
+        {
+          "path": "rules/default.rules.json",
+          "sha256": "3a2899732203d81124261af0e6da9bbe1fa1997b2d8ab2790917f3cd4a398ba9"
+        }
+      ]
+    },
+    {
+      "id": "dfm-four-layer-standard",
+      "name": "four_layer_standard",
+      "type": "dfm",
+      "format": "phoenix-dfm",
+      "license": "GPL-3.0-or-later",
+      "provenance": "own",
+      "verified": false,
+      "exports": [],
+      "title": {
+        "en": "Profile: four layers",
+        "es": "Perfil: cuatro capas",
+        "de": "Profil: vier Lagen",
+        "fr": "Profil : quatre couches",
+        "it": "Profilo: quattro strati",
+        "ja": "プロファイル：4層",
+        "zh": "配置：四层板",
+        "pt": "Perfil: quatro camadas"
+      },
+      "files": [
+        {
+          "path": "rules/four_layer_standard.cfg",
+          "sha256": "1bda29569a364477b463e12ff9cd2f92119e97d8da575fe1710c2b8b042f770b"
+        }
+      ]
+    },
+    {
+      "id": "dfm-hand-assembly",
+      "name": "hand_assembly",
+      "type": "dfm",
+      "format": "phoenix-dfm",
+      "license": "GPL-3.0-or-later",
+      "provenance": "own",
+      "verified": false,
+      "exports": [],
+      "title": {
+        "en": "Profile: made by hand",
+        "es": "Perfil: hecho a mano",
+        "de": "Profil: Handfertigung",
+        "fr": "Profil : fait à la main",
+        "it": "Profilo: fatto a mano",
+        "ja": "プロファイル：手作業",
+        "zh": "配置：手工制作",
+        "pt": "Perfil: feito à mão"
+      },
+      "files": [
+        {
+          "path": "rules/hand_assembly.cfg",
+          "sha256": "2460a2efc6527ea5b19d6384f9e7e6cffea802c17280754e559a373cc5525c40"
+        }
+      ]
+    },
+    {
+      "id": "rules-power-classes",
+      "name": "power_classes",
+      "type": "rules",
+      "format": "phoenix-rules",
+      "license": "GPL-3.0-or-later",
+      "provenance": "own",
+      "verified": false,
+      "exports": [],
+      "title": {
+        "en": "Design rules with a supply class",
+        "es": "Reglas de diseño con clase de alimentación",
+        "de": "Entwurfsregeln mit Versorgungsklasse",
+        "fr": "Règles de conception avec classe d'alimentation",
+        "it": "Regole di progetto con classe di alimentazione",
+        "ja": "電源クラス付き設計ルール",
+        "zh": "带电源类别的设计规则",
+        "pt": "Regras de projeto com classe de alimentação"
+      },
+      "files": [
+        {
+          "path": "rules/power_classes.rules.json",
+          "sha256": "3b8f3263bb799411af8de77b0c35cb689710c7f448add1c20d00409d6414509c"
+        }
+      ]
+    },
+    {
+      "id": "dfm-two-layer-fine",
+      "name": "two_layer_fine",
+      "type": "dfm",
+      "format": "phoenix-dfm",
+      "license": "GPL-3.0-or-later",
+      "provenance": "own",
+      "verified": false,
+      "exports": [],
+      "title": {
+        "en": "Profile: two layers, fine",
+        "es": "Perfil: dos capas, fino",
+        "de": "Profil: zwei Lagen, fein",
+        "fr": "Profil : deux couches, fin",
+        "it": "Profilo: due strati, fine",
+        "ja": "プロファイル：2層（微細）",
+        "zh": "配置：双层板（精细）",
+        "pt": "Perfil: duas camadas, fino"
+      },
+      "files": [
+        {
+          "path": "rules/two_layer_fine.cfg",
+          "sha256": "ed0ece3772f06a0f5416bae342960461fe5c295d26db5ab241a93cf3a08f971c"
+        }
+      ]
+    },
+    {
+      "id": "dfm-two-layer-standard",
+      "name": "two_layer_standard",
+      "type": "dfm",
+      "format": "phoenix-dfm",
+      "license": "GPL-3.0-or-later",
+      "provenance": "own",
+      "verified": false,
+      "exports": [],
+      "title": {
+        "en": "Profile: two layers",
+        "es": "Perfil: dos capas",
+        "de": "Profil: zwei Lagen",
+        "fr": "Profil : deux couches",
+        "it": "Profilo: due strati",
+        "ja": "プロファイル：2層",
+        "zh": "配置：双层板",
+        "pt": "Perfil: duas camadas"
+      },
+      "files": [
+        {
+          "path": "rules/two_layer_standard.cfg",
+          "sha256": "412f581969bb0d36f366d214141825f824970026d6a42c66b7de5e19c6137a7b"
+        }
+      ]
+    },
+    {
+      "id": "cam-assembly-files",
+      "name": "assembly_files",
+      "type": "export-profile",
+      "format": "phoenix-export",
+      "license": "GPL-3.0-or-later",
+      "provenance": "own",
+      "verified": false,
+      "exports": [],
+      "title": {
+        "en": "Output: files for assembly",
+        "es": "Salida: ficheros para montaje",
+        "de": "Ausgabe: Dateien für die Bestückung",
+        "fr": "Sortie : fichiers d'assemblage",
+        "it": "Uscita: file per il montaggio",
+        "ja": "出力：実装用ファイル",
+        "zh": "输出：装配文件",
+        "pt": "Saída: ficheiros para montagem"
+      },
+      "files": [
+        {
+          "path": "cam/assembly_files.json",
+          "sha256": "8531abedb55c437ce9259026381791b9dfabbe22c7c4e51b5beab62c5cab0d6b"
+        }
+      ]
+    },
+    {
+      "id": "cam-gerber-basic",
+      "name": "gerber_basic",
+      "type": "export-profile",
+      "format": "phoenix-export",
+      "license": "GPL-3.0-or-later",
+      "provenance": "own",
+      "verified": false,
+      "exports": [],
+      "title": {
+        "en": "Output: Gerber and drill",
+        "es": "Salida: Gerber y taladros",
+        "de": "Ausgabe: Gerber und Bohren",
+        "fr": "Sortie : Gerber et perçage",
+        "it": "Uscita: Gerber e foratura",
+        "ja": "出力：Gerber とドリル",
+        "zh": "输出：Gerber 和钻孔",
+        "pt": "Saída: Gerber e furação"
+      },
+      "files": [
+        {
+          "path": "cam/gerber_basic.json",
+          "sha256": "96730dfbe163164553db973376808fa131d9d465591755ecfdc879361a00208c"
+        }
+      ]
+    }
+  ]
+}

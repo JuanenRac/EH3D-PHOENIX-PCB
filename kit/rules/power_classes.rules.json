@@ -1,0 +1,28 @@
+{
+  "format": "phoenix-rules/2",
+  "name": "starter kit: general figures with a class for supply nets, not verified",
+  "rules": {
+    "min_track_width_nm": 150000,
+    "min_clearance_nm": 150000,
+    "min_drill_nm": 300000,
+    "min_via_diameter_nm": 600000,
+    "min_annular_ring_nm": 130000,
+    "min_edge_clearance_nm": 300000,
+    "min_drill_spacing_nm": 250000,
+    "connect_tolerance_nm": 0
+  },
+  "classes": [
+    {
+      "name": "supply",
+      "nets": [
+        "VCC",
+        "GND",
+        "VIN",
+        "VOUT"
+      ],
+      "min_track_width_nm": 300000,
+      "min_via_diameter_nm": 600000,
+      "min_via_drill_nm": 300000
+    }
+  ]
+}

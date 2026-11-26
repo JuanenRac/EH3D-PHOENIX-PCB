@@ -169,6 +169,8 @@ phoenix ulp run --board examples/tutorials/tut.brd examples/ulp/parts_list.ulp
 phoenix ulp report examples/ulp/refused_system.ulp
 ```
 
+The starter kit (`docs/KIT.md`) has 20 more programs in `kit/ulp/` (counts, bills of materials, drill and length tables, netlists and placement lists), each with its expected output on a sample design of the kit.
+
 ## How it was made
 
 The names and the meanings of the language were taken from its public description, and nothing of it is copied (`docs/adr/0006-clean-room.md`); no code under a copyleft licence was read to write the reader or the evaluator. The tests use small programs written for them that exercise the same constructs, a board and a schematic built in the test, and generators with a fixed seed: random pieces of the language, a good program with characters changed, deleted and added, the same program cut at every point, bytes that are not text, programs nested a hundred thousand levels deep, and programs made of good pieces that loop and grow. Every one must end in a result, a problem, a refusal or an error with its code, inside the budget of steps, memory and output, and never in a panic.

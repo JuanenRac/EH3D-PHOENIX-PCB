@@ -354,6 +354,19 @@
           }
         },
         {
+          "name": "KIT.md",
+          "desc": {
+            "en": "the starter kit and the command kit",
+            "es": "el kit de arranque y la orden kit",
+            "de": "das Starterkit und der Befehl kit",
+            "fr": "le kit de démarrage et la commande kit",
+            "it": "il kit iniziale e il comando kit",
+            "ja": "スターターキットと kit コマンド",
+            "zh": "入门套件与 kit 命令",
+            "pt": "o kit inicial e o comando kit"
+          }
+        },
+        {
           "name": "ERC.md",
           "desc": {
             "en": "electrical rule check and synchronisation",
@@ -1132,6 +1145,19 @@
             "ja": "固定されたRustツールチェーン",
             "zh": "固定的 Rust 工具链",
             "pt": "a toolchain de Rust fixada"
+          }
+        },
+        {
+          "name": "kit/",
+          "desc": {
+            "en": "the starter kit: libraries, samples, programs",
+            "es": "el kit de arranque: bibliotecas, ejemplos",
+            "de": "das Starterkit: Bibliotheken, Beispiele",
+            "fr": "le kit de démarrage : bibliothèques, exemples",
+            "it": "il kit iniziale: librerie, esempi",
+            "ja": "スターターキット：ライブラリと例",
+            "zh": "入门套件：库与示例",
+            "pt": "o kit inicial: bibliotecas, exemplos"
           }
         },
         {

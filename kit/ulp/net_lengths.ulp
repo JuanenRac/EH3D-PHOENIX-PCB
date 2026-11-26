@@ -1,0 +1,11 @@
+#usage "Length of the copper of every net and its number of vias"
+// EH3D-PHOENIX-PCB starter kit. SPDX-License-Identifier: GPL-3.0-or-later
+board(B) {
+  B.signals(S) {
+    real length = 0;
+    int vias = 0;
+    S.wires(W) { length += u2mm(W.length); }
+    S.vias(V) { vias++; }
+    printf("%-8s %8.2f mm  %d vias\n", S.name, length, vias);
+  }
+}

@@ -206,6 +206,13 @@ pub static COMMANDS: &[Command] = &[
         run: Some(crate::ulp::ulp_command),
     },
     Command {
+        name: "kit",
+        topic: Topic::Libraries,
+        doc: "docs/KIT.md",
+        summary: ["list, describe and copy the pieces of the starter kit: libraries, sample designs, user programs and profiles", "lista, describe y copia las piezas del kit de arranque: bibliotecas, diseños de ejemplo, programas de usuario y perfiles", "listet, beschreibt und kopiert die Teile des Starterkits: Bibliotheken, Beispielentwürfe, Benutzerprogramme und Profile", "liste, décrit et copie les éléments du kit de démarrage : bibliothèques, exemples de conception, programmes utilisateur et profils", "elenca, descrive e copia gli elementi del kit iniziale: librerie, progetti di esempio, programmi utente e profili", "スターターキットの項目（ライブラリ、設計例、ユーザープログラム、プロファイル）の一覧・詳細・コピー", "列出、说明并复制入门套件中的内容：库、示例设计、用户程序和配置文件", "lista, descreve e copia as peças do kit inicial: bibliotecas, projetos de exemplo, programas de utilizador e perfis"],
+        run: Some(crate::kit::kit_command),
+    },
+    Command {
         name: "route",
         topic: Topic::Board,
         doc: "docs/ROUTE.md",

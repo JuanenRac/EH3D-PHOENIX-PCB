@@ -1,0 +1,16 @@
+#usage "Counts surface mount and through hole pads, and the square ones that mark pin 1"
+// EH3D-PHOENIX-PCB starter kit. SPDX-License-Identifier: GPL-3.0-or-later
+int surface = 0, through = 0, square = 0;
+board(B) {
+  B.elements(E) {
+    E.pads(P) {
+      if (P.drill == 0) {
+        surface++;
+      } else {
+        through++;
+        if (P.shape == PAD_SHAPE_SQUARE) square++;
+      }
+    }
+  }
+}
+printf("surface mount %d\nthrough hole %d\nsquare through hole %d\n", surface, through, square);

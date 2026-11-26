@@ -1,0 +1,231 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- EH3D-PHOENIX-PCB starter kit. SPDX-License-Identifier: GPL-3.0-or-later. Own work, not verified. -->
+<eagle version="9.6.2">
+<drawing>
+<settings/>
+<layers>
+<layer number="1" name="Top" color="1" fill="1" visible="yes" active="yes"/>
+<layer number="16" name="Bottom" color="1" fill="1" visible="yes" active="yes"/>
+<layer number="20" name="Dimension" color="1" fill="1" visible="yes" active="yes"/>
+<layer number="21" name="tPlace" color="1" fill="1" visible="yes" active="yes"/>
+<layer number="22" name="bPlace" color="1" fill="1" visible="yes" active="yes"/>
+<layer number="29" name="tStop" color="1" fill="1" visible="yes" active="yes"/>
+<layer number="30" name="bStop" color="1" fill="1" visible="yes" active="yes"/>
+<layer number="31" name="tCream" color="1" fill="1" visible="yes" active="yes"/>
+<layer number="32" name="bCream" color="1" fill="1" visible="yes" active="yes"/>
+<layer number="51" name="tDocu" color="1" fill="1" visible="yes" active="yes"/>
+<layer number="52" name="bDocu" color="1" fill="1" visible="yes" active="yes"/>
+</layers>
+<board>
+<plain>
+<wire x1="0" y1="0" x2="38" y2="0" width="0.1" layer="20"/>
+<wire x1="38" y1="0" x2="38" y2="32" width="0.1" layer="20"/>
+<wire x1="38" y1="32" x2="0" y2="32" width="0.1" layer="20"/>
+<wire x1="0" y1="32" x2="0" y2="0" width="0.1" layer="20"/>
+</plain>
+<libraries>
+<library name="eh3d-kit">
+<packages>
+<package name="HDR-1X08">
+<pad name="1" x="-8.89" y="0" drill="1" diameter="1.7" shape="square"/>
+<pad name="2" x="-6.35" y="0" drill="1" diameter="1.7"/>
+<pad name="3" x="-3.81" y="0" drill="1" diameter="1.7"/>
+<pad name="4" x="-1.27" y="0" drill="1" diameter="1.7"/>
+<pad name="5" x="1.27" y="0" drill="1" diameter="1.7"/>
+<pad name="6" x="3.81" y="0" drill="1" diameter="1.7"/>
+<pad name="7" x="6.35" y="0" drill="1" diameter="1.7"/>
+<pad name="8" x="8.89" y="0" drill="1" diameter="1.7"/>
+</package>
+<package name="SOIC-16">
+<smd name="1" x="-2.7" y="4.445" dx="1.55" dy="0.6" layer="1"/>
+<smd name="2" x="-2.7" y="3.175" dx="1.55" dy="0.6" layer="1"/>
+<smd name="3" x="-2.7" y="1.905" dx="1.55" dy="0.6" layer="1"/>
+<smd name="4" x="-2.7" y="0.635" dx="1.55" dy="0.6" layer="1"/>
+<smd name="5" x="-2.7" y="-0.635" dx="1.55" dy="0.6" layer="1"/>
+<smd name="6" x="-2.7" y="-1.905" dx="1.55" dy="0.6" layer="1"/>
+<smd name="7" x="-2.7" y="-3.175" dx="1.55" dy="0.6" layer="1"/>
+<smd name="8" x="-2.7" y="-4.445" dx="1.55" dy="0.6" layer="1"/>
+<smd name="9" x="2.7" y="-4.445" dx="1.55" dy="0.6" layer="1"/>
+<smd name="10" x="2.7" y="-3.175" dx="1.55" dy="0.6" layer="1"/>
+<smd name="11" x="2.7" y="-1.905" dx="1.55" dy="0.6" layer="1"/>
+<smd name="12" x="2.7" y="-0.635" dx="1.55" dy="0.6" layer="1"/>
+<smd name="13" x="2.7" y="0.635" dx="1.55" dy="0.6" layer="1"/>
+<smd name="14" x="2.7" y="1.905" dx="1.55" dy="0.6" layer="1"/>
+<smd name="15" x="2.7" y="3.175" dx="1.55" dy="0.6" layer="1"/>
+<smd name="16" x="2.7" y="4.445" dx="1.55" dy="0.6" layer="1"/>
+</package>
+<package name="CHIP-0805">
+<smd name="1" x="-0.95" y="0" dx="1.15" dy="1.45" layer="1"/>
+<smd name="2" x="0.95" y="0" dx="1.15" dy="1.45" layer="1"/>
+</package>
+</packages>
+</library>
+</libraries>
+<designrules name="eh3d-kit">
+<param name="mdWireWire" value="0.15mm"/>
+<param name="mdWirePad" value="0.15mm"/>
+<param name="mdWireVia" value="0.15mm"/>
+<param name="mdPadPad" value="0.15mm"/>
+<param name="mdPadVia" value="0.15mm"/>
+<param name="mdViaVia" value="0.15mm"/>
+<param name="mdSmdPad" value="0.15mm"/>
+<param name="mdSmdVia" value="0.15mm"/>
+<param name="mdSmdSmd" value="0.15mm"/>
+<param name="mdCopperDimension" value="0.3mm"/>
+<param name="mdDrill" value="0.25mm"/>
+<param name="msWidth" value="0.15mm"/>
+<param name="msDrill" value="0.3mm"/>
+<param name="rlMinPadTop" value="0.15mm"/>
+<param name="rlMinPadBottom" value="0.15mm"/>
+<param name="rlMinViaOuter" value="0.15mm"/>
+</designrules>
+<elements>
+<element name="J1" library="eh3d-kit" package="HDR-1X08" value="LEFT" x="4" y="16" rot="R270"/>
+<element name="U1" library="eh3d-kit" package="SOIC-16" value="GENERIC16" x="19" y="16"/>
+<element name="J2" library="eh3d-kit" package="HDR-1X08" value="RIGHT" x="34" y="16" rot="R90"/>
+<element name="C1" library="eh3d-kit" package="CHIP-0805" value="100n" x="19" y="25"/>
+</elements>
+<signals>
+<signal name="P1">
+<contactref element="J1" pad="1"/>
+<contactref element="U1" pad="1"/>
+<wire x1="16.3" y1="20.445" x2="15.75" y2="20.75" width="0.25" layer="1"/>
+<wire x1="15.75" y1="20.75" x2="8.25" y2="20.75" width="0.25" layer="1"/>
+<wire x1="8.25" y1="20.75" x2="4.5" y2="24.5" width="0.25" layer="1"/>
+<wire x1="4.5" y1="24.5" x2="4" y2="24.89" width="0.25" layer="1"/>
+</signal>
+<signal name="P2">
+<contactref element="J1" pad="2"/>
+<contactref element="U1" pad="2"/>
+<wire x1="16.3" y1="19.175" x2="15.75" y2="19.5" width="0.25" layer="1"/>
+<wire x1="15.75" y1="19.5" x2="6.75" y2="19.5" width="0.25" layer="1"/>
+<wire x1="6.75" y1="19.5" x2="4.5" y2="21.75" width="0.25" layer="1"/>
+<wire x1="4.5" y1="21.75" x2="4" y2="22.35" width="0.25" layer="1"/>
+</signal>
+<signal name="P3">
+<contactref element="J1" pad="3"/>
+<contactref element="U1" pad="3"/>
+<wire x1="16.3" y1="17.905" x2="15.75" y2="18.25" width="0.25" layer="1"/>
+<wire x1="15.75" y1="18.25" x2="5.5" y2="18.25" width="0.25" layer="1"/>
+<wire x1="5.5" y1="18.25" x2="4.5" y2="19.25" width="0.25" layer="1"/>
+<wire x1="4.5" y1="19.25" x2="4" y2="19.81" width="0.25" layer="1"/>
+</signal>
+<signal name="P4">
+<contactref element="J1" pad="4"/>
+<contactref element="U1" pad="4"/>
+<wire x1="16.3" y1="16.635" x2="15.75" y2="16.75" width="0.25" layer="1"/>
+<wire x1="15.75" y1="16.75" x2="4.5" y2="16.75" width="0.25" layer="1"/>
+<wire x1="4.5" y1="16.75" x2="4" y2="17.27" width="0.25" layer="1"/>
+</signal>
+<signal name="P5">
+<contactref element="J1" pad="5"/>
+<contactref element="U1" pad="5"/>
+<wire x1="16.3" y1="15.365" x2="15.75" y2="15.25" width="0.25" layer="1"/>
+<wire x1="15.75" y1="15.25" x2="4.5" y2="15.25" width="0.25" layer="1"/>
+<wire x1="4.5" y1="15.25" x2="4" y2="14.73" width="0.25" layer="1"/>
+</signal>
+<signal name="P6">
+<contactref element="J1" pad="6"/>
+<contactref element="U1" pad="6"/>
+<wire x1="16.3" y1="14.095" x2="15.75" y2="13.75" width="0.25" layer="1"/>
+<wire x1="15.75" y1="13.75" x2="5.5" y2="13.75" width="0.25" layer="1"/>
+<wire x1="5.5" y1="13.75" x2="4.5" y2="12.75" width="0.25" layer="1"/>
+<wire x1="4.5" y1="12.75" x2="4" y2="12.19" width="0.25" layer="1"/>
+</signal>
+<signal name="P7">
+<contactref element="J1" pad="7"/>
+<contactref element="U1" pad="7"/>
+<wire x1="16.3" y1="12.825" x2="15.75" y2="12.5" width="0.25" layer="1"/>
+<wire x1="15.75" y1="12.5" x2="6.75" y2="12.5" width="0.25" layer="1"/>
+<wire x1="6.75" y1="12.5" x2="4.5" y2="10.25" width="0.25" layer="1"/>
+<wire x1="4.5" y1="10.25" x2="4" y2="9.65" width="0.25" layer="1"/>
+</signal>
+<signal name="GND">
+<contactref element="J1" pad="8"/>
+<contactref element="U1" pad="8"/>
+<contactref element="C1" pad="1"/>
+<wire x1="16.3" y1="11.555" x2="15.75" y2="11.25" width="0.25" layer="1"/>
+<wire x1="15.75" y1="11.25" x2="8.25" y2="11.25" width="0.25" layer="1"/>
+<wire x1="8.25" y1="11.25" x2="4.5" y2="7.5" width="0.25" layer="1"/>
+<wire x1="4.5" y1="7.5" x2="4" y2="7.11" width="0.25" layer="1"/>
+<wire x1="18.05" y1="25" x2="17.75" y2="24.5" width="0.25" layer="1"/>
+<wire x1="17.75" y1="24.5" x2="17.75" y2="12.5" width="0.25" layer="1"/>
+<wire x1="17.75" y1="12.5" x2="17.25" y2="12" width="0.25" layer="1"/>
+<wire x1="17.25" y1="12" x2="16.75" y2="12" width="0.25" layer="1"/>
+<wire x1="16.75" y1="12" x2="16.3" y2="11.555" width="0.25" layer="1"/>
+</signal>
+<signal name="P9">
+<contactref element="U1" pad="9"/>
+<contactref element="J2" pad="1"/>
+<wire x1="34" y1="7.11" x2="33.5" y2="7.25" width="0.25" layer="1"/>
+<wire x1="33.5" y1="7.25" x2="26" y2="7.25" width="0.25" layer="1"/>
+<wire x1="26" y1="7.25" x2="22.25" y2="11" width="0.25" layer="1"/>
+<wire x1="22.25" y1="11" x2="21.7" y2="11.555" width="0.25" layer="1"/>
+</signal>
+<signal name="P10">
+<contactref element="U1" pad="10"/>
+<contactref element="J2" pad="2"/>
+<wire x1="34" y1="9.65" x2="33.5" y2="10" width="0.25" layer="1"/>
+<wire x1="33.5" y1="10" x2="25" y2="10" width="0.25" layer="1"/>
+<wire x1="25" y1="10" x2="22.75" y2="12.25" width="0.25" layer="1"/>
+<wire x1="22.75" y1="12.25" x2="22.25" y2="12.25" width="0.25" layer="1"/>
+<wire x1="22.25" y1="12.25" x2="21.7" y2="12.825" width="0.25" layer="1"/>
+</signal>
+<signal name="P11">
+<contactref element="U1" pad="11"/>
+<contactref element="J2" pad="3"/>
+<wire x1="34" y1="12.19" x2="33.5" y2="12.5" width="0.25" layer="1"/>
+<wire x1="33.5" y1="12.5" x2="23.75" y2="12.5" width="0.25" layer="1"/>
+<wire x1="23.75" y1="12.5" x2="22.75" y2="13.5" width="0.25" layer="1"/>
+<wire x1="22.75" y1="13.5" x2="22.25" y2="13.5" width="0.25" layer="1"/>
+<wire x1="22.25" y1="13.5" x2="21.7" y2="14.095" width="0.25" layer="1"/>
+</signal>
+<signal name="P12">
+<contactref element="U1" pad="12"/>
+<contactref element="J2" pad="4"/>
+<wire x1="34" y1="14.73" x2="33.5" y2="15" width="0.25" layer="1"/>
+<wire x1="33.5" y1="15" x2="22.25" y2="15" width="0.25" layer="1"/>
+<wire x1="22.25" y1="15" x2="21.7" y2="15.365" width="0.25" layer="1"/>
+</signal>
+<signal name="P13">
+<contactref element="U1" pad="13"/>
+<contactref element="J2" pad="5"/>
+<wire x1="34" y1="17.27" x2="33.5" y2="17" width="0.25" layer="1"/>
+<wire x1="33.5" y1="17" x2="22.25" y2="17" width="0.25" layer="1"/>
+<wire x1="22.25" y1="17" x2="21.7" y2="16.635" width="0.25" layer="1"/>
+</signal>
+<signal name="P14">
+<contactref element="U1" pad="14"/>
+<contactref element="J2" pad="6"/>
+<wire x1="34" y1="19.81" x2="33.5" y2="19.5" width="0.25" layer="1"/>
+<wire x1="33.5" y1="19.5" x2="23.75" y2="19.5" width="0.25" layer="1"/>
+<wire x1="23.75" y1="19.5" x2="22.75" y2="18.5" width="0.25" layer="1"/>
+<wire x1="22.75" y1="18.5" x2="22.25" y2="18.5" width="0.25" layer="1"/>
+<wire x1="22.25" y1="18.5" x2="21.7" y2="17.905" width="0.25" layer="1"/>
+</signal>
+<signal name="P15">
+<contactref element="U1" pad="15"/>
+<contactref element="J2" pad="7"/>
+<wire x1="34" y1="22.35" x2="33.5" y2="22" width="0.25" layer="1"/>
+<wire x1="33.5" y1="22" x2="25" y2="22" width="0.25" layer="1"/>
+<wire x1="25" y1="22" x2="22.75" y2="19.75" width="0.25" layer="1"/>
+<wire x1="22.75" y1="19.75" x2="22.25" y2="19.75" width="0.25" layer="1"/>
+<wire x1="22.25" y1="19.75" x2="21.7" y2="19.175" width="0.25" layer="1"/>
+</signal>
+<signal name="VCC">
+<contactref element="U1" pad="16"/>
+<contactref element="C1" pad="2"/>
+<contactref element="J2" pad="8"/>
+<wire x1="19.95" y1="25" x2="20.25" y2="24.5" width="0.25" layer="1"/>
+<wire x1="20.25" y1="24.5" x2="20.25" y2="22" width="0.25" layer="1"/>
+<wire x1="20.25" y1="22" x2="21.25" y2="21" width="0.25" layer="1"/>
+<wire x1="21.25" y1="21" x2="21.7" y2="20.445" width="0.25" layer="1"/>
+<wire x1="34" y1="24.89" x2="33.5" y2="24.75" width="0.25" layer="1"/>
+<wire x1="33.5" y1="24.75" x2="26" y2="24.75" width="0.25" layer="1"/>
+<wire x1="26" y1="24.75" x2="22.25" y2="21" width="0.25" layer="1"/>
+<wire x1="22.25" y1="21" x2="21.7" y2="20.445" width="0.25" layer="1"/>
+</signal>
+</signals>
+</board>
+</drawing>
+</eagle>

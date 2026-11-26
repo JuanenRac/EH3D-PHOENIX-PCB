@@ -1,0 +1,13 @@
+#usage "Bill of materials as CSV, one line for each part, sorted by reference"
+// EH3D-PHOENIX-PCB starter kit. SPDX-License-Identifier: GPL-3.0-or-later
+string refs[], values[], packages[];
+int n = 0;
+board(B) {
+  B.elements(E) {
+    refs[n] = E.name; values[n] = E.value; packages[n] = E.package.name;
+    n++;
+  }
+}
+sort(n, refs, values, packages);
+printf("reference,value,package\n");
+for (int i = 0; i < n; i++) printf("%s,%s,%s\n", refs[i], values[i], packages[i]);

@@ -1,0 +1,15 @@
+#usage "Length of track of every width"
+// EH3D-PHOENIX-PCB starter kit. SPDX-License-Identifier: GPL-3.0-or-later
+int widths[];
+real lengths[];
+int kinds = 0;
+board(B) {
+  B.wires(W) {
+    int k = 0;
+    while (k < kinds && widths[k] != W.width) k++;
+    if (k == kinds) { widths[kinds] = W.width; lengths[kinds] = 0; kinds++; }
+    lengths[k] += u2mm(W.length);
+  }
+}
+sort(kinds, widths, lengths);
+for (int i = 0; i < kinds; i++) printf("%5.2f mm wide  %8.2f mm\n", u2mm(widths[i]), lengths[i]);

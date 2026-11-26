@@ -1,0 +1,669 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- EH3D-PHOENIX-PCB starter kit. SPDX-License-Identifier: GPL-3.0-or-later. Own work, not verified. -->
+<eagle version="9.6.2">
+<drawing>
+<settings/>
+<layers>
+<layer number="1" name="Top" color="1" fill="1" visible="yes" active="yes"/>
+<layer number="16" name="Bottom" color="1" fill="1" visible="yes" active="yes"/>
+<layer number="21" name="tPlace" color="1" fill="1" visible="yes" active="yes"/>
+<layer number="22" name="bPlace" color="1" fill="1" visible="yes" active="yes"/>
+<layer number="25" name="tNames" color="1" fill="1" visible="yes" active="yes"/>
+<layer number="27" name="tValues" color="1" fill="1" visible="yes" active="yes"/>
+<layer number="29" name="tStop" color="1" fill="1" visible="yes" active="yes"/>
+<layer number="30" name="bStop" color="1" fill="1" visible="yes" active="yes"/>
+<layer number="31" name="tCream" color="1" fill="1" visible="yes" active="yes"/>
+<layer number="32" name="bCream" color="1" fill="1" visible="yes" active="yes"/>
+<layer number="51" name="tDocu" color="1" fill="1" visible="yes" active="yes"/>
+<layer number="52" name="bDocu" color="1" fill="1" visible="yes" active="yes"/>
+<layer number="94" name="Symbols" color="1" fill="1" visible="yes" active="yes"/>
+<layer number="95" name="Names" color="1" fill="1" visible="yes" active="yes"/>
+<layer number="96" name="Values" color="1" fill="1" visible="yes" active="yes"/>
+</layers>
+<library>
+<description>EH3D-PHOENIX-PCB starter kit, connectors. Own work, GPL-3.0-or-later. Not verified.</description>
+<packages>
+<package name="HDR-1X02">
+<description>Pin header, 1 row of 2, pitch 2.54 mm. Sizes: 0.1 inch (2.54 mm) pin strip grid; pads worked out for this kit. Not verified against a datasheet.</description>
+<pad name="1" x="-1.27" y="0" drill="1" diameter="1.7" shape="square"/>
+<pad name="2" x="1.27" y="0" drill="1" diameter="1.7"/>
+<wire x1="-2.54" y1="-1.27" x2="2.54" y2="-1.27" width="0.15" layer="21"/>
+<wire x1="2.54" y1="-1.27" x2="2.54" y2="1.27" width="0.15" layer="21"/>
+<wire x1="2.54" y1="1.27" x2="-2.54" y2="1.27" width="0.15" layer="21"/>
+<wire x1="-2.54" y1="1.27" x2="-2.54" y2="-1.27" width="0.15" layer="21"/>
+<text x="0" y="1.6" size="1" layer="25">&gt;NAME</text>
+<text x="0" y="-2.6" size="1" layer="27">&gt;VALUE</text>
+</package>
+<package name="HDR-1X03">
+<description>Pin header, 1 row of 3, pitch 2.54 mm. Sizes: 0.1 inch (2.54 mm) pin strip grid; pads worked out for this kit. Not verified against a datasheet.</description>
+<pad name="1" x="-2.54" y="0" drill="1" diameter="1.7" shape="square"/>
+<pad name="2" x="0" y="0" drill="1" diameter="1.7"/>
+<pad name="3" x="2.54" y="0" drill="1" diameter="1.7"/>
+<wire x1="-3.81" y1="-1.27" x2="3.81" y2="-1.27" width="0.15" layer="21"/>
+<wire x1="3.81" y1="-1.27" x2="3.81" y2="1.27" width="0.15" layer="21"/>
+<wire x1="3.81" y1="1.27" x2="-3.81" y2="1.27" width="0.15" layer="21"/>
+<wire x1="-3.81" y1="1.27" x2="-3.81" y2="-1.27" width="0.15" layer="21"/>
+<text x="0" y="1.6" size="1" layer="25">&gt;NAME</text>
+<text x="0" y="-2.6" size="1" layer="27">&gt;VALUE</text>
+</package>
+<package name="HDR-1X04">
+<description>Pin header, 1 row of 4, pitch 2.54 mm. Sizes: 0.1 inch (2.54 mm) pin strip grid; pads worked out for this kit. Not verified against a datasheet.</description>
+<pad name="1" x="-3.81" y="0" drill="1" diameter="1.7" shape="square"/>
+<pad name="2" x="-1.27" y="0" drill="1" diameter="1.7"/>
+<pad name="3" x="1.27" y="0" drill="1" diameter="1.7"/>
+<pad name="4" x="3.81" y="0" drill="1" diameter="1.7"/>
+<wire x1="-5.08" y1="-1.27" x2="5.08" y2="-1.27" width="0.15" layer="21"/>
+<wire x1="5.08" y1="-1.27" x2="5.08" y2="1.27" width="0.15" layer="21"/>
+<wire x1="5.08" y1="1.27" x2="-5.08" y2="1.27" width="0.15" layer="21"/>
+<wire x1="-5.08" y1="1.27" x2="-5.08" y2="-1.27" width="0.15" layer="21"/>
+<text x="0" y="1.6" size="1" layer="25">&gt;NAME</text>
+<text x="0" y="-2.6" size="1" layer="27">&gt;VALUE</text>
+</package>
+<package name="HDR-1X05">
+<description>Pin header, 1 row of 5, pitch 2.54 mm. Sizes: 0.1 inch (2.54 mm) pin strip grid; pads worked out for this kit. Not verified against a datasheet.</description>
+<pad name="1" x="-5.08" y="0" drill="1" diameter="1.7" shape="square"/>
+<pad name="2" x="-2.54" y="0" drill="1" diameter="1.7"/>
+<pad name="3" x="0" y="0" drill="1" diameter="1.7"/>
+<pad name="4" x="2.54" y="0" drill="1" diameter="1.7"/>
+<pad name="5" x="5.08" y="0" drill="1" diameter="1.7"/>
+<wire x1="-6.35" y1="-1.27" x2="6.35" y2="-1.27" width="0.15" layer="21"/>
+<wire x1="6.35" y1="-1.27" x2="6.35" y2="1.27" width="0.15" layer="21"/>
+<wire x1="6.35" y1="1.27" x2="-6.35" y2="1.27" width="0.15" layer="21"/>
+<wire x1="-6.35" y1="1.27" x2="-6.35" y2="-1.27" width="0.15" layer="21"/>
+<text x="0" y="1.6" size="1" layer="25">&gt;NAME</text>
+<text x="0" y="-2.6" size="1" layer="27">&gt;VALUE</text>
+</package>
+<package name="HDR-1X06">
+<description>Pin header, 1 row of 6, pitch 2.54 mm. Sizes: 0.1 inch (2.54 mm) pin strip grid; pads worked out for this kit. Not verified against a datasheet.</description>
+<pad name="1" x="-6.35" y="0" drill="1" diameter="1.7" shape="square"/>
+<pad name="2" x="-3.81" y="0" drill="1" diameter="1.7"/>
+<pad name="3" x="-1.27" y="0" drill="1" diameter="1.7"/>
+<pad name="4" x="1.27" y="0" drill="1" diameter="1.7"/>
+<pad name="5" x="3.81" y="0" drill="1" diameter="1.7"/>
+<pad name="6" x="6.35" y="0" drill="1" diameter="1.7"/>
+<wire x1="-7.62" y1="-1.27" x2="7.62" y2="-1.27" width="0.15" layer="21"/>
+<wire x1="7.62" y1="-1.27" x2="7.62" y2="1.27" width="0.15" layer="21"/>
+<wire x1="7.62" y1="1.27" x2="-7.62" y2="1.27" width="0.15" layer="21"/>
+<wire x1="-7.62" y1="1.27" x2="-7.62" y2="-1.27" width="0.15" layer="21"/>
+<text x="0" y="1.6" size="1" layer="25">&gt;NAME</text>
+<text x="0" y="-2.6" size="1" layer="27">&gt;VALUE</text>
+</package>
+<package name="HDR-1X08">
+<description>Pin header, 1 row of 8, pitch 2.54 mm. Sizes: 0.1 inch (2.54 mm) pin strip grid; pads worked out for this kit. Not verified against a datasheet.</description>
+<pad name="1" x="-8.89" y="0" drill="1" diameter="1.7" shape="square"/>
+<pad name="2" x="-6.35" y="0" drill="1" diameter="1.7"/>
+<pad name="3" x="-3.81" y="0" drill="1" diameter="1.7"/>
+<pad name="4" x="-1.27" y="0" drill="1" diameter="1.7"/>
+<pad name="5" x="1.27" y="0" drill="1" diameter="1.7"/>
+<pad name="6" x="3.81" y="0" drill="1" diameter="1.7"/>
+<pad name="7" x="6.35" y="0" drill="1" diameter="1.7"/>
+<pad name="8" x="8.89" y="0" drill="1" diameter="1.7"/>
+<wire x1="-10.16" y1="-1.27" x2="10.16" y2="-1.27" width="0.15" layer="21"/>
+<wire x1="10.16" y1="-1.27" x2="10.16" y2="1.27" width="0.15" layer="21"/>
+<wire x1="10.16" y1="1.27" x2="-10.16" y2="1.27" width="0.15" layer="21"/>
+<wire x1="-10.16" y1="1.27" x2="-10.16" y2="-1.27" width="0.15" layer="21"/>
+<text x="0" y="1.6" size="1" layer="25">&gt;NAME</text>
+<text x="0" y="-2.6" size="1" layer="27">&gt;VALUE</text>
+</package>
+<package name="HDR-1X15">
+<description>Pin header, 1 row of 15, pitch 2.54 mm. Sizes: 0.1 inch (2.54 mm) pin strip grid; pads worked out for this kit. Not verified against a datasheet.</description>
+<pad name="1" x="-17.78" y="0" drill="1" diameter="1.7" shape="square"/>
+<pad name="2" x="-15.24" y="0" drill="1" diameter="1.7"/>
+<pad name="3" x="-12.7" y="0" drill="1" diameter="1.7"/>
+<pad name="4" x="-10.16" y="0" drill="1" diameter="1.7"/>
+<pad name="5" x="-7.62" y="0" drill="1" diameter="1.7"/>
+<pad name="6" x="-5.08" y="0" drill="1" diameter="1.7"/>
+<pad name="7" x="-2.54" y="0" drill="1" diameter="1.7"/>
+<pad name="8" x="0" y="0" drill="1" diameter="1.7"/>
+<pad name="9" x="2.54" y="0" drill="1" diameter="1.7"/>
+<pad name="10" x="5.08" y="0" drill="1" diameter="1.7"/>
+<pad name="11" x="7.62" y="0" drill="1" diameter="1.7"/>
+<pad name="12" x="10.16" y="0" drill="1" diameter="1.7"/>
+<pad name="13" x="12.7" y="0" drill="1" diameter="1.7"/>
+<pad name="14" x="15.24" y="0" drill="1" diameter="1.7"/>
+<pad name="15" x="17.78" y="0" drill="1" diameter="1.7"/>
+<wire x1="-19.05" y1="-1.27" x2="19.05" y2="-1.27" width="0.15" layer="21"/>
+<wire x1="19.05" y1="-1.27" x2="19.05" y2="1.27" width="0.15" layer="21"/>
+<wire x1="19.05" y1="1.27" x2="-19.05" y2="1.27" width="0.15" layer="21"/>
+<wire x1="-19.05" y1="1.27" x2="-19.05" y2="-1.27" width="0.15" layer="21"/>
+<text x="0" y="1.6" size="1" layer="25">&gt;NAME</text>
+<text x="0" y="-2.6" size="1" layer="27">&gt;VALUE</text>
+</package>
+<package name="HDR-1X20">
+<description>Pin header, 1 row of 20, pitch 2.54 mm. Sizes: 0.1 inch (2.54 mm) pin strip grid; pads worked out for this kit. Not verified against a datasheet.</description>
+<pad name="1" x="-24.13" y="0" drill="1" diameter="1.7" shape="square"/>
+<pad name="2" x="-21.59" y="0" drill="1" diameter="1.7"/>
+<pad name="3" x="-19.05" y="0" drill="1" diameter="1.7"/>
+<pad name="4" x="-16.51" y="0" drill="1" diameter="1.7"/>
+<pad name="5" x="-13.97" y="0" drill="1" diameter="1.7"/>
+<pad name="6" x="-11.43" y="0" drill="1" diameter="1.7"/>
+<pad name="7" x="-8.89" y="0" drill="1" diameter="1.7"/>
+<pad name="8" x="-6.35" y="0" drill="1" diameter="1.7"/>
+<pad name="9" x="-3.81" y="0" drill="1" diameter="1.7"/>
+<pad name="10" x="-1.27" y="0" drill="1" diameter="1.7"/>
+<pad name="11" x="1.27" y="0" drill="1" diameter="1.7"/>
+<pad name="12" x="3.81" y="0" drill="1" diameter="1.7"/>
+<pad name="13" x="6.35" y="0" drill="1" diameter="1.7"/>
+<pad name="14" x="8.89" y="0" drill="1" diameter="1.7"/>
+<pad name="15" x="11.43" y="0" drill="1" diameter="1.7"/>
+<pad name="16" x="13.97" y="0" drill="1" diameter="1.7"/>
+<pad name="17" x="16.51" y="0" drill="1" diameter="1.7"/>
+<pad name="18" x="19.05" y="0" drill="1" diameter="1.7"/>
+<pad name="19" x="21.59" y="0" drill="1" diameter="1.7"/>
+<pad name="20" x="24.13" y="0" drill="1" diameter="1.7"/>
+<wire x1="-25.4" y1="-1.27" x2="25.4" y2="-1.27" width="0.15" layer="21"/>
+<wire x1="25.4" y1="-1.27" x2="25.4" y2="1.27" width="0.15" layer="21"/>
+<wire x1="25.4" y1="1.27" x2="-25.4" y2="1.27" width="0.15" layer="21"/>
+<wire x1="-25.4" y1="1.27" x2="-25.4" y2="-1.27" width="0.15" layer="21"/>
+<text x="0" y="1.6" size="1" layer="25">&gt;NAME</text>
+<text x="0" y="-2.6" size="1" layer="27">&gt;VALUE</text>
+</package>
+<package name="HDR-2X03">
+<description>Pin header, 2 rows of 3, pitch 2.54 mm. Sizes: 0.1 inch (2.54 mm) pin strip grid; pads worked out for this kit. Not verified against a datasheet.</description>
+<pad name="1" x="-2.54" y="-1.27" drill="1" diameter="1.7" shape="square"/>
+<pad name="2" x="-2.54" y="1.27" drill="1" diameter="1.7"/>
+<pad name="3" x="0" y="-1.27" drill="1" diameter="1.7"/>
+<pad name="4" x="0" y="1.27" drill="1" diameter="1.7"/>
+<pad name="5" x="2.54" y="-1.27" drill="1" diameter="1.7"/>
+<pad name="6" x="2.54" y="1.27" drill="1" diameter="1.7"/>
+<wire x1="-3.81" y1="-2.54" x2="3.81" y2="-2.54" width="0.15" layer="21"/>
+<wire x1="3.81" y1="-2.54" x2="3.81" y2="2.54" width="0.15" layer="21"/>
+<wire x1="3.81" y1="2.54" x2="-3.81" y2="2.54" width="0.15" layer="21"/>
+<wire x1="-3.81" y1="2.54" x2="-3.81" y2="-2.54" width="0.15" layer="21"/>
+<text x="0" y="2.9" size="1" layer="25">&gt;NAME</text>
+<text x="0" y="-3.9" size="1" layer="27">&gt;VALUE</text>
+</package>
+<package name="HDR-2X05">
+<description>Pin header, 2 rows of 5, pitch 2.54 mm. Sizes: 0.1 inch (2.54 mm) pin strip grid; pads worked out for this kit. Not verified against a datasheet.</description>
+<pad name="1" x="-5.08" y="-1.27" drill="1" diameter="1.7" shape="square"/>
+<pad name="2" x="-5.08" y="1.27" drill="1" diameter="1.7"/>
+<pad name="3" x="-2.54" y="-1.27" drill="1" diameter="1.7"/>
+<pad name="4" x="-2.54" y="1.27" drill="1" diameter="1.7"/>
+<pad name="5" x="0" y="-1.27" drill="1" diameter="1.7"/>
+<pad name="6" x="0" y="1.27" drill="1" diameter="1.7"/>
+<pad name="7" x="2.54" y="-1.27" drill="1" diameter="1.7"/>
+<pad name="8" x="2.54" y="1.27" drill="1" diameter="1.7"/>
+<pad name="9" x="5.08" y="-1.27" drill="1" diameter="1.7"/>
+<pad name="10" x="5.08" y="1.27" drill="1" diameter="1.7"/>
+<wire x1="-6.35" y1="-2.54" x2="6.35" y2="-2.54" width="0.15" layer="21"/>
+<wire x1="6.35" y1="-2.54" x2="6.35" y2="2.54" width="0.15" layer="21"/>
+<wire x1="6.35" y1="2.54" x2="-6.35" y2="2.54" width="0.15" layer="21"/>
+<wire x1="-6.35" y1="2.54" x2="-6.35" y2="-2.54" width="0.15" layer="21"/>
+<text x="0" y="2.9" size="1" layer="25">&gt;NAME</text>
+<text x="0" y="-3.9" size="1" layer="27">&gt;VALUE</text>
+</package>
+<package name="TERM-2P-5.0">
+<description>Screw terminal, 2 poles, pitch 5.0 mm (generic). Sizes: usual 5.0 mm terminal pitch; generic outline, pads worked out for this kit. Not verified against a datasheet.</description>
+<pad name="1" x="-2.5" y="0" drill="1.3" diameter="2.4" shape="square"/>
+<pad name="2" x="2.5" y="0" drill="1.3" diameter="2.4"/>
+<wire x1="-5" y1="-3.8" x2="5" y2="-3.8" width="0.15" layer="21"/>
+<wire x1="5" y1="-3.8" x2="5" y2="3.8" width="0.15" layer="21"/>
+<wire x1="5" y1="3.8" x2="-5" y2="3.8" width="0.15" layer="21"/>
+<wire x1="-5" y1="3.8" x2="-5" y2="-3.8" width="0.15" layer="21"/>
+<text x="0" y="4.1" size="1" layer="25">&gt;NAME</text>
+<text x="0" y="-5.1" size="1" layer="27">&gt;VALUE</text>
+</package>
+<package name="TERM-3P-5.0">
+<description>Screw terminal, 3 poles, pitch 5.0 mm (generic). Sizes: usual 5.0 mm terminal pitch; generic outline, pads worked out for this kit. Not verified against a datasheet.</description>
+<pad name="1" x="-5" y="0" drill="1.3" diameter="2.4" shape="square"/>
+<pad name="2" x="0" y="0" drill="1.3" diameter="2.4"/>
+<pad name="3" x="5" y="0" drill="1.3" diameter="2.4"/>
+<wire x1="-7.5" y1="-3.8" x2="7.5" y2="-3.8" width="0.15" layer="21"/>
+<wire x1="7.5" y1="-3.8" x2="7.5" y2="3.8" width="0.15" layer="21"/>
+<wire x1="7.5" y1="3.8" x2="-7.5" y2="3.8" width="0.15" layer="21"/>
+<wire x1="-7.5" y1="3.8" x2="-7.5" y2="-3.8" width="0.15" layer="21"/>
+<text x="0" y="4.1" size="1" layer="25">&gt;NAME</text>
+<text x="0" y="-5.1" size="1" layer="27">&gt;VALUE</text>
+</package>
+</packages>
+<symbols>
+<symbol name="PINS-1X02">
+<pin name="1" x="-10.16" y="1.27" length="short" direction="pas"/>
+<pin name="2" x="-10.16" y="-1.27" length="short" direction="pas"/>
+<wire x1="-7.62" y1="-3.81" x2="7.62" y2="-3.81" width="0.254" layer="94"/>
+<wire x1="7.62" y1="-3.81" x2="7.62" y2="3.81" width="0.254" layer="94"/>
+<wire x1="7.62" y1="3.81" x2="-7.62" y2="3.81" width="0.254" layer="94"/>
+<wire x1="-7.62" y1="3.81" x2="-7.62" y2="-3.81" width="0.254" layer="94"/>
+<text x="-2.54" y="4.064" size="1.778" layer="95">&gt;NAME</text>
+<text x="-2.54" y="-5.842" size="1.778" layer="96">&gt;VALUE</text>
+</symbol>
+<symbol name="PINS-1X03">
+<pin name="1" x="-10.16" y="2.54" length="short" direction="pas"/>
+<pin name="2" x="-10.16" y="0" length="short" direction="pas"/>
+<pin name="3" x="-10.16" y="-2.54" length="short" direction="pas"/>
+<wire x1="-7.62" y1="-5.08" x2="7.62" y2="-5.08" width="0.254" layer="94"/>
+<wire x1="7.62" y1="-5.08" x2="7.62" y2="5.08" width="0.254" layer="94"/>
+<wire x1="7.62" y1="5.08" x2="-7.62" y2="5.08" width="0.254" layer="94"/>
+<wire x1="-7.62" y1="5.08" x2="-7.62" y2="-5.08" width="0.254" layer="94"/>
+<text x="-2.54" y="5.334" size="1.778" layer="95">&gt;NAME</text>
+<text x="-2.54" y="-7.112" size="1.778" layer="96">&gt;VALUE</text>
+</symbol>
+<symbol name="PINS-1X04">
+<pin name="1" x="-10.16" y="3.81" length="short" direction="pas"/>
+<pin name="2" x="-10.16" y="1.27" length="short" direction="pas"/>
+<pin name="3" x="-10.16" y="-1.27" length="short" direction="pas"/>
+<pin name="4" x="-10.16" y="-3.81" length="short" direction="pas"/>
+<wire x1="-7.62" y1="-6.35" x2="7.62" y2="-6.35" width="0.254" layer="94"/>
+<wire x1="7.62" y1="-6.35" x2="7.62" y2="6.35" width="0.254" layer="94"/>
+<wire x1="7.62" y1="6.35" x2="-7.62" y2="6.35" width="0.254" layer="94"/>
+<wire x1="-7.62" y1="6.35" x2="-7.62" y2="-6.35" width="0.254" layer="94"/>
+<text x="-2.54" y="6.604" size="1.778" layer="95">&gt;NAME</text>
+<text x="-2.54" y="-8.382" size="1.778" layer="96">&gt;VALUE</text>
+</symbol>
+<symbol name="PINS-1X05">
+<pin name="1" x="-10.16" y="5.08" length="short" direction="pas"/>
+<pin name="2" x="-10.16" y="2.54" length="short" direction="pas"/>
+<pin name="3" x="-10.16" y="0" length="short" direction="pas"/>
+<pin name="4" x="-10.16" y="-2.54" length="short" direction="pas"/>
+<pin name="5" x="-10.16" y="-5.08" length="short" direction="pas"/>
+<wire x1="-7.62" y1="-7.62" x2="7.62" y2="-7.62" width="0.254" layer="94"/>
+<wire x1="7.62" y1="-7.62" x2="7.62" y2="7.62" width="0.254" layer="94"/>
+<wire x1="7.62" y1="7.62" x2="-7.62" y2="7.62" width="0.254" layer="94"/>
+<wire x1="-7.62" y1="7.62" x2="-7.62" y2="-7.62" width="0.254" layer="94"/>
+<text x="-2.54" y="7.874" size="1.778" layer="95">&gt;NAME</text>
+<text x="-2.54" y="-9.652" size="1.778" layer="96">&gt;VALUE</text>
+</symbol>
+<symbol name="PINS-1X06">
+<pin name="1" x="-10.16" y="6.35" length="short" direction="pas"/>
+<pin name="2" x="-10.16" y="3.81" length="short" direction="pas"/>
+<pin name="3" x="-10.16" y="1.27" length="short" direction="pas"/>
+<pin name="4" x="-10.16" y="-1.27" length="short" direction="pas"/>
+<pin name="5" x="-10.16" y="-3.81" length="short" direction="pas"/>
+<pin name="6" x="-10.16" y="-6.35" length="short" direction="pas"/>
+<wire x1="-7.62" y1="-8.89" x2="7.62" y2="-8.89" width="0.254" layer="94"/>
+<wire x1="7.62" y1="-8.89" x2="7.62" y2="8.89" width="0.254" layer="94"/>
+<wire x1="7.62" y1="8.89" x2="-7.62" y2="8.89" width="0.254" layer="94"/>
+<wire x1="-7.62" y1="8.89" x2="-7.62" y2="-8.89" width="0.254" layer="94"/>
+<text x="-2.54" y="9.144" size="1.778" layer="95">&gt;NAME</text>
+<text x="-2.54" y="-10.922" size="1.778" layer="96">&gt;VALUE</text>
+</symbol>
+<symbol name="PINS-1X08">
+<pin name="1" x="-10.16" y="8.89" length="short" direction="pas"/>
+<pin name="2" x="-10.16" y="6.35" length="short" direction="pas"/>
+<pin name="3" x="-10.16" y="3.81" length="short" direction="pas"/>
+<pin name="4" x="-10.16" y="1.27" length="short" direction="pas"/>
+<pin name="5" x="-10.16" y="-1.27" length="short" direction="pas"/>
+<pin name="6" x="-10.16" y="-3.81" length="short" direction="pas"/>
+<pin name="7" x="-10.16" y="-6.35" length="short" direction="pas"/>
+<pin name="8" x="-10.16" y="-8.89" length="short" direction="pas"/>
+<wire x1="-7.62" y1="-11.43" x2="7.62" y2="-11.43" width="0.254" layer="94"/>
+<wire x1="7.62" y1="-11.43" x2="7.62" y2="11.43" width="0.254" layer="94"/>
+<wire x1="7.62" y1="11.43" x2="-7.62" y2="11.43" width="0.254" layer="94"/>
+<wire x1="-7.62" y1="11.43" x2="-7.62" y2="-11.43" width="0.254" layer="94"/>
+<text x="-2.54" y="11.684" size="1.778" layer="95">&gt;NAME</text>
+<text x="-2.54" y="-13.462" size="1.778" layer="96">&gt;VALUE</text>
+</symbol>
+<symbol name="PINS-1X15">
+<pin name="1" x="-10.16" y="17.78" length="short" direction="pas"/>
+<pin name="2" x="-10.16" y="15.24" length="short" direction="pas"/>
+<pin name="3" x="-10.16" y="12.7" length="short" direction="pas"/>
+<pin name="4" x="-10.16" y="10.16" length="short" direction="pas"/>
+<pin name="5" x="-10.16" y="7.62" length="short" direction="pas"/>
+<pin name="6" x="-10.16" y="5.08" length="short" direction="pas"/>
+<pin name="7" x="-10.16" y="2.54" length="short" direction="pas"/>
+<pin name="8" x="-10.16" y="0" length="short" direction="pas"/>
+<pin name="9" x="-10.16" y="-2.54" length="short" direction="pas"/>
+<pin name="10" x="-10.16" y="-5.08" length="short" direction="pas"/>
+<pin name="11" x="-10.16" y="-7.62" length="short" direction="pas"/>
+<pin name="12" x="-10.16" y="-10.16" length="short" direction="pas"/>
+<pin name="13" x="-10.16" y="-12.7" length="short" direction="pas"/>
+<pin name="14" x="-10.16" y="-15.24" length="short" direction="pas"/>
+<pin name="15" x="-10.16" y="-17.78" length="short" direction="pas"/>
+<wire x1="-7.62" y1="-20.32" x2="7.62" y2="-20.32" width="0.254" layer="94"/>
+<wire x1="7.62" y1="-20.32" x2="7.62" y2="20.32" width="0.254" layer="94"/>
+<wire x1="7.62" y1="20.32" x2="-7.62" y2="20.32" width="0.254" layer="94"/>
+<wire x1="-7.62" y1="20.32" x2="-7.62" y2="-20.32" width="0.254" layer="94"/>
+<text x="-2.54" y="20.574" size="1.778" layer="95">&gt;NAME</text>
+<text x="-2.54" y="-22.352" size="1.778" layer="96">&gt;VALUE</text>
+</symbol>
+<symbol name="PINS-1X20">
+<pin name="1" x="-10.16" y="24.13" length="short" direction="pas"/>
+<pin name="2" x="-10.16" y="21.59" length="short" direction="pas"/>
+<pin name="3" x="-10.16" y="19.05" length="short" direction="pas"/>
+<pin name="4" x="-10.16" y="16.51" length="short" direction="pas"/>
+<pin name="5" x="-10.16" y="13.97" length="short" direction="pas"/>
+<pin name="6" x="-10.16" y="11.43" length="short" direction="pas"/>
+<pin name="7" x="-10.16" y="8.89" length="short" direction="pas"/>
+<pin name="8" x="-10.16" y="6.35" length="short" direction="pas"/>
+<pin name="9" x="-10.16" y="3.81" length="short" direction="pas"/>
+<pin name="10" x="-10.16" y="1.27" length="short" direction="pas"/>
+<pin name="11" x="-10.16" y="-1.27" length="short" direction="pas"/>
+<pin name="12" x="-10.16" y="-3.81" length="short" direction="pas"/>
+<pin name="13" x="-10.16" y="-6.35" length="short" direction="pas"/>
+<pin name="14" x="-10.16" y="-8.89" length="short" direction="pas"/>
+<pin name="15" x="-10.16" y="-11.43" length="short" direction="pas"/>
+<pin name="16" x="-10.16" y="-13.97" length="short" direction="pas"/>
+<pin name="17" x="-10.16" y="-16.51" length="short" direction="pas"/>
+<pin name="18" x="-10.16" y="-19.05" length="short" direction="pas"/>
+<pin name="19" x="-10.16" y="-21.59" length="short" direction="pas"/>
+<pin name="20" x="-10.16" y="-24.13" length="short" direction="pas"/>
+<wire x1="-7.62" y1="-26.67" x2="7.62" y2="-26.67" width="0.254" layer="94"/>
+<wire x1="7.62" y1="-26.67" x2="7.62" y2="26.67" width="0.254" layer="94"/>
+<wire x1="7.62" y1="26.67" x2="-7.62" y2="26.67" width="0.254" layer="94"/>
+<wire x1="-7.62" y1="26.67" x2="-7.62" y2="-26.67" width="0.254" layer="94"/>
+<text x="-2.54" y="26.924" size="1.778" layer="95">&gt;NAME</text>
+<text x="-2.54" y="-28.702" size="1.778" layer="96">&gt;VALUE</text>
+</symbol>
+<symbol name="PINS-2X03">
+<pin name="1" x="-10.16" y="2.54" length="short" direction="pas"/>
+<pin name="3" x="-10.16" y="0" length="short" direction="pas"/>
+<pin name="5" x="-10.16" y="-2.54" length="short" direction="pas"/>
+<pin name="2" x="10.16" y="2.54" length="short" direction="pas" rot="R180"/>
+<pin name="4" x="10.16" y="0" length="short" direction="pas" rot="R180"/>
+<pin name="6" x="10.16" y="-2.54" length="short" direction="pas" rot="R180"/>
+<wire x1="-7.62" y1="-5.08" x2="7.62" y2="-5.08" width="0.254" layer="94"/>
+<wire x1="7.62" y1="-5.08" x2="7.62" y2="5.08" width="0.254" layer="94"/>
+<wire x1="7.62" y1="5.08" x2="-7.62" y2="5.08" width="0.254" layer="94"/>
+<wire x1="-7.62" y1="5.08" x2="-7.62" y2="-5.08" width="0.254" layer="94"/>
+<text x="-2.54" y="5.334" size="1.778" layer="95">&gt;NAME</text>
+<text x="-2.54" y="-7.112" size="1.778" layer="96">&gt;VALUE</text>
+</symbol>
+<symbol name="PINS-2X05">
+<pin name="1" x="-10.16" y="5.08" length="short" direction="pas"/>
+<pin name="3" x="-10.16" y="2.54" length="short" direction="pas"/>
+<pin name="5" x="-10.16" y="0" length="short" direction="pas"/>
+<pin name="7" x="-10.16" y="-2.54" length="short" direction="pas"/>
+<pin name="9" x="-10.16" y="-5.08" length="short" direction="pas"/>
+<pin name="2" x="10.16" y="5.08" length="short" direction="pas" rot="R180"/>
+<pin name="4" x="10.16" y="2.54" length="short" direction="pas" rot="R180"/>
+<pin name="6" x="10.16" y="0" length="short" direction="pas" rot="R180"/>
+<pin name="8" x="10.16" y="-2.54" length="short" direction="pas" rot="R180"/>
+<pin name="10" x="10.16" y="-5.08" length="short" direction="pas" rot="R180"/>
+<wire x1="-7.62" y1="-7.62" x2="7.62" y2="-7.62" width="0.254" layer="94"/>
+<wire x1="7.62" y1="-7.62" x2="7.62" y2="7.62" width="0.254" layer="94"/>
+<wire x1="7.62" y1="7.62" x2="-7.62" y2="7.62" width="0.254" layer="94"/>
+<wire x1="-7.62" y1="7.62" x2="-7.62" y2="-7.62" width="0.254" layer="94"/>
+<text x="-2.54" y="7.874" size="1.778" layer="95">&gt;NAME</text>
+<text x="-2.54" y="-9.652" size="1.778" layer="96">&gt;VALUE</text>
+</symbol>
+<symbol name="TERMINAL-2">
+<pin name="1" x="-10.16" y="1.27" length="short" direction="pas"/>
+<pin name="2" x="-10.16" y="-1.27" length="short" direction="pas"/>
+<wire x1="-7.62" y1="-3.81" x2="7.62" y2="-3.81" width="0.254" layer="94"/>
+<wire x1="7.62" y1="-3.81" x2="7.62" y2="3.81" width="0.254" layer="94"/>
+<wire x1="7.62" y1="3.81" x2="-7.62" y2="3.81" width="0.254" layer="94"/>
+<wire x1="-7.62" y1="3.81" x2="-7.62" y2="-3.81" width="0.254" layer="94"/>
+<text x="-2.54" y="4.064" size="1.778" layer="95">&gt;NAME</text>
+<text x="-2.54" y="-5.842" size="1.778" layer="96">&gt;VALUE</text>
+</symbol>
+<symbol name="TERMINAL-3">
+<pin name="1" x="-10.16" y="2.54" length="short" direction="pas"/>
+<pin name="2" x="-10.16" y="0" length="short" direction="pas"/>
+<pin name="3" x="-10.16" y="-2.54" length="short" direction="pas"/>
+<wire x1="-7.62" y1="-5.08" x2="7.62" y2="-5.08" width="0.254" layer="94"/>
+<wire x1="7.62" y1="-5.08" x2="7.62" y2="5.08" width="0.254" layer="94"/>
+<wire x1="7.62" y1="5.08" x2="-7.62" y2="5.08" width="0.254" layer="94"/>
+<wire x1="-7.62" y1="5.08" x2="-7.62" y2="-5.08" width="0.254" layer="94"/>
+<text x="-2.54" y="5.334" size="1.778" layer="95">&gt;NAME</text>
+<text x="-2.54" y="-7.112" size="1.778" layer="96">&gt;VALUE</text>
+</symbol>
+</symbols>
+<devicesets>
+<deviceset name="HDR-1X02" prefix="J" uservalue="yes">
+<description>Pin header 1 x 2</description>
+<gates>
+<gate name="G$1" symbol="PINS-1X02" x="0" y="0"/>
+</gates>
+<devices>
+<device name="" package="HDR-1X02">
+<connects>
+<connect gate="G$1" pin="1" pad="1"/>
+<connect gate="G$1" pin="2" pad="2"/>
+</connects>
+<technologies>
+<technology name=""/>
+</technologies>
+</device>
+</devices>
+</deviceset>
+<deviceset name="HDR-1X03" prefix="J" uservalue="yes">
+<description>Pin header 1 x 3</description>
+<gates>
+<gate name="G$1" symbol="PINS-1X03" x="0" y="0"/>
+</gates>
+<devices>
+<device name="" package="HDR-1X03">
+<connects>
+<connect gate="G$1" pin="1" pad="1"/>
+<connect gate="G$1" pin="2" pad="2"/>
+<connect gate="G$1" pin="3" pad="3"/>
+</connects>
+<technologies>
+<technology name=""/>
+</technologies>
+</device>
+</devices>
+</deviceset>
+<deviceset name="HDR-1X04" prefix="J" uservalue="yes">
+<description>Pin header 1 x 4</description>
+<gates>
+<gate name="G$1" symbol="PINS-1X04" x="0" y="0"/>
+</gates>
+<devices>
+<device name="" package="HDR-1X04">
+<connects>
+<connect gate="G$1" pin="1" pad="1"/>
+<connect gate="G$1" pin="2" pad="2"/>
+<connect gate="G$1" pin="3" pad="3"/>
+<connect gate="G$1" pin="4" pad="4"/>
+</connects>
+<technologies>
+<technology name=""/>
+</technologies>
+</device>
+</devices>
+</deviceset>
+<deviceset name="HDR-1X05" prefix="J" uservalue="yes">
+<description>Pin header 1 x 5</description>
+<gates>
+<gate name="G$1" symbol="PINS-1X05" x="0" y="0"/>
+</gates>
+<devices>
+<device name="" package="HDR-1X05">
+<connects>
+<connect gate="G$1" pin="1" pad="1"/>
+<connect gate="G$1" pin="2" pad="2"/>
+<connect gate="G$1" pin="3" pad="3"/>
+<connect gate="G$1" pin="4" pad="4"/>
+<connect gate="G$1" pin="5" pad="5"/>
+</connects>
+<technologies>
+<technology name=""/>
+</technologies>
+</device>
+</devices>
+</deviceset>
+<deviceset name="HDR-1X06" prefix="J" uservalue="yes">
+<description>Pin header 1 x 6</description>
+<gates>
+<gate name="G$1" symbol="PINS-1X06" x="0" y="0"/>
+</gates>
+<devices>
+<device name="" package="HDR-1X06">
+<connects>
+<connect gate="G$1" pin="1" pad="1"/>
+<connect gate="G$1" pin="2" pad="2"/>
+<connect gate="G$1" pin="3" pad="3"/>
+<connect gate="G$1" pin="4" pad="4"/>
+<connect gate="G$1" pin="5" pad="5"/>
+<connect gate="G$1" pin="6" pad="6"/>
+</connects>
+<technologies>
+<technology name=""/>
+</technologies>
+</device>
+</devices>
+</deviceset>
+<deviceset name="HDR-1X08" prefix="J" uservalue="yes">
+<description>Pin header 1 x 8</description>
+<gates>
+<gate name="G$1" symbol="PINS-1X08" x="0" y="0"/>
+</gates>
+<devices>
+<device name="" package="HDR-1X08">
+<connects>
+<connect gate="G$1" pin="1" pad="1"/>
+<connect gate="G$1" pin="2" pad="2"/>
+<connect gate="G$1" pin="3" pad="3"/>
+<connect gate="G$1" pin="4" pad="4"/>
+<connect gate="G$1" pin="5" pad="5"/>
+<connect gate="G$1" pin="6" pad="6"/>
+<connect gate="G$1" pin="7" pad="7"/>
+<connect gate="G$1" pin="8" pad="8"/>
+</connects>
+<technologies>
+<technology name=""/>
+</technologies>
+</device>
+</devices>
+</deviceset>
+<deviceset name="HDR-1X15" prefix="J" uservalue="yes">
+<description>Pin header 1 x 15</description>
+<gates>
+<gate name="G$1" symbol="PINS-1X15" x="0" y="0"/>
+</gates>
+<devices>
+<device name="" package="HDR-1X15">
+<connects>
+<connect gate="G$1" pin="1" pad="1"/>
+<connect gate="G$1" pin="2" pad="2"/>
+<connect gate="G$1" pin="3" pad="3"/>
+<connect gate="G$1" pin="4" pad="4"/>
+<connect gate="G$1" pin="5" pad="5"/>
+<connect gate="G$1" pin="6" pad="6"/>
+<connect gate="G$1" pin="7" pad="7"/>
+<connect gate="G$1" pin="8" pad="8"/>
+<connect gate="G$1" pin="9" pad="9"/>
+<connect gate="G$1" pin="10" pad="10"/>
+<connect gate="G$1" pin="11" pad="11"/>
+<connect gate="G$1" pin="12" pad="12"/>
+<connect gate="G$1" pin="13" pad="13"/>
+<connect gate="G$1" pin="14" pad="14"/>
+<connect gate="G$1" pin="15" pad="15"/>
+</connects>
+<technologies>
+<technology name=""/>
+</technologies>
+</device>
+</devices>
+</deviceset>
+<deviceset name="HDR-1X20" prefix="J" uservalue="yes">
+<description>Pin header 1 x 20</description>
+<gates>
+<gate name="G$1" symbol="PINS-1X20" x="0" y="0"/>
+</gates>
+<devices>
+<device name="" package="HDR-1X20">
+<connects>
+<connect gate="G$1" pin="1" pad="1"/>
+<connect gate="G$1" pin="2" pad="2"/>
+<connect gate="G$1" pin="3" pad="3"/>
+<connect gate="G$1" pin="4" pad="4"/>
+<connect gate="G$1" pin="5" pad="5"/>
+<connect gate="G$1" pin="6" pad="6"/>
+<connect gate="G$1" pin="7" pad="7"/>
+<connect gate="G$1" pin="8" pad="8"/>
+<connect gate="G$1" pin="9" pad="9"/>
+<connect gate="G$1" pin="10" pad="10"/>
+<connect gate="G$1" pin="11" pad="11"/>
+<connect gate="G$1" pin="12" pad="12"/>
+<connect gate="G$1" pin="13" pad="13"/>
+<connect gate="G$1" pin="14" pad="14"/>
+<connect gate="G$1" pin="15" pad="15"/>
+<connect gate="G$1" pin="16" pad="16"/>
+<connect gate="G$1" pin="17" pad="17"/>
+<connect gate="G$1" pin="18" pad="18"/>
+<connect gate="G$1" pin="19" pad="19"/>
+<connect gate="G$1" pin="20" pad="20"/>
+</connects>
+<technologies>
+<technology name=""/>
+</technologies>
+</device>
+</devices>
+</deviceset>
+<deviceset name="HDR-2X03" prefix="J" uservalue="yes">
+<description>Pin header 2 x 3</description>
+<gates>
+<gate name="G$1" symbol="PINS-2X03" x="0" y="0"/>
+</gates>
+<devices>
+<device name="" package="HDR-2X03">
+<connects>
+<connect gate="G$1" pin="1" pad="1"/>
+<connect gate="G$1" pin="3" pad="3"/>
+<connect gate="G$1" pin="5" pad="5"/>
+<connect gate="G$1" pin="2" pad="2"/>
+<connect gate="G$1" pin="4" pad="4"/>
+<connect gate="G$1" pin="6" pad="6"/>
+</connects>
+<technologies>
+<technology name=""/>
+</technologies>
+</device>
+</devices>
+</deviceset>
+<deviceset name="HDR-2X05" prefix="J" uservalue="yes">
+<description>Pin header 2 x 5</description>
+<gates>
+<gate name="G$1" symbol="PINS-2X05" x="0" y="0"/>
+</gates>
+<devices>
+<device name="" package="HDR-2X05">
+<connects>
+<connect gate="G$1" pin="1" pad="1"/>
+<connect gate="G$1" pin="3" pad="3"/>
+<connect gate="G$1" pin="5" pad="5"/>
+<connect gate="G$1" pin="7" pad="7"/>
+<connect gate="G$1" pin="9" pad="9"/>
+<connect gate="G$1" pin="2" pad="2"/>
+<connect gate="G$1" pin="4" pad="4"/>
+<connect gate="G$1" pin="6" pad="6"/>
+<connect gate="G$1" pin="8" pad="8"/>
+<connect gate="G$1" pin="10" pad="10"/>
+</connects>
+<technologies>
+<technology name=""/>
+</technologies>
+</device>
+</devices>
+</deviceset>
+<deviceset name="TERMINAL-2P" prefix="X" uservalue="yes">
+<description>Screw terminal, 2 poles</description>
+<gates>
+<gate name="G$1" symbol="TERMINAL-2" x="0" y="0"/>
+</gates>
+<devices>
+<device name="" package="TERM-2P-5.0">
+<connects>
+<connect gate="G$1" pin="1" pad="1"/>
+<connect gate="G$1" pin="2" pad="2"/>
+</connects>
+<technologies>
+<technology name=""/>
+</technologies>
+</device>
+</devices>
+</deviceset>
+<deviceset name="TERMINAL-3P" prefix="X" uservalue="yes">
+<description>Screw terminal, 3 poles</description>
+<gates>
+<gate name="G$1" symbol="TERMINAL-3" x="0" y="0"/>
+</gates>
+<devices>
+<device name="" package="TERM-3P-5.0">
+<connects>
+<connect gate="G$1" pin="1" pad="1"/>
+<connect gate="G$1" pin="2" pad="2"/>
+<connect gate="G$1" pin="3" pad="3"/>
+</connects>
+<technologies>
+<technology name=""/>
+</technologies>
+</device>
+</devices>
+</deviceset>
+</devicesets>
+</library>
+</drawing>
+</eagle>

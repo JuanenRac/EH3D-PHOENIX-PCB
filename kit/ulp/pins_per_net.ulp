@@ -1,0 +1,13 @@
+#usage "Lists the pads that each net joins"
+// EH3D-PHOENIX-PCB starter kit. SPDX-License-Identifier: GPL-3.0-or-later
+board(B) {
+  B.signals(S) {
+    string pins[];
+    int n = 0;
+    S.contactrefs(C) {
+      pins[n] = C.element.name + "." + C.contact.name;
+      n++;
+    }
+    printf("%-8s %2d  %s\n", S.name, n, strjoin(pins, " "));
+  }
+}

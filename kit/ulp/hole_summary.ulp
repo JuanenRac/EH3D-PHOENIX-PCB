@@ -1,0 +1,9 @@
+#usage "Counts the drilled pads, the vias and the unplated holes"
+// EH3D-PHOENIX-PCB starter kit. SPDX-License-Identifier: GPL-3.0-or-later
+int pads = 0, vias = 0, holes = 0;
+board(B) {
+  B.elements(E) { E.pads(P) { if (P.drill > 0) pads++; } }
+  B.vias(V) { vias++; }
+  B.holes(H) { holes++; }
+}
+printf("pads with drill %d\nvias %d\nunplated holes %d\ntotal %d\n", pads, vias, holes, pads + vias + holes);

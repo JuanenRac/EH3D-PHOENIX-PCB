@@ -1,0 +1,19 @@
+#usage "Table of the drill sizes of the pads and vias, with how many holes of each"
+// EH3D-PHOENIX-PCB starter kit. SPDX-License-Identifier: GPL-3.0-or-later
+int sizes[];
+int counts[];
+int kinds = 0, holes = 0;
+void add(int drill) {
+  int k = 0;
+  while (k < kinds && sizes[k] != drill) k++;
+  if (k == kinds) { sizes[kinds] = drill; counts[kinds] = 0; kinds++; }
+  counts[k]++;
+  holes++;
+}
+board(B) {
+  B.elements(E) { E.pads(P) { if (P.drill > 0) add(P.drill); } }
+  B.vias(V) { add(V.drill); }
+}
+sort(kinds, sizes, counts);
+for (int i = 0; i < kinds; i++) printf("%5.2f mm  x%d\n", u2mm(sizes[i]), counts[i]);
+printf("%d holes\n", holes);

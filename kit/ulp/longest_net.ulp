@@ -1,0 +1,12 @@
+#usage "Finds the net with the most copper length"
+// EH3D-PHOENIX-PCB starter kit. SPDX-License-Identifier: GPL-3.0-or-later
+real best = 0;
+string name = "";
+board(B) {
+  B.signals(S) {
+    real length = 0;
+    S.wires(W) { length += u2mm(W.length); }
+    if (length > best) { best = length; name = S.name; }
+  }
+}
+printf("longest net %s: %.2f mm\n", name, best);

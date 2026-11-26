@@ -1,0 +1,22 @@
+#usage "Parts of a schematic grouped by value and symbol, as lines with semicolons"
+// EH3D-PHOENIX-PCB starter kit. SPDX-License-Identifier: GPL-3.0-or-later
+string keys[], values[], symbols[], refs[];
+int counts[];
+int lines = 0;
+schematic(S) {
+  S.parts(P) {
+    string key = P.value + "|" + P.device.name;
+    int k = 0;
+    while (k < lines && keys[k] != key) k++;
+    if (k == lines) {
+      keys[k] = key; values[k] = P.value; symbols[k] = P.device.name;
+      refs[k] = P.name; counts[k] = 0; lines++;
+    } else {
+      refs[k] = refs[k] + " " + P.name;
+    }
+    counts[k]++;
+  }
+}
+sort(lines, keys, values, symbols, counts, refs);
+printf("value;symbol;quantity;references\n");
+for (int i = 0; i < lines; i++) printf("%s;%s;%d;%s\n", values[i], symbols[i], counts[i], refs[i]);

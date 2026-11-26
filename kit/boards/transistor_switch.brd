@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- EH3D-PHOENIX-PCB starter kit. SPDX-License-Identifier: GPL-3.0-or-later. Own work, not verified. -->
+<eagle version="9.6.2">
+<drawing>
+<settings/>
+<layers>
+<layer number="1" name="Top" color="1" fill="1" visible="yes" active="yes"/>
+<layer number="16" name="Bottom" color="1" fill="1" visible="yes" active="yes"/>
+<layer number="20" name="Dimension" color="1" fill="1" visible="yes" active="yes"/>
+<layer number="21" name="tPlace" color="1" fill="1" visible="yes" active="yes"/>
+<layer number="22" name="bPlace" color="1" fill="1" visible="yes" active="yes"/>
+<layer number="29" name="tStop" color="1" fill="1" visible="yes" active="yes"/>
+<layer number="30" name="bStop" color="1" fill="1" visible="yes" active="yes"/>
+<layer number="31" name="tCream" color="1" fill="1" visible="yes" active="yes"/>
+<layer number="32" name="bCream" color="1" fill="1" visible="yes" active="yes"/>
+<layer number="51" name="tDocu" color="1" fill="1" visible="yes" active="yes"/>
+<layer number="52" name="bDocu" color="1" fill="1" visible="yes" active="yes"/>
+</layers>
+<board>
+<plain>
+<wire x1="0" y1="0" x2="34" y2="0" width="0.1" layer="20"/>
+<wire x1="34" y1="0" x2="34" y2="24" width="0.1" layer="20"/>
+<wire x1="34" y1="24" x2="0" y2="24" width="0.1" layer="20"/>
+<wire x1="0" y1="24" x2="0" y2="0" width="0.1" layer="20"/>
+</plain>
+<libraries>
+<library name="eh3d-kit">
+<packages>
+<package name="HDR-1X03">
+<pad name="1" x="-2.54" y="0" drill="1" diameter="1.7" shape="square"/>
+<pad name="2" x="0" y="0" drill="1" diameter="1.7"/>
+<pad name="3" x="2.54" y="0" drill="1" diameter="1.7"/>
+</package>
+<package name="CHIP-0805">
+<smd name="1" x="-0.95" y="0" dx="1.15" dy="1.45" layer="1"/>
+<smd name="2" x="0.95" y="0" dx="1.15" dy="1.45" layer="1"/>
+</package>
+<package name="SOT-23">
+<smd name="1" x="-0.95" y="-1" dx="0.7" dy="0.9" layer="1"/>
+<smd name="2" x="0.95" y="-1" dx="0.7" dy="0.9" layer="1"/>
+<smd name="3" x="0" y="1" dx="0.7" dy="0.9" layer="1"/>
+</package>
+<package name="SOD-123">
+<smd name="1" x="-1.65" y="0" dx="1" dy="1.1" layer="1"/>
+<smd name="2" x="1.65" y="0" dx="1" dy="1.1" layer="1"/>
+</package>
+<package name="TERM-2P-5.0">
+<pad name="1" x="-2.5" y="0" drill="1.3" diameter="2.4" shape="square"/>
+<pad name="2" x="2.5" y="0" drill="1.3" diameter="2.4"/>
+</package>
+</packages>
+</library>
+</libraries>
+<designrules name="eh3d-kit">
+<param name="mdWireWire" value="0.15mm"/>
+<param name="mdWirePad" value="0.15mm"/>
+<param name="mdWireVia" value="0.15mm"/>
+<param name="mdPadPad" value="0.15mm"/>
+<param name="mdPadVia" value="0.15mm"/>
+<param name="mdViaVia" value="0.15mm"/>
+<param name="mdSmdPad" value="0.15mm"/>
+<param name="mdSmdVia" value="0.15mm"/>
+<param name="mdSmdSmd" value="0.15mm"/>
+<param name="mdCopperDimension" value="0.3mm"/>
+<param name="mdDrill" value="0.25mm"/>
+<param name="msWidth" value="0.15mm"/>
+<param name="msDrill" value="0.3mm"/>
+<param name="rlMinPadTop" value="0.15mm"/>
+<param name="rlMinPadBottom" value="0.15mm"/>
+<param name="rlMinViaOuter" value="0.15mm"/>
+</designrules>
+<elements>
+<element name="J1" library="eh3d-kit" package="HDR-1X03" value="CTRL" x="4" y="12" rot="R90"/>
+<element name="R1" library="eh3d-kit" package="CHIP-0805" value="1k" x="11" y="15"/>
+<element name="R2" library="eh3d-kit" package="CHIP-0805" value="100k" x="13" y="7"/>
+<element name="Q1" library="eh3d-kit" package="SOT-23" value="NPN" x="19" y="12"/>
+<element name="D1" library="eh3d-kit" package="SOD-123" value="CLAMP" x="23" y="18"/>
+<element name="X1" library="eh3d-kit" package="TERM-2P-5.0" value="LOAD" x="28" y="10" rot="R90"/>
+</elements>
+<signals>
+<signal name="CTRL">
+<contactref element="J1" pad="2"/>
+<contactref element="R1" pad="1"/>
+<wire x1="10.05" y1="15" x2="9.5" y2="14.75" width="0.3" layer="1"/>
+<wire x1="9.5" y1="14.75" x2="7.25" y2="12.5" width="0.3" layer="1"/>
+<wire x1="7.25" y1="12.5" x2="4.5" y2="12.5" width="0.3" layer="1"/>
+<wire x1="4.5" y1="12.5" x2="4" y2="12" width="0.3" layer="1"/>
+</signal>
+<signal name="BASE">
+<contactref element="R1" pad="2"/>
+<contactref element="Q1" pad="1"/>
+<contactref element="R2" pad="1"/>
+<wire x1="18.05" y1="11" x2="17.5" y2="11.25" width="0.3" layer="1"/>
+<wire x1="17.5" y1="11.25" x2="14.25" y2="14.5" width="0.3" layer="1"/>
+<wire x1="14.25" y1="14.5" x2="12.5" y2="14.5" width="0.3" layer="1"/>
+<wire x1="12.5" y1="14.5" x2="11.95" y2="15" width="0.3" layer="1"/>
+<wire x1="12.05" y1="7" x2="12.5" y2="7.5" width="0.3" layer="1"/>
+<wire x1="12.5" y1="7.5" x2="15.5" y2="10.5" width="0.3" layer="1"/>
+<wire x1="15.5" y1="10.5" x2="17.5" y2="10.5" width="0.3" layer="1"/>
+<wire x1="17.5" y1="10.5" x2="18.05" y2="11" width="0.3" layer="1"/>
+</signal>
+<signal name="GND">
+<contactref element="R2" pad="2"/>
+<contactref element="Q1" pad="2"/>
+<contactref element="J1" pad="3"/>
+<via x="13" y="5.75" extent="1-16" drill="0.4" diameter="0.8"/>
+<wire x1="19.95" y1="11" x2="19.5" y2="10.75" width="0.3" layer="1"/>
+<wire x1="19.5" y1="10.75" x2="16.25" y2="7.5" width="0.3" layer="1"/>
+<wire x1="16.25" y1="7.5" x2="14.5" y2="7.5" width="0.3" layer="1"/>
+<wire x1="14.5" y1="7.5" x2="13.95" y2="7" width="0.3" layer="1"/>
+<wire x1="4" y1="14.54" x2="4.5" y2="14.25" width="0.3" layer="16"/>
+<wire x1="4.5" y1="14.25" x2="13" y2="5.75" width="0.3" layer="16"/>
+<wire x1="13" y1="5.75" x2="13.5" y2="6.25" width="0.3" layer="1"/>
+<wire x1="13.5" y1="6.25" x2="13.5" y2="6.5" width="0.3" layer="1"/>
+<wire x1="13.5" y1="6.5" x2="13.95" y2="7" width="0.3" layer="1"/>
+</signal>
+<signal name="COIL">
+<contactref element="Q1" pad="3"/>
+<contactref element="D1" pad="2"/>
+<contactref element="X1" pad="1"/>
+<wire x1="24.65" y1="18" x2="24.25" y2="17.75" width="0.3" layer="1"/>
+<wire x1="24.25" y1="17.75" x2="20" y2="13.5" width="0.3" layer="1"/>
+<wire x1="20" y1="13.5" x2="19.5" y2="13.5" width="0.3" layer="1"/>
+<wire x1="19.5" y1="13.5" x2="19" y2="13" width="0.3" layer="1"/>
+<wire x1="28" y1="7.5" x2="27.5" y2="7.75" width="0.3" layer="1"/>
+<wire x1="27.5" y1="7.75" x2="22.75" y2="12.5" width="0.3" layer="1"/>
+<wire x1="22.75" y1="12.5" x2="19.5" y2="12.5" width="0.3" layer="1"/>
+<wire x1="19.5" y1="12.5" x2="19" y2="13" width="0.3" layer="1"/>
+</signal>
+<signal name="VCC">
+<contactref element="J1" pad="1"/>
+<contactref element="D1" pad="1"/>
+<contactref element="X1" pad="2"/>
+<via x="22.25" y="17" extent="1-16" drill="0.4" diameter="0.8"/>
+<wire x1="21.35" y1="18" x2="20.75" y2="17.75" width="0.3" layer="1"/>
+<wire x1="20.75" y1="17.75" x2="9.5" y2="17.75" width="0.3" layer="1"/>
+<wire x1="9.5" y1="17.75" x2="5" y2="13.25" width="0.3" layer="1"/>
+<wire x1="5" y1="13.25" x2="3" y2="13.25" width="0.3" layer="1"/>
+<wire x1="3" y1="13.25" x2="2.75" y2="13" width="0.3" layer="1"/>
+<wire x1="2.75" y1="13" x2="2.75" y2="10.75" width="0.3" layer="1"/>
+<wire x1="2.75" y1="10.75" x2="3.5" y2="10" width="0.3" layer="1"/>
+<wire x1="3.5" y1="10" x2="4" y2="9.46" width="0.3" layer="1"/>
+<wire x1="28" y1="12.5" x2="27.5" y2="12.75" width="0.3" layer="16"/>
+<wire x1="27.5" y1="12.75" x2="26.5" y2="12.75" width="0.3" layer="16"/>
+<wire x1="26.5" y1="12.75" x2="22.25" y2="17" width="0.3" layer="16"/>
+<wire x1="22.25" y1="17" x2="21.75" y2="17.5" width="0.3" layer="1"/>
+<wire x1="21.75" y1="17.5" x2="21.35" y2="18" width="0.3" layer="1"/>
+</signal>
+</signals>
+</board>
+</drawing>
+</eagle>

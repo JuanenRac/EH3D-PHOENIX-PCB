@@ -4,6 +4,12 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **A starter kit comes with the program:** the folder `kit/` has five own libraries (chip and through hole passives, LEDs, diodes, transistors and a regulator, generic SOIC and TSSOP circuits, pin headers and screw terminals, two module types of indicative size), made for this project from nominal public sizes, GPL-3.0-or-later and not verified (`docs/KIT.md`).
+- **Twelve sample boards with their schematics:** small synthetic designs from an LED to carriers of the two module types; they pass the rule checks, agree with their schematics, are fully routed and read back the same after being written.
+- **Twenty user programs with their expected output:** counts, bills of materials, drill, track and net tables, netlists and placement lists that the evaluator runs on the sample designs.
+- **Starting profiles for the rule check and the output:** two rule files, four capability profiles and two export profiles with generic figures, marked as not verified with any maker.
+- **`phoenix kit list|info|copy`:** shows the catalogue of the kit (licence, origin, formats, export formats, titles in eight languages) and copies pieces after checking their SHA-256, never over a file; codes `PHOENIX-KIT-001` to `008`, limits in `config/kit.cfg`.
+- **Releases carry the kit as its own package:** `eh3d-phoenix-pcb-kit-<version>.zip` with its SHA-256, made by the build workflow after checking that the kit is what `tools/make_kit.py` writes.
 - **A new window «About»:** the picture of the program inside a ring of its colour (fire orange), the name in large letters, one sentence about the program in the eight languages, the version, the author and the e-mail, links to the page of the author and to the repository and the licence. It is the window of the docking frame of the suite (`eh3d-dock`), so the workflows build against `EH3D-COMMON` at `main` until a release of it carries the window.
 - **Library files with long decimals are read as drawings:** a number with more than six decimals no longer turns its pad, line or text into XML that cannot be edited; it is read to the nearest millionth, so the item is drawn, checked and edited like any other. In a sample of a private collection this was the case of about one library in five that is not in the old binary form.
 - **Those numbers are saved as they were:** the text of each is kept beside its item and written back for as long as the value is the one that was read; an edited value is written as the new one.

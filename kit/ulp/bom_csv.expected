@@ -1,0 +1,6 @@
+reference,value,package
+C1,10u,CHIP-0805
+C2,22u,CHIP-0805
+J1,OUT,HDR-1X03
+U1,REG,SOT-223
+X1,IN,TERM-2P-5.0

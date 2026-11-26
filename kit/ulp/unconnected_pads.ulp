@@ -1,0 +1,11 @@
+#usage "Lists the pads that are on no net"
+// EH3D-PHOENIX-PCB starter kit. SPDX-License-Identifier: GPL-3.0-or-later
+int n = 0;
+board(B) {
+  B.elements(E) {
+    E.pads(P) {
+      if (P.signal == "") { printf("%s.%s\n", E.name, P.name); n++; }
+    }
+  }
+}
+printf("%d pads without a net\n", n);
