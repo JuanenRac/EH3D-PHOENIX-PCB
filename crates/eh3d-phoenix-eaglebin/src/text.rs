@@ -72,15 +72,24 @@ pub fn decode(bytes: &[u8], place: &str, report: &mut Report) -> String {
     text.chars().filter(|&c| allowed(c)).collect()
 }
 
-/// The names of the technologies of a device: the last character of each name has its high bit
-/// set, and a byte with only that bit is the empty name. A device with none has the empty one.
+/// The byte that goes before each name in the second form of a list of technologies.
+const SEPARATOR: u8 = 0x04;
+
+/// The names of the technologies of a device. In one form the last character of each name has its
+/// high bit set, and a byte with only that bit is the empty name; in the other each name follows
+/// the byte `0x04`. A device with none has the empty one.
 pub fn technologies(bytes: &[u8], place: &str, report: &mut Report) -> Vec<String> {
+    let end = bytes.iter().position(|&b| b == 0).unwrap_or(bytes.len());
+    let bytes = &bytes[..end];
+    if let Some(rest) = bytes.strip_prefix(&[SEPARATOR]) {
+        return rest
+            .split(|&b| b == SEPARATOR)
+            .map(|name| decode(name, place, report))
+            .collect();
+    }
     let mut names = Vec::new();
     let mut current = Vec::new();
     for &b in bytes {
-        if b == 0 {
-            break;
-        }
         if b & 0x80 == 0 {
             current.push(b);
             continue;
@@ -137,6 +146,8 @@ mod tests {
         let list = technologies(b"\x80AL\xd3HC\xd4\xd3\0zz\xd3", "x", &mut report);
         assert_eq!(list, ["", "ALS", "HCT", "S"]);
         assert_eq!(technologies(b"", "x", &mut report), [""]);
+        let list = technologies(b"\x04344\x04345\0zz", "x", &mut report);
+        assert_eq!(list, ["344", "345"]);
         assert!(report.notes.is_empty());
         assert_eq!(technologies(b"AB", "x", &mut report), ["AB"]);
         assert_eq!(report.noted(codes::VALUE), 1);

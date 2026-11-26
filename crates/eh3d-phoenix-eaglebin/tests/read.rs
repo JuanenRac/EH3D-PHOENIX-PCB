@@ -227,6 +227,17 @@ fn version_3_devices_and_long_texts_are_read() {
         .collect();
     assert_eq!(connects, [("A", "IN", "3"), ("P", "VCC", "1")]);
     let dil = read.library.package("DIL").unwrap();
+    match (&dil.items[0], &dil.items[2]) {
+        (Item::Smd(a), Item::Pad(b)) => {
+            assert_eq!((a.name.as_str(), a.rot.as_str(), a.dx), ("1", "", 300_000));
+            // the upright long pad of version 3
+            assert_eq!(
+                (b.name.as_str(), b.shape, b.rot.as_str(), b.stop),
+                ("3", PadShape::Long, "R90", true)
+            );
+        }
+        items => panic!("{items:?}"),
+    }
     match &dil.items[3] {
         Item::Text(t) => {
             assert_eq!(t.content, "a text that goes on beyond one record");

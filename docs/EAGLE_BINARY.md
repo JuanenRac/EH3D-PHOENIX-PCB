@@ -40,7 +40,7 @@ Coordinates are signed integers in tenths of a micrometre. Widths, pad sizes, dr
 | `0x21` | polygon: bytes 2 and 3: vertices, which follow as line records |
 | `0x22`, `0x24` | line or arc: 24-bit coordinates at bytes 4, 8, 12 and 16; width at byte 20; byte 22: style, cap and direction; byte 23: the kind of arc. A general arc stores one coordinate of its centre in bytes 7, 11 and 15 |
 | `0x25`, `0x26`, `0x28` | circle, rectangle, hole |
-| `0x2A`, `0x2B` | pad, surface-mount pad |
+| `0x2A`, `0x2B` | pad, surface-mount pad: angle at bytes 16 and 17, flags at byte 18 and name from byte 19; in version 3 there is no angle and no flags and the name starts at byte 16 |
 | `0x2C` | pin: byte 12: direction, length and turn; byte 2: visibility and function; byte 13: swap level |
 | `0x31`, `0x32` | text and, in version 3, the rest of its content |
 | `0x43` | drawing frame |
@@ -49,7 +49,7 @@ Coordinates are signed integers in tenths of a micrometre. Widths, pad sizes, dr
 
 In versions 4 and 5 the connection records of a device hold one entry for each pad, in the order of the pads: the gate (from 1) in the high bits and the pin (from 1) in the low bits. An entry is one or two bytes, and the split depends on the number of gates and on the most pins of a gate. In version 3 there is one group of records for each gate with the pad of each pin. When any entry of a device does not name an existing gate, pin and pad, none of its connections is converted and the report says so.
 
-The technology names are packed in one string: the last character of each name has its high bit set.
+The technology names are packed in one string: either the last character of each name has its high bit set, or each name follows the byte `0x04`.
 
 ## What was measured
 
