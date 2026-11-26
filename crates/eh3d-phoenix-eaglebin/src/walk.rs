@@ -366,15 +366,22 @@ impl Walk<'_> {
                     report.count("hole");
                     out.push(Item::Hole(items::hole(&r)));
                 }
-                items::PAD => {
-                    let name = self.string(&r, 19, 24, place);
-                    self.report.count("pad");
-                    out.push(Item::Pad(items::pad(&r, name, place, self.report)));
-                }
-                items::SMD => {
-                    let name = self.string(&r, 19, 24, place);
-                    self.report.count("smd");
-                    out.push(Item::Smd(items::smd(&r, name, place, self.report)));
+                items::PAD | items::SMD => {
+                    // version 3 has no angle and no flags: the name starts where they are
+                    let (start, angle, flags) = if self.old {
+                        (16, 0, 0)
+                    } else {
+                        (19, u16_at(&r, 16), r[18])
+                    };
+                    let name = self.string(&r, start, 24, place);
+                    let turn = items::Turn { angle, flags };
+                    if r[0] == items::PAD {
+                        self.report.count("pad");
+                        out.push(Item::Pad(items::pad(&r, turn, name, place, self.report)));
+                    } else {
+                        self.report.count("smd");
+                        out.push(Item::Smd(items::smd(&r, turn, name, place, self.report)));
+                    }
                 }
                 items::PIN => {
                     let name = self.string(&r, 14, 24, place);

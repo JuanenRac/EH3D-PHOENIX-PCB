@@ -250,9 +250,18 @@ fn pad_flags(flags: u8, known: u8, place: &str, report: &mut Report) {
     }
 }
 
+/// The angle and the flags of a pad of either kind; both are zero in version 3.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct Turn {
+    /// The angle, as [`rotation`] reads it.
+    pub angle: u16,
+    /// The flags.
+    pub flags: u8,
+}
+
 /// A through-hole pad.
-pub fn pad(r: &Record, name: String, place: &str, report: &mut Report) -> Pad {
-    let mut angle = u16_at(r, 16);
+pub fn pad(r: &Record, turn: Turn, name: String, place: &str, report: &mut Report) -> Pad {
+    let mut angle = turn.angle;
     let shape = match r[2] {
         0 => PadShape::Square,
         1 => PadShape::Round,
@@ -272,7 +281,7 @@ pub fn pad(r: &Record, name: String, place: &str, report: &mut Report) -> Pad {
             PadShape::Round
         }
     };
-    let flags = r[18];
+    let flags = turn.flags;
     pad_flags(flags, 0x0D, place, report);
     Pad {
         name,
@@ -290,14 +299,14 @@ pub fn pad(r: &Record, name: String, place: &str, report: &mut Report) -> Pad {
 }
 
 /// A surface-mount pad.
-pub fn smd(r: &Record, name: String, place: &str, report: &mut Report) -> Smd {
+pub fn smd(r: &Record, turn: Turn, name: String, place: &str, report: &mut Report) -> Smd {
     let roundness = if r[2] <= 100 {
         u32::from(r[2])
     } else {
         report.note(codes::VALUE, "roundness over 100 (read as zero)", place);
         0
     };
-    let flags = r[18];
+    let flags = turn.flags;
     pad_flags(flags, 0x07, place, report);
     Smd {
         name,
@@ -307,7 +316,7 @@ pub fn smd(r: &Record, name: String, place: &str, report: &mut Report) -> Smd {
         dy: doubled(u32::from(u16_at(r, 14))),
         layer: u32::from(r[3]),
         roundness,
-        rot: rot(u16_at(r, 16), place, report),
+        rot: rot(turn.angle, place, report),
         stop: flags & 0x01 == 0,
         thermals: flags & 0x04 == 0,
         cream: flags & 0x02 == 0,

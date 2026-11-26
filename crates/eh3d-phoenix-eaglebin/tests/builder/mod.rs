@@ -182,6 +182,17 @@ pub fn smd(x: i32, name: &[u8]) -> R {
         .text(19, name)
 }
 
+/// A pad of version 3, whose name starts at byte 16.
+pub fn old_pad(kind: u8, x: i32, name: &[u8]) -> R {
+    R::new(kind)
+        .b(2, if kind == 0x2A { 4 } else { 0 })
+        .b(3, 1)
+        .i32(4, x)
+        .u16(12, 1500)
+        .u16(14, 7500)
+        .text(16, name)
+}
+
 /// A small library of version 4: a resistor with two devices, a symbol and two footprints that
 /// together hold every kind of drawing record.
 pub fn sample() -> File {
@@ -354,9 +365,9 @@ pub fn sample_3() -> File {
     f.packages = vec![drawing(
         R::new(0x1E).text(18, b"DIL"),
         vec![
-            smd(-25_400, b"1"),
-            smd(0, b"2"),
-            smd(25_400, b"3"),
+            old_pad(0x2B, -25_400, b"1"),
+            old_pad(0x2B, 0, b"2"),
+            old_pad(0x2A, 25_400, b"3"),
             R::new(0x31).b(2, 2).b(3, 21).u16(12, 5000).b(14, 0x20),
             R::new(0x32).text(2, b"a text that goes on be"),
             R::new(0x32).text(2, b"yond one record"),
