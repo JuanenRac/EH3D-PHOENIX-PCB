@@ -16,6 +16,7 @@ use eh3d_phoenix_model::Point;
 use eh3d_phoenix_spatial::{Index, SpatialConfig};
 
 use crate::codes::{AutorouteError, GRID_TOO_LARGE};
+use crate::fast::Fast;
 use crate::geom::{half_up, inside_polygon, isqrt_ceil, pair, seg_seg_ge, P};
 
 /// One obstacle.
@@ -86,7 +87,19 @@ impl Obs {
     pub(crate) fn blocks(&self, a: P, b: P, q_half: i64, q_gap: i64, ignore_gap: bool) -> bool {
         let gap = if ignore_gap { 0 } else { q_gap.max(self.gap) };
         let reach = i128::from(q_half) + i128::from(gap) + i128::from(self.half);
+        // an edge whose box is farther than the reach from the box of the track is clear without
+        // the exact test
+        let far = i64::try_from(reach).unwrap_or(i64::MAX).max(0);
+        let (x0, x1) = (a.0.min(b.0), a.0.max(b.0));
+        let (y0, y1) = (a.1.min(b.1), a.1.max(b.1));
         for (c, d) in &self.edges {
+            if c.0.min(d.0).saturating_sub(x1) > far
+                || x0.saturating_sub(c.0.max(d.0)) > far
+                || c.1.min(d.1).saturating_sub(y1) > far
+                || y0.saturating_sub(c.1.max(d.1)) > far
+            {
+                continue;
+            }
             if !seg_seg_ge(a, b, *c, *d, reach) {
                 return true;
             }
@@ -144,7 +157,7 @@ impl StaticLayer {
 /// The obstacles of one layer that the run puts down, in squares.
 pub(crate) struct DynLayer {
     items: Vec<Option<Obs>>,
-    buckets: BTreeMap<(i64, i64), Vec<usize>>,
+    buckets: Fast<(i64, i64), Vec<usize>>,
     cell: i64,
     max_gap: i64,
     max_half: i64,
@@ -154,7 +167,7 @@ impl DynLayer {
     pub(crate) fn new(cell: i64) -> DynLayer {
         DynLayer {
             items: Vec::new(),
-            buckets: BTreeMap::new(),
+            buckets: Fast::default(),
             cell: cell.max(1),
             max_gap: 0,
             max_half: 0,
@@ -200,7 +213,9 @@ impl DynLayer {
         }
     }
 
-    fn near(&self, a: P, b: P, q_half: i64, q_gap: i64) -> Vec<usize> {
+    /// The obstacles of the squares near a track, square by square: one that covers several
+    /// squares comes more than once.
+    fn around(&self, a: P, b: P, q_half: i64, q_gap: i64) -> impl Iterator<Item = usize> + '_ {
         let m = q_half
             .saturating_add(q_gap.max(self.max_gap))
             .saturating_add(self.max_half);
@@ -210,14 +225,16 @@ impl DynLayer {
             a.0.max(b.0).saturating_add(m),
             a.1.max(b.1).saturating_add(m),
         ]);
-        let mut found: Vec<usize> = Vec::new();
-        for cx in x0..=x1 {
-            for cy in y0..=y1 {
-                if let Some(list) = self.buckets.get(&(cx, cy)) {
-                    found.extend_from_slice(list);
-                }
-            }
-        }
+        (x0..=x1)
+            .flat_map(move |cx| (y0..=y1).map(move |cy| (cx, cy)))
+            .filter_map(move |cell| self.buckets.get(&cell))
+            .flatten()
+            .copied()
+    }
+
+    /// The obstacles near a track, each once, in ascending order.
+    fn near(&self, a: P, b: P, q_half: i64, q_gap: i64) -> Vec<usize> {
+        let mut found: Vec<usize> = self.around(a, b, q_half, q_gap).collect();
         found.sort_unstable();
         found.dedup();
         found
@@ -314,7 +331,8 @@ impl World {
         }
         let dynamic = &self.dynamic[layer];
         let mut result = Edge::Free;
-        for i in dynamic.near(a, b, spec.half, spec.gap) {
+        // the same obstacle twice gives the same answer twice, so no list is made and sorted
+        for i in dynamic.around(a, b, spec.half, spec.gap) {
             let Some(obs) = &dynamic.items[i] else {
                 continue;
             };

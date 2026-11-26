@@ -24,7 +24,9 @@ use std::collections::{BTreeMap, BTreeSet};
 use eh3d_phoenix_board::{Board, Id};
 use eh3d_phoenix_model::{Nm, Point};
 use eh3d_phoenix_schematic::Schematic;
+use eh3d_phoenix_spatial::{inflate, Bx, Index, SpatialConfig};
 
+use crate::advanced::IndexMode;
 use crate::codes;
 use crate::geometry::{contact, inside_polygon, polygons_touch, Contact, Prim};
 use crate::items::{pad_prim, placed_pads, track_prim, via_prim};
@@ -145,6 +147,12 @@ fn shares_layer(a: &Node, b: &Node) -> bool {
 /// Which copper of the board touches which, from the geometry alone. `tolerance` is the gap that
 /// still counts as touching.
 pub fn analyse_board(board: &Board, tolerance: Nm) -> Report {
+    analyse_board_with(board, tolerance, IndexMode::Grid)
+}
+
+/// [`analyse_board`] with the chosen way of finding the pieces of copper that are close. Both
+/// ways give the same report, finding for finding and in the same order.
+pub fn analyse_board_with(board: &Board, tolerance: Nm, mode: IndexMode) -> Report {
     let mut report = Report::new("connectivity");
     let nodes = nodes_of(board);
     let tol = i128::from(tolerance.get());
@@ -152,12 +160,33 @@ pub fn analyse_board(board: &Board, tolerance: Nm) -> Report {
     let mut shorts: Vec<(usize, usize)> = Vec::new();
     let mut uncertain: BTreeSet<Id> = BTreeSet::new();
 
-    for (i, a) in nodes.iter().enumerate() {
+    // the nodes that have a shape, and their boxes grown as `Prim::may_be_within` grows them
+    let shaped: Vec<usize> = (0..nodes.len())
+        .filter(|i| nodes[*i].prim.is_some())
+        .collect();
+    let boxes: Vec<Bx> = shaped
+        .iter()
+        .filter_map(|i| nodes[*i].prim.as_ref())
+        .map(|p| inflate(&p.bbox(), p.hi / 2 + 1))
+        .collect();
+    let index = match mode {
+        IndexMode::Grid => Index::grid(&boxes, &SpatialConfig::default())
+            .unwrap_or_else(|_| Index::naive(boxes.len())),
+        IndexMode::Naive => Index::naive(boxes.len()),
+    };
+
+    for (k, &i) in shaped.iter().enumerate() {
+        let a = &nodes[i];
         let Some(pa) = &a.prim else {
             continue;
         };
-        for (offset, b) in nodes[i + 1..].iter().enumerate() {
-            let j = i + 1 + offset;
+        // ascending, so the pairs are met in the order of a pass over every pair
+        for other in index.candidates(&inflate(&boxes[k], tol.max(0))) {
+            if other <= k {
+                continue;
+            }
+            let j = shaped[other];
+            let b = &nodes[j];
             let Some(pb) = &b.prim else {
                 continue;
             };

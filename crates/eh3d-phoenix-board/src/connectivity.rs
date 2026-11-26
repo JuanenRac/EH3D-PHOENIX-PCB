@@ -271,6 +271,9 @@ struct Entry {
     net: Id,
 }
 
+/// A box in nanometres: `[min x, min y, max x, max y]`.
+type Reach = [i64; 4];
+
 impl Board {
     /// The islands of every net that has copper.
     pub fn connectivity(&self) -> ConnectivityReport {
@@ -301,25 +304,34 @@ impl Board {
         }
         entries.sort_by_key(|e| (e.net, e.item));
         let mut uf = Union::new(entries.len());
-        let mut saw_arc = false;
-        for i in 0..entries.len() {
-            if let Item::Track(id) = entries[i].item {
-                if self.tracks[&id]
-                    .path
-                    .iter()
-                    .any(|s| matches!(s, Segment::Arc { .. }))
-                {
-                    saw_arc = true;
+        let saw_arc = self
+            .tracks
+            .values()
+            .any(|t| t.path.iter().any(|s| matches!(s, Segment::Arc { .. })));
+        let boxes: Vec<Option<Reach>> = entries.iter().map(|e| self.reach_of(e.item)).collect();
+        let mut first = 0;
+        while first < entries.len() {
+            let net = entries[first].net;
+            let end = first + entries[first..].iter().take_while(|e| e.net == net).count();
+            // the items of one net, from left to right: only boxes that meet can touch
+            let mut order: Vec<(Reach, usize)> = (first..end)
+                .filter_map(|i| boxes[i].map(|b| (b, i)))
+                .collect();
+            order.sort_unstable();
+            for (k, (a, i)) in order.iter().enumerate() {
+                for (b, j) in &order[k + 1..] {
+                    if b[0] > a[2] {
+                        break;
+                    }
+                    if b[1] > a[3] || a[1] > b[3] || uf.find(*i) == uf.find(*j) {
+                        continue;
+                    }
+                    if self.touch(entries[*i].item, entries[*j].item) {
+                        uf.join(*i, *j);
+                    }
                 }
             }
-            for j in (i + 1)..entries.len() {
-                if entries[i].net != entries[j].net {
-                    break;
-                }
-                if self.touch(entries[i].item, entries[j].item) {
-                    uf.join(i, j);
-                }
-            }
+            first = end;
         }
         let mut by_net: BTreeMap<Id, BTreeMap<usize, Vec<Item>>> = BTreeMap::new();
         for (i, entry) in entries.iter().enumerate() {
@@ -370,6 +382,56 @@ impl Board {
             );
         }
         ConnectivityReport { nets, diagnostics }
+    }
+
+    /// A box that holds everything an item can touch another item with: the shape of a pad, the
+    /// points of a track grown by half its width, a via grown by half its diameter and the outline
+    /// of a zone. Two items whose boxes do not meet never touch; `None` never touches anything.
+    fn reach_of(&self, item: Item) -> Option<Reach> {
+        let mut out: Reach = [i64::MAX, i64::MAX, i64::MIN, i64::MIN];
+        let mut add = |p: Point, r: i64| {
+            let (x, y) = (p.x_nm.get(), p.y_nm.get());
+            out[0] = out[0].min(x.saturating_sub(r));
+            out[1] = out[1].min(y.saturating_sub(r));
+            out[2] = out[2].max(x.saturating_add(r));
+            out[3] = out[3].max(y.saturating_add(r));
+        };
+        match item {
+            Item::Pad(pad) => {
+                let component = self.components.get(&pad.component)?;
+                let shape = self
+                    .footprints
+                    .get(&component.footprint)?
+                    .pads
+                    .get(&pad.pad)?
+                    .shape;
+                let size = match shape {
+                    PadShape::Circle { diameter } => diameter.get(),
+                    PadShape::Rect { width, height } | PadShape::Oblong { width, height } => {
+                        width.get().max(height.get())
+                    }
+                };
+                add(pad_position(self, pad)?, size.saturating_abs());
+            }
+            Item::Track(id) => {
+                let track = self.tracks.get(&id)?;
+                let r = track.width.get().saturating_abs();
+                for segment in &track.path {
+                    add(segment.start(), r);
+                    add(segment.end(), r);
+                }
+            }
+            Item::Via(id) => {
+                let via = self.vias.get(&id)?;
+                add(via.at, via.diameter.get().saturating_abs());
+            }
+            Item::Zone(id) => {
+                for p in &self.zones.get(&id)?.outline {
+                    add(*p, 0);
+                }
+            }
+        }
+        (out[0] <= out[2]).then_some(out)
     }
 
     fn pad_layers(&self, pad: PadRef) -> Option<&[Id]> {
@@ -632,6 +694,81 @@ mod tests {
             start: pt(a.0, a.1),
             end: pt(b.0, b.1),
         }
+    }
+
+    #[test]
+    fn two_items_that_touch_always_have_boxes_that_meet() {
+        let (mut b, top, bottom, net, _, _) = base();
+        // tracks, vias and zones at places from a fixed formula around the two pads
+        let mut state = 7_u64;
+        let mut next = |n: i64| -> i64 {
+            state = state
+                .wrapping_mul(6_364_136_223_846_793_005)
+                .wrapping_add(1_442_695_040_888_963_407);
+            ((state >> 33) % n as u64) as i64
+        };
+        for k in 0..120_u16 {
+            let (x, y) = (next(12_000_000) - 1_000_000, next(4_000_000) - 2_000_000);
+            let end = (
+                x + next(3_000_000) - 1_500_000,
+                y + next(3_000_000) - 1_500_000,
+            );
+            let layer = if k % 3 == 0 { bottom } else { top };
+            b.tracks.insert(
+                id(100 + k),
+                Track {
+                    net,
+                    layer,
+                    width: nm(50_000 + next(600_000)),
+                    path: vec![line((x, y), end)],
+                },
+            );
+        }
+        for k in 0..60_u16 {
+            b.vias.insert(
+                id(300 + k),
+                Via {
+                    net,
+                    at: pt(next(11_000_000), next(3_000_000) - 1_500_000),
+                    drill: nm(200_000),
+                    diameter: nm(300_000 + next(900_000)),
+                    from_layer: top,
+                    to_layer: bottom,
+                },
+            );
+        }
+        for k in 0..6_u16 {
+            let (x, y) = (next(10_000_000), next(2_000_000) - 1_000_000);
+            b.zones.insert(
+                id(500 + k),
+                Zone {
+                    net,
+                    layer: top,
+                    outline: vec![pt(x, y), pt(x + 900_000, y), pt(x, y + 900_000)],
+                    clearance: nm(100_000),
+                    cutouts: Vec::new(),
+                },
+            );
+        }
+        let mut items: Vec<Item> = b.pad_nets.iter().map(|p| Item::Pad(p.pad_ref())).collect();
+        items.extend(b.tracks.keys().map(|i| Item::Track(*i)));
+        items.extend(b.vias.keys().map(|i| Item::Via(*i)));
+        items.extend(b.zones.keys().map(|i| Item::Zone(*i)));
+        let mut touching = 0;
+        for (k, x) in items.iter().enumerate() {
+            for y in &items[k + 1..] {
+                if !b.touch(*x, *y) {
+                    continue;
+                }
+                touching += 1;
+                let (p, q) = (b.reach_of(*x).unwrap(), b.reach_of(*y).unwrap());
+                assert!(
+                    p[0] <= q[2] && q[0] <= p[2] && p[1] <= q[3] && q[1] <= p[3],
+                    "{x:?} touches {y:?} but their boxes do not meet"
+                );
+            }
+        }
+        assert!(touching > 50, "{touching} touching pairs say too little");
     }
 
     #[test]

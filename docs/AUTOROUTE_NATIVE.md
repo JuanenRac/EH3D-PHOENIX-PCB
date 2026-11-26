@@ -1,6 +1,6 @@
 # EH3D-PHOENIX-PCB: the autorouter that needs no outside program
 
-**State: prototype.** The crate `eh3d-phoenix-autoroute`, the command `phoenix autoroute native` and the button of the board mode of the window route the open connections of a board with a search of our own. It has been tried on small boards made by hand and by a generator of the tests with a fixed seed. It has not been tried on a board of a real design, its speed on a large board has not been measured, and the button of the window has never been seen on a screen or used with a mouse. Nothing here has been compared with another autorouter or with the routes of a person.
+**State: prototype.** The crate `eh3d-phoenix-autoroute`, the command `phoenix autoroute native` and the button of the board mode of the window route the open connections of a board with a search of our own. It has been tried on small boards made by hand and by a generator of the tests with a fixed seed. It has not been tried on a board of a real design, its speed and the share it routes have been measured on a set of synthetic boards only (see *Measured on synthetic boards*), and the button of the window has never been seen on a screen or used with a mouse. Nothing here has been compared with another autorouter or with the routes of a person.
 
 The exchange with an external program (`docs/AUTOROUTE.md`) stays as it was; this is a second, separate way to route, and it starts no program.
 
@@ -13,6 +13,10 @@ The exchange with an external program (`docs/AUTOROUTE.md`) stays as it was; thi
 5. **The order.** `order = shortest` routes the nets whose connections are shortest in total first, `widest` the widest tracks first, `critical` the nets named in `critical_nets` first (then the shortest). Above all of them the weight of a net decides (see *Weights and limits for each net*): with no weight named every net weighs 100 and the order is the one of `order` alone.
 6. **Rip-up and reroute.** A connection that finds no way is searched again through the copper that the run put down: the nets it crosses are torn up, the connection is routed, and the torn nets go back to the queue. A node of a torn route costs more in the next search. It stops at `max_ripup_iterations` in all and `max_rips_per_connection` for one connection.
 7. **The limits** count nodes and passes and never time: `max_expansions_per_search`, `max_expansions_total`, `max_ripup_iterations`, `max_rips_per_connection`, `max_nodes`, `max_connections`, and, for each net, `max_expansions_per_net` and `net_max_expansions.NAME` (off by default).
+
+## The passes after the run
+
+A route made early in a run does not know about the ones that come after it, and a rip-up leaves detours behind. With `optimize_passes` more than 0 (the default is 2, 0 to 8) the run goes over the routed connections again after the queue is empty. A connection is looked at when it has more vias than its ends need, more than two corners, or is longer than the shortest way at 0 and 45 degrees by more than one step of the grid. Its route is taken away, it is searched again with all the others in place, what was torn up before does not count against a place and the preferred direction of a layer costs nothing, and the new way is kept only when it costs less: its length plus `via_penalty_nm` for each via and `corner_penalty_nm` for each corner (with the weight of the net). Otherwise the old route goes back as it was. A pass that changes nothing ends the passes. When a pass changed something, or the run tore something up, the connections that found no way (or stopped at the rip-up limit) are searched once more in the room that is there now. The tracks of a coupled pair are never touched. The nodes of the passes count against the same limits as the rest of the run.
 
 ## The plan and the rules
 
@@ -71,6 +75,10 @@ A coarse grid is fast but can miss a way through an opening whose only free line
 ## Pairs across several layers
 
 `couple_layers_max` (1 to 8, default 1) is the most changes of layer a pair that is asked for may make. With 1 the pair crosses once, as before. With more, and `couple_via = true`, a pair that cannot be coupled on one layer or across two is searched as one fat track over all the layers its ends allow; every change of layer must be straight through, the layers in between need at least two nodes each, and the vias of all the changes (two for each change, one for each track) must keep the clearance and the drill spacing from each other. The pairs have the ends on any layer that both of their pads are on, so the pads of a pair may be on different layers at the two ends. The report has a note with the code `PHOENIX-AROUTE-022` and the number of changes. A pair that is coupled on one layer or across two is unchanged.
+
+## Measured on synthetic boards
+
+`crates/eh3d-phoenix-autoroute/tests/quality.rs` makes four boards from fixed formulas (pads on a lattice, nets of two to four pads near each other, three pads in ten through the board) and counts, for each, the connections routed, the vias, the length, the nodes expanded and the time: `cargo test --release -p eh3d-phoenix-autoroute --test quality -- --ignored --nocapture`. A normal run of the tests routes the small board only and holds it to a floor. The times depend on the computer and are not kept here. These boards are not real designs, and what the autorouter does on them says nothing certain about one.
 
 ## What is not here
 

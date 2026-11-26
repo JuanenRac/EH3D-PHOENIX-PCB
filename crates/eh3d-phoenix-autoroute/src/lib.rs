@@ -36,6 +36,7 @@
 pub mod codes;
 pub mod config;
 pub mod engine;
+mod fast;
 mod geom;
 mod obstacles;
 pub mod plan;

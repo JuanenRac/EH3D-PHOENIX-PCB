@@ -254,7 +254,7 @@ impl Engine<'_> {
             .max_expansions_total
             .saturating_sub(self.expansions);
         let one = [layer];
-        let history = HashMap::new();
+        let history = crate::fast::Fast::default();
         let no_vias = HashMap::new();
         let result = search(&Job {
             world: &self.world,
@@ -449,7 +449,7 @@ impl Engine<'_> {
             .cfg
             .max_expansions_total
             .saturating_sub(self.expansions);
-        let history = HashMap::new();
+        let history = crate::fast::Fast::default();
         let no_vias = HashMap::new();
         let result = search(&Job {
             world: &self.world,
@@ -688,7 +688,7 @@ impl Engine<'_> {
             .cfg
             .max_expansions_total
             .saturating_sub(self.expansions);
-        let history = HashMap::new();
+        let history = crate::fast::Fast::default();
         let no_vias = HashMap::new();
         let result = search(&Job {
             world: &self.world,
