@@ -1981,7 +1981,12 @@ fn run_with(
             if let Some(request) = shot {
                 app.begin_shot(request, window_file.as_deref(), outcome_for_app);
             }
-            Ok(Box::new(Shell::new(app)))
+            let mut shell = Shell::new(app);
+            // the list of recent projects lives in the folder of the user; a picture reads and writes none
+            if !taking_picture {
+                shell.dock.keep_user_recent(eh3d_dock::about::Phoenix::Pcb);
+            }
+            Ok(Box::new(shell))
         }),
     )
     .map_err(|e| ViewError::new(WINDOW_FAILED, e.to_string()))?;
