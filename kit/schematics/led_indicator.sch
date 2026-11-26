@@ -130,9 +130,9 @@
 <description>Through hole LED 3mm, lead pitch 2.54 mm, pad 1 is the cathode. Sizes: T-1 and T-1 3/4 lamp sizes; pads worked out for this kit. Not verified against a datasheet.</description>
 <pad name="1" x="-1.27" y="0" drill="0.8" diameter="1.6" shape="square"/>
 <pad name="2" x="1.27" y="0" drill="0.8" diameter="1.6"/>
-<circle x="0" y="0" radius="2.2" width="0.15" layer="21"/>
-<text x="0" y="2.5" size="1" layer="25">&gt;NAME</text>
-<text x="0" y="-3.5" size="1" layer="27">&gt;VALUE</text>
+<circle x="0" y="0" radius="2.5" width="0.15" layer="21"/>
+<text x="0" y="2.8" size="1" layer="25">&gt;NAME</text>
+<text x="0" y="-3.8" size="1" layer="27">&gt;VALUE</text>
 </package>
 <package name="LED-THT-5MM">
 <description>Through hole LED 5mm, lead pitch 2.54 mm, pad 1 is the cathode. Sizes: T-1 and T-1 3/4 lamp sizes; pads worked out for this kit. Not verified against a datasheet.</description>

@@ -122,7 +122,7 @@ for name, pitch, drill, diameter, radius in (("C-ELEC-D5", 2000, 700, 1300, 2750
              {"kind": "circle", "layer": 21, "x": 0, "y": 0, "radius": radius, "width": 150}]
     package(name, f"Radial electrolytic capacitor {radius * 2 // 1000} mm class, pad 1 is positive", "IEC 60384-4 usual can sizes; pads worked out for this kit", items + texts(radius + 300))
 
-for name, drill, diameter, radius in (("LED-THT-3MM", 800, 1600, 2000), ("LED-THT-5MM", 900, 1800, 3000)):
+for name, drill, diameter, radius in (("LED-THT-3MM", 800, 1600, 2300), ("LED-THT-5MM", 900, 1800, 3000)):
     items = [tht("1", -1270, 0, drill, diameter, True), tht("2", 1270, 0, drill, diameter),
              {"kind": "circle", "layer": 21, "x": 0, "y": 0, "radius": radius + 200, "width": 150}]
     package(name, f"Through hole LED {name.rsplit('-', 1)[1].lower()}, lead pitch 2.54 mm, pad 1 is the cathode", "T-1 and T-1 3/4 lamp sizes; pads worked out for this kit", items + texts(radius + 500))
@@ -1044,13 +1044,13 @@ def exp_sch_netlist(m, d):
 def exp_sch_bom(m, d):
     groups = {}
     for p in m["parts"]:
-        key = f"{p['value']}|{p['package']}"
+        key = f"{p['value']}|{DEVICESETS[p['set']][1]}"
         groups.setdefault(key, []).append(p["ref"])
     rows = ""
     for key in sorted(groups):
-        value, pkg = key.split("|")
-        rows += f"{value};{pkg};{len(groups[key])};{' '.join(groups[key])}\n"
-    return "value;package;quantity;references\n" + rows
+        value, symbol = key.split("|")
+        rows += f"{value};{symbol};{len(groups[key])};{' '.join(groups[key])}\n"
+    return "value;symbol;quantity;references\n" + rows
 
 
 def exp_sch_net_sizes(m, d):
@@ -1117,8 +1117,8 @@ def catalogue_entries():
     for name in LIBRARIES:
         yield f"library-{name}", name, "library", "eagle-lbr", [f"libraries/{name}.lbr"], None
     for d in DESIGNS:
-        yield f"board-{d['name']}", d["name"], "board", "eagle-brd", [f"boards/{d['name']}.brd"], None
-        yield f"schematic-{d['name']}", d["name"], "schematic", "eagle-sch", [f"schematics/{d['name']}.sch"], None
+        yield f"board-{d['name'].replace('_', '-')}", d["name"], "board", "eagle-brd", [f"boards/{d['name']}.brd"], None
+        yield f"schematic-{d['name'].replace('_', '-')}", d["name"], "schematic", "eagle-sch", [f"schematics/{d['name']}.sch"], None
     for name, (target, kind, _) in PROGRAMS.items():
         runs_on = f"boards/{target}.brd" if kind == "board" else f"schematics/{target}.sch"
         yield f"ulp-{name.replace('_', '-')}", name, "program", "ulp", [f"ulp/{name}.ulp", f"ulp/{name}.expected"], runs_on

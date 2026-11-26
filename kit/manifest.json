@@ -55,7 +55,7 @@
       "files": [
         {
           "path": "libraries/semiconductors.lbr",
-          "sha256": "e5884dbcbf60d7920ab68d700c193c410d996b0867e98a9cce1ed1cbdc1f49a4"
+          "sha256": "863f01c8f5569b2ac2bb1255e2c5976c37278330149a18684ca895d326ad91e4"
         }
       ]
     },
@@ -144,7 +144,7 @@
       ]
     },
     {
-      "id": "board-led_indicator",
+      "id": "board-led-indicator",
       "name": "led_indicator",
       "type": "board",
       "format": "eagle-brd",
@@ -176,7 +176,7 @@
       ]
     },
     {
-      "id": "schematic-led_indicator",
+      "id": "schematic-led-indicator",
       "name": "led_indicator",
       "type": "schematic",
       "format": "eagle-sch",
@@ -200,12 +200,12 @@
       "files": [
         {
           "path": "schematics/led_indicator.sch",
-          "sha256": "19c5ae572fbe7c0230f701a9af974cde088633c267adaca90781c61d93c1d3dc"
+          "sha256": "1fff6350170f2026f7ab4bff0745a2cf1ae8184421f591daed32b4d878ebb25d"
         }
       ]
     },
     {
-      "id": "board-voltage_divider",
+      "id": "board-voltage-divider",
       "name": "voltage_divider",
       "type": "board",
       "format": "eagle-brd",
@@ -237,7 +237,7 @@
       ]
     },
     {
-      "id": "schematic-voltage_divider",
+      "id": "schematic-voltage-divider",
       "name": "voltage_divider",
       "type": "schematic",
       "format": "eagle-sch",
@@ -266,7 +266,7 @@
       ]
     },
     {
-      "id": "board-led_bar",
+      "id": "board-led-bar",
       "name": "led_bar",
       "type": "board",
       "format": "eagle-brd",
@@ -298,7 +298,7 @@
       ]
     },
     {
-      "id": "schematic-led_bar",
+      "id": "schematic-led-bar",
       "name": "led_bar",
       "type": "schematic",
       "format": "eagle-sch",
@@ -322,12 +322,12 @@
       "files": [
         {
           "path": "schematics/led_bar.sch",
-          "sha256": "56534bb15186d5cd14144c5787e65675ae33ce93f6a129cf10af0373b2c8a46d"
+          "sha256": "0108e53dcf1749a6e57777d59e066878e4b9926d907578596580b22286abc68e"
         }
       ]
     },
     {
-      "id": "board-transistor_switch",
+      "id": "board-transistor-switch",
       "name": "transistor_switch",
       "type": "board",
       "format": "eagle-brd",
@@ -359,7 +359,7 @@
       ]
     },
     {
-      "id": "schematic-transistor_switch",
+      "id": "schematic-transistor-switch",
       "name": "transistor_switch",
       "type": "schematic",
       "format": "eagle-sch",
@@ -388,7 +388,7 @@
       ]
     },
     {
-      "id": "board-soic8_decoupled",
+      "id": "board-soic8-decoupled",
       "name": "soic8_decoupled",
       "type": "board",
       "format": "eagle-brd",
@@ -420,7 +420,7 @@
       ]
     },
     {
-      "id": "schematic-soic8_decoupled",
+      "id": "schematic-soic8-decoupled",
       "name": "soic8_decoupled",
       "type": "schematic",
       "format": "eagle-sch",
@@ -449,7 +449,7 @@
       ]
     },
     {
-      "id": "board-tssop14_breakout",
+      "id": "board-tssop14-breakout",
       "name": "tssop14_breakout",
       "type": "board",
       "format": "eagle-brd",
@@ -481,7 +481,7 @@
       ]
     },
     {
-      "id": "schematic-tssop14_breakout",
+      "id": "schematic-tssop14-breakout",
       "name": "tssop14_breakout",
       "type": "schematic",
       "format": "eagle-sch",
@@ -510,7 +510,7 @@
       ]
     },
     {
-      "id": "board-soic16_breakout",
+      "id": "board-soic16-breakout",
       "name": "soic16_breakout",
       "type": "board",
       "format": "eagle-brd",
@@ -542,7 +542,7 @@
       ]
     },
     {
-      "id": "schematic-soic16_breakout",
+      "id": "schematic-soic16-breakout",
       "name": "soic16_breakout",
       "type": "schematic",
       "format": "eagle-sch",
@@ -571,7 +571,7 @@
       ]
     },
     {
-      "id": "board-tht_led_pair",
+      "id": "board-tht-led-pair",
       "name": "tht_led_pair",
       "type": "board",
       "format": "eagle-brd",
@@ -603,7 +603,7 @@
       ]
     },
     {
-      "id": "schematic-tht_led_pair",
+      "id": "schematic-tht-led-pair",
       "name": "tht_led_pair",
       "type": "schematic",
       "format": "eagle-sch",
@@ -627,12 +627,12 @@
       "files": [
         {
           "path": "schematics/tht_led_pair.sch",
-          "sha256": "a6a69f7680586d1883cadb7d4a7a287166aae335468965bfc93615eb8c397b7f"
+          "sha256": "c73950978a287baea1ca6a66cf8cb66807622aad1054e47df55c8a4ae3a5782a"
         }
       ]
     },
     {
-      "id": "board-power_input",
+      "id": "board-power-input",
       "name": "power_input",
       "type": "board",
       "format": "eagle-brd",
@@ -664,7 +664,7 @@
       ]
     },
     {
-      "id": "schematic-power_input",
+      "id": "schematic-power-input",
       "name": "power_input",
       "type": "schematic",
       "format": "eagle-sch",
@@ -688,12 +688,12 @@
       "files": [
         {
           "path": "schematics/power_input.sch",
-          "sha256": "1bcdb14e84b152946b56789b40885ebc5ec5400b1e8030b81460b8e03ee50e54"
+          "sha256": "b0668ca2e7a4259c705e828ed0916ea96a187b3c2fe1d7f4aeab7cb7cdcde5a8"
         }
       ]
     },
     {
-      "id": "board-regulator_sot223",
+      "id": "board-regulator-sot223",
       "name": "regulator_sot223",
       "type": "board",
       "format": "eagle-brd",
@@ -725,7 +725,7 @@
       ]
     },
     {
-      "id": "schematic-regulator_sot223",
+      "id": "schematic-regulator-sot223",
       "name": "regulator_sot223",
       "type": "schematic",
       "format": "eagle-sch",
@@ -754,7 +754,7 @@
       ]
     },
     {
-      "id": "board-esp32_carrier",
+      "id": "board-esp32-carrier",
       "name": "esp32_carrier",
       "type": "board",
       "format": "eagle-brd",
@@ -786,7 +786,7 @@
       ]
     },
     {
-      "id": "schematic-esp32_carrier",
+      "id": "schematic-esp32-carrier",
       "name": "esp32_carrier",
       "type": "schematic",
       "format": "eagle-sch",
@@ -815,7 +815,7 @@
       ]
     },
     {
-      "id": "board-stm32_carrier",
+      "id": "board-stm32-carrier",
       "name": "stm32_carrier",
       "type": "board",
       "format": "eagle-brd",
@@ -847,7 +847,7 @@
       ]
     },
     {
-      "id": "schematic-stm32_carrier",
+      "id": "schematic-stm32-carrier",
       "name": "stm32_carrier",
       "type": "schematic",
       "format": "eagle-sch",
@@ -1428,7 +1428,7 @@
         },
         {
           "path": "ulp/sch_bom.expected",
-          "sha256": "b2ecaa1b5e87803e308d1abd060ff0ddcb19dcf81e3882a9bc5b002dd8e35898"
+          "sha256": "4801c71abefcd3a65e8035c7e85ebab7e7b052c0242451c524d1c423a78b523c"
         }
       ],
       "runs_on": "schematics/led_bar.sch"
