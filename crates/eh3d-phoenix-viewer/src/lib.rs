@@ -63,9 +63,9 @@
 //!   and the saving as a new file) and its texts in the eight languages (the window is in
 //!   `library_gui`, behind the `gui` feature);
 //! * [`launcher_session`], [`launcher_recent`] and [`launcher_text`]: the start screen of the window
-//!   (what a typed path, a dropped file or a recent file asks for, the list of recent files kept in a
-//!   file of the settings folder of the user, and its texts in the eight languages; the drawing is in
-//!   `launcher_gui`, behind the `gui` feature);
+//!   (what a typed path, a dropped file or a recent file asks for, the one list of recent files that
+//!   the menu shows too, and its texts in the eight languages; the drawing is in `launcher_gui`,
+//!   behind the `gui` feature);
 //! * [`scene3d`]: the 3D scene of the assembled board (the board with the thickness of its
 //!   stack-up and each component as a box, from `eh3d-phoenix-assembly3d`) as data in millimetres:
 //!   the box that holds it all and the outlines on the board plane, with no window;

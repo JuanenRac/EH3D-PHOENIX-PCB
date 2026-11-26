@@ -47,7 +47,7 @@ class PlanTests(unittest.TestCase):
             labels,
             [
                 "start", "document", "document-light", "document-review", "document-compact", "3d", "panel",
-                "layers", "search", "help", "shortcuts", "appearance",
+                "layers", "search", "help", "shortcuts", "appearance", "measures",
             ],
         )
         self.assertNotIn("gerber", labels)

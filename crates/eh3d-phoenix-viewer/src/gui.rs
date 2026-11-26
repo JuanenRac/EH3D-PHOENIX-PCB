@@ -12,6 +12,7 @@ use eframe::egui::{self, Color32, FontData, FontDefinitions, FontFamily, Pos2, R
 use eh3d_dock::core::AboutInfo;
 use eh3d_dock::gui::Dock;
 use eh3d_dock::menu::{Chosen, DockAction, MenuBar, StdAction};
+use eh3d_dock::recent_store::RecentStore;
 use eh3d_phoenix_route::{Mode, RouteSettings};
 use eh3d_phoenix_rules::Lang;
 
@@ -31,6 +32,7 @@ use crate::gerber_gui::GerberUi;
 use crate::help_text::HelpMode;
 use crate::keymap::Action;
 use crate::launcher_gui;
+use crate::launcher_recent::{keep_one_recent_list, start_list_path};
 use crate::launcher_session::{Launch, Launcher};
 use crate::launcher_text::LauncherText;
 use crate::library_gui::LibraryUi;
@@ -186,8 +188,6 @@ struct App {
     comp_filter: String,
     /// What the menus asked of the frame (show a panel, ...), done after the frame is drawn.
     pending_dock: Vec<DockAction>,
-    /// The files that were opened in this frame, for the list of recent files of the menu.
-    recent_added: Vec<String>,
     /// The box of the path takes the keyboard in the next frame.
     focus_path: bool,
     /// What draws the primitives in the canvas.
@@ -214,19 +214,13 @@ struct ShotState {
 }
 
 impl App {
-    /// With `persist` false the start screen keeps its list of recent files in memory only.
     fn new(
         lang: Lang,
         settings: ViewerSettings,
         win: WindowUi,
         initial: Option<PathBuf>,
-        persist: bool,
     ) -> App {
-        let launcher = if persist {
-            Launcher::from_env(&settings, &|name: &str| std::env::var(name).ok())
-        } else {
-            Launcher::new(&settings, None)
-        };
+        let launcher = Launcher::new(&settings);
         let (engine, fell_back) = engine_for(settings.canvas_engine);
         let mut app = App {
             lang,
@@ -258,7 +252,6 @@ impl App {
             console: ConsoleLog::new(settings.console_max_lines),
             comp_filter: String::new(),
             pending_dock: Vec::new(),
-            recent_added: Vec::new(),
             focus_path: false,
             engine,
             frames: FrameLog::new(settings.frame_log_frames),
@@ -286,7 +279,6 @@ impl App {
             if self.lib.is_open() {
                 self.error = None;
                 self.launcher.opened(path);
-                self.recent_added.push(path.to_string_lossy().into_owned());
                 self.show_panel(panels::id::LIBRARY_EDITOR);
             } else if let Some(e) = self.lib.take_error() {
                 self.error = Some(ViewError::new(FILE_UNUSABLE, e.message(Lang::En)));
@@ -306,7 +298,6 @@ impl App {
                 self.sch = None;
                 self.brd = None;
                 self.launcher.opened(path);
-                self.recent_added.push(path.to_string_lossy().into_owned());
             }
             Err(error) => self.error = Some(error),
         }
@@ -837,10 +828,10 @@ impl App {
         let libraries: Vec<PathBuf> = self
             .launcher
             .recent()
-            .entries()
+            .items()
             .iter()
+            .map(PathBuf::from)
             .filter(|p| p.extension().is_some_and(|e| e.eq_ignore_ascii_case("lbr")))
-            .cloned()
             .collect();
         if libraries.is_empty() {
             ui.label(dim(crate::launcher_text::LauncherText::NoRecent.tr(lang)));
@@ -1716,6 +1707,12 @@ impl Shell {
             let _ = dock.apply(DockAction::SwitchWorkspace(name.to_string()));
         }
         dock.set_language(panels::view_lang(lang));
+        {
+            let mut app = app.borrow_mut();
+            let limit = app.settings.recent_max;
+            dock.core_mut().recent_mut().set_limit(limit);
+            app.launcher.sync(dock.core_mut().recent_mut());
+        }
         let watch = LayoutWatch::new(&dock.core().config_pairs());
         Shell {
             app,
@@ -1750,9 +1747,16 @@ impl Shell {
         for action in std::mem::take(&mut app.pending_dock) {
             let _ = self.dock.apply(action);
         }
-        for path in std::mem::take(&mut app.recent_added) {
-            self.dock.core_mut().recent_mut().push(&path);
-        }
+        app.launcher.sync(self.dock.core_mut().recent_mut());
+    }
+
+    /// Keeps the one list of recent files in `store`, taking in what the old list of the start
+    /// screen (`start_list`) holds.
+    fn keep_recent(&mut self, store: Option<RecentStore>, start_list: Option<&Path>) {
+        let mut app = self.app.borrow_mut();
+        let limit = app.settings.recent_max;
+        keep_one_recent_list(self.dock.core_mut(), store, start_list, limit);
+        app.launcher.sync(self.dock.core_mut().recent_mut());
     }
 
     /// Keeps the arrangement of the panels in the preferences when it changed; it looks at it a few times
@@ -1973,7 +1977,8 @@ fn run_with(
             } else {
                 (None, initial)
             };
-            let mut app = App::new(lang, settings, win, first, !taking_picture);
+            let recent_file = settings.recent_file.clone();
+            let mut app = App::new(lang, settings, win, first);
             if let Some((files, config)) = panel {
                 app.panel = Some(PanelUi::new(&files, config.as_deref(), &app.settings));
                 app.show_panel(panels::id::BOARDS);
@@ -1984,7 +1989,11 @@ fn run_with(
             let mut shell = Shell::new(app);
             // the list of recent projects lives in the folder of the user; a picture reads and writes none
             if !taking_picture {
-                shell.dock.keep_user_recent(eh3d_dock::about::Phoenix::Pcb);
+                let env = |name: &str| std::env::var(name).ok();
+                shell.keep_recent(
+                    RecentStore::for_user(eh3d_dock::about::Phoenix::Pcb),
+                    start_list_path(&env, &recent_file).as_deref(),
+                );
             }
             Ok(Box::new(shell))
         }),
@@ -2043,7 +2052,7 @@ mod tests {
     fn app() -> App {
         let settings = ViewerSettings::default();
         let win = WindowUi::ephemeral(&settings);
-        App::new(Lang::En, settings, win, None, false)
+        App::new(Lang::En, settings, win, None)
     }
 
     fn with_board(app: &mut App) {
@@ -2181,15 +2190,36 @@ mod tests {
     #[test]
     fn a_file_that_is_opened_reaches_the_list_of_recent_files_of_the_menu() {
         let mut h = Harness::new(app());
-        h.shell
-            .app
-            .borrow_mut()
-            .recent_added
-            .push("a.brd".to_string());
+        h.shell.app.borrow_mut().launcher.opened(Path::new("a.brd"));
         let ctx = h.ctx.clone();
         h.shell.after(None, &ctx);
         assert_eq!(h.shell.dock.core().recent().items().len(), 1);
-        assert!(h.shell.app.borrow().recent_added.is_empty());
+        assert_eq!(h.shell.app.borrow().launcher.recent().items().len(), 1);
+        // the entry of the menu that clears the list clears the start screen too
+        let _ = h.shell.dock.apply(DockAction::ClearRecent);
+        h.shell.after(None, &ctx);
+        assert!(h.shell.app.borrow().launcher.recent().items().is_empty());
+    }
+
+    #[test]
+    fn the_start_screen_and_the_menu_show_one_list_kept_in_one_file() {
+        // folders of the test only, never the ones of the person
+        let dir = tempfile::tempdir().unwrap();
+        let old = dir.path().join("recent.cfg");
+        std::fs::write(&old, "/work/start.brd\n").unwrap();
+        let store = RecentStore::in_dir(&dir.path().join("EH3D"), eh3d_dock::about::Phoenix::Pcb);
+        let mut h = Harness::new(app());
+        h.shell.keep_recent(Some(store.clone()), Some(&old));
+        let wanted = ["/work/start.brd"];
+        assert_eq!(h.shell.dock.core().recent().items(), wanted);
+        assert_eq!(h.shell.app.borrow().launcher.recent().items(), wanted);
+        h.shell.app.borrow_mut().launcher.forget(0);
+        let ctx = h.ctx.clone();
+        h.shell.after(None, &ctx);
+        h.frames(2);
+        assert!(h.shell.dock.core().recent().items().is_empty());
+        assert!(store.load(20).unwrap().items().is_empty());
+        assert!(!old.exists());
     }
 
     #[test]
@@ -2255,7 +2285,7 @@ mod tests {
             ..ViewerSettings::default()
         };
         let win = WindowUi::ephemeral(&settings);
-        let a = App::new(Lang::En, settings, win, None, false);
+        let a = App::new(Lang::En, settings, win, None);
         assert_eq!(a.console.len(), 1);
     }
 

@@ -39,8 +39,6 @@ pub enum LauncherText {
     NothingToOpen,
     /// The mark of a recent file that is no longer there.
     Missing,
-    /// The note shown when the list of recent files could not be saved.
-    SaveFailed,
     /// The button that shows the Gerber and Excellon files of the typed folder.
     GerberFolder,
     /// The line that says a folder of Gerber files can be typed or dropped.
@@ -49,7 +47,7 @@ pub enum LauncherText {
 
 impl LauncherText {
     /// Every text, for the tests that check the table.
-    pub const ALL: [LauncherText; 18] = [
+    pub const ALL: [LauncherText; 17] = [
         LauncherText::Welcome,
         LauncherText::TypePath,
         LauncherText::NewLibrary,
@@ -65,7 +63,6 @@ impl LauncherText {
         LauncherText::EnterPath,
         LauncherText::NothingToOpen,
         LauncherText::Missing,
-        LauncherText::SaveFailed,
         LauncherText::GerberFolder,
         LauncherText::GerberHint,
     ];
@@ -219,16 +216,6 @@ impl LauncherText {
                 "見つかりません",
                 "未找到",
                 "não encontrado",
-            ],
-            LauncherText::SaveFailed => [
-                "The list of recent files could not be saved.",
-                "No se pudo guardar la lista de archivos recientes.",
-                "Die Liste der zuletzt geöffneten Dateien konnte nicht gespeichert werden.",
-                "La liste des fichiers récents n'a pas pu être enregistrée.",
-                "Non è stato possibile salvare l'elenco dei file recenti.",
-                "最近使ったファイルの一覧を保存できませんでした。",
-                "无法保存最近文件列表。",
-                "Não foi possível guardar a lista de ficheiros recentes.",
             ],
             LauncherText::GerberFolder => [
                 "Gerber folder",

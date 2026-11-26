@@ -15,8 +15,9 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  # The tag of the sibling repository the window is built against.
+  # The tags of the sibling repositories the window is built against.
   COMMON_REF: "v0.3.3"
+  CORE_LIBS_REF: "v0.1.2"
 
 jobs:
   pictures:
@@ -31,11 +32,13 @@ jobs:
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: "3.12"
-      - name: The sibling repository of the common library
+      - name: The sibling repositories the window is built against
         shell: bash
-        run: git -c advice.detachedHead=false clone --quiet --depth 1 --branch "${COMMON_REF}" "https://github.com/${GITHUB_REPOSITORY_OWNER}/EH3D-COMMON.git" EH3D-COMMON
+        run: |
+          git -c advice.detachedHead=false clone --quiet --depth 1 --branch "${COMMON_REF}" "https://github.com/${GITHUB_REPOSITORY_OWNER}/EH3D-COMMON.git" EH3D-COMMON
+          git -c advice.detachedHead=false clone --quiet --depth 1 --branch "${CORE_LIBS_REF}" "https://github.com/${GITHUB_REPOSITORY_OWNER}/EH3D-CORE-LIBS.git" EH3D-CORE-LIBS
       - name: Libraries of the window and a virtual screen
-        run: sudo apt-get update && sudo apt-get install -y libxkbcommon-dev libwayland-dev libx11-dev libxcursor-dev libxrandr-dev libxi-dev libgl1-mesa-dev libgl1-mesa-dri xvfb
+        run: sudo apt-get update && sudo apt-get install -y libxkbcommon-dev libwayland-dev libx11-dev libxcursor-dev libxrandr-dev libxi-dev libgl1-mesa-dev libgl1-mesa-dri xvfb fonts-noto-cjk
       - name: Rust toolchain
         working-directory: EH3D-PHOENIX-PCB
         run: rustup toolchain install "$(sed -n 's/^channel = "\(.*\)"/\1/p' rust-toolchain.toml)" --profile minimal
@@ -43,11 +46,22 @@ jobs:
         working-directory: EH3D-PHOENIX-PCB
         run: cargo build --release -p eh3d-phoenix-cli --features gui
       - name: Take the pictures
+        # English holds every window; the other languages hold the ones their README shows. The example board is copied
+        # to a short folder so that no long path of the machine appears in a picture.
         working-directory: EH3D-PHOENIX-PCB
-        run: xvfb-run -a python -I tools/make_shots.py --exe target/release/phoenix --out window-pictures
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/pcb/examples/tutorials
+          cp examples/tutorials/led_board.brd /tmp/pcb/examples/tutorials/
+          for lang in en es de fr it ja zh pt; do
+            only=""
+            if [ "$lang" != "en" ]; then only="start,document,measures"; fi
+            LC_ALL="$lang" xvfb-run -a python -I tools/make_shots.py --exe target/release/phoenix --root /tmp/pcb --max-kb 900 --out "window-pictures/$lang" --only "$only"
+          done
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: window-pictures
-          path: EH3D-PHOENIX-PCB/window-pictures/*.png
+          path: EH3D-PHOENIX-PCB/window-pictures/**/*.png
           if-no-files-found: error
           retention-days: 14
