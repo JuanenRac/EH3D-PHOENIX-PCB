@@ -71,7 +71,9 @@ fn a_folder_with_binary_and_xml_libraries_is_indexed() {
     let folder = tempfile::tempdir().unwrap();
     let binary = folder.path().join("old.lbr");
     fs::write(&binary, builder::sample().bytes()).unwrap();
-    let saved = folder.path().join("new.lbr");
+    // saved elsewhere, because saving also keeps a copy of the original beside the new file
+    let elsewhere = tempfile::tempdir().unwrap();
+    let saved = elsewhere.path().join("new.lbr");
     let (code, _, err) = call(&[
         "libedit",
         "--out",
@@ -79,6 +81,7 @@ fn a_folder_with_binary_and_xml_libraries_is_indexed() {
         binary.to_str().unwrap(),
     ]);
     assert!(code == 0 || code == 1, "{err}");
+    fs::copy(&saved, folder.path().join("new.lbr")).unwrap();
     fs::write(
         folder.path().join("cut.lbr"),
         &builder::sample().bytes()[..200],
