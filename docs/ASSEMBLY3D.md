@@ -76,3 +76,7 @@ The JSON report (`phoenix-assembly3d/1`) has the board, each component with its 
 * It does not read colours, assemblies, curved or free-form surfaces, or the position inside a STEP assembly.
 * It does not check a component against an enclosure; the enclosure lives in EH3D-PHOENIX-CAD.
 * It draws nothing itself: the 3D window of the viewer (`docs/VIEWER.md`) draws the scene, and it is a prototype that has never been seen on a screen.
+
+## The outline for the programs of enclosures
+
+The module `outline2d` makes the artifact that the branch `pcb/` of an `.eh3d` project carries (`docs/VIEWER.md`). It uses the scene of the assembly with the table of models, the setting `default_board_thickness_nm`, and two settings of its own: `connector_prefixes` (J,CN,X) and `connector_edge_nm` (3000000).

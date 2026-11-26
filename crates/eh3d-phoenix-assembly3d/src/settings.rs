@@ -29,6 +29,10 @@ pub struct AssemblySettings {
     pub max_file_bytes: u64,
     /// The most entities of a STEP file.
     pub max_step_entities: usize,
+    /// The prefixes of the references of connectors, for the artifact `outline2d`.
+    pub connector_prefixes: Vec<String>,
+    /// How near the side of the board a connector must come to need an opening, in nanometres.
+    pub connector_edge_nm: i64,
 }
 
 impl Default for AssemblySettings {
@@ -42,6 +46,8 @@ impl Default for AssemblySettings {
             max_findings: 1_000,
             max_file_bytes: 16 * 1024 * 1024,
             max_step_entities: 2_000_000,
+            connector_prefixes: vec!["J".to_owned(), "CN".to_owned(), "X".to_owned()],
+            connector_edge_nm: 3_000_000,
         }
     }
 }
@@ -85,6 +91,22 @@ impl AssemblySettings {
                 "max_findings" => s.max_findings = value.parse().map_err(|_| bad())?,
                 "max_file_bytes" => s.max_file_bytes = value.parse().map_err(|_| bad())?,
                 "max_step_entities" => s.max_step_entities = value.parse().map_err(|_| bad())?,
+                "connector_prefixes" => {
+                    let prefixes: Vec<String> = value
+                        .split(',')
+                        .map(|p| p.trim().to_owned())
+                        .filter(|p| !p.is_empty())
+                        .collect();
+                    if prefixes.len() > 32
+                        || prefixes
+                            .iter()
+                            .any(|p| !p.bytes().all(|b| b.is_ascii_alphabetic()))
+                    {
+                        return Err(bad());
+                    }
+                    s.connector_prefixes = prefixes;
+                }
+                "connector_edge_nm" => s.connector_edge_nm = value.parse().map_err(|_| bad())?,
                 _ => {
                     return Err(AssemblyError::new(
                         SETTINGS_INVALID,
@@ -109,6 +131,9 @@ impl AssemblySettings {
         }
         if self.min_overlap_nm < 0 || self.min_overlap_nm > LENGTH_LIMIT_NM {
             return fail("min_overlap_nm must be from 0 and within the range");
+        }
+        if self.connector_edge_nm < 0 || self.connector_edge_nm > LENGTH_LIMIT_NM {
+            return fail("connector_edge_nm must be from 0 and within the range");
         }
         if self.max_components == 0 || self.max_findings == 0 {
             return fail("max_components and max_findings must be above 0");

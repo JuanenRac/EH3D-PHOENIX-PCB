@@ -2,9 +2,10 @@
 //! The branch `pcb/` of the `.eh3d` project of the suite (`eh3d-project`): what this program keeps
 //! in the one file that the programs of the suite share.
 //!
-//! The branch holds `board.json` and `schematic.json` (the canonical JSON of the model) and, for a
-//! design that came from a file of another program, that file under `origin/` with the report of
-//! what was read. Writing changes only the branch `pcb/`: the branches of the other programs, and
+//! The branch holds `board.json` and `schematic.json` (the canonical JSON of the model),
+//! `outline2d.json` (the outline, holes, heights and connectors of the board for the programs of
+//! enclosures) and, for a design that came from a file of another program, that file under
+//! `origin/` with the report of what was read. Writing changes only the branch `pcb/`: the branches of the other programs, and
 //! the files of this branch that this version does not know, are kept byte for byte.
 
 use std::collections::BTreeMap;
@@ -26,6 +27,8 @@ const PCB_MAJOR: u64 = 1;
 pub const BOARD_FILE: &str = "board.json";
 /// The schematic inside the branch.
 pub const SCHEMATIC_FILE: &str = "schematic.json";
+/// The artifact of the outline of the board that the programs of enclosures read.
+pub const OUTLINE_FILE: &str = "outline2d.json";
 /// The file extension of a project.
 pub const EXTENSION: &str = "eh3d";
 /// The largest project that is copied to a new name, in bytes.
@@ -50,6 +53,9 @@ pub struct PcbOrigin {
 pub struct PcbParts {
     /// The board, as the canonical JSON of the model.
     pub board: Option<Vec<u8>>,
+    /// The artifact `outline2d` of that board. It belongs to the board: saving a board without
+    /// one takes an older one away.
+    pub outline2d: Option<Vec<u8>>,
     /// The schematic, as the canonical JSON of the model.
     pub schematic: Option<Vec<u8>>,
     /// The file the design came from.
@@ -144,6 +150,7 @@ pub fn read_pcb(path: &Path) -> Result<PcbParts, PcbError> {
         });
     Ok(PcbParts {
         board: files.remove(BOARD_FILE),
+        outline2d: files.remove(OUTLINE_FILE),
         schematic: files.remove(SCHEMATIC_FILE),
         origin,
     })
@@ -282,6 +289,11 @@ pub fn write_pcb(
     let mut entries = files(&mut project)?;
     if let Some(board) = &parts.board {
         entries.insert(BOARD_FILE.to_owned(), board.clone());
+        // an outline of an earlier board would say something untrue of this one
+        entries.remove(OUTLINE_FILE);
+        if let Some(outline) = &parts.outline2d {
+            entries.insert(OUTLINE_FILE.to_owned(), outline.clone());
+        }
     }
     if let Some(schematic) = &parts.schematic {
         entries.insert(SCHEMATIC_FILE.to_owned(), schematic.clone());

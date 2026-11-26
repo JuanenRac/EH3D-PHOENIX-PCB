@@ -39,6 +39,7 @@ pub mod export;
 pub mod geom;
 pub mod glb;
 pub mod models;
+pub mod outline2d;
 pub mod prism;
 pub mod report;
 pub mod scene;

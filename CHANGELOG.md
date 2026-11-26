@@ -24,6 +24,7 @@ All notable changes to this project are documented here.
 - **Every command that takes a board takes an `.eh3d` project:** and `boardedit --out` writes a new one.
 - **The EAGLE file a design came from is kept in the project:** under `pcb/origin/` with the report of what was not read.
 - **A newer or damaged project is never written over:** a branch of a newer format is refused, and saving replaces only a file the window saved, after a copy.
+- **The project carries the outline of the board for the program of enclosures:** `pcb/outline2d.json` with the outline, thickness, unplated holes, parts with their heights and connectors near a side, from the table of models.
 - **Built against the released shared library:** the workflows take the tag v0.3.1 of the shared repository, which holds the project file of the suite.
 
 ## [0.1.6] - Board editor operations, user programs that read most of a real folder, named values and files in one allowed folder, EAGLE reader measured on real boards
