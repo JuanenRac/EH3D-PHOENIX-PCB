@@ -565,6 +565,11 @@ impl BoardEdit {
             settings: &self.settings,
             locked: &self.locked,
             pairs: &self.pairs,
+            // the findings kept are those of the plain rule check only without the advanced
+            // checks and with no overlap of zones left out
+            known: (self.fresh == Some(false)
+                && self.zone_data.tolerated_overlaps(&self.board).is_empty())
+            .then_some(self.findings.as_slice()),
         };
         let mut ids = self.ids.clone();
         plan_shove(
@@ -781,6 +786,9 @@ impl BoardEdit {
             return self.commit_zone(zone_plan, force);
         }
         let route = self.settings.route_settings();
+        let known = (self.fresh == Some(false)
+            && self.zone_data.tolerated_overlaps(&self.board).is_empty())
+        .then_some(self.findings.as_slice());
         let planned = plan(
             op,
             &self.board,
@@ -790,6 +798,7 @@ impl BoardEdit {
                 settings: &self.settings,
                 locked: &self.locked,
                 pairs: &self.pairs,
+                known,
             },
             &mut self.ids,
         )?;

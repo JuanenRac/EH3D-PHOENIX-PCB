@@ -71,6 +71,20 @@ Each change keeps the results: the order and the text of the findings do not mov
 
 `crates/eh3d-phoenix-cli/tests/engine_bench.rs` makes boards of 1000, 4000 and 12000 pads with their tracks and vias and prints the time of the connectivity, the touching copper, the rule check, the findings of the editor, the ratsnest, the preparation of the drawing, opening the board in the editor, one edit, its undo and its redo: `cargo test --release -p eh3d-phoenix-cli --test engine_bench -- --ignored --nocapture`. It has no limit and is left out of a normal run; it is meant to be run on one computer before and after a change.
 
+## Times of the push of the board editor
+
+Measured by `crates/eh3d-phoenix-boardedit/tests/shove_bench.rs` (a long test, left out of a normal run) in a release build on a computer of the CI, on boards that the test makes: pairs of long tracks 0.5 mm apart between pads, with a via of another net 0.65 mm below each pair. Every push of the table moves the two tracks of a pair and is kept by the checks.
+
+| Board (tracks, vias, pads) | The design rules alone | Connectivity alone | Preview of a push | The push applied |
+|---|---|---|---|---|
+| 200, 100, 400 | 3 ms | 0.2 ms | 5 ms | 10 ms |
+| 1000, 500, 2000 | 21 ms | 1.3 ms | 31 ms | 56 ms |
+| 4000, 2000, 8000 | 115 ms | 6 ms | 200 ms | 335 ms |
+
+Most of the time of a push is the design rule check of the whole board, one on the copy in a preview and another when it is applied; the findings of the board before are the ones the editor already keeps (without them a preview of the largest board took about 400 ms). On the same boards the version before refused every one of these pushes, because the lower track would have been pushed into the via (`PHOENIX-SHOVE-001`), so its times are not compared.
+
+**What is done more often.** On 300 random pushes on small boards made with a fixed seed (`shove_props.rs`), pushing in parallel alone does 154 and the push with walks and via moves does 247; 24 of the 53 that are refused have an end of the new track at a pad of another net, which no push can solve. These are synthetic boards: they say nothing about how often a push succeeds on a real design.
+
 ## Limits that bound the work that still grows with the square
 
 | Work | Limit | File |

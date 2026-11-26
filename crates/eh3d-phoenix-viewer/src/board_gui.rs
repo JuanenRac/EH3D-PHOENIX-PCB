@@ -916,6 +916,9 @@ fn draw_route_assist(
             );
         }
     }
+    for moved in &found.via_moves {
+        painter.circle_stroke(view.at(moved.after), 6.0, Stroke::new(2.5, WOULD_MOVE));
+    }
     let points: Vec<Pos2> = found.points.iter().map(|p| view.at(*p)).collect();
     if let Some(last) = points.last().copied() {
         if !found.complete {
@@ -927,6 +930,16 @@ fn draw_route_assist(
     }
     let text = match &found.refusal {
         Some(error) => Some((error.message(lang), ui_danger())),
+        None if !found.via_moves.is_empty() => Some((
+            format!(
+                "{} {} · {} {}",
+                found.moves.len(),
+                AssistMsg::Moves.tr(lang),
+                found.via_moves.len(),
+                AssistMsg::ViaMoves.tr(lang)
+            ),
+            WOULD_MOVE,
+        )),
         None if !found.moves.is_empty() => Some((
             format!("{} {}", found.moves.len(), AssistMsg::Moves.tr(lang)),
             WOULD_MOVE,

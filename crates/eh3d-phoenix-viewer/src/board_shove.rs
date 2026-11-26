@@ -120,6 +120,11 @@ impl ShoveTool {
         self.preview.as_ref().map_or(0, |p| p.moves.len())
     }
 
+    /// How many vias the push would move; zero without a preview.
+    pub fn moved_vias(&self) -> usize {
+        self.preview.as_ref().map_or(0, |p| p.vias.len())
+    }
+
     /// Accepts the push: the track is routed and the neighbours move, as one step of the editor.
     /// The points and the preview are dropped when it was done.
     pub fn accept(&mut self, state: &mut EditState) -> bool {

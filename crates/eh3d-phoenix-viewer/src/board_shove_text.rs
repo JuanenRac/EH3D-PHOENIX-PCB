@@ -29,6 +29,8 @@ pub enum ShoveMsg {
     Moves,
     /// What is said when the push would move no track.
     Nothing,
+    /// What follows the number of vias that the push would move.
+    Vias,
 }
 
 const TABLE: [(ShoveMsg, [&str; 8]); ShoveMsg::COUNT] = [
@@ -162,11 +164,24 @@ const TABLE: [(ShoveMsg, [&str; 8]); ShoveMsg::COUNT] = [
             "não há nada no caminho",
         ],
     ),
+    (
+        ShoveMsg::Vias,
+        [
+            "vias would move",
+            "vías se moverían",
+            "Vias würden bewegt",
+            "vias seraient déplacés",
+            "via verrebbero spostate",
+            "個のビアが移動します",
+            "个过孔将移动",
+            "vias seriam movidas",
+        ],
+    ),
 ];
 
 impl ShoveMsg {
     /// How many texts there are: one more than the number of the last variant.
-    pub const COUNT: usize = ShoveMsg::Nothing as usize + 1;
+    pub const COUNT: usize = ShoveMsg::Vias as usize + 1;
 
     /// The text in a language.
     pub fn tr(self, lang: Lang) -> &'static str {
