@@ -32,7 +32,7 @@ impl EntryKind {
     pub fn of(path: &Path) -> Option<EntryKind> {
         let extension = path.extension()?.to_str()?.to_ascii_lowercase();
         match extension.as_str() {
-            "brd" => Some(EntryKind::Board),
+            "brd" | "eh3d" => Some(EntryKind::Board),
             "sch" => Some(EntryKind::Schematic),
             "lbr" => Some(EntryKind::Library),
             "json" => Some(EntryKind::Data),

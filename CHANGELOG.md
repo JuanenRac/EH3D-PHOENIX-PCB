@@ -19,6 +19,11 @@ All notable changes to this project are documented here.
 - **A user program can include other files:** `#include` reads from the one folder for files, takes each file once and is bounded by `max_include_depth`, `max_files` and the size limits.
 - **A user program can search with patterns:** `strxstr` finds a regular expression of the common kind with its place and length, without going back and inside the step limit of the run.
 - **`country()` answers in a user program:** it is fixed, as `language()` is.
+- **A board or a schematic can be saved into the one project of the suite:** *Save as* with a name ending in `.eh3d` writes the branch `pcb/`; the branches of the other programs are kept byte for byte.
+- **A project of the suite opens in the window:** the board of its branch `pcb/`, or the schematic when there is no board.
+- **Every command that takes a board takes an `.eh3d` project:** and `boardedit --out` writes a new one.
+- **The EAGLE file a design came from is kept in the project:** under `pcb/origin/` with the report of what was not read.
+- **A newer or damaged project is never written over:** a branch of a newer format is refused, and saving replaces only a file the window saved, after a copy.
 
 ## [0.1.6] - Board editor operations, user programs that read most of a real folder, named values and files in one allowed folder, EAGLE reader measured on real boards
 

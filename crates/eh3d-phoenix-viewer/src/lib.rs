@@ -218,6 +218,8 @@ pub mod print_export;
 pub mod print_gui;
 pub mod print_scene;
 pub mod print_text;
+#[cfg(test)]
+mod project_tests;
 pub mod report_panel;
 #[cfg(test)]
 pub(crate) mod sample;

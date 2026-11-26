@@ -15,6 +15,7 @@ use eh3d_phoenix_board::{Board, History, Id, Operation, Step};
 use eh3d_phoenix_eagle_board::write_board;
 use eh3d_phoenix_erc::{self as erc, ErcConfig};
 use eh3d_phoenix_model::{Nm, ObjectId, Point};
+use eh3d_phoenix_project::pcb_branch::{write_pcb, NewPcbProject, PcbOrigin, PcbParts, EXTENSION};
 use eh3d_phoenix_route::edit as route_edit;
 use eh3d_phoenix_route::{
     copper_layers, diff, findings as rule_findings, ratsnest, route, LiveDiff, RatLine, RoutePlan,
@@ -212,6 +213,85 @@ fn has_extension(path: &Path, wanted: &str) -> bool {
     path.extension()
         .and_then(|e| e.to_str())
         .is_some_and(|e| e.eq_ignore_ascii_case(wanted))
+}
+
+/// The name of the input and the bytes of an EAGLE design it was read from, to be kept in a
+/// project; `None` for anything else.
+fn origin_of(input: &Path) -> Option<PcbOrigin> {
+    let format = if has_extension(input, "brd") {
+        "eagle-brd"
+    } else if has_extension(input, "sch") {
+        "eagle-sch"
+    } else {
+        return None;
+    };
+    let loaded = read_document(input, &ViewerSettings::default()).ok()?;
+    Some(PcbOrigin {
+        name: input.file_name()?.to_string_lossy().into_owned(),
+        format: format.to_owned(),
+        bytes: fs::read(input).ok()?,
+        not_read: loaded.unread as u64,
+    })
+}
+
+/// Saves the branch `pcb/` of an `.eh3d` project. The rules of [`write_checked`] hold: the input
+/// is never written and a file that exists is replaced only when this window saved it, after a
+/// copy of it. A new project takes the branches of the other programs from the project saved
+/// before or from the one that was opened, which are left as they are.
+fn save_project(
+    target: &Path,
+    mut parts: PcbParts,
+    input: Option<&Path>,
+    owned: Option<&Path>,
+    suffix: &str,
+) -> Result<Saved, ViewError> {
+    if input.is_some_and(|input| same_file(target, input)) {
+        return Err(ViewError::new(
+            SAVE_REFUSED,
+            "the file that was opened is never written over: save under another name",
+        ));
+    }
+    let failed =
+        |e: std::io::Error| ViewError::new(SAVE_FAILED, format!("{}: {e}", target.display()));
+    let mut backup = None;
+    let mut source = None;
+    if target.exists() {
+        if !owned.is_some_and(|owned| same_file(owned, target)) {
+            return Err(ViewError::new(
+                SAVE_REFUSED,
+                format!(
+                    "{} exists and was not saved by this window",
+                    target.display()
+                ),
+            ));
+        }
+        let mut name = target.as_os_str().to_os_string();
+        name.push(suffix);
+        let copy = PathBuf::from(name);
+        fs::copy(target, &copy).map_err(failed)?;
+        backup = Some(copy);
+    } else {
+        source = [owned, input]
+            .into_iter()
+            .flatten()
+            .find(|p| has_extension(p, EXTENSION) && p.is_file());
+        if source.is_none() {
+            parts.origin = input.and_then(origin_of);
+        }
+    }
+    let new = NewPcbProject {
+        name: target
+            .file_stem()
+            .map(|s| s.to_string_lossy().into_owned())
+            .unwrap_or_default(),
+        ..NewPcbProject::default()
+    };
+    write_pcb(target, source, &parts, &new, env!("CARGO_PKG_VERSION"))
+        .map_err(|e| ViewError::new(SAVE_FAILED, e.to_string()))?;
+    Ok(Saved {
+        path: target.to_path_buf(),
+        backup,
+    })
 }
 
 /// The bytes of a board for a file name: EAGLE XML for `.brd`, the JSON of the model otherwise.
@@ -514,8 +594,21 @@ impl BoardSession {
         input: Option<&Path>,
         suffix: &str,
     ) -> Result<Saved, ViewError> {
-        let bytes = board_bytes(&self.board, target)?;
-        let saved = write_checked(target, &bytes, input, self.last_saved.as_deref(), suffix)?;
+        let owned = self.last_saved.as_deref();
+        let saved = if has_extension(target, EXTENSION) {
+            let parts = PcbParts {
+                board: Some(
+                    self.board
+                        .to_bytes()
+                        .map_err(|e| ViewError::new(SAVE_FAILED, e.to_string()))?,
+                ),
+                ..PcbParts::default()
+            };
+            save_project(target, parts, input, owned, suffix)?
+        } else {
+            let bytes = board_bytes(&self.board, target)?;
+            write_checked(target, &bytes, input, owned, suffix)?
+        };
         self.last_saved = Some(target.to_path_buf());
         self.saved_serial = self.serial;
         Ok(saved)
@@ -845,7 +938,16 @@ impl SchematicSession {
             .schematic
             .to_bytes()
             .map_err(|e| ViewError::new(SAVE_FAILED, e.to_string()))?;
-        let saved = write_checked(target, &bytes, input, self.last_saved.as_deref(), suffix)?;
+        let owned = self.last_saved.as_deref();
+        let saved = if has_extension(target, EXTENSION) {
+            let parts = PcbParts {
+                schematic: Some(bytes),
+                ..PcbParts::default()
+            };
+            save_project(target, parts, input, owned, suffix)?
+        } else {
+            write_checked(target, &bytes, input, owned, suffix)?
+        };
         self.last_saved = Some(target.to_path_buf());
         self.saved_serial = self.serial;
         Ok(saved)

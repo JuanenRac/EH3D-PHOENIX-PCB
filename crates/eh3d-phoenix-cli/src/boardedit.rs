@@ -9,6 +9,7 @@
 use std::io::Write;
 use std::path::Path;
 
+use eh3d_phoenix_board::Board;
 use eh3d_phoenix_boardedit::codes::{
     BoardEditError, OPERATIONS_INVALID, OUTPUT_NOT_ALLOWED, SETTINGS_INVALID,
 };
@@ -17,6 +18,8 @@ use eh3d_phoenix_boardedit::{
     Target, ZoneData, ZoneIssue,
 };
 use eh3d_phoenix_eagle_board::write_board;
+use eh3d_phoenix_erc::ErcConfig;
+use eh3d_phoenix_project::pcb_branch::{write_pcb, NewPcbProject, PcbOrigin, PcbParts};
 use eh3d_phoenix_rules::{Lang, Severity};
 use eh3d_phoenix_zones::ZoneSettings;
 use serde_json::json;
@@ -57,7 +60,8 @@ phoenix boardedit [--rules FILE] [--settings FILE] [--pair-config FILE] [--pairs
                 checked by the design rules and refused if it adds a rule error (an operation can
                 be forced), and the first one that is refused ends the run and names its number.
                 It is a dry run: nothing is written unless --out names a new file (.json for the
-                design model, .brd for EAGLE); an input file, or a file that exists, is never
+                design model, .brd for EAGLE, .eh3d for a project of the suite, whose branch pcb/
+                gets the board); an input file, or a file that exists, is never
                 written over. A prototype tried on boards made by hand only
   --apply       the file of operations: a JSON list, or an object with the list under \"ops\"
   --rules       the JSON rule file (format phoenix-rules/1 or 2); an EAGLE board gives its own
@@ -183,12 +187,56 @@ fn check_output(path: &str, inputs: &[&str]) -> Result<(), BoardEditError> {
     if Path::new(path).exists() {
         return Err(refuse(format!("{path} exists; give a new file")));
     }
-    if !has_extension(path, "json") && !has_extension(path, "brd") {
+    if !["json", "brd", "eh3d"]
+        .iter()
+        .any(|e| has_extension(path, e))
+    {
         return Err(refuse(format!(
-            "{path}: only .json (design model) and .brd (EAGLE) are written"
+            "{path}: only .json (design model), .brd (EAGLE) and .eh3d (project) are written"
         )));
     }
     Ok(())
+}
+
+/// Writes the board into a new `.eh3d` project. A project that was read lends the new one the
+/// branches of the other programs; an EAGLE board that was read is kept as the origin.
+fn write_project(path: &str, input: &str, board: &Board) -> Result<(), String> {
+    let mut parts = PcbParts {
+        board: Some(
+            board
+                .to_bytes()
+                .map_err(|e| format!("cannot write the board: {e:?}"))?,
+        ),
+        ..PcbParts::default()
+    };
+    let source = has_extension(input, "eh3d").then(|| Path::new(input));
+    if has_extension(input, "brd") {
+        let bytes = read_text(input)?.into_bytes();
+        parts.origin = Some(PcbOrigin {
+            name: Path::new(input)
+                .file_name()
+                .map(|n| n.to_string_lossy().into_owned())
+                .unwrap_or_default(),
+            format: "eagle-brd".to_owned(),
+            bytes,
+            not_read: 0,
+        });
+    }
+    let new = NewPcbProject {
+        name: Path::new(path)
+            .file_stem()
+            .map(|s| s.to_string_lossy().into_owned())
+            .unwrap_or_default(),
+        ..NewPcbProject::default()
+    };
+    write_pcb(
+        Path::new(path),
+        source,
+        &parts,
+        &new,
+        env!("CARGO_PKG_VERSION"),
+    )
+    .map_err(|e| e.to_string())
 }
 
 /// Checks a new JSON file (the zone data, the poured board) before anything is done.
@@ -364,16 +412,22 @@ pub(crate) fn boardedit_command(args: &[&str], out: &mut dyn Write, err: &mut dy
 
     let mut written: Option<String> = None;
     if let Some(path) = options.out.as_deref() {
-        let bytes = if has_extension(path, "brd") {
-            write_board(edit.board()).text.into_bytes()
-        } else {
-            match edit.board().to_bytes() {
-                Ok(bytes) => bytes,
-                Err(e) => return fail(err, &format!("cannot write the board: {e:?}")),
+        if has_extension(path, "eh3d") {
+            if let Err(m) = write_project(path, file, edit.board()) {
+                return fail(err, &m);
             }
-        };
-        if let Err(e) = write_new(path, &bytes) {
-            return fail(err, &e.to_string());
+        } else {
+            let bytes = if has_extension(path, "brd") {
+                write_board(edit.board()).text.into_bytes()
+            } else {
+                match edit.board().to_bytes() {
+                    Ok(bytes) => bytes,
+                    Err(e) => return fail(err, &format!("cannot write the board: {e:?}")),
+                }
+            };
+            if let Err(e) = write_new(path, &bytes) {
+                return fail(err, &e.to_string());
+            }
         }
         written = Some(path.to_owned());
     }

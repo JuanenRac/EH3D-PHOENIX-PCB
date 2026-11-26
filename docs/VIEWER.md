@@ -2,6 +2,14 @@
 
 State: **prototype**. The logic, including the whole state of editing, is tested without a screen; the window has never been seen on a screen. It exists to decide the interface stack with data (phase F6 of the roadmap, requirements PPCB-014 and PPCB-015, record `docs/adr/0009-first-interface-stack.md`) and, with the stack still provisional, to try the editing on a board: the window draws what the editing logic of `docs/ROUTE.md` and the synchronisation of `docs/ERC.md` do, it does not decide anything of its own.
 
+## Projects of the suite (`.eh3d`)
+
+An `.eh3d` file is the one project of the suite, with a branch for each program (the format is described in the shared repository of the suite). This program reads and writes only the branch `pcb/`: `board.json` and `schematic.json` (the canonical JSON of the model) and, for a design that was read from an EAGLE file, that file under `pcb/origin/` with a report of what was read. Every other branch is kept byte for byte.
+
+* **Window.** Opening a project opens the board of its branch, or the schematic when there is no board. *Save as* with a name that ends in `.eh3d` writes the branch: a new file takes the branches of the other programs from the project that was opened or saved before, which stays as it was; a file this window saved is replaced after a copy of it; the file that was opened and a file of another hand are never written.
+* **Command line.** Every command that takes a board takes a `.eh3d` file, and `phoenix boardedit --out NAME.eh3d` writes a new project with the board (and the EAGLE board it came from).
+* A branch written by a newer version of its format is neither read nor written over.
+
 ## What it does
 
 * Opens a board (an EAGLE `.brd`, read by the existing reader, or the JSON of the model, `design/board.json`) or a schematic (an EAGLE `.sch` or the JSON of the model, `design/schematic.json`).

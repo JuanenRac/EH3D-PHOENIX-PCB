@@ -18,11 +18,14 @@ The official state of each capability is in REQUIREMENTS.md: 31 requirements: 28
 ## Needs from other repositories
 
 * EH3D-COMMON: the project container (`eh3d-container`), the diagnostic crate (`eh3d-diagnostic`) and the materials database (`eh3d-materials`, used by the stack-up calculation and by `phoenix materials`), already used; this repository builds next to it
+* EH3D-COMMON: the project file of the suite (`eh3d-project`). No tag of that repository holds it yet, so the workflows take a commit of it; they go back to a tag when one is made
 * EH3D-CORE-LIBS: geometry, readers and the Gerber and Excellon writers
 * EH3D-VALIDATION-LAB: the corpus and the golden-file oracle
 
 ## Known technical debt and omitted tests
 
+* The board editor of the window has a route that stops at an obstacle or pushes tracks, a rule check while dragging, a measure with snap and its list of steps (`docs/BOARD_EDIT.md`): the logic is tested without a screen, the window has never been seen on one, and the time of the check while dragging has not been measured on a large board.
+* The branch `pcb/` of the `.eh3d` project (`docs/VIEWER.md`) keeps the board, the schematic and the EAGLE file they came from; rules, libraries, zone data, references to other branches and the older `.phoenixproj` files are not carried into it.
 * 5422 tests of the Rust code and 63 of the base; the inventory tests build their own folders and never touch a real project.
 * The editing actions of the board editor (the width of a track, a via moved or resized, tracks cut, joined and tidied, the value, the designator and the name of a net, the merge of two nets, the snap to the grid, the swap of pads and the advance of a route up to the last clear place, `docs/BOARD_EDIT.md`) and their entries in the Edit menu were tried without a screen on small boards made by the tests: the window that holds them has never been seen on a screen or used with a mouse, and nothing was compared with the editor of another tool.
 * The user programs of the reference tool (`docs/ULP.md`) are read, reported on and, for the part that only computes and reads, run (`phoenix ulp run`): numbers, texts, arrays, functions of the program and read-only walks over a board and a schematic, within limits of steps, memory, nesting and output. Files are read and written only in the one folder of `file_dir`, no program is started and nothing is written to the design; dialogs are answered without a window. The sandbox in a process of its own is not written, the list of names is a first list, and nothing was compared with the original tool or tried on a program of the author.
