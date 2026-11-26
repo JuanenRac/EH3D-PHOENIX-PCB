@@ -317,7 +317,9 @@ pub fn sample() -> File {
             .b(3, 21)
             .ends(0, 0, 100_000, 80_000)
             .b(20, 4)
-            .b(21, 3),
+            .b(21, 3)
+            // the right and the bottom borders are off
+            .b(22, 0x0C),
     );
     let header = drawing(R::new(0x1E).text(18, b"HDR"), header_items);
     f.packages = vec![chip, header];
@@ -363,7 +365,8 @@ pub fn sample_3() -> File {
         ),
     ];
     f.packages = vec![drawing(
-        R::new(0x1E).text(18, b"DIL"),
+        // before version 4 the name starts at byte 16 and the description is at byte 13
+        R::new(0x1E).long(13).text(16, b"DIL"),
         vec![
             old_pad(0x2B, -25_400, b"1"),
             old_pad(0x2B, 0, b"2"),
@@ -373,5 +376,6 @@ pub fn sample_3() -> File {
             R::new(0x32).text(2, b"yond one record"),
         ],
     )];
+    f.strings = vec![b"Dual in line"];
     f
 }

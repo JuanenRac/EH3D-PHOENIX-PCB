@@ -29,7 +29,7 @@ A text field whose first byte is `0x7F` takes the next long string. The strings 
 | `0x36` | device | bytes 2 and 3: connection records; bytes 4 and 5: footprint from 1. In version 3 it is a device set of its own with its gates and connections |
 | `0x3C` | connections | |
 | `0x2D` | gate | bytes 14 and 15: symbol from 1 |
-| `0x1D`, `0x1E` | symbol, footprint | bytes 2 and 3: records of the drawing |
+| `0x1D`, `0x1E` | symbol, footprint | bytes 2 and 3: records of the drawing. The name of a symbol starts at byte 16. The name of a footprint starts at byte 18 with its description at byte 13; in version 3 the name starts at byte 16 and the description has bytes 13 to 15 |
 
 ## The drawing
 
@@ -42,14 +42,18 @@ Coordinates are signed integers in tenths of a micrometre. Widths, pad sizes, dr
 | `0x25`, `0x26`, `0x28` | circle, rectangle, hole |
 | `0x2A`, `0x2B` | pad, surface-mount pad: angle at bytes 16 and 17, flags at byte 18 and name from byte 19; in version 3 there is no angle and no flags and the name starts at byte 16 |
 | `0x2C` | pin: byte 12: direction, length and turn; byte 2: visibility and function; byte 13: swap level |
-| `0x31`, `0x32` | text and, in version 3, the rest of its content |
-| `0x43` | drawing frame |
+| `0x31`, `0x32` | text and, in version 3, the rest of its content. Byte 2 is the font in versions 4 and 5; in version 3 it is not, and the font is read as proportional |
+| `0x43` | drawing frame: byte 22 turns borders off, one bit each: 1 left, 2 top, 4 right, 8 bottom |
 
 ## Connections
 
 In versions 4 and 5 the connection records of a device hold one entry for each pad, in the order of the pads: the gate (from 1) in the high bits and the pin (from 1) in the low bits. An entry is one or two bytes, and the split depends on the number of gates and on the most pins of a gate. In version 3 there is one group of records for each gate with the pad of each pin. When any entry of a device does not name an existing gate, pin and pad, none of its connections is converted and the report says so.
 
 The technology names are packed in one string: either the last character of each name has its high bit set, or each name follows the byte `0x04`.
+
+## Compared with XML saved from the same libraries
+
+The line styles of byte 22 of a line (its two low bits: 0 continuous, 1 long dash, 2 short dash, 3 dash-dot), the flat cap of an arc (bit `0x10`, version 5) and the bits of the right and bottom borders of a frame agree with the XML.
 
 ## What was measured
 
@@ -67,8 +71,10 @@ The crate itself has only been run on small libraries made by hand for its tests
 * The settings and grid of the editor, the name stored for the library and the 12 bytes after the strings.
 * The user value flag of version 3 (read as off).
 * The angle of a general arc is computed from its ends and the stored coordinate of the centre.
-* The pour, thermals and orphans of a polygon and the mixed borders of a frame (the defaults are used).
-* The line styles long dash and dash-dot, the fixed font and the bit that turns off the thermals of a pad follow the order of the XML values and were not seen against an XML file.
+* The pour, thermals and orphans of a polygon (the defaults are used).
+* The fixed font and, in versions 4 and 5, the bit that turns off the thermals of a pad follow the order of the XML values and were not seen against an XML file. In version 3 that bit does not turn thermals off.
+* The bits of the left and the top border of a frame follow from the ones of the right and the bottom: inferred.
+* The font of a text of version 3.
 
 ## Limits and damaged files
 

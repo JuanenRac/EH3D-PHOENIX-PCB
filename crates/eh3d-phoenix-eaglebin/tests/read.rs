@@ -4,7 +4,7 @@
 
 mod builder;
 
-use builder::{sample, sample_3, File, R};
+use builder::{drawing, old_pad, sample, sample_3, File, R};
 use eh3d_phoenix_eaglebin::codes;
 use eh3d_phoenix_eaglebin::{read_binary_library, BinError, Conversion, Limits};
 use eh3d_phoenix_libedit::model::{Item, PadShape};
@@ -112,7 +112,10 @@ fn pads_polygons_and_frames_are_read() {
             assert_eq!(frame.name, "frame");
             assert_eq!(frame.attr("x2"), Some("10"));
             assert_eq!(frame.attr("columns"), Some("4"));
-            assert_eq!(frame.attr("border-top"), Some("no"));
+            assert_eq!(frame.attr("border-right"), Some("no"));
+            assert_eq!(frame.attr("border-bottom"), Some("no"));
+            assert_eq!(frame.attr("border-left"), None);
+            assert_eq!(frame.attr("border-top"), None);
         }
         items => panic!("{items:?}"),
     }
@@ -241,13 +244,64 @@ fn version_3_devices_and_long_texts_are_read() {
     match &dil.items[3] {
         Item::Text(t) => {
             assert_eq!(t.content, "a text that goes on beyond one record");
-            assert_eq!(extra(&t.extra, "font"), Some("fixed"));
+            // byte 2 is not the font before version 4
+            assert_eq!(extra(&t.extra, "font"), None);
         }
         other => panic!("{other:?}"),
     }
     assert_eq!(dil.items.len(), 4);
+    assert_eq!(dil.description[0].text, "Dual in line");
     assert!(!read.report.has_losses(), "{:?}", read.report.notes);
     verify_round_trip(&read.library).unwrap();
+}
+
+#[test]
+fn before_version_4_the_name_of_a_footprint_starts_at_byte_16() {
+    let mut f = sample_3();
+    // a name that fills the eight bytes, a description of three, and a pad whose name puts a
+    // byte with the bit 0x04 where version 4 keeps its flags
+    f.packages = vec![drawing(
+        R::new(0x1E).text(13, b"abc").text(16, b"AB-SOT23"),
+        vec![old_pad(0x2A, 0, b"12D"), old_pad(0x2B, 10, b"34D")],
+    )];
+    f.strings.clear();
+    let read = read(&f.bytes()).unwrap();
+    let footprint = read.library.package("AB-SOT23").unwrap();
+    assert_eq!(footprint.description[0].text, "abc");
+    match (&footprint.items[0], &footprint.items[1]) {
+        (Item::Pad(a), Item::Smd(b)) => {
+            assert_eq!((a.name.as_str(), a.thermals), ("12D", true));
+            assert_eq!((b.name.as_str(), b.thermals), ("34D", true));
+        }
+        items => panic!("{items:?}"),
+    }
+}
+
+#[test]
+fn each_bit_of_a_frame_turns_one_border_off() {
+    for (flags, off) in [
+        (0x00, &[][..]),
+        (0x01, &["left"][..]),
+        (0x02, &["top"][..]),
+        (0x04, &["right"][..]),
+        (0x08, &["bottom"][..]),
+        (0x0F, &["left", "top", "right", "bottom"][..]),
+    ] {
+        let mut f = sample();
+        let last = f.packages[1].len() - 1;
+        f.packages[1][last] = f.packages[1][last].b(22, flags);
+        let read = read(&f.bytes()).unwrap();
+        let header = read.library.package("HDR").unwrap();
+        let Item::Other(frame) = &header.items[3] else {
+            panic!("{:?}", header.items[3]);
+        };
+        for side in ["left", "top", "right", "bottom"] {
+            let wanted = off.contains(&side).then_some("no");
+            assert_eq!(frame.attr(&format!("border-{side}")), wanted, "{flags}");
+        }
+        // the left and the top bits are only inferred, and the report says so
+        assert_eq!(read.report.has_losses(), flags & 0x03 != 0, "{flags}");
+    }
 }
 
 #[test]
