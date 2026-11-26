@@ -102,7 +102,7 @@ The codes are `PHOENIX-LIB-<NNN>`: 001 to 014 are the findings above and 020 to 
 
 ## What is not done
 
-* The EAGLE binary files are not read, and a file written here has not been opened in EAGLE.
+* Binary libraries of versions 3 to 5 are read (`EAGLE_BINARY.md`) and never written, and a file written here has not been opened in EAGLE.
 * Polygons, dimensions, frames and the other items the model does not read are kept but cannot be edited or drawn.
 * A copy of a footprint, symbol or device set, moving several items at once, mirroring, and the bulk edit of a property are not written; an edit works on one item.
 * The expansion of a mask or paste opening is a shape drawn on the layer of the openings; the rules for the openings of a board are not applied.

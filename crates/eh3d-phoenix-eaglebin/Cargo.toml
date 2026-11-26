@@ -1,0 +1,14 @@
+[package]
+name = "eh3d-phoenix-eaglebin"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Read-only reader of the binary libraries of EAGLE versions 3 to 5 into the library model of the library editor, with limits on damaged files and a report of everything that was not read as it is"
+
+[dependencies]
+eh3d-phoenix-eagle = { path = "../eh3d-phoenix-eagle" }
+eh3d-phoenix-libedit = { path = "../eh3d-phoenix-libedit" }
+eh3d-phoenix-rules = { path = "../eh3d-phoenix-rules" }
+serde.workspace = true

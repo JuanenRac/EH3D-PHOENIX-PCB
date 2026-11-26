@@ -3,6 +3,9 @@
 //! making a footprint from parameters. Both are a dry run unless `--out` names a new file, and
 //! neither writes over an input file or over a file that exists.
 //!
+//! A binary library of EAGLE versions 3 to 5 is read too, with the report of what was not read as
+//! it is; it is never written, so `--out` gives an XML library.
+//!
 //! Exit codes: 0 done and the check of the library finds no error, 1 done and it finds an error,
 //! 2 the arguments, the input, an operation or the output are unusable.
 
@@ -11,6 +14,7 @@ use std::io::Write;
 use std::path::Path;
 use std::sync::Arc;
 
+use eh3d_phoenix_eaglebin::{looks_binary, read_binary_library, Report};
 use eh3d_phoenix_libedit::codes::{LibError, FILE_UNUSABLE, NAME_USED, OPTION_INVALID};
 use eh3d_phoenix_libedit::footprints::FootprintConfig;
 use eh3d_phoenix_libedit::{
@@ -33,6 +37,8 @@ phoenix libedit --compare NEW.lbr [--config FILE] [--json] [--lang xx] <old libr
              nothing is written unless --out names a new file; the library is read back from the
              file that was written and compared, a copy of the original is kept next to the new
              file, and a file that exists is never written over
+             A binary library of EAGLE versions 3 to 5 is read as well, and the report of the
+             conversion (codes PHOENIX-EAGLEBIN-001 to 011) says what was not read as it is
   --compare  compare the footprints of the library with those of NEW.lbr by name: the ones only
              one has, and for the ones both have the pads that only one has, that moved, changed
              size, kind, drill or layer (a shift of no more than compare_tolerance_nm of the
@@ -74,7 +80,11 @@ fn read_small(path: &str) -> Result<String, LibError> {
     std::fs::read_to_string(path).map_err(|e| unusable(e.to_string()))
 }
 
-fn read_library_file(path: &str, settings: &LibSettings) -> Result<Library, LibError> {
+/// A library and, when the file was binary, the report of its conversion.
+fn read_library_file(
+    path: &str,
+    settings: &LibSettings,
+) -> Result<(Library, Option<Report>), LibError> {
     let unusable = |e: String| LibError::new(FILE_UNUSABLE, format!("{path}: {e}"));
     let length = std::fs::metadata(path)
         .map_err(|e| unusable(e.to_string()))?
@@ -86,8 +96,24 @@ fn read_library_file(path: &str, settings: &LibSettings) -> Result<Library, LibE
         )));
     }
     let bytes = std::fs::read(path).map_err(|e| unusable(e.to_string()))?;
+    if looks_binary(&bytes) {
+        let limits = eh3d_phoenix_eaglebin::Limits {
+            max_bytes: usize::try_from(settings.max_file_bytes).unwrap_or(usize::MAX),
+            ..eh3d_phoenix_eaglebin::Limits::default()
+        };
+        let read = read_binary_library(&bytes, &limits).map_err(|e| unusable(e.to_string()))?;
+        return Ok((read.library, Some(read.report)));
+    }
     read_library(&bytes, &settings.limits())
+        .map(|library| (library, None))
         .map_err(|e| LibError::new(e.code, format!("{path}: {}", e.detail)))
+}
+
+/// Writes the report of a binary file that is not the library the command prints.
+fn note_binary(err: &mut dyn Write, path: &str, report: Option<&Report>, lang: Lang) {
+    if let Some(report) = report {
+        let _ = write!(err, "{path}: {}", report.to_text(lang));
+    }
 }
 
 struct Options {
@@ -178,7 +204,7 @@ fn libedit_inner(
         return Err(fail(LibError::new(OPTION_INVALID, "a library is needed")));
     };
     let settings = settings_of(&options.config).map_err(fail)?;
-    let original = read_library_file(file, &settings).map_err(fail)?;
+    let (original, converted) = read_library_file(file, &settings).map_err(fail)?;
     if let Some(other) = &options.compare {
         if options.apply.is_some() || options.plan.is_some() || options.out.is_some() {
             return Err(fail(LibError::new(
@@ -186,7 +212,9 @@ fn libedit_inner(
                 "--compare takes no --apply, --plan or --out",
             )));
         }
-        let newer = read_library_file(other, &settings).map_err(fail)?;
+        let (newer, newer_converted) = read_library_file(other, &settings).map_err(fail)?;
+        note_binary(err, file, converted.as_ref(), lang);
+        note_binary(err, other, newer_converted.as_ref(), lang);
         let found = compare_libraries(&original, &newer, settings.compare_tolerance_nm);
         let text = if options.json {
             compare_json(&found)
@@ -233,6 +261,7 @@ fn libedit_inner(
             "sha256": saved.as_ref().map(|s| s.sha256.clone()),
             "backup": saved.as_ref().and_then(|s| s.backup.as_ref()).map(|b| b.to_string_lossy().into_owned()),
             "kept_as_xml": edited.kept_raw,
+            "binary_read": converted,
             "plan": plan,
             "check": report,
         });
@@ -255,6 +284,9 @@ fn libedit_inner(
                 "{} items are kept as the XML they came in (not editable here)",
                 edited.kept_raw
             );
+        }
+        if let Some(report) = &converted {
+            let _ = out.write_all(report.to_text(lang).as_bytes());
         }
         for (n, label) in labels.iter().enumerate() {
             let _ = writeln!(out, "operation {}: {label}", n + 1);
@@ -410,7 +442,11 @@ fn footprint_inner(
     let made = generate(family, &options.params, &cfg).map_err(fail)?;
     let settings = LibSettings::default();
     let mut library = match &options.into {
-        Some(path) => read_library_file(path, &settings).map_err(fail)?,
+        Some(path) => {
+            let (library, converted) = read_library_file(path, &settings).map_err(fail)?;
+            note_binary(err, path, converted.as_ref(), lang);
+            library
+        }
         None => Library::empty(),
     };
     if library.package_index(&made.package.name).is_some() {

@@ -759,6 +759,7 @@ dependencies = [
  "eh3d-phoenix-eagle",
  "eh3d-phoenix-eagle-board",
  "eh3d-phoenix-eagle-deep",
+ "eh3d-phoenix-eaglebin",
  "eh3d-phoenix-erc",
  "eh3d-phoenix-export",
  "eh3d-phoenix-field2d",
@@ -866,6 +867,16 @@ dependencies = [
  "eh3d-phoenix-rules",
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "eh3d-phoenix-eaglebin"
+version = "0.1.6"
+dependencies = [
+ "eh3d-phoenix-eagle",
+ "eh3d-phoenix-libedit",
+ "eh3d-phoenix-rules",
+ "serde",
 ]
 
 [[package]]
