@@ -42,4 +42,4 @@ This page maps what the repository has to the phases of `docs/ROADMAP.md` and to
 | Library domain of the project | Own library format in the project | `.lbr` is read and written; no library domain in `.phoenixproj` yet | `docs/DECISIONS.md` |
 | Stack-up library materials | Referenced by id of the materials database | Referenced by id where the database has one; the two figures of the maker's calculator stay by name with a note | `docs/MATERIALS_GAPS.md`, `config/stackup_library.json` |
 | Reference tool oracle | Golden files from the reference tool | Reference cases with published values; the interim reference is real files of an open tool and IPC-2581 samples once they are provided | `docs/ORACLE.md` |
-| Binary files of the reference tool | A reader | Nothing, until pairs of binary and XML files exist | PPCB-005 |
+| Binary files of the reference tool | A reader of libraries, boards and schematics | Libraries only (`docs/EAGLE_BINARY.md`); boards and schematics wait for pairs of binary and XML files | PPCB-005 |

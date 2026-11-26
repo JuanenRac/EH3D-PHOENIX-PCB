@@ -24,7 +24,7 @@ use crate::codes::{self, BinError};
 use crate::items;
 use crate::records::{i32_at, u16_at, u32_at, Container, Limits, Record};
 use crate::report::Report;
-use crate::text::{decode, technologies, Strings};
+use crate::text::{decode, technologies, Strings, Technology};
 
 const SETTINGS: u8 = 0x11;
 const GRID: u8 = 0x12;
@@ -80,7 +80,7 @@ pub struct RawDevice {
     /// The number of the footprint, from 1; 0 for none.
     pub package: usize,
     /// The technologies.
-    pub technologies: Vec<String>,
+    pub technologies: Vec<Technology>,
     /// The connection records.
     pub connections: Vec<Record>,
 }
@@ -312,7 +312,7 @@ impl Walk<'_> {
         };
         let mut device = RawDevice {
             package: usize::from(u16_at(&r, 8)),
-            technologies: vec![String::new()],
+            technologies: vec![Technology::default()],
             ..RawDevice::default()
         };
         for k in at + 1..after {
@@ -350,7 +350,7 @@ impl Walk<'_> {
             let report = &mut *self.report;
             match r[0] {
                 items::WIRE | items::ARC => {
-                    let w = items::wire(&r, place, report);
+                    let w = items::wire(&r, self.old, place, report);
                     report.count(if w.curve == 0 { "wire" } else { "arc" });
                     out.push(Item::Wire(w));
                 }
@@ -374,7 +374,11 @@ impl Walk<'_> {
                         (19, u16_at(&r, 16), r[18])
                     };
                     let name = self.string(&r, start, 24, place);
-                    let turn = items::Turn { angle, flags };
+                    let turn = items::Turn {
+                        old: self.old,
+                        angle,
+                        flags,
+                    };
                     if r[0] == items::PAD {
                         self.report.count("pad");
                         out.push(Item::Pad(items::pad(&r, turn, name, place, self.report)));
@@ -416,7 +420,7 @@ impl Walk<'_> {
                     at += n;
                     self.items += n;
                     self.report.count("polygon");
-                    out.push(items::polygon(&r, vertices, place, self.report));
+                    out.push(items::polygon(&r, vertices, self.old, place, self.report));
                 }
                 items::FRAME => {
                     report.count("frame");

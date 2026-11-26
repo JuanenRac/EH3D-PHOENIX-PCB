@@ -1,6 +1,6 @@
 # EH3D-PHOENIX-PCB: the bulk import of libraries
 
-**State: prototype.** `phoenix libindex <folder>` walks a folder of EAGLE and KiCad libraries, reads every footprint and symbol with the readers that already exist, judges each one, finds the ones that appear more than once and writes a deterministic index with the hash of the content of every item. It is the module `bulk` of the crate `eh3d-phoenix-ipclib`, the settings `config/import_bulk.cfg` and the codes `PHOENIX-LIBIDX-<NNN>` (`docs/ERROR_CODES.md`). It has only been run on libraries made by its own tests, never on a real collection of libraries.
+**State: prototype.** `phoenix libindex <folder>` walks a folder of EAGLE and KiCad libraries, reads every footprint and symbol with the readers that already exist, judges each one, finds the ones that appear more than once and writes a deterministic index with the hash of the content of every item. It is the module `bulk` of the crate `eh3d-phoenix-ipclib`, the settings `config/import_bulk.cfg` and the codes `PHOENIX-LIBIDX-<NNN>` (`docs/ERROR_CODES.md`). Besides its own tests it has been run on a private collection of 8326 files: the first 1500 of them are indexed within 300 MB of memory, and the whole collection needs more, because the index is built in memory.
 
 The files are **only read**: nothing is copied, moved or changed, and the index holds names, hashes and findings, not the drawings. Nothing is written unless `--out` names a new `.json` file, and a file that exists is never written over.
 
@@ -8,7 +8,7 @@ The files are **only read**: nothing is copied, moved or changed, and the index 
 
 | Extension | Kind | Items |
 |---|---|---|
-| `.lbr` | EAGLE XML library (`eagle_library`) | every footprint and every symbol of the file |
+| `.lbr` | EAGLE library, XML or the binary form of versions 3 to 5 (`eagle_library`) | every footprint and every symbol of the file |
 | `.kicad_mod` | KiCad footprint (`kicad_footprint`) | the footprint of the file (a `.pretty` folder is a folder of these files) |
 | `.kicad_sym` | KiCad symbol library (`kicad_symbols`) | every symbol of the file, with the pins of every unit |
 
@@ -56,6 +56,8 @@ The geometry is compared as it is drawn: a footprint turned or mirrored, or with
 * `duplicates`: `same_name` and `same_geometry`, each a list of groups with their members;
 * `skipped`: the paths that were not read, with the code and the reason.
 
+For a binary library the file record also holds `binary_version` (the version that wrote it) and `binary_losses` (true when something was not read as it is), and the summary counts `binary_libraries` and `binary_with_losses`. `phoenix libedit` on that file tells what it was.
+
 The hash of the content of an item is the SHA-256 of its name and of its drawing items in their order (EAGLE), or of its name and its sorted pads or pins (KiCad), so it changes when the item is edited and is the same for two copies. It is the same in two runs; the index has no date and no path of the computer.
 
 ## The command
@@ -69,6 +71,6 @@ Without options it prints the quality report as text (`--lang` writes the titles
 ## What it does not do
 
 * Copy the libraries, merge them into one or choose a master among duplicates; the sanitizer and the library editor do that, with a confirmation.
-* Read EAGLE binary files, KiCad 5 libraries (`.lib`, `.mod`) or other formats.
+* Read binary boards or schematics of EAGLE (binary libraries are read, `docs/EAGLE_BINARY.md`), KiCad 5 libraries (`.lib`, `.mod`) or other formats.
 * Judge the drawings: silkscreen, courtyards and 3D models are not part of the quality report.
 * Know whether a footprint is the right one for a part; it only finds faults in how it is drawn.

@@ -9,6 +9,7 @@ description = "Own library of footprints by the method of IPC-7351B (prototype):
 
 [dependencies]
 eh3d-phoenix-board = { path = "../eh3d-phoenix-board" }
+eh3d-phoenix-eaglebin = { path = "../eh3d-phoenix-eaglebin" }
 eh3d-phoenix-kicad = { path = "../eh3d-phoenix-kicad" }
 eh3d-phoenix-libedit = { path = "../eh3d-phoenix-libedit" }
 eh3d-phoenix-rules = { path = "../eh3d-phoenix-rules" }

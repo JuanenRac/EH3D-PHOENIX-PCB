@@ -6,8 +6,8 @@
 
 use std::path::Path;
 
+use eh3d_phoenix_eaglebin::read_any_library;
 use eh3d_phoenix_kicad::{read_footprint, sequential_ids, KicadSettings};
-use eh3d_phoenix_libedit::read::read_library;
 use eh3d_phoenix_libedit::LibSettings;
 use eh3d_phoenix_rules::Lang;
 use serde_json::{json, Value};
@@ -287,7 +287,7 @@ pub fn load_footprint(
         .unwrap_or_default();
     match ext.as_str() {
         "lbr" => {
-            let lib = read_library(&bytes, &LibSettings::default().limits())
+            let (lib, _) = read_any_library(&bytes, &LibSettings::default())
                 .map_err(|e| unusable(e.to_string()))?;
             let Some(wanted) = name else {
                 return Err(IpcError::new(

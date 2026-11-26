@@ -273,6 +273,13 @@ fn left_panel(
                 ui.collapsing(LibText::Plan.tr(lang), |ui| {
                     plan_section(ui, s, state, lang);
                 });
+                if let Some(report) = &s.binary {
+                    ui.collapsing(LibText::BinaryReport.tr(lang), |ui| {
+                        for line in report.to_text(lang).lines() {
+                            ui.label(dim(line));
+                        }
+                    });
+                }
             });
         });
 }
