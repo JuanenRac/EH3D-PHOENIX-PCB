@@ -667,3 +667,91 @@ fn a_swap_of_pads_is_refused_when_it_changes_nothing_or_a_part_is_locked() {
         COMPONENT_LOCKED
     );
 }
+
+#[test]
+fn undo_and_redo_show_the_findings_kept_with_the_step_and_they_are_those_of_a_new_check() {
+    let f = fixture();
+    let fresh = |e: &BoardEdit| {
+        BoardEdit::new(e.board().clone(), strict_rules(), e.settings.clone())
+            .unwrap()
+            .findings()
+            .to_vec()
+    };
+    let ops = [
+        EditOp::Forced {
+            with: Box::new(gnd_route(&f, vec![f.pt(20, 8), f.pt(20, 12)])),
+        },
+        EditOp::Move {
+            id: f.r1,
+            at: f.pt(10, 13),
+            rotation_udeg: None,
+            follow: Some(false),
+        },
+    ];
+    for (keep, checks) in [(64, 0), (1, 2), (0, 4)] {
+        let settings = BoardEditSettings {
+            reject_new_errors: false,
+            undo_remembered_checks: keep,
+            ..BoardEditSettings::default()
+        };
+        let mut e = BoardEdit::new(f.board.clone(), strict_rules(), settings).unwrap();
+        let start = e.findings().to_vec();
+        for op in &ops {
+            e.apply(op).unwrap();
+        }
+        let end = e.findings().to_vec();
+        assert_ne!(start, end, "the operations change what the rules say");
+        assert!(e.undo());
+        assert_eq!(e.findings(), fresh(&e), "keep {keep}");
+        assert!(e.undo());
+        assert_eq!(e.findings(), start, "keep {keep}");
+        assert!(e.redo());
+        assert_eq!(e.findings(), fresh(&e), "keep {keep}");
+        assert!(e.redo());
+        assert_eq!(e.findings(), end, "keep {keep}");
+        // with room for every step nothing is checked again, with less only what was forgotten
+        assert_eq!(e.undo_rechecks() == 0, checks == 0, "keep {keep}");
+        assert!(e.undo_rechecks() <= checks, "keep {keep}");
+    }
+}
+
+#[test]
+fn findings_kept_without_the_advanced_checks_are_not_shown_when_they_are_asked_for() {
+    let f = fixture();
+    let mut e = editor(&f);
+    e.apply(&EditOp::Move {
+        id: f.r1,
+        at: f.pt(10, 13),
+        rotation_udeg: None,
+        follow: Some(false),
+    })
+    .unwrap();
+    e.settings.advanced_drc = true;
+    assert!(e.undo());
+    assert_eq!(e.undo_rechecks(), 1);
+    e.settings.advanced_drc = false;
+    assert!(e.redo());
+    assert_eq!(
+        e.undo_rechecks(),
+        1,
+        "the findings of the redo were made this way"
+    );
+    // a step made with the check off leaves a state that was never looked at
+    e.settings.live_drc = false;
+    e.apply(&EditOp::Move {
+        id: f.r1,
+        at: f.pt(10, 8),
+        rotation_udeg: None,
+        follow: Some(false),
+    })
+    .unwrap();
+    e.settings.live_drc = true;
+    assert!(e.undo());
+    assert_eq!(
+        e.undo_rechecks(),
+        1,
+        "the state before the step was looked at"
+    );
+    assert!(e.redo());
+    assert_eq!(e.undo_rechecks(), 2, "the state after it was not");
+}

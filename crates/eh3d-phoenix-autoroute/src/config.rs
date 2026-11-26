@@ -84,6 +84,10 @@ pub struct AutorouteConfig {
     pub terminal_candidates: usize,
     /// How far from a pad, in grid pitches beyond its size, those places are looked for.
     pub terminal_radius_cells: i64,
+    /// The most passes over the routed connections after the run, each of which routes a
+    /// connection again with all the others in place and keeps the new way when it costs less
+    /// (shorter, with fewer vias or corners); 0: none.
+    pub optimize_passes: u32,
     /// Whether the copper zones of other nets are obstacles.
     pub zones_block: bool,
     /// Whether a via may be put on a pad.
@@ -135,6 +139,7 @@ impl Default for AutorouteConfig {
             max_connections: 20_000,
             terminal_candidates: 6,
             terminal_radius_cells: 4,
+            optimize_passes: 2,
             zones_block: true,
             via_in_pad: false,
             via_snap_nm: 0,
@@ -247,6 +252,9 @@ impl AutorouteConfig {
                 }
                 "terminal_radius_cells" => {
                     c.terminal_radius_cells = int_in(value, 0, 64).ok_or_else(bad)?;
+                }
+                "optimize_passes" => {
+                    c.optimize_passes = int_in(value, 0, 8).ok_or_else(bad)? as u32;
                 }
                 "zones_block" => c.zones_block = flag(value).ok_or_else(bad)?,
                 "via_in_pad" => c.via_in_pad = flag(value).ok_or_else(bad)?,

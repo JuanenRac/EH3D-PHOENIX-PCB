@@ -10,9 +10,10 @@
 //! same input always gives the same path. Everything is integer arithmetic.
 
 use std::cmp::Reverse;
-use std::collections::{BinaryHeap, HashMap};
+use std::collections::BinaryHeap;
 
 use crate::config::AutorouteConfig;
+use crate::fast::Fast;
 use crate::geom::{seg_len, P};
 use crate::obstacles::{Edge, Spec, ViaSpec, World};
 
@@ -81,12 +82,12 @@ pub(crate) struct Job<'a> {
     pub sources: &'a [Terminal],
     pub targets: &'a [Terminal],
     pub soft: bool,
-    pub history: &'a HashMap<(usize, i64, i64), u32>,
+    pub history: &'a Fast<(usize, i64, i64), u32>,
     pub limit: u64,
     /// The vias of this net that are already on the board and sit exactly on a node of the grid,
     /// by node, with the first and the last place in the copper stack they join. A change of
     /// layer there costs nothing and puts no new via.
-    pub free_vias: &'a HashMap<(i64, i64), (usize, usize)>,
+    pub free_vias: &'a std::collections::HashMap<(i64, i64), (usize, usize)>,
 }
 
 const DIRS: [(i64, i64); 8] = [
@@ -121,7 +122,7 @@ pub(crate) fn stub_len(stub: &[P]) -> i64 {
     stub.windows(2).map(|w| seg_len(w[0], w[1])).sum()
 }
 
-type Best = HashMap<u64, (i64, u64)>;
+type Best = Fast<u64, (i64, u64)>;
 type Queue = BinaryHeap<Reverse<(i64, i64, u64)>>;
 
 fn relax(best: &mut Best, queue: &mut Queue, key: u64, g: i64, prev: u64, h: i64) {
@@ -136,7 +137,7 @@ pub(crate) fn search(job: &Job<'_>) -> Result<Found, Miss> {
     let g = job.grid;
     let ortho = g.pitch;
     let diag = (g.pitch * 1414 + 500) / 1000;
-    let mut goals: HashMap<(usize, i64, i64), usize> = HashMap::new();
+    let mut goals: Fast<(usize, i64, i64), usize> = Fast::default();
     for (i, t) in job.targets.iter().enumerate() {
         goals.insert((t.slot, t.ix, t.iy), i);
     }
@@ -158,7 +159,7 @@ pub(crate) fn search(job: &Job<'_>) -> Result<Found, Miss> {
             best
         }
     };
-    let mut best: Best = HashMap::new();
+    let mut best: Best = Best::default();
     let mut queue: Queue = BinaryHeap::new();
     for t in job.sources {
         let key = encode(g, t.slot, t.ix, t.iy, NO_DIR);
@@ -171,7 +172,10 @@ pub(crate) fn search(job: &Job<'_>) -> Result<Found, Miss> {
             heuristic(t.ix, t.iy),
         );
     }
-    let mut via_cache: HashMap<(i64, i64, usize, usize), Edge> = HashMap::new();
+    let mut via_cache: Fast<(i64, i64, usize, usize), Edge> = Fast::default();
+    // what the obstacles say about a step does not change during one search, and a node is
+    // expanded once for each direction it is reached from: each step is asked about once
+    let mut steps: Fast<u64, Edge> = Fast::default();
     let mut expansions: u64 = 0;
     while let Some(Reverse((_, cost, key))) = queue.pop() {
         if best.get(&key).is_some_and(|r| r.0 < cost) {
@@ -203,10 +207,16 @@ pub(crate) fn search(job: &Job<'_>) -> Result<Found, Miss> {
                 continue;
             }
             let there = g.point(jx, jy);
-            let extra = match job
-                .world
-                .edge(layer, here, there, &job.spec, job.soft, false)
-            {
+            // a step and the same step the other way round share one answer
+            let (from_x, from_y, way) = if d < 4 { (ix, iy, d) } else { (jx, jy, d - 4) };
+            let step = ((slot as u64 * g.ny as u64 + from_y as u64) * g.nx as u64 + from_x as u64)
+                * 4
+                + way as u64;
+            let answer = *steps.entry(step).or_insert_with(|| {
+                job.world
+                    .edge(layer, here, there, &job.spec, job.soft, false)
+            });
+            let extra = match answer {
                 Edge::Blocked => continue,
                 Edge::Soft => job.cfg.ripup_penalty_nm,
                 Edge::Free => 0,
@@ -419,6 +429,7 @@ pub(crate) fn terminals(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::HashMap;
 
     #[test]
     fn a_state_is_written_and_read_back() {
@@ -501,7 +512,7 @@ mod tests {
             iy: 5,
             stub: vec![(9000, 5000)],
         }];
-        let history = HashMap::new();
+        let history = Fast::default();
         let free_vias = HashMap::new();
         let via = ViaSpec {
             half: 300,
@@ -558,7 +569,7 @@ mod tests {
             iy: 5,
             stub: vec![(4000, 5000)],
         }];
-        let history = HashMap::new();
+        let history = Fast::default();
         let free_vias = HashMap::new();
         let via = ViaSpec {
             half: 300,
@@ -631,7 +642,7 @@ mod tests {
             iy: 5,
             stub: vec![(9000, 5000)],
         }];
-        let history = HashMap::new();
+        let history = Fast::default();
         let via = ViaSpec {
             half: 300,
             drill_half: 150,

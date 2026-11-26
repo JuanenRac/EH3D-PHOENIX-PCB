@@ -84,6 +84,9 @@ pub struct BoardEditSettings {
     /// How far from a pad, a via, an end of a track or a corner a click of the measure still
     /// snaps to it, in nanometres.
     pub measure_snap_nm: i64,
+    /// How many steps of the history keep the findings of the rules of the board before them, so
+    /// that undo and redo show them without checking the board again (0: always check).
+    pub undo_remembered_checks: usize,
 }
 
 impl Default for BoardEditSettings {
@@ -139,6 +142,7 @@ impl BoardEditSettings {
             drag_drc: false,
             drag_drc_max_objects: 1,
             measure_snap_nm: 0,
+            undo_remembered_checks: 0,
         }
     }
 
@@ -184,6 +188,10 @@ impl BoardEditSettings {
                     self.reject_new_errors = parse_bool(value).ok_or_else(bad)?
                 }
                 "advanced_drc" => self.advanced_drc = parse_bool(value).ok_or_else(bad)?,
+                "undo_remembered_checks" => {
+                    self.undo_remembered_checks =
+                        value.parse().ok().filter(|n| *n <= 4_096).ok_or_else(bad)?;
+                }
                 "follow_tracks" => self.follow_tracks = parse_bool(value).ok_or_else(bad)?,
                 "diagonal_routes" => self.diagonal_routes = parse_bool(value).ok_or_else(bad)?,
                 "corner_horizontal_first" => {
@@ -326,6 +334,7 @@ mod tests {
         assert!(s.snap && s.live_drc && s.reject_new_errors && s.follow_tracks);
         assert!(!s.advanced_drc);
         assert!(s.drag_drc);
+        assert_eq!(s.undo_remembered_checks, 64);
         assert_eq!(
             (s.drag_drc_max_objects, s.measure_snap_nm),
             (5_000, 600_000)
@@ -367,6 +376,8 @@ mod tests {
             "grid_nm = 0",
             "snap = maybe",
             "advanced_drc = yes",
+            "undo_remembered_checks = 4097",
+            "undo_remembered_checks = -1",
             "track_width_nm = 0",
             "meander_candidates = 0",
             "meander_candidates = 65",

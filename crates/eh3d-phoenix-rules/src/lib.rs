@@ -75,7 +75,7 @@ pub use advanced::{
 };
 pub use classes::{check_classes, NetClass, NetClasses};
 pub use codes::{title, Lang, REGISTRY};
-pub use connectivity::{analyse_board, check_connectivity, compare_schematic};
+pub use connectivity::{analyse_board, analyse_board_with, check_connectivity, compare_schematic};
 pub use dfm::{builtin_names, builtin_profile, dfm_findings, DfmError, DfmProfile, BUILTIN};
 pub use dfm_compare::{compare_profiles, DfmComparison, ProfileRun};
 pub use engine::{

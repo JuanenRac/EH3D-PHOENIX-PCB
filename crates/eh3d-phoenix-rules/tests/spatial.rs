@@ -6,7 +6,8 @@
 use eh3d_phoenix_board::{Board, Id, Layer, LayerKind, Net, Segment, Track, Via};
 use eh3d_phoenix_model::{Nm, ObjectId, Point, Udeg};
 use eh3d_phoenix_rules::{
-    check_board, check_board_with, clearance_work, edge_work, IndexMode, Report, RuleValues,
+    analyse_board, analyse_board_with, check_board, check_board_with, clearance_work, edge_work,
+    IndexMode, Report, RuleValues,
 };
 use eh3d_phoenix_spatial::testgen::Rng;
 use eh3d_phoenix_spatial::SpatialConfig;
@@ -194,6 +195,31 @@ fn the_grid_gives_the_report_of_comparing_every_pair() {
             .filter(|f| f.rule == "copper_clearance")
             .count();
         assert!(clearance > 5, "seed {seed}: {clearance} clearance findings");
+    }
+}
+
+#[test]
+fn the_touching_copper_found_with_the_index_is_that_of_comparing_every_pair() {
+    for (seed, tracks, vias, side_mm) in [(1, 60, 20, 20), (2, 600, 150, 40), (3, 1_500, 500, 60)] {
+        let board = random_board(seed, tracks, vias, side_mm);
+        for tolerance in [0, 1_000, 250_000, 2 * MM] {
+            let grid = analyse_board_with(&board, nm(tolerance), IndexMode::Grid);
+            let naive = analyse_board_with(&board, nm(tolerance), IndexMode::Naive);
+            same_report(
+                &grid,
+                &naive,
+                &format!("seed {seed}, tolerance {tolerance}"),
+            );
+            same_report(
+                &analyse_board(&board, nm(tolerance)),
+                &naive,
+                "the default way",
+            );
+            assert!(
+                grid.confirmed.len() > 5,
+                "seed {seed}: the board is dense enough for the comparison to say something"
+            );
+        }
     }
 }
 

@@ -57,6 +57,23 @@ fn error_count(list: &[Finding]) -> usize {
         .count()
 }
 
+/// The findings of the rules on a state of the board, kept with the step of the history that
+/// leads away from it or back to it.
+#[derive(Debug)]
+struct Checked {
+    /// Whether the advanced checks were part of it.
+    advanced: bool,
+    findings: Vec<Finding>,
+}
+
+/// What a step of the history keeps beside the operation: the zone data of the state at its other
+/// end and, for the latest steps, what the rules said about that state.
+#[derive(Debug, Clone)]
+struct Past {
+    data: Arc<ZoneData>,
+    checked: Option<Arc<Checked>>,
+}
+
 /// What the design rules say changed because of an operation.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct DrcReport {
@@ -238,9 +255,13 @@ pub struct BoardEdit {
     zone_settings: ZoneSettings,
     zone_data: Arc<ZoneData>,
     /// The zone data before each done step, one for each entry of `done`.
-    data_done: Vec<Arc<ZoneData>>,
+    data_done: Vec<Past>,
     /// The zone data after each undone step, one for each entry of `undone`.
-    data_undone: Vec<Arc<ZoneData>>,
+    data_undone: Vec<Past>,
+    /// Whether `findings` are those of the board as it is, and with the advanced checks or not.
+    fresh: Option<bool>,
+    /// How many times the whole board was checked after an undo or a redo.
+    rechecks: u64,
     /// The objects that the operations on the selection work on.
     selection: Selection,
 }
@@ -257,6 +278,7 @@ impl BoardEdit {
         } else {
             Vec::new()
         };
+        let fresh = settings.live_drc.then_some(settings.advanced_drc);
         Ok(BoardEdit {
             board,
             ctx,
@@ -272,6 +294,8 @@ impl BoardEdit {
             zone_data: Arc::new(ZoneData::default()),
             data_done: Vec::new(),
             data_undone: Vec::new(),
+            fresh,
+            rechecks: 0,
             selection: Selection::new(),
         })
     }
@@ -293,6 +317,9 @@ impl BoardEdit {
                 &self.zone_data,
                 self.settings.advanced_drc,
             );
+            self.fresh = Some(self.settings.advanced_drc);
+        } else {
+            self.fresh = None;
         }
         self
     }
@@ -421,16 +448,48 @@ impl BoardEdit {
         net_length(&self.board, net)
     }
 
-    fn recheck(&mut self) {
-        self.revision += 1;
-        if self.settings.live_drc {
-            self.findings = rule_findings(
-                &self.board,
-                &self.ctx,
-                &self.zone_data,
-                self.settings.advanced_drc,
-            );
+    /// The findings of the board as it is, to be kept with a step of the history; none when they
+    /// are not known to be those of this board.
+    fn remember(&self) -> Option<Arc<Checked>> {
+        let advanced = self.fresh?;
+        (self.settings.undo_remembered_checks > 0).then(|| {
+            Arc::new(Checked {
+                advanced,
+                findings: self.findings.clone(),
+            })
+        })
+    }
+
+    /// Forgets the findings of the steps that are farther back than the settings keep.
+    fn forget_old(list: &mut [Past], keep: usize) {
+        if let Some(old) = list.len().checked_sub(keep + 1) {
+            list[old].checked = None;
         }
+    }
+
+    /// After an undo or a redo: the findings kept with the step when they were made the way the
+    /// settings ask now, else a check of the board.
+    fn recheck(&mut self, kept: Option<Arc<Checked>>) {
+        self.revision += 1;
+        let advanced = self.settings.advanced_drc;
+        if !self.settings.live_drc {
+            self.fresh = None;
+            return;
+        }
+        match kept.filter(|k| k.advanced == advanced) {
+            Some(kept) => self.findings = kept.findings.clone(),
+            None => {
+                self.rechecks += 1;
+                self.findings = rule_findings(&self.board, &self.ctx, &self.zone_data, advanced);
+            }
+        }
+        self.fresh = Some(advanced);
+    }
+
+    /// How many times the whole board was checked because of an undo or a redo; a step whose
+    /// findings were kept does not count.
+    pub fn undo_rechecks(&self) -> u64 {
+        self.rechecks
     }
 
     /// Undoes the last step; false when there is none.
@@ -443,11 +502,15 @@ impl BoardEdit {
             return false;
         }
         self.undone.push(step);
+        let mut kept = None;
+        let checked = self.remember();
         if let Some(before) = self.data_done.pop() {
-            let now = std::mem::replace(&mut self.zone_data, before);
-            self.data_undone.push(now);
+            let now = std::mem::replace(&mut self.zone_data, before.data);
+            kept = before.checked;
+            self.data_undone.push(Past { data: now, checked });
+            Self::forget_old(&mut self.data_undone, self.settings.undo_remembered_checks);
         }
-        self.recheck();
+        self.recheck(kept);
         self.selection.prune(&self.board);
         true
     }
@@ -462,11 +525,18 @@ impl BoardEdit {
             return false;
         }
         self.done.push(step);
+        let mut kept = None;
+        let checked = self.remember();
         if let Some(after) = self.data_undone.pop() {
-            let before = std::mem::replace(&mut self.zone_data, after);
-            self.data_done.push(before);
+            let before = std::mem::replace(&mut self.zone_data, after.data);
+            kept = after.checked;
+            self.data_done.push(Past {
+                data: before,
+                checked,
+            });
+            Self::forget_old(&mut self.data_done, self.settings.undo_remembered_checks);
         }
-        self.recheck();
+        self.recheck(kept);
         self.selection.prune(&self.board);
         true
     }
@@ -627,7 +697,12 @@ impl BoardEdit {
             op: plan.board_op.clone(),
             inverse,
         });
-        self.data_done.push(self.zone_data.clone());
+        let past = Past {
+            data: self.zone_data.clone(),
+            checked: self.remember(),
+        };
+        self.data_done.push(past);
+        Self::forget_old(&mut self.data_done, self.settings.undo_remembered_checks);
         self.zone_data = Arc::new(plan.data);
         self.undone.clear();
         self.data_undone.clear();
@@ -635,6 +710,7 @@ impl BoardEdit {
         if self.settings.live_drc {
             self.findings = after;
         }
+        self.fresh = self.settings.live_drc.then_some(self.settings.advanced_drc);
         let forced = force && drc.adds_error();
         Ok(Outcome {
             created: plan.created,
@@ -779,13 +855,19 @@ impl BoardEdit {
                 op: alternative.clone(),
                 inverse,
             });
-            self.data_done.push(self.zone_data.clone());
+            let past = Past {
+                data: self.zone_data.clone(),
+                checked: self.remember(),
+            };
+            self.data_done.push(past);
+            Self::forget_old(&mut self.data_done, self.settings.undo_remembered_checks);
             self.undone.clear();
             self.data_undone.clear();
             self.revision += 1;
             if self.settings.live_drc {
                 self.findings = after;
             }
+            self.fresh = self.settings.live_drc.then_some(self.settings.advanced_drc);
             let forced = force && drc.adds_error();
             return Ok(Outcome {
                 created: planned.created.clone(),

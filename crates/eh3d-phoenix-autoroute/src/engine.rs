@@ -24,12 +24,13 @@ use crate::codes::{
     PAIR_WITH_VIA, RIPUP_LIMIT, TOO_MANY_CONNECTIONS, VIA_SNAPPED,
 };
 use crate::config::{AutorouteConfig, NetOrder, DEFAULT_WEIGHT};
+use crate::fast::Fast;
 use crate::geom::{half_up, isqrt_ceil, pair, turn, P};
 use crate::obstacles::{build, BuildParams, Obs, Spec, ViaSpec, World};
 use crate::plan::{
     finish, AutoroutePlan, NetOutcome, NetStats, PlannedTrack, PlannedVia, Totals, Unrouted,
 };
-use crate::search::{search, terminals, Endpoint, Found, Grid, Job, Miss, Terminal};
+use crate::search::{search, stub_len, terminals, Endpoint, Found, Grid, Job, Miss, Terminal};
 
 /// What to route: the nets and the layers, by name. Empty means all of them.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -179,7 +180,7 @@ struct Engine<'a> {
     nets: Vec<NetInfo>,
     conns: Vec<Conn>,
     routed: Vec<Option<Routed>>,
-    history: HashMap<(usize, i64, i64), u32>,
+    history: Fast<(usize, i64, i64), u32>,
     /// For each net, the vias of it that are on the board and sit on a node of the grid.
     free_vias: ViaSpans,
     /// For each net, where those vias really are when that is not the node itself.
@@ -193,6 +194,20 @@ struct Engine<'a> {
     net_exp: Vec<u64>,
     /// The limit of expanded nodes of each net (0: none).
     net_limit: Vec<u64>,
+}
+
+/// The length of the tracks of a route.
+fn length_of(route: &Assembled) -> i64 {
+    route.runs.iter().map(|r| stub_len(&r.pts)).sum()
+}
+
+/// The corners of the tracks of a route.
+fn corners_of(route: &Assembled) -> usize {
+    route
+        .runs
+        .iter()
+        .map(|r| r.pts.len().saturating_sub(2))
+        .sum()
 }
 
 /// Removes the middle point of three that are on one line and the repeated points.
@@ -291,6 +306,127 @@ fn assemble(
 }
 
 impl Engine<'_> {
+    /// The route of a search as runs of tracks and vias.
+    fn assembled(
+        &self,
+        c: usize,
+        found: &Found,
+        sources: &[Terminal],
+        targets: &[Terminal],
+    ) -> Assembled {
+        let net = self.conns[c].net;
+        assemble(
+            found,
+            sources,
+            targets,
+            &self.slots,
+            &self.grid,
+            &self.free_vias[net],
+            &self.via_off[net],
+        )
+    }
+
+    /// What a route costs in nanometres of track: its length, its vias and its corners, the last
+    /// two with the weight of the net.
+    fn cost(&self, c: usize, route: &Assembled) -> i64 {
+        let weight = self.weights[self.conns[c].net];
+        let via = self.cfg.via_penalty_nm * weight / DEFAULT_WEIGHT;
+        let corner = self.cfg.corner_penalty_nm * weight / DEFAULT_WEIGHT;
+        length_of(route)
+            .saturating_add(via.saturating_mul(route.vias.len() as i64))
+            .saturating_add(corner.saturating_mul(corners_of(route) as i64))
+    }
+
+    /// True when there is nothing worth looking for again: no more vias than the ends need, at
+    /// most two corners and a length within a step of the grid of the shortest way there is.
+    fn is_direct(&self, c: usize, route: &Assembled) -> bool {
+        let conn = &self.conns[c];
+        let apart = !conn.a.slots.iter().any(|s| conn.b.slots.contains(s));
+        let (dx, dy) = (
+            (conn.a.at.0 - conn.b.at.0).abs(),
+            (conn.a.at.1 - conn.b.at.1).abs(),
+        );
+        let shortest = if self.cfg.diagonal {
+            dx.max(dy) + dx.min(dy) * 414 / 1000
+        } else {
+            dx + dy
+        };
+        route.vias.len() <= usize::from(apart)
+            && corners_of(route) <= 2
+            && length_of(route) <= shortest.saturating_add(self.grid.pitch)
+    }
+
+    /// Routes a connection again with all the others in place and keeps the way that costs less;
+    /// true when it changed.
+    fn improve(&mut self, c: usize) -> bool {
+        let Some(old) = self.routed[c].take() else {
+            return false;
+        };
+        for (layer, id) in &old.handles {
+            self.world.take(*layer, *id);
+        }
+        // what was torn up during the run does not count against a place any more
+        let history = std::mem::take(&mut self.history);
+        let attempt = self.attempt(c, false);
+        self.history = history;
+        if let Attempt::Found(found, sources, targets) = attempt {
+            let new = self.assembled(c, &found, &sources, &targets);
+            if self.cost(c, &new) < self.cost(c, &old.assembled) {
+                self.commit(c, new);
+                return true;
+            }
+        }
+        self.commit(c, old.assembled);
+        false
+    }
+
+    /// The passes after the run: the routes that could be better are routed again, and the
+    /// connections that found no way are tried once more in the room that is there now. The
+    /// connections of `kept` stay as they are.
+    fn optimise(
+        &mut self,
+        order: &[usize],
+        kept: &BTreeSet<usize>,
+        failures: &mut BTreeMap<usize, (&'static str, String)>,
+    ) {
+        let mut moved = self.ripups > 0;
+        for _ in 0..self.cfg.optimize_passes {
+            let mut changed = false;
+            for &c in order {
+                if self.expansions >= self.cfg.max_expansions_total {
+                    return;
+                }
+                let worth = !kept.contains(&c)
+                    && self.routed[c]
+                        .as_ref()
+                        .is_some_and(|r| !self.is_direct(c, &r.assembled));
+                if worth && self.improve(c) {
+                    changed = true;
+                }
+            }
+            moved |= changed;
+            if !changed {
+                break;
+            }
+        }
+        if self.cfg.optimize_passes == 0 || !moved {
+            return;
+        }
+        for &c in order {
+            let again = failures
+                .get(&c)
+                .is_some_and(|(code, _)| *code == NO_PATH || *code == RIPUP_LIMIT);
+            if !again || self.expansions >= self.cfg.max_expansions_total {
+                continue;
+            }
+            if let Attempt::Found(found, sources, targets) = self.attempt(c, false) {
+                let new = self.assembled(c, &found, &sources, &targets);
+                self.commit(c, new);
+                failures.remove(&c);
+            }
+        }
+    }
+
     fn spec(&self, net: usize) -> Spec {
         let info = &self.nets[net];
         Spec {
@@ -857,7 +993,7 @@ fn route_once(
         nets,
         routed: (0..conns.len()).map(|_| None).collect(),
         conns,
-        history: HashMap::new(),
+        history: Fast::default(),
         free_vias,
         via_off,
         drill_gap: rules.min_drill_spacing.get(),
@@ -893,6 +1029,7 @@ fn route_once(
     }
     // the differential pairs, coupled when there is room
     let mut coupled: Vec<String> = Vec::new();
+    let mut paired: BTreeSet<usize> = BTreeSet::new();
     for spec in pairs {
         let (Some(p), Some(n)) = (
             find_net(board, &spec.positive),
@@ -923,6 +1060,9 @@ fn route_once(
         let spent = engine.expansions - before;
         engine.net_exp[np] += spent - spent / 2;
         engine.net_exp[nn] += spent / 2;
+        if verdict.is_ok() {
+            paired.extend([cp[0], cn[0]]);
+        }
         match verdict {
             Ok(0) => coupled.push(spec.name.clone()),
             Ok(1) => {
@@ -973,15 +1113,7 @@ fn route_once(
         }
         match engine.attempt(c, false) {
             Attempt::Found(found, sources, targets) => {
-                let assembled = assemble(
-                    &found,
-                    &sources,
-                    &targets,
-                    &engine.slots,
-                    &engine.grid,
-                    &engine.free_vias[engine.conns[c].net],
-                    &engine.via_off[engine.conns[c].net],
-                );
+                let assembled = engine.assembled(c, &found, &sources, &targets);
                 engine.commit(c, assembled);
             }
             Attempt::Missed(code, detail) => {
@@ -1005,15 +1137,7 @@ fn route_once(
                 rips[c] += 1;
                 match engine.attempt(c, true) {
                     Attempt::Found(found, sources, targets) => {
-                        let assembled = assemble(
-                            &found,
-                            &sources,
-                            &targets,
-                            &engine.slots,
-                            &engine.grid,
-                            &engine.free_vias[engine.conns[c].net],
-                            &engine.via_off[engine.conns[c].net],
-                        );
+                        let assembled = engine.assembled(c, &found, &sources, &targets);
                         let crossed = engine.crossing(c, &assembled);
                         if !crossed.is_empty() {
                             engine.ripups += 1;
@@ -1038,6 +1162,8 @@ fn route_once(
             }
         }
     }
+    // the tracks of a coupled pair stay side by side: the passes leave them as they are
+    engine.optimise(&order, &paired, &mut failures);
     // the result, net by net
     let mut outcomes: Vec<NetOutcome> = Vec::new();
     let mut unrouted: Vec<Unrouted> = Vec::new();
