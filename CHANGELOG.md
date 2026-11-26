@@ -4,6 +4,7 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **A new window «About»:** the picture of the program inside a ring of its colour (fire orange), the name in large letters, one sentence about the program in the eight languages, the version, the author and the e-mail, links to the page of the author and to the repository and the licence. It is the window of the docking frame of the suite (`eh3d-dock`), so the workflows build against `EH3D-COMMON` at `main` until a release of it carries the window.
 - **Library files with long decimals are read as drawings:** a number with more than six decimals no longer turns its pad, line or text into XML that cannot be edited; it is read to the nearest millionth, so the item is drawn, checked and edited like any other. In a sample of a private collection this was the case of about one library in five that is not in the old binary form.
 - **Those numbers are saved as they were:** the text of each is kept beside its item and written back for as long as the value is the one that was read; an edited value is written as the new one.
 - **A number with an exponent is read, and the place of a gate is no longer lost:** an exponent is worked out without floating point, and a gate of a device set whose place had many decimals is no longer moved to the origin.

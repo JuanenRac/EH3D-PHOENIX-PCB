@@ -9,6 +9,7 @@
 //! There are no levels of experience: one arrangement for each kind of work, and every panel can be
 //! taken away, put back, moved, tabbed, floated or folded by the person.
 
+use eh3d_dock::about::{AboutBrand, Phoenix};
 use eh3d_dock::core::PanelDef;
 use eh3d_dock::geom::Side;
 use eh3d_dock::menu::{Entry, Item, Label, Menu, MenuBar, StdAction};
@@ -20,6 +21,14 @@ use eh3d_dock::stdmenus::{
 };
 use eh3d_dock::texts::Text8;
 use eh3d_dock::workspaces::Workspace;
+
+/// The look of the window «About»: which program of the family this is and its own picture, drawn in a ring of its colour.
+pub fn about_brand() -> AboutBrand {
+    AboutBrand {
+        program: Phoenix::Pcb,
+        logo_png: include_bytes!("../../../images/brand/icon-256.png"),
+    }
+}
 use eh3d_phoenix_boardedit::actions::EditAction;
 use eh3d_phoenix_rules::Lang;
 use eh3d_view::texts::Lang as ViewLang;
@@ -1072,5 +1081,25 @@ mod tests {
                 "{shown}"
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod about_tests {
+    use super::*;
+
+    #[test]
+    fn the_window_about_has_the_name_the_repository_and_the_picture_of_this_program() {
+        let brand = about_brand();
+        assert_eq!(brand.program, Phoenix::Pcb);
+        assert_eq!(brand.program.name(), "EH3D-PHOENIX-PCB");
+        assert_eq!(
+            brand.program.repository(),
+            "https://github.com/JuanenRac/EH3D-PHOENIX-PCB"
+        );
+        let png = brand.logo_png;
+        assert_eq!(png.get(1..4), Some(&b"PNG"[..]));
+        // the width and the height in the header of the picture
+        assert_eq!(png.get(16..24), Some(&[0, 0, 1, 0, 0, 0, 1, 0][..]));
     }
 }
