@@ -4,6 +4,10 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **Library files with long decimals are read as drawings:** a number with more than six decimals no longer turns its pad, line or text into XML that cannot be edited; it is read to the nearest millionth, so the item is drawn, checked and edited like any other. In a sample of a private collection this was the case of about one library in five that is not in the old binary form.
+- **Those numbers are saved as they were:** the text of each is kept beside its item and written back for as long as the value is the one that was read; an edited value is written as the new one.
+- **A number with an exponent is read, and the place of a gate is no longer lost:** an exponent is worked out without floating point, and a gate of a device set whose place had many decimals is no longer moved to the origin.
+
 ## [0.1.6] - Board editor operations, user programs that read most of a real folder, named values and files in one allowed folder, EAGLE reader measured on real boards
 
 - **Most of the user programs of the owner's list can now be read:** `#usage` texts one after the other, `f(void)`, `enum`, `numeric` arrays, `int(x)`, `real(x)`, `char(x)` and `string(x)` as conversions, a walk or a layout over a single statement, a backslash before a character that is no escape (it stands for the character), a text that goes on in the next line and the end-of-file mark of old systems are no longer problems of reading. Measured on the folder of the owner (893 programs, aggregate figures only): programs with problems of reading went from 748 to 38.

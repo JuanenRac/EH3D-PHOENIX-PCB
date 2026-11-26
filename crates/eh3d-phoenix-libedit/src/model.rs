@@ -14,6 +14,8 @@ use std::sync::Arc;
 use eh3d_phoenix_eagle::Element;
 use serde::{Deserialize, Serialize};
 
+use crate::exact::kept_in;
+
 /// The layer of the top copper.
 pub const LAYER_TOP: u32 = 1;
 /// The layer of the bottom copper.
@@ -571,6 +573,36 @@ impl Kind {
 }
 
 impl Library {
+    /// How many numbers have more decimals than the model holds and are kept as their text, in the
+    /// items of the footprints and symbols and in the places of the gates.
+    pub fn kept_numbers(&self) -> usize {
+        let of_items = |items: &[Item]| -> usize {
+            items
+                .iter()
+                .map(|item| match item {
+                    Item::Pad(i) => kept_in(&i.extra),
+                    Item::Smd(i) => kept_in(&i.extra),
+                    Item::Wire(i) => kept_in(&i.extra),
+                    Item::Rect(i) => kept_in(&i.extra),
+                    Item::Circle(i) => kept_in(&i.extra),
+                    Item::Hole(i) => kept_in(&i.extra),
+                    Item::Pin(i) => kept_in(&i.extra),
+                    Item::Text(i) => kept_in(&i.extra),
+                    Item::Other(_) => 0,
+                })
+                .sum()
+        };
+        let packages: usize = self.packages.iter().map(|p| of_items(&p.items)).sum();
+        let symbols: usize = self.symbols.iter().map(|s| of_items(&s.items)).sum();
+        let gates: usize = self
+            .devicesets
+            .iter()
+            .flat_map(|d| &d.gates)
+            .map(|g| kept_in(&g.extra))
+            .sum();
+        packages + symbols + gates
+    }
+
     /// An empty library with the skeleton of a file of EAGLE 9.
     pub fn empty() -> Library {
         let skeleton = el(

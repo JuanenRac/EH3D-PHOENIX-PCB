@@ -1,15 +1,17 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! Reading an EAGLE library file (`.lbr`) into the model. A value the model cannot hold exactly
-//! (a number with more than six decimals, an exponent, a missing coordinate) makes the whole item
-//! stay as the XML it came from, so that nothing is rounded or invented.
+//! Reading an EAGLE library file (`.lbr`) into the model. A number with more than six decimals or
+//! with an exponent is read to the nearest millionth and its text is kept beside the item, so that
+//! saving writes it as it was (see `exact`). A value the model cannot hold at all (a text that is
+//! not a number, a missing coordinate) makes the whole item stay as the XML it came from, so that
+//! nothing is invented.
 
 use std::sync::Arc;
 
 use eh3d_phoenix_eagle::xml::parse;
 use eh3d_phoenix_eagle::{Element, Limits};
-use eh3d_phoenix_model::Nm;
 
 use crate::codes::{LibError, FILE_UNUSABLE};
+use crate::exact::{kept, millionths};
 use crate::model::{
     Circle, Connect, Device, DeviceSet, Gate, Hole, Item, Library, Package, Pad, PadShape, Pin,
     Rect, Smd, Symbol, Text, Wire,
@@ -17,9 +19,10 @@ use crate::model::{
 
 /// A length or an angle as an exact integer of millionths; `None` when the text has more
 /// decimals than that or is not a plain decimal.
+#[cfg(test)]
 pub(crate) fn exact_millionths(text: &str) -> Option<i64> {
-    match Nm::parse_mm(text.trim()) {
-        Ok((value, true)) => Some(value.get()),
+    match millionths(text) {
+        Some((value, true)) => Some(value),
         _ => None,
     }
 }
@@ -28,6 +31,8 @@ pub(crate) fn exact_millionths(text: &str) -> Option<i64> {
 struct Attrs<'a> {
     element: &'a Element,
     used: Vec<&'static str>,
+    /// The texts of the numbers that the millionths do not say in full.
+    texts: Vec<(String, String)>,
     ok: bool,
 }
 
@@ -36,6 +41,7 @@ impl<'a> Attrs<'a> {
         Attrs {
             element,
             used: Vec::new(),
+            texts: Vec::new(),
             ok: true,
         }
     }
@@ -65,8 +71,13 @@ impl<'a> Attrs<'a> {
                 }
                 0
             }
-            Some(text) => match exact_millionths(text) {
-                Some(v) => v,
+            Some(text) => match millionths(text) {
+                Some((v, exact)) => {
+                    if !exact {
+                        self.texts.push(kept(name, text));
+                    }
+                    v
+                }
                 None => {
                     self.ok = false;
                     0
@@ -122,6 +133,7 @@ impl<'a> Attrs<'a> {
             .iter()
             .filter(|(k, _)| !self.used.contains(&k.as_str()))
             .cloned()
+            .chain(self.texts.iter().cloned())
             .collect()
     }
 }
@@ -652,15 +664,50 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn a_number_with_too_many_decimals_keeps_the_item_as_it_came() {
+    fn a_number_with_too_many_decimals_is_rounded_in_the_model_and_written_as_it_was() {
         let text = SAMPLE.replace(
             "x=\"0.8\" y=\"0\" dx=\"0.8\"",
             "x=\"0.8000001\" y=\"0\" dx=\"0.8\"",
         );
         let lib = read_library(text.as_bytes(), &Limits::default()).unwrap();
         let r = lib.package("R0603").unwrap();
-        assert!(matches!(r.items[1], Item::Other(_)));
-        assert_eq!(lib.kept_raw, 2);
+        match &r.items[1] {
+            Item::Smd(s) => assert_eq!(s.x, 800_000),
+            other => panic!("{other:?}"),
+        }
+        assert_eq!(lib.kept_raw, 1);
+        assert_eq!(lib.kept_numbers(), 1);
+        let written = crate::write::verify_round_trip(&lib).unwrap();
+        assert!(written.contains("x=\"0.8000001\""));
+    }
+
+    #[test]
+    fn an_edited_value_is_written_as_the_new_value() {
+        let text = SAMPLE.replace(
+            "x=\"0.8\" y=\"0\" dx=\"0.8\"",
+            "x=\"0.8000001\" y=\"0\" dx=\"0.8\"",
+        );
+        let mut lib = read_library(text.as_bytes(), &Limits::default()).unwrap();
+        let at = lib.package_index("R0603").unwrap();
+        match &mut Arc::make_mut(&mut lib.packages[at]).items[1] {
+            Item::Smd(s) => s.x = 900_000,
+            other => panic!("{other:?}"),
+        }
+        let written = crate::write::verify_round_trip(&lib).unwrap();
+        assert!(written.contains("x=\"0.9\""));
+        assert!(!written.contains("0.8000001"));
+    }
+
+    #[test]
+    fn a_gate_keeps_a_place_with_many_decimals() {
+        let text = SAMPLE.replace(
+            "<gate name=\"G$1\" symbol=\"R\" x=\"0\" y=\"0\"/>",
+            "<gate name=\"G$1\" symbol=\"R\" x=\"-2.539996875\" y=\"0\"/>",
+        );
+        let lib = read_library(text.as_bytes(), &Limits::default()).unwrap();
+        assert_eq!(lib.deviceset("R").unwrap().gates[0].x, -2_539_997);
+        let written = crate::write::verify_round_trip(&lib).unwrap();
+        assert!(written.contains("x=\"-2.539996875\""));
     }
 
     #[test]

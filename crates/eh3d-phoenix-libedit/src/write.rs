@@ -11,6 +11,7 @@ use eh3d_phoenix_eagle::{write_document, Element, Limits};
 use sha2::{Digest, Sha256};
 
 use crate::codes::{LibError, BACKUP_FAILED, ROUND_TRIP, WRITE_FAILED};
+use crate::exact::{restore, MARK};
 use crate::model::{DeviceSet, Item, Library, Package, Symbol};
 use crate::read::read_library;
 
@@ -41,7 +42,8 @@ fn yes_no(value: bool) -> &'static str {
     }
 }
 
-fn element(name: &str, attrs: Attrs, text: &str, children: Vec<Element>) -> Element {
+fn element(name: &str, mut attrs: Attrs, text: &str, children: Vec<Element>) -> Element {
+    restore(&mut attrs);
     Element {
         name: name.to_owned(),
         attrs,
@@ -332,6 +334,44 @@ pub fn verify_round_trip(lib: &Library) -> Result<String, LibError> {
     Ok(text)
 }
 
+/// The attributes that the model does not use of a drawing item.
+fn extra_of(item: &mut Item) -> Option<&mut Vec<(String, String)>> {
+    Some(match item {
+        Item::Pad(i) => &mut i.extra,
+        Item::Smd(i) => &mut i.extra,
+        Item::Wire(i) => &mut i.extra,
+        Item::Rect(i) => &mut i.extra,
+        Item::Circle(i) => &mut i.extra,
+        Item::Hole(i) => &mut i.extra,
+        Item::Pin(i) => &mut i.extra,
+        Item::Text(i) => &mut i.extra,
+        Item::Other(_) => return None,
+    })
+}
+
+/// The items without the texts kept for their numbers, which are not part of the model: an edited
+/// value leaves behind a text that no longer says it.
+fn bare_items(items: &[Item]) -> Vec<Item> {
+    items
+        .iter()
+        .cloned()
+        .map(|mut item| {
+            if let Some(extra) = extra_of(&mut item) {
+                extra.retain(|(name, _)| !name.starts_with(MARK));
+            }
+            item
+        })
+        .collect()
+}
+
+fn bare_set(set: &DeviceSet) -> DeviceSet {
+    let mut set = set.clone();
+    for gate in &mut set.gates {
+        gate.extra.retain(|(name, _)| !name.starts_with(MARK));
+    }
+    set
+}
+
 /// What differs first between two libraries, as a sentence; `None` when they are the same in
 /// everything that the model holds.
 pub fn first_difference(a: &Library, b: &Library) -> Option<String> {
@@ -357,17 +397,21 @@ pub fn first_difference(a: &Library, b: &Library) -> Option<String> {
         ));
     }
     for (x, y) in a.packages.iter().zip(b.packages.iter()) {
-        if x != y {
+        if (&x.name, &x.description, &x.extra) != (&y.name, &y.description, &y.extra)
+            || bare_items(&x.items) != bare_items(&y.items)
+        {
             return Some(format!("footprint {} differs", x.name));
         }
     }
     for (x, y) in a.symbols.iter().zip(b.symbols.iter()) {
-        if x != y {
+        if (&x.name, &x.description, &x.extra) != (&y.name, &y.description, &y.extra)
+            || bare_items(&x.items) != bare_items(&y.items)
+        {
             return Some(format!("symbol {} differs", x.name));
         }
     }
     for (x, y) in a.devicesets.iter().zip(b.devicesets.iter()) {
-        if x != y {
+        if bare_set(x) != bare_set(y) {
             return Some(format!("device set {} differs", x.name));
         }
     }

@@ -33,6 +33,7 @@ pub mod compare;
 pub mod compare_report;
 #[cfg(test)]
 mod compare_tests;
+mod exact;
 pub mod footprints;
 pub mod geom;
 pub mod model;
