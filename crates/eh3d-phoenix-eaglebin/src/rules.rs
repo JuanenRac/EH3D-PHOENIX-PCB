@@ -263,7 +263,8 @@ pub fn read(tail: &[u8], report: &mut Report) -> Design {
             "",
         );
     } else {
-        report.note(codes::VALUE, "no design rules found in the board", "");
+        // the boards of version 3 hold none in this form: information, not a loss
+        report.note(codes::NOT_READ, "no design rules found in the board", "");
     }
     design
 }
@@ -284,7 +285,8 @@ mod tests {
             let design = read(&tail, &mut report);
             assert!(design.rules.is_none());
             assert_eq!(design.classes.len(), 1);
-            assert_eq!(report.noted(codes::VALUE), 1);
+            assert_eq!(report.noted(codes::NOT_READ), 1);
+            assert!(!report.has_losses());
         }
     }
 }
