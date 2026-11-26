@@ -24,7 +24,8 @@ Diese Seite stellt die Begriffe und Befehle von EAGLE und KiCad denen dieses Pro
 |---|---|---|
 | EAGLE `.sch`, `.brd`, `.lbr` (XML) | `eagle-check` und jeder Befehl, der eine Platine oder einen Schaltplan nimmt | Platinen und Schaltpläne als EAGLE-XML: `boardedit`, `sync --apply`, `annotate --apply`; Bibliotheken: `libedit`, `footprint`, `ipc` |
 | EAGLE binary `.lbr` (Versionen 3 bis 5) | `libedit` | nein |
-| EAGLE binary `.sch`, `.brd` | nein | nein |
+| EAGLE binary `.brd` (Versionen 3 bis 5) | Fenster, Suite-Projekt, die Befehle für eine Platine; `eagle-convert xml` | nein |
+| EAGLE binary `.sch` | nein | nein |
 | EAGLE `.dru` | `check --rules-dru`, `eagle-convert dru-to-rules` | `eagle-convert rules-to-dru` |
 | EAGLE `.cam` | `cam-import`, `eagle-convert cam-to-profile` | - |
 | EAGLE `.scr` | `script run`, `script report` | - |
@@ -37,7 +38,7 @@ Diese Seite stellt die Begriffe und Befehle von EAGLE und KiCad denen dieses Pro
 ## Was verloren geht
 
 * Das Entwurfsmodell enthält keine KiCad-Grafiken, Busse, No-Connect-Markierungen, das Setup einer Platine, das gefüllte Kupfer von Flächen, Sperrflächen und 3D-Modelle; die Leser zählen sie als ausgelassen und sagen das im Bericht.
-* EAGLE: Binäre Platinen und Schaltpläne werden nicht gelesen (binäre Bibliotheken schon, `EAGLE_BINARY.md`), ULP-Programme laufen nur zum Teil (`phoenix ulp report` sagt, was ein Programm verwendet, ob die Namensliste es abdeckt und ob der Auswerter es ausführt; `phoenix ulp run` führt reine Berechnungen und schreibgeschützte Durchläufe aus, nie eine Datei, einen Befehl oder eine Änderung am Entwurf), und `phoenix eagle-check` listet die Elemente, die das Modell vereinfacht, mit Codes in acht Sprachen.
+* EAGLE: Binäre Schaltpläne werden nicht gelesen (binäre Bibliotheken und Platinen schon, `EAGLE_BINARY.md`), ULP-Programme laufen nur zum Teil (`phoenix ulp report` sagt, was ein Programm verwendet, ob die Namensliste es abdeckt und ob der Auswerter es ausführt; `phoenix ulp run` führt reine Berechnungen und schreibgeschützte Durchläufe aus, nie eine Datei, einen Befehl oder eine Änderung am Entwurf), und `phoenix eagle-check` listet die Elemente, die das Modell vereinfacht, mit Codes in acht Sprachen.
 * Eine Eingabe wird nie überschrieben: Eine Umwandlung erzeugt immer eine neue Datei.
 
 ## Erste Schritte
