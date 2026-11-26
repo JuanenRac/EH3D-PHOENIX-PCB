@@ -2,7 +2,7 @@
 //! The diagnostic codes of the reader of binary libraries, `PHOENIX-EAGLEBIN-<NNN>`, with their
 //! titles in the eight languages of the suite, and the error type that carries one.
 //!
-//! Codes 001 to 005 stop the read; codes 006 and above are notes of the conversion report.
+//! Codes 001 to 005 and 012 stop the read; codes 006 to 011 are notes of the conversion report.
 
 use eh3d_phoenix_rules::Lang;
 
@@ -28,10 +28,12 @@ pub const REFERENCE: &str = "PHOENIX-EAGLEBIN-009";
 pub const ENCODING: &str = "PHOENIX-EAGLEBIN-010";
 /// Data of the file that the reader does not interpret.
 pub const NOT_READ: &str = "PHOENIX-EAGLEBIN-011";
+/// The file is binary and is not a board.
+pub const NOT_BOARD: &str = "PHOENIX-EAGLEBIN-012";
 
 /// Every code with its titles in English, Spanish, German, French, Italian, Japanese, Chinese
 /// and European Portuguese, in order.
-pub const TITLES: [(&str, [&str; 8]); 11] = [
+pub const TITLES: [(&str, [&str; 8]); 12] = [
     (
         NOT_BINARY,
         [
@@ -173,6 +175,19 @@ pub const TITLES: [(&str, [&str; 8]); 11] = [
             "解釈していないファイル内のデータ",
             "文件中未解释的数据",
             "Dados do ficheiro não interpretados",
+        ],
+    ),
+    (
+        NOT_BOARD,
+        [
+            "Binary file is not a board",
+            "El archivo binario no es una placa",
+            "Die binäre Datei ist keine Platine",
+            "Le fichier binaire n'est pas un circuit imprimé",
+            "Il file binario non è un circuito stampato",
+            "バイナリファイルは基板ではありません",
+            "二进制文件不是电路板",
+            "O ficheiro binário não é uma placa",
         ],
     ),
 ];

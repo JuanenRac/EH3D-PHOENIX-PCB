@@ -82,6 +82,16 @@ impl Report {
             .sum()
     }
 
+    /// How many objects or values are missing or different, as [`Report::has_losses`] counts
+    /// them.
+    pub fn losses(&self) -> usize {
+        self.notes
+            .iter()
+            .filter(|n| n.code != codes::ENCODING && n.code != codes::NOT_READ)
+            .map(|n| n.count)
+            .sum()
+    }
+
     /// True when something of the file is missing or different in the converted library. The
     /// notes about text encoding and about data that has no meaning for a library do not count.
     pub fn has_losses(&self) -> bool {

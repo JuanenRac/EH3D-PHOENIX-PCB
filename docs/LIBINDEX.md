@@ -71,6 +71,6 @@ Without options it prints the quality report as text (`--lang` writes the titles
 ## What it does not do
 
 * Copy the libraries, merge them into one or choose a master among duplicates; the sanitizer and the library editor do that, with a confirmation.
-* Read binary boards or schematics of EAGLE (binary libraries are read, `docs/EAGLE_BINARY.md`), KiCad 5 libraries (`.lib`, `.mod`) or other formats.
+* Read binary schematics of EAGLE (binary libraries and boards are read, `docs/EAGLE_BINARY.md`; boards are not part of a library index), KiCad 5 libraries (`.lib`, `.mod`) or other formats.
 * Judge the drawings: silkscreen, courtyards and 3D models are not part of the quality report.
 * Know whether a footprint is the right one for a part; it only finds faults in how it is drawn.

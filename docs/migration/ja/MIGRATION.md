@@ -24,7 +24,8 @@
 |---|---|---|
 | EAGLE `.sch`, `.brd`, `.lbr` (XML) | `eagle-check` および、基板や回路図を受け取るすべてのコマンド | EAGLE XML としての基板と回路図: `boardedit`, `sync --apply`, `annotate --apply`; ライブラリ: `libedit`, `footprint`, `ipc` |
 | EAGLE binary `.lbr` （バージョン 3～5） | `libedit` | いいえ |
-| EAGLE binary `.sch`, `.brd` | いいえ | いいえ |
+| EAGLE binary `.brd` （バージョン 3～5） | ウィンドウ、スイートのプロジェクト、基板を受け取るコマンド；`eagle-convert xml` | いいえ |
+| EAGLE binary `.sch` | いいえ | いいえ |
 | EAGLE `.dru` | `check --rules-dru`, `eagle-convert dru-to-rules` | `eagle-convert rules-to-dru` |
 | EAGLE `.cam` | `cam-import`, `eagle-convert cam-to-profile` | - |
 | EAGLE `.scr` | `script run`, `script report` | - |
@@ -37,7 +38,7 @@
 ## 失われるもの
 
 * 設計モデルは、KiCad の図形、バス、ノーコネクト記号、基板のセットアップ、ゾーンの塗りつぶし銅箔、禁止領域、3D モデルを保持しません。リーダはこれらを「除外」として数え、レポートに記します。
-* EAGLE：バイナリの基板と回路図は読めず（バイナリライブラリは読めます、`EAGLE_BINARY.md`）、ULP プログラムは一部しか実行できません（`phoenix ulp report` は、プログラムが何を使い、名前の一覧が対応しているか、評価器が実行できるかを示します。`phoenix ulp run` は純粋な計算と読み取り専用の走査を実行し、ファイル、コマンド、設計の変更は行いません）。モデルが簡略化する要素は `phoenix eagle-check` が 8 言語のコード付きで一覧にします。
+* EAGLE：バイナリの回路図は読めず（バイナリのライブラリと基板は読めます、`EAGLE_BINARY.md`）、ULP プログラムは一部しか実行できません（`phoenix ulp report` は、プログラムが何を使い、名前の一覧が対応しているか、評価器が実行できるかを示します。`phoenix ulp run` は純粋な計算と読み取り専用の走査を実行し、ファイル、コマンド、設計の変更は行いません）。モデルが簡略化する要素は `phoenix eagle-check` が 8 言語のコード付きで一覧にします。
 * 入力ファイルは決して上書きされません。変換は常に新しいファイルを作ります。
 
 ## 最初の手順

@@ -115,6 +115,7 @@ mod tests {
             Loaded {
                 document,
                 unread: 0,
+                binary: None,
             },
             input,
             ViewerSettings::default(),

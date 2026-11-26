@@ -24,7 +24,8 @@ Esta página pone las ideas y comandos de EAGLE y KiCad junto a los de este prog
 |---|---|---|
 | EAGLE `.sch`, `.brd`, `.lbr` (XML) | `eagle-check` y todos los comandos que toman una placa o un esquema | placas y esquemas como XML de EAGLE: `boardedit`, `sync --apply`, `annotate --apply`; bibliotecas: `libedit`, `footprint`, `ipc` |
 | EAGLE binary `.lbr` (versiones 3 a 5) | `libedit` | no |
-| EAGLE binary `.sch`, `.brd` | no | no |
+| EAGLE binary `.brd` (versiones 3 a 5) | ventana, proyecto de la suite, las órdenes que toman una placa; `eagle-convert xml` | no |
+| EAGLE binary `.sch` | no | no |
 | EAGLE `.dru` | `check --rules-dru`, `eagle-convert dru-to-rules` | `eagle-convert rules-to-dru` |
 | EAGLE `.cam` | `cam-import`, `eagle-convert cam-to-profile` | - |
 | EAGLE `.scr` | `script run`, `script report` | - |
@@ -37,7 +38,7 @@ Esta página pone las ideas y comandos de EAGLE y KiCad junto a los de este prog
 ## Qué se pierde
 
 * El modelo de diseño no guarda gráficos de KiCad, buses, marcas de no conexión, la configuración de la placa, el cobre relleno de las zonas, las zonas de exclusión ni los modelos 3D; los lectores los cuentan como omitidos y lo dicen en el informe.
-* EAGLE: las placas y los esquemáticos binarios no se leen (las bibliotecas binarias sí, `EAGLE_BINARY.md`), los programas ULP solo se ejecutan en parte (`phoenix ulp report` dice qué usa un programa, si la lista de nombres lo cubre y si el evaluador lo ejecuta; `phoenix ulp run` ejecuta cálculo puro y recorridos de solo lectura, y nunca un archivo, un comando ni un cambio del diseño), y `phoenix eagle-check` lista los elementos que el modelo simplifica, con códigos en ocho idiomas.
+* EAGLE: los esquemáticos binarios no se leen (las bibliotecas y las placas binarias sí, `EAGLE_BINARY.md`), los programas ULP solo se ejecutan en parte (`phoenix ulp report` dice qué usa un programa, si la lista de nombres lo cubre y si el evaluador lo ejecuta; `phoenix ulp run` ejecuta cálculo puro y recorridos de solo lectura, y nunca un archivo, un comando ni un cambio del diseño), y `phoenix eagle-check` lista los elementos que el modelo simplifica, con códigos en ocho idiomas.
 * Nada se escribe sobre una entrada: una conversión siempre crea un fichero nuevo.
 
 ## Primeros pasos

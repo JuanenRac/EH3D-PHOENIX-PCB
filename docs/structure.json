@@ -786,14 +786,14 @@
         {
           "name": "EAGLE_BINARY.md",
           "desc": {
-            "en": "binary EAGLE libraries, versions 3 to 5",
-            "es": "bibliotecas binarias EAGLE 3 a 5",
-            "de": "binäre EAGLE-Bibliotheken 3 bis 5",
-            "fr": "bibliothèques binaires EAGLE 3 à 5",
-            "it": "librerie binarie EAGLE da 3 a 5",
-            "ja": "EAGLE 3～5 のバイナリライブラリ",
-            "zh": "EAGLE 3 至 5 的二进制库",
-            "pt": "bibliotecas binárias EAGLE 3 a 5"
+            "en": "binary EAGLE libraries and boards 3 to 5",
+            "es": "bibliotecas y placas binarias EAGLE 3 a 5",
+            "de": "binäre EAGLE-Bibliotheken und -Platinen",
+            "fr": "bibliothèques et cartes binaires EAGLE",
+            "it": "librerie e schede binarie EAGLE 3 a 5",
+            "ja": "EAGLE 3～5 のバイナリのライブラリと基板",
+            "zh": "EAGLE 3 至 5 的二进制库和电路板",
+            "pt": "bibliotecas e placas binárias EAGLE 3 a 5"
           }
         },
         {

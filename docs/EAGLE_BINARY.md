@@ -1,6 +1,6 @@
-# EH3D-PHOENIX-PCB: binary libraries of EAGLE versions 3 to 5
+# EH3D-PHOENIX-PCB: binary libraries and boards of EAGLE versions 3 to 5
 
-Crate `eh3d-phoenix-eaglebin`. It reads the `.lbr` files of the versions before the XML format into the library model of the library editor and writes a report of what was not read as it is. It is used by `phoenix libedit`, `phoenix libindex`, `phoenix ipc compare`, the library commands of the user programs and the library window. It only reads: no binary file is ever written. Boards and schematics in the binary form are not read.
+Crate `eh3d-phoenix-eaglebin`. It reads the files of the versions before the XML format and writes a report of what was not read as it is: a `.lbr` into the library model of the library editor, used by `phoenix libedit`, `phoenix libindex`, `phoenix ipc compare`, the library commands of the user programs and the library window; a `.brd` into the text of an XML board file ([Boards](#boards)). It only reads: no binary file is ever written. Schematics in the binary form are not read.
 
 ## Where the description comes from
 
@@ -75,8 +75,51 @@ A library of many megabytes can need more than 300 MB of memory, most of it when
 * The pour, thermals and orphans of a polygon (the defaults are used).
 * The fixed font and, in versions 4 and 5, the bit that turns off the thermals of a pad follow the order of the XML values and were not seen against an XML file. In version 3 that bit does not turn thermals off.
 * The mark `0x03` of a constant attribute: no XML file with such an attribute was compared.
-* Boards and schematics are not read.
 * The bits of the left and the top border of a frame follow from the ones of the right and the bottom: inferred.
+
+## Boards
+
+The same container holds a board (`.brd`). It becomes the text of an XML board file (version 9.6.2), so the window, the project of the suite, `phoenix check`, `export`, `bom`, `pnp`, `connectivity`, `route`, `autoroute`, `boardedit`, `eagle-check` and the other commands that take a board read it as they read an XML one, and each says in a note how many parts were not read as they are. `phoenix eagle-convert xml [--out new.brd] [--lang CODE] old.brd` writes the XML and prints the report; the window shows the report under «Reading of the binary file», and a project of the suite keeps the binary original.
+
+### The parts
+
+The record after the preamble is `0x1B`. Its u16 at byte 2 holds the low 16 bits of the number of records of the plain drawing, and its u32 at bytes 12, 16 and 20 the records of the libraries, the elements and the signals. On disk they come in this order: libraries, plain drawing, elements, signals.
+
+| Byte 0 | Object | Counts and fields |
+|---|---|---|
+| `0x19` | a library of the board | bytes 4 to 7: records that follow (its footprints `0x1E`, as in a library); name at byte 16, description at 10 |
+| `0x2E` | element | bytes 2 and 3: records that follow; position at 4 and 8; library at 12 and footprint at 14, both from 1; angle at 16; byte 18 bit 0: smashed |
+| `0x2F` | name and value of the element | name at 2, value at 10 |
+| `0x34`, `0x35`, `0x41` | places of the name, of the value and of another attribute | the fields of a text; `0x41` holds `name!value` at byte 18 |
+| `0x42` | attribute of the board | `name!value` at byte 7 |
+| `0x1C` | signal | bytes 2 and 3: records that follow; byte 13: net class; name at 16 |
+| `0x3E` | contact | element at 4 and pad at 6, both from 1; the pads are counted in the order of the footprint, through-hole and surface-mount together |
+| `0x29` | via | byte 2: shape; position at 4 and 8; half of the drill at 12 and of the diameter at 14 (zero: from the rules); byte 16: first and last layer |
+| `0x21` | polygon | width at 12, spacing at 14, isolation at 16 (halves), layer at 18; byte 19: bit 0 hatch, bits 1 to 3 rank, bit 6 orphans, bit 7 thermals |
+| `0x22` on layer 19 | connection not routed | its ends, and in byte 22 the layers when it asks for some |
+
+The drawing records are the ones of a library. After the long strings come the design rules (mark `10 04 00 20`: name, description, layer setup and, after `78 56 34 12`, the distances, sizes, ratios and rings) and one block for each net class (mark `25 04 00 20`: name, number, width, drill and clearances). A board leaves the diameter of most pads and vias to the rules of the restring; the reader of XML boards computes it from them.
+
+### Compared with XML saved from the same designs
+
+Six boards (versions 4.16 and 5.11) have an XML file saved later from the same design, after changes. Every element has the name, value, library, footprint and angle of the XML (two boards of them moved or changed objects afterwards), all 1381 contacts of signals name the same element and pad, and the footprint drawings agree object by object. The differences left are in objects that were edited between the two files. The distances of the design rules and the net classes agree.
+
+### What was measured
+
+The program was run, one board at a time, on a private collection of 1090 different binary boards (versions 3 to 5):
+
+* all 1090 are read, and the XML written for each is read back as the same tree;
+* 1059 have nothing that was not read as it is; the 31 others have a note, mostly about the thermals or orphans bits of a polygon or of a pad, and a few about a name used twice or a contact without its pad;
+* the 169 boards of version 3 hold no design rules in this form, so `phoenix check` asks for a rule file, and none of them has signals;
+* the largest took 66 MB of memory to convert.
+
+### What is not read or only inferred
+
+* The grid and settings of the editor, the autorouter, and the design rules other than distances, sizes, ratios and rings.
+* Whether an attribute of an element other than the name and the value is shown: it is written as not shown.
+* The thermals and orphans bits of a polygon of a signal (no file with a non-default value was compared) and the locked and not-populated marks of an element.
+* The version 3 boards of the collection hold no signals, so their records of signals were not seen.
+* Schematics (`.sch`) are not read.
 
 ## Limits and damaged files
 

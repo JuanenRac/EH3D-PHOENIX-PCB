@@ -35,6 +35,7 @@ phoenix eagle-convert rules-to-dru [--base FILE.dru] [--out FILE] [--lang CODE] 
 phoenix eagle-convert cam-to-profile [--name NAME] [--layers FILE] [--out FILE] [--lang CODE] <file.cam>
 phoenix eagle-convert layers [--layers FILE] [--lang CODE] [file.brd|file.sch|file.lbr]
 phoenix eagle-convert variants [--variant NAME] [--lang CODE] <file.brd|file.sch>
+phoenix eagle-convert xml [--out FILE.brd] [--lang CODE] <binary-board.brd>
 
   eagle-check   reads an EAGLE file and tells what a rewrite keeps: it writes the XML tree and reads
                 it again to prove that nothing changes, and it names (with the codes
@@ -53,6 +54,8 @@ phoenix eagle-convert variants [--variant NAME] [--lang CODE] <file.brd|file.sch
                 that the profile does not respect are named
   eagle-convert layers         the table of the standard layers with their roles, or the layers of a
                 file with the role of each (the user layers from the layer map)
+  eagle-convert xml            a board of the binary form of versions 3 to 5 as an XML board file,
+                with the report of what was not read as it is (binary schematics are not read)
   eagle-convert variants       the variants and attributes of a schematic or board; with --variant the
                 parts that are not fitted in it and the values it changes
   --layers      the roles of the user layers (default: config/eagle_layers.cfg when it exists)
@@ -79,6 +82,10 @@ fn read_input(path: &str) -> Result<String, DeepError> {
         ));
     }
     let bytes = std::fs::read(path).map_err(unreadable)?;
+    if eh3d_phoenix_eaglebin::looks_binary(&bytes) {
+        return crate::check::design_text(path, bytes)
+            .map_err(|e| DeepError::new(INPUT_UNREADABLE, e));
+    }
     Ok(decode_text(&bytes).0)
 }
 
@@ -261,6 +268,9 @@ pub(crate) fn eagle_convert_command(
             return fail(err, &error, Lang::En);
         }
     };
+    if what == "xml" {
+        return xml_command(&o, out, err);
+    }
     let result = match what {
         "dru-to-rules" => dru_to_rules_command(&o),
         "rules-to-dru" => rules_to_dru_command(&o),
@@ -281,6 +291,44 @@ pub(crate) fn eagle_convert_command(
             fail(err, &error, o.lang)
         }
     }
+}
+
+/// `eagle-convert xml`: a binary board as XML. With `--out` the new file gets the XML and the
+/// report is printed; without it the XML is printed and the report goes to the error output.
+fn xml_command(o: &Options, out: &mut dyn Write, err: &mut dyn Write) -> i32 {
+    let read = one_file(o).and_then(|path| {
+        let unreadable =
+            |e: std::io::Error| DeepError::new(INPUT_UNREADABLE, format!("{path}: {e}"));
+        let size = std::fs::metadata(path).map_err(unreadable)?.len();
+        if size > MAX_INPUT_BYTES {
+            return Err(DeepError::new(
+                INPUT_UNREADABLE,
+                format!("{path} is {size} bytes, the limit is {MAX_INPUT_BYTES}"),
+            ));
+        }
+        let bytes = std::fs::read(path).map_err(unreadable)?;
+        eh3d_phoenix_eaglebin::read_binary_board(&bytes, &Default::default())
+            .map_err(|e| DeepError::new(INPUT_UNREADABLE, format!("{path}: {}", e.message(o.lang))))
+    });
+    let read = match read {
+        Ok(read) => read,
+        Err(error) => return fail(err, &error, o.lang),
+    };
+    let report = read.report.to_text(o.lang);
+    match &o.out {
+        Some(path) => {
+            if let Err(error) = write_new(path, &read.xml) {
+                return fail(err, &error, o.lang);
+            }
+            let _ = writeln!(out, "written: {path}");
+            let _ = out.write_all(report.as_bytes());
+        }
+        None => {
+            let _ = out.write_all(read.xml.as_bytes());
+            let _ = err.write_all(report.as_bytes());
+        }
+    }
+    0
 }
 
 type Done = Result<(String, Vec<Finding>), DeepError>;

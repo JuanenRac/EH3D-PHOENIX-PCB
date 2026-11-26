@@ -651,7 +651,7 @@ phoenix perf <board> [--config FILE] [--clearance-mm N] [--json] [--lang xx]
                 options
 
 phoenix eagle-check [--layers FILE] [--json] [--lang xx] <file.brd|file.sch|file.lbr>
-phoenix eagle-convert <dru-to-rules|rules-to-dru|cam-to-profile|layers|variants> [options] <file>
+phoenix eagle-convert <dru-to-rules|rules-to-dru|cam-to-profile|layers|variants|xml> [options] <file>
 
   eagle-check   what a rewrite of an EAGLE file keeps, simplifies and leaves out: the proof that
                 writing the XML tree and reading it again changes nothing, and the kinds of element
@@ -731,6 +731,15 @@ pub fn output_option_problem(args: &[String]) -> Option<String> {
 
 /// Run the command line with the arguments that follow the program name. Returns the exit code.
 pub fn run(args: &[String], out: &mut dyn Write, err: &mut dyn Write) -> i32 {
+    check::take_conversion_notes();
+    let code = dispatch(args, out, err);
+    for note in check::take_conversion_notes() {
+        let _ = writeln!(err, "{note}");
+    }
+    code
+}
+
+fn dispatch(args: &[String], out: &mut dyn Write, err: &mut dyn Write) -> i32 {
     let mut args = args.to_vec();
     let mut config = InventoryConfig::default();
     if args.first().map(String::as_str) == Some("--config") {

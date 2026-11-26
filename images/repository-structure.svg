@@ -201,7 +201,7 @@
 <text x="712.67" y="1819" font-family="'Segoe UI','Noto Sans','Noto Sans CJK SC','Microsoft YaHei','Yu Gothic','Helvetica Neue',Helvetica,Arial,sans-serif" font-size="12.8" font-weight="400" fill="#8A97A6" text-anchor="start">signal integrity: crosstalk, terminations, eye, return path</text>
 <line x1="392" y1="1827" x2="1118" y2="1827" stroke="#1A2430" stroke-width="1"/>
 <text x="392" y="1846" font-family="'JetBrains Mono','Cascadia Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="14.5" font-weight="600" fill="#E6EDF3" text-anchor="start">EAGLE_BINARY.md</text>
-<text x="712.67" y="1846" font-family="'Segoe UI','Noto Sans','Noto Sans CJK SC','Microsoft YaHei','Yu Gothic','Helvetica Neue',Helvetica,Arial,sans-serif" font-size="12.8" font-weight="400" fill="#8A97A6" text-anchor="start">binary EAGLE libraries, versions 3 to 5</text>
+<text x="712.67" y="1846" font-family="'Segoe UI','Noto Sans','Noto Sans CJK SC','Microsoft YaHei','Yu Gothic','Helvetica Neue',Helvetica,Arial,sans-serif" font-size="12.8" font-weight="400" fill="#8A97A6" text-anchor="start">binary EAGLE libraries and boards 3 to 5</text>
 <line x1="392" y1="1854" x2="1118" y2="1854" stroke="#1A2430" stroke-width="1"/>
 <text x="392" y="1873" font-family="'JetBrains Mono','Cascadia Code','SFMono-Regular',Consolas,'Liberation Mono',monospace" font-size="14.5" font-weight="600" fill="#E6EDF3" text-anchor="start">EAGLE_DEEP.md</text>
 <text x="712.67" y="1873" font-family="'Segoe UI','Noto Sans','Noto Sans CJK SC','Microsoft YaHei','Yu Gothic','Helvetica Neue',Helvetica,Arial,sans-serif" font-size="12.8" font-weight="400" fill="#8A97A6" text-anchor="start">EAGLE in depth: rules, CAM jobs, variants, layers, loss report</text>

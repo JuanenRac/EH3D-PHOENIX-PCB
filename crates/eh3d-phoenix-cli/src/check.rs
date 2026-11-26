@@ -188,7 +188,42 @@ pub(crate) fn read_text(path: &str) -> Result<String, String> {
             "{path} is {size} bytes, the limit is {MAX_INPUT_BYTES}"
         ));
     }
-    std::fs::read_to_string(path).map_err(|e| format!("cannot read {path}: {e}"))
+    let bytes = std::fs::read(path).map_err(|e| format!("cannot read {path}: {e}"))?;
+    design_text(path, bytes)
+}
+
+thread_local! {
+    /// What was said about the binary files converted while the running command read them.
+    static CONVERTED: std::cell::RefCell<Vec<String>> = const { std::cell::RefCell::new(Vec::new()) };
+}
+
+/// The text of the bytes of a design file: a board of the binary form of EAGLE (versions 3 to 5)
+/// becomes the text of an XML board file, and a note is kept for the end of the command; anything
+/// else has to be UTF-8 text already.
+pub(crate) fn design_text(path: &str, bytes: Vec<u8>) -> Result<String, String> {
+    if !eh3d_phoenix_eaglebin::looks_binary(&bytes) {
+        return String::from_utf8(bytes)
+            .map_err(|_| format!("cannot read {path}: stream did not contain valid UTF-8"));
+    }
+    let read = eh3d_phoenix_eaglebin::read_binary_board(&bytes, &Default::default())
+        .map_err(|e| format!("cannot read {path}: {e}"))?;
+    let note = format!(
+        "note: {path} is a binary board of EAGLE {}; {} parts were not read as they are          (`phoenix eagle-convert xml` gives the report)",
+        read.report.version,
+        read.report.losses()
+    );
+    CONVERTED.with(|c| {
+        let mut notes = c.borrow_mut();
+        if !notes.contains(&note) {
+            notes.push(note);
+        }
+    });
+    Ok(read.xml)
+}
+
+/// Takes the notes about converted binary files.
+pub(crate) fn take_conversion_notes() -> Vec<String> {
+    CONVERTED.with(|c| std::mem::take(&mut *c.borrow_mut()))
 }
 
 /// Ids for the objects read from a file: the same file always gives the same ids.

@@ -4,6 +4,8 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **Binary boards of EAGLE versions 3 to 5 open like XML boards:** the window, the project of the suite (the original is kept inside) and the commands that read a `.brd` read them; the window lists what was not read as it is and `phoenix eagle-convert xml` writes the XML board with that report. Libraries of the board, outline and drawing, elements with their names and values, signals, vias, polygons, net classes and the distances, sizes and rings of the design rules are read. Binary schematics are not read.
+- **Pads and vias without a diameter are no longer left out of an EAGLE board:** a board leaves the diameter to the restring of its design rules, and it is now computed from them (a quarter of the drill between the smallest and largest width when there are none). Before, those pads and vias were dropped.
 - **The push of the board editor moves vias:** a via in the way goes to the nearest clear place on every layer it joins, within `shove_max_via_shift_nm`, and the tracks that end on it follow it; a via in a pad or in the middle of a track stays.
 - **The push goes around obstacles:** when moving pieces in parallel is not enough, the new track and the tracks it crowds are walked around pads, fixed vias and arcs with 0, 45 and 90 degree pieces, and a track never jumps over the new one. `shove_vias` and `shove_walk_around` switch each part off.
 - **The push keeps the clearance of the net classes** of the two nets when it is larger than the general one.

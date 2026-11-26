@@ -423,7 +423,7 @@ The titles of these codes also exist in the eight languages of the suite (`TITLE
 
 ## Binary libraries (`eh3d-phoenix-eaglebin`, `src/codes.rs`)
 
-The titles of these codes also exist in the eight languages of the suite (`TITLES` in `src/codes.rs`); the detail of a message and the subject of a note are in English. Codes 001 to 005 stop the read; codes 006 to 011 are notes of the conversion report (`EAGLE_BINARY.md`).
+The titles of these codes also exist in the eight languages of the suite (`TITLES` in `src/codes.rs`); the detail of a message and the subject of a note are in English. Codes 001 to 005 and 012 stop the read; codes 006 to 011 are notes of the conversion report (`EAGLE_BINARY.md`).
 
 | Code | Title | Raised by |
 |---|---|---|
@@ -438,6 +438,7 @@ The titles of these codes also exist in the eight languages of the suite (`TITLE
 | PHOENIX-EAGLEBIN-009 | Reference to something that does not exist | a gate of a missing symbol, a device of a missing footprint or a name used twice |
 | PHOENIX-EAGLEBIN-010 | Text read as Latin-1 | a text that is not UTF-8 (information) |
 | PHOENIX-EAGLEBIN-011 | Data of the file not interpreted | the settings and grid of the editor, angles of arcs computed from a stored centre and bytes with no place in a library (information) |
+| PHOENIX-EAGLEBIN-012 | Binary file is not a board | a schematic or a library where a board is read (binary schematics are not read) |
 
 ## Library editor (`eh3d-phoenix-libedit`, `src/codes.rs`)
 

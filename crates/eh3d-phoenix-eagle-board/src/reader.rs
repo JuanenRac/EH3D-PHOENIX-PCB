@@ -19,6 +19,7 @@ use eh3d_phoenix_model::{Nm, Point, Udeg};
 use crate::codes::{self, ITEM_SIMPLIFIED, NOT_READ, UNREADABLE};
 use crate::layers::meaning;
 use crate::limits::EagleLimits;
+use crate::restring::Restring;
 use crate::writer::LIBRARY;
 use crate::{parse_nm, parse_udeg};
 
@@ -233,6 +234,16 @@ pub fn read_board_with_limits(
         .ok_or_else(|| unreadable("there is no board in the drawing"))?;
     let drawing = root.child("drawing").expect("checked above");
 
+    let pad_ring = Restring::of(
+        board_element,
+        ["rvPadTop", "rlMinPadTop", "rlMaxPadTop"],
+        10.0,
+    );
+    let via_ring = Restring::of(
+        board_element,
+        ["rvViaOuter", "rlMinViaOuter", "rlMaxViaOuter"],
+        8.0,
+    );
     let mut board = Board::default();
     let mut notes: BTreeMap<String, usize> = BTreeMap::new();
     let mut diagnostics = Vec::new();
@@ -291,8 +302,10 @@ pub fn read_board_with_limits(
                     };
                     match item.name.as_str() {
                         "pad" => {
-                            let (Some(drill), Some(d)) = (nm(item, "drill"), nm(item, "diameter"))
-                            else {
+                            let sizes = nm(item, "drill").and_then(|drill| {
+                                Some((drill, pad_ring.diameter(nm(item, "diameter"), drill)?))
+                            });
+                            let Some((drill, d)) = sizes else {
                                 note("pad", &mut notes);
                                 continue;
                             };
@@ -502,12 +515,10 @@ pub fn read_board_with_limits(
                                 *layer_ids.get(&b.trim().parse::<u32>().ok()?)?,
                             ))
                         });
-                        match (
-                            point(item, "x", "y"),
-                            ends,
-                            nm(item, "drill"),
-                            nm(item, "diameter"),
-                        ) {
+                        let drill = nm(item, "drill");
+                        let diameter =
+                            drill.and_then(|d| via_ring.diameter(nm(item, "diameter"), d));
+                        match (point(item, "x", "y"), ends, drill, diameter) {
                             (
                                 Some(at),
                                 Some((from_layer, to_layer)),
