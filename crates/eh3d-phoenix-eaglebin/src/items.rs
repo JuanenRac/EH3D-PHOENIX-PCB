@@ -260,7 +260,7 @@ pub fn pad(r: &Record, name: String, place: &str, report: &mut Report) -> Pad {
         3 => PadShape::Long,
         // a long pad that stands upright
         4 => {
-            angle = (angle & 0xF000) | ((angle & 0x0FFF) + 1024) % 4096;
+            angle = (angle & 0xF000) | (((angle & 0x0FFF) + 1024) % 4096);
             PadShape::Long
         }
         _ => {

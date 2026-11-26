@@ -134,14 +134,7 @@ pub fn split(bytes: &[u8], limits: &Limits) -> Result<Container, BinError> {
             format!("the header announces {count} records and the file is shorter"),
         ));
     };
-    let records: Vec<Record> = bytes[..table]
-        .chunks_exact(RECORD)
-        .map(|c| {
-            let mut r: Record = [0; RECORD];
-            r.copy_from_slice(c);
-            r
-        })
-        .collect();
+    let records: Vec<Record> = bytes[..table].as_chunks::<RECORD>().0.to_vec();
     let rest = &bytes[table..];
     let mut out = Container {
         records,

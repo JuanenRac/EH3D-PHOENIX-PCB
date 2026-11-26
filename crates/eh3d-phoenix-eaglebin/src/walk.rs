@@ -441,11 +441,11 @@ impl Walk<'_> {
             let mut drawing = RawDrawing::default();
             if kind == PACKAGE {
                 drawing.name = self.string(&r, 18, 24, "footprint");
-                drawing.description = self.string(&r, 13, 18, &drawing.name.clone());
+                drawing.description = self.string(&r, 13, 18, &drawing.name);
             } else {
                 drawing.name = self.string(&r, 16, 24, "symbol");
             }
-            drawing.items = self.drawing_items(at + 1, after, &drawing.name.clone())?;
+            drawing.items = self.drawing_items(at + 1, after, &drawing.name)?;
             out.push(drawing);
             at = after;
         }

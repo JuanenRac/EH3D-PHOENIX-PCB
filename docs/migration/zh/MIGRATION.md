@@ -23,7 +23,8 @@
 | 文件 | 读取 | 写出 |
 |---|---|---|
 | EAGLE `.sch`, `.brd`, `.lbr` (XML) | `eagle-check` 以及所有接收电路板或原理图的命令 | 以 EAGLE XML 形式的电路板和原理图: `boardedit`, `sync --apply`, `annotate --apply`; 库: `libedit`, `footprint`, `ipc` |
-| EAGLE binary | 否 | 否 |
+| EAGLE binary `.lbr` （版本 3 至 5） | `libedit` | 否 |
+| EAGLE binary `.sch`, `.brd` | 否 | 否 |
 | EAGLE `.dru` | `check --rules-dru`, `eagle-convert dru-to-rules` | `eagle-convert rules-to-dru` |
 | EAGLE `.cam` | `cam-import`, `eagle-convert cam-to-profile` | - |
 | EAGLE `.scr` | `script run`, `script report` | - |
@@ -36,7 +37,7 @@
 ## 会丢失什么
 
 * 设计模型不保存 KiCad 的图形、总线、无连接标记、电路板设置、铜区的填充铜、禁布区和 3D 模型；读取器把它们计为舍弃，并在报告中说明。
-* EAGLE：不读取二进制文件，ULP 程序只能部分运行（`phoenix ulp report` 会说明程序使用了什么、名称列表是否覆盖，以及求值器能否运行它；`phoenix ulp run` 运行纯计算和只读遍历，从不涉及文件、命令或对设计的修改），模型简化的元素由 `phoenix eagle-check` 以八种语言的代码列出。
+* EAGLE：不读取二进制电路板和原理图（可读取二进制库，见 `EAGLE_BINARY.md`），ULP 程序只能部分运行（`phoenix ulp report` 会说明程序使用了什么、名称列表是否覆盖，以及求值器能否运行它；`phoenix ulp run` 运行纯计算和只读遍历，从不涉及文件、命令或对设计的修改），模型简化的元素由 `phoenix eagle-check` 以八种语言的代码列出。
 * 绝不会覆盖输入文件：转换总是生成新文件。
 
 ## 第一步
