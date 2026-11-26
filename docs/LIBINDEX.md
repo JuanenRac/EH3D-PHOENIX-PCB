@@ -1,6 +1,6 @@
 # EH3D-PHOENIX-PCB: the bulk import of libraries
 
-**State: prototype.** `phoenix libindex <folder>` walks a folder of EAGLE and KiCad libraries, reads every footprint and symbol with the readers that already exist, judges each one, finds the ones that appear more than once and writes a deterministic index with the hash of the content of every item. It is the module `bulk` of the crate `eh3d-phoenix-ipclib`, the settings `config/import_bulk.cfg` and the codes `PHOENIX-LIBIDX-<NNN>` (`docs/ERROR_CODES.md`). It has only been run on libraries made by its own tests, never on a real collection of libraries.
+**State: prototype.** `phoenix libindex <folder>` walks a folder of EAGLE and KiCad libraries, reads every footprint and symbol with the readers that already exist, judges each one, finds the ones that appear more than once and writes a deterministic index with the hash of the content of every item. It is the module `bulk` of the crate `eh3d-phoenix-ipclib`, the settings `config/import_bulk.cfg` and the codes `PHOENIX-LIBIDX-<NNN>` (`docs/ERROR_CODES.md`). Besides its own tests it has been run on a private collection of 8326 files: the first 1500 of them are indexed within 300 MB of memory, and the whole collection needs more, because the index is built in memory.
 
 The files are **only read**: nothing is copied, moved or changed, and the index holds names, hashes and findings, not the drawings. Nothing is written unless `--out` names a new `.json` file, and a file that exists is never written over.
 
