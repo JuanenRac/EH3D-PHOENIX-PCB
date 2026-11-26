@@ -1790,6 +1790,7 @@ impl Shell {
         };
         self.dock.set_language(panels::view_lang(lang));
         self.dock.set_about(Shell::about(lang));
+        self.dock.set_brand(panels::about_brand());
         self.dock
             .set_menu_state(panels::disabled_entries(&facts), Vec::new());
         let mut chosen = None;
