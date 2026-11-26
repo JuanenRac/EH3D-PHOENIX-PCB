@@ -25,7 +25,7 @@
 //!   report of every opening;
 //! * [`fabpack`] and [`zipfile`]: the fabrication package, a deterministic `.zip` (or a new folder)
 //!   with a manifest `phoenix-fab-package/1`, written with no dependency and read back to check it;
-//! * [`fabcodes`] and [`fabutil`]: the codes `PHOENIX-PNP-<NNN>`, `PHOENIX-STENCIL-<NNN>` and
+//! * [`fabcodes`] and [`fabutil`]: the codes `PHOENIX-PCBPNP-<NNN>`, `PHOENIX-STENCIL-<NNN>` and
 //!   `PHOENIX-FABPACK-<NNN>` with their titles in the eight languages, and the small helpers of those
 //!   modules;
 //! * [`codes`] and [`messages`]: the stable codes `PHOENIX-EXPORT-<NNN>` for what the files cannot
