@@ -143,5 +143,5 @@ fn the_header_counts_the_rows_that_are_planned() {
             r.id
         );
     }
-    assert_eq!(planned, 3, "the header says three requirements are planned");
+    assert_eq!(planned, 2, "the header says two requirements are planned");
 }

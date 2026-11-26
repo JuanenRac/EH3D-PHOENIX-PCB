@@ -168,7 +168,7 @@ pub struct BulkSettings {
 impl Default for BulkSettings {
     fn default() -> Self {
         BulkSettings {
-            max_files: 5000,
+            max_files: 20_000,
             max_file_bytes: 64 * 1024 * 1024,
             max_depth: 16,
             max_items: 500_000,

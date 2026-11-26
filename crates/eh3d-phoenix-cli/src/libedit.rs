@@ -14,13 +14,12 @@ use std::io::Write;
 use std::path::Path;
 use std::sync::Arc;
 
-use eh3d_phoenix_eaglebin::{looks_binary, read_binary_library, Report};
+use eh3d_phoenix_eaglebin::{read_any_library, Report};
 use eh3d_phoenix_libedit::codes::{LibError, FILE_UNUSABLE, NAME_USED, OPTION_INVALID};
 use eh3d_phoenix_libedit::footprints::FootprintConfig;
 use eh3d_phoenix_libedit::{
     apply_all, check_library, compare_json, compare_libraries, compare_text, generate,
-    parse_operations, read_library, replace_plan_from_json, save_new, LibSettings, Library,
-    Severity,
+    parse_operations, replace_plan_from_json, save_new, LibSettings, Library, Severity,
 };
 use eh3d_phoenix_rules::Lang;
 use serde_json::json;
@@ -96,16 +95,7 @@ fn read_library_file(
         )));
     }
     let bytes = std::fs::read(path).map_err(|e| unusable(e.to_string()))?;
-    if looks_binary(&bytes) {
-        let limits = eh3d_phoenix_eaglebin::Limits {
-            max_bytes: usize::try_from(settings.max_file_bytes).unwrap_or(usize::MAX),
-            ..eh3d_phoenix_eaglebin::Limits::default()
-        };
-        let read = read_binary_library(&bytes, &limits).map_err(|e| unusable(e.to_string()))?;
-        return Ok((read.library, Some(read.report)));
-    }
-    read_library(&bytes, &settings.limits())
-        .map(|library| (library, None))
+    read_any_library(&bytes, settings)
         .map_err(|e| LibError::new(e.code, format!("{path}: {}", e.detail)))
 }
 

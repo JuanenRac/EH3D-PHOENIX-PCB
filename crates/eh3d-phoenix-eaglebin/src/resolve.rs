@@ -23,6 +23,7 @@ use eh3d_phoenix_libedit::model::{Connect, Device, DeviceSet, Gate, Item, Packag
 use crate::codes::{self, BinError};
 use crate::records::{u16_at, Record};
 use crate::report::Report;
+use crate::text::{Attribute, Technology};
 use crate::walk::{RawDevice, RawSet};
 
 /// The bytes of one entry of a connection record that are not its header.
@@ -128,10 +129,28 @@ fn pad_names(package: &Package) -> Vec<&str> {
         .collect()
 }
 
-fn technology_element(names: &[String]) -> Element {
-    let list = names
+fn technology_element(technologies: &[Technology]) -> Element {
+    let attribute = |a: &Attribute| {
+        let mut attrs = vec![
+            ("name".into(), a.name.clone()),
+            ("value".into(), a.value.clone()),
+        ];
+        // the XML leaves the constant ones without the attribute
+        if !a.constant {
+            attrs.push(("constant".into(), "no".into()));
+        }
+        element("attribute", attrs, Vec::new())
+    };
+    let list = technologies
         .iter()
-        .map(|n| element("technology", vec![("name".into(), n.clone())], Vec::new()))
+        .map(|t| {
+            let attributes = t.attributes.iter().map(attribute).collect();
+            element(
+                "technology",
+                vec![("name".into(), t.name.clone())],
+                attributes,
+            )
+        })
         .collect();
     element("technologies", Vec::new(), list)
 }
@@ -225,8 +244,12 @@ fn device(
         );
     }
     report.count("device");
-    for _ in &raw.technologies {
+    for technology in &raw.technologies {
         report.count("technology");
+        for attribute in &technology.attributes {
+            report.count("attribute");
+            budget.spend(attribute.name.len() + attribute.value.len())?;
+        }
     }
     Ok(Device {
         name,

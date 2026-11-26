@@ -1035,6 +1035,7 @@ name = "eh3d-phoenix-ipclib"
 version = "0.1.7"
 dependencies = [
  "eh3d-phoenix-board",
+ "eh3d-phoenix-eaglebin",
  "eh3d-phoenix-kicad",
  "eh3d-phoenix-libedit",
  "eh3d-phoenix-rules",
@@ -1381,6 +1382,7 @@ dependencies = [
  "eh3d-phoenix-boardedit",
  "eh3d-phoenix-bom",
  "eh3d-phoenix-dxf",
+ "eh3d-phoenix-eaglebin",
  "eh3d-phoenix-eagle-board",
  "eh3d-phoenix-erc",
  "eh3d-phoenix-export",

@@ -112,8 +112,9 @@ fn pair(name: &str, value: impl Into<String>) -> (String, String) {
     (name.to_owned(), value.into())
 }
 
-/// A line or an arc, with the attributes the model keeps beside it.
-pub fn wire(r: &Record, place: &str, report: &mut Report) -> Wire {
+/// A line or an arc, with the attributes the model keeps beside it. Before version 4 (`old`) the
+/// bit of the flat cap does not say the cap: the arcs are round.
+pub fn wire(r: &Record, old: bool, place: &str, report: &mut Report) -> Wire {
     let x1 = s24(r[4], r[5], r[6]);
     let y1 = s24(r[8], r[9], r[10]);
     let x2 = s24(r[12], r[13], r[14]);
@@ -127,7 +128,7 @@ pub fn wire(r: &Record, place: &str, report: &mut Report) -> Wire {
         3 => extra.push(pair("style", "dashdot")),
         _ => {}
     }
-    if curve != 0 && flags & 0x10 != 0 {
+    if !old && curve != 0 && flags & 0x10 != 0 {
         extra.push(pair("cap", "flat"));
     }
     Wire {
@@ -253,6 +254,8 @@ fn pad_flags(flags: u8, known: u8, place: &str, report: &mut Report) {
 /// The angle and the flags of a pad of either kind; both are zero in version 3.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Turn {
+    /// True before version 4, where the file holds the diameter of a long pad in full.
+    pub old: bool,
     /// The angle, as [`rotation`] reads it.
     pub angle: u16,
     /// The flags.
@@ -288,7 +291,12 @@ pub fn pad(r: &Record, turn: Turn, name: String, place: &str, report: &mut Repor
         x: length(i32_at(r, 4)),
         y: length(i32_at(r, 8)),
         drill: doubled(u32::from(u16_at(r, 12))),
-        diameter: doubled(u32::from(u16_at(r, 14))),
+        // before version 4 the diameter of a long pad is not stored as its half
+        diameter: if turn.old && matches!(r[2], 3 | 4) {
+            i64::from(u16_at(r, 14)) * UNIT
+        } else {
+            doubled(u32::from(u16_at(r, 14)))
+        },
         shape,
         rot: rot(angle, place, report),
         stop: flags & 0x01 == 0,
@@ -367,16 +375,20 @@ pub fn pin(r: &Record, name: String, place: &str, report: &mut Report) -> Pin {
     }
 }
 
-/// A text. Before version 4 (`old`) byte 2 does not say the font: the default, proportional, is
-/// used.
+/// The last copper layer.
+const BOTTOM_COPPER: u8 = 16;
+
+/// A text. Before version 4 (`old`) byte 2 does not say the font: a text on a copper layer is
+/// vector and any other one is proportional. The size has 18 bits: the two highest ones are the
+/// low bits of byte 14, below the ratio.
 pub fn text(r: &Record, content: String, old: bool, place: &str, report: &mut Report) -> Text {
     let mut extra = Vec::new();
     match r[2] {
-        _ if old => report.note(
-            codes::NOT_READ,
-            "font of a text of version 3 (read as proportional)",
-            place,
-        ),
+        _ if old => {
+            if r[3] <= BOTTOM_COPPER {
+                extra.push(pair("font", "vector"));
+            }
+        }
         0 => extra.push(pair("font", "vector")),
         1 => {}
         2 => extra.push(pair("font", "fixed")),
@@ -390,7 +402,7 @@ pub fn text(r: &Record, content: String, old: bool, place: &str, report: &mut Re
         layer: u32::from(r[3]),
         x: length(i32_at(r, 4)),
         y: length(i32_at(r, 8)),
-        size: doubled(u32::from(u16_at(r, 12))),
+        size: doubled(u32::from(u16_at(r, 12)) | u32::from(r[14] & 0x03) << 16),
         rot: rot(u16_at(r, 16), place, report),
         content,
         extra,
@@ -406,8 +418,19 @@ fn element(name: &str, attrs: Vec<(String, String)>, children: Vec<Element>) -> 
     }
 }
 
-/// A polygon with its vertices. The model keeps polygons as XML elements.
-pub fn polygon(head: &Record, vertices: &[Record], place: &str, report: &mut Report) -> Item {
+/// The value of bytes 16 and 17 of a polygon that most files hold. The XML saved from them has no
+/// attribute for it.
+const USUAL_FIELD_16: u16 = 1_778;
+
+/// A polygon with its vertices. The model keeps polygons as XML elements. Before version 4
+/// (`old`) the arcs among its sides are round.
+pub fn polygon(
+    head: &Record,
+    vertices: &[Record],
+    old: bool,
+    place: &str,
+    report: &mut Report,
+) -> Item {
     let mut attrs = vec![
         pair("width", fmt_mm(doubled(u32::from(u16_at(head, 12))))),
         pair("layer", head[18].to_string()),
@@ -416,9 +439,12 @@ pub fn polygon(head: &Record, vertices: &[Record], place: &str, report: &mut Rep
     if spacing != DEFAULT_SPACING && spacing != 0 {
         attrs.push(pair("spacing", fmt_mm(spacing)));
     }
-    let isolate = doubled(u32::from(u16_at(head, 16)));
-    if isolate != 0 {
-        attrs.push(pair("isolate", fmt_mm(isolate)));
+    if !matches!(u16_at(head, 16), 0 | USUAL_FIELD_16) {
+        report.note(
+            codes::NOT_READ,
+            "value of a polygon that its XML does not hold",
+            place,
+        );
     }
     if head[19] & !0x8E != 0 {
         report.note(
@@ -433,7 +459,7 @@ pub fn polygon(head: &Record, vertices: &[Record], place: &str, report: &mut Rep
             report.note(codes::SKIPPED, "record inside a polygon", place);
             continue;
         }
-        let side = wire(v, place, report);
+        let side = wire(v, old, place, report);
         let mut a = vec![pair("x", fmt_mm(side.x1)), pair("y", fmt_mm(side.y1))];
         if side.curve != 0 {
             a.push(pair("curve", fmt_mm(side.curve)));
