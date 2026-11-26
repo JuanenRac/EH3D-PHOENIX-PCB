@@ -61,11 +61,24 @@ impl BoardEdit {
         to: Point,
         horizontal_first: bool,
     ) -> Result<Advance, BoardEditError> {
+        self.advance_route_shaped(net, layer, from, to, horizontal_first, Shape::Diagonal)
+    }
+
+    /// The advance of a route whose corners follow `shape` (orthogonal or with 45 degrees).
+    pub fn advance_route_shaped(
+        &self,
+        net: Id,
+        layer: Id,
+        from: Point,
+        to: Point,
+        horizontal_first: bool,
+        shape: Shape,
+    ) -> Result<Advance, BoardEditError> {
         let mut settings = self.settings.clone();
         settings.live_drc = true;
         settings.reject_new_errors = false;
         let mut trial = BoardEdit::new(self.board().clone(), self.context().clone(), settings)?;
-        let corners = legs(from, to, Shape::Diagonal, horizontal_first)?;
+        let corners = legs(from, to, shape, horizontal_first)?;
         let mut kept = vec![from];
         for pair in corners.windows(2) {
             let (a, b) = (pair[0], pair[1]);

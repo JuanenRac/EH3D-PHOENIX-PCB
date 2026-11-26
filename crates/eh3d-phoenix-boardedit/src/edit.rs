@@ -400,6 +400,16 @@ impl BoardEdit {
         self.done.len()
     }
 
+    /// The steps that are done, the oldest first.
+    pub fn steps_done(&self) -> &[Step] {
+        &self.done
+    }
+
+    /// The steps that were undone, the next one to redo last.
+    pub fn steps_undone(&self) -> &[Step] {
+        &self.undone
+    }
+
     /// The connections still to be routed (the pads that the schematic put on a net and no copper
     /// joins yet). Empty when the ratsnest cannot be made.
     pub fn ratsnest(&self) -> Vec<RatLine> {

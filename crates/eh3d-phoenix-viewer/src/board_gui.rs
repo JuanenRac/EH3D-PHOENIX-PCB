@@ -10,8 +10,8 @@ use eh3d_phoenix_board::connectivity::pad_position;
 use eh3d_phoenix_board::{Board, DimensionKind, Id, PadRef, PadShape, StackFunction};
 use eh3d_phoenix_boardedit::selection::all_items;
 use eh3d_phoenix_boardedit::{
-    item_bounds, AlignMode, BoardEdit, BoardEditSettings, EditOp, EditState, Item, Picked,
-    RectMode, Selection, Tool,
+    item_bounds, AlignMode, BoardEdit, BoardEditSettings, BoardMeasure, EditOp, EditState, Item,
+    MeasurePoint, Picked, RectMode, RouteMode, Selection, Tool,
 };
 use eh3d_phoenix_model::Point;
 use eh3d_phoenix_route::copper_layers;
@@ -27,8 +27,10 @@ use crate::board_select_text::SelectMsg;
 use crate::board_shove::ShoveTool;
 use crate::board_text::BoardMsg;
 use crate::board_zone::ZoneTool;
+use crate::edit_assist::{self, AssistMsg, DragCheck, DragVerdict, MeasureTool, RoutePreview};
 use crate::editmsg::EditMsg;
 use crate::gui::{ui_accent, ui_danger, ui_dim, ui_text};
+use crate::measure_set::Unit;
 use crate::workspace::Workspace;
 use eh3d_phoenix_boardedit::actions::EditAction;
 
@@ -40,6 +42,9 @@ const PAD: Color32 = Color32::from_rgb(0xe0, 0xc0, 0x60);
 const ZONE: Color32 = Color32::from_rgb(0x60, 0x50, 0x40);
 const RAT: Color32 = Color32::from_rgb(0xb8, 0xb0, 0xa4);
 const GRID: Color32 = Color32::from_rgb(0x40, 0x38, 0x30);
+const WOULD_MOVE: Color32 = Color32::from_rgb(0x5f, 0xd0, 0xb0);
+/// How near the pointer must be to a notable point for the measure to take it, in pixels.
+const MEASURE_SNAP_PIXELS: f64 = 10.0;
 
 /// The smallest and the largest zoom, in pixels per millimetre.
 const SCALE_MIN: f64 = 0.2;
@@ -70,6 +75,31 @@ pub struct BoardEditUi {
     /// The drag of the whole selection with the mouse: where the pointer went down and where it
     /// is now, in nanometres.
     group_drag: Option<((i64, i64), (i64, i64))>,
+    /// The preview of the route that follows the pointer, and what a click of the route does.
+    route: RoutePreview,
+    /// The rule check of the drag in progress.
+    drag_check: DragCheck,
+    /// The measure with the snap.
+    measure: MeasureTool,
+}
+
+/// Whether the editor has a step to undo and one to redo.
+pub fn history_state(st: &BoardEditUi) -> (bool, bool) {
+    (st.state.edit.can_undo(), st.state.edit.can_redo())
+}
+
+/// Takes the last step of the editor back and hands the board to the workspace.
+pub fn undo(st: &mut BoardEditUi, workspace: &mut Workspace) {
+    st.state.undo();
+    st.group.prune(st.state.board());
+    finish(st, workspace);
+}
+
+/// Does the last step that was taken back again and hands the board to the workspace.
+pub fn redo(st: &mut BoardEditUi, workspace: &mut Workspace) {
+    st.state.redo();
+    st.group.prune(st.state.board());
+    finish(st, workspace);
 }
 
 /// Where a point of the drawing is on the screen, and back.
@@ -163,6 +193,9 @@ pub fn start(workspace: &Workspace) -> Option<BoardEditUi> {
         group: Group::new(),
         rect: None,
         group_drag: None,
+        route: RoutePreview::default(),
+        drag_check: DragCheck::default(),
+        measure: MeasureTool::default(),
     })
 }
 
@@ -268,6 +301,8 @@ struct Keys {
     m: bool,
     n: bool,
     h: bool,
+    s: bool,
+    u: bool,
 }
 
 fn read_keys(ctx: &egui::Context) -> Keys {
@@ -302,6 +337,8 @@ fn read_keys(ctx: &egui::Context) -> Keys {
         m: i.key_pressed(egui::Key::M),
         n: i.key_pressed(egui::Key::N),
         h: i.key_pressed(egui::Key::H),
+        s: i.key_pressed(egui::Key::S),
+        u: i.key_pressed(egui::Key::U),
     })
 }
 
@@ -444,6 +481,13 @@ fn apply_keys(st: &mut BoardEditUi, keys: &Keys, pointer: Option<Point>) {
     if keys.escape {
         st.state.cancel();
         st.autoroute.clear();
+        st.measure.measure.clear();
+    }
+    if keys.s && st.state.tool == Tool::Route {
+        st.route.next_mode();
+    }
+    if keys.u {
+        st.measure.toggle();
     }
     if keys.a {
         st.autoroute.key(&mut st.state, keys.shift);
@@ -500,6 +544,7 @@ pub fn canvas(
     lang: Lang,
     background: Color32,
     fit_pending: &mut bool,
+    units: (Unit, usize),
 ) {
     let size = ui.available_size();
     let (response, painter) = ui.allocate_painter(size, egui::Sense::click_and_drag());
@@ -539,7 +584,16 @@ pub fn canvas(
         let (x, y) = view.world_at(p);
         point_at(x, y)
     });
-    if let Some(at) = pointer.filter(|_| st.zone.on) {
+    // the radius of the snap of the measure on the screen, as a length of the board
+    let snap_nm = (MEASURE_SNAP_PIXELS / st.scale * 1_000_000.0).round() as i64;
+    if let Some(at) = pointer.filter(|_| st.measure.on) {
+        if frame.pressed && inside.is_some() {
+            st.measure.click(&st.state, at, snap_nm);
+        }
+    }
+    // the measure has the clicks while it is on
+    let drawing = pointer.filter(|_| !st.measure.on);
+    if let Some(at) = drawing.filter(|_| st.zone.on) {
         if frame.pressed && inside.is_some() {
             st.zone.press(&st.state, at);
         } else if st.zone.dragging.is_some() {
@@ -549,17 +603,17 @@ pub fn canvas(
             st.zone.release();
         }
     }
-    if let Some(at) = pointer.filter(|_| st.shove.on && !st.zone.on) {
+    if let Some(at) = drawing.filter(|_| st.shove.on && !st.zone.on) {
         if frame.pressed && inside.is_some() {
             st.shove.click(&mut st.state, at);
         }
     }
-    if let Some(at) = pointer.filter(|_| st.pair.on && !st.shove.on && !st.zone.on) {
+    if let Some(at) = drawing.filter(|_| st.pair.on && !st.shove.on && !st.zone.on) {
         if frame.pressed && inside.is_some() {
             st.pair.click(&st.state, at);
         }
     }
-    if let Some(at) = pointer.filter(|_| !st.pair.on && !st.shove.on && !st.zone.on) {
+    if let Some(at) = drawing.filter(|_| !st.pair.on && !st.shove.on && !st.zone.on) {
         let select = st.state.tool == Tool::Select;
         if frame.pressed && inside.is_some() {
             let hit = st.state.pick_at(at);
@@ -594,7 +648,11 @@ pub fn canvas(
                 if select && !toggle && hit.is_none_or(|p| !st.state.selection.contains(&p)) {
                     st.group.drop_extra();
                 }
-                st.state.pointer_pressed(at, toggle);
+                if st.state.tool == Tool::Route && st.route.mode != RouteMode::Free {
+                    st.state.route_click(at, st.route.mode);
+                } else {
+                    st.state.pointer_pressed(at, toggle);
+                }
                 if let Some(picked) = hit.filter(|_| select && !toggle) {
                     let items = st.group.items(&st.state.selection);
                     if board_select::uses_group_drag(&items, board_select::item_of(picked)) {
@@ -640,6 +698,7 @@ pub fn canvas(
     st.group.prune(st.state.board());
     finish(st, workspace);
     st.refresh();
+    let dragged = drag_line(st, lang);
 
     // the drawing: the board as the drag in progress would leave it, or as it is
     let preview = st.state.drag_preview();
@@ -653,15 +712,52 @@ pub fn canvas(
         &st.rat,
         st.state.edit.settings.grid_nm,
     );
-    if let Some(at) = pointer.filter(|_| inside.is_some()) {
-        let path = st.state.route_preview(at);
-        if path.len() >= 2 {
-            let points: Vec<Pos2> = path.iter().map(|p| view.at(*p)).collect();
-            painter.add(egui::Shape::line(points, Stroke::new(1.5, ui_accent())));
+    if let Some(at) = pointer.filter(|_| inside.is_some() && !st.measure.on) {
+        if st.route.mode == RouteMode::Free || st.state.tool != Tool::Route {
+            let path = st.state.route_preview(at);
+            if path.len() >= 2 {
+                let points: Vec<Pos2> = path.iter().map(|p| view.at(*p)).collect();
+                painter.add(egui::Shape::line(points, Stroke::new(1.5, ui_accent())));
+            }
+        } else {
+            let assist = &mut st.route;
+            draw_route_assist(&painter, &view, rect, (assist, &st.state), at, lang);
         }
         let target = st.state.snap(at);
         painter.circle_stroke(view.at(target), 5.0, Stroke::new(1.0, ui_accent()));
     }
+    if let Some((text, colour)) = dragged {
+        painter.text(
+            rect.center_top() + egui::vec2(0.0, 28.0),
+            egui::Align2::CENTER_TOP,
+            text,
+            egui::FontId::proportional(14.0),
+            colour,
+        );
+    }
+    if st.measure.on {
+        let hover = pointer
+            .filter(|_| inside.is_some())
+            .map(|at| BoardMeasure::snap(&st.state, at, snap_nm));
+        draw_measure(&painter, &view, rect, &st.measure, hover, units, lang);
+    }
+    // the next step of undo and of redo, always in sight
+    let steps = edit_assist::history(&st.state, lang, 1);
+    let mut line = String::new();
+    if let Some(step) = steps.next_undo() {
+        line = format!("{}: {step}", AssistMsg::NextUndo.tr(lang));
+    }
+    if let Some(step) = steps.next_redo() {
+        let gap = if line.is_empty() { "" } else { "   " };
+        line = format!("{line}{gap}{}: {step}", AssistMsg::NextRedo.tr(lang));
+    }
+    painter.text(
+        rect.left_top() + egui::vec2(8.0, 8.0),
+        egui::Align2::LEFT_TOP,
+        line,
+        egui::FontId::proportional(13.0),
+        ui_dim(),
+    );
     // the points of the dimension in progress, joined in the order they were given
     let pending: Vec<Pos2> = st
         .state
@@ -783,6 +879,111 @@ pub fn canvas(
         egui::FontId::proportional(13.0),
         ui_dim(),
     );
+}
+
+/// The route that a click would add in the stop and push modes, with the tracks a push moves.
+fn draw_route_assist(
+    painter: &egui::Painter,
+    view: &View,
+    rect: Rect,
+    (route, state): (&mut RoutePreview, &EditState),
+    at: Point,
+    lang: Lang,
+) {
+    // what is in progress already, then what the click would add
+    let done: Vec<Pos2> = state.route_points.iter().map(|p| view.at(*p)).collect();
+    if done.len() >= 2 {
+        painter.add(egui::Shape::line(done, Stroke::new(1.5, ui_accent())));
+    }
+    let Some(found) = route.at(state, at) else {
+        return;
+    };
+    for moved in &found.moves {
+        for piece in &moved.after {
+            painter.line_segment(
+                [view.at(piece.start()), view.at(piece.end())],
+                Stroke::new(2.5, WOULD_MOVE),
+            );
+        }
+    }
+    let points: Vec<Pos2> = found.points.iter().map(|p| view.at(*p)).collect();
+    if let Some(last) = points.last().copied() {
+        if !found.complete {
+            painter.circle_stroke(last, 4.0, Stroke::new(2.0, ui_danger()));
+        }
+    }
+    if points.len() >= 2 {
+        painter.add(egui::Shape::line(points, Stroke::new(1.5, WOULD_MOVE)));
+    }
+    let text = match &found.refusal {
+        Some(error) => Some((error.message(lang), ui_danger())),
+        None if !found.moves.is_empty() => Some((
+            format!("{} {}", found.moves.len(), AssistMsg::Moves.tr(lang)),
+            WOULD_MOVE,
+        )),
+        None => None,
+    };
+    if let Some((text, colour)) = text {
+        painter.text(
+            rect.center_bottom() + egui::vec2(0.0, -28.0),
+            egui::Align2::CENTER_BOTTOM,
+            text,
+            egui::FontId::proportional(13.0),
+            colour,
+        );
+    }
+}
+
+/// What the rules would say if the drag were let go now, as a line and its colour; made before
+/// the drawing, because a drag of the selection hands that selection to the editor.
+fn drag_line(st: &mut BoardEditUi, lang: Lang) -> Option<(String, Color32)> {
+    let op = match st.group_drag {
+        Some((from, to)) => {
+            let selection = st.group.selection(&st.state.selection);
+            st.state.edit.set_selection(selection);
+            board_select::drag_op(from, to, st.state.edit.settings.grid_nm)
+        }
+        None => st.state.drag_operation(),
+    };
+    Some(match st.drag_check.check(&st.state, op)? {
+        DragVerdict::Checked(live) => {
+            let colour = match live.tone {
+                crate::drc_live::Tone::Worse => ui_danger(),
+                crate::drc_live::Tone::Better => WOULD_MOVE,
+                crate::drc_live::Tone::Same => ui_dim(),
+            };
+            (live.line(lang), colour)
+        }
+        DragVerdict::Refused => (AssistMsg::Refused.tr(lang).to_owned(), ui_danger()),
+        DragVerdict::TooLarge => (AssistMsg::TooLarge.tr(lang).to_owned(), ui_dim()),
+    })
+}
+
+/// The measure: its line, the point the next click would take and the reading.
+fn draw_measure(
+    painter: &egui::Painter,
+    view: &View,
+    rect: Rect,
+    tool: &MeasureTool,
+    hover: Option<MeasurePoint>,
+    units: (Unit, usize),
+    lang: Lang,
+) {
+    if let Some(point) = hover {
+        painter.circle_stroke(view.at(point.at), 6.0, Stroke::new(1.5, WOULD_MOVE));
+    }
+    if let (Some(a), Some(b)) = (tool.measure.a, tool.measure.b.or(hover)) {
+        painter.line_segment([view.at(a.at), view.at(b.at)], Stroke::new(1.5, WOULD_MOVE));
+    }
+    if let Some(line) = tool.line(hover, units.0, units.1, lang) {
+        painter.text(
+            rect.center_bottom() + egui::vec2(0.0, -28.0),
+            egui::Align2::CENTER_BOTTOM,
+            line,
+            egui::FontId::proportional(14.0),
+            WOULD_MOVE,
+        );
+    }
 }
 
 fn copper_colour(board: &Board, layer: Id) -> Color32 {
@@ -999,7 +1200,12 @@ fn align_row(
 }
 
 /// The panel of the tools. Returns true when the person asked to stop editing.
-pub fn tools_panel(ui: &mut egui::Ui, st: &mut BoardEditUi, lang: Lang) -> bool {
+pub fn tools_panel(
+    ui: &mut egui::Ui,
+    st: &mut BoardEditUi,
+    lang: Lang,
+    history_shown: usize,
+) -> bool {
     let mut leave = false;
     ui.label(heading(BoardMsg::EditingTitle.tr(lang)));
     ui.horizontal(|ui| {
@@ -1025,6 +1231,27 @@ pub fn tools_panel(ui: &mut egui::Ui, st: &mut BoardEditUi, lang: Lang) -> bool 
             leave = true;
         }
     });
+    let steps = edit_assist::history(&st.state, lang, history_shown);
+    ui.collapsing(AssistMsg::History.tr(lang), |ui| {
+        let mut chosen = None;
+        for (row, step) in steps.rows.iter().enumerate() {
+            let text = if step.done {
+                egui::RichText::new(&step.label).color(ui_text())
+            } else {
+                dim(step.label.clone())
+            };
+            if ui.selectable_label(false, text).clicked() {
+                chosen = Some(steps.go_to(row));
+            }
+        }
+        if let Some(movement) = chosen {
+            edit_assist::go(&mut st.state, movement);
+        }
+    });
+    ui.checkbox(&mut st.measure.on, AssistMsg::Measure.tr(lang));
+    if !st.measure.on {
+        st.measure.measure.clear();
+    }
     let mut tool = st.state.tool;
     ui.horizontal_wrapped(|ui| {
         for (value, text) in [
@@ -1138,6 +1365,17 @@ pub fn tools_panel(ui: &mut egui::Ui, st: &mut BoardEditUi, lang: Lang) -> bool 
             });
         }
         Tool::Route => {
+            let mut mode = st.route.mode;
+            ui.horizontal_wrapped(|ui| {
+                ui.label(dim(AssistMsg::RouteMode.tr(lang)));
+                for value in RouteMode::ALL {
+                    ui.selectable_value(&mut mode, value, AssistMsg::of_mode(value).tr(lang));
+                }
+            });
+            while mode != st.route.mode {
+                st.route.next_mode();
+            }
+            ui.label(dim(AssistMsg::ModeKey.tr(lang)));
             ui.checkbox(&mut st.state.diagonal, BoardMsg::Diagonal.tr(lang));
             ui.checkbox(
                 &mut st.state.horizontal_first,

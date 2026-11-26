@@ -76,6 +76,14 @@ pub struct BoardEditSettings {
     /// How many times the advance of a route halves its search for the last place that breaks no
     /// rule (the distance is found to the nearest nanometre after about thirty).
     pub advance_iterations: usize,
+    /// Whether the rules are checked while something is being dragged, before it is let go.
+    pub drag_drc: bool,
+    /// The largest number of components, tracks, vias and zones of a board whose drag is checked
+    /// while it moves; a larger board is checked when the drag ends.
+    pub drag_drc_max_objects: usize,
+    /// How far from a pad, a via, an end of a track or a corner a click of the measure still
+    /// snaps to it, in nanometres.
+    pub measure_snap_nm: i64,
 }
 
 impl Default for BoardEditSettings {
@@ -128,6 +136,9 @@ impl BoardEditSettings {
             dimension_stroke_nm: 1,
             width_step_nm: 1,
             advance_iterations: 1,
+            drag_drc: false,
+            drag_drc_max_objects: 1,
+            measure_snap_nm: 0,
         }
     }
 
@@ -214,6 +225,11 @@ impl BoardEditSettings {
                 "advance_iterations" => {
                     self.advance_iterations = value.parse().map_err(|_| bad())?;
                 }
+                "drag_drc" => self.drag_drc = parse_bool(value).ok_or_else(bad)?,
+                "drag_drc_max_objects" => {
+                    self.drag_drc_max_objects = value.parse().map_err(|_| bad())?;
+                }
+                "measure_snap_nm" => self.measure_snap_nm = value.parse().map_err(|_| bad())?,
                 _ => return Err(fail(format!("unknown key {key}"))),
             }
         }
@@ -240,6 +256,7 @@ impl BoardEditSettings {
             ("dimension_text_height_nm", self.dimension_text_height_nm, 1),
             ("dimension_stroke_nm", self.dimension_stroke_nm, 1),
             ("width_step_nm", self.width_step_nm, 1),
+            ("measure_snap_nm", self.measure_snap_nm, 0),
         ];
         for (name, value, low) in ranges {
             if !(low..=limit).contains(&value) {
@@ -266,6 +283,11 @@ impl BoardEditSettings {
             ("shove_max_moved", self.shove_max_moved, 256),
             ("arc_steps_per_quarter", self.arc_steps_per_quarter, 64),
             ("advance_iterations", self.advance_iterations, 40),
+            (
+                "drag_drc_max_objects",
+                self.drag_drc_max_objects,
+                10_000_000,
+            ),
         ];
         for (name, value, high) in counts {
             if !(1..=high).contains(&value) {
@@ -303,6 +325,11 @@ mod tests {
         assert_eq!(s.grid_nm, 250_000);
         assert!(s.snap && s.live_drc && s.reject_new_errors && s.follow_tracks);
         assert!(!s.advanced_drc);
+        assert!(s.drag_drc);
+        assert_eq!(
+            (s.drag_drc_max_objects, s.measure_snap_nm),
+            (5_000, 600_000)
+        );
         assert!(s.diagonal_routes && s.corner_horizontal_first);
         assert_eq!(s.track_width_nm, 250_000);
         assert_eq!(s.meander_candidates, 3);

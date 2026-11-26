@@ -473,24 +473,33 @@ impl App {
             });
             let editing = self.sch.is_some() || self.brd.is_some();
             if let Some(w) = self.workspace.as_mut() {
+                let brd = &mut self.brd;
+                let (can_undo, can_redo) = match brd.as_ref() {
+                    Some(brd) => board_gui::history_state(brd),
+                    None => (!editing && w.can_undo(), !editing && w.can_redo()),
+                };
                 ui.horizontal_wrapped(|ui| {
                     if ui
-                        .add_enabled(
-                            !editing && w.can_undo(),
-                            egui::Button::new(EditMsg::Undo.tr(lang)),
-                        )
+                        .add_enabled(can_undo, egui::Button::new(EditMsg::Undo.tr(lang)))
                         .clicked()
                     {
-                        w.undo();
+                        match brd.as_mut() {
+                            Some(brd) => board_gui::undo(brd, w),
+                            None => {
+                                w.undo();
+                            }
+                        }
                     }
                     if ui
-                        .add_enabled(
-                            !editing && w.can_redo(),
-                            egui::Button::new(EditMsg::Redo.tr(lang)),
-                        )
+                        .add_enabled(can_redo, egui::Button::new(EditMsg::Redo.tr(lang)))
                         .clicked()
                     {
-                        w.redo();
+                        match brd.as_mut() {
+                            Some(brd) => board_gui::redo(brd, w),
+                            None => {
+                                w.redo();
+                            }
+                        }
                     }
                     if w.dirty() {
                         ui.label(egui::RichText::new(EditMsg::Unsaved.tr(lang)).color(ui_danger()));
@@ -573,7 +582,7 @@ impl App {
             }
             let mut leave_board = false;
             if let Some(brd) = self.brd.as_mut() {
-                leave_board = board_gui::tools_panel(ui, brd, lang);
+                leave_board = board_gui::tools_panel(ui, brd, lang, self.settings.history_shown);
                 if leave_board {
                     board_gui::finish(brd, workspace);
                 }
@@ -933,7 +942,16 @@ impl App {
             return;
         }
         if let (Some(brd), Some(workspace)) = (self.brd.as_mut(), self.workspace.as_mut()) {
-            board_gui::canvas(ui, brd, workspace, lang, background, &mut self.fit_pending);
+            let units = (self.settings.measure_unit, self.settings.measure_decimals);
+            board_gui::canvas(
+                ui,
+                brd,
+                workspace,
+                lang,
+                background,
+                &mut self.fit_pending,
+                units,
+            );
             return;
         }
         if self.workspace.is_none() {
@@ -1466,12 +1484,20 @@ impl App {
 
     /// What the window knows when it decides which entries of the menus can be chosen.
     fn menu_facts(&self) -> MenuFacts {
+        let (can_undo, can_redo) = match self.brd.as_ref() {
+            Some(brd) => board_gui::history_state(brd),
+            None => (
+                self.workspace.as_ref().is_some_and(|w| w.can_undo()),
+                self.workspace.as_ref().is_some_and(|w| w.can_redo()),
+            ),
+        };
         MenuFacts {
             has_document: self.workspace.is_some(),
             is_board: self.workspace.as_ref().is_some_and(|w| w.is_board()),
             editing: self.sch.is_some() || self.brd.is_some(),
-            can_undo: self.workspace.as_ref().is_some_and(|w| w.can_undo()),
-            can_redo: self.workspace.as_ref().is_some_and(|w| w.can_redo()),
+            editor_history: self.brd.is_some(),
+            can_undo,
+            can_redo,
             actions: self.brd.as_ref().map_or(0, board_gui::actions_mask),
         }
     }
@@ -1552,12 +1578,22 @@ impl App {
             StdAction::Export => self.pending_dock.push(show_tasks),
             StdAction::Undo => {
                 if let Some(w) = self.workspace.as_mut() {
-                    w.undo();
+                    match self.brd.as_mut() {
+                        Some(brd) => board_gui::undo(brd, w),
+                        None => {
+                            w.undo();
+                        }
+                    }
                 }
             }
             StdAction::Redo => {
                 if let Some(w) = self.workspace.as_mut() {
-                    w.redo();
+                    match self.brd.as_mut() {
+                        Some(brd) => board_gui::redo(brd, w),
+                        None => {
+                            w.redo();
+                        }
+                    }
                 }
             }
             StdAction::Quit => ctx.send_viewport_cmd(egui::ViewportCommand::Close),
