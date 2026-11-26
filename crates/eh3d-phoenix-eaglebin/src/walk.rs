@@ -404,7 +404,8 @@ impl Walk<'_> {
                     }
                     let content = decode(&bytes, place, self.report);
                     self.report.count("text");
-                    out.push(Item::Text(items::text(&r, content, place, self.report)));
+                    let text = items::text(&r, content, self.old, place, self.report);
+                    out.push(Item::Text(text));
                 }
                 items::POLYGON => {
                     let n = usize::from(u16_at(&r, 2));
@@ -447,8 +448,10 @@ impl Walk<'_> {
             }
             let mut drawing = RawDrawing::default();
             if kind == PACKAGE {
-                drawing.name = self.string(&r, 18, 24, "footprint");
-                drawing.description = self.string(&r, 13, 18, &drawing.name);
+                // before version 4 the name has two more bytes and the description two less
+                let name_at = if self.old { 16 } else { 18 };
+                drawing.name = self.string(&r, name_at, 24, "footprint");
+                drawing.description = self.string(&r, 13, name_at, &drawing.name);
             } else {
                 drawing.name = self.string(&r, 16, 24, "symbol");
             }

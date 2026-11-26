@@ -113,10 +113,6 @@ fn allowed() -> Vec<(&'static str, &'static str)> {
             "the error file of the window, in its own folder of settings",
         ),
         (
-            "crates/eh3d-phoenix-viewer/src/launcher_session.rs",
-            "the list of recent files, in the folder of settings of the window",
-        ),
-        (
             "crates/eh3d-phoenix-viewer/src/session.rs",
             "the save of a file that the window saved before, after a copy of it",
         ),

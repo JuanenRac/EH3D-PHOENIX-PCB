@@ -125,9 +125,6 @@ pub fn show(
         {
             launcher.clear();
         }
-        if launcher.save_failed {
-            ui.label(egui::RichText::new(LauncherText::SaveFailed.tr(lang)).color(ui_danger()));
-        }
     });
     launch
 }

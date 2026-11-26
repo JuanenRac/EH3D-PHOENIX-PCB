@@ -1,14 +1,16 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! The state of the start screen of the window, without a screen: what a typed path, a dropped
-//! file or a click on a recent file asks for, the list of recent files and the file where it is
-//! kept. The window (`launcher_gui`, behind the `gui` feature) only draws this and passes on what
-//! the person does.
+//! file or a click on a recent file asks for, and the recent files it shows. Those are the list of
+//! the menu *Open recent* (kept by the frame of the suite): the start screen holds a copy of it and
+//! the changes the person asked for, which `sync` puts into the list. The window (`launcher_gui`,
+//! behind the `gui` feature) only draws this and passes on what the person does.
 
 use std::path::{Path, PathBuf};
 
+use eh3d_dock::recent::RecentFiles;
 use eh3d_phoenix_rules::Lang;
 
-use crate::launcher_recent::{recent_path, EntryKind, RecentList};
+use crate::launcher_recent::EntryKind;
 use crate::launcher_text::LauncherText;
 use crate::settings::ViewerSettings;
 
@@ -72,95 +74,74 @@ pub fn clean_path(text: &str) -> String {
     unquoted.trim().to_string()
 }
 
-/// The start screen: the typed path and the recent files with the file that keeps them.
+/// A change of the list of recent files that the window asked for.
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum RecentChange {
+    Opened(String),
+    Forget(String),
+    Clear,
+}
+
+/// The start screen: the typed path and the recent files.
 #[derive(Debug, Clone)]
 pub struct Launcher {
     /// The path being typed.
     pub typed: String,
-    recent: RecentList,
-    store: Option<PathBuf>,
-    /// True when the last attempt to save the list failed.
-    pub save_failed: bool,
+    recent: RecentFiles,
+    changes: Vec<RecentChange>,
 }
 
 impl Launcher {
-    /// A start screen that keeps its list in `store` (none keeps it in memory only) and reads
-    /// what was kept there before; a file that is missing or unreadable gives an empty list.
-    pub fn new(settings: &ViewerSettings, store: Option<PathBuf>) -> Launcher {
-        let text = store
-            .as_deref()
-            .and_then(|path| {
-                // at most a megabyte is read: the list of recent files is a few kilobytes
-                use std::io::Read;
-                let mut text = String::new();
-                std::fs::File::open(path)
-                    .ok()?
-                    .take(1 << 20)
-                    .read_to_string(&mut text)
-                    .ok()?;
-                Some(text)
-            })
-            .unwrap_or_default();
+    /// A start screen with no recent files yet, which keeps at most `recent_max` of them.
+    pub fn new(settings: &ViewerSettings) -> Launcher {
         Launcher {
             typed: String::new(),
-            recent: RecentList::parse(&text, settings.recent_max),
-            store,
-            save_failed: false,
+            recent: RecentFiles::new(settings.recent_max),
+            changes: Vec::new(),
         }
     }
 
-    /// A start screen whose list is in the settings folder of the user, found in the
-    /// environment (`get` reads one variable).
-    pub fn from_env(settings: &ViewerSettings, get: &dyn Fn(&str) -> Option<String>) -> Launcher {
-        Launcher::new(settings, recent_path(get, &settings.recent_file))
-    }
-
-    /// The recent files.
-    pub fn recent(&self) -> &RecentList {
+    /// The recent files, the newest first.
+    pub fn recent(&self) -> &RecentFiles {
         &self.recent
     }
 
-    /// The file where the list is kept.
-    pub fn store(&self) -> Option<&Path> {
-        self.store.as_deref()
+    /// Puts what the window asked for into the list of the menu, and takes a copy of that list.
+    pub fn sync(&mut self, shared: &mut RecentFiles) {
+        for change in std::mem::take(&mut self.changes) {
+            match change {
+                RecentChange::Opened(path) => {
+                    shared.push(&path);
+                }
+                RecentChange::Forget(path) => shared.remove(&path),
+                RecentChange::Clear => shared.clear(),
+            }
+        }
+        self.recent = shared.clone();
     }
 
-    /// Writes the list; the folder is made when it does not exist. The answer is false when it
-    /// could not be written, and `save_failed` says so for the window.
-    pub fn save(&mut self) -> bool {
-        let Some(path) = self.store.as_deref() else {
-            self.save_failed = false;
-            return true;
-        };
-        let written = path
-            .parent()
-            .map_or(Ok(()), std::fs::create_dir_all)
-            .and_then(|()| std::fs::write(path, self.recent.to_text()))
-            .is_ok();
-        self.save_failed = !written;
-        written
-    }
-
-    /// Notes a file that was opened: it goes first in the list, which is saved. The path is made
-    /// absolute so that the list does not depend on the folder the program started in.
+    /// Notes a file that was opened: it goes first in the list. The path is made absolute so that
+    /// the list does not depend on the folder the program started in.
     pub fn opened(&mut self, path: &Path) {
         let absolute = std::path::absolute(path).unwrap_or_else(|_| path.to_path_buf());
-        if self.recent.add(&absolute) {
-            self.save();
+        let text = absolute.to_string_lossy().into_owned();
+        if self.recent.push(&text) {
+            self.changes.push(RecentChange::Opened(text));
         }
     }
 
     /// Takes one file out of the list.
     pub fn forget(&mut self, index: usize) {
-        if self.recent.remove(index) {
-            self.save();
+        if let Some(path) = self.recent.items().get(index).cloned() {
+            self.recent.remove(&path);
+            self.changes.push(RecentChange::Forget(path));
         }
     }
 
     /// Empties the list.
     pub fn clear(&mut self) {
         self.recent.clear();
-        self.save();
+        self.changes.push(RecentChange::Clear);
     }
 
     /// What the typed path asks for, or the note to show when it asks for nothing. A folder is
@@ -217,8 +198,9 @@ impl Launcher {
     /// The lines of the list of recent files. `exists` says whether a file is still there.
     pub fn rows(&self, exists: &dyn Fn(&Path) -> bool) -> Vec<RecentRow> {
         self.recent
-            .entries()
+            .items()
             .iter()
+            .map(PathBuf::from)
             .enumerate()
             .map(|(index, path)| RecentRow {
                 index,
@@ -231,8 +213,8 @@ impl Launcher {
                     .parent()
                     .map(|p| p.to_string_lossy().into_owned())
                     .unwrap_or_default(),
-                kind: EntryKind::of(path),
-                exists: exists(path),
+                kind: EntryKind::of(&path),
+                exists: exists(&path),
             })
             .collect()
     }
@@ -248,7 +230,7 @@ mod tests {
 
     #[test]
     fn a_typed_path_is_cleaned_and_an_empty_one_asks_for_a_path() {
-        let mut launcher = Launcher::new(&settings(5), None);
+        let mut launcher = Launcher::new(&settings(5));
         assert_eq!(launcher.typed_launch(), Err(LauncherText::EnterPath));
         launcher.typed = "   ".to_string();
         assert_eq!(launcher.typed_launch(), Err(LauncherText::EnterPath));
@@ -282,21 +264,9 @@ mod tests {
     }
 
     #[test]
-    fn only_the_first_megabyte_of_the_list_of_recent_files_is_read() {
-        let dir = tempfile::tempdir().unwrap();
-        let store = dir.path().join("recent.txt");
-        let mut text = String::from("first.brd\n");
-        text.push_str(&"#".repeat(2 << 20));
-        text.push_str("\nlate.brd\n");
-        std::fs::write(&store, text).unwrap();
-        let launcher = Launcher::new(&settings(5), Some(store));
-        assert_eq!(launcher.recent().entries(), [PathBuf::from("first.brd")]);
-    }
-
-    #[test]
     fn a_folder_is_shown_as_gerber_files_whether_typed_dropped_or_asked_for() {
         let dir = tempfile::tempdir().unwrap();
-        let mut launcher = Launcher::new(&settings(5), None);
+        let mut launcher = Launcher::new(&settings(5));
         launcher.typed = format!("\"{}\"", dir.path().display());
         assert_eq!(
             launcher.typed_launch(),
@@ -322,7 +292,7 @@ mod tests {
 
     #[test]
     fn the_panel_button_takes_the_typed_text_as_the_board_files() {
-        let mut launcher = Launcher::new(&settings(5), None);
+        let mut launcher = Launcher::new(&settings(5));
         assert_eq!(launcher.panel_launch(), Err(LauncherText::EnterPath));
         launcher.typed = "  a.brd, b.json  ".to_string();
         assert_eq!(
@@ -345,65 +315,62 @@ mod tests {
         assert_eq!(lang_from_env(&none), None);
     }
 
-    #[test]
-    fn an_opened_file_is_kept_in_the_file_and_read_back_by_the_next_start() {
-        let dir = tempfile::tempdir().unwrap();
-        let store = dir.path().join("deeper").join("recent.cfg");
-        let board = dir.path().join("a.brd");
-        let schematic = dir.path().join("b.sch");
-        let mut launcher = Launcher::new(&settings(5), Some(store.clone()));
-        assert!(launcher.recent().entries().is_empty());
-        launcher.opened(&board);
-        launcher.opened(&schematic);
-        launcher.opened(&board);
-        assert!(!launcher.save_failed);
-        let next = Launcher::new(&settings(5), Some(store));
-        assert_eq!(next.recent().entries(), [board, schematic]);
+    fn texts(paths: &[&Path]) -> Vec<String> {
+        paths
+            .iter()
+            .map(|p| p.to_string_lossy().into_owned())
+            .collect()
     }
 
     #[test]
-    fn forgetting_and_clearing_are_saved() {
+    fn what_the_window_asks_for_reaches_the_list_of_the_menu() {
         let dir = tempfile::tempdir().unwrap();
-        let store = dir.path().join("recent.cfg");
-        let mut launcher = Launcher::new(&settings(5), Some(store.clone()));
-        launcher.opened(&dir.path().join("a.brd"));
-        launcher.opened(&dir.path().join("b.brd"));
-        launcher.forget(0);
+        let (a, b) = (dir.path().join("a.brd"), dir.path().join("b.sch"));
+        let mut shared = RecentFiles::new(5);
+        shared.push("/from/the/menu.lbr");
+        let mut launcher = Launcher::new(&settings(5));
+        launcher.opened(&a);
+        launcher.opened(&b);
+        launcher.opened(&a);
+        launcher.sync(&mut shared);
+        let mut wanted = texts(&[&a, &b]);
+        wanted.push("/from/the/menu.lbr".to_string());
+        assert_eq!(shared.items(), wanted);
+        assert_eq!(launcher.recent(), &shared);
+        // forgetting takes the entry of that place out of the list of the menu too
+        launcher.forget(1);
         launcher.forget(9);
-        let after_forget = Launcher::new(&settings(5), Some(store.clone()));
-        assert_eq!(after_forget.recent().entries(), [dir.path().join("a.brd")]);
+        launcher.sync(&mut shared);
+        wanted.remove(1);
+        assert_eq!(shared.items(), wanted);
+        // what the menu cleared is gone from the start screen, and the other way round
+        shared.clear();
+        launcher.sync(&mut shared);
+        assert!(launcher.recent().items().is_empty());
+        shared.push("/x.brd");
+        launcher.sync(&mut shared);
         launcher.clear();
-        let after_clear = Launcher::new(&settings(5), Some(store));
-        assert!(after_clear.recent().entries().is_empty());
+        launcher.sync(&mut shared);
+        assert!(shared.items().is_empty());
     }
 
     #[test]
     fn the_limit_comes_from_the_settings() {
         let dir = tempfile::tempdir().unwrap();
-        let mut launcher = Launcher::new(&settings(2), None);
+        let mut launcher = Launcher::new(&settings(2));
         for name in ["a.brd", "b.brd", "c.brd"] {
             launcher.opened(&dir.path().join(name));
         }
-        assert_eq!(launcher.recent().entries().len(), 2);
-        assert_eq!(launcher.recent().entries()[0], dir.path().join("c.brd"));
-        assert!(launcher.store().is_none());
-        assert!(launcher.save());
-    }
-
-    #[test]
-    fn a_list_that_cannot_be_written_is_reported_and_never_a_panic() {
-        let dir = tempfile::tempdir().unwrap();
-        // the "folder" of the list is a file, so the list can be neither made nor written
-        let blocker = dir.path().join("blocker");
-        std::fs::write(&blocker, b"x").unwrap();
-        let mut launcher = Launcher::new(&settings(5), Some(blocker.join("recent.cfg")));
-        launcher.opened(&dir.path().join("a.brd"));
-        assert!(launcher.save_failed);
+        assert_eq!(launcher.recent().items().len(), 2);
+        assert_eq!(
+            launcher.recent().items()[0],
+            texts(&[&dir.path().join("c.brd")])[0]
+        );
     }
 
     #[test]
     fn the_rows_say_what_each_file_is_and_whether_it_is_still_there() {
-        let mut launcher = Launcher::new(&settings(5), None);
+        let mut launcher = Launcher::new(&settings(5));
         launcher.opened(Path::new("/work/boards/main.brd"));
         launcher.opened(Path::new("/work/old/gone.lbr"));
         let exists = |path: &Path| path.ends_with("main.brd");

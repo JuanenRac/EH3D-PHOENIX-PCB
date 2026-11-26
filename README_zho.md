@@ -83,12 +83,12 @@ python -I tools/make_structure.py --check --readmes
 python -I -m unittest discover -s tools -p "test_*.py"
 ```
 
-**下载并打开窗口。** 发布版的压缩包（Windows 64 位和 32 位、Linux 和 macOS）包含一个程序 `phoenix`：它是命令行，不带参数启动时则是查看器兼编辑器的窗口（早期版本中单独的 `phoenix-gui` 程序已不存在）。双击 `phoenix`（Windows 上为 `phoenix.exe`）会打开开始画面，可以在其中打开电路板、原理图或库，选择最近的文件，或把文件拖放到窗口上；`phoenix <文件>` 会直接打开文件。在 Windows 上它没有控制台窗口，因此打不开时，原因会写入用户设置文件夹中的 `last_error.txt`（Windows 上为 `%APPDATA%\EH3D-PHOENIX-PCB`，其他系统为 `~/.config/eh3d-phoenix-pcb`）；最近文件列表（`recent.cfg`）也保存在那里，保留的数量由 `config/viewer.cfg` 设定。命令（`phoenix check board.brd`）仍像以前一样在控制台中工作；在 Windows 上终端不会等待该程序结束，因此需要退出码的批处理文件应使用 `start /wait` 启动它。该窗口是尚未用鼠标试过的原型（见上面的状态）。构建带窗口的程序：`cargo build --release -p eh3d-phoenix-cli --features gui`。 `phoenix --shot FILE.png [--size WxH] [--theme dark|light|contrast] [--window NAME] [--wait N] [--open FILE]` 会对窗口截图并自动关闭（README 中的图片就是这样生成的）；在此模式下不会读取或写入偏好设置和最近文件列表。
+**下载并打开窗口。** 发布版的压缩包（Windows 64 位和 32 位、Linux 和 macOS）包含一个程序 `phoenix`：它是命令行，不带参数启动时则是查看器兼编辑器的窗口（早期版本中单独的 `phoenix-gui` 程序已不存在）。双击 `phoenix`（Windows 上为 `phoenix.exe`）会打开开始画面，可以在其中打开电路板、原理图或库，选择最近的文件，或把文件拖放到窗口上；`phoenix <文件>` 会直接打开文件。在 Windows 上它没有控制台窗口，因此打不开时，原因会写入用户设置文件夹中的 `last_error.txt`（Windows 上为 `%APPDATA%\EH3D-PHOENIX-PCB`，其他系统为 `~/.config/eh3d-phoenix-pcb`）。起始屏幕与 *文件* 菜单显示同一个最近文件列表，保存在 `%APPDATA%\EH3D\recent-phoenix-pcb.txt`（其他系统为 `~/.config/eh3d/`）；保留的数量由 `config/viewer.cfg` 设定。命令（`phoenix check board.brd`）仍像以前一样在控制台中工作；在 Windows 上终端不会等待该程序结束，因此需要退出码的批处理文件应使用 `start /wait` 启动它。该窗口是尚未用鼠标试过的原型（见上面的状态）。构建带窗口的程序：`cargo build --release -p eh3d-phoenix-cli --features gui`。 `phoenix --shot FILE.png [--size WxH] [--theme dark|light|contrast] [--window NAME] [--wait N] [--open FILE]` 会对窗口截图并自动关闭（README 中的图片就是这样生成的）；在此模式下不会读取或写入偏好设置和最近文件列表。
 
 <p align="center">
   <img src="images/screens/zh/phoenix-pcb-01-start.png" alt="EH3D-PHOENIX-PCB 起始屏幕" width="49%">
   <img src="images/screens/zh/phoenix-pcb-02-document.png" alt="EH3D-PHOENIX-PCB 电路板窗口" width="49%">
-  <img src="images/screens/zh/phoenix-pcb-11-measures.png" alt="EH3D-PHOENIX-PCB 测量窗口" width="49%">
+  <img src="images/screens/zh/phoenix-pcb-13-measures.png" alt="EH3D-PHOENIX-PCB 测量窗口" width="49%">
 </p>
 
 **窗口的面板。** 窗口使用套件的停靠框架布局：有电路板、图层、属性、元件、网络、规则问题、控制台、报告和任务面板，可以移动、合并为标签页、浮动、折叠到边缘、最大化、锁定，并可从“视图”菜单恢复；按任务分为三个工作区（编辑、审查和紧凑；没有经验等级之分），菜单栏包含文件、编辑、视图、工具、窗口和帮助。库、导入的 Gerber 文件、3D 视图和电路板面板也是面板：在打开它们所显示的内容之前保持隐藏，打开后加入电路板所在的分组，而不是遮住电路板。布局保存在偏好设置文件中（`dock.*` 行），`phoenix --shot FILE.png --workspace edit|review|compact` 可为某个工作区截图。窗口是尚未用鼠标试过的原型。

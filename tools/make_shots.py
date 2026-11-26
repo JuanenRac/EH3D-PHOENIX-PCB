@@ -40,7 +40,7 @@ DEFAULT_MAX_KB = 400
 PNG_MAGIC = b"\x89PNG\r\n\x1a\n"
 # the windows that need no document, and the ones that need a board
 NO_FILE = ("start", "help", "shortcuts", "appearance")
-ON_BOARD = ("document", "3d", "panel", "layers", "search")
+ON_BOARD = ("document", "3d", "panel", "layers", "search", "measures")
 # the workspaces of the panels that have a picture of their own besides the factory one (`--workspace`)
 WORKSPACES = ("review", "compact")
 BOARD_EXAMPLES = ("examples/tutorials/led_board.brd", "examples/tutorials/tut.brd")
@@ -91,6 +91,9 @@ def plan(has_board: bool, gerber: bool) -> list[Shot]:
     if gerber:
         shots.append(Shot("gerber"))
     shots += [Shot(window) for window in NO_FILE if window != "start"]
+    # last, so that the numbers of the pictures above do not move
+    if has_board:
+        shots.append(Shot("measures"))
     return shots
 
 

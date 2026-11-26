@@ -1,9 +1,15 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! The list of recent files of the start screen, and where the window keeps its files. The list
-//! is a plain text file, one path per line, the newest first; how many entries it keeps and how
-//! the file is called are settings (`recent_max`, `recent_file`), not values of the code.
+//! The list of recent files, and where the window keeps its files. There is one list, the one of
+//! the menu *Open recent* of the frame of the suite, which the start screen shows too. Earlier
+//! versions kept a second list for the start screen (a plain text file, one path per line, the
+//! newest first, named by the setting `recent_file`): its entries are moved into the one list the
+//! first time. How many entries the list keeps is the setting `recent_max`.
 
+use std::io::Read;
 use std::path::{Path, PathBuf};
+
+use eh3d_dock::core::DockCore;
+use eh3d_dock::recent_store::RecentStore;
 
 /// The folder of the settings of the user is named like this under the application data folder
 /// of Windows.
@@ -55,95 +61,85 @@ pub fn config_dir(get: &dyn Fn(&str) -> Option<String>) -> Option<PathBuf> {
     value("HOME").map(|home| PathBuf::from(home).join(".config").join(FOLDER_OTHER))
 }
 
-/// The file that holds the recent files, named by the setting `recent_file`.
-pub fn recent_path(get: &dyn Fn(&str) -> Option<String>, file_name: &str) -> Option<PathBuf> {
+/// The file of the list that earlier versions kept for the start screen, named by the setting
+/// `recent_file`.
+pub fn start_list_path(get: &dyn Fn(&str) -> Option<String>, file_name: &str) -> Option<PathBuf> {
     config_dir(get).map(|dir| dir.join(file_name))
 }
 
-/// The recent files, the newest first, with a limit.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct RecentList {
-    max: usize,
-    entries: Vec<PathBuf>,
+/// The paths of the old list of the start screen, the newest first: blank lines and lines that
+/// start with `#` are ignored and a path that repeats is kept once.
+fn old_entries(text: &str) -> Vec<String> {
+    let mut entries: Vec<String> = Vec::new();
+    for line in text.lines().map(str::trim) {
+        if !line.is_empty() && !line.starts_with('#') && !entries.iter().any(|e| e == line) {
+            entries.push(line.to_string());
+        }
+    }
+    entries
 }
 
-impl RecentList {
-    /// An empty list that keeps at most `max` entries (at least one).
-    pub fn new(max: usize) -> RecentList {
-        RecentList {
-            max: max.max(1),
-            entries: Vec::new(),
+/// A name next to `path` that no file has, for the old list once it has been moved over.
+fn set_aside_name(path: &Path) -> Option<PathBuf> {
+    let name = path.file_name()?.to_string_lossy().into_owned();
+    (1..1000)
+        .map(|n| match n {
+            1 => path.with_file_name(format!("{name}.moved")),
+            _ => path.with_file_name(format!("{name}.moved-{n}")),
+        })
+        .find(|candidate| !candidate.exists())
+}
+
+/// Makes the list of the frame the one list of the program: it keeps at most `limit` entries, it
+/// lives in `store` (none keeps it in memory only), and what the old list of the start screen
+/// (`start_list`) holds and the list does not is added after it. The old file is then renamed, and
+/// never deleted, so that an entry cleared later does not come back; it keeps its name, to be read
+/// again at the next start, when the list could not be written. At most a megabyte of it is read.
+pub fn keep_one_recent_list(
+    core: &mut DockCore,
+    store: Option<RecentStore>,
+    start_list: Option<&Path>,
+    limit: usize,
+) {
+    core.recent_mut().set_limit(limit);
+    let Some(store) = store else {
+        return;
+    };
+    core.keep_recent_in(store.clone());
+    let Some(old) = start_list else {
+        return;
+    };
+    let mut text = String::new();
+    let read =
+        std::fs::File::open(old).and_then(|file| file.take(1 << 20).read_to_string(&mut text));
+    if read.is_err() {
+        // not there, or not text: it is left as it is
+        return;
+    }
+    let mut merged = core.recent().items().to_vec();
+    for path in old_entries(&text) {
+        if !merged.contains(&path) {
+            merged.push(path);
         }
     }
-
-    /// Reads the text of the file: one path per line, the newest first; blank lines and lines
-    /// that start with `#` are ignored, a path that repeats is kept once, and what goes beyond
-    /// the limit is dropped.
-    pub fn parse(text: &str, max: usize) -> RecentList {
-        let mut list = RecentList::new(max);
-        for line in text.lines() {
-            let line = line.trim();
-            if line.is_empty() || line.starts_with('#') {
-                continue;
-            }
-            let path = PathBuf::from(line);
-            if list.entries.len() < list.max && !list.entries.contains(&path) {
-                list.entries.push(path);
-            }
+    // an address is never written by the store, so it is not asked for either
+    merged.retain(|path| !path.contains("://"));
+    let list = core.recent_mut();
+    list.clear();
+    // pushed from the oldest, so that what does not fit is the oldest
+    for path in merged.iter().rev() {
+        list.push(path);
+    }
+    core.flush_recent();
+    let written = core.recent().items().is_empty()
+        || store
+            .load(core.recent().limit())
+            .is_some_and(|kept| kept.items() == core.recent().items());
+    if written {
+        if let Some(aside) = set_aside_name(old) {
+            // a failure only means that it is read again, and gives the same list
+            let _ = std::fs::rename(old, aside);
         }
-        list
-    }
-
-    /// The text to write to the file.
-    pub fn to_text(&self) -> String {
-        let mut text = String::from("# recent files, the newest first\n");
-        for path in &self.entries {
-            text.push_str(&path.to_string_lossy());
-            text.push('\n');
-        }
-        text
-    }
-
-    /// The entries, the newest first.
-    pub fn entries(&self) -> &[PathBuf] {
-        &self.entries
-    }
-
-    /// How many entries the list keeps at most.
-    pub fn max(&self) -> usize {
-        self.max
-    }
-
-    /// Puts a file first. A path that the file could not hold (empty, starting with `#`, or
-    /// with a line break) is refused and the answer is false; a path that was in the list moves
-    /// to the front; the oldest entries go when the limit is passed.
-    pub fn add(&mut self, path: &Path) -> bool {
-        let text = path.to_string_lossy();
-        if text.trim().is_empty()
-            || text.trim_start().starts_with('#')
-            || text.contains(['\n', '\r'])
-        {
-            return false;
-        }
-        self.entries.retain(|entry| entry != path);
-        self.entries.insert(0, path.to_path_buf());
-        self.entries.truncate(self.max);
-        true
-    }
-
-    /// Takes out the entry at a position; the answer is false when there is none.
-    pub fn remove(&mut self, index: usize) -> bool {
-        if index < self.entries.len() {
-            self.entries.remove(index);
-            true
-        } else {
-            false
-        }
-    }
-
-    /// Empties the list.
-    pub fn clear(&mut self) {
-        self.entries.clear();
     }
 }
 
@@ -199,7 +195,7 @@ mod tests {
         let empty = env(&[("APPDATA", " "), ("HOME", "")]);
         assert_eq!(config_dir(&empty), None);
         assert_eq!(
-            recent_path(&home, "recent.cfg"),
+            start_list_path(&home, "recent.cfg"),
             Some(
                 PathBuf::from("/h")
                     .join(".config")
@@ -209,72 +205,100 @@ mod tests {
         );
     }
 
-    #[test]
-    fn the_newest_file_goes_first_and_a_repeat_moves_to_the_front() {
-        let mut list = RecentList::new(3);
-        assert!(list.add(Path::new("a.brd")));
-        assert!(list.add(Path::new("b.sch")));
-        assert!(list.add(Path::new("a.brd")));
-        assert_eq!(
-            list.entries(),
-            [PathBuf::from("a.brd"), PathBuf::from("b.sch")]
-        );
+    fn core() -> DockCore {
+        DockCore::new(crate::panels::defs(), crate::panels::workspaces())
+    }
+
+    /// The list of the menu in a folder of the test, never in the one of the person.
+    fn store(folder: &Path) -> RecentStore {
+        RecentStore::in_dir(&folder.join("EH3D"), eh3d_dock::about::Phoenix::Pcb)
+    }
+
+    fn start(folder: &Path, limit: usize) -> DockCore {
+        let mut core = core();
+        let old = folder.join("recent.cfg");
+        keep_one_recent_list(&mut core, Some(store(folder)), Some(&old), limit);
+        core
     }
 
     #[test]
-    fn the_oldest_entries_go_when_the_limit_is_passed() {
-        let mut list = RecentList::new(2);
-        for name in ["a.brd", "b.brd", "c.brd"] {
-            assert!(list.add(Path::new(name)));
-        }
-        assert_eq!(
-            list.entries(),
-            [PathBuf::from("c.brd"), PathBuf::from("b.brd")]
-        );
-        assert_eq!(RecentList::new(0).max(), 1);
+    fn what_both_lists_held_is_in_the_one_list_and_the_old_file_is_kept_aside() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut menu = core();
+        menu.keep_recent_in(store(dir.path()));
+        menu.recent_mut().push("/work/older.brd");
+        menu.recent_mut().push("/work/both.brd");
+        menu.flush_recent();
+        let old = dir.path().join("recent.cfg");
+        let text =
+            "# note\n\n  /work/start.sch  \n/work/both.brd\n/work/start.sch\n/work/a b.lbr\n";
+        std::fs::write(&old, text).unwrap();
+        let wanted = [
+            "/work/both.brd",
+            "/work/older.brd",
+            "/work/start.sch",
+            "/work/a b.lbr",
+        ];
+        let first = start(dir.path(), 20);
+        assert_eq!(first.recent().items(), wanted);
+        assert!(!old.exists());
+        let aside = dir.path().join("recent.cfg.moved");
+        assert_eq!(std::fs::read_to_string(&aside).unwrap(), text);
+        // the next start reads the one list, and what is cleared stays cleared
+        let mut second = start(dir.path(), 20);
+        assert_eq!(second.recent().items(), wanted);
+        second.recent_mut().clear();
+        second.flush_recent();
+        assert!(start(dir.path(), 20).recent().items().is_empty());
+        // an earlier version that ran again leaves a new old list: no file is written over
+        std::fs::write(&old, "/work/later.brd\n").unwrap();
+        assert_eq!(start(dir.path(), 20).recent().items(), ["/work/later.brd"]);
+        assert_eq!(std::fs::read_to_string(&aside).unwrap(), text);
+        assert!(dir.path().join("recent.cfg.moved-2").exists());
     }
 
     #[test]
-    fn a_path_the_file_could_not_hold_is_refused() {
-        let mut list = RecentList::new(5);
-        assert!(!list.add(Path::new("")));
-        assert!(!list.add(Path::new("#hidden.brd")));
-        assert!(!list.add(Path::new("two\nlines.brd")));
-        assert!(list.entries().is_empty());
+    fn the_start_screen_list_alone_is_moved_and_the_limit_drops_the_oldest() {
+        let dir = tempfile::tempdir().unwrap();
+        let old = dir.path().join("recent.cfg");
+        std::fs::write(&old, "a.brd\nb.brd\nc.brd\n").unwrap();
+        assert_eq!(start(dir.path(), 2).recent().items(), ["a.brd", "b.brd"]);
+        assert_eq!(start(dir.path(), 2).recent().items(), ["a.brd", "b.brd"]);
+        // what did not fit is still in the file that was set aside
+        let aside = std::fs::read_to_string(dir.path().join("recent.cfg.moved")).unwrap();
+        assert!(aside.contains("c.brd"));
     }
 
     #[test]
-    fn the_text_round_trips_and_ignores_comments_blanks_and_repeats() {
-        let mut list = RecentList::new(5);
-        list.add(Path::new("one.brd"));
-        list.add(Path::new("two.sch"));
-        let text = list.to_text();
-        assert!(text.starts_with("# "));
-        assert_eq!(RecentList::parse(&text, 5), list);
-        let messy = "# note\n\n  b.brd  \na.brd\nb.brd\n";
-        let parsed = RecentList::parse(messy, 5);
-        assert_eq!(
-            parsed.entries(),
-            [PathBuf::from("b.brd"), PathBuf::from("a.brd")]
-        );
+    fn only_the_first_megabyte_of_the_list_of_recent_files_is_read() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut text = String::from("first.brd\n");
+        text.push_str(&"#".repeat(2 << 20));
+        text.push_str("\nlate.brd\n");
+        std::fs::write(dir.path().join("recent.cfg"), text).unwrap();
+        assert_eq!(start(dir.path(), 5).recent().items(), ["first.brd"]);
     }
 
     #[test]
-    fn reading_keeps_the_newest_up_to_the_limit() {
-        let parsed = RecentList::parse("a.brd\nb.brd\nc.brd\n", 2);
-        assert_eq!(
-            parsed.entries(),
-            [PathBuf::from("a.brd"), PathBuf::from("b.brd")]
-        );
+    fn the_old_file_stays_when_the_list_cannot_be_written() {
+        let dir = tempfile::tempdir().unwrap();
+        // the "folder" of the list is a file, so the list can be neither made nor written
+        std::fs::write(dir.path().join("EH3D"), b"x").unwrap();
+        let old = dir.path().join("recent.cfg");
+        std::fs::write(&old, "a.brd\n").unwrap();
+        assert_eq!(start(dir.path(), 5).recent().items(), ["a.brd"]);
+        assert!(old.exists());
     }
 
     #[test]
-    fn removing_and_clearing() {
-        let mut list = RecentList::parse("a.brd\nb.brd\n", 5);
-        assert!(!list.remove(2));
-        assert!(list.remove(0));
-        assert_eq!(list.entries(), [PathBuf::from("b.brd")]);
-        list.clear();
-        assert!(list.entries().is_empty());
+    fn without_a_store_nothing_is_read_or_renamed() {
+        let dir = tempfile::tempdir().unwrap();
+        let old = dir.path().join("recent.cfg");
+        std::fs::write(&old, "a.brd\n").unwrap();
+        let mut core = core();
+        keep_one_recent_list(&mut core, None, Some(&old), 7);
+        assert!(core.recent().items().is_empty());
+        assert_eq!(core.recent().limit(), 7);
+        assert!(old.exists());
     }
 }

@@ -27,6 +27,7 @@ phoenix kit copy [--all] --out FOLDER [<identifier>...]
 | `ulp/` | 20 user programs, each with the output it prints on one of the designs (`.expected`) | `.ulp` |
 | `rules/` | two rule files (one with a class for the supply nets) and four capability profiles (two layers, two layers fine, four layers, made by hand) | `phoenix-rules`, `.cfg` of `check --dfm` |
 | `cam/` | two output profiles: Gerber and drill, and the files for assembly | `phoenix-export` |
+| `README.txt` | a short note in eight languages: the kit is not verified | text |
 | `manifest.json` | the catalogue: identifier, name, type, format, licence, origin, whether it is verified, the formats it can be exported to, the titles in eight languages and the files with their SHA-256 | `phoenix-kit/1` |
 
 The two module footprints are **indicative**: a generic module on two pin strips (2 x 15 pins, rows 25.4 mm apart, and 2 x 20 pins, rows 15.24 mm apart). They are not the drawing of any product; measure your module.

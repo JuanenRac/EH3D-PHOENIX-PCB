@@ -104,7 +104,7 @@ jobs:
       - name: Check out the sibling repositories named in depends_on of the manifest
         shell: bash
         env:
-          SIBLING_REFS: "EH3D-COMMON=v0.3.3"
+          SIBLING_REFS: "EH3D-COMMON=v0.3.3 EH3D-CORE-LIBS=v0.1.2"
         run: |
           python3 - <<'PY'
           import json
@@ -215,6 +215,8 @@ jobs:
                   info.external_attr = 0o644 << 16
                   info.compress_type = zipfile.ZIP_DEFLATED
                   package.writestr(info, files[entry].read_bytes())
+          with zipfile.ZipFile(archive) as package:
+              assert "kit/README.txt" in package.namelist(), "the package of the kit has no note"
           digest = hashlib.sha256(archive.read_bytes()).hexdigest()
           Path("dist", name + ".sha256").write_text(f"{digest}  {name}\n", encoding="ascii")
           print(len(files), "files,", archive.stat().st_size, "bytes,", digest)

@@ -255,9 +255,10 @@ pub struct ViewerSettings {
     pub rules_max_file_bytes: u64,
     /// The ending of the name of the copy that is made before a saved file is replaced.
     pub backup_suffix: String,
-    /// How many recent files the start screen of the window keeps.
+    /// How many recent files the one list of the window keeps (the start screen and the menu), from 1 to 30.
     pub recent_max: usize,
-    /// The name of the file that holds the recent files, in the settings folder of the user.
+    /// The name of the file where earlier versions kept the list of the start screen, in the settings folder of
+    /// the user; what it holds is moved into the one list.
     pub recent_file: String,
     /// The number of sides of a circle of an imported Gerber layer (an aperture, the end of a
     /// line, a hole).
@@ -413,7 +414,7 @@ impl Default for ViewerSettings {
             rules_probe_span: 1.0e15,
             rules_max_file_bytes: 1_048_576,
             backup_suffix: ".bak".to_string(),
-            recent_max: 10,
+            recent_max: 20,
             recent_file: "recent.cfg".to_string(),
             gerber_circle_segments: 32,
             gerber_arc_step_deg: 6.0,

@@ -30,7 +30,7 @@ class KitTest(unittest.TestCase):
             self.assertEqual(make_kit.read_bytes(KIT / path), text.encode("utf-8"), f"kit/{path}: run tools/make_kit.py")
 
     def test_the_catalogue_lists_every_file_with_its_hash(self) -> None:
-        listed = {"manifest.json"}
+        listed = {"manifest.json", make_kit.NOTE_NAME}
         for item in self.items:
             self.assertEqual((item["license"], item["provenance"], item["verified"]), ("GPL-3.0-or-later", "own", False), item["id"])
             self.assertEqual(sorted(item["title"]), sorted(make_kit.LANGS), item["id"])
@@ -40,6 +40,17 @@ class KitTest(unittest.TestCase):
                 self.assertEqual(digest, entry["sha256"], f"{entry['path']}: the bytes in the folder (line ends too) differ from the catalogue")
         present = {p.relative_to(KIT).as_posix() for p in KIT.rglob("*") if p.is_file()}
         self.assertEqual(present, listed)
+
+    def test_the_note_says_in_eight_languages_that_the_kit_is_not_verified(self) -> None:
+        self.assertEqual(sorted(make_kit.NOTES), sorted(make_kit.LANGS))
+        text = (KIT / make_kit.NOTE_NAME).read_text(encoding="utf-8")
+        for code, (language, paragraph) in make_kit.NOTES.items():
+            self.assertIn(f"[{code}] {language}\n{paragraph}\n", text, code)
+            self.assertIn("EAGLE", paragraph, code)
+            self.assertIn("KiCad", paragraph, code)
+        for code, words in (("en", "NOT VERIFIED"), ("es", "NO ESTÁ VERIFICADO"), ("de", "NICHT GEPRÜFT"), ("fr", "PAS VÉRIFIÉ"),
+                            ("it", "NON È VERIFICATO"), ("ja", "未検証"), ("zh", "未经验证"), ("pt", "NÃO ESTÁ VERIFICADO")):
+            self.assertIn(words, make_kit.NOTES[code][1], code)
 
     def test_the_design_files_are_xml_and_the_counts_are_the_ones_promised(self) -> None:
         for path in KIT.rglob("*"):

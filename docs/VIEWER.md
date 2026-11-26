@@ -138,17 +138,19 @@ The windows `document`, `3d`, `panel` and `gerber` need `--open`, and `start` ca
 
 #### Renewing the pictures at each version
 
-The pictures of the windows live in `images/screens/`, one folder for each language (`en`, `es`, `de`, `fr`, `it`, `ja`, `zh`, `pt`), and are renewed with every version, from the program of that version and not by hand. The English folder holds every window; the other seven hold the start screen, the board window and the measures window (taken with `--window measures --open examples/tutorials/led_board.brd`), which the README files show in their language. The language of a run comes from the environment (`LC_ALL=de`), as for the program itself:
+The pictures of the windows live in `images/screens/`, one folder for each language (`en`, `es`, `de`, `fr`, `it`, `ja`, `zh`, `pt`), and are renewed with every version, from the program of that version and not by hand. The English folder holds every window of the plan; the other seven hold the start screen, the board window and the measures window, which the README files show in their language.
+
+They are taken by the workflow *Window pictures* (`.github/workflows/window-pictures.yml`, run by hand), which builds the window on Linux, takes them on a virtual screen of 1920x1080 and keeps them as an artifact. The language of a run comes from the environment (`LC_ALL=de`), as for the program itself:
 
 ```
-LC_ALL=de py -3.14 -I tools/make_shots.py --exe PATH/phoenix.exe --out images/screens/de --only start,document
+LC_ALL=de python -I tools/make_shots.py --exe PATH/phoenix --out images/screens/de --only start,document,measures
 ```
 
-The picture of the board window in the light theme and the picture of the panel weigh more than the default limit of `--max-kb`, so they are taken with `--max-kb 800`. To keep a path of the person out of the pictures, the example board is copied to a short folder (`--root` names a folder with `examples/tutorials/led_board.brd`).
+A picture must weigh less than `--max-kb`; the pictures of the README files stay under 400 KB. To keep a path of the person out of the pictures, the example board is copied to a short folder (`--root` names a folder with `examples/tutorials/led_board.brd`).
 
-`tools/make_shots.py` (the standard library only) starts the program once for each window with `--shot`, `--size 1600x900`, `--theme dark` (and `light` for the document), `--wait 12` and, for the windows that show a document, `--open` an example board of the repository (`examples/tutorials/led_board.brd`, else `tut.brd`, else the first board under `examples/`). Without an example board only the start screen, the help, the shortcuts and the appearance are taken; `--gerber FOLDER` adds the window of the imported Gerber files. Each run has its own settings folder inside a temporary folder (`APPDATA`, `HOME` and the other variables point there), so the settings and the recent files of the person are not read or written, and nothing is written on the drive D:. A run that does not finish in `--timeout` seconds (60) is stopped by its own process number and by no other.
+`tools/make_shots.py` (the standard library only) starts the program once for each window with `--shot`, `--size 1600x900`, `--theme dark` (and `light` for the document), `--wait 12` the board also in the workspaces Review and Compact, the measures last and, for the windows that show a document, `--open` an example board of the repository (`examples/tutorials/led_board.brd`, else `tut.brd`, else the first board under `examples/`). Without an example board only the start screen, the help, the shortcuts and the appearance are taken; `--gerber FOLDER` adds the window of the imported Gerber files. Each run has its own settings folder inside a temporary folder (`APPDATA`, `HOME` and the other variables point there), so the settings and the recent files of the person are not read or written, and nothing is written on the drive D:. A run that does not finish in `--timeout` seconds (60) is stopped by its own process number and by no other.
 
-The files are named `phoenix-pcb-NN-<window>.png` in the order of the plan (`<window>-light` for the light theme). Each one is checked and the program prints a summary: it must be a PNG that is not empty or of one colour (read with the standard library, 8 bits, RGB or RGBA) and weigh less than `--max-kb` (400). `--only start,document-light` takes some of them, `--dry-run` prints the command lines and runs nothing. The exit code is 0 when every picture is right, 1 when one is missing or wrong and 64 for wrong use. The pure part (the plan, the names, the command lines, the environment and the check of a PNG) is tested in `tools/test_make_shots.py`; the tool has been run against the published program for Windows 64 bits and not yet against the ones for Linux and macOS.
+The files are named `phoenix-pcb-NN-<window>.png` in the order of the plan (`<window>-light` for the light theme). Each one is checked and the program prints a summary: it must be a PNG that is not empty or of one colour (read with the standard library, 8 bits, RGB or RGBA) and weigh less than `--max-kb` (400). `--only start,document-light` takes some of them, `--dry-run` prints the command lines and runs nothing. The exit code is 0 when every picture is right, 1 when one is missing or wrong and 64 for wrong use. The pure part (the plan, the names, the command lines, the environment and the check of a PNG) is tested in `tools/test_make_shots.py`; the tool has been run against the program for Windows 64 bits and, by the workflow, against a build for Linux, and not yet against one for macOS.
 
 The English pictures, one for each window:
 
@@ -156,22 +158,23 @@ The English pictures, one for each window:
 | --- | --- |
 | Start screen | `images/screens/en/phoenix-pcb-01-start.png` |
 | Board, dark and light theme | `images/screens/en/phoenix-pcb-02-document.png`, `images/screens/en/phoenix-pcb-03-document-light.png` |
-| 3D view | `images/screens/en/phoenix-pcb-04-3d.png` |
-| Panel of boards | `images/screens/en/phoenix-pcb-05-panel.png` |
-| Layer presets, search, help, keyboard shortcuts, appearance | `images/screens/en/phoenix-pcb-06-layers.png`, `-07-search.png`, `-08-help.png`, `-09-shortcuts.png`, `-10-appearance.png` |
+| Board in the workspaces Review and Compact | `images/screens/en/phoenix-pcb-04-document-review.png`, `images/screens/en/phoenix-pcb-05-document-compact.png` |
+| 3D view | `images/screens/en/phoenix-pcb-06-3d.png` |
+| Panel of boards | `images/screens/en/phoenix-pcb-07-panel.png` |
+| Layer presets, search, help, keyboard shortcuts, appearance, measures | `images/screens/en/phoenix-pcb-08-layers.png`, `-09-search.png`, `-10-help.png`, `-11-shortcuts.png`, `-12-appearance.png`, `-13-measures.png` |
 
 <p align="center">
   <img src="../images/screens/en/phoenix-pcb-02-document.png" alt="The board window" width="49%">
-  <img src="../images/screens/en/phoenix-pcb-05-panel.png" alt="The panel of boards" width="49%">
+  <img src="../images/screens/en/phoenix-pcb-04-document-review.png" alt="The board window in the Review workspace" width="49%">
 </p>
 
 The pictures go into the README of the version by hand, after looking at each one: a picture that is right for the tool can still show a window that is badly drawn.
 
-The recent files are a plain text file, one path per line, the newest first, in the settings folder of the user: `%APPDATA%\EH3D-PHOENIX-PCB` on Windows, `$XDG_CONFIG_HOME/eh3d-phoenix-pcb` or `~/.config/eh3d-phoenix-pcb` on the other systems. A file is added when it has been opened (by the start screen, the path box or a drop), a path that repeats moves to the front, and a file that is no longer there is shown as not found and cannot be opened from the list; each entry can be forgotten, or the whole list cleared. The name of the file (`recent_file`) and the number of entries (`recent_max`) are settings of `config/viewer.cfg`. When the list cannot be written the window says so and goes on.
+There is one list of recent files: the start screen shows the same list as the entry *Open recent* of the menu File, kept by the frame of the suite in `%APPDATA%\EH3D\recent-phoenix-pcb.txt` on Windows and in `~/.config/eh3d/` (or `$XDG_CONFIG_HOME/eh3d/`) on the other systems. A file is added when it has been opened (by the start screen, the path box or a drop), a path that repeats moves to the front, and a file that is no longer there is shown as not found and cannot be opened from the start screen; each entry can be forgotten, or the whole list cleared, from either place. The number of entries (`recent_max`) is a setting of `config/viewer.cfg`. A list that cannot be written is tried again at the next change.
 
-The entry *Open recent* of the menu File has a list of its own, kept by the frame of the suite in `%APPDATA%\EH3D\recent-phoenix-pcb.txt` on Windows and in `~/.config/eh3d/` (or `$XDG_CONFIG_HOME/eh3d/`) on the other systems.
+Earlier versions kept a second list for the start screen, in the settings folder of the program (`%APPDATA%\EH3D-PHOENIX-PCB` on Windows, `$XDG_CONFIG_HOME/eh3d-phoenix-pcb` or `~/.config/eh3d-phoenix-pcb` on the other systems; its name is the setting `recent_file`). The first time, what it holds and the list does not is added after the entries of the list, and the old file is renamed with the ending `.moved`; it is not deleted.
 
-What the start screen decides (a typed path with or without the quotes that Windows adds when it copies a path, which of several dropped files is opened, the list, its limit and its file) is in the modules `launcher_session`, `launcher_recent` and `launcher_text` of the crate `eh3d-phoenix-viewer`, with tests and without a screen; `launcher_gui` only draws it. The options of the window are read by `window_args`, and `launch` decides from the arguments whether `phoenix` opens the window or runs a command, in the crate `eh3d-phoenix-cli`; the attachment to the console of the terminal on Windows is the only `unsafe` code of the workspace and lives in the crate `eh3d-phoenix-console`. Like the rest of the window, the start screen is a prototype that has not been seen on a screen or tried with a mouse.
+What the start screen decides (a typed path with or without the quotes that Windows adds when it copies a path, which of several dropped files is opened, what changes the list) is in the modules `launcher_session`, `launcher_recent` and `launcher_text` of the crate `eh3d-phoenix-viewer`, with tests and without a screen; `launcher_gui` only draws it. The options of the window are read by `window_args`, and `launch` decides from the arguments whether `phoenix` opens the window or runs a command, in the crate `eh3d-phoenix-cli`; the attachment to the console of the terminal on Windows is the only `unsafe` code of the workspace and lives in the crate `eh3d-phoenix-console`. Like the rest of the window, the start screen is a prototype that has not been seen on a screen or tried with a mouse.
 
 ## Imported Gerber and Excellon files
 
@@ -266,7 +269,7 @@ The crate `eh3d-phoenix-viewer` holds all of the logic, with no dependency on eg
 | `schematic_gui` (feature `gui`) | The editing mode of the window for a schematic: the panel of tools, the palette, and the canvas that draws the schematic and passes on the pointer and the keys to `eh3d-phoenix-schedit` |
 | `library_session`, `library_text` | The state of the library mode (the library with its history, the footprint or symbol on the board, the tool, the grid and the snap, the selection and the drag, the measure, the checks, the plan to replace by a master, the saving as a new file) and its texts in eight languages |
 | `library_gui` (feature `gui`) | The library mode of the window: the lists, the drawing board, the properties, the device sets, the findings, the generator and the plan |
-| `launcher_session`, `launcher_recent`, `launcher_text` | The state of the start screen (what a typed path, a dropped file or a recent file asks for), the list of recent files and the file that keeps it, and its texts in eight languages |
+| `launcher_session`, `launcher_recent`, `launcher_text` | The state of the start screen (what a typed path, a dropped file or a recent file asks for), the one list of recent files and the move of the list of earlier versions into it, and its texts in eight languages |
 | `launcher_gui` (feature `gui`) | The start screen of the window: the path box, the buttons and the list of recent files |
 | `gerber_scene`, `gerber_text` | The files of a folder as layers of filled polygons (colour by role, order of the stack, polarity, visibility, order, opacity), the snap of the measure, the comparison of a layer with the layer of a board on cells, and the texts of the window of the imported files in eight languages |
 | `gerber_gui` (feature `gui`) | The window of the imported files: the list of layers, the measure, the comparison and the canvas |

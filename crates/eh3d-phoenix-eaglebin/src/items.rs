@@ -367,10 +367,16 @@ pub fn pin(r: &Record, name: String, place: &str, report: &mut Report) -> Pin {
     }
 }
 
-/// A text.
-pub fn text(r: &Record, content: String, place: &str, report: &mut Report) -> Text {
+/// A text. Before version 4 (`old`) byte 2 does not say the font: the default, proportional, is
+/// used.
+pub fn text(r: &Record, content: String, old: bool, place: &str, report: &mut Report) -> Text {
     let mut extra = Vec::new();
     match r[2] {
+        _ if old => report.note(
+            codes::NOT_READ,
+            "font of a text of version 3 (read as proportional)",
+            place,
+        ),
         0 => extra.push(pair("font", "vector")),
         1 => {}
         2 => extra.push(pair("font", "fixed")),
@@ -448,18 +454,27 @@ pub fn frame(r: &Record, place: &str, report: &mut Report) -> Item {
         pair("rows", r[21].to_string()),
         pair("layer", r[3].to_string()),
     ];
-    match r[22] {
-        0 => {
-            for side in ["left", "top", "right", "bottom"] {
-                attrs.push(pair(&format!("border-{side}"), "no"));
-            }
+    // a bit that is set turns a border off
+    let flags = r[22];
+    for (bit, side) in [
+        (0x01, "left"),
+        (0x02, "top"),
+        (0x04, "right"),
+        (0x08, "bottom"),
+    ] {
+        if flags & bit != 0 {
+            attrs.push(pair(&format!("border-{side}"), "no"));
         }
-        0x0F => {}
-        _ => report.note(
+    }
+    if flags & 0x03 != 0 {
+        report.note(
             codes::VALUE,
-            "borders of a frame (all four are shown)",
+            "left or top border of a frame (inferred)",
             place,
-        ),
+        );
+    }
+    if flags & !0x0F != 0 {
+        report.note(codes::VALUE, "unknown flags of a frame", place);
     }
     Item::Other(element("frame", attrs, Vec::new()))
 }

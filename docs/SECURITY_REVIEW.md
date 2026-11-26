@@ -25,7 +25,7 @@ The code of production (not the tests) of every crate that reads or writes a fil
 | Id | Finding | Change | Test |
 |---|---|---|---|
 | SR-1 | The settings files of `inventory --config`, `corpus --settings`, `dxf-import --config`, `perf --config` and of the window were read without a size limit | read through `bounded::read_config_text`: at most 1 MiB, then PHOENIX-SEC-003 | `bounded` in the command line crate |
-| SR-2 | The list of recent files of the start screen was read without a size limit | at most 1 MiB is read | `only_the_first_megabyte_of_the_list_of_recent_files_is_read` |
+| SR-2 | The list of recent files of the start screen of earlier versions was read without a size limit | at most 1 MiB is read | `only_the_first_megabyte_of_the_list_of_recent_files_is_read` |
 | SR-3 | The atomic write of `sync --out` and `netlist --out`, of the reports of the sanitizer and of the results of the simulator wrote its side file with a call that follows links and writes over a file | the side file is created exclusively; one that is already there stops the write (PHOENIX-SEC-002) and is not touched | one test in each of the three crates |
 | SR-4 | The preferences of the window are saved through a side file that was created in the same way | created exclusively; a regular file left by an interrupted save is removed first, a link is never followed | `a_side_file_left_by_an_interrupted_save_does_not_block_the_next_one` |
 | SR-5 | `FabSet::write_folder`, used by `phoenix export --out`, replaced the files of a folder that existed and followed links | it creates every file exclusively and, before writing anything, refuses a folder in which one of its files is already there | `a_file_that_is_already_in_the_folder_is_never_replaced` |
@@ -128,7 +128,7 @@ The commands write new files and new folders and refuse a name that exists; only
 
 These calls do not follow those ways and are on purpose:
 
-* the error file of the window (`window_run.rs`) and the list of recent files (`launcher_session.rs`): small files of the window in its own folder of settings;
+* the error file of the window (`window_run.rs`): a small file of the window in its own folder of settings;
 * the save of a file by the window (`session.rs`): it writes over a file only when the window itself saved it before, and makes a copy first;
 * the save of a settings file by the rules window (`cfg_edit.rs`): it writes a side file next to the destination and renames it, the default destination is never the input, and a file that is already there is replaced only when the person asks for it (with a copy of the old one);
 * the files of the external autorouter (`autorouter.rs`): created in a folder that was made new for the run.
