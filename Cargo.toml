@@ -24,6 +24,10 @@ eh3d-materials = { version = ">=0.0.1", path = "../EH3D-COMMON/crates/materials"
 eh3d-serverclient = { version = ">=0.0.1", path = "../EH3D-COMMON/crates/serverclient" }
 # the frame of the window: panels that dock, float and fold, workspaces, the menu bar and the shortcuts (the model has no window; drawing it is the feature `gui` of the viewer)
 eh3d-dock = { version = ">=0.0.1", path = "../EH3D-COMMON/crates/dock", default-features = false }
+# the panel of the attachments of a project that every program of the suite shows (the model has no window; drawing it is the
+# feature `gui` of the viewer), and the window state that chooses files
+eh3d-attachpanel = { version = ">=0.0.1", path = "../EH3D-COMMON/crates/attachpanel" }
+eh3d-filedialog = { version = ">=0.0.1", path = "../EH3D-COMMON/crates/filedialog" }
 # the languages of the frame
 eh3d-view = { version = ">=0.0.1", path = "../EH3D-COMMON/crates/view", default-features = false }
 tempfile = "3"

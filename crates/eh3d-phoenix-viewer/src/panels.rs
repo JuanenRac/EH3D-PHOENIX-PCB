@@ -12,7 +12,7 @@
 use eh3d_dock::about::{AboutBrand, Phoenix};
 use eh3d_dock::core::PanelDef;
 use eh3d_dock::geom::Side;
-use eh3d_dock::menu::{Entry, Item, Label, Menu, MenuBar, StdAction};
+use eh3d_dock::menu::{DockAction, Entry, Gen, Item, Label, Menu, MenuBar, StdAction};
 use eh3d_dock::model::{Layout, Node};
 use eh3d_dock::sectors::{titles, Sector};
 use eh3d_dock::shortcuts::Shortcut;
@@ -31,6 +31,7 @@ pub fn about_brand() -> AboutBrand {
 }
 use eh3d_phoenix_boardedit::actions::EditAction;
 use eh3d_phoenix_rules::Lang;
+use eh3d_project::suitetext::S;
 use eh3d_view::texts::Lang as ViewLang;
 
 use crate::board_actions_text::ActionMsg;
@@ -40,6 +41,7 @@ use crate::gerber_text::GerberText;
 use crate::library_text::LibText;
 use crate::msg::Msg;
 use crate::panel_text::PanelText;
+use crate::suite_text::SuiteMsg;
 use crate::view3d_text::View3dText;
 use crate::window_text::WinText;
 
@@ -73,9 +75,12 @@ pub mod id {
     pub const VIEW3D: &str = "view3d";
     /// The panel of boards laid out for manufacturing.
     pub const BOARDS: &str = "boards";
+    /// The attachments of the project of the suite: data sheets, manuals and other files, with
+    /// their viewer.
+    pub const ATTACHMENTS: &str = eh3d_attachpanel::PANEL_ID;
 
     /// Every panel, in the order of the View menu.
-    pub const ALL: [&str; 14] = [
+    pub const ALL: [&str; 15] = [
         BOARD_VIEW,
         LAYERS,
         PROPERTIES,
@@ -90,6 +95,7 @@ pub mod id {
         GERBER,
         VIEW3D,
         BOARDS,
+        ATTACHMENTS,
     ];
 
     /// The panels that hold a mode of their own: they are hidden until the person opens what they
@@ -145,8 +151,8 @@ pub fn view_lang(lang: Lang) -> ViewLang {
     }
 }
 
-/// The panels: the ones the suite proposes for a circuit board program, and the two that this program
-/// adds (the report and the tasks).
+/// The panels: the ones the suite proposes for a circuit board program, the ones that this program
+/// adds (the report, the tasks and the four modes) and the shared panel of the attachments.
 pub fn defs() -> Vec<PanelDef> {
     let mut v = Sector::Pcb.panels();
     v.push(
@@ -179,6 +185,7 @@ pub fn defs() -> Vec<PanelDef> {
             .icon("P")
             .min(420.0, 240.0),
     );
+    v.push(eh3d_attachpanel::panel_def());
     v
 }
 
@@ -211,7 +218,11 @@ pub fn workspaces() -> Vec<Workspace> {
                         t(&[id::BOARD_VIEW]),
                         t(&[id::CONSOLE, id::DRC, id::REPORT]),
                     ),
-                    Node::column(0.55, t(&[id::PROPERTIES]), t(&[id::LAYERS])),
+                    Node::column(
+                        0.55,
+                        t(&[id::PROPERTIES, id::ATTACHMENTS]),
+                        t(&[id::LAYERS]),
+                    ),
                 ),
             ),
         ),
@@ -224,7 +235,11 @@ pub fn workspaces() -> Vec<Workspace> {
                     t(&[id::BOARD_VIEW]),
                     t(&[id::DRC, id::REPORT, id::CONSOLE]),
                 ),
-                Node::column(0.45, t(&[id::LAYERS]), t(&[id::PROPERTIES, id::NETS])),
+                Node::column(
+                    0.45,
+                    t(&[id::LAYERS]),
+                    t(&[id::PROPERTIES, id::NETS, id::ATTACHMENTS]),
+                ),
             ),
         ),
         Workspace::new(
@@ -271,6 +286,53 @@ pub enum Cmd {
     Shortcuts,
     /// An action of the board editor on what is selected (tidy, join, snap, widths, swap).
     BoardAction(EditAction),
+    /// Open a project file of the suite (`.eh3d`).
+    SuiteOpen,
+    /// Save into the project file of the suite.
+    SuiteSave,
+    /// Save into a project file of the suite under another name.
+    SuiteSaveAs,
+    /// Import a design of another program into the project, keeping the original.
+    SuiteImport,
+    /// Take a file of another branch.
+    SuiteTake,
+    /// Write the files of a branch into a folder.
+    SuiteExtract,
+    /// List the branches of the project.
+    SuiteBranches,
+    /// Open the data sheet of the selected part.
+    DataSheet,
+}
+
+/// A word of the suite as the text of the frame.
+pub fn s8(word: S) -> Text8 {
+    t8(|l| word.tr(view_lang(l).code()))
+}
+
+/// The entries of the submenu of the project file of the suite, in order: their ids, their words
+/// and what they do.
+pub const SUITE_ENTRIES: [(&str, S, Cmd); 7] = [
+    ("file.suite.open", S::MenuOpen, Cmd::SuiteOpen),
+    ("file.suite.save", S::MenuSave, Cmd::SuiteSave),
+    ("file.suite.save_as", S::MenuSaveAs, Cmd::SuiteSaveAs),
+    ("file.suite.import", S::MenuImport, Cmd::SuiteImport),
+    ("file.suite.take", S::MenuTake, Cmd::SuiteTake),
+    ("file.suite.extract", S::MenuExtract, Cmd::SuiteExtract),
+    ("file.suite.branches", S::MenuBranches, Cmd::SuiteBranches),
+];
+
+/// The submenu of File for the project file of the suite.
+fn suite_menu() -> Menu<Cmd> {
+    let mut suite = Menu::new("file.suite", Label::Own(s8(S::Menu)));
+    for (id, word, cmd) in SUITE_ENTRIES {
+        suite = suite.entry(Entry::app(id, Label::Own(s8(word)), cmd));
+    }
+    // the shared panel of the attachments of that project
+    suite.entry(Entry::dock(
+        "file.suite.attachments",
+        Label::Own(eh3d_attachpanel::panel_title()),
+        DockAction::ShowPanel(id::ATTACHMENTS.to_string()),
+    ))
 }
 
 impl From<StdAction> for Cmd {
@@ -289,7 +351,7 @@ fn own(id: &str, text: impl Fn(Lang) -> &'static str, cmd: Cmd) -> Entry<Cmd> {
 
 /// The menu bar: File, Edit, View, Tools, Window and Help.
 pub fn menu_bar() -> MenuBar<Cmd> {
-    let file: Menu<Cmd> = file_menu(true);
+    let mut file: Menu<Cmd> = file_menu(true);
     let mut edit: Menu<Cmd> = edit_menu();
     let mut view: Menu<Cmd> = view_menu();
     let mut tools: Menu<Cmd> = tools_menu();
@@ -298,6 +360,13 @@ pub fn menu_bar() -> MenuBar<Cmd> {
         online_help: true,
         check_updates: false,
     });
+    // the project file of the suite follows the recent files
+    let after_recent = file
+        .items
+        .iter()
+        .position(|i| matches!(i, Item::Generated(Gen::Recent)))
+        .map_or(file.items.len(), |i| i + 1);
+    file.items.insert(after_recent, Item::Submenu(suite_menu()));
     edit = edit.sep().entry(own(
         "edit.clear_selection",
         |l| Msg::ClearSelection.tr(l),
@@ -336,6 +405,11 @@ pub fn menu_bar() -> MenuBar<Cmd> {
             Cmd::Search,
         ))
         .entry(own("tools.erc", |l| EditMsg::RunErc.tr(l), Cmd::RunErc))
+        .entry(own(
+            "tools.datasheet",
+            |l| SuiteMsg::SheetEntry.tr(l),
+            Cmd::DataSheet,
+        ))
         .entry(own(
             "tools.view3d",
             |l| View3dText::Show3d.tr(l),
@@ -402,6 +476,10 @@ pub struct MenuFacts {
     /// The actions of the board editor that can be chosen now: the bit of the place of the action
     /// in `EditAction::ALL` is set.
     pub actions: u16,
+    /// The window works on a project file of the suite.
+    pub has_suite: bool,
+    /// A part is selected in the drawing.
+    pub has_part: bool,
 }
 
 /// The ids of the entries that cannot be chosen now. The ones for things the program does not have (cut,
@@ -428,6 +506,22 @@ pub fn disabled_entries(f: &MenuFacts) -> Vec<String> {
     );
     when(!document || f.is_board || f.editing, &["tools.erc"]);
     when(!document || !f.is_board, &["tools.view3d"]);
+    when(!f.has_part, &["tools.datasheet"]);
+    // a project is written only while no editor has the document
+    when(f.editing || !document, &["file.suite.save"]);
+    when(
+        f.editing || (!document && !f.has_suite),
+        &["file.suite.save_as"],
+    );
+    when(f.editing || !f.has_suite, &["file.suite.import"]);
+    when(
+        !f.has_suite,
+        &[
+            "file.suite.take",
+            "file.suite.extract",
+            "file.suite.branches",
+        ],
+    );
     let mut v: Vec<String> = off.into_iter().map(str::to_string).collect();
     for (i, action) in EditAction::ALL.iter().enumerate() {
         if f.actions & (1 << i) == 0 {
@@ -534,7 +628,7 @@ mod tests {
     #[test]
     fn the_panels_have_names_that_hold_and_titles_in_the_eight_languages() {
         let d = defs();
-        assert_eq!(d.len(), 14);
+        assert_eq!(d.len(), 15);
         let names: Vec<&str> = d.iter().map(|p| p.id.as_str()).collect();
         assert_eq!(names, id::ALL.to_vec());
         for p in &d {
@@ -921,6 +1015,8 @@ mod tests {
             can_undo: true,
             can_redo: true,
             actions: 0,
+            has_suite: true,
+            has_part: false,
         });
         for id in ["file.save", "file.save_as", "edit.undo", "edit.redo"] {
             assert!(editing.contains(&id.to_string()), "{id}");
@@ -935,6 +1031,63 @@ mod tests {
         });
         assert!(!with_modes.contains(&"file.export".to_string()));
         assert!(!with_modes.contains(&"view.fit".to_string()));
+    }
+
+    #[test]
+    fn the_entries_of_the_suite_project_follow_what_is_open() {
+        let bar = menu_bar();
+        let file = &bar.menus[0];
+        let at = file
+            .items
+            .iter()
+            .position(|i| matches!(i, Item::Submenu(m) if m.id == "file.suite"))
+            .unwrap();
+        assert!(matches!(file.items[at - 1], Item::Generated(Gen::Recent)));
+        let Item::Submenu(suite) = &file.items[at] else {
+            panic!("not a submenu");
+        };
+        // the entries of the project and the one that shows the panel of its attachments
+        assert_eq!(suite.items.len(), SUITE_ENTRIES.len() + 1);
+        for (_, word, _) in SUITE_ENTRIES {
+            for l in Lang::ALL {
+                assert!(!word.tr(view_lang(l).code()).trim().is_empty(), "{l:?}");
+            }
+        }
+        let on = |facts: MenuFacts| -> Vec<&'static str> {
+            let off = disabled_entries(&facts);
+            SUITE_ENTRIES
+                .into_iter()
+                .map(|(id, _, _)| id)
+                .filter(|id| !off.contains(&(*id).to_string()))
+                .map(|id| id.trim_start_matches("file.suite."))
+                .collect()
+        };
+        assert_eq!(on(MenuFacts::default()), ["open"]);
+        let document = MenuFacts {
+            has_document: true,
+            ..MenuFacts::default()
+        };
+        assert_eq!(on(document), ["open", "save", "save_as"]);
+        let project = MenuFacts {
+            has_suite: true,
+            ..document
+        };
+        assert_eq!(
+            on(project),
+            ["open", "save", "save_as", "import", "take", "extract", "branches"]
+        );
+        let editing = MenuFacts {
+            editing: true,
+            ..project
+        };
+        assert_eq!(on(editing), ["open", "take", "extract", "branches"]);
+        let sheet = "tools.datasheet".to_string();
+        assert!(disabled_entries(&project).contains(&sheet));
+        let part = MenuFacts {
+            has_part: true,
+            ..project
+        };
+        assert!(!disabled_entries(&part).contains(&sheet));
     }
 
     #[test]
@@ -953,6 +1106,8 @@ mod tests {
                 can_undo: n & 16 != 0,
                 can_redo: n & 32 != 0,
                 actions: (n >> 6) as u16 & 0x3f,
+                has_suite: n & (1 << 12) != 0,
+                has_part: n & (1 << 13) != 0,
             };
             let off = disabled_entries(&f);
             let mut sorted = off.clone();

@@ -1190,6 +1190,14 @@ impl Workspace {
         }
     }
 
+    /// The document was written into a project of the suite at `path`.
+    pub fn mark_saved(&mut self, path: &Path) {
+        match &mut self.doc {
+            Doc::Board(s) => s.mark_saved(path),
+            Doc::Schematic(s) => s.mark_saved(path),
+        }
+    }
+
     /// The kind of drawing, for the window.
     pub fn kind(&self) -> SceneKind {
         self.viewer.scene.kind

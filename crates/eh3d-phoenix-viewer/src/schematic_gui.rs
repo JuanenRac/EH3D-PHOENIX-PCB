@@ -151,6 +151,14 @@ pub fn start(workspace: &Workspace) -> Option<SchematicEditUi> {
     })
 }
 
+/// The first part of the selection of the editor, for its data sheet.
+pub fn picked_part(st: &SchematicEditUi) -> Option<crate::part_datasheet::PartRef> {
+    st.edit.selection.iter().find_map(|picked| match picked {
+        Item::Part(id) => crate::part_datasheet::of_schematic_part(st.edit.schematic(), *id),
+        _ => None,
+    })
+}
+
 /// Hands the schematic as it is now to the workspace, when it changed since the last time.
 pub fn finish(st: &mut SchematicEditUi, workspace: &mut Workspace) {
     if st.edit.revision() != st.synced {

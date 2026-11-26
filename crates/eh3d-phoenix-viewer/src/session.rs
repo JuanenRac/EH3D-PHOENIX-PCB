@@ -218,7 +218,7 @@ fn has_extension(path: &Path, wanted: &str) -> bool {
 
 /// The name of the input and the bytes of an EAGLE design it was read from, to be kept in a
 /// project; `None` for anything else.
-fn origin_of(input: &Path) -> Option<PcbOrigin> {
+pub(crate) fn origin_of(input: &Path) -> Option<PcbOrigin> {
     let format = if has_extension(input, "brd") {
         "eagle-brd"
     } else if has_extension(input, "sch") {
@@ -588,6 +588,13 @@ impl BoardSession {
         Ok(())
     }
 
+    /// The board was written into a project of the suite at `path`: it has no change that is not
+    /// saved and the window may replace that file.
+    pub(crate) fn mark_saved(&mut self, path: &Path) {
+        self.last_saved = Some(path.to_path_buf());
+        self.saved_serial = self.serial;
+    }
+
     /// Saves the board under another name than the input; see [`write_checked`].
     pub fn save_as(
         &mut self,
@@ -922,6 +929,13 @@ impl SchematicSession {
                 .companion
                 .as_ref()
                 .is_some_and(|c| c.serial != c.saved_serial)
+    }
+
+    /// The schematic was written into a project of the suite at `path`: it has no change that
+    /// is not saved and the window may replace that file.
+    pub(crate) fn mark_saved(&mut self, path: &Path) {
+        self.last_saved = Some(path.to_path_buf());
+        self.saved_serial = self.serial;
     }
 
     /// Saves the schematic as the JSON of the model under another name than the input.

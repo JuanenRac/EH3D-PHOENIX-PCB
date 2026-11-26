@@ -117,6 +117,9 @@
 //!   tasks), the workspaces by task (Edit, Review and Compact), the menu bar and the entries that are
 //!   off at each moment, for the docking frame of the suite (`eh3d-dock`), and the texts of the panels
 //!   in the eight languages (the drawing is in `gui`, behind the `gui` feature);
+//! * [`suite_menu`], [`part_datasheet`] and [`suite_text`]: the project file of the suite (`.eh3d`) from the window (open, save and
+//!   save as keeping every branch, import keeping the original, take from another branch, extract, the state of the branches) and
+//!   the data sheet of a part, shown by the panel of the attachments that every program of the suite shares;
 //! * [`canvas_engine`]: the engine that draws the canvas (the painter of egui today, the callback of wgpu of
 //!   the decision record of the stack when it is written), what a request for an engine that is not built
 //!   does, and the frame times with the verdict of the decision record;
@@ -211,6 +214,7 @@ pub mod panel_gui;
 pub mod panel_scene;
 pub mod panel_text;
 pub mod panels;
+pub mod part_datasheet;
 pub mod prefs;
 pub mod prim;
 pub mod print_export;
@@ -241,6 +245,8 @@ pub mod session;
 pub mod settings;
 pub mod shot;
 pub mod snapshot;
+pub mod suite_menu;
+pub mod suite_text;
 pub mod view;
 pub mod view3d;
 #[cfg(feature = "gui")]
