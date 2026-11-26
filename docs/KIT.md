@@ -4,7 +4,7 @@ The folder `kit/` holds what is needed to try the program and to start a design:
 
 **Licence and origin.** Everything in the kit was made for this project and is under GPL-3.0-or-later, like the program. No file, drawing or table of another program, maker or collection was read or copied. The sizes are nominal figures of public standards and of the usual 2.54 mm and 5.0 mm grids, and the land patterns were worked out from them for this kit.
 
-**State: not verified.** Nothing of the kit was compared with a datasheet, ordered from a board maker or soldered, and no file of it was opened in another program. The catalogue marks every piece with `verified: false`. Check the footprints against the datasheet of your part and the figures of the profiles against the sheet of your maker before you order anything.
+**State: not verified.** Nothing of the kit was compared with a datasheet, ordered from a board maker or soldered, and no file of it was opened in another program. In particular, the footprints have not been checked against datasheets, and no library, board or schematic of the kit has been opened in EAGLE or in KiCad. The catalogue marks every piece with `verified: false`. Check the footprints against the datasheet of your part and the figures of the profiles against the sheet of your maker before you order anything.
 
 ## Get it
 

@@ -14,7 +14,7 @@ All notable changes to this project are documented here.
 - **Starting profiles for the rule check and the output:** two rule files, four capability profiles and two export profiles with generic figures, marked as not verified with any maker.
 - **`phoenix kit list|info|copy`:** shows the catalogue of the kit (licence, origin, formats, export formats, titles in eight languages) and copies pieces after checking their SHA-256, never over a file; codes `PHOENIX-KIT-001` to `008`, limits in `config/kit.cfg`.
 - **Releases carry the kit as its own package:** `eh3d-phoenix-pcb-kit-<version>.zip` with its SHA-256, made by the build workflow after checking that the kit is what `tools/make_kit.py` writes.
-- **A new window «About»:** the picture of the program inside a ring of its colour (fire orange), the name in large letters, one sentence about the program in the eight languages, the version, the author and the e-mail, links to the page of the author and to the repository and the licence. It is the window of the docking frame of the suite (`eh3d-dock`), so the workflows build against `EH3D-COMMON` at `main` until a release of it carries the window.
+- **A new window «About»:** the picture of the program inside a ring of its colour (fire orange), the name in large letters, one sentence about the program in the eight languages, the version, the author and the e-mail, links to the page of the author and to the repository and the licence. It is the window of the docking frame of the suite (`eh3d-dock`), so the workflows take a tag of `EH3D-COMMON` that carries it.
 - **Library files with long decimals are read as drawings:** a number with more than six decimals no longer turns its pad, line or text into XML that cannot be edited; it is read to the nearest millionth, so the item is drawn, checked and edited like any other. In a sample of a private collection this was the case of about one library in five that is not in the old binary form.
 - **Those numbers are saved as they were:** the text of each is kept beside its item and written back for as long as the value is the one that was read; an edited value is written as the new one.
 - **A number with an exponent is read, and the place of a gate is no longer lost:** an exponent is worked out without floating point, and a gate of a device set whose place had many decimals is no longer moved to the origin.
@@ -36,7 +36,8 @@ All notable changes to this project are documented here.
 - **The EAGLE file a design came from is kept in the project:** under `pcb/origin/` with the report of what was not read.
 - **A newer or damaged project is never written over:** a branch of a newer format is refused, and saving replaces only a file the window saved, after a copy.
 - **The project carries the outline of the board for the program of enclosures:** `pcb/outline2d.json` with the outline, thickness, unplated holes, parts with their heights and connectors near a side, from the table of models.
-- **Built against the released shared library:** the workflows take the tag v0.3.1 of the shared repository, which holds the project file of the suite.
+- **Built against the released shared library:** the workflows take the tag v0.3.3 of the shared repository, which holds the project file of the suite and the frame of the window, with its accents, recent projects and window about the program.
+- **The starter kit is not verified:** no footprint of `kit/` has been checked against a datasheet or soldered, and no library, board or schematic of it has been opened in EAGLE or KiCad; check every footprint before you order a board.
 
 ## [0.1.6] - Board editor operations, user programs that read most of a real folder, named values and files in one allowed folder, EAGLE reader measured on real boards
 
