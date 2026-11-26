@@ -1526,7 +1526,7 @@ mod tests {
     #[test]
     fn a_binary_library_is_opened_with_its_report_and_a_damaged_one_is_refused() {
         // an empty binary library of version 4: the header, the library and its three sections
-        let mut records = vec![[0u8; 24]; 5];
+        let mut records = [[0u8; 24]; 5];
         records[0][0] = 0x10;
         records[0][4] = 5;
         records[0][8] = 4;
