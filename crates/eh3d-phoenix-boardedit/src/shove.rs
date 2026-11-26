@@ -1,30 +1,34 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! Push and shove (prototype): a track is routed and the tracks of other nets that its clearance
-//! would invade are pushed aside in parallel.
+//! would invade are pushed aside. Moving pieces in parallel is tried first; when that is not
+//! enough, the walk of `shove_walk` goes around obstacles and moves vias.
 //!
-//! Only straight pieces that are horizontal, vertical or at 45 degrees are pushed. An end of a
+//! In the parallel push only straight pieces that are horizontal, vertical or at 45 degrees are pushed. An end of a
 //! pushed track, or a vertex, that lies on a pad, a via or another track of the same net stays
 //! where it is and a corner joins it to the pushed piece; an end that is joined to nothing moves
 //! with its piece. Pads, vias, the edge of the board and
 //! the pieces that cannot be pushed (arcs, other angles) are fixed. A pushed piece may push the
 //! next one, down to the depth and the number of tracks that `config/boardedit.cfg` allows. The
-//! result is all or nothing: it is tried on a copy and checked by the design rules, and a push that
-//! would leave a rule error that was not there is refused with a `PHOENIX-SHOVE-<NNN>` code.
+//! result of either way is all or nothing: it is tried on a copy and checked by the design rules
+//! and the connectivity of every net, and a push that would leave a rule error that was not there,
+//! or cut a connection, is refused with a `PHOENIX-SHOVE-<NNN>` code. The clearance of the net
+//! classes of the two nets is kept when it is larger than the general one.
 
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::f64::consts::SQRT_2;
 
-use eh3d_phoenix_board::connectivity::pad_position;
-use eh3d_phoenix_board::{Board, Id, Operation, PadRef, Segment, Track};
+use eh3d_phoenix_board::connectivity::{pad_position, ConnectivityReport, Item as Copper};
+use eh3d_phoenix_board::{Board, Id, Operation, PadRef, Segment, Track, Via};
 use eh3d_phoenix_model::{Nm, Point};
 use eh3d_phoenix_route::{diff, findings, track_width};
-use eh3d_phoenix_rules::Severity;
+use eh3d_phoenix_rules::{Finding, Severity};
 
 use crate::codes::BoardEditError;
 use crate::copper::{
-    fixed_items, gap_to, point_segment, segment_items, segment_segment, segments_cross, vp, Item,
-    EPS, V,
+    fixed_items, gap_to, point_segment, segment_items, segment_segment, segments_cross,
+    track_items, vp, Item, EPS, V,
 };
+use crate::hull::Turn;
 use crate::ids::IdSupply;
 use crate::plan::{
     copper_layer, corner_orders, geometry, net_name, refused, replace_track, shape_of, single, Env,
@@ -32,9 +36,10 @@ use crate::plan::{
 };
 use crate::shape::{legs, lines_through, pt, route_pieces, Shape};
 use crate::shove_codes::{
-    SHOVE_ADDS_ERROR, SHOVE_BLOCKED, SHOVE_CROSSING, SHOVE_NOT_PUSHABLE, SHOVE_TOO_DEEP,
-    SHOVE_TOO_MANY,
+    SHOVE_ADDS_ERROR, SHOVE_BLOCKED, SHOVE_BREAKS_NET, SHOVE_CROSSING, SHOVE_NOT_PUSHABLE,
+    SHOVE_TOO_DEEP, SHOVE_TOO_MANY,
 };
+use crate::shove_walk::walk_shove;
 
 /// What a route with a push asks for.
 pub(crate) struct ShoveRequest<'a> {
@@ -63,6 +68,19 @@ pub struct ShoveMove {
     pub after: Vec<Segment>,
 }
 
+/// A via that a push moves: its place before and after.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ShoveViaMove {
+    /// The via.
+    pub via: Id,
+    /// Its place before the push.
+    pub before: Point,
+    /// Its place after the push.
+    pub after: Point,
+    /// The diameter of its pad.
+    pub diameter: Nm,
+}
+
 /// What a push would do, to be shown before it is accepted.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct ShovePreview {
@@ -70,6 +88,8 @@ pub struct ShovePreview {
     pub route: Vec<Segment>,
     /// The tracks that move.
     pub moves: Vec<ShoveMove>,
+    /// The vias that move.
+    pub vias: Vec<ShoveViaMove>,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -256,15 +276,11 @@ fn separate(pusher: &Piece, victim: &Piece, need: f64) -> Result<(i64, i64), Boa
 }
 
 /// Refuses a piece that, where a push put it, is too close to fixed copper.
-fn check_fixed(
-    piece: &Piece,
-    fixed: &[Item],
-    clearance: f64,
-    edge_clearance: f64,
-) -> Result<(), BoardEditError> {
+fn check_fixed(piece: &Piece, fixed: &[Item], gaps: &Gaps) -> Result<(), BoardEditError> {
     let (a, b) = piece.current();
     for item in fixed {
-        let Some(gap) = gap_to(item, piece.net, clearance, edge_clearance) else {
+        let clearance = gaps.between(piece.net, item.net);
+        let Some(gap) = gap_to(item, piece.net, clearance, gaps.edge) else {
             continue;
         };
         let (d, _, _) = segment_segment(a, b, item.a, item.b);
@@ -392,25 +408,53 @@ fn rebuild(
     Ok(merged)
 }
 
-/// The settings of a push, in floating point.
+/// The gaps a push keeps: the clearance of the rules, or the larger one of the classes of the two
+/// nets, plus the margin.
 struct Gaps {
-    clearance: f64,
+    clearance: i64,
+    classes: BTreeMap<Id, i64>,
+    margin: i64,
     edge: f64,
 }
 
-/// Pushes the tracks that the new track invades; the operation that does it all, what moved and
-/// the notes for the person.
-fn try_shove(
-    board: &Board,
-    env: &Env,
-    route: &Track,
-    route_id: Id,
-) -> Result<(Operation, ShovePreview, Vec<String>), BoardEditError> {
+impl Gaps {
+    fn new(board: &Board, env: &Env) -> Gaps {
+        let margin = env.settings.shove_margin_nm;
+        let classes = board
+            .nets
+            .iter()
+            .filter_map(|(id, net)| {
+                let class = env.ctx.classes.class_of(&net.name)?;
+                Some((*id, class.min_clearance.get()))
+            })
+            .collect();
+        Gaps {
+            clearance: env.ctx.rules.min_clearance.get(),
+            classes,
+            margin,
+            edge: (env.ctx.rules.min_edge_clearance.get() + margin) as f64,
+        }
+    }
+
+    fn between(&self, a: Id, b: Option<Id>) -> f64 {
+        let of = |net: Id| self.classes.get(&net).copied().unwrap_or(0);
+        let class = of(a).max(b.map_or(0, of));
+        (self.clearance.max(class) + self.margin) as f64
+    }
+}
+
+/// What one way of pushing would change, before the rules have judged it.
+struct Pushed {
+    route: Track,
+    ops: Vec<Operation>,
+    preview: ShovePreview,
+    notes: Vec<String>,
+}
+
+/// Pushes in parallel the tracks that the new track invades.
+fn parallel_push(board: &Board, env: &Env, route: &Track) -> Result<Pushed, BoardEditError> {
     let settings = env.settings;
-    let gaps = Gaps {
-        clearance: (env.ctx.rules.min_clearance.get() + settings.shove_margin_nm) as f64,
-        edge: (env.ctx.rules.min_edge_clearance.get() + settings.shove_margin_nm) as f64,
-    };
+    let gaps = Gaps::new(board, env);
     let route_half = route.width.get() as f64 / 2.0;
     let mut pieces: Vec<Piece> = Vec::new();
     for (index, segment) in route.path.iter().enumerate() {
@@ -475,7 +519,8 @@ fn try_shove(
             let pusher = pieces[i].clone();
             let (ia, ib) = pusher.current();
             let (ja, jb) = pieces[j].current();
-            let need = pusher.half + pieces[j].half + gaps.clearance;
+            let between = gaps.between(pusher.net, Some(pieces[j].net));
+            let need = pusher.half + pieces[j].half + between;
             let (d, _, _) = segment_segment(ia, ib, ja, jb);
             if d + EPS >= need {
                 continue;
@@ -524,7 +569,7 @@ fn try_shove(
             let victim = &mut pieces[j];
             victim.shift = (victim.shift.0 + extra.0, victim.shift.1 + extra.1);
             victim.depth = victim.depth.max(depth);
-            check_fixed(&pieces[j], &fixed, gaps.clearance, gaps.edge)?;
+            check_fixed(&pieces[j], &fixed, &gaps)?;
             queue.push_back(j);
         }
     }
@@ -542,7 +587,7 @@ fn try_shove(
     let mut ops: Vec<Operation> = Vec::new();
     let mut preview = ShovePreview {
         route: route.path.clone(),
-        moves: Vec::new(),
+        ..ShovePreview::default()
     };
     let mut notes: Vec<String> = Vec::new();
     for (track_id, by_index) in &shifts {
@@ -583,25 +628,250 @@ fn try_shove(
             format!("shove: {} track(s) moved", shifts.len())
         },
     );
+    Ok(Pushed {
+        route: route.clone(),
+        ops,
+        preview,
+        notes,
+    })
+}
+
+/// Walks the new track and what it crowds around obstacles and moves vias out of the way.
+fn walked_push(
+    board: &Board,
+    env: &Env,
+    route: &Track,
+    turn: Turn,
+) -> Result<Pushed, BoardEditError> {
+    let found = walk_shove(board, env, route, turn)?;
+    let pieces = |points: &[(i64, i64)]| -> Result<Vec<Segment>, BoardEditError> {
+        let points: Result<Vec<Point>, _> = points.iter().map(|p| pt(p.0, p.1)).collect();
+        Ok(lines_through(&points?))
+    };
+    let mut new_route = route.clone();
+    new_route.path = pieces(&found.route)?;
+    let went_around = new_route.path != route.path;
+    let mut preview = ShovePreview {
+        route: new_route.path.clone(),
+        ..ShovePreview::default()
+    };
+    let mut ops: Vec<Operation> = Vec::new();
+    let mut notes: Vec<String> = Vec::new();
+    for (id, at) in &found.vias {
+        let Some(via) = board.vias.get(id) else {
+            continue;
+        };
+        let after = pt(at.0, at.1)?;
+        let shift = (at.0 - via.at.x_nm.get())
+            .abs()
+            .max((at.1 - via.at.y_nm.get()).abs());
+        notes.push(format!("shove: via {id} moved, largest shift {shift} nm"));
+        preview.vias.push(ShoveViaMove {
+            via: *id,
+            before: via.at,
+            after,
+            diameter: via.diameter,
+        });
+        ops.push(Operation::RemoveVia { id: *id });
+        ops.push(Operation::AddVia {
+            id: *id,
+            via: Via {
+                at: after,
+                ..via.clone()
+            },
+        });
+    }
+    for (id, points) in &found.tracks {
+        let Some(track) = board.tracks.get(id) else {
+            continue;
+        };
+        let path = pieces(points)?;
+        if path.is_empty() {
+            return Err(refused("a pushed track would have no length"));
+        }
+        notes.push(format!(
+            "shove: track {id} moved, now {} piece(s)",
+            path.len()
+        ));
+        preview.moves.push(ShoveMove {
+            track: *id,
+            before: track.path.clone(),
+            after: path.clone(),
+        });
+        let mut changed = track.clone();
+        changed.path = path;
+        ops.push(replace_track(*id, changed));
+    }
+    let (moved, vias) = (preview.moves.len(), preview.vias.len());
+    let mut first = if moved == 0 && vias == 0 {
+        "shove: nothing had to move".to_owned()
+    } else {
+        format!("shove: {moved} track(s) moved, {vias} via(s) moved")
+    };
+    if went_around {
+        first.push_str(", the new track goes around what cannot move");
+    }
+    notes.insert(0, first);
+    Ok(Pushed {
+        route: new_route,
+        ops,
+        preview,
+        notes,
+    })
+}
+
+/// What the board was before the push, worked out once for every way that is tried.
+#[derive(Default)]
+struct Before {
+    findings: Option<Vec<Finding>>,
+    connectivity: Option<ConnectivityReport>,
+}
+
+/// A net that no longer joins every pair of items that it joined before, if there is one.
+fn cut_net(before: &ConnectivityReport, after: &ConnectivityReport) -> Option<Id> {
+    let key = |net: Id, item: &Copper| match *item {
+        Copper::Pad(pad) => (net, 0_u8, pad.component, pad.pad),
+        Copper::Track(id) => (net, 1, id, id),
+        Copper::Via(id) => (net, 2, id, id),
+        Copper::Zone(id) => (net, 3, id, id),
+    };
+    let mut island_of: BTreeMap<(Id, u8, Id, Id), usize> = BTreeMap::new();
+    for net in &after.nets {
+        for (n, island) in net.islands.iter().enumerate() {
+            for item in &island.items {
+                island_of.insert(key(net.net, item), n);
+            }
+        }
+    }
+    for net in &before.nets {
+        for island in &net.islands {
+            let mut found = island
+                .items
+                .iter()
+                .map(|item| island_of.get(&key(net.net, item)));
+            if let Some(first) = found.next() {
+                if first.is_none() || found.any(|other| other != first) {
+                    return Some(net.net);
+                }
+            }
+        }
+    }
+    None
+}
+
+/// True when copper that the push placed is nearer to copper of another net than the clearance of
+/// the net classes of the two asks. The design rules do not check the clearance of a class, so the
+/// push does.
+fn crowds_a_class(board: &Board, env: &Env, trial: &Board) -> bool {
+    let gaps = Gaps::new(board, env);
+    if gaps.classes.values().all(|c| *c <= gaps.clearance) {
+        return false;
+    }
+    let steps = env.settings.arc_steps_per_quarter;
+    // the pieces and vias that are not where they were
+    let mut placed: BTreeMap<Id, Vec<Item>> = BTreeMap::new();
+    for (id, track) in &trial.tracks {
+        let old = board.tracks.get(id);
+        let half = track.width.get() as f64 / 2.0;
+        for segment in &track.path {
+            if old.is_none_or(|t| !t.path.contains(segment)) {
+                placed
+                    .entry(track.layer)
+                    .or_default()
+                    .extend(segment_items(segment, half, track.net, steps));
+            }
+        }
+    }
+    for (id, via) in &trial.vias {
+        if board.vias.get(id).is_none_or(|v| v.at != via.at) {
+            for layer in [via.from_layer, via.to_layer] {
+                placed.entry(layer).or_default().push(Item {
+                    a: vp(via.at),
+                    b: vp(via.at),
+                    half: via.diameter.get() as f64 / 2.0,
+                    net: Some(via.net),
+                    edge: false,
+                });
+            }
+        }
+    }
+    placed.iter().any(|(layer, items)| {
+        let mut others = fixed_items(trial, *layer);
+        others.extend(track_items(trial, *layer, steps));
+        items.iter().any(|item| {
+            let Some(net) = item.net else {
+                return false;
+            };
+            others.iter().any(|other| {
+                if other.edge || other.net == Some(net) {
+                    return false;
+                }
+                let asked = gaps.between(net, other.net) - gaps.margin as f64;
+                if asked <= gaps.clearance as f64 {
+                    return false;
+                }
+                let (found, _, _) = segment_segment(item.a, item.b, other.a, other.b);
+                found + 1.0 < item.half + other.half + asked
+            })
+        })
+    })
+}
+
+/// Puts the new track in and tries the whole push on a copy: the connectivity, the clearance of
+/// the net classes and the rules judge it.
+fn judge(
+    board: &Board,
+    env: &Env,
+    before: &mut Before,
+    pushed: Pushed,
+    route_id: Id,
+) -> Result<(Operation, ShovePreview, Vec<String>), BoardEditError> {
+    let moved = !pushed.ops.is_empty();
+    let mut ops = pushed.ops;
     ops.push(Operation::AddTrack {
         id: route_id,
-        track: route.clone(),
+        track: pushed.route,
     });
     let batch = Operation::Batch { ops };
     let mut trial = board.clone();
     trial.apply(&batch).map_err(|e| refused(e.to_string()))?;
-    let changes = diff(&findings(board, env.ctx), &findings(&trial, env.ctx));
+    if moved {
+        let was = before
+            .connectivity
+            .get_or_insert_with(|| board.connectivity());
+        if let Some(net) = cut_net(was, &trial.connectivity()) {
+            return Err(BoardEditError::new(
+                SHOVE_BREAKS_NET,
+                format!("the result would cut a connection of net {net}"),
+            ));
+        }
+    }
+    if crowds_a_class(board, env, &trial) {
+        return Err(BoardEditError::new(
+            SHOVE_ADDS_ERROR,
+            "the result would be nearer than the clearance of a net class",
+        ));
+    }
+    let was: &[Finding] = match env.known {
+        Some(known) => known,
+        None => before
+            .findings
+            .get_or_insert_with(|| findings(board, env.ctx)),
+    };
+    let changes = diff(was, &findings(&trial, env.ctx));
     if let Some(first) = changes.added.iter().find(|f| f.severity == Severity::Error) {
         return Err(BoardEditError::new(
             SHOVE_ADDS_ERROR,
             format!("the result would add {} at {}", first.code, first.location),
         ));
     }
-    Ok((batch, preview, notes))
+    Ok((batch, pushed.preview, pushed.notes))
 }
 
-/// Plans a route with a push. Each order of the corner is tried in turn; the first that works
-/// gives the plan and the preview, else the first error is returned.
+/// Plans a route with a push. Each order of the corner is tried with the parallel push and then,
+/// when the settings allow walks or via moves, walking around obstacles (the shorter way, then one
+/// way round and the other). The first that works gives the plan and the preview, else the first
+/// error is returned.
 pub(crate) fn plan_shove(
     board: &Board,
     env: &Env,
@@ -622,32 +892,52 @@ pub(crate) fn plan_shove(
     let width = Nm::new(width).map_err(|e| geometry(e.to_string()))?;
     let shape = shape_of(env, request.shape);
     let id = ids.next_for(board);
-    let mut first_error: Option<BoardEditError> = None;
-    let mut tried: Vec<Vec<Segment>> = Vec::new();
+    let mut routes: Vec<Track> = Vec::new();
     for h in corner_orders(env, request.horizontal_first) {
         let path = route_pieces(request.points, shape, h)?;
         if path.is_empty() {
             return Err(geometry("the route has no length"));
         }
-        if tried.contains(&path) {
-            continue;
+        if routes.iter().all(|r| r.path != path) {
+            routes.push(Track {
+                net: request.net,
+                layer: request.layer,
+                width,
+                path,
+            });
         }
-        tried.push(path.clone());
-        let route = Track {
-            net: request.net,
-            layer: request.layer,
-            width,
-            path,
-        };
-        match try_shove(board, env, &route, id) {
-            Ok((batch, preview, notes)) => {
-                let mut plan = single(batch);
-                plan.created = vec![id];
-                plan.notes = notes;
-                return Ok((plan, preview));
-            }
-            Err(e) => {
-                first_error.get_or_insert(e);
+    }
+    // `None` is the parallel push
+    let mut ways: Vec<Option<Turn>> = vec![None];
+    if env.settings.shove_walk_around || env.settings.shove_vias {
+        ways.extend([Turn::Shortest, Turn::Left, Turn::Right].map(Some));
+    }
+    let mut before = Before::default();
+    let mut first_error: Option<BoardEditError> = None;
+    let mut judged: Vec<ShovePreview> = Vec::new();
+    for way in ways {
+        for route in &routes {
+            let pushed = match way {
+                None => parallel_push(board, env, route),
+                Some(turn) => walked_push(board, env, route, turn),
+            };
+            let result = pushed.and_then(|pushed| {
+                if judged.contains(&pushed.preview) {
+                    return Err(refused("this way was refused already"));
+                }
+                judged.push(pushed.preview.clone());
+                judge(board, env, &mut before, pushed, id)
+            });
+            match result {
+                Ok((batch, preview, notes)) => {
+                    let mut plan = single(batch);
+                    plan.created = vec![id];
+                    plan.notes = notes;
+                    return Ok((plan, preview));
+                }
+                Err(e) => {
+                    first_error.get_or_insert(e);
+                }
             }
         }
     }

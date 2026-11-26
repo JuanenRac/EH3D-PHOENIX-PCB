@@ -18,6 +18,8 @@ pub const SHOVE_NOT_PUSHABLE: &str = "PHOENIX-SHOVE-004";
 pub const SHOVE_CROSSING: &str = "PHOENIX-SHOVE-005";
 /// A push that would leave a rule error.
 pub const SHOVE_ADDS_ERROR: &str = "PHOENIX-SHOVE-006";
+/// A push that would cut a connection of a net.
+pub const SHOVE_BREAKS_NET: &str = "PHOENIX-SHOVE-007";
 /// A radius of an arc that is not valid.
 pub const ARC_RADIUS: &str = "PHOENIX-ARC-001";
 /// A corner that cannot be rounded.
@@ -107,6 +109,19 @@ pub const TITLES: &[(&str, [&str; 8])] = &[
         ],
     ),
     (
+        SHOVE_BREAKS_NET,
+        [
+            "Push would cut a connection",
+            "El empuje cortaría una conexión",
+            "Das Verdrängen würde eine Verbindung trennen",
+            "Le poussage couperait une liaison",
+            "La spinta interromperebbe un collegamento",
+            "押しのけで接続が切れます",
+            "推挤会切断连接",
+            "O empurrar cortaria uma ligação",
+        ],
+    ),
+    (
         ARC_RADIUS,
         [
             "Radius of the arc is not valid",
@@ -179,7 +194,7 @@ mod tests {
 
     #[test]
     fn every_code_has_a_title_in_every_language() {
-        assert_eq!(TITLES.len(), 9);
+        assert_eq!(TITLES.len(), 10);
         for (code, row) in TITLES {
             assert!(code.starts_with("PHOENIX-SHOVE-") || code.starts_with("PHOENIX-ARC-"));
             assert_eq!(row.len(), 8);

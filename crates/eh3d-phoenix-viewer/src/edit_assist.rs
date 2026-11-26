@@ -205,6 +205,8 @@ pub enum AssistMsg {
     ModeKey,
     /// What follows the number of tracks that a push moves.
     Moves,
+    /// What follows the number of vias that a push moves.
+    ViaMoves,
     /// The box of the measure tool, with its key.
     Measure,
     /// What the line of a drag says when the board is too large to check.
@@ -219,7 +221,20 @@ pub enum AssistMsg {
     History,
 }
 
-const TEXTS: [(AssistMsg, [&str; 8]); 12] = [
+const TEXTS: [(AssistMsg, [&str; 8]); 13] = [
+    (
+        AssistMsg::ViaMoves,
+        [
+            "vias move",
+            "vías se mueven",
+            "Vias werden verschoben",
+            "vias déplacés",
+            "via si spostano",
+            "個のビアが移動",
+            "个过孔移动",
+            "vias movem-se",
+        ],
+    ),
     (
         AssistMsg::RouteMode,
         [

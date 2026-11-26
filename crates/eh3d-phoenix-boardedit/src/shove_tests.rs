@@ -2,9 +2,10 @@
 //! Tests of the push of neighbour tracks: what is pushed, what keeps its ends, what stops a push,
 //! the limits of the settings, the preview and the meanders on a 45-degree piece.
 
-use eh3d_phoenix_board::{Id, Net, Segment, Track, Via};
+use eh3d_phoenix_board::{Board, Id, Net, Segment, Track, Via};
 use eh3d_phoenix_model::{Nm, Point};
-use eh3d_phoenix_rules::Lang;
+use eh3d_phoenix_route::{diff, findings};
+use eh3d_phoenix_rules::{Lang, NetClass, NetClasses};
 
 use crate::codes::BoardEditError;
 use crate::edit::BoardEdit;
@@ -28,6 +29,53 @@ fn editor(f: &Fixture, settings: BoardEditSettings) -> BoardEdit {
 
 fn bytes(e: &BoardEdit) -> Vec<u8> {
     e.board().to_bytes().unwrap()
+}
+
+/// The settings without walks around obstacles and without via moves.
+fn only_parallel(settings: BoardEditSettings) -> BoardEditSettings {
+    BoardEditSettings {
+        shove_vias: false,
+        shove_walk_around: false,
+        ..settings
+    }
+}
+
+/// A via of the ground net below the track of the other net, y in micrometres.
+fn add_via(f: &mut Fixture, y: i64) -> Id {
+    let via = id(50);
+    f.board.vias.insert(
+        via,
+        Via {
+            net: f.gnd,
+            at: um(20_000, y),
+            drill: Nm::new(300_000).unwrap(),
+            diameter: Nm::new(600_000).unwrap(),
+            from_layer: f.top,
+            to_layer: f.bottom,
+        },
+    );
+    via
+}
+
+/// No new rule error and every net as joined as it was.
+fn keeps_the_board(before: &Board, after: &Board) {
+    let ctx = strict_rules();
+    let changes = diff(&findings(before, &ctx), &findings(after, &ctx));
+    assert!(!changes.adds_error(), "{:?}", changes.added);
+    for net in &before.connectivity().nets {
+        let now = after.connectivity();
+        let found = now.nets.iter().find(|n| n.net == net.net).unwrap();
+        for island in &net.islands {
+            assert!(
+                found
+                    .islands
+                    .iter()
+                    .any(|i| island.items.iter().all(|item| i.items.contains(item))),
+                "{:?}",
+                net.net
+            );
+        }
+    }
 }
 
 /// A straight route of the ground net on the top layer, y in micrometres.
@@ -152,18 +200,8 @@ fn a_push_goes_on_to_the_next_track_within_the_limits_of_the_settings() {
 #[test]
 fn fixed_copper_stops_a_push_and_a_forced_operation_does_not_get_past_it() {
     let mut f = fixture();
-    f.board.vias.insert(
-        id(50),
-        Via {
-            net: f.gnd,
-            at: um(20_000, 9_300),
-            drill: Nm::new(300_000).unwrap(),
-            diameter: Nm::new(600_000).unwrap(),
-            from_layer: f.top,
-            to_layer: f.bottom,
-        },
-    );
-    let mut e = editor(&f, BoardEditSettings::default());
+    add_via(&mut f, 9_300);
+    let mut e = editor(&f, only_parallel(BoardEditSettings::default()));
     let before = bytes(&e);
     let error = e.apply(&gnd_shove(&f, 10_300, 14_000, 26_000)).unwrap_err();
     assert_eq!(error.code, SHOVE_BLOCKED);
@@ -172,6 +210,7 @@ fn fixed_copper_stops_a_push_and_a_forced_operation_does_not_get_past_it() {
     };
     let error = e.apply(&forced).unwrap_err();
     assert_eq!(error.code, SHOVE_BLOCKED);
+    assert_eq!(bytes(&e), before);
     assert_eq!(bytes(&e), before);
     assert!(!e.can_undo());
 }
@@ -211,10 +250,10 @@ fn a_route_across_another_net_and_a_track_that_cannot_be_pushed_are_refused() {
 fn a_push_never_leaves_a_rule_error_even_when_errors_are_not_rejected() {
     let f = fixture();
     // the route runs into the pad of R1.2, which is on another net
-    let settings = BoardEditSettings {
+    let settings = only_parallel(BoardEditSettings {
         reject_new_errors: false,
         ..BoardEditSettings::default()
-    };
+    });
     let mut e = editor(&f, settings);
     let before = bytes(&e);
     let error = e.apply(&gnd_shove(&f, 9_400, 10_000, 14_000)).unwrap_err();
@@ -241,6 +280,138 @@ fn the_preview_shows_the_moves_and_changes_nothing() {
         .preview_shove(&EditOp::DeleteTrack { track: f.track })
         .unwrap_err();
     assert_eq!(error.code, crate::codes::OPERATION_REFUSED);
+}
+
+#[test]
+fn a_via_in_the_way_is_moved_with_the_push_and_undo_gives_it_back() {
+    let mut f = fixture();
+    let via = add_via(&mut f, 9_300);
+    let mut e = editor(&f, BoardEditSettings::default());
+    let before = bytes(&e);
+    let op = gnd_shove(&f, 10_300, 14_000, 26_000);
+    let preview = e.preview_shove(&op).unwrap();
+    assert_eq!(preview.vias.len(), 1);
+    assert_eq!(preview.vias[0].via, via);
+    assert_eq!(preview.vias[0].before, um(20_000, 9_300));
+    let out = e.apply(&op).unwrap();
+    assert!(
+        out.notes
+            .iter()
+            .any(|n| n.contains("1 track(s) moved, 1 via(s) moved")),
+        "{:?}",
+        out.notes
+    );
+    // the via went down, away from the pushed track, no further than it had to
+    let at = e.board().vias[&via].at;
+    assert_eq!(at, preview.vias[0].after);
+    assert!(
+        at.y_nm.get() < 9_300_000 && at.y_nm.get() > 9_100_000,
+        "{at:?}"
+    );
+    keeps_the_board(&f.board, e.board());
+    assert_eq!(e.steps(), 1);
+    assert!(e.undo());
+    assert_eq!(bytes(&e), before);
+}
+
+#[test]
+fn the_tracks_that_end_on_a_moved_via_follow_it_on_the_other_layer() {
+    let mut f = fixture();
+    let via = add_via(&mut f, 9_300);
+    let below = id(51);
+    f.board.tracks.insert(
+        below,
+        Track {
+            net: f.gnd,
+            layer: f.bottom,
+            width: Nm::new(250_000).unwrap(),
+            path: vec![Segment::Line {
+                start: um(20_000, 9_300),
+                end: um(20_000, 4_000),
+            }],
+        },
+    );
+    let mut e = editor(&f, BoardEditSettings::default());
+    let before = bytes(&e);
+    e.apply(&gnd_shove(&f, 10_300, 14_000, 26_000)).unwrap();
+    let at = e.board().vias[&via].at;
+    assert_ne!(at, um(20_000, 9_300));
+    let moved = &e.board().tracks[&below];
+    assert_eq!(moved.path.first().unwrap().start(), at);
+    assert_eq!(moved.path.last().unwrap().end(), um(20_000, 4_000));
+    keeps_the_board(&f.board, e.board());
+    assert!(e.undo());
+    assert_eq!(bytes(&e), before);
+}
+
+#[test]
+fn a_pushed_track_walks_around_a_via_that_may_not_move() {
+    let mut f = fixture();
+    let via = add_via(&mut f, 9_300);
+    let settings = BoardEditSettings {
+        shove_vias: false,
+        ..BoardEditSettings::default()
+    };
+    let mut e = editor(&f, settings);
+    e.apply(&gnd_shove(&f, 10_300, 14_000, 26_000)).unwrap();
+    assert_eq!(e.board().vias[&via].at, um(20_000, 9_300));
+    let sig = &e.board().tracks[&f.track];
+    // below the via: its radius, half the track and the clearance
+    assert!(sig.path.iter().any(|s| s.end().y_nm.get() <= 8_675_000));
+    assert_eq!(sig.path.first().unwrap().start(), um(11_500, 10_000));
+    assert_eq!(sig.path.last().unwrap().end(), um(28_500, 10_000));
+    keeps_the_board(&f.board, e.board());
+}
+
+#[test]
+fn the_new_track_goes_around_a_pad_of_another_net() {
+    let f = fixture();
+    let mut e = editor(&f, BoardEditSettings::default());
+    let before = bytes(&e);
+    // straight, the route would run into the pad R1.2
+    let op = gnd_shove(&f, 9_400, 10_000, 14_000);
+    let out = e.apply(&op).unwrap();
+    assert!(
+        out.notes.iter().any(|n| n.contains("goes around")),
+        "{:?}",
+        out.notes
+    );
+    let route = &e.board().tracks[&out.created[0]];
+    assert_eq!(route.path.first().unwrap().start(), um(10_000, 9_400));
+    assert_eq!(route.path.last().unwrap().end(), um(14_000, 9_400));
+    assert!(route.path.iter().any(|s| s.end().y_nm.get() <= 9_175_000));
+    for segment in &route.path {
+        let dx = (segment.end().x_nm.get() - segment.start().x_nm.get()).abs();
+        let dy = (segment.end().y_nm.get() - segment.start().y_nm.get()).abs();
+        assert!(dx == 0 || dy == 0 || dx == dy, "{segment:?}");
+    }
+    keeps_the_board(&f.board, e.board());
+    assert!(e.undo());
+    assert_eq!(bytes(&e), before);
+}
+
+#[test]
+fn a_push_keeps_the_clearance_of_a_net_class() {
+    let f = fixture();
+    let mut ctx = strict_rules();
+    ctx.classes = NetClasses::new(vec![NetClass {
+        name: "HV".to_owned(),
+        nets: vec!["SIG".to_owned()],
+        min_track_width: Nm::ZERO,
+        min_clearance: Nm::new(500_000).unwrap(),
+        min_via_diameter: Nm::ZERO,
+        min_via_drill: Nm::ZERO,
+    }])
+    .unwrap();
+    let mut e = BoardEdit::new(f.board.clone(), ctx, BoardEditSettings::default()).unwrap();
+    e.apply(&gnd_shove(&f, 10_300, 14_000, 26_000)).unwrap();
+    // 0.5 mm of the class, the two half widths and the margin below the new track
+    let sig = &e.board().tracks[&f.track];
+    assert!(
+        sig.path.iter().any(|s| is_line_to(s, 10_300_000 - 751_001)),
+        "{:?}",
+        sig.path
+    );
 }
 
 #[test]

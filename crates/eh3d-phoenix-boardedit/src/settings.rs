@@ -59,6 +59,12 @@ pub struct BoardEditSettings {
     pub shove_max_moved: usize,
     /// The gap added to the clearance of the rules when a track is pushed, in nanometres.
     pub shove_margin_nm: i64,
+    /// Whether a push moves the vias in its way, with the tracks that end on them.
+    pub shove_vias: bool,
+    /// Whether a push walks the new track and the pushed tracks around obstacles.
+    pub shove_walk_around: bool,
+    /// The furthest a push moves a via, in nanometres.
+    pub shove_max_via_shift_nm: i64,
     /// The smallest radius of an arc in a track, in nanometres.
     pub arc_min_radius_nm: i64,
     /// How many chords an arc of a quarter turn is cut into to check it against the rules.
@@ -132,6 +138,9 @@ impl BoardEditSettings {
             shove_max_depth: 1,
             shove_max_moved: 1,
             shove_margin_nm: 0,
+            shove_vias: false,
+            shove_walk_around: false,
+            shove_max_via_shift_nm: 0,
             arc_min_radius_nm: 1,
             arc_steps_per_quarter: 1,
             arc_margin_nm: 0,
@@ -216,6 +225,13 @@ impl BoardEditSettings {
                 "shove_max_depth" => self.shove_max_depth = value.parse().map_err(|_| bad())?,
                 "shove_max_moved" => self.shove_max_moved = value.parse().map_err(|_| bad())?,
                 "shove_margin_nm" => self.shove_margin_nm = value.parse().map_err(|_| bad())?,
+                "shove_vias" => self.shove_vias = parse_bool(value).ok_or_else(bad)?,
+                "shove_walk_around" => {
+                    self.shove_walk_around = parse_bool(value).ok_or_else(bad)?;
+                }
+                "shove_max_via_shift_nm" => {
+                    self.shove_max_via_shift_nm = value.parse().map_err(|_| bad())?;
+                }
                 "arc_min_radius_nm" => {
                     self.arc_min_radius_nm = value.parse().map_err(|_| bad())?;
                 }
@@ -259,6 +275,7 @@ impl BoardEditSettings {
             ("meander_pitch_nm", self.meander_pitch_nm, 1),
             ("length_tolerance_nm", self.length_tolerance_nm, 0),
             ("shove_margin_nm", self.shove_margin_nm, 0),
+            ("shove_max_via_shift_nm", self.shove_max_via_shift_nm, 0),
             ("arc_min_radius_nm", self.arc_min_radius_nm, 1),
             ("arc_margin_nm", self.arc_margin_nm, 0),
             ("dimension_text_height_nm", self.dimension_text_height_nm, 1),
@@ -344,6 +361,8 @@ mod tests {
         assert_eq!(s.meander_candidates, 3);
         assert_eq!((s.shove_max_depth, s.shove_max_moved), (3, 8));
         assert_eq!(s.shove_margin_nm, 1_000);
+        assert!(s.shove_vias && s.shove_walk_around);
+        assert_eq!(s.shove_max_via_shift_nm, 2_000_000);
         assert_eq!(s.arc_min_radius_nm, 500_000);
         assert_eq!(s.arc_steps_per_quarter, 8);
         assert_eq!(
@@ -388,6 +407,8 @@ mod tests {
             "shove_max_moved = 0",
             "shove_max_moved = 257",
             "shove_margin_nm = -1",
+            "shove_vias = yes",
+            "shove_max_via_shift_nm = -1",
             "arc_min_radius_nm = 0",
             "arc_steps_per_quarter = 65",
             "arc_margin_nm = x",
