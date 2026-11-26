@@ -132,7 +132,7 @@ impl Default for AutorouteConfig {
             ripup_penalty_nm: 20_000_000,
             history_penalty_nm: 1_000_000,
             max_expansions_per_search: 400_000,
-            max_expansions_total: 20_000_000,
+            max_expansions_total: 60_000_000,
             max_ripup_iterations: 40,
             max_rips_per_connection: 4,
             max_nodes: 8_000_000,

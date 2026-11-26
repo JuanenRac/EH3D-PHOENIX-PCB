@@ -194,6 +194,9 @@ struct Engine<'a> {
     net_exp: Vec<u64>,
     /// The limit of expanded nodes of each net (0: none).
     net_limit: Vec<u64>,
+    /// True while a pass looks for a cheaper way: a step against the preferred direction of its
+    /// layer then costs no more than any other, because everything is routed already.
+    relaxed: bool,
 }
 
 /// The length of the tracks of a route.
@@ -367,7 +370,9 @@ impl Engine<'_> {
         }
         // what was torn up during the run does not count against a place any more
         let history = std::mem::take(&mut self.history);
+        self.relaxed = true;
         let attempt = self.attempt(c, false);
+        self.relaxed = false;
         self.history = history;
         if let Attempt::Found(found, sources, targets) = attempt {
             let new = self.assembled(c, &found, &sources, &targets);
@@ -493,12 +498,17 @@ impl Engine<'_> {
         let base: &AutorouteConfig = self.cfg;
         let weight = self.weights[net];
         let scaled;
-        let cfg: &AutorouteConfig = if weight == DEFAULT_WEIGHT {
+        let cfg: &AutorouteConfig = if weight == DEFAULT_WEIGHT && !self.relaxed {
             base
         } else {
             scaled = AutorouteConfig {
                 via_penalty_nm: base.via_penalty_nm * weight / DEFAULT_WEIGHT,
                 corner_penalty_nm: base.corner_penalty_nm * weight / DEFAULT_WEIGHT,
+                wrong_way_percent: if self.relaxed {
+                    0
+                } else {
+                    base.wrong_way_percent
+                },
                 ..base.clone()
             };
             &scaled
@@ -1002,6 +1012,7 @@ fn route_once(
         net_exp: vec![0; weights.len()],
         weights,
         net_limit,
+        relaxed: false,
     };
     let mut notes: Vec<String> = Vec::new();
     // a weight or a limit that names a net or a class that is not in this run

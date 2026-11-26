@@ -297,20 +297,24 @@ fn the_table_of_the_boards_of_the_set() {
         let (plan, ms) = route(case);
         println!("{}", line(case, &plan, ms));
     }
-    let d = AutorouteConfig::default();
-    let variants = [
-        ("nopass", AutorouteConfig { optimize_passes: 0, ..d.clone() }),
-        ("rips400", AutorouteConfig { max_ripup_iterations: 400, ..d.clone() }),
-        ("rips2000x8", AutorouteConfig { max_ripup_iterations: 2000, max_rips_per_connection: 8, max_expansions_total: 60_000_000, ..d.clone() }),
-        ("total60M", AutorouteConfig { max_expansions_total: 60_000_000, ..d.clone() }),
-        ("rips400total60M", AutorouteConfig { max_ripup_iterations: 400, max_expansions_total: 60_000_000, ..d }),
-    ];
-    for (name, cfg) in &variants {
-        for case in &CASES {
-            let board = board_of(case);
-            let started = Instant::now();
-            let plan = autoroute(&board, &rules(), &RouteSettings::default(), cfg, &Request::default()).unwrap();
-            println!("{name} {}", line(case, &plan, started.elapsed().as_millis()));
-        }
+    let none = AutorouteConfig {
+        optimize_passes: 0,
+        ..AutorouteConfig::default()
+    };
+    for case in &CASES {
+        let board = board_of(case);
+        let started = Instant::now();
+        let plan = autoroute(
+            &board,
+            &rules(),
+            &RouteSettings::default(),
+            &none,
+            &Request::default(),
+        )
+        .unwrap();
+        println!(
+            "no pass: {}",
+            line(case, &plan, started.elapsed().as_millis())
+        );
     }
 }
