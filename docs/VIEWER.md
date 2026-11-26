@@ -167,7 +167,7 @@ The English pictures, one for each window:
 
 <p align="center">
   <img src="../images/screens/en/phoenix-pcb-02-document.png" alt="The board window" width="49%">
-  <img src="../images/screens/en/phoenix-pcb-04-document-review.png" alt="The board window in the Review workspace" width="49%">
+  <img src="../images/screens/en/phoenix-pcb-07-panel.png" alt="The panel of boards" width="49%">
 </p>
 
 The pictures go into the README of the version by hand, after looking at each one: a picture that is right for the tool can still show a window that is badly drawn.
