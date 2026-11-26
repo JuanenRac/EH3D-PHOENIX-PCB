@@ -10,7 +10,6 @@ use std::path::{Path, PathBuf};
 use eframe::egui::{self, Color32, Pos2, Rect, Stroke};
 use eh3d_phoenix_rules::Lang;
 
-use crate::panels::controls_below;
 use crate::codes::ViewError;
 use crate::gerber_scene::{
     board_scene, compare_scenes, load_board, open_folder, Comparison, DiffKind, GerberScene,
@@ -19,6 +18,7 @@ use crate::gerber_text::{role_title, GerberText};
 use crate::gui::{ui_accent, ui_danger, ui_dim, ui_ok};
 use crate::measure::Measure;
 use crate::msg::Msg;
+use crate::panels::controls_below;
 use crate::prim::P;
 use crate::settings::ViewerSettings;
 use crate::view::{View, ZoomLimits};

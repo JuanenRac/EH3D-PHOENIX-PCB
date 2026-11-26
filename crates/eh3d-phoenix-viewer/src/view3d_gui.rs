@@ -13,10 +13,10 @@ use eh3d_phoenix_assembly3d::AssemblySettings;
 use eh3d_phoenix_board::Board;
 use eh3d_phoenix_rules::Lang;
 
-use crate::panels::controls_below;
 use crate::codes::ViewError;
 use crate::gui::{ui_accent, ui_danger, ui_dim};
 use crate::msg::Msg;
+use crate::panels::controls_below;
 use crate::settings::ViewerSettings;
 use crate::view3d::{
     assemble_with_table_file, face_colour, part_info, pick, summary, Assembly, Camera, Selection,

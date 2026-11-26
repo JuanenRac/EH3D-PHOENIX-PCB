@@ -11,12 +11,12 @@ use eframe::egui::{self, Color32, Pos2, Rect, Stroke};
 use eh3d_phoenix_panel::Joint;
 use eh3d_phoenix_rules::Lang;
 
-use crate::panels::controls_below;
 use crate::codes::ViewError;
 use crate::gui::{ui_accent, ui_danger, ui_dim};
 use crate::msg::Msg;
 use crate::panel_scene::{parse_files, PanelLayerKind, PanelSession, PanelShape};
 use crate::panel_text::PanelText;
+use crate::panels::controls_below;
 use crate::prim::P;
 use crate::settings::ViewerSettings;
 use crate::view::{View, ZoomLimits};

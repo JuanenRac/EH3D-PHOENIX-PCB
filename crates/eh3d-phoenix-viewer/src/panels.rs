@@ -116,16 +116,6 @@ pub fn controls_below(width: f32, height: f32) -> Option<f32> {
     (width < BESIDE_MIN_WIDTH).then(|| (height - width).max(height * 0.45))
 }
 
-/// A mode panel (the 3D view, the panel of boards, the Gerber files) narrower than this keeps its
-/// controls under the drawing and not beside it.
-pub const BESIDE_MIN_WIDTH: f32 = 640.0;
-
-/// The height of the controls under the drawing in a panel of this size, or none when they fit
-/// beside it: what is left below a square drawing, and at least 45 % of the height.
-pub fn controls_below(width: f32, height: f32) -> Option<f32> {
-    (width < BESIDE_MIN_WIDTH).then(|| (height - width).max(height * 0.45))
-}
-
 /// A text of the window as the text of the frame: the eight languages in the order that the frame
 /// wants (English, Spanish, Italian, German, French, Portuguese of Portugal, Chinese, Japanese).
 pub fn t8(text: impl Fn(Lang) -> &'static str) -> Text8 {
