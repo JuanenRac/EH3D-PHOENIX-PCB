@@ -88,7 +88,7 @@ python -I -m unittest discover -s tools -p "test_*.py"
 <p align="center">
   <img src="images/screens/fr/phoenix-pcb-01-start.png" alt="Ecran de demarrage d'EH3D-PHOENIX-PCB" width="49%">
   <img src="images/screens/fr/phoenix-pcb-02-document.png" alt="Fenetre de carte d'EH3D-PHOENIX-PCB" width="49%">
-  <img src="images/screens/fr/phoenix-pcb-11-measures.png" alt="Fenetre des mesures d'EH3D-PHOENIX-PCB" width="49%">
+  <img src="images/screens/fr/phoenix-pcb-13-measures.png" alt="Fenetre des mesures d'EH3D-PHOENIX-PCB" width="49%">
 </p>
 
 **Les panneaux de la fenêtre.** La fenêtre est organisée avec le cadre de panneaux ancrables de la suite : des panneaux pour la carte, les couches, les propriétés, les composants, les réseaux, les problèmes des règles, la console, le rapport et les tâches, que l'on peut déplacer, mettre en onglets, détacher, replier sur un bord, agrandir, verrouiller et ramener depuis le menu Affichage, dans trois espaces de travail par tâche (édition, revue et compact ; il n'y a pas de niveaux d'expérience), sous une barre de menus avec Fichier, Édition, Affichage, Outils, Fenêtre et Aide. La bibliothèque, les fichiers Gerber importés, la vue 3D et le panneau des cartes sont aussi des panneaux : ils restent cachés tant qu'on n'ouvre pas ce qu'ils montrent, puis rejoignent la carte au lieu de la recouvrir. La disposition est conservée dans le fichier de préférences (les lignes `dock.*`), et `phoenix --shot FILE.png --workspace edit|review|compact` prend une image d'un espace de travail. La fenêtre est un prototype qui n'a pas été essayé avec une souris.

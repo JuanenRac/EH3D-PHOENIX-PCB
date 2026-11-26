@@ -88,7 +88,7 @@ python -I -m unittest discover -s tools -p "test_*.py"
 <p align="center">
   <img src="images/screens/it/phoenix-pcb-01-start.png" alt="Schermata iniziale di EH3D-PHOENIX-PCB" width="49%">
   <img src="images/screens/it/phoenix-pcb-02-document.png" alt="Finestra della scheda di EH3D-PHOENIX-PCB" width="49%">
-  <img src="images/screens/it/phoenix-pcb-11-measures.png" alt="Finestra delle misure di EH3D-PHOENIX-PCB" width="49%">
+  <img src="images/screens/it/phoenix-pcb-13-measures.png" alt="Finestra delle misure di EH3D-PHOENIX-PCB" width="49%">
 </p>
 
 **I pannelli della finestra.** La finestra è organizzata con la cornice di pannelli agganciabili della suite: pannelli per la scheda, i livelli, le proprietà, i componenti, le reti, i problemi delle regole, la console, il rapporto e le attività, che si possono spostare, mettere in schede, rendere flottanti, ripiegare su un bordo, ingrandire, bloccare e riportare dal menu Visualizza, in tre aree di lavoro per attività (modifica, revisione e compatta; non ci sono livelli di esperienza), sotto una barra dei menu con File, Modifica, Visualizza, Strumenti, Finestra e Aiuto. La libreria, i file Gerber importati, la vista 3D e il pannello delle schede sono anch'essi pannelli: restano nascosti finché non si apre ciò che mostrano e poi si uniscono alla scheda invece di coprirla. La disposizione è conservata nel file delle preferenze (le righe `dock.*`) e `phoenix --shot FILE.png --workspace edit|review|compact` scatta un'immagine di un'area di lavoro. La finestra è un prototipo che non è stato provato con un mouse.

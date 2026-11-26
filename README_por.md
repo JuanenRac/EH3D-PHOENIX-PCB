@@ -88,7 +88,7 @@ python -I -m unittest discover -s tools -p "test_*.py"
 <p align="center">
   <img src="images/screens/pt/phoenix-pcb-01-start.png" alt="Ecrã inicial do EH3D-PHOENIX-PCB" width="49%">
   <img src="images/screens/pt/phoenix-pcb-02-document.png" alt="Janela da placa do EH3D-PHOENIX-PCB" width="49%">
-  <img src="images/screens/pt/phoenix-pcb-11-measures.png" alt="Janela de medições do EH3D-PHOENIX-PCB" width="49%">
+  <img src="images/screens/pt/phoenix-pcb-13-measures.png" alt="Janela de medições do EH3D-PHOENIX-PCB" width="49%">
 </p>
 
 **Os painéis da janela.** A janela está organizada com a moldura de painéis acopláveis da suite: painéis para a placa, as camadas, as propriedades, os componentes, as redes, os problemas das regras, a consola, o relatório e as tarefas, que se podem mover, pôr em separadores, flutuar, recolher num limite, maximizar, bloquear e repor a partir do menu Ver, em três áreas de trabalho por tarefa (edição, revisão e compacta; não há níveis de experiência), sob uma barra de menus com Ficheiro, Editar, Ver, Ferramentas, Janela e Ajuda. A biblioteca, os ficheiros Gerber importados, a vista 3D e o painel de placas também são painéis: ficam ocultos até se abrir o que mostram e depois juntam-se à placa em vez de a cobrir. A disposição é guardada no ficheiro de preferências (as linhas `dock.*`) e `phoenix --shot FILE.png --workspace edit|review|compact` tira uma imagem de uma área de trabalho. A janela é um protótipo que não foi experimentado com um rato.

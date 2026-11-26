@@ -88,7 +88,7 @@ python -I -m unittest discover -s tools -p "test_*.py"
 <p align="center">
   <img src="images/screens/es/phoenix-pcb-01-start.png" alt="Pantalla de inicio de EH3D-PHOENIX-PCB" width="49%">
   <img src="images/screens/es/phoenix-pcb-02-document.png" alt="Ventana de placa de EH3D-PHOENIX-PCB" width="49%">
-  <img src="images/screens/es/phoenix-pcb-11-measures.png" alt="Ventana de mediciones de EH3D-PHOENIX-PCB" width="49%">
+  <img src="images/screens/es/phoenix-pcb-13-measures.png" alt="Ventana de mediciones de EH3D-PHOENIX-PCB" width="49%">
 </p>
 
 **Los paneles de la ventana.** La ventana se organiza con el marco de paneles acoplables de la suite: paneles para la placa, las capas, las propiedades, los componentes, las redes, los problemas de las reglas, la consola, el informe y las tareas, que se pueden mover, poner en pestañas, flotar, plegar en un borde, maximizar, bloquear y recuperar desde el menú Ver, en tres espacios de trabajo por tarea (edición, revisión y compacto; no hay niveles de experiencia), bajo una barra de menús con Archivo, Edición, Ver, Herramientas, Ventana y Ayuda. La biblioteca, los archivos Gerber importados, la vista 3D y el panel de placas también son paneles: permanecen ocultos hasta que se abre lo que muestran y entonces se unen a la placa en lugar de taparla. La disposición se guarda en el archivo de preferencias (las líneas `dock.*`) y `phoenix --shot FILE.png --workspace edit|review|compact` toma una imagen de un espacio de trabajo. La ventana es un prototipo que no se ha probado con ratón.

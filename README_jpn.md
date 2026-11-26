@@ -88,7 +88,7 @@ python -I -m unittest discover -s tools -p "test_*.py"
 <p align="center">
   <img src="images/screens/ja/phoenix-pcb-01-start.png" alt="EH3D-PHOENIX-PCB の開始画面" width="49%">
   <img src="images/screens/ja/phoenix-pcb-02-document.png" alt="EH3D-PHOENIX-PCB の基板ウィンドウ" width="49%">
-  <img src="images/screens/ja/phoenix-pcb-11-measures.png" alt="EH3D-PHOENIX-PCB の計測ウィンドウ" width="49%">
+  <img src="images/screens/ja/phoenix-pcb-13-measures.png" alt="EH3D-PHOENIX-PCB の計測ウィンドウ" width="49%">
 </p>
 
 **ウィンドウのパネル。** ウィンドウはスイートのドッキングフレームで構成されます。基板、レイヤー、プロパティ、部品、ネット、ルールの問題、コンソール、レポート、タスクのパネルがあり、移動、タブ化、フロート、端への折りたたみ、最大化、ロックができ、表示メニューから戻せます。作業ごとに3つのワークスペース（編集、レビュー、コンパクト。経験レベルはありません）があり、メニューバーにはファイル、編集、表示、ツール、ウィンドウ、ヘルプがあります。ライブラリ、インポートしたGerberファイル、3Dビュー、基板パネルもパネルです。表示する内容を開くまで隠れていて、開くと基板を覆わずに基板のグループに加わります。配置は設定ファイル（`dock.*` の行）に保存され、`phoenix --shot FILE.png --workspace edit|review|compact` で1つのワークスペースの画像を撮れます。ウィンドウはマウスで試していないプロトタイプです。

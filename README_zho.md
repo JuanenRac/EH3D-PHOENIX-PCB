@@ -88,7 +88,7 @@ python -I -m unittest discover -s tools -p "test_*.py"
 <p align="center">
   <img src="images/screens/zh/phoenix-pcb-01-start.png" alt="EH3D-PHOENIX-PCB 起始屏幕" width="49%">
   <img src="images/screens/zh/phoenix-pcb-02-document.png" alt="EH3D-PHOENIX-PCB 电路板窗口" width="49%">
-  <img src="images/screens/zh/phoenix-pcb-11-measures.png" alt="EH3D-PHOENIX-PCB 测量窗口" width="49%">
+  <img src="images/screens/zh/phoenix-pcb-13-measures.png" alt="EH3D-PHOENIX-PCB 测量窗口" width="49%">
 </p>
 
 **窗口的面板。** 窗口使用套件的停靠框架布局：有电路板、图层、属性、元件、网络、规则问题、控制台、报告和任务面板，可以移动、合并为标签页、浮动、折叠到边缘、最大化、锁定，并可从“视图”菜单恢复；按任务分为三个工作区（编辑、审查和紧凑；没有经验等级之分），菜单栏包含文件、编辑、视图、工具、窗口和帮助。库、导入的 Gerber 文件、3D 视图和电路板面板也是面板：在打开它们所显示的内容之前保持隐藏，打开后加入电路板所在的分组，而不是遮住电路板。布局保存在偏好设置文件中（`dock.*` 行），`phoenix --shot FILE.png --workspace edit|review|compact` 可为某个工作区截图。窗口是尚未用鼠标试过的原型。

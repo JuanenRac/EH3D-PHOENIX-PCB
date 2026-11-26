@@ -88,7 +88,7 @@ python -I -m unittest discover -s tools -p "test_*.py"
 <p align="center">
   <img src="images/screens/de/phoenix-pcb-01-start.png" alt="Startbildschirm von EH3D-PHOENIX-PCB" width="49%">
   <img src="images/screens/de/phoenix-pcb-02-document.png" alt="Platinenfenster von EH3D-PHOENIX-PCB" width="49%">
-  <img src="images/screens/de/phoenix-pcb-11-measures.png" alt="Messfenster von EH3D-PHOENIX-PCB" width="49%">
+  <img src="images/screens/de/phoenix-pcb-13-measures.png" alt="Messfenster von EH3D-PHOENIX-PCB" width="49%">
 </p>
 
 **Die Panels des Fensters.** Das Fenster ist mit dem Andockrahmen der Suite aufgebaut: Panels für die Platine, die Lagen, die Eigenschaften, die Bauteile, die Netze, die Probleme der Regeln, die Konsole, den Bericht und die Aufgaben, die sich verschieben, in Reitern ablegen, schweben lassen, an einen Rand einklappen, maximieren, sperren und über das Menü Ansicht zurückholen lassen, in drei Arbeitsbereichen nach Aufgabe (Bearbeiten, Prüfen und Kompakt; es gibt keine Erfahrungsstufen), unter einer Menüleiste mit Datei, Bearbeiten, Ansicht, Werkzeuge, Fenster und Hilfe. Die Bibliothek, die importierten Gerber-Dateien, die 3D-Ansicht und das Platinen-Panel sind ebenfalls Panels: Sie bleiben verborgen, bis man öffnet, was sie zeigen, und gesellen sich dann zur Platine, statt sie zu verdecken. Die Anordnung wird in der Einstellungsdatei gespeichert (die Zeilen `dock.*`), und `phoenix --shot FILE.png --workspace edit|review|compact` erstellt ein Bild eines Arbeitsbereichs. Das Fenster ist ein Prototyp, der noch nicht mit einer Maus ausprobiert wurde.

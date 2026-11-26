@@ -88,7 +88,7 @@ python -I -m unittest discover -s tools -p "test_*.py"
 <p align="center">
   <img src="images/screens/en/phoenix-pcb-01-start.png" alt="EH3D-PHOENIX-PCB start screen" width="49%">
   <img src="images/screens/en/phoenix-pcb-02-document.png" alt="EH3D-PHOENIX-PCB board window" width="49%">
-  <img src="images/screens/en/phoenix-pcb-11-measures.png" alt="EH3D-PHOENIX-PCB measures window" width="49%">
+  <img src="images/screens/en/phoenix-pcb-13-measures.png" alt="EH3D-PHOENIX-PCB measures window" width="49%">
 </p>
 
 **The panels of the window.** The window is laid out with the docking frame of the suite: panels for the board, the layers, the properties, the components, the nets, the problems of the rules, the console, the report and the tasks, that can be moved, put in tabs, floated, folded into an edge, maximised, locked and brought back from the View menu, in three workspaces by task (edit, review and compact; there are no levels of experience), under a menu bar with File, Edit, View, Tools, Window and Help. The library, the imported Gerber files, the 3D view and the panel of boards are panels too: they stay hidden until you open what they show and then join the board instead of covering it. The arrangement is kept in the preferences file (the lines `dock.*`), and `phoenix --shot FILE.png --workspace edit|review|compact` takes a picture of one workspace. The window is a prototype that has not been tried with a mouse.
