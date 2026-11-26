@@ -4,6 +4,8 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **Narrow panels of the 3D view, of the panel of boards and of the Gerber files** keep their controls under the drawing instead of beside it, and their two lines of status wrap instead of being written over each other.
+- **Tab titles are written whole:** the shared window frame no longer replaces a short title that fits with the sign of its panel.
 - **Changed codes of `phoenix pnp`:** `PHOENIX-PNP-001` to `011` are now `PHOENIX-PCBPNP-001` to `011`, with the same numbers and meanings, because the old prefix is the one of the program EH3D-PHOENIX-PNP. If a script or a filter looks for the old codes, change it.
 - **One list of recent files:** the start screen and *File > Open recent* now show and change the same list, kept in the folder of the user (`recent-phoenix-pcb.txt`). What the separate list of the start screen held is added to it the first time, and its file is renamed with the ending `.moved`, not deleted; `recent_max` is now 20 so that both lists fit.
 - **The package of the starter kit says that it is not verified:** it carries `kit/README.txt`, a short note in eight languages: the footprints have not been checked against datasheets and no file of it has been opened in EAGLE or KiCad.

@@ -106,6 +106,26 @@ pub const WS_REVIEW: &str = "Review";
 /// The workspace of the board alone, with the layers and the tools folded into the edges.
 pub const WS_COMPACT: &str = "Compact";
 
+/// A mode panel (the 3D view, the panel of boards, the Gerber files) narrower than this keeps its
+/// controls under the drawing and not beside it.
+pub const BESIDE_MIN_WIDTH: f32 = 640.0;
+
+/// The height of the controls under the drawing in a panel of this size, or none when they fit
+/// beside it: what is left below a square drawing, and at least 45 % of the height.
+pub fn controls_below(width: f32, height: f32) -> Option<f32> {
+    (width < BESIDE_MIN_WIDTH).then(|| (height - width).max(height * 0.45))
+}
+
+/// A mode panel (the 3D view, the panel of boards, the Gerber files) narrower than this keeps its
+/// controls under the drawing and not beside it.
+pub const BESIDE_MIN_WIDTH: f32 = 640.0;
+
+/// The height of the controls under the drawing in a panel of this size, or none when they fit
+/// beside it: what is left below a square drawing, and at least 45 % of the height.
+pub fn controls_below(width: f32, height: f32) -> Option<f32> {
+    (width < BESIDE_MIN_WIDTH).then(|| (height - width).max(height * 0.45))
+}
+
 /// A text of the window as the text of the frame: the eight languages in the order that the frame
 /// wants (English, Spanish, Italian, German, French, Portuguese of Portugal, Chinese, Japanese).
 pub fn t8(text: impl Fn(Lang) -> &'static str) -> Text8 {
@@ -473,6 +493,17 @@ mod tests {
     use eh3d_dock::core::DockCore;
     use eh3d_dock::menu::MenuContext;
     use eh3d_dock::sectors::workspace_title;
+
+    #[test]
+    fn a_narrow_panel_of_a_mode_keeps_its_controls_under_the_drawing() {
+        assert_eq!(controls_below(900.0, 600.0), None);
+        assert_eq!(controls_below(BESIDE_MIN_WIDTH, 600.0), None);
+        // the drawing is square when there is height enough
+        assert_eq!(controls_below(420.0, 830.0), Some(410.0));
+        // and the controls never get less than 45 % of a low panel
+        let low = controls_below(420.0, 600.0).unwrap();
+        assert!((low - 270.0).abs() < 0.01, "{low}");
+    }
 
     fn core() -> DockCore {
         DockCore::new(defs(), workspaces())

@@ -10,6 +10,7 @@ use std::path::{Path, PathBuf};
 use eframe::egui::{self, Color32, Pos2, Rect, Stroke};
 use eh3d_phoenix_rules::Lang;
 
+use crate::panels::controls_below;
 use crate::codes::ViewError;
 use crate::gerber_scene::{
     board_scene, compare_scenes, load_board, open_folder, Comparison, DiffKind, GerberScene,
@@ -195,28 +196,31 @@ impl GerberUi {
             });
         });
         egui::Panel::bottom("gerber_status").show(ui, |ui| {
-            ui.horizontal(|ui| {
+            ui.horizontal_wrapped(|ui| {
                 if let Some(error) = &self.error {
                     ui.label(egui::RichText::new(error.message(lang)).color(ui_danger()));
                 } else {
                     ui.label(dim(GerberText::ReadOnly.tr(lang)));
                 }
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    ui.label(egui::RichText::new(Msg::Prototype.tr(lang)).color(ui_accent()));
-                });
+                ui.label(egui::RichText::new(Msg::Prototype.tr(lang)).color(ui_accent()));
             });
         });
-        egui::Panel::left("gerber_layers")
-            .default_size(300.0)
-            .show(ui, |ui| {
-                egui::ScrollArea::vertical().show(ui, |ui| {
+        let below = controls_below(ui.available_width(), ui.available_height());
+        let controls = match below {
+            Some(height) => egui::Panel::bottom("gerber_layers_below").default_size(height),
+            None => egui::Panel::left("gerber_layers").default_size(300.0),
+        };
+        controls.show(ui, |ui| {
+            egui::ScrollArea::vertical()
+                .auto_shrink([false, false])
+                .show(ui, |ui| {
                     self.layers_panel(ui, lang);
                     ui.separator();
                     self.measure_panel(ui, lang);
                     ui.separator();
                     self.compare_panel(ui, lang, settings);
                 });
-            });
+        });
         self.canvas(ui, settings);
         close
     }
