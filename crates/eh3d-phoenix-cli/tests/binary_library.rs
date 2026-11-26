@@ -65,3 +65,37 @@ fn a_damaged_binary_library_is_refused_with_its_code() {
     assert_eq!(code, 2);
     assert!(err.contains("PHOENIX-EAGLEBIN-004"), "{err}");
 }
+
+#[test]
+fn a_folder_with_binary_and_xml_libraries_is_indexed() {
+    let folder = tempfile::tempdir().unwrap();
+    let binary = folder.path().join("old.lbr");
+    fs::write(&binary, builder::sample().bytes()).unwrap();
+    let saved = folder.path().join("new.lbr");
+    let (code, _, err) = call(&[
+        "libedit",
+        "--out",
+        saved.to_str().unwrap(),
+        binary.to_str().unwrap(),
+    ]);
+    assert!(code == 0 || code == 1, "{err}");
+    fs::write(
+        folder.path().join("cut.lbr"),
+        &builder::sample().bytes()[..200],
+    )
+    .unwrap();
+
+    let (code, out, err) = call(&["libindex", "--json", folder.path().to_str().unwrap()]);
+    assert_eq!(code, 0, "{err}");
+    let value: Value = serde_json::from_str(&out).unwrap();
+    assert_eq!(value["summary"]["files"], 3);
+    assert_eq!(value["summary"]["binary_libraries"], 1);
+    // both forms of the same library give the same footprints and symbols
+    assert_eq!(value["summary"]["footprints"], 4);
+    assert_eq!(value["summary"]["symbols"], 2);
+    let files = value["files"].as_array().unwrap();
+    assert_eq!(files[0]["path"], "cut.lbr");
+    assert_eq!(files[0]["error"]["code"], "PHOENIX-LIBIDX-020");
+    assert_eq!(files[2]["binary_version"], "4.9");
+    assert!(files[1]["binary_version"].is_null());
+}

@@ -22,14 +22,16 @@ pub mod items;
 pub mod records;
 pub mod report;
 pub mod resolve;
-mod text;
+pub mod text;
 pub mod walk;
 
 use std::collections::BTreeSet;
 use std::sync::Arc;
 
 use eh3d_phoenix_eagle::Element;
+use eh3d_phoenix_libedit::codes::{LibError, FILE_UNUSABLE};
 use eh3d_phoenix_libedit::model::{Library, Package, Symbol};
+use eh3d_phoenix_libedit::LibSettings;
 
 pub use codes::BinError;
 pub use records::{looks_binary, Limits};
@@ -106,6 +108,25 @@ fn note_repeated<'a>(names: impl Iterator<Item = &'a str>, subject: &str, report
             report.note(codes::REFERENCE, subject, name);
         }
     }
+}
+
+/// Reads the bytes of an EAGLE library of either form, XML or binary, within the limits of the
+/// settings of the library editor. A binary file also gives the report of its conversion.
+pub fn read_any_library(
+    bytes: &[u8],
+    settings: &LibSettings,
+) -> Result<(Library, Option<Report>), LibError> {
+    if looks_binary(bytes) {
+        let limits = Limits {
+            max_bytes: usize::try_from(settings.max_file_bytes).unwrap_or(usize::MAX),
+            ..Limits::default()
+        };
+        let read = read_binary_library(bytes, &limits)
+            .map_err(|e| LibError::new(FILE_UNUSABLE, e.to_string()))?;
+        return Ok((read.library, Some(read.report)));
+    }
+    eh3d_phoenix_libedit::read::read_library(bytes, &settings.limits())
+        .map(|library| (library, None))
 }
 
 /// Reads the bytes of a binary library of version 3, 4 or 5.

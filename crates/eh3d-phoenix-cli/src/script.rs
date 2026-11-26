@@ -16,7 +16,7 @@ use std::path::Path;
 
 use eh3d_phoenix_board::Board;
 use eh3d_phoenix_eagle_board::read_schematic_with_limits;
-use eh3d_phoenix_libedit::{read_library, to_text as library_text, LibSettings, Library};
+use eh3d_phoenix_libedit::{to_text as library_text, LibSettings, Library};
 use eh3d_phoenix_parts::{PartsDb, PartsSettings};
 use eh3d_phoenix_rules::{Lang, RuleFile, RuleValues};
 use eh3d_phoenix_schematic::Schematic;
@@ -272,7 +272,9 @@ fn load_library(path: &str) -> Result<Library, Diag> {
         )));
     }
     let bytes = std::fs::read(path).map_err(|e| unreadable(e.to_string()))?;
-    read_library(&bytes, &settings.limits()).map_err(|e| unreadable(e.to_string()))
+    eh3d_phoenix_eaglebin::read_any_library(&bytes, &settings)
+        .map(|(library, _)| library)
+        .map_err(|e| unreadable(e.to_string()))
 }
 
 enum Loaded {

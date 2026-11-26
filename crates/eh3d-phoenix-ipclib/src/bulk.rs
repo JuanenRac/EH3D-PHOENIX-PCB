@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! The bulk import of libraries. It walks a folder for EAGLE libraries (`.lbr`) and KiCad files
-//! (`.kicad_mod` footprints and `.kicad_sym` symbol libraries), reads each with the readers of
-//! the suite, judges every footprint and symbol, finds the ones that appear under the same name
+//! The bulk import of libraries. It walks a folder for EAGLE libraries (`.lbr`, XML or the
+//! binary form of versions 3 to 5) and KiCad files (`.kicad_mod` footprints and `.kicad_sym`
+//! symbol libraries), reads each with the readers of the suite, judges every footprint and symbol, finds the ones that appear under the same name
 //! or with the same geometry, and makes an index, `phoenix-libindex/1`, with the hash of the
 //! content of every item. Nothing is copied: the index holds names, hashes and findings, and the
 //! files are only read.
@@ -13,9 +13,9 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
+use eh3d_phoenix_eaglebin::read_any_library;
 use eh3d_phoenix_kicad::{read_footprint, read_symbol_library, sequential_ids, KicadSettings};
 use eh3d_phoenix_libedit::model::{Item, Package, Symbol};
-use eh3d_phoenix_libedit::read::read_library;
 use eh3d_phoenix_libedit::write::sha256_hex;
 use eh3d_phoenix_libedit::LibSettings;
 use eh3d_phoenix_rules::Lang;
@@ -77,6 +77,10 @@ pub struct FileRecord {
     pub sha256: String,
     /// How many items it gave.
     pub items: usize,
+    /// The version that wrote it, for a binary EAGLE library.
+    pub binary: Option<String>,
+    /// True when something of a binary library was not read as it is.
+    pub losses: bool,
     /// Why it could not be read, when it could not.
     pub error: Option<Finding>,
 }
@@ -407,20 +411,23 @@ fn walk(root: &Path, dir: &Path, rel: &str, depth: usize, s: &BulkSettings, w: &
 }
 
 /// What reading one file gave.
+#[derive(Default)]
 struct Read {
     items: Vec<ItemRecord>,
     error: Option<Finding>,
+    binary: Option<String>,
+    losses: bool,
 }
 
 fn read_file(rel: &str, kind: &'static str, bytes: &[u8], s: &BulkSettings) -> Read {
     let unreadable = |what: String| Read {
-        items: Vec::new(),
         error: Some(finding(IDX_FILE_UNREADABLE, what)),
+        ..Read::default()
     };
     match kind {
-        "eagle_library" => match read_library(bytes, &LibSettings::default().limits()) {
+        "eagle_library" => match read_any_library(bytes, &LibSettings::default()) {
             Err(e) => unreadable(e.to_string()),
-            Ok(lib) => {
+            Ok((lib, report)) => {
                 let mut items: Vec<ItemRecord> = Vec::new();
                 for p in &lib.packages {
                     items.push(eagle_footprint(rel, p, s));
@@ -428,7 +435,12 @@ fn read_file(rel: &str, kind: &'static str, bytes: &[u8], s: &BulkSettings) -> R
                 for sym in &lib.symbols {
                     items.push(eagle_symbol(rel, sym));
                 }
-                Read { items, error: None }
+                Read {
+                    items,
+                    losses: report.as_ref().is_some_and(|r| r.has_losses()),
+                    binary: report.map(|r| r.version),
+                    ..Read::default()
+                }
             }
         },
         "kicad_footprint" => {
@@ -464,7 +476,7 @@ fn read_file(rel: &str, kind: &'static str, bytes: &[u8], s: &BulkSettings) -> R
                     );
                     Read {
                         items: vec![item],
-                        error: None,
+                        ..Read::default()
                     }
                 }
             }
@@ -503,7 +515,10 @@ fn read_file(rel: &str, kind: &'static str, bytes: &[u8], s: &BulkSettings) -> R
                             findings: symbol_findings(&sym.name, &numbers),
                         });
                     }
-                    Read { items, error: None }
+                    Read {
+                        items,
+                        ..Read::default()
+                    }
                 }
             }
         }
@@ -651,6 +666,8 @@ pub fn index_folder(folder: &Path, s: &BulkSettings) -> Result<Index, IpcError> 
             bytes: bytes.len() as u64,
             sha256: sha256_hex(&bytes),
             items: read.items.len(),
+            binary: read.binary,
+            losses: read.losses,
             error: read.error,
         });
         index.items.extend(read.items);
@@ -675,6 +692,12 @@ impl Index {
         self.items.iter().filter(|i| !i.findings.is_empty()).count()
     }
 
+    /// The binary EAGLE libraries that were read, and how many of them with losses.
+    pub fn binary_counts(&self) -> (usize, usize) {
+        let binary = self.files.iter().filter(|f| f.binary.is_some()).count();
+        (binary, self.files.iter().filter(|f| f.losses).count())
+    }
+
     /// The number of footprints and of symbols.
     pub fn counts(&self) -> (usize, usize) {
         let footprints = self.items.iter().filter(|i| i.kind == "footprint").count();
@@ -694,6 +717,8 @@ impl Index {
                     "bytes": f.bytes,
                     "sha256": f.sha256,
                     "items": f.items,
+                    "binary_version": f.binary,
+                    "binary_losses": f.losses,
                     "error": f.error.as_ref().map(finding_json),
                 })
             })
@@ -724,6 +749,8 @@ impl Index {
             "format": INDEX_FORMAT,
             "summary": {
                 "files": self.files.len(),
+                "binary_libraries": self.binary_counts().0,
+                "binary_with_losses": self.binary_counts().1,
                 "footprints": footprints,
                 "symbols": symbols,
                 "flagged": self.flagged(),
@@ -754,6 +781,13 @@ impl Index {
             self.same_geometry.len(),
             self.skipped.len()
         );
+        let (binary, losses) = self.binary_counts();
+        if binary > 0 {
+            out.push_str(&format!(
+                "{binary} binary EAGLE libraries, {losses} of them with something not read as it is
+"
+            ));
+        }
         for f in &self.files {
             if let Some(e) = &f.error {
                 out.push_str(&format!(

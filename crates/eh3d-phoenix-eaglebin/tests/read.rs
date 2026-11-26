@@ -448,3 +448,84 @@ fn damaged_and_hostile_files_never_panic() {
         let _ = read(&bytes);
     }
 }
+
+/// A footprint with a text on copper, a text of 3 bytes of size, an arc with the bit of the flat
+/// cap, a polygon with the usual value at byte 16 and a long pad.
+fn drawing_of(version: (u8, u8)) -> eh3d_phoenix_libedit::model::Package {
+    let mut f = File::new(version);
+    let name_at = if version.0 < 4 { 16 } else { 18 };
+    let arc = R::new(0x22)
+        .b(3, 21)
+        .ends(10_000, 0, 0, 10_000)
+        .u16(20, 635)
+        .b(22, 0x30)
+        .b(23, 0x7B);
+    let corner = R::new(0x22).b(3, 1).ends(0, 0, 10_000, 0);
+    let polygon = R::new(0x21)
+        .u16(2, 2)
+        .u16(12, 508)
+        .u16(14, 6_350)
+        .u16(16, 1_778)
+        .b(18, 1);
+    f.packages = vec![drawing(
+        R::new(0x1E).text(name_at, b"P"),
+        vec![
+            R::new(0x31)
+                .b(2, 1)
+                .b(3, 16)
+                .u16(12, 5000)
+                .b(14, 0x20)
+                .text(18, b"cu"),
+            // 88900 units of half size: the highest bit is in byte 14
+            R::new(0x31)
+                .b(2, 1)
+                .b(3, 21)
+                .u16(12, (88_900u32 & 0xFFFF) as u16)
+                .b(14, 0x21)
+                .text(18, b"big"),
+            arc,
+            polygon,
+            corner,
+            corner,
+            R::new(0x2A)
+                .b(2, 3)
+                .u16(12, 4_064)
+                .u16(14, 12_700)
+                .text(if version.0 < 4 { 16 } else { 19 }, b"1"),
+        ],
+    )];
+    let read = read(&f.bytes()).unwrap();
+    read.library.package("P").unwrap().clone()
+}
+
+#[test]
+fn version_3_has_its_own_font_cap_and_long_pads() {
+    for (version, old) in [((3, 55), true), ((4, 9), false)] {
+        let footprint = drawing_of(version);
+        match (&footprint.items[0], &footprint.items[1]) {
+            (Item::Text(copper), Item::Text(big)) => {
+                // from version 4 byte 2 says the font; before it the layer does
+                assert_eq!(extra(&copper.extra, "font"), old.then_some("vector"));
+                assert_eq!(extra(&big.extra, "font"), None);
+                assert_eq!(copper.size, 1_000_000);
+                assert_eq!(big.size, 17_780_000);
+                assert_eq!(extra(&big.extra, "ratio"), None);
+            }
+            items => panic!("{items:?}"),
+        }
+        match (&footprint.items[2], &footprint.items[3]) {
+            (Item::Wire(arc), Item::Other(polygon)) => {
+                assert_eq!(arc.curve, 90_000_000);
+                assert_eq!(extra(&arc.extra, "cap"), (!old).then_some("flat"));
+                assert_eq!(polygon.attr("isolate"), None);
+            }
+            items => panic!("{items:?}"),
+        }
+        match &footprint.items[4] {
+            Item::Pad(long) => {
+                assert_eq!(long.diameter, if old { 1_270_000 } else { 2_540_000 });
+            }
+            other => panic!("{other:?}"),
+        }
+    }
+}

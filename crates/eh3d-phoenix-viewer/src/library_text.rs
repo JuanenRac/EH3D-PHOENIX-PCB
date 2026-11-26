@@ -186,10 +186,14 @@ pub enum LibText {
     NotePlanLoaded,
     /// A footprint was added.
     NoteGenerated,
+    /// A binary library was opened.
+    NoteOpenedBinary,
+    /// The title of what was not read as it is in a binary file.
+    BinaryReport,
 }
 
 /// Every text with its eight translations, in the order of the variants.
-const TABLE: [(LibText, [&str; 8]); 88] = [
+const TABLE: [(LibText, [&str; 8]); 90] = [
     (
         LibText::Title,
         [
@@ -1334,11 +1338,37 @@ const TABLE: [(LibText, [&str; 8]); 88] = [
             "Pegada adicionada à biblioteca",
         ],
     ),
+    (
+        LibText::NoteOpenedBinary,
+        [
+            "Binary library read; saving writes a new XML library",
+            "Biblioteca binaria leída; al guardar se escribe una biblioteca XML nueva",
+            "Binäre Bibliothek gelesen; beim Speichern entsteht eine neue XML-Bibliothek",
+            "Bibliothèque binaire lue ; l'enregistrement écrit une nouvelle bibliothèque XML",
+            "Libreria binaria letta; il salvataggio scrive una nuova libreria XML",
+            "バイナリのライブラリを読み込みました。保存すると新しい XML ライブラリになります",
+            "已读取二进制库；保存时会写出新的 XML 库",
+            "Biblioteca binária lida; ao guardar é escrita uma biblioteca XML nova",
+        ],
+    ),
+    (
+        LibText::BinaryReport,
+        [
+            "Reading of the binary file",
+            "Lectura del archivo binario",
+            "Lesen der binären Datei",
+            "Lecture du fichier binaire",
+            "Lettura del file binario",
+            "バイナリファイルの読み込み結果",
+            "二进制文件的读取结果",
+            "Leitura do ficheiro binário",
+        ],
+    ),
 ];
 
 impl LibText {
     /// How many texts there are: one more than the number of the last variant.
-    pub const COUNT: usize = LibText::NoteGenerated as usize + 1;
+    pub const COUNT: usize = LibText::BinaryReport as usize + 1;
 
     /// The text in a language.
     pub fn tr(self, lang: Lang) -> &'static str {

@@ -9,6 +9,7 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
+use eh3d_phoenix_eaglebin::{read_any_library, Report as BinaryReport};
 use eh3d_phoenix_libedit::codes::{LibError, FILE_UNUSABLE, NOT_FOUND, VALUE_INVALID};
 use eh3d_phoenix_libedit::footprints::FootprintConfig;
 use eh3d_phoenix_libedit::geom::{self, pad_shape, point_segment, wire_points, Bounds, Shape};
@@ -18,8 +19,8 @@ use eh3d_phoenix_libedit::model::{
 };
 use eh3d_phoenix_libedit::ops::{History, OpeningKind, Operation, Target, TargetKind};
 use eh3d_phoenix_libedit::{
-    apply_step, check_library, generate, read_library, replace_plan_from_json, save_new,
-    CheckReport, LibSettings, ReplacePlan,
+    apply_step, check_library, generate, replace_plan_from_json, save_new, CheckReport,
+    LibSettings, ReplacePlan,
 };
 use eh3d_phoenix_rules::Lang;
 
@@ -200,6 +201,8 @@ impl LibView {
 pub enum LibNote {
     /// A library was opened.
     Opened,
+    /// A binary library of EAGLE was opened; saving writes an XML library.
+    OpenedBinary,
     /// A library was saved; true when a copy of the original was kept.
     Saved(bool),
     /// An edit was made.
@@ -243,6 +246,7 @@ impl LibNote {
         let plain = |t: LibText| t.tr(lang).to_owned();
         match self {
             LibNote::Opened => plain(LibText::NoteOpened),
+            LibNote::OpenedBinary => plain(LibText::NoteOpenedBinary),
             LibNote::Saved(backup) => {
                 if *backup {
                     format!(
@@ -537,6 +541,8 @@ pub struct LibrarySession {
     pub report: CheckReport,
     /// The steps of a plan of the sanitizer for this library.
     pub plan: Option<ReplacePlan>,
+    /// What was not read as it is, for a library that came from a binary file.
+    pub binary: Option<BinaryReport>,
 }
 
 impl LibrarySession {
@@ -561,11 +567,12 @@ impl LibrarySession {
             note: None,
             report,
             plan: None,
+            binary: None,
             settings,
         }
     }
 
-    /// Reads a library file and starts a session on it.
+    /// Reads a library file, XML or binary, and starts a session on it.
     pub fn open(path: &Path, settings: LibSettings) -> Result<LibrarySession, LibError> {
         let unusable = |e: String| LibError::new(FILE_UNUSABLE, format!("{}: {e}", path.display()));
         let length = std::fs::metadata(path)
@@ -578,10 +585,15 @@ impl LibrarySession {
             )));
         }
         let bytes = std::fs::read(path).map_err(|e| unusable(e.to_string()))?;
-        let library = read_library(&bytes, &settings.limits())
+        let (library, binary) = read_any_library(&bytes, &settings)
             .map_err(|e| LibError::new(e.code, format!("{}: {}", path.display(), e.detail)))?;
         let mut session = LibrarySession::new(library, Some(path.to_path_buf()), settings);
-        session.note = Some(LibNote::Opened);
+        session.note = Some(if binary.is_some() {
+            LibNote::OpenedBinary
+        } else {
+            LibNote::Opened
+        });
+        session.binary = binary;
         Ok(session)
     }
 
@@ -1449,6 +1461,7 @@ pub fn shape_of(item: &Item, index: usize) -> Option<LibShape> {
 mod tests {
     use super::*;
     use eh3d_phoenix_libedit::codes::{IN_USE, NOT_CONFIRMED};
+    use eh3d_phoenix_libedit::read_library;
     use std::fs;
 
     const SAMPLE: &str = r#"<?xml version="1.0" encoding="utf-8"?>
@@ -1508,6 +1521,37 @@ mod tests {
             Item::Pad(p) => (p.x, p.y),
             other => panic!("{other:?}"),
         }
+    }
+
+    #[test]
+    fn a_binary_library_is_opened_with_its_report_and_a_damaged_one_is_refused() {
+        // an empty binary library of version 4: the header, the library and its three sections
+        let mut records = vec![[0u8; 24]; 5];
+        records[0][0] = 0x10;
+        records[0][4] = 5;
+        records[0][8] = 4;
+        records[1][0] = 0x15;
+        for at in [4, 8, 12] {
+            records[1][at] = 1;
+        }
+        for (record, kind) in [(2, 0x17), (3, 0x18), (4, 0x19)] {
+            records[record][0] = kind;
+        }
+        let bytes = records.concat();
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("old.lbr");
+        fs::write(&path, &bytes).unwrap();
+        let s = LibrarySession::open(&path, LibSettings::default()).unwrap();
+        assert_eq!(s.note, Some(LibNote::OpenedBinary));
+        assert_eq!(s.binary.as_ref().map(|r| r.version.as_str()), Some("4.0"));
+        assert!(s.names(Kind::Package).is_empty());
+        assert!(!s.dirty());
+        fs::write(&path, &bytes[..48]).unwrap();
+        let e = LibrarySession::open(&path, LibSettings::default())
+            .err()
+            .unwrap();
+        assert_eq!(e.code, FILE_UNUSABLE);
+        assert!(e.detail.contains("PHOENIX-EAGLEBIN-004"), "{}", e.detail);
     }
 
     #[test]

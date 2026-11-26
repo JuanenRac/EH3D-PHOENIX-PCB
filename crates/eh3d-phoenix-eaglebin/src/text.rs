@@ -74,18 +74,94 @@ pub fn decode(bytes: &[u8], place: &str, report: &mut Report) -> String {
 
 /// The byte that goes before each name in the second form of a list of technologies.
 const SEPARATOR: u8 = 0x04;
+/// The byte that goes before each name of an attribute, ahead of the first technology.
+const ATTRIBUTE: u8 = 0x01;
+/// The byte that goes before the value of each attribute, after the name of a technology.
+const VALUE: u8 = 0x02;
+/// The same for a value that a part cannot change (inferred).
+const CONSTANT: u8 = 0x03;
 
-/// The names of the technologies of a device. In one form the last character of each name has its
-/// high bit set, and a byte with only that bit is the empty name; in the other each name follows
-/// the byte `0x04`. A device with none has the empty one.
-pub fn technologies(bytes: &[u8], place: &str, report: &mut Report) -> Vec<String> {
+/// An attribute of a technology.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Attribute {
+    /// The name.
+    pub name: String,
+    /// The value.
+    pub value: String,
+    /// True when a part cannot change the value.
+    pub constant: bool,
+}
+
+/// A technology of a device with its attributes.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Technology {
+    /// The name; empty for the technology without a name.
+    pub name: String,
+    /// The attributes.
+    pub attributes: Vec<Attribute>,
+}
+
+impl Technology {
+    fn named(name: String) -> Technology {
+        Technology {
+            name,
+            attributes: Vec::new(),
+        }
+    }
+}
+
+/// The list of the second form: the names of the attributes (each after the byte `0x01`), then for
+/// each technology its name after `0x04` and the values of the attributes, each after `0x02`, or
+/// after `0x03` when it is constant.
+fn with_separators(bytes: &[u8], place: &str, report: &mut Report) -> Vec<Technology> {
+    let mut blocks = bytes.split(|&b| b == SEPARATOR);
+    let head = blocks.next().unwrap_or_default();
+    let names: Vec<String> = head
+        .split(|&b| b == ATTRIBUTE)
+        .skip(1)
+        .map(|name| decode(name, place, report))
+        .collect();
+    let mut out = Vec::new();
+    for block in blocks {
+        let is_mark = |b: &u8| *b == VALUE || *b == CONSTANT;
+        let first = block.iter().position(is_mark).unwrap_or(block.len());
+        let name = decode(&block[..first], place, report);
+        let mut rest = &block[first..];
+        let mut attributes = Vec::new();
+        while let Some((&mark, after)) = rest.split_first() {
+            let end = after.iter().position(is_mark).unwrap_or(after.len());
+            let Some(attribute) = names.get(attributes.len()) else {
+                report.note(codes::VALUE, "value of an attribute without a name", place);
+                break;
+            };
+            if mark == CONSTANT {
+                report.note(codes::VALUE, "constant attribute (inferred)", place);
+            }
+            attributes.push(Attribute {
+                name: attribute.clone(),
+                value: decode(&after[..end], place, report),
+                constant: mark == CONSTANT,
+            });
+            rest = &after[end..];
+        }
+        out.push(Technology { name, attributes });
+    }
+    if out.is_empty() {
+        report.note(codes::VALUE, "attributes without a technology", place);
+        out.push(Technology::default());
+    }
+    out
+}
+
+/// The technologies of a device. In one form the last character of each name has its high bit
+/// set, and a byte with only that bit is the empty name; in the other each name follows the byte
+/// `0x04`, with the attributes of the device when it has them. A device with none has the empty
+/// one.
+pub fn technologies(bytes: &[u8], place: &str, report: &mut Report) -> Vec<Technology> {
     let end = bytes.iter().position(|&b| b == 0).unwrap_or(bytes.len());
     let bytes = &bytes[..end];
-    if let Some(rest) = bytes.strip_prefix(&[SEPARATOR]) {
-        return rest
-            .split(|&b| b == SEPARATOR)
-            .map(|name| decode(name, place, report))
-            .collect();
+    if matches!(bytes.first(), Some(&SEPARATOR) | Some(&ATTRIBUTE)) {
+        return with_separators(bytes, place, report);
     }
     let mut names = Vec::new();
     let mut current = Vec::new();
@@ -97,15 +173,15 @@ pub fn technologies(bytes: &[u8], place: &str, report: &mut Report) -> Vec<Strin
         if b & 0x7F != 0 {
             current.push(b & 0x7F);
         }
-        names.push(decode(&current, place, report));
+        names.push(Technology::named(decode(&current, place, report)));
         current.clear();
     }
     if !current.is_empty() {
         report.note(codes::VALUE, "technology name without its end", place);
-        names.push(decode(&current, place, report));
+        names.push(Technology::named(decode(&current, place, report)));
     }
     if names.is_empty() {
-        names.push(String::new());
+        names.push(Technology::default());
     }
     names
 }
@@ -143,13 +219,57 @@ mod tests {
     #[test]
     fn technologies_end_with_the_high_bit() {
         let mut report = Report::default();
-        let list = technologies(b"\x80AL\xd3HC\xd4\xd3\0zz\xd3", "x", &mut report);
+        let names = |bytes: &[u8], report: &mut Report| -> Vec<String> {
+            technologies(bytes, "x", report)
+                .into_iter()
+                .map(|t| t.name)
+                .collect()
+        };
+        let list = names(b"\x80AL\xd3HC\xd4\xd3\0zz\xd3", &mut report);
         assert_eq!(list, ["", "ALS", "HCT", "S"]);
-        assert_eq!(technologies(b"", "x", &mut report), [""]);
-        let list = technologies(b"\x04344\x04345\0zz", "x", &mut report);
+        assert_eq!(names(b"", &mut report), [""]);
+        let list = names(b"\x04344\x04345\0zz", &mut report);
         assert_eq!(list, ["344", "345"]);
         assert!(report.notes.is_empty());
-        assert_eq!(technologies(b"AB", "x", &mut report), ["AB"]);
+        assert_eq!(names(b"AB", &mut report), ["AB"]);
         assert_eq!(report.noted(codes::VALUE), 1);
+    }
+
+    #[test]
+    fn the_attributes_of_the_technologies_come_with_their_values() {
+        let mut report = Report::default();
+        let list = technologies(
+            b"\x01MPN\x01MAKER\x04\x02a1\x02\x04SMD\x02b2\x02ACME\0zz",
+            "x",
+            &mut report,
+        );
+        let pairs = |t: &Technology| -> Vec<(String, String, bool)> {
+            t.attributes
+                .iter()
+                .map(|a| (a.name.clone(), a.value.clone(), a.constant))
+                .collect()
+        };
+        let row = |a: &str, b: &str, c: bool| (a.to_owned(), b.to_owned(), c);
+        assert_eq!(list.len(), 2);
+        assert_eq!(list[0].name, "");
+        assert_eq!(
+            pairs(&list[0]),
+            [row("MPN", "a1", false), row("MAKER", "", false)]
+        );
+        assert_eq!(list[1].name, "SMD");
+        assert_eq!(
+            pairs(&list[1]),
+            [row("MPN", "b2", false), row("MAKER", "ACME", false)]
+        );
+        assert!(report.notes.is_empty(), "{:?}", report.notes);
+        let mut inferred = Report::default();
+        let list = technologies(b"\x01A\x01B\x04T\x03k\x02v", "x", &mut inferred);
+        assert_eq!(pairs(&list[0]), [row("A", "k", true), row("B", "v", false)]);
+        assert_eq!(inferred.noted(codes::VALUE), 1);
+        // damaged lists are noted and never panic
+        assert_eq!(technologies(b"\x01A", "x", &mut report).len(), 1);
+        let extra = technologies(b"\x04T\x02v", "x", &mut report);
+        assert!(extra[0].attributes.is_empty());
+        assert_eq!(report.noted(codes::VALUE), 2);
     }
 }

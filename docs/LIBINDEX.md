@@ -8,7 +8,7 @@ The files are **only read**: nothing is copied, moved or changed, and the index 
 
 | Extension | Kind | Items |
 |---|---|---|
-| `.lbr` | EAGLE XML library (`eagle_library`) | every footprint and every symbol of the file |
+| `.lbr` | EAGLE library, XML or the binary form of versions 3 to 5 (`eagle_library`) | every footprint and every symbol of the file |
 | `.kicad_mod` | KiCad footprint (`kicad_footprint`) | the footprint of the file (a `.pretty` folder is a folder of these files) |
 | `.kicad_sym` | KiCad symbol library (`kicad_symbols`) | every symbol of the file, with the pins of every unit |
 
@@ -56,6 +56,8 @@ The geometry is compared as it is drawn: a footprint turned or mirrored, or with
 * `duplicates`: `same_name` and `same_geometry`, each a list of groups with their members;
 * `skipped`: the paths that were not read, with the code and the reason.
 
+For a binary library the file record also holds `binary_version` (the version that wrote it) and `binary_losses` (true when something was not read as it is), and the summary counts `binary_libraries` and `binary_with_losses`. `phoenix libedit` on that file tells what it was.
+
 The hash of the content of an item is the SHA-256 of its name and of its drawing items in their order (EAGLE), or of its name and its sorted pads or pins (KiCad), so it changes when the item is edited and is the same for two copies. It is the same in two runs; the index has no date and no path of the computer.
 
 ## The command
@@ -69,6 +71,6 @@ Without options it prints the quality report as text (`--lang` writes the titles
 ## What it does not do
 
 * Copy the libraries, merge them into one or choose a master among duplicates; the sanitizer and the library editor do that, with a confirmation.
-* Read EAGLE binary files, KiCad 5 libraries (`.lib`, `.mod`) or other formats.
+* Read binary boards or schematics of EAGLE (binary libraries are read, `docs/EAGLE_BINARY.md`), KiCad 5 libraries (`.lib`, `.mod`) or other formats.
 * Judge the drawings: silkscreen, courtyards and 3D models are not part of the quality report.
 * Know whether a footprint is the right one for a part; it only finds faults in how it is drawn.
