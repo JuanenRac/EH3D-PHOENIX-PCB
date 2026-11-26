@@ -9,6 +9,7 @@
 use std::io::Write;
 use std::path::Path;
 
+use eh3d_phoenix_assembly3d::outline2d::outline2d_with_folder;
 use eh3d_phoenix_board::Board;
 use eh3d_phoenix_boardedit::codes::{
     BoardEditError, OPERATIONS_INVALID, OUTPUT_NOT_ALLOWED, SETTINGS_INVALID,
@@ -206,6 +207,8 @@ fn write_project(path: &str, input: &str, board: &Board) -> Result<(), String> {
                 .to_bytes()
                 .map_err(|e| format!("cannot write the board: {e:?}"))?,
         ),
+        outline2d: outline2d_with_folder(board, Path::new("config"))
+            .map_err(|e| format!("cannot write the outline: {}", e.detail))?,
         ..PcbParts::default()
     };
     let source = has_extension(input, "eh3d").then(|| Path::new(input));

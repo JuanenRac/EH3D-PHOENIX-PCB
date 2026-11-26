@@ -4,11 +4,13 @@ State: **prototype**. The logic, including the whole state of editing, is tested
 
 ## Projects of the suite (`.eh3d`)
 
-An `.eh3d` file is the one project of the suite, with a branch for each program (the format is described in the shared repository of the suite). This program reads and writes only the branch `pcb/`: `board.json` and `schematic.json` (the canonical JSON of the model) and, for a design that was read from an EAGLE file, that file under `pcb/origin/` with a report of what was read. Every other branch is kept byte for byte.
+An `.eh3d` file is the one project of the suite, with a branch for each program (the format is described in the shared repository of the suite). This program reads and writes only the branch `pcb/`: `board.json` and `schematic.json` (the canonical JSON of the model), `outline2d.json` (below) and, for a design that was read from an EAGLE file, that file under `pcb/origin/` with a report of what was read. Every other branch is kept byte for byte.
 
 * **Window.** Opening a project opens the board of its branch, or the schematic when there is no board. *Save as* with a name that ends in `.eh3d` writes the branch: a new file takes the branches of the other programs from the project that was opened or saved before, which stays as it was; a file this window saved is replaced after a copy of it; the file that was opened and a file of another hand are never written.
 * **Command line.** Every command that takes a board takes a `.eh3d` file, and `phoenix boardedit --out NAME.eh3d` writes a new project with the board (and the EAGLE board it came from).
 * A branch written by a newer version of its format is neither read nor written over.
+
+`outline2d.json` is what the program of enclosures reads of the board (artifact `outline2d`, version 1): whole nanometres, `y` upwards from the component side. It holds the `outline` (arcs cut into chords), the `thickness`, the `holes` (the unplated pads, with the identity of their component when it has one such hole), and, for the footprints of the table of models `config/models.csv` (the same CSV as `phoenix assembly3d --models`), the room of each part (`parts`, with `height` above its face), the `tallest` of the top face and the `connectors` (top parts whose reference starts with `connector_prefixes` and that come within `connector_edge_nm` of a side). It is written again with every save of the board. What it cannot say: the board model holds no stack-up, so the thickness is `default_board_thickness_nm` of `config/assembly3d.cfg`; without a table there are no parts and no connectors; a model that is a STEP file is not read here; the openings inside the outline and slots are not in the artifact; a connector is placed against the rectangle that holds the board, not against a slanted or curved side.
 
 ## What it does
 

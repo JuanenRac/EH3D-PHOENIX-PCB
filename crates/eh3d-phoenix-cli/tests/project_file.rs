@@ -31,6 +31,13 @@ fn a_board_goes_into_a_project_and_comes_out_of_it() {
     assert_eq!(code, 0, "{err}");
     let parts = read_pcb(dir.path().join("a.eh3d").as_path()).unwrap();
     assert!(parts.board.is_some());
+    // the outline of the board of 20 by 10 mm goes along for the programs of enclosures
+    let outline: serde_json::Value = serde_json::from_slice(&parts.outline2d.unwrap()).unwrap();
+    assert_eq!(outline["artifact"], "outline2d");
+    assert_eq!(outline["version"], 1);
+    assert_eq!(outline["units"], "nm");
+    assert_eq!(outline["outline"].as_array().unwrap().len(), 4);
+    assert_eq!(outline["thickness"], 1_600_000);
     assert_eq!(parts.origin.unwrap().bytes, BOARD.as_bytes());
     // the project is a board input of every command that takes one
     let (code, err) = phoenix(&["boardedit", "--apply", &ops, "--out", &second, &first]);

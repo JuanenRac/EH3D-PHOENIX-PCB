@@ -72,6 +72,27 @@ fn saving_changes_only_the_branch_of_the_boards() {
 }
 
 #[test]
+fn the_outline_belongs_to_the_board_and_an_old_one_does_not_stay() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("p.eh3d");
+    let with = PcbParts {
+        outline2d: Some(b"{}\n".to_vec()),
+        ..board("one")
+    };
+    write_pcb(&path, None, &with, &named("demo"), VERSION).unwrap();
+    assert_eq!(read_pcb(&path).unwrap(), with);
+    // a schematic saved alone keeps it; a new board without one takes it away
+    let schematic = PcbParts {
+        schematic: Some(b"{}\n".to_vec()),
+        ..PcbParts::default()
+    };
+    write_pcb(&path, None, &schematic, &named("demo"), VERSION).unwrap();
+    assert_eq!(read_pcb(&path).unwrap().outline2d, with.outline2d);
+    write_pcb(&path, None, &board("two"), &named("demo"), VERSION).unwrap();
+    assert_eq!(read_pcb(&path).unwrap().outline2d, None);
+}
+
+#[test]
 fn saving_under_a_new_name_takes_the_other_branches_along_and_leaves_the_source() {
     let dir = tempfile::tempdir().unwrap();
     let source = dir.path().join("in.eh3d");

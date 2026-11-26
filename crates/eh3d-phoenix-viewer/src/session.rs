@@ -11,6 +11,7 @@ use std::fs::{self, OpenOptions};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
+use eh3d_phoenix_assembly3d::outline2d::outline2d_with_folder;
 use eh3d_phoenix_board::{Board, History, Id, Operation, Step};
 use eh3d_phoenix_eagle_board::write_board;
 use eh3d_phoenix_erc::{self as erc, ErcConfig};
@@ -602,6 +603,8 @@ impl BoardSession {
                         .to_bytes()
                         .map_err(|e| ViewError::new(SAVE_FAILED, e.to_string()))?,
                 ),
+                outline2d: outline2d_with_folder(&self.board, Path::new("config"))
+                    .map_err(|e| ViewError::new(SAVE_FAILED, e.detail))?,
                 ..PcbParts::default()
             };
             save_project(target, parts, input, owned, suffix)?
