@@ -83,6 +83,15 @@ fn parse_options(args: &[&str]) -> Result<Options, String> {
 }
 
 pub(crate) fn read_board_file(path: &str) -> Result<Board, String> {
+    if path.to_ascii_lowercase().ends_with(".eh3d") {
+        // the branch pcb/ of a project of the suite; the container bounds what is read
+        let parts = eh3d_phoenix_project::read_pcb(std::path::Path::new(path))
+            .map_err(|e| format!("{path}: {e}"))?;
+        let bytes = parts
+            .board
+            .ok_or_else(|| format!("{path}: the branch pcb/ holds no board"))?;
+        return Board::from_bytes(&bytes).map_err(|e| format!("{path}: {e}"));
+    }
     if path.to_ascii_lowercase().ends_with(".json") {
         let size = std::fs::metadata(path)
             .map_err(|e| format!("cannot read {path}: {e}"))?

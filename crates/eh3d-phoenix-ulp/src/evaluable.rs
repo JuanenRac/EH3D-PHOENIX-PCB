@@ -13,7 +13,7 @@ use crate::world::{MEMBERS, WALKS};
 /// Whether the evaluator runs a name of the given kind.
 pub fn evaluates(kind: UseKind, name: &str) -> bool {
     match kind {
-        UseKind::Directive => matches!(name, "usage" | "require"),
+        UseKind::Directive => matches!(name, "usage" | "require" | "include"),
         UseKind::Statement => matches!(
             name,
             "block"
@@ -63,7 +63,10 @@ mod tests {
         assert!(evaluates(UseKind::Constant, "PI"));
         assert!(evaluates(UseKind::Type, "UL_ELEMENT"));
         assert!(evaluates(UseKind::Directive, "usage"));
-        assert!(!evaluates(UseKind::Directive, "include"));
+        assert!(evaluates(UseKind::Directive, "include"));
+        assert!(!evaluates(UseKind::Directive, "pragma"));
+        assert!(evaluates(UseKind::Function, "strxstr"));
+        assert!(evaluates(UseKind::Function, "country"));
         assert!(!evaluates(UseKind::Function, "system"));
         assert!(evaluates(UseKind::Function, "output"));
         assert!(evaluates(UseKind::Function, "time"));

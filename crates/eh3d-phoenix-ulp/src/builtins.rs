@@ -79,7 +79,7 @@ pub const PURE: &[&str] = &[
 ];
 
 /// The names of the functions that the evaluator runs and that need the variables of the run.
-pub const WITH_VARIABLES: &[&str] = &["sprintf", "strsplit"];
+pub const WITH_VARIABLES: &[&str] = &["sprintf", "strsplit", "strxstr"];
 
 fn bad(what: impl Into<String>) -> Fault {
     (RUN_ARGUMENTS, what.into())

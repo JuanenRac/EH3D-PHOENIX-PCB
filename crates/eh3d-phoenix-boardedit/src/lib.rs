@@ -20,6 +20,11 @@
 //! * [`dimension_edit`]: the dimension tool beyond the first drawing: the preview of the dimension
 //!   in progress and the editing of one that is placed (moving a point, changing the kind);
 //! * [`shape`]: the pieces of a route and the meanders, in integer nanometres;
+//! * [`assist`]: the help while drawing: what a route that stops at the first obstacle or that
+//!   pushes other tracks would add under the pointer, and what the rules would say about an
+//!   operation before it is done;
+//! * [`measure`]: the measure on the board with the snap to pads, vias, ends of tracks, corners
+//!   and the grid;
 //! * [`ops_file`]: the file of operations that `phoenix boardedit` applies;
 //! * [`pairs`], [`pair_check`] and [`pair_codes`]: the differential pairs: their definition (two
 //!   nets, the width, the gap, an optional target for the differential impedance, the tolerance of
@@ -73,6 +78,7 @@ mod advanced_tests;
 mod arc;
 #[cfg(test)]
 mod arc_tests;
+pub mod assist;
 pub mod codes;
 mod copper;
 pub mod dimension_edit;
@@ -86,6 +92,7 @@ pub mod group;
 mod group_tests;
 pub mod hit;
 pub mod ids;
+pub mod measure;
 pub mod ops;
 pub mod ops_file;
 mod outline;
@@ -120,10 +127,12 @@ pub mod zone_codes;
 #[cfg(test)]
 mod zone_tests;
 
+pub use assist::{RouteAssist, RouteMode};
 pub use codes::{registry, BoardEditError, TITLES};
 pub use edit::{BoardEdit, DrcReport, Outcome};
 pub use group::{align_moves, AlignMode, ItemMove};
 pub use hit::Picked;
+pub use measure::{BoardMeasure, MeasurePoint, Reading, SnapTo};
 pub use ops::{EditOp, PairLayerChange};
 pub use ops_file::{apply_operations, read_operations, ApplyReport};
 pub use pair_check::{check_pairs, PairFinding, PairMeasure, PairReport};

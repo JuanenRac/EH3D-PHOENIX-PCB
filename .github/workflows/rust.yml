@@ -21,7 +21,7 @@ concurrency:
 
 env:
   # The tag of each sibling repository this one is built against (name=tag, separated by spaces); a sibling that is not listed is taken at main.
-  SIBLING_REFS: "EH3D-COMMON=v0.2.7"
+  SIBLING_REFS: "EH3D-COMMON=0164933b0fa4b7035728b838d1cd5b3146fc7c49"
 
 jobs:
   rust:
@@ -59,8 +59,15 @@ jobs:
                       continue
                   seen.add(dep)
                   ref = refs.get(dep)
-                  command = ["git", "-c", "advice.detachedHead=false", "clone", "--quiet", "--depth", "1"] + (["--branch", ref] if ref else [])
-                  subprocess.run(command + [f"https://github.com/{owner}/{dep}.git", dep], check=True)
+                  url = f"https://github.com/{owner}/{dep}.git"
+                  if ref and len(ref) == 40 and set(ref) <= set("0123456789abcdef"):
+                      # a commit cannot be cloned by name: fetch it into an empty repository
+                      subprocess.run(["git", "init", "--quiet", dep], check=True)
+                      subprocess.run(["git", "-C", dep, "fetch", "--quiet", "--depth", "1", url, ref], check=True)
+                      subprocess.run(["git", "-C", dep, "-c", "advice.detachedHead=false", "checkout", "--quiet", "FETCH_HEAD"], check=True)
+                  else:
+                      command = ["git", "-c", "advice.detachedHead=false", "clone", "--quiet", "--depth", "1"] + (["--branch", ref] if ref else [])
+                      subprocess.run(command + [url, dep], check=True)
                   print(f"{dep} at {ref or 'main'}")
                   pending.append(dep)
           PY
@@ -127,8 +134,15 @@ jobs:
                       continue
                   seen.add(dep)
                   ref = refs.get(dep)
-                  command = ["git", "-c", "advice.detachedHead=false", "clone", "--quiet", "--depth", "1"] + (["--branch", ref] if ref else [])
-                  subprocess.run(command + [f"https://github.com/{owner}/{dep}.git", dep], check=True)
+                  url = f"https://github.com/{owner}/{dep}.git"
+                  if ref and len(ref) == 40 and set(ref) <= set("0123456789abcdef"):
+                      # a commit cannot be cloned by name: fetch it into an empty repository
+                      subprocess.run(["git", "init", "--quiet", dep], check=True)
+                      subprocess.run(["git", "-C", dep, "fetch", "--quiet", "--depth", "1", url, ref], check=True)
+                      subprocess.run(["git", "-C", dep, "-c", "advice.detachedHead=false", "checkout", "--quiet", "FETCH_HEAD"], check=True)
+                  else:
+                      command = ["git", "-c", "advice.detachedHead=false", "clone", "--quiet", "--depth", "1"] + (["--branch", ref] if ref else [])
+                      subprocess.run(command + [url, dep], check=True)
                   print(f"{dep} at {ref or 'main'}")
                   pending.append(dep)
           PY

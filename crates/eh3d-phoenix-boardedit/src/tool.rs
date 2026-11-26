@@ -592,6 +592,17 @@ impl EditState {
         out
     }
 
+    /// The operation that releasing the drag in progress would run; `None` without a drag or
+    /// when it moved nothing.
+    pub fn drag_operation(&self) -> Option<EditOp> {
+        let drag = self.drag.as_ref()?;
+        let (dx, dy) = drag.offset();
+        if dx == 0 && dy == 0 {
+            return None;
+        }
+        self.move_operation(&drag.components, dx, dy).ok().flatten()
+    }
+
     /// The board as the drag in progress would leave it (the components moved, the tracks left
     /// where they are), for drawing.
     pub fn drag_preview(&self) -> Option<Board> {
@@ -777,6 +788,22 @@ impl EditState {
     /// Moves components by an offset, as one step, with the tracks on their pads following when
     /// the settings say so.
     pub fn move_components(&mut self, ids: &[Id], dx: i64, dy: i64) -> bool {
+        match self.move_operation(ids, dx, dy) {
+            Ok(Some(op)) => self.run(&op),
+            Ok(None) => false,
+            Err(e) => {
+                self.fail(e);
+                false
+            }
+        }
+    }
+
+    fn move_operation(
+        &self,
+        ids: &[Id],
+        dx: i64,
+        dy: i64,
+    ) -> Result<Option<EditOp>, BoardEditError> {
         let mut ops: Vec<EditOp> = Vec::new();
         for id in ids {
             let Some(component) = self.board().components.get(id) else {
@@ -794,17 +821,16 @@ impl EditState {
                     follow: None,
                 }),
                 Err(e) => {
-                    self.fail(BoardEditError::new(
+                    return Err(BoardEditError::new(
                         crate::codes::GEOMETRY_INVALID,
                         e.to_string(),
                     ));
-                    return false;
                 }
             }
         }
         if ops.is_empty() {
-            return false;
+            return Ok(None);
         }
-        self.run(&EditOp::Group { ops })
+        Ok(Some(EditOp::Group { ops }))
     }
 }

@@ -5,6 +5,7 @@
 //! step. The steps are the ones the editing already keeps: this module only reads them.
 
 use eh3d_phoenix_board::{Board, Id, Operation, Segment, Step, Track};
+use eh3d_phoenix_boardedit::BoardEdit;
 use eh3d_phoenix_rules::Lang;
 
 use crate::session::{BoardSession, SchematicSession};
@@ -73,6 +74,16 @@ impl HistoryView {
         HistoryView::new(
             session.steps_done().iter().map(describe).collect(),
             session.steps_undone().iter().rev().map(describe).collect(),
+            max,
+        )
+    }
+
+    /// The list of the board editor, whose steps are its own while it is on.
+    pub fn of_editor(edit: &BoardEdit, lang: Lang, max: usize) -> HistoryView {
+        let describe = |step: &Step| describe_step(step, edit.board(), lang);
+        HistoryView::new(
+            edit.steps_done().iter().map(describe).collect(),
+            edit.steps_undone().iter().rev().map(describe).collect(),
             max,
         )
     }

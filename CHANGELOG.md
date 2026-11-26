@@ -4,6 +4,27 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **Library files with long decimals are read as drawings:** a number with more than six decimals no longer turns its pad, line or text into XML that cannot be edited; it is read to the nearest millionth, so the item is drawn, checked and edited like any other. In a sample of a private collection this was the case of about one library in five that is not in the old binary form.
+- **Those numbers are saved as they were:** the text of each is kept beside its item and written back for as long as the value is the one that was read; an edited value is written as the new one.
+- **A number with an exponent is read, and the place of a gate is no longer lost:** an exponent is worked out without floating point, and a gate of a device set whose place had many decimals is no longer moved to the origin.
+- **The route tool of the window can stop at the first obstacle:** as the pointer moves, the way up to the last place that breaks no rule is drawn with a ring where it stops, and a click keeps that part.
+- **The route tool of the window can push other tracks:** the tracks that would move are shown where they would go, a click lays the track to the pointer as one step to undo, and a push that cannot be done says why.
+- **The S key changes what a click of the route does:** free corners, stop at the obstacle or push, also as a choice in the panel, in the eight languages.
+- **The rules are checked while something is dragged:** a line over the drawing says how many errors the board would have and how many findings would be added and fixed if the components or the selection were let go there.
+- **The check while dragging has its switch and its limit:** `drag_drc` and `drag_drc_max_objects` in `config/boardedit.cfg`; a larger board says that it is checked when released.
+- **The board editor measures with a snap:** the U key or the box *Measure* gives two points that go to pads, vias, ends of tracks, corners or the grid, with the distance, the differences, the angle and what the point went to; `measure_snap_nm` sets how near.
+- **Undo and redo are in sight while the board is edited:** the next step of each is written over the drawing.
+- **Undo and redo of the menu and of the Tasks panel work on the board editor:** they were switched off while it was on.
+- **The steps of the board editor are a list:** each with its description, and a click on one undoes or redoes up to it.
+- **A user program can include other files:** `#include` reads from the one folder for files, takes each file once and is bounded by `max_include_depth`, `max_files` and the size limits.
+- **A user program can search with patterns:** `strxstr` finds a regular expression of the common kind with its place and length, without going back and inside the step limit of the run.
+- **`country()` answers in a user program:** it is fixed, as `language()` is.
+- **A board or a schematic can be saved into the one project of the suite:** *Save as* with a name ending in `.eh3d` writes the branch `pcb/`; the branches of the other programs are kept byte for byte.
+- **A project of the suite opens in the window:** the board of its branch `pcb/`, or the schematic when there is no board.
+- **Every command that takes a board takes an `.eh3d` project:** and `boardedit --out` writes a new one.
+- **The EAGLE file a design came from is kept in the project:** under `pcb/origin/` with the report of what was not read.
+- **A newer or damaged project is never written over:** a branch of a newer format is refused, and saving replaces only a file the window saved, after a copy.
+
 ## [0.1.6] - Board editor operations, user programs that read most of a real folder, named values and files in one allowed folder, EAGLE reader measured on real boards
 
 - **Most of the user programs of the owner's list can now be read:** `#usage` texts one after the other, `f(void)`, `enum`, `numeric` arrays, `int(x)`, `real(x)`, `char(x)` and `string(x)` as conversions, a walk or a layout over a single statement, a backslash before a character that is no escape (it stands for the character), a text that goes on in the next line and the end-of-file mark of old systems are no longer problems of reading. Measured on the folder of the owner (893 programs, aggregate figures only): programs with problems of reading went from 748 to 38.

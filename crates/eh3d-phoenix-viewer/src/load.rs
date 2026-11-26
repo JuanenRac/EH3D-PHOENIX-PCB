@@ -8,6 +8,7 @@ use std::path::Path;
 use eh3d_phoenix_board::Board;
 use eh3d_phoenix_eagle_board::{read_board, read_schematic};
 use eh3d_phoenix_model::{DeterministicRandom, IdGenerator, ObjectId, StepClock};
+use eh3d_phoenix_project::pcb_branch::read_pcb;
 use eh3d_phoenix_schematic::Schematic;
 
 use crate::codes::{
@@ -121,11 +122,35 @@ pub fn read_document(path: &Path, settings: &ViewerSettings) -> Result<Loaded, V
             ),
         ));
     }
+    let extension = path.extension().and_then(|e| e.to_str()).unwrap_or("");
+    if extension.eq_ignore_ascii_case("eh3d") {
+        return project_document(path);
+    }
     let bytes = std::fs::read(path).map_err(|e| ViewError::new(FILE_UNUSABLE, e.to_string()))?;
     let text = String::from_utf8(bytes)
         .map_err(|_| ViewError::new(FILE_NOT_RECOGNISED, "the file is not UTF-8 text"))?;
-    let extension = path.extension().and_then(|e| e.to_str()).unwrap_or("");
     parse_document(extension, &text)
+}
+
+/// The board, or else the schematic, of the branch `pcb/` of an `.eh3d` project, with the count
+/// of what was not read when the design was imported.
+fn project_document(path: &Path) -> Result<Loaded, ViewError> {
+    let parts = read_pcb(path).map_err(|e| ViewError::new(FILE_UNUSABLE, e.to_string()))?;
+    let unread = parts
+        .origin
+        .as_ref()
+        .map_or(0, |o| usize::try_from(o.not_read).unwrap_or(usize::MAX));
+    let Some(bytes) = parts.board.or(parts.schematic) else {
+        return Err(ViewError::new(
+            NOTHING_TO_DRAW,
+            "the branch pcb/ holds neither a board nor a schematic",
+        ));
+    };
+    let text = String::from_utf8(bytes)
+        .map_err(|_| ViewError::new(FILE_NOT_RECOGNISED, "the design is not UTF-8 text"))?;
+    let mut loaded = parse_document("json", &text)?;
+    loaded.unread = unread;
+    Ok(loaded)
 }
 
 /// Draws a document, and refuses one that has nothing to draw.

@@ -15,8 +15,8 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  # The tag of the sibling repository the window is built against.
-  COMMON_REF: "v0.2.7"
+  # The tag or the commit of the sibling repository the window is built against.
+  COMMON_REF: "0164933b0fa4b7035728b838d1cd5b3146fc7c49"
 
 jobs:
   pictures:
@@ -33,7 +33,10 @@ jobs:
           python-version: "3.12"
       - name: The sibling repository of the common library
         shell: bash
-        run: git -c advice.detachedHead=false clone --quiet --depth 1 --branch "${COMMON_REF}" "https://github.com/${GITHUB_REPOSITORY_OWNER}/EH3D-COMMON.git" EH3D-COMMON
+        run: |
+          git init --quiet EH3D-COMMON
+          git -C EH3D-COMMON fetch --quiet --depth 1 "https://github.com/${GITHUB_REPOSITORY_OWNER}/EH3D-COMMON.git" "${COMMON_REF}"
+          git -C EH3D-COMMON -c advice.detachedHead=false checkout --quiet FETCH_HEAD
       - name: Libraries of the window and a virtual screen
         run: sudo apt-get update && sudo apt-get install -y libxkbcommon-dev libwayland-dev libx11-dev libxcursor-dev libxrandr-dev libxi-dev libgl1-mesa-dev libgl1-mesa-dri xvfb
       - name: Rust toolchain

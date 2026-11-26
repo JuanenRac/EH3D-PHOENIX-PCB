@@ -373,6 +373,9 @@ pub struct MenuFacts {
     pub is_board: bool,
     /// An editor of the board or the schematic has the document.
     pub editing: bool,
+    /// The editor that has the document keeps its own steps and the entries Undo and Redo of the
+    /// window work on them.
+    pub editor_history: bool,
     /// There is a step to undo.
     pub can_undo: bool,
     /// There is a step to redo.
@@ -397,8 +400,9 @@ pub fn disabled_entries(f: &MenuFacts) -> Vec<String> {
         &["file.export", "view.fit", "edit.clear_selection"],
     );
     when(!document || f.editing, &["file.save", "file.save_as"]);
-    when(!document || f.editing || !f.can_undo, &["edit.undo"]);
-    when(!document || f.editing || !f.can_redo, &["edit.redo"]);
+    let window_history = f.editing && !f.editor_history;
+    when(!document || window_history || !f.can_undo, &["edit.undo"]);
+    when(!document || window_history || !f.can_redo, &["edit.redo"]);
     when(
         !document,
         &["view.measures", "view.presets", "view.history"],
@@ -865,11 +869,25 @@ mod tests {
         });
         assert!(!schematic.contains(&"tools.erc".to_string()));
         assert!(schematic.contains(&"tools.view3d".to_string()));
-        // an editor that has the document keeps its own steps: the entries of the window are off
+        // the board editor keeps its own steps and the entries undo and redo of the window drive
+        // them; saving stays off while it is on
+        let board_editor = disabled_entries(&MenuFacts {
+            has_document: true,
+            is_board: true,
+            editing: true,
+            editor_history: true,
+            can_undo: true,
+            ..MenuFacts::default()
+        });
+        assert!(!board_editor.contains(&"edit.undo".to_string()));
+        assert!(board_editor.contains(&"edit.redo".to_string()));
+        assert!(board_editor.contains(&"file.save".to_string()));
+        // an editor without such steps: the entries of the window are off
         let editing = disabled_entries(&MenuFacts {
             has_document: true,
             is_board: true,
             editing: true,
+            editor_history: false,
             can_undo: true,
             can_redo: true,
             actions: 0,
@@ -901,6 +919,7 @@ mod tests {
                 has_document: n & 1 != 0,
                 is_board: n & 2 != 0,
                 editing: n & 4 != 0,
+                editor_history: n & 8 != 0,
                 can_undo: n & 16 != 0,
                 can_redo: n & 32 != 0,
                 actions: (n >> 6) as u16 & 0x3f,

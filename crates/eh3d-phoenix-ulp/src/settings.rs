@@ -41,6 +41,8 @@ pub struct UlpSettings {
     pub max_file_bytes: usize,
     /// The most files a run may open (written or read).
     pub max_files: usize,
+    /// How deep the files of `#include` may go, one naming the next.
+    pub max_include_depth: usize,
     /// The unit of the grid that `grid.unit` answers: 0 micron, 1 millimetre, 2 mil, 3 inch (the
     /// model keeps no grid of its own).
     pub grid_unit: usize,
@@ -66,6 +68,7 @@ impl Default for UlpSettings {
             file_dir: String::new(),
             max_file_bytes: 1_048_576,
             max_files: 64,
+            max_include_depth: 8,
             grid_unit: 1,
             grid_distance_nm: 1_000_000,
         }
@@ -118,6 +121,7 @@ impl UlpSettings {
                 "file_dir" => s.file_dir = value.to_owned(),
                 "max_file_bytes" => s.max_file_bytes = number()?,
                 "max_files" => s.max_files = number()?,
+                "max_include_depth" => s.max_include_depth = number()?,
                 "grid_unit" => s.grid_unit = number()?,
                 "grid_distance_nm" => s.grid_distance_nm = number()?,
                 _ => {
@@ -178,6 +182,9 @@ impl UlpSettings {
         }
         if !(1..=10_000).contains(&self.max_files) {
             return fail("max_files must be between 1 and 10000");
+        }
+        if !(1..=64).contains(&self.max_include_depth) {
+            return fail("max_include_depth must be between 1 and 64");
         }
         if self.grid_unit > 3 {
             return fail("grid_unit must be between 0 and 3");

@@ -18,6 +18,8 @@ thiserror = "2"
 # the shared repository, next to this one; CI checks out the tag named in SIBLING_REFS
 eh3d-container = { version = ">=0.0.1", path = "../EH3D-COMMON/crates/container" }
 eh3d-diagnostic = { version = ">=0.0.1", path = "../EH3D-COMMON/crates/diagnostic" }
+# the one project file of the suite, with a branch for each program
+eh3d-project = { version = ">=0.0.1", path = "../EH3D-COMMON/crates/project" }
 eh3d-materials = { version = ">=0.0.1", path = "../EH3D-COMMON/crates/materials" }
 eh3d-serverclient = { version = ">=0.0.1", path = "../EH3D-COMMON/crates/serverclient" }
 # the frame of the window: panels that dock, float and fold, workspaces, the menu bar and the shortcuts (the model has no window; drawing it is the feature `gui` of the viewer)

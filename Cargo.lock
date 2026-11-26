@@ -592,7 +592,7 @@ dependencies = [
 
 [[package]]
 name = "eh3d-common"
-version = "0.2.7"
+version = "0.3.0"
 dependencies = [
  "chrono",
  "eh3d-container",
@@ -773,6 +773,7 @@ dependencies = [
  "eh3d-phoenix-panel",
  "eh3d-phoenix-parts",
  "eh3d-phoenix-print",
+ "eh3d-phoenix-project",
  "eh3d-phoenix-rf",
  "eh3d-phoenix-rfgen",
  "eh3d-phoenix-route",
@@ -1063,6 +1064,7 @@ dependencies = [
  "eh3d-container",
  "eh3d-diagnostic",
  "eh3d-phoenix-model",
+ "eh3d-project",
  "serde",
  "serde_json",
  "tempfile",
@@ -1299,6 +1301,7 @@ dependencies = [
  "eh3d-phoenix-model",
  "eh3d-phoenix-panel",
  "eh3d-phoenix-print",
+ "eh3d-phoenix-project",
  "eh3d-phoenix-route",
  "eh3d-phoenix-rules",
  "eh3d-phoenix-schedit",
@@ -1320,6 +1323,16 @@ dependencies = [
  "eh3d-phoenix-board",
  "eh3d-phoenix-model",
  "eh3d-phoenix-rules",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "eh3d-project"
+version = "0.0.1"
+dependencies = [
+ "eh3d-container",
+ "eh3d-diagnostic",
  "serde",
  "serde_json",
 ]

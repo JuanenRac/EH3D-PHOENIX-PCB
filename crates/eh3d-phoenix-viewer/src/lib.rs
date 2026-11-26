@@ -45,6 +45,9 @@
 //!   in the order of their priority and the operations that fill, raise, lower and remove them) and its
 //!   texts in the eight languages (the section of the panel is in `board_zone_gui`, behind the `gui`
 //!   feature);
+//! * [`edit_assist`]: the preview of a route that stops at an obstacle or pushes tracks, the rule
+//!   check of a drag before it is let go, the measure of the editor with its snap and the history of
+//!   the editor, each kept until what it was made from changes;
 //! * [`board_shove`] and [`board_shove_text`]: the push tool of the board editor (the net that is
 //!   chosen, the points of the new track, the preview of the tracks that the push would move, and
 //!   the acceptance of the push as one step of the editor) and its texts in the eight languages
@@ -176,6 +179,7 @@ pub mod drc_gui;
 pub mod drc_live;
 pub mod drc_panel;
 pub mod drc_text;
+pub mod edit_assist;
 pub mod editmsg;
 #[cfg(feature = "gui")]
 pub mod gerber_gui;
@@ -214,6 +218,8 @@ pub mod print_export;
 pub mod print_gui;
 pub mod print_scene;
 pub mod print_text;
+#[cfg(test)]
+mod project_tests;
 pub mod report_panel;
 #[cfg(test)]
 pub(crate) mod sample;
