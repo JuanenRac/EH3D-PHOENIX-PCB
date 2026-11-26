@@ -92,6 +92,10 @@ jobs:
       - name: Tests
         run: cargo test --all-targets --no-fail-fast
         working-directory: EH3D-PHOENIX-PCB
+      # the tests of the window draw it with no screen
+      - name: Tests of the window
+        run: cargo test -p eh3d-phoenix-viewer --features gui --lib --no-fail-fast gui
+        working-directory: EH3D-PHOENIX-PCB
 
   main-against-main:
     name: Siblings at main

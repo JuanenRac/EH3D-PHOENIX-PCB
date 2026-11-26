@@ -9,6 +9,7 @@ use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
 use eframe::egui::{self, Color32, FontData, FontDefinitions, FontFamily, Pos2, Rect, Stroke};
+use eh3d_attachpanel::{AttachPanel, Program};
 use eh3d_dock::core::AboutInfo;
 use eh3d_dock::gui::Dock;
 use eh3d_dock::menu::{Chosen, DockAction, MenuBar, StdAction};
@@ -43,6 +44,7 @@ use crate::panel_gui::PanelUi;
 use crate::panel_scene::parse_files;
 use crate::panel_text::PanelText;
 use crate::panels::{self, Cmd, LayoutWatch, MenuFacts};
+use crate::part_datasheet;
 use crate::prim::{arc_points, triangulate, Shape, P};
 use crate::print_gui::PrintUi;
 use crate::report_panel::Report;
@@ -51,6 +53,8 @@ use crate::schematic_gui::{self, SchematicEditUi};
 use crate::schematic_text::SchMsg;
 use crate::settings::ViewerSettings;
 use crate::shot::{ShotRequest, ShotWindow};
+use crate::suite_menu::SuiteState;
+use crate::suite_text::SuiteMsg;
 use crate::view3d_gui::View3dUi;
 use crate::view3d_text::View3dText;
 use crate::viewer::Tool;
@@ -95,6 +99,10 @@ trait CanvasEngine {
 }
 
 /// The painter of egui: it tessellates the primitives on the processor at every frame.
+mod suite;
+
+use suite::{Purpose, SuiteChooser, SuiteList};
+
 struct PainterEngine;
 
 impl CanvasEngine for PainterEngine {
@@ -198,6 +206,14 @@ struct App {
     shot: Option<ShotState>,
     /// The panel that has the focus in the frame, for the help and for the preferences.
     focused: Option<String>,
+    /// The project file of the suite the window works on.
+    suite: SuiteState,
+    /// The panel of the attachments of that project.
+    attachments: AttachPanel,
+    /// The window that chooses a file or a folder for the suite, while it is open.
+    suite_chooser: Option<SuiteChooser>,
+    /// The list of the branches or of the files of the suite, while it is open.
+    suite_list: Option<SuiteList>,
 }
 
 /// How the picture mode ended: nothing yet, the file was written, or the reason it was not.
@@ -252,6 +268,13 @@ impl App {
             frames: FrameLog::new(settings.frame_log_frames),
             shot: None,
             focused: None,
+            suite: SuiteState::default(),
+            attachments: AttachPanel::new(Program::new(
+                eh3d_phoenix_project::pcb_branch::PCB_BRANCH,
+                env!("CARGO_PKG_VERSION"),
+            )),
+            suite_chooser: None,
+            suite_list: None,
         };
         if fell_back {
             app.console
@@ -293,6 +316,7 @@ impl App {
                 self.sch = None;
                 self.brd = None;
                 self.launcher.opened(path);
+                self.follow_opened(path);
             }
             Err(error) => self.error = Some(error),
         }
@@ -660,6 +684,7 @@ impl App {
             }
             ui.label(dim(EditMsg::ShortcutsHint.tr(lang)));
         });
+        self.datasheet_button(ui);
     }
 
     /// The layers of the document, each with its box and its colour.
@@ -747,18 +772,34 @@ impl App {
         ui.separator();
         let selected = workspace.viewer.selected;
         let mut chosen: Option<u32> = None;
+        let mut sheet = false;
+        // the button stays above the list, which takes the rest of the panel
+        if selected.is_some() && part_datasheet::of_workspace(workspace).is_some() {
+            sheet = ui.button(SuiteMsg::SheetEntry.tr(lang)).clicked();
+        }
         egui::ScrollArea::vertical().show(ui, |ui| {
             for row in &list.rows {
-                if ui
-                    .selectable_label(selected == Some(row.item), &row.label)
-                    .clicked()
-                {
+                let line = ui.selectable_label(selected == Some(row.item), &row.label);
+                if line.clicked() {
                     chosen = Some(row.item);
                 }
+                // the menu of the row opens the data sheet of that component
+                line.context_menu(|ui| {
+                    if ui.button(SuiteMsg::SheetEntry.tr(lang)).clicked() {
+                        chosen = Some(row.item);
+                        sheet = true;
+                        ui.close();
+                    }
+                });
             }
         });
         if let Some(item) = chosen {
             object_list::focus(&mut workspace.viewer, item);
+        }
+        if sheet {
+            if let Some(part) = self.selected_part() {
+                self.open_datasheet(&part);
+            }
         }
     }
 
@@ -1030,6 +1071,21 @@ impl App {
             self.focus_save = true;
         }
         self.engine.paint(workspace, &painter, rect);
+        // the menu of the drawing opens the data sheet of the part that is selected
+        if let Some(part) = part_datasheet::of_workspace(workspace) {
+            let words =
+                eh3d_project::suitetext::fill(SuiteMsg::SheetsOf.tr(lang), &[&part.label()]);
+            let mut sheet = false;
+            response.context_menu(|ui| {
+                if ui.button(words).clicked() {
+                    sheet = true;
+                    ui.close();
+                }
+            });
+            if sheet {
+                self.open_datasheet(&part);
+            }
+        }
     }
 
     fn status_bar(&mut self, ui: &mut egui::Ui) {
@@ -1449,12 +1505,12 @@ impl App {
 
     /// A file dropped on the window is opened.
     fn handle_drops(&mut self, ctx: &egui::Context) {
-        let dropped: Vec<PathBuf> = ctx.input(|i| {
-            i.raw
-                .dropped_files
-                .iter()
-                .map(|f| f.path().to_path_buf())
-                .collect()
+        // the limits of the attachments follow the settings; a file dropped on their panel is
+        // attached there
+        self.attachments
+            .set_limits(self.settings.attachments.clone());
+        let dropped = self.attachments.take_drop(ctx, |path| {
+            crate::launcher_recent::EntryKind::of(path).is_some()
         });
         if dropped.is_empty() {
             return;
@@ -1485,6 +1541,8 @@ impl App {
             can_undo,
             can_redo,
             actions: self.brd.as_ref().map_or(0, board_gui::actions_mask),
+            has_suite: self.suite.file.is_some(),
+            has_part: self.selected_part().is_some(),
         }
     }
 
@@ -1539,6 +1597,18 @@ impl App {
             Cmd::BoardAction(action) => {
                 if let Some(brd) = self.brd.as_mut() {
                     board_gui::run_action(brd, action);
+                }
+            }
+            Cmd::SuiteOpen => self.suite_ask(Purpose::Open),
+            Cmd::SuiteSave => self.suite_save(),
+            Cmd::SuiteSaveAs => self.suite_ask(Purpose::SaveAs),
+            Cmd::SuiteImport => self.suite_ask(Purpose::Import),
+            Cmd::SuiteTake => self.show_suite_list(SuiteList::Take),
+            Cmd::SuiteExtract => self.show_suite_list(SuiteList::Extract),
+            Cmd::SuiteBranches => self.show_suite_list(SuiteList::Branches),
+            Cmd::DataSheet => {
+                if let Some(part) = self.selected_part() {
+                    self.open_datasheet(&part);
                 }
             }
         }
@@ -1675,7 +1745,7 @@ impl Shell {
         let dock_text = panels::dock_text(app.win.dock_pairs());
         let app = Rc::new(RefCell::new(app));
         let mut dock = Dock::new(panels::defs(), panels::workspaces());
-        let draw: [(&str, PanelDraw); 14] = [
+        let draw: [(&str, PanelDraw); 15] = [
             (panels::id::BOARD_VIEW, App::panel_board_view),
             (panels::id::LAYERS, App::panel_layers),
             (panels::id::PROPERTIES, App::panel_properties),
@@ -1690,6 +1760,7 @@ impl Shell {
             (panels::id::GERBER, App::panel_gerber),
             (panels::id::VIEW3D, App::panel_view3d),
             (panels::id::BOARDS, App::panel_boards),
+            (panels::id::ATTACHMENTS, App::panel_attachments),
         ];
         for (name, f) in draw {
             let a = app.clone();
@@ -1797,6 +1868,7 @@ impl Shell {
             chosen = self.dock.menu_bar(ui, &self.bar);
         });
         self.app.borrow_mut().status_bar(ui);
+        self.app.borrow_mut().suite_bar(ui);
         egui::CentralPanel::default()
             .frame(egui::Frame::NONE)
             .show(ui, |ui| self.dock.show(ui));
@@ -1804,6 +1876,7 @@ impl Shell {
         self.keep_layout();
         let mut app = self.app.borrow_mut();
         app.common(&ctx);
+        app.suite_windows(&ctx);
         let lang = app.lang;
         if let Some(editor) = app.rules.as_mut() {
             if !cfg_gui::window(&ctx, editor, lang) {
@@ -2121,6 +2194,67 @@ mod tests {
                 .apply(DockAction::SwitchWorkspace(workspace.to_string()))
                 .unwrap();
         }
+    }
+
+    fn wait_for_the_attachments(app: &mut App) {
+        let until = std::time::Instant::now() + std::time::Duration::from_secs(60);
+        while app.attachments.model.busy() {
+            assert!(
+                std::time::Instant::now() < until,
+                "the panel did not finish"
+            );
+            std::thread::sleep(std::time::Duration::from_millis(10));
+            app.attachments.model.poll();
+        }
+    }
+
+    #[test]
+    fn the_data_sheet_of_a_selected_component_is_shown_in_the_panel_of_the_attachments() {
+        let dir = tempfile::tempdir().unwrap();
+        let project = dir.path().join("demo.eh3d");
+        let sheet = dir.path().join("sheet.pdf");
+        std::fs::write(&sheet, b"%PDF-1.4\n").unwrap();
+        let mut app = app();
+        with_board(&mut app);
+        app.suite_chosen(&Purpose::SaveAs, project.clone());
+        assert_eq!(app.suite.file.as_deref(), Some(project.as_path()));
+        let workspace = app.workspace.as_mut().unwrap();
+        let component = workspace
+            .viewer
+            .scene
+            .items
+            .iter()
+            .position(|i| matches!(i.doc, crate::scene::DocRef::Component(_)))
+            .unwrap();
+        workspace.viewer.select_item(component as u32);
+        let part = app.selected_part().unwrap();
+
+        app.attachments.model.set_project(Some(&project));
+        app.attachments
+            .model
+            .request(eh3d_attachpanel::Request::AttachFile(sheet));
+        wait_for_the_attachments(&mut app);
+        let id = app.attachments.model.items()[0].id.clone();
+        app.attachments
+            .model
+            .request(part.link_request(&id).unwrap());
+        wait_for_the_attachments(&mut app);
+
+        let mut h = Harness::new(app);
+        h.shell.app.borrow_mut().open_datasheet(&part);
+        h.frames(4);
+        assert!(h
+            .shell
+            .dock
+            .core()
+            .layout()
+            .is_shown(panels::id::ATTACHMENTS));
+        let app = h.shell.app.borrow();
+        assert_eq!(
+            app.attachments.model.selected().map(|a| a.name.as_str()),
+            Some("sheet.pdf")
+        );
+        assert!(app.menu_facts().has_part && app.menu_facts().has_suite);
     }
 
     #[test]

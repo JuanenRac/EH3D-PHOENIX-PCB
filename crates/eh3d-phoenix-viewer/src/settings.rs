@@ -257,6 +257,8 @@ pub struct ViewerSettings {
     pub backup_suffix: String,
     /// How many recent files the one list of the window keeps (the start screen and the menu), from 1 to 30.
     pub recent_max: usize,
+    /// The limits of the panel «Attachments» (`attachments.max_mb`, `viewer.max_*_mb`).
+    pub attachments: eh3d_attachpanel::PanelLimits,
     /// The name of the file where earlier versions kept the list of the start screen, in the settings folder of
     /// the user; what it holds is moved into the one list.
     pub recent_file: String,
@@ -415,6 +417,7 @@ impl Default for ViewerSettings {
             rules_max_file_bytes: 1_048_576,
             backup_suffix: ".bak".to_string(),
             recent_max: 20,
+            attachments: eh3d_attachpanel::PanelLimits::default(),
             recent_file: "recent.cfg".to_string(),
             gerber_circle_segments: 32,
             gerber_arc_step_deg: 6.0,
@@ -622,6 +625,16 @@ impl ViewerSettings {
             }
             if let Some(action) = key.strip_prefix("key.") {
                 key_changes.push((line, action.to_string(), value.to_string()));
+                continue;
+            }
+            // the limits of the panel of the attachments are written as in every program of the suite
+            if eh3d_attachpanel::PanelLimits::is_key(key) {
+                if !s.attachments.apply(key, value) {
+                    return Err(invalid(
+                        line,
+                        format!("{key}: not a limit of the attachments or not a whole number from 1 to 4096"),
+                    ));
+                }
                 continue;
             }
             match key {
@@ -965,6 +978,22 @@ mod tests {
         }
         let error = ViewerSettings::parse("\ndrc_sort = no\n").unwrap_err();
         assert!(error.detail.starts_with("line 2"), "{}", error.detail);
+    }
+
+    #[test]
+    fn the_limits_of_the_attachments_are_read_and_checked() {
+        let s = ViewerSettings::parse("attachments.max_mb = 16\nviewer.max_pdf_mb = 8\n").unwrap();
+        assert_eq!(s.attachments.attachments.max_attachment_bytes, 16 << 20);
+        assert_eq!(s.attachments.viewer.max_pdf_bytes, 8 << 20);
+        for text in [
+            "attachments.max_mb = 0",
+            "attachments.max_mb = 4097",
+            "viewer.other = 4",
+            "viewer.max_pdf_mb = x",
+        ] {
+            let error = ViewerSettings::parse(text).unwrap_err();
+            assert_eq!(error.code, SETTINGS_INVALID, "{text}");
+        }
     }
 
     #[test]

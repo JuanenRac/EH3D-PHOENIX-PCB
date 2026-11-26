@@ -4,6 +4,9 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **The project of the suite from the window:** *File > Suite project (.eh3d)* opens a project, saves it and saves it under another name keeping every branch, imports an EAGLE board or schematic keeping the original, takes a file of another branch, extracts a branch and lists the branches. A bar says what is out of date or signed; a project that was not opened there, a branch that changed, a signature that a write removes and a design that an import replaces are asked about first, and a project that is written over is copied beside it.
+- **Attachments and data sheets:** the panel «Attachments» of the suite keeps data sheets, manuals and other files in the project, with the viewer beside; from a part of the schematic or the board (the canvas, the list of components, the properties or *Tools > Data sheet of the selected part*) its data sheet is opened and an attachment is linked to it. The limits are `attachments.max_mb` and `viewer.max_*_mb` of the settings of the viewer, and the packages carry the PDF library (PDFium) with its licences. Not seen on a screen.
+
 ## [0.1.7] - Project container, binary EAGLE libraries and a starter kit that is not verified yet
 
 - **Narrow panels of the 3D view, of the panel of boards and of the Gerber files** keep their controls under the drawing instead of beside it, and their two lines of status wrap instead of being written over each other.

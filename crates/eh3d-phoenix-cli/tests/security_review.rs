@@ -117,6 +117,10 @@ fn allowed() -> Vec<(&'static str, &'static str)> {
             "the save of a file that the window saved before, after a copy of it",
         ),
         (
+            "crates/eh3d-phoenix-viewer/src/suite_menu.rs",
+            "the copy of a project of the suite beside it before the window writes over it",
+        ),
+        (
             "crates/eh3d-phoenix-viewer/src/cfg_edit.rs",
             "the save of a settings file by the rules window, into a side file that is then renamed, and never over a file without the order of the person",
         ),

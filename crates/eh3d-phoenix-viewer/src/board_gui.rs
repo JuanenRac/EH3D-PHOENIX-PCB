@@ -83,6 +83,16 @@ pub struct BoardEditUi {
     measure: MeasureTool,
 }
 
+/// The first component of the selection of the editor, for its data sheet.
+pub fn picked_part(st: &BoardEditUi) -> Option<crate::part_datasheet::PartRef> {
+    st.state.selection.iter().find_map(|picked| match picked {
+        eh3d_phoenix_boardedit::Picked::Component(id) => {
+            crate::part_datasheet::of_component(st.state.board(), *id)
+        }
+        _ => None,
+    })
+}
+
 /// Whether the editor has a step to undo and one to redo.
 pub fn history_state(st: &BoardEditUi) -> (bool, bool) {
     (st.state.edit.can_undo(), st.state.edit.can_redo())
