@@ -316,7 +316,10 @@ mod tests {
     }
 
     fn texts(paths: &[&Path]) -> Vec<String> {
-        paths.iter().map(|p| p.to_string_lossy().into_owned()).collect()
+        paths
+            .iter()
+            .map(|p| p.to_string_lossy().into_owned())
+            .collect()
     }
 
     #[test]

@@ -214,12 +214,7 @@ struct ShotState {
 }
 
 impl App {
-    fn new(
-        lang: Lang,
-        settings: ViewerSettings,
-        win: WindowUi,
-        initial: Option<PathBuf>,
-    ) -> App {
+    fn new(lang: Lang, settings: ViewerSettings, win: WindowUi, initial: Option<PathBuf>) -> App {
         let launcher = Launcher::new(&settings);
         let (engine, fell_back) = engine_for(settings.canvas_engine);
         let mut app = App {

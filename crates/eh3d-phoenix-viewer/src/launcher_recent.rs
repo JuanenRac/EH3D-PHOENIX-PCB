@@ -63,10 +63,7 @@ pub fn config_dir(get: &dyn Fn(&str) -> Option<String>) -> Option<PathBuf> {
 
 /// The file of the list that earlier versions kept for the start screen, named by the setting
 /// `recent_file`.
-pub fn start_list_path(
-    get: &dyn Fn(&str) -> Option<String>,
-    file_name: &str,
-) -> Option<PathBuf> {
+pub fn start_list_path(get: &dyn Fn(&str) -> Option<String>, file_name: &str) -> Option<PathBuf> {
     config_dir(get).map(|dir| dir.join(file_name))
 }
 
@@ -113,8 +110,8 @@ pub fn keep_one_recent_list(
         return;
     };
     let mut text = String::new();
-    let read = std::fs::File::open(old)
-        .and_then(|file| file.take(1 << 20).read_to_string(&mut text));
+    let read =
+        std::fs::File::open(old).and_then(|file| file.take(1 << 20).read_to_string(&mut text));
     if read.is_err() {
         // not there, or not text: it is left as it is
         return;
@@ -233,7 +230,8 @@ mod tests {
         menu.recent_mut().push("/work/both.brd");
         menu.flush_recent();
         let old = dir.path().join("recent.cfg");
-        let text = "# note\n\n  /work/start.sch  \n/work/both.brd\n/work/start.sch\n/work/a b.lbr\n";
+        let text =
+            "# note\n\n  /work/start.sch  \n/work/both.brd\n/work/start.sch\n/work/a b.lbr\n";
         std::fs::write(&old, text).unwrap();
         let wanted = [
             "/work/both.brd",
