@@ -949,8 +949,11 @@ dependencies = [
 name = "eh3d-phoenix-eaglebin"
 version = "0.1.7"
 dependencies = [
+ "eh3d-phoenix-board",
  "eh3d-phoenix-eagle",
+ "eh3d-phoenix-eagle-board",
  "eh3d-phoenix-libedit",
+ "eh3d-phoenix-model",
  "eh3d-phoenix-rules",
  "serde",
 ]

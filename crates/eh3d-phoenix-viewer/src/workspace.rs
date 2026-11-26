@@ -317,6 +317,8 @@ pub struct Workspace {
     pub input: Option<PathBuf>,
     /// How much of an EAGLE file the reader could not use.
     pub unread: usize,
+    /// The report of the conversion, for a design that came from a binary file.
+    pub binary: Option<Box<eh3d_phoenix_eaglebin::Report>>,
     /// The width given to a track by the width tool, in millimetres.
     pub active_width_mm: f64,
     /// What the router does at an obstacle.
@@ -367,6 +369,7 @@ impl Workspace {
             doc,
             input,
             unread: loaded.unread,
+            binary: loaded.binary,
             active_width_mm,
             route_mode: Mode::Around,
             show_ratsnest: true,
@@ -1221,6 +1224,7 @@ mod tests {
         let loaded = Loaded {
             document: Document::Board(Box::new(sample::board())),
             unread: 0,
+            binary: None,
         };
         Workspace::new(loaded, None, ViewerSettings::default(), relaxed()).unwrap()
     }
@@ -1229,6 +1233,7 @@ mod tests {
         let loaded = Loaded {
             document: Document::Schematic(Box::new(sample::schematic())),
             unread: 0,
+            binary: None,
         };
         Workspace::new(loaded, None, ViewerSettings::default(), relaxed()).unwrap()
     }
@@ -1279,6 +1284,7 @@ mod tests {
         let loaded = Loaded {
             document: Document::Board(Box::default()),
             unread: 0,
+            binary: None,
         };
         let error = Workspace::new(loaded, None, ViewerSettings::default(), relaxed())
             .err()

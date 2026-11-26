@@ -7,6 +7,7 @@ use std::path::Path;
 
 use eh3d_phoenix_board::Board;
 use eh3d_phoenix_eagle_board::{read_board, read_schematic};
+use eh3d_phoenix_eaglebin::Report as BinaryReport;
 use eh3d_phoenix_model::{DeterministicRandom, IdGenerator, ObjectId, StepClock};
 use eh3d_phoenix_project::pcb_branch::read_pcb;
 use eh3d_phoenix_schematic::Schematic;
@@ -33,6 +34,8 @@ pub struct Loaded {
     pub document: Document,
     /// The parts of an EAGLE file that were not read or were read in a simpler form.
     pub unread: usize,
+    /// What was not read as it is, for a design that came from a binary file of EAGLE.
+    pub binary: Option<Box<BinaryReport>>,
 }
 
 /// Ids for the objects read from a file: the same file always gives the same ids.
@@ -59,6 +62,7 @@ fn eagle_board(text: &str) -> Result<Loaded, ViewError> {
     Ok(Loaded {
         document: Document::Board(Box::new(read.board)),
         unread: read.diagnostics.len(),
+        binary: None,
     })
 }
 
@@ -69,6 +73,7 @@ fn eagle_schematic(text: &str) -> Result<Loaded, ViewError> {
     Ok(Loaded {
         document: Document::Schematic(Box::new(read.schematic)),
         unread: read.diagnostics.len(),
+        binary: None,
     })
 }
 
@@ -94,18 +99,30 @@ pub fn parse_document(extension: &str, text: &str) -> Result<Loaded, ViewError> 
         return Ok(Loaded {
             document: Document::Board(Box::new(board)),
             unread: 0,
+            binary: None,
         });
     }
     if let Ok(schematic) = Schematic::from_bytes(text.as_bytes()) {
         return Ok(Loaded {
             document: Document::Schematic(Box::new(schematic)),
             unread: 0,
+            binary: None,
         });
     }
     Err(ViewError::new(
         FILE_NOT_RECOGNISED,
         "neither the JSON of a board nor the JSON of a schematic",
     ))
+}
+
+/// A board of the binary form of EAGLE, with the report of its conversion.
+fn binary_board(bytes: &[u8]) -> Result<Loaded, ViewError> {
+    let read = eh3d_phoenix_eaglebin::read_binary_board(bytes, &Default::default())
+        .map_err(|e| ViewError::new(EAGLE_UNREADABLE, e.to_string()))?;
+    let mut loaded = eagle_board(&read.xml)?;
+    loaded.unread += read.report.losses();
+    loaded.binary = Some(Box::new(read.report));
+    Ok(loaded)
 }
 
 /// Reads a file, refusing one larger than the settings allow.
@@ -127,6 +144,9 @@ pub fn read_document(path: &Path, settings: &ViewerSettings) -> Result<Loaded, V
         return project_document(path);
     }
     let bytes = std::fs::read(path).map_err(|e| ViewError::new(FILE_UNUSABLE, e.to_string()))?;
+    if eh3d_phoenix_eaglebin::looks_binary(&bytes) {
+        return binary_board(&bytes);
+    }
     let text = String::from_utf8(bytes)
         .map_err(|_| ViewError::new(FILE_NOT_RECOGNISED, "the file is not UTF-8 text"))?;
     parse_document(extension, &text)

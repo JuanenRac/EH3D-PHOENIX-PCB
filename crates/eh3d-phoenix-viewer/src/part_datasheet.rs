@@ -133,6 +133,7 @@ mod tests {
             Loaded {
                 document,
                 unread: 0,
+                binary: None,
             },
             None,
             ViewerSettings::default(),

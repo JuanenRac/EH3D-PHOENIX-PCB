@@ -1,0 +1,59 @@
+name: tmp-build
+
+on:
+  push:
+    branches: [eagle-boards]
+
+permissions:
+  contents: read
+
+env:
+  SIBLING_REFS: "EH3D-COMMON=v0.3.4 EH3D-CORE-LIBS=v0.1.2"
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+          path: EH3D-PHOENIX-PCB
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+      - name: Siblings
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json, os, subprocess
+          from pathlib import Path
+          owner, name = os.environ["GITHUB_REPOSITORY"].split("/")
+          refs = dict(item.split("=", 1) for item in os.environ.get("SIBLING_REFS", "").split())
+          pending, seen = [name], {name}
+          while pending:
+              manifest = json.loads(Path(pending.pop(), "eh3d.project.json").read_text(encoding="utf-8"))
+              for dep in manifest.get("depends_on") or []:
+                  if dep in seen:
+                      continue
+                  seen.add(dep)
+                  ref = refs.get(dep)
+                  command = ["git", "clone", "--quiet", "--depth", "1"] + (["--branch", ref] if ref else [])
+                  subprocess.run(command + [f"https://github.com/{owner}/{dep}.git", dep], check=True)
+                  pending.append(dep)
+          PY
+      - name: Toolchain
+        shell: bash
+        working-directory: EH3D-PHOENIX-PCB
+        run: rustup toolchain install "$(sed -n 's/^channel = "\(.*\)"/\1/p' rust-toolchain.toml)" --profile minimal
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          workspaces: EH3D-PHOENIX-PCB
+      - name: Build
+        run: cargo build --release -p eh3d-phoenix-cli
+        working-directory: EH3D-PHOENIX-PCB
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: phoenix-tmp
+          path: EH3D-PHOENIX-PCB/target/release/phoenix.exe
+          retention-days: 1

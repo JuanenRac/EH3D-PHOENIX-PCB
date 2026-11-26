@@ -34,7 +34,7 @@ const SETS: u8 = 0x17;
 const SYMBOLS: u8 = 0x18;
 const PACKAGES: u8 = 0x19;
 const SYMBOL: u8 = 0x1D;
-const PACKAGE: u8 = 0x1E;
+pub(crate) const PACKAGE: u8 = 0x1E;
 const GATE: u8 = 0x2D;
 const DEVICE: u8 = 0x36;
 const SET: u8 = 0x37;
@@ -130,21 +130,35 @@ pub struct RawLibrary {
     pub packages: Vec<RawDrawing>,
 }
 
-fn broken(at: usize, what: &str) -> BinError {
+pub(crate) fn broken(at: usize, what: &str) -> BinError {
     BinError::new(codes::STRUCTURE, format!("record {at}: {what}"))
 }
 
-struct Walk<'a> {
-    records: &'a [Record],
-    strings: Strings<'a>,
-    old: bool,
-    items: usize,
-    limits: Limits,
-    report: &'a mut Report,
+pub(crate) struct Walk<'a> {
+    pub(crate) records: &'a [Record],
+    pub(crate) strings: Strings<'a>,
+    pub(crate) old: bool,
+    pub(crate) items: usize,
+    pub(crate) limits: Limits,
+    pub(crate) report: &'a mut Report,
+}
+
+impl<'a> Walk<'a> {
+    /// A walk over the records of a file, before any of them is read.
+    pub(crate) fn new(file: &'a Container, limits: &Limits, report: &'a mut Report) -> Walk<'a> {
+        Walk {
+            records: &file.records,
+            strings: Strings::new(&file.strings),
+            old: file.version.0 < 4,
+            items: 0,
+            limits: *limits,
+            report,
+        }
+    }
 }
 
 impl Walk<'_> {
-    fn record(&self, at: usize) -> Result<Record, BinError> {
+    pub(crate) fn record(&self, at: usize) -> Result<Record, BinError> {
         self.records
             .get(at)
             .copied()
@@ -152,7 +166,7 @@ impl Walk<'_> {
     }
 
     /// Counts one object against the limit.
-    fn one_more(&mut self) -> Result<(), BinError> {
+    pub(crate) fn one_more(&mut self) -> Result<(), BinError> {
         self.items += 1;
         if self.items > self.limits.max_items {
             return Err(BinError::new(codes::LIMIT, "too many items"));
@@ -160,18 +174,22 @@ impl Walk<'_> {
         Ok(())
     }
 
-    fn string(&mut self, r: &Record, start: usize, end: usize, place: &str) -> String {
+    pub(crate) fn string(&mut self, r: &Record, start: usize, end: usize, place: &str) -> String {
         let bytes = self.strings.field(r, start, end);
         decode(&bytes, place, self.report)
     }
 
-    fn preamble(&mut self, count: usize, out: &mut RawLibrary) -> Result<(), BinError> {
+    pub(crate) fn preamble(
+        &mut self,
+        count: usize,
+        layers: &mut Vec<RawLayer>,
+    ) -> Result<(), BinError> {
         for at in 1..=count {
             let r = self.record(at)?;
             match r[0] {
                 LAYER => {
                     let name = self.string(&r, 15, 24, "layer");
-                    out.layers.push(RawLayer {
+                    layers.push(RawLayer {
                         number: r[3],
                         name,
                         color: r[6],
@@ -335,7 +353,7 @@ impl Walk<'_> {
     }
 
     /// The drawing records `from..to` of a footprint or a symbol called `place`.
-    fn drawing_items(
+    pub(crate) fn drawing_items(
         &mut self,
         from: usize,
         to: usize,
@@ -437,7 +455,12 @@ impl Walk<'_> {
     }
 
     /// The footprints or symbols of a section whose records are `from..end`.
-    fn drawings(&mut self, from: usize, end: usize, kind: u8) -> Result<Vec<RawDrawing>, BinError> {
+    pub(crate) fn drawings(
+        &mut self,
+        from: usize,
+        end: usize,
+        kind: u8,
+    ) -> Result<Vec<RawDrawing>, BinError> {
         let mut out = Vec::new();
         let mut at = from;
         while at < end {
@@ -466,6 +489,23 @@ impl Walk<'_> {
         Ok(out)
     }
 
+    /// Notes the long strings that did not match the fields.
+    pub(crate) fn strings_check(&mut self) {
+        let (missing, left) = (self.strings.missing, self.strings.left());
+        self.report.note_many(
+            codes::STRINGS,
+            "fields without their long string (names may be wrong)",
+            "",
+            missing,
+        );
+        self.report.note_many(
+            codes::STRINGS,
+            "long strings that no field asked for (names may be wrong)",
+            "",
+            left,
+        );
+    }
+
     fn count_check(&mut self, announced: usize, found: usize, what: &str) {
         if announced != found {
             self.report.note(
@@ -490,16 +530,9 @@ pub fn walk(
         .ok_or_else(|| broken(0, "no header"))?;
     let preamble = usize::from(u16_at(&header, 2));
     let library_at = 1 + preamble;
-    let mut w = Walk {
-        records: &file.records,
-        strings: Strings::new(&file.strings),
-        old: file.version.0 < 4,
-        items: 0,
-        limits: *limits,
-        report,
-    };
+    let mut w = Walk::new(file, limits, report);
     let mut out = RawLibrary::default();
-    w.preamble(preamble, &mut out)?;
+    w.preamble(preamble, &mut out.layers)?;
     let library = w.record(library_at)?;
     if library[0] != LIBRARY {
         return Err(BinError::new(
@@ -561,18 +594,6 @@ pub fn walk(
         w.count_check(announced, found, "objects");
         at = end;
     }
-    let (missing, left) = (w.strings.missing, w.strings.left());
-    w.report.note_many(
-        codes::STRINGS,
-        "fields without their long string (names may be wrong)",
-        "",
-        missing,
-    );
-    w.report.note_many(
-        codes::STRINGS,
-        "long strings that no field asked for (names may be wrong)",
-        "",
-        left,
-    );
+    w.strings_check();
     Ok(out)
 }

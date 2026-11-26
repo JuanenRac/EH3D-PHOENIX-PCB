@@ -27,6 +27,7 @@ mod layers;
 mod library;
 mod limits;
 mod reader;
+mod restring;
 mod sch;
 mod sch_read;
 mod signature;

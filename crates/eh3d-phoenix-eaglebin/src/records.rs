@@ -99,6 +99,9 @@ pub struct Container {
     pub extra_bytes: usize,
     /// True when the strings are announced and are cut short.
     pub strings_cut: bool,
+    /// Everything after the records and the long strings: in a board it holds the design rules
+    /// and the net classes.
+    pub tail: Vec<u8>,
 }
 
 /// True when the bytes start like a binary file of the old versions.
@@ -142,9 +145,11 @@ pub fn split(bytes: &[u8], limits: &Limits) -> Result<Container, BinError> {
         version,
         extra_bytes: 0,
         strings_cut: false,
+        tail: Vec::new(),
     };
     if rest.len() < 8 || rest[..4] != STRINGS_MARK {
         out.extra_bytes = rest.len();
+        out.tail = rest.to_vec();
         return Ok(out);
     }
     let announced = u32::from_le_bytes([rest[4], rest[5], rest[6], rest[7]]) as usize;
@@ -169,5 +174,6 @@ pub fn split(bytes: &[u8], limits: &Limits) -> Result<Container, BinError> {
         out.strings.push(part.to_vec());
     }
     out.extra_bytes = (available - length).saturating_sub(TAIL);
+    out.tail = rest[8 + length..].to_vec();
     Ok(out)
 }

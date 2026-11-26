@@ -624,6 +624,18 @@ impl App {
             if not_drawn > 0 {
                 ui.label(dim(format!("{} {}", not_drawn, Msg::Skipped.tr(lang))));
             }
+            if let Some(report) = &workspace.binary {
+                ui.collapsing(LibText::BinaryReport.tr(lang), |ui| {
+                    egui::ScrollArea::vertical()
+                        .id_salt("binary_report")
+                        .max_height(180.0)
+                        .show(ui, |ui| {
+                            for line in report.to_text(lang).lines() {
+                                ui.label(dim(line));
+                            }
+                        });
+                });
+            }
             ui.separator();
             let mut tool = workspace.viewer.tool;
             ui.horizontal_wrapped(|ui| {
@@ -2127,6 +2139,7 @@ mod tests {
         let loaded = Loaded {
             document: Document::Board(Box::new(sample::board())),
             unread: 0,
+            binary: None,
         };
         app.workspace = Workspace::new(
             loaded,
@@ -2143,6 +2156,7 @@ mod tests {
         let loaded = Loaded {
             document: Document::Schematic(Box::new(sample::schematic())),
             unread: 0,
+            binary: None,
         };
         app.workspace = Workspace::new(
             loaded,

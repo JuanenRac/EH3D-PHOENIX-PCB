@@ -35,6 +35,7 @@ mod tests {
         let loaded = Loaded {
             document,
             unread: 0,
+            binary: None,
         };
         Workspace::new(
             loaded,

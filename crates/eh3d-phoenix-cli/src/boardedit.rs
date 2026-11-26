@@ -213,7 +213,8 @@ fn write_project(path: &str, input: &str, board: &Board) -> Result<(), String> {
     };
     let source = has_extension(input, "eh3d").then(|| Path::new(input));
     if has_extension(input, "brd") {
-        let bytes = read_text(input)?.into_bytes();
+        // the original as it is, binary or XML
+        let bytes = std::fs::read(input).map_err(|e| format!("cannot read {input}: {e}"))?;
         parts.origin = Some(PcbOrigin {
             name: Path::new(input)
                 .file_name()

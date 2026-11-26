@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! Reader of the binary libraries of EAGLE versions 3, 4 and 5 (the versions before the XML
-//! files). It only reads: the result is the library model of the library editor, which can be
-//! saved as an XML library, and a report of everything that was not read as it is.
+//! Reader of the binary libraries and boards of EAGLE versions 3, 4 and 5 (the versions before
+//! the XML files). It only reads: a library becomes the library model of the library editor,
+//! which can be saved as an XML library; a board becomes the text of an XML board file. Both
+//! come with a report of everything that was not read as it is. Schematics are not read.
 //!
 //! The format was worked out from the bytes of library files and is described in
 //! `docs/EAGLE_BINARY.md`; no program was disassembled and no code of another reader was used.
@@ -10,6 +11,7 @@
 //! * [`walk`]: the tree of records: layers, device sets, symbols and footprints;
 //! * [`items`]: the drawing records;
 //! * [`resolve`]: the references between device sets, symbols and footprints;
+//! * [`board`] and [`rules`]: boards, their design rules and net classes;
 //! * [`report`] and [`codes`]: what was not read, with the codes `PHOENIX-EAGLEBIN-<NNN>`.
 //!
 //! A damaged or hostile file gives an error with its code, never a panic or a read past its end.
@@ -17,11 +19,13 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
+pub mod board;
 pub mod codes;
 pub mod items;
 pub mod records;
 pub mod report;
 pub mod resolve;
+pub mod rules;
 pub mod text;
 pub mod walk;
 
@@ -33,6 +37,7 @@ use eh3d_phoenix_libedit::codes::{LibError, FILE_UNUSABLE};
 use eh3d_phoenix_libedit::model::{Library, Package, Symbol};
 use eh3d_phoenix_libedit::LibSettings;
 
+pub use board::{read_binary_board, BoardConversion};
 pub use codes::BinError;
 pub use records::{looks_binary, Limits};
 pub use report::Report;
@@ -59,7 +64,7 @@ fn yes_no(value: bool) -> String {
     if value { "yes" } else { "no" }.to_owned()
 }
 
-fn layer_element(layer: &walk::RawLayer) -> Element {
+pub(crate) fn layer_element(layer: &walk::RawLayer) -> Element {
     let attrs = [
         ("number", layer.number.to_string()),
         ("name", layer.name.clone()),
