@@ -16,6 +16,7 @@ use crate::gui::{ui_accent, ui_danger, ui_dim};
 use crate::msg::Msg;
 use crate::panel_scene::{parse_files, PanelLayerKind, PanelSession, PanelShape};
 use crate::panel_text::PanelText;
+use crate::panels::controls_below;
 use crate::prim::P;
 use crate::settings::ViewerSettings;
 use crate::view::{View, ZoomLimits};
@@ -144,28 +145,31 @@ impl PanelUi {
             });
         });
         egui::Panel::bottom("panel_status").show(ui, |ui| {
-            ui.horizontal(|ui| {
+            ui.horizontal_wrapped(|ui| {
                 if let Some(error) = &self.error {
                     ui.label(egui::RichText::new(error.message(lang)).color(ui_danger()));
                 } else {
                     ui.label(dim(PanelText::ReadOnly.tr(lang)));
                 }
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    ui.label(egui::RichText::new(Msg::Prototype.tr(lang)).color(ui_accent()));
-                });
+                ui.label(egui::RichText::new(Msg::Prototype.tr(lang)).color(ui_accent()));
             });
         });
-        egui::Panel::left("panel_side")
-            .default_size(320.0)
-            .show(ui, |ui| {
-                egui::ScrollArea::vertical().show(ui, |ui| {
+        let below = controls_below(ui.available_width(), ui.available_height());
+        let controls = match below {
+            Some(height) => egui::Panel::bottom("panel_side_below").default_size(height),
+            None => egui::Panel::left("panel_side").default_size(320.0),
+        };
+        controls.show(ui, |ui| {
+            egui::ScrollArea::vertical()
+                .auto_shrink([false, false])
+                .show(ui, |ui| {
                     self.files_panel(ui, lang, settings);
                     ui.separator();
                     self.layers_panel(ui, lang);
                     ui.separator();
                     self.measures_panel(ui, lang);
                 });
-            });
+        });
         self.canvas(ui, settings);
         close
     }

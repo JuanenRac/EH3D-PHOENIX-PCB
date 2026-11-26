@@ -16,6 +16,7 @@ use eh3d_phoenix_rules::Lang;
 use crate::codes::ViewError;
 use crate::gui::{ui_accent, ui_danger, ui_dim};
 use crate::msg::Msg;
+use crate::panels::controls_below;
 use crate::settings::ViewerSettings;
 use crate::view3d::{
     assemble_with_table_file, face_colour, part_info, pick, summary, Assembly, Camera, Selection,
@@ -103,20 +104,23 @@ impl View3dUi {
             });
         });
         egui::Panel::bottom("view3d_status").show(ui, |ui| {
-            ui.horizontal(|ui| {
+            ui.horizontal_wrapped(|ui| {
                 ui.label(dim(View3dText::Controls.tr(lang)));
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    ui.label(egui::RichText::new(Msg::Prototype.tr(lang)).color(ui_accent()));
-                });
+                ui.label(egui::RichText::new(Msg::Prototype.tr(lang)).color(ui_accent()));
             });
         });
-        egui::Panel::right("view3d_info")
-            .default_size(320.0)
-            .show(ui, |ui| {
-                egui::ScrollArea::vertical().show(ui, |ui| {
+        let below = controls_below(ui.available_width(), ui.available_height());
+        let controls = match below {
+            Some(height) => egui::Panel::bottom("view3d_info_below").default_size(height),
+            None => egui::Panel::right("view3d_info").default_size(320.0),
+        };
+        controls.show(ui, |ui| {
+            egui::ScrollArea::vertical()
+                .auto_shrink([false, false])
+                .show(ui, |ui| {
                     self.info_panel(ui, lang, settings);
                 });
-            });
+        });
         self.canvas(ui, settings);
         close
     }

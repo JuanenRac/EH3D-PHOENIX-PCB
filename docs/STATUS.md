@@ -18,7 +18,7 @@ The official state of each capability is in REQUIREMENTS.md: 31 requirements: 28
 ## Needs from other repositories
 
 * EH3D-COMMON: the project container (`eh3d-container`), the diagnostic crate (`eh3d-diagnostic`) and the materials database (`eh3d-materials`, used by the stack-up calculation and by `phoenix materials`), already used; this repository builds next to it
-* EH3D-COMMON: the project file of the suite (`eh3d-project`, from the tag v0.3.3 that the workflows take). The reading and writing of one branch of a program is in this repository for now; it belongs in the shared one once the programs agree on it
+* EH3D-COMMON: the project file of the suite (`eh3d-project`, from the tag v0.3.4 that the workflows take). The reading and writing of one branch of a program is in this repository for now; it belongs in the shared one once the programs agree on it
 * EH3D-CORE-LIBS: geometry, readers and the Gerber and Excellon writers
 * EH3D-VALIDATION-LAB: the corpus and the golden-file oracle
 
