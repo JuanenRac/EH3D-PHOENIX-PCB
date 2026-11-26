@@ -18,7 +18,6 @@ use eh3d_phoenix_boardedit::{
     Target, ZoneData, ZoneIssue,
 };
 use eh3d_phoenix_eagle_board::write_board;
-use eh3d_phoenix_erc::ErcConfig;
 use eh3d_phoenix_project::pcb_branch::{write_pcb, NewPcbProject, PcbOrigin, PcbParts};
 use eh3d_phoenix_rules::{Lang, Severity};
 use eh3d_phoenix_zones::ZoneSettings;
