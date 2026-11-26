@@ -15,7 +15,7 @@ use eh3d_phoenix_lengths::{measure_nets, LengthSettings};
 use eh3d_phoenix_model::{Nm, Point, Udeg, ANGLE_LIMIT_UDEG};
 use eh3d_phoenix_route::edit as route_edit;
 use eh3d_phoenix_route::{copper_layers, track_width, RouteSettings, RuleContext};
-use eh3d_phoenix_rules::Lang;
+use eh3d_phoenix_rules::{Finding, Lang};
 
 use crate::arc;
 use crate::codes::{
@@ -45,6 +45,9 @@ pub struct Env<'a> {
     pub locked: &'a BTreeSet<Id>,
     /// The differential pairs and their settings.
     pub pairs: &'a PairConfig,
+    /// The findings of the design rules on the board as it is, when they are known, so that the
+    /// push does not check it again.
+    pub known: Option<&'a [Finding]>,
 }
 
 /// The length that a tuning has to reach.
@@ -1243,6 +1246,7 @@ mod tests {
             settings: &settings,
             locked: &locked,
             pairs: &pairs,
+            known: None,
         };
         let mut ids = IdSupply::new().unwrap();
         let op = EditOp::Place {
@@ -1281,6 +1285,7 @@ mod tests {
             settings: &settings,
             locked: &locked,
             pairs: &pairs,
+            known: None,
         };
         let mut ids = IdSupply::new().unwrap();
         let mut op = EditOp::Route {
@@ -1325,6 +1330,7 @@ mod tests {
             settings: &settings,
             locked: &locked,
             pairs: &pairs,
+            known: None,
         };
         let mut ids = IdSupply::new().unwrap();
         let op = EditOp::Move {

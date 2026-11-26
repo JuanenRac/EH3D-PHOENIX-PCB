@@ -37,6 +37,17 @@ pub fn draw(painter: &egui::Painter, tool: &ShoveTool, to_screen: &dyn Fn(Point)
                 );
             }
         }
+        for moved in &preview.vias {
+            // the radius on the screen, measured between two points of the board
+            let side = Point::from_nm(
+                moved.after.x_nm.get() + moved.diameter.get() / 2,
+                moved.after.y_nm.get(),
+            );
+            let at = to_screen(moved.after);
+            let radius = side.map_or(4.0, |p| to_screen(p).distance(at));
+            painter.circle_stroke(to_screen(moved.before), radius, Stroke::new(1.0, ui_dim()));
+            painter.circle_stroke(at, radius, Stroke::new(2.5, MOVED));
+        }
     }
     if tool.points.is_empty() {
         return;
@@ -88,10 +99,14 @@ pub fn panel(ui: &mut egui::Ui, tool: &mut ShoveTool, state: &mut EditState, lan
         .color(ui_dim()),
     );
     if tool.preview.is_some() {
-        let text = if tool.moved() == 0 {
-            ShoveMsg::Nothing.tr(lang).to_owned()
-        } else {
-            format!("{} {}", tool.moved(), ShoveMsg::Moves.tr(lang))
+        let text = match (tool.moved(), tool.moved_vias()) {
+            (0, 0) => ShoveMsg::Nothing.tr(lang).to_owned(),
+            (tracks, 0) => format!("{tracks} {}", ShoveMsg::Moves.tr(lang)),
+            (tracks, vias) => format!(
+                "{tracks} {} · {vias} {}",
+                ShoveMsg::Moves.tr(lang),
+                ShoveMsg::Vias.tr(lang)
+            ),
         };
         ui.label(egui::RichText::new(text).color(MOVED));
     }

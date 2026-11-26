@@ -13,7 +13,7 @@ use crate::edit::{BoardEdit, DrcReport};
 use crate::hit::pad_near;
 use crate::ops::EditOp;
 use crate::shape::Shape;
-use crate::shove::ShoveMove;
+use crate::shove::{ShoveMove, ShoveViaMove};
 use crate::tool::{EditState, Tool};
 
 /// What the route tool does with a click.
@@ -51,6 +51,8 @@ pub struct RouteAssist {
     pub complete: bool,
     /// The tracks that a push would move.
     pub moves: Vec<ShoveMove>,
+    /// The vias that a push would move.
+    pub via_moves: Vec<ShoveViaMove>,
     /// Why the push cannot be done.
     pub refusal: Option<BoardEditError>,
 }
@@ -164,6 +166,7 @@ impl EditState {
                             points,
                             complete: true,
                             moves: preview.moves,
+                            via_moves: preview.vias,
                             refusal: None,
                         }
                     }

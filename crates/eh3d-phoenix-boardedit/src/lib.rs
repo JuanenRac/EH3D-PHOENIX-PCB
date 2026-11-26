@@ -34,8 +34,9 @@
 //!   uncoupled stretch, the lengths, the vias, the width and the impedance, and the codes
 //!   `PHOENIX-PAIR-<NNN>`;
 //! * [`shove`] and `arc`: the push of neighbour tracks when a track is routed (`route_shove`:
-//!   tracks of other nets that the clearance would invade are moved in parallel, within a depth and
-//!   a number of tracks of the settings, all or nothing) and the arcs in tracks (`route_arc`,
+//!   tracks of other nets that the clearance would invade are moved in parallel or walked around
+//!   obstacles, and vias are moved with their tracks, within a depth and a number of items of the
+//!   settings, all or nothing, with the rules and the connectivity checked) and the arcs in tracks (`route_arc`,
 //!   `round_corners`, the arc checked against the clearance of the rules), with the codes
 //!   `PHOENIX-SHOVE-<NNN>` and `PHOENIX-ARC-<NNN>` in [`shove_codes`];
 //! * [`zone`], [`zone_clip`] and [`zone_codes`]: the copper zones in the editor: the properties of a
@@ -61,7 +62,7 @@
 //! window of the board mode has not been seen on a screen or used with a mouse. A route is made of
 //! the pieces it is given (there is no autorouter here: `phoenix autoroute` is a separate
 //! command); a meander adds length to a straight piece (horizontal, vertical or at 45 degrees)
-//! only; a push moves only straight pieces that are horizontal, vertical or at 45 degrees; the locks
+//! only; a push never moves pads, components or arcs; the locks
 //! live in the editor and are not saved in the board.
 
 #![forbid(unsafe_code)]
@@ -91,6 +92,7 @@ pub mod group;
 #[cfg(test)]
 mod group_tests;
 pub mod hit;
+mod hull;
 pub mod ids;
 pub mod measure;
 pub mod ops;
@@ -113,6 +115,7 @@ pub mod shove;
 pub mod shove_codes;
 #[cfg(test)]
 mod shove_tests;
+mod shove_walk;
 #[cfg(test)]
 mod testutil;
 pub mod tidy;
@@ -140,7 +143,7 @@ pub use pairs::{PairConfig, PairDef, PairSettings, ResolvedPair};
 pub use selection::{item_bounds, Bounds, Item, RectMode, SelectAction, SelectStep, Selection};
 pub use settings::BoardEditSettings;
 pub use shape::{MeanderSide, Shape};
-pub use shove::{ShoveMove, ShovePreview};
+pub use shove::{ShoveMove, ShovePreview, ShoveViaMove};
 pub use tool::{Drag, EditState, Tool};
 pub use zone::{
     export_issues, poured_board, validate_props, zone_issues, Target, ZoneChanges, ZoneData,
