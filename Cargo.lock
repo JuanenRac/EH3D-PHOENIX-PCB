@@ -869,6 +869,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "eh3d-phoenix-eaglebin"
+version = "0.1.6"
+dependencies = [
+ "eh3d-phoenix-eagle",
+ "eh3d-phoenix-libedit",
+ "eh3d-phoenix-rules",
+ "serde",
+]
+
+[[package]]
 name = "eh3d-phoenix-erc"
 version = "0.1.6"
 dependencies = [

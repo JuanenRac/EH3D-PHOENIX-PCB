@@ -2,7 +2,7 @@
 
 Codes have the form `PHOENIX-<AREA>-<NNN>`. A code is stable: it never changes its meaning and is never reused. Programs show the text through the key `diag.<code>`; the codes themselves are never translated. The object identity (UUID v7) is the one of the shared container, with its own codes `EH3D-ID-001` and `EH3D-ID-002`. The container codes `EH3D-PKG-001` to `EH3D-PKG-014` belong to the shared container and are listed in the registry of the documentation repository.
 
-Each table repeats the `REGISTRY` of a crate (`eh3d-phoenix-model` in `src/diagnostic.rs`, `eh3d-phoenix-project` and `eh3d-phoenix-eagle` in `src/codes.rs`, `eh3d-phoenix-hub` in `src/lib.rs`, `eh3d-phoenix-export` in `src/codes.rs` and `src/fabcodes.rs`, `eh3d-phoenix-schematic` in `src/model.rs`, `src/draw.rs`, `src/edit.rs`, `src/link.rs`, `src/hier.rs` and `src/bus.rs`, `eh3d-phoenix-board` in `src/validate.rs`, `src/connectivity.rs` and `src/rules.rs`, `eh3d-phoenix-rules` in `src/codes.rs` and `src/advanced/codes.rs`, `eh3d-phoenix-stackup` and `eh3d-phoenix-rf` in `src/error.rs`, `eh3d-phoenix-viewer`, `eh3d-phoenix-sanitizer`, `eh3d-phoenix-erc`, `eh3d-phoenix-sync`, `eh3d-phoenix-schedit`, `eh3d-phoenix-boardedit` (also in `src/pair_codes.rs`, `src/shove_codes.rs` and `src/zone_codes.rs`), `eh3d-phoenix-libedit`, `eh3d-phoenix-zones`, `eh3d-phoenix-autoroute`, `eh3d-phoenix-lengths`, `eh3d-phoenix-stats`, `eh3d-phoenix-testpoints`, `eh3d-phoenix-ipc2581`, `eh3d-phoenix-server`, `eh3d-phoenix-boarddiff`, `eh3d-phoenix-ulp`, `eh3d-phoenix-gerber`, `eh3d-phoenix-panel`, `eh3d-phoenix-bom`, `eh3d-phoenix-assembly3d`, `eh3d-phoenix-si`, `eh3d-phoenix-eagle-deep` and `eh3d-phoenix-oracle` in `src/codes.rs`, `eh3d-phoenix-corpus` in `src/suite/codes.rs`); a test of each crate checks that every code of its registry is in the table with the same title.
+Each table repeats the `REGISTRY` of a crate (`eh3d-phoenix-model` in `src/diagnostic.rs`, `eh3d-phoenix-project` and `eh3d-phoenix-eagle` in `src/codes.rs`, `eh3d-phoenix-hub` in `src/lib.rs`, `eh3d-phoenix-export` in `src/codes.rs` and `src/fabcodes.rs`, `eh3d-phoenix-schematic` in `src/model.rs`, `src/draw.rs`, `src/edit.rs`, `src/link.rs`, `src/hier.rs` and `src/bus.rs`, `eh3d-phoenix-board` in `src/validate.rs`, `src/connectivity.rs` and `src/rules.rs`, `eh3d-phoenix-rules` in `src/codes.rs` and `src/advanced/codes.rs`, `eh3d-phoenix-stackup` and `eh3d-phoenix-rf` in `src/error.rs`, `eh3d-phoenix-viewer`, `eh3d-phoenix-sanitizer`, `eh3d-phoenix-erc`, `eh3d-phoenix-sync`, `eh3d-phoenix-schedit`, `eh3d-phoenix-boardedit` (also in `src/pair_codes.rs`, `src/shove_codes.rs` and `src/zone_codes.rs`), `eh3d-phoenix-libedit`, `eh3d-phoenix-zones`, `eh3d-phoenix-autoroute`, `eh3d-phoenix-lengths`, `eh3d-phoenix-stats`, `eh3d-phoenix-testpoints`, `eh3d-phoenix-ipc2581`, `eh3d-phoenix-server`, `eh3d-phoenix-boarddiff`, `eh3d-phoenix-ulp`, `eh3d-phoenix-gerber`, `eh3d-phoenix-panel`, `eh3d-phoenix-bom`, `eh3d-phoenix-assembly3d`, `eh3d-phoenix-si`, `eh3d-phoenix-eagle-deep`, `eh3d-phoenix-eaglebin` and `eh3d-phoenix-oracle` in `src/codes.rs`, `eh3d-phoenix-corpus` in `src/suite/codes.rs`); a test of each crate checks that every code of its registry is in the table with the same title.
 
 ## Model foundations
 
@@ -420,6 +420,24 @@ The titles of these codes also exist in the eight languages of the suite (`TITLE
 | PHOENIX-SAN-014 | The plan was not confirmed with its code | `phoenix sanitize --apply --confirm CODE` was given a code that is not the one of the plan; nothing is applied and nothing is written |
 | PHOENIX-SAN-015 | The plan cannot be applied | a plan whose format is not `phoenix-sanitize-plan/1`, or `--group` names a group that the plan does not have |
 | PHOENIX-SAN-016 | A step of the plan was left out | information in the report of an application: the step turns, mirrors or shifts the part, renames pads or pins, is a device set, is only close (without `--allow-near`), or its library or item is missing, named twice or not UTF-8 text; the reason is in the report |
+
+## Binary libraries (`eh3d-phoenix-eaglebin`, `src/codes.rs`)
+
+The titles of these codes also exist in the eight languages of the suite (`TITLES` in `src/codes.rs`); the detail of a message and the subject of a note are in English. Codes 001 to 005 stop the read; codes 006 to 011 are notes of the conversion report (`EAGLE_BINARY.md`).
+
+| Code | Title | Raised by |
+|---|---|---|
+| PHOENIX-EAGLEBIN-001 | Not an EAGLE binary file | bytes that do not start with the header of a binary file |
+| PHOENIX-EAGLEBIN-002 | Binary version outside 3 to 5 | a file written by another version |
+| PHOENIX-EAGLEBIN-003 | Size or count limit exceeded | a file, a number of records, strings or items, a long string or the work of resolving references over its limit |
+| PHOENIX-EAGLEBIN-004 | Record counts do not agree | a count that reaches past the records, a section of another size or a record of another kind where one is expected |
+| PHOENIX-EAGLEBIN-005 | Binary file is not a library | a binary file whose layers are not followed by a library, such as a board or a schematic |
+| PHOENIX-EAGLEBIN-006 | Long strings do not match their fields | a field that asks for a long string when none is left, strings that no field asks for or a list cut short; names may then be wrong |
+| PHOENIX-EAGLEBIN-007 | Object not converted | a record of an unknown kind, or the connections of a device that do not fit its pins and pads |
+| PHOENIX-EAGLEBIN-008 | Value not recognised, default used | a shape, font, arc kind, flag or count that the reader does not know or only infers |
+| PHOENIX-EAGLEBIN-009 | Reference to something that does not exist | a gate of a missing symbol, a device of a missing footprint or a name used twice |
+| PHOENIX-EAGLEBIN-010 | Text read as Latin-1 | a text that is not UTF-8 (information) |
+| PHOENIX-EAGLEBIN-011 | Data of the file not interpreted | the settings and grid of the editor, angles of arcs computed from a stored centre and bytes with no place in a library (information) |
 
 ## Library editor (`eh3d-phoenix-libedit`, `src/codes.rs`)
 
