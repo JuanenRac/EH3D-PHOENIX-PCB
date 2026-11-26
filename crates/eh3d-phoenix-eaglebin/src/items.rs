@@ -456,7 +456,12 @@ pub fn frame(r: &Record, place: &str, report: &mut Report) -> Item {
     ];
     // a bit that is set turns a border off
     let flags = r[22];
-    for (bit, side) in [(0x01, "left"), (0x02, "top"), (0x04, "right"), (0x08, "bottom")] {
+    for (bit, side) in [
+        (0x01, "left"),
+        (0x02, "top"),
+        (0x04, "right"),
+        (0x08, "bottom"),
+    ] {
         if flags & bit != 0 {
             attrs.push(pair(&format!("border-{side}"), "no"));
         }
