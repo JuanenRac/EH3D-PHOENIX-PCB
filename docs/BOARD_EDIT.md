@@ -44,6 +44,8 @@ An operation is one change that is asked for. It is a value (`EditOp`) that can 
 
 An operation is planned into the reversible operations of `eh3d-phoenix-board` (one batch), tried on a copy of the board and checked by the design rules (`docs/RULES.md`): the findings before and after are compared. An operation that the board refuses, or that adds a finding that is an error, is refused and changes nothing, not the board, not the history and not the ids (`PHOENIX-BEDIT-004`, `PHOENIX-BEDIT-005`), unless it is `forced` or `reject_new_errors` is off. The result of every operation carries a report: the rule errors before and after, and the findings added and removed. Some operations have alternatives (the other corner, the other side of the meanders); the first one that the board accepts and the rules pass is kept.
 
+The findings of the board before each of the latest steps are kept with the history (`undo_remembered_checks` in `config/boardedit.cfg`, 64 by default, 0 to 4096), so undo and redo show them without checking the whole board again; they are the ones a new check gives, and a step whose findings were not kept, or were made with the advanced checks set the other way, is checked again.
+
 Undo and redo give back the same bytes. The ids of the parts the editor makes come from a supply that skips every id the board uses, so the same board and the same operations always give the same bytes.
 
 ## The selection of several objects

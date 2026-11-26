@@ -100,6 +100,8 @@ python -I -m unittest discover -s tools -p "test_*.py"
 
 **Bibliotecas binárias.** O `phoenix libedit` lê também as bibliotecas binárias do EAGLE das versões 3 a 5: footprints, símbolos e dispositivos com as suas ligações, e um relatório de tudo o que não foi lido tal como está; `--out` guarda o resultado como biblioteca XML. O formato binário nunca é escrito. O programa só foi experimentado com pequenas bibliotecas feitas à mão para os seus testes; ver [docs/EAGLE_BINARY.md](docs/EAGLE_BINARY.md).
 
+**Placas grandes.** A verificação após cada edição, as ligações por encaminhar, anular e refazer e o encaminhador automático próprio são feitos para continuarem rápidos quando a placa cresce, e o encaminhador revê as suas pistas para gastar menos vias. Só foi medido em placas sintéticas criadas pelos testes, nunca num projeto real; ver [docs/PERFORMANCE.md](docs/PERFORMANCE.md) e [docs/AUTOROUTE_NATIVE.md](docs/AUTOROUTE_NATIVE.md).
+
 ## 🧪 Testes
 
 O código tem 5495 testes (`cargo test`) e a base tem 69 (`python -I -m unittest discover -s tools -p "test_*.py"`); todos passam num computador. A CI executa a verificação do repositório, a das imagens, os testes da base e, para o código Rust, a verificação do formato, o clippy com os avisos tratados como erros e os testes em Linux e Windows.

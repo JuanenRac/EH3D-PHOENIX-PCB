@@ -100,6 +100,8 @@ python -I -m unittest discover -s tools -p "test_*.py"
 
 **バイナリライブラリ。** `phoenix libedit` は EAGLE バージョン 3～5 のバイナリライブラリも読み取ります。フットプリント、シンボル、デバイスとその接続に加え、そのまま読み取れなかったものすべてのレポートを出し、`--out` で結果を XML ライブラリとして保存します。バイナリ形式を書き出すことはありません。このプログラムを試したのは、テスト用に手で作った小さなライブラリだけです。[docs/EAGLE_BINARY.md](docs/EAGLE_BINARY.md) を参照してください。
 
+**大きな基板。** 編集のたびのチェック、未配線の接続、元に戻すとやり直し、内蔵オートルーターは、基板が大きくなっても速さを保つように作られており、オートルーターはビアを減らすために配線を見直します。測定はテストが生成した人工の基板だけで行い、実際の設計では行っていません。[docs/PERFORMANCE.md](docs/PERFORMANCE.md) と [docs/AUTOROUTE_NATIVE.md](docs/AUTOROUTE_NATIVE.md) を参照してください。
+
 ## 🧪 テスト
 
 コードには 5495 件のテスト（`cargo test`）、基盤には 69 件のテスト（`python -I -m unittest discover -s tools -p "test_*.py"`）があり、すべてコンピューター上で通っています。CI は、リポジトリ チェック、画像のチェック、基盤のテストに加え、Rust コードについては書式チェック、警告をエラーとする clippy、そしてテストを Linux と Windows で実行します。

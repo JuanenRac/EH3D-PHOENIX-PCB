@@ -100,6 +100,8 @@ python -I -m unittest discover -s tools -p "test_*.py"
 
 **Binary libraries.** `phoenix libedit` also reads the binary libraries of EAGLE versions 3 to 5: footprints, symbols and device sets with their connections, and a report of everything that was not read as it is; `--out` saves the result as an XML library. It never writes the binary form. The program has only been tried on small libraries made by hand for its tests; see [docs/EAGLE_BINARY.md](docs/EAGLE_BINARY.md).
 
+**Large boards.** The check after each edit, the ratsnest, undo and redo and the built-in autorouter are made to stay quick as a board grows, and the autorouter goes over its routes again to spend fewer vias. It has been measured on synthetic boards made by the tests only, never on a real design; see [docs/PERFORMANCE.md](docs/PERFORMANCE.md) and [docs/AUTOROUTE_NATIVE.md](docs/AUTOROUTE_NATIVE.md).
+
 ## 🧪 Testing
 
 The code has 5495 tests (`cargo test`) and the base has 69 (`python -I -m unittest discover -s tools -p "test_*.py"`); all pass on a computer. The CI runs the repository check, the check of the pictures, the tests of the base and, for the Rust code, the format check, clippy with warnings as errors and the tests on Linux and Windows.

@@ -100,6 +100,8 @@ python -I -m unittest discover -s tools -p "test_*.py"
 
 **二进制库。** `phoenix libedit` 也能读取 EAGLE 版本 3 至 5 的二进制库：封装、符号、器件及其连接，并报告所有未能原样读取的内容；`--out` 将结果保存为 XML 库。它从不写出二进制格式。该程序只在为测试手工制作的小型库上试过；见 [docs/EAGLE_BINARY.md](docs/EAGLE_BINARY.md)。
 
+**大型电路板。** 每次编辑后的检查、待布线的连接、撤销与重做以及内置自动布线器，都力求在电路板变大时仍然快速；自动布线器还会回头优化走线以少用过孔。这些只在测试生成的合成电路板上测量过，从未在真实设计上测量；见 [docs/PERFORMANCE.md](docs/PERFORMANCE.md) 和 [docs/AUTOROUTE_NATIVE.md](docs/AUTOROUTE_NATIVE.md)。
+
 ## 🧪 测试
 
 代码有 5495 个测试（`cargo test`），基础部分有 69 个（`python -I -m unittest discover -s tools -p "test_*.py"`）；全部在计算机上通过。CI 运行仓库检查、图片检查、基础部分的测试，并对 Rust 代码在 Linux 和 Windows 上运行格式检查、把警告当作错误的 clippy 以及测试。
