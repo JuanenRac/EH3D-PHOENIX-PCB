@@ -1,5 +1,5 @@
 //! The codes of the pick and place file, the stencil and the fabrication package:
-//! `PHOENIX-PNP-<NNN>`, `PHOENIX-STENCIL-<NNN>` and `PHOENIX-FABPACK-<NNN>`, with their titles in the
+//! `PHOENIX-PCBPNP-<NNN>`, `PHOENIX-STENCIL-<NNN>` and `PHOENIX-FABPACK-<NNN>`, with their titles in the
 //! eight languages of the suite, the finding of a run and the error that carries a code.
 
 use std::fmt;
@@ -7,27 +7,27 @@ use std::fmt;
 use crate::messages::Lang;
 
 /// The pick and place settings are not valid.
-pub const PNP_SETTINGS_INVALID: &str = "PHOENIX-PNP-001";
+pub const PNP_SETTINGS_INVALID: &str = "PHOENIX-PCBPNP-001";
 /// A component has no footprint on the board.
-pub const PNP_NO_FOOTPRINT: &str = "PHOENIX-PNP-002";
+pub const PNP_NO_FOOTPRINT: &str = "PHOENIX-PCBPNP-002";
 /// A footprint has no pads, so the origin of the component is its centre.
-pub const PNP_NO_PADS: &str = "PHOENIX-PNP-003";
+pub const PNP_NO_PADS: &str = "PHOENIX-PCBPNP-003";
 /// A reference designator is used by two components.
-pub const PNP_DUPLICATE: &str = "PHOENIX-PNP-004";
+pub const PNP_DUPLICATE: &str = "PHOENIX-PCBPNP-004";
 /// A component has no reference designator.
-pub const PNP_NO_REFDES: &str = "PHOENIX-PNP-005";
+pub const PNP_NO_REFDES: &str = "PHOENIX-PCBPNP-005";
 /// A part that is not fitted was left out or marked.
-pub const PNP_NOT_FITTED: &str = "PHOENIX-PNP-006";
+pub const PNP_NOT_FITTED: &str = "PHOENIX-PCBPNP-006";
 /// The centre of a part is outside the bounding box of the board outline.
-pub const PNP_OUTSIDE: &str = "PHOENIX-PNP-007";
+pub const PNP_OUTSIDE: &str = "PHOENIX-PCBPNP-007";
 /// A command option is not valid.
-pub const PNP_OPTION_INVALID: &str = "PHOENIX-PNP-008";
+pub const PNP_OPTION_INVALID: &str = "PHOENIX-PCBPNP-008";
 /// An output file exists or cannot be written.
-pub const PNP_OUTPUT_FAILED: &str = "PHOENIX-PNP-009";
+pub const PNP_OUTPUT_FAILED: &str = "PHOENIX-PCBPNP-009";
 /// The rotation of parts was corrected for the machine.
-pub const PNP_ROTATION_CORRECTED: &str = "PHOENIX-PNP-010";
+pub const PNP_ROTATION_CORRECTED: &str = "PHOENIX-PCBPNP-010";
 /// The board has no components.
-pub const PNP_NO_COMPONENTS: &str = "PHOENIX-PNP-011";
+pub const PNP_NO_COMPONENTS: &str = "PHOENIX-PCBPNP-011";
 
 /// The stencil settings are not valid.
 pub const STENCIL_SETTINGS_INVALID: &str = "PHOENIX-STENCIL-001";
@@ -616,16 +616,29 @@ mod tests {
     }
 
     #[test]
+    fn no_code_has_the_prefix_of_the_pick_and_place_program() {
+        // EH3D-PHOENIX-PNP owns that prefix, with the same numbers and other meanings
+        let own = TITLES
+            .iter()
+            .filter(|(code, _)| code.starts_with("PHOENIX-PCBPNP-"))
+            .count();
+        assert_eq!(own, 11);
+        for (code, _) in TITLES {
+            assert!(!code.starts_with("PHOENIX-PNP-"), "{code}");
+        }
+    }
+
+    #[test]
     fn the_message_names_the_code_the_title_and_the_detail() {
         let e = FabError::new(PNP_NO_FOOTPRINT, "R1");
         assert_eq!(
             e.message(Lang::Pt),
-            "PHOENIX-PNP-002: O componente não tem pegada na placa: R1"
+            "PHOENIX-PCBPNP-002: O componente não tem pegada na placa: R1"
         );
-        assert_eq!(e.to_string(), "PHOENIX-PNP-002: R1");
+        assert_eq!(e.to_string(), "PHOENIX-PCBPNP-002: R1");
         assert_eq!(
             FabError::new(PNP_NO_FOOTPRINT, "").message(Lang::En),
-            "PHOENIX-PNP-002: Component has no footprint on the board"
+            "PHOENIX-PCBPNP-002: Component has no footprint on the board"
         );
         assert_eq!(title("PHOENIX-X-999", Lang::En), "PHOENIX-X-999");
     }
@@ -635,7 +648,7 @@ mod tests {
         let f = Finding::new(PNP_NOT_FITTED, Severity::Info, "C9", "left out");
         assert_eq!(
             f.line(Lang::En),
-            "info: PHOENIX-PNP-006: Part is not fitted [C9]: left out"
+            "info: PHOENIX-PCBPNP-006: Part is not fitted [C9]: left out"
         );
         assert!(Severity::Error > Severity::Warning);
     }

@@ -1,6 +1,6 @@
 # EH3D-PHOENIX-PCB: diagnostic codes
 
-Codes have the form `PHOENIX-<AREA>-<NNN>`. A code is stable: it never changes its meaning and is never reused. Programs show the text through the key `diag.<code>`; the codes themselves are never translated. The object identity (UUID v7) is the one of the shared container, with its own codes `EH3D-ID-001` and `EH3D-ID-002`. The container codes `EH3D-PKG-001` to `EH3D-PKG-014` belong to the shared container and are listed in the registry of the documentation repository.
+Codes have the form `PHOENIX-<AREA>-<NNN>`. A code is stable: it never changes its meaning and is never reused. Programs show the text through the key `diag.<code>`; the codes themselves are never translated. The object identity (UUID v7) is the one of the shared container, with its own codes `EH3D-ID-001` and `EH3D-ID-002`. The container codes `EH3D-PKG-001` to `EH3D-PKG-024` belong to the shared container and are listed in the registry of the documentation repository.
 
 Each table repeats the `REGISTRY` of a crate (`eh3d-phoenix-model` in `src/diagnostic.rs`, `eh3d-phoenix-project` and `eh3d-phoenix-eagle` in `src/codes.rs`, `eh3d-phoenix-hub` in `src/lib.rs`, `eh3d-phoenix-export` in `src/codes.rs` and `src/fabcodes.rs`, `eh3d-phoenix-schematic` in `src/model.rs`, `src/draw.rs`, `src/edit.rs`, `src/link.rs`, `src/hier.rs` and `src/bus.rs`, `eh3d-phoenix-board` in `src/validate.rs`, `src/connectivity.rs` and `src/rules.rs`, `eh3d-phoenix-rules` in `src/codes.rs` and `src/advanced/codes.rs`, `eh3d-phoenix-stackup` and `eh3d-phoenix-rf` in `src/error.rs`, `eh3d-phoenix-viewer`, `eh3d-phoenix-sanitizer`, `eh3d-phoenix-erc`, `eh3d-phoenix-sync`, `eh3d-phoenix-schedit`, `eh3d-phoenix-boardedit` (also in `src/pair_codes.rs`, `src/shove_codes.rs` and `src/zone_codes.rs`), `eh3d-phoenix-libedit`, `eh3d-phoenix-zones`, `eh3d-phoenix-autoroute`, `eh3d-phoenix-lengths`, `eh3d-phoenix-stats`, `eh3d-phoenix-testpoints`, `eh3d-phoenix-ipc2581`, `eh3d-phoenix-server`, `eh3d-phoenix-boarddiff`, `eh3d-phoenix-ulp`, `eh3d-phoenix-gerber`, `eh3d-phoenix-panel`, `eh3d-phoenix-bom`, `eh3d-phoenix-assembly3d`, `eh3d-phoenix-si`, `eh3d-phoenix-eagle-deep`, `eh3d-phoenix-eaglebin` and `eh3d-phoenix-oracle` in `src/codes.rs`, `eh3d-phoenix-corpus` in `src/suite/codes.rs`); a test of each crate checks that every code of its registry is in the table with the same title.
 
@@ -1332,19 +1332,21 @@ The titles of these codes also exist in the eight languages of the suite (`TITLE
 
 ## Pick and place files (`eh3d-phoenix-export`, `src/fabcodes.rs`)
 
+These codes of `phoenix pnp` were published with the prefix `PHOENIX-PNP-` in earlier releases. That prefix belongs to the program EH3D-PHOENIX-PNP, where the same numbers mean other things, so they are now `PHOENIX-PCBPNP-` with the same numbers and meanings. A filter or a script that looks for the old prefix has to be changed.
+
 | Code | Title | Raised by |
 |---|---|---|
-| PHOENIX-PNP-001 | Pick and place settings are not valid | a line of `config/pnp_rotations.cfg` that is not `key = value`, an unknown key, a section given twice, a value that cannot be read or is out of range, a maker that is not a section |
-| PHOENIX-PNP-002 | Component has no footprint on the board | warning: a component that names a footprint the board does not have; its origin is used as its centre |
-| PHOENIX-PNP-003 | Footprint has no pads, the origin is the centre | information: a footprint without pads |
-| PHOENIX-PNP-004 | Reference designator is used twice | warning: two components with the same designator (one finding for each designator) |
-| PHOENIX-PNP-005 | Component has no reference designator | warning: a component whose designator is empty |
-| PHOENIX-PNP-006 | Part is not fitted | information: a part that the file of part data or `--dnp` says is not fitted, left out of the lines or marked |
-| PHOENIX-PNP-007 | Part is outside the board outline | warning: the centre of a part is outside the box of the outline |
-| PHOENIX-PNP-008 | Option is not valid | an option of `phoenix pnp` that is unknown, has no value or a value out of its set |
-| PHOENIX-PNP-009 | Output file exists or cannot be written | the folder named by `--out` exists or cannot be created (nothing is written then) |
-| PHOENIX-PNP-010 | Rotation corrected for the machine | information: the number of parts whose footprint matched a `rotate` line with an extra rotation |
-| PHOENIX-PNP-011 | Board has no components | warning: a board with no placed component |
+| PHOENIX-PCBPNP-001 | Pick and place settings are not valid | a line of `config/pnp_rotations.cfg` that is not `key = value`, an unknown key, a section given twice, a value that cannot be read or is out of range, a maker that is not a section |
+| PHOENIX-PCBPNP-002 | Component has no footprint on the board | warning: a component that names a footprint the board does not have; its origin is used as its centre |
+| PHOENIX-PCBPNP-003 | Footprint has no pads, the origin is the centre | information: a footprint without pads |
+| PHOENIX-PCBPNP-004 | Reference designator is used twice | warning: two components with the same designator (one finding for each designator) |
+| PHOENIX-PCBPNP-005 | Component has no reference designator | warning: a component whose designator is empty |
+| PHOENIX-PCBPNP-006 | Part is not fitted | information: a part that the file of part data or `--dnp` says is not fitted, left out of the lines or marked |
+| PHOENIX-PCBPNP-007 | Part is outside the board outline | warning: the centre of a part is outside the box of the outline |
+| PHOENIX-PCBPNP-008 | Option is not valid | an option of `phoenix pnp` that is unknown, has no value or a value out of its set |
+| PHOENIX-PCBPNP-009 | Output file exists or cannot be written | the folder named by `--out` exists or cannot be created (nothing is written then) |
+| PHOENIX-PCBPNP-010 | Rotation corrected for the machine | information: the number of parts whose footprint matched a `rotate` line with an extra rotation |
+| PHOENIX-PCBPNP-011 | Board has no components | warning: a board with no placed component |
 
 ## Solder paste stencil (`eh3d-phoenix-export`, `src/fabcodes.rs`)
 

@@ -12,13 +12,13 @@ The centre is worked out from the footprint of the part and written in the coord
 * `centre = pads`: the mean of the centres of the pads;
 * `centre = origin`: the origin of the footprint, as it is placed.
 
-A part on the bottom face is mirrored about the vertical axis before it is turned, as the model does for its pads. A footprint without pads, or a component whose footprint is not on the board, uses its origin as its centre (`PHOENIX-PNP-003`, `PHOENIX-PNP-002`).
+A part on the bottom face is mirrored about the vertical axis before it is turned, as the model does for its pads. A footprint without pads, or a component whose footprint is not on the board, uses its origin as its centre (`PHOENIX-PCBPNP-003`, `PHOENIX-PCBPNP-002`).
 
 ## The rotation
 
 The rotation written is the turn of the component plus the extra rotation of the table, brought to the range from 0 up to a full turn, and then the rule for the bottom face (`bottom_rotation`: `keep`, `mirror` or `half_turn`, the same three choices as the placement file of the export profiles).
 
-The table is made of `rotate = PATTERN DEGREES` lines. `PATTERN` is matched against the name of the footprint without regard to the case, with `*` for any run of characters and `?` for one; the first line that matches wins. Lines after `[name]` belong to a machine or a maker and are chosen with `--maker name`; they are tried before the lines above the first section. A part that a line turned is counted in one finding (`PHOENIX-PNP-010`).
+The table is made of `rotate = PATTERN DEGREES` lines. `PATTERN` is matched against the name of the footprint without regard to the case, with `*` for any run of characters and `?` for one; the first line that matches wins. Lines after `[name]` belong to a machine or a maker and are chosen with `--maker name`; they are tried before the lines above the first section. A part that a line turned is counted in one finding (`PHOENIX-PCBPNP-010`).
 
 ```
 rotate = SOT23* 180
@@ -34,11 +34,11 @@ rotate = QFN* 90
 * `origin = aux`: the point `aux_x_mm`, `aux_y_mm` of the coordinates of the board;
 * `origin = panel`: the origin of a panel in which the lower left corner of the board is at `panel_x_mm`, `panel_y_mm`. The place is a setting; it is not read from the plan of `phoenix panel`.
 
-`units = mm` (the default) or `mil` (thousandths of an inch). Coordinates are written with `decimals` digits and the rotation with `rotation_decimals`, rounded half away from zero by integer arithmetic, so no number passes through a floating-point text. A part whose centre is outside the box of the outline is reported (`PHOENIX-PNP-007`).
+`units = mm` (the default) or `mil` (thousandths of an inch). Coordinates are written with `decimals` digits and the rotation with `rotation_decimals`, rounded half away from zero by integer arithmetic, so no number passes through a floating-point text. A part whose centre is outside the box of the outline is reported (`PHOENIX-PCBPNP-007`).
 
 ## Parts that are not fitted
 
-The set of designators that are not fitted comes from the file of part data of `phoenix bom` (`--parts`: the lines with `fitted` equal to `no`, by designator or by value and footprint) and from `--dnp R1,R2`. With `not_fitted = exclude` (the default) they are left out of the lines and listed in the JSON file (`not_fitted`); with `mark` they stay in the lines and the CSV gets a `Status` column (`fitted` or `not_fitted`). Each one is reported (`PHOENIX-PNP-006`). Two components with the same designator and a component without one are reported too (`PHOENIX-PNP-004`, `PHOENIX-PNP-005`); the parts stay in the file.
+The set of designators that are not fitted comes from the file of part data of `phoenix bom` (`--parts`: the lines with `fitted` equal to `no`, by designator or by value and footprint) and from `--dnp R1,R2`. With `not_fitted = exclude` (the default) they are left out of the lines and listed in the JSON file (`not_fitted`); with `mark` they stay in the lines and the CSV gets a `Status` column (`fitted` or `not_fitted`). Each one is reported (`PHOENIX-PCBPNP-006`). Two components with the same designator and a component without one are reported too (`PHOENIX-PCBPNP-004`, `PHOENIX-PCBPNP-005`); the parts stay in the file.
 
 ## The files
 
@@ -57,11 +57,11 @@ phoenix pnp [--config FILE] [--maker NAME] [--parts FILE] [--dnp R1,R2,...]
             [--assembler NAME [--assembler-config FILE]] [--lang CODE] [--out FOLDER] <board>
 ```
 
-It is a dry run: it prints the number of parts of each face and the findings. With `--out` it writes the files to a folder that does not exist yet; an existing folder is never touched (`PHOENIX-PNP-009`). Exit code 0 is done and 2 is any refusal. The codes `PHOENIX-PNP-001` to `011` are in `docs/ERROR_CODES.md` with their titles in the eight languages.
+It is a dry run: it prints the number of parts of each face and the findings. With `--out` it writes the files to a folder that does not exist yet; an existing folder is never touched (`PHOENIX-PCBPNP-009`). Exit code 0 is done and 2 is any refusal. The codes `PHOENIX-PCBPNP-001` to `011` are in `docs/ERROR_CODES.md` with their titles in the eight languages.
 
 ## The file of an assembler
 
-`--assembler NAME` also writes one file, `pnp_NAME.csv`, with the parts of both faces (the top face first) in the columns of the placement format of that name: `placement.NAME = Header=field|Header=field|...` in `config/assembler.cfg` (or the file of `--assembler-config`), the same file that holds the formats of the bill of materials (`docs/BOM.md`). The fields are `ref`, `value`, `package`, `x`, `y` (the centre in the unit and with the digits of the settings above, no unit), `x_unit`, `y_unit` (the same with the unit written after the number, `12.5000mm`), `rotation`, `side` (`top` or `bottom`), `layer` (`Top` or `Bottom`) and `blank` (an empty cell). Two formats come with the program, `jlcpcb` (`Designator`, `Mid X`, `Mid Y`, `Layer`, `Rotation`) and `pcbway` (`Designator`, `Comment`, `Footprint`, `Mid X`, `Mid Y`, `Layer`, `Rotation`). The separator is the `delimiter` of `config/assembler.cfg`. Parts that are not fitted are never in this file, whatever `not_fitted` says. **The two formats are not verified:** they are written from the headers the author knows those assemblers ask for and have never been sent to one, and the template of the assembler wins over them. A format that does not exist, or `--assembler-config` alone, is `PHOENIX-PNP-008`.
+`--assembler NAME` also writes one file, `pnp_NAME.csv`, with the parts of both faces (the top face first) in the columns of the placement format of that name: `placement.NAME = Header=field|Header=field|...` in `config/assembler.cfg` (or the file of `--assembler-config`), the same file that holds the formats of the bill of materials (`docs/BOM.md`). The fields are `ref`, `value`, `package`, `x`, `y` (the centre in the unit and with the digits of the settings above, no unit), `x_unit`, `y_unit` (the same with the unit written after the number, `12.5000mm`), `rotation`, `side` (`top` or `bottom`), `layer` (`Top` or `Bottom`) and `blank` (an empty cell). Two formats come with the program, `jlcpcb` (`Designator`, `Mid X`, `Mid Y`, `Layer`, `Rotation`) and `pcbway` (`Designator`, `Comment`, `Footprint`, `Mid X`, `Mid Y`, `Layer`, `Rotation`). The separator is the `delimiter` of `config/assembler.cfg`. Parts that are not fitted are never in this file, whatever `not_fitted` says. **The two formats are not verified:** they are written from the headers the author knows those assemblers ask for and have never been sent to one, and the template of the assembler wins over them. A format that does not exist, or `--assembler-config` alone, is `PHOENIX-PCBPNP-008`.
 
 ## What it does not do
 

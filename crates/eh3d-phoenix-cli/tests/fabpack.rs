@@ -156,7 +156,7 @@ fn pnp_writes_the_centres_of_each_face_to_a_new_folder_only() {
 
     let (code, _, err) = command(&["pnp", "--out", target, board.as_str()]);
     assert_eq!(code, 2);
-    assert!(err.contains("PHOENIX-PNP-009"), "{err}");
+    assert!(err.contains("PHOENIX-PCBPNP-009"), "{err}");
 }
 
 #[test]
@@ -213,7 +213,7 @@ fn pnp_writes_one_placement_file_in_the_columns_of_an_assembler() {
     ] {
         let (code, _, err) = command(&args);
         assert_eq!(code, 2, "{args:?}");
-        assert!(err.contains("PHOENIX-PNP-0"), "{args:?}: {err}");
+        assert!(err.contains("PHOENIX-PCBPNP-0"), "{args:?}: {err}");
     }
 }
 
