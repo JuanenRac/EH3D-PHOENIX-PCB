@@ -95,6 +95,8 @@ python -I -m unittest discover -s tools -p "test_*.py"
 
 **User programs of the reference tool.** `phoenix ulp check` reads a program (a `.ulp` file) with limits and lists what is wrong with its shape, `phoenix ulp report` says what it uses and whether a list of allowed names (`config/ulp_support.cfg`) covers it, and `phoenix ulp run` runs one: pure computation and read-only walks over a board and a schematic (`--board`, `--schematic`), within limits of steps, memory, nesting and output kept in `config/ulp.cfg`, with the same output every time. It starts no program and changes nothing in the design; it reads and writes files only in the one folder that `file_dir` or `--dir` names (none by default), and answers dialogs without a window. It runs in the process of the caller: the sandbox in a process of its own is not written. It was tried on programs written for the project only (`examples/ulp/`), never on a program of a third party or compared with the original tool; see `docs/ULP.md`.
 
+**Starter kit.** The folder `kit/`, also published with each release as `eh3d-phoenix-pcb-kit-<version>.zip` with its SHA-256, holds libraries (passives, semiconductors, generic ICs, connectors and two module types of indicative size), 12 synthetic sample boards with their schematics, 20 user programs with their expected output, rule files and output profiles. All of it was made for this project and is GPL-3.0-or-later; nothing in it was verified with a datasheet or a maker. `phoenix kit list|info|copy` shows and copies its pieces; see [docs/KIT.md](docs/KIT.md).
+
 ## 🧪 Testing
 
 The code has 5423 tests (`cargo test`) and the base has 63 (`python -I -m unittest discover -s tools -p "test_*.py"`); all pass on a computer. The CI runs the repository check, the check of the pictures, the tests of the base and, for the Rust code, the format check, clippy with warnings as errors and the tests on Linux and Windows.
@@ -140,6 +142,7 @@ EH3D-PHOENIX-PCB/
 │   ├── SCRIPT_API.md                            the second script language: reference and limits
 │   ├── SCRIPT_EXAMPLES.md                       its example scripts with their output
 │   ├── ULP.md                                   reference tool programs: reader, report, evaluator
+│   ├── KIT.md                                   the starter kit and the command kit
 │   ├── ERC.md                                   electrical rule check and synchronisation
 │   ├── ANNOTATE.md                              annotation back into the schematic and comparison
 │   ├── SCHEMATIC_EDIT.md                        the schematic editor: operations, nets, window
@@ -197,6 +200,7 @@ EH3D-PHOENIX-PCB/
 ├── examples/                                    example scripts, their output and the files of tutorials and guides
 ├── Cargo.toml Cargo.lock                        the Rust workspace and its locked dependencies
 ├── rust-toolchain.toml                          the pinned Rust toolchain
+├── kit/                                         the starter kit: libraries, samples, programs
 ├── tools/                                       the repository check, its tests and the picture tools
 ├── tests/                                       reference cases and the own corpus of hand-written pieces
 ├── images/                                      banner and the Architecture and Repository Structure pictures

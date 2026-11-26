@@ -1,0 +1,11 @@
+#usage "The parts on each sheet of a schematic with their places"
+// EH3D-PHOENIX-PCB starter kit. SPDX-License-Identifier: GPL-3.0-or-later
+int n = 0;
+schematic(S) {
+  S.sheets(SH) {
+    SH.instances(I) {
+      n++;
+      printf("%2d %-4s %7.2f %7.2f\n", n, I.name, u2mm(I.x), u2mm(I.y));
+    }
+  }
+}

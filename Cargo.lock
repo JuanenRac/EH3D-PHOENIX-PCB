@@ -795,6 +795,7 @@ dependencies = [
  "eh3d-phoenix-zones",
  "serde",
  "serde_json",
+ "sha2",
  "tempfile",
  "winresource",
 ]

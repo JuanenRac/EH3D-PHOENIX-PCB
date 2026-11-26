@@ -24,6 +24,7 @@ The official state of each capability is in REQUIREMENTS.md: 31 requirements: 28
 
 ## Known technical debt and omitted tests
 
+* The starter kit (`kit/`, `docs/KIT.md`) is own work checked only by this program: no footprint was compared with a datasheet or soldered, no profile with a maker, and no file was opened in another tool; the two module footprints are indicative.
 * The board editor of the window has a route that stops at an obstacle or pushes tracks, a rule check while dragging, a measure with snap and its list of steps (`docs/BOARD_EDIT.md`): the logic is tested without a screen, the window has never been seen on one, and the time of the check while dragging has not been measured on a large board.
 * The branch `pcb/` of the `.eh3d` project (`docs/VIEWER.md`) keeps the board, the schematic and the EAGLE file they came from; rules, libraries, zone data, references to other branches and the older `.phoenixproj` files are not carried into it.
 * 5423 tests of the Rust code and 63 of the base; the inventory tests build their own folders and never touch a real project.

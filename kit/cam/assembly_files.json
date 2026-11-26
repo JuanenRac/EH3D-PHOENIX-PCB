@@ -1,0 +1,78 @@
+{
+  "format": "phoenix-export/1",
+  "profiles": [
+    {
+      "name": "kit-assembly",
+      "description": "Starter kit: the basic files with a placement list and a bill of materials in CSV, origin at the lower left corner. Not verified with any assembler",
+      "gerber": {
+        "extension": "gbr",
+        "decimal_digits": 6,
+        "mask_expansion_nm": 50000,
+        "paste_shrink_nm": 0,
+        "outline_width_nm": 100000
+      },
+      "placement": {
+        "file": "placement.csv",
+        "delimiter": ",",
+        "coordinate_decimals": 3,
+        "rotation_decimals": 0,
+        "origin": "outline_min",
+        "side_top": "top",
+        "side_bottom": "bottom",
+        "columns": [
+          {
+            "key": "ref",
+            "header": "Reference"
+          },
+          {
+            "key": "value",
+            "header": "Value"
+          },
+          {
+            "key": "package",
+            "header": "Package"
+          },
+          {
+            "key": "x",
+            "header": "X mm"
+          },
+          {
+            "key": "y",
+            "header": "Y mm"
+          },
+          {
+            "key": "rotation",
+            "header": "Rotation"
+          },
+          {
+            "key": "side",
+            "header": "Side"
+          }
+        ]
+      },
+      "bom": {
+        "file": "bom.csv",
+        "delimiter": ",",
+        "designator_separator": " ",
+        "columns": [
+          {
+            "key": "quantity",
+            "header": "Quantity"
+          },
+          {
+            "key": "value",
+            "header": "Value"
+          },
+          {
+            "key": "package",
+            "header": "Package"
+          },
+          {
+            "key": "designators",
+            "header": "References"
+          }
+        ]
+      }
+    }
+  ]
+}

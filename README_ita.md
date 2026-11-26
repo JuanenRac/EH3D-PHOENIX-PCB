@@ -95,6 +95,8 @@ python -I -m unittest discover -s tools -p "test_*.py"
 
 **Programmi utente dello strumento di riferimento.** `phoenix ulp check` legge un programma (un file `.ulp`) con limiti ed elenca ciò che non va nella sua forma, `phoenix ulp report` dice cosa usa e se un elenco di nomi consentiti (`config/ulp_support.cfg`) lo copre, e `phoenix ulp run` ne esegue uno: calcolo puro e scansioni di sola lettura di una scheda e di uno schema (`--board`, `--schematic`), con limiti di passi, memoria, annidamento e output in `config/ulp.cfg`, e con lo stesso output ogni volta. Non avvia programmi e non cambia nulla del progetto; legge e scrive file solo nell'unica cartella indicata da `file_dir` o `--dir` (nessuna per impostazione predefinita) e risponde ai dialoghi senza finestra. Viene eseguito nel processo di chi lo chiama: la sandbox in un processo separato non è ancora scritta. È stato provato solo con programmi scritti per il progetto (`examples/ulp/`), mai con un programma di terzi né confrontato con lo strumento originale; vedi `docs/ULP.md`.
 
+**Kit iniziale.** La cartella `kit/`, pubblicata anche con ogni versione come `eh3d-phoenix-pcb-kit-<version>.zip` con il suo SHA-256, contiene librerie (passivi, semiconduttori, circuiti generici, connettori e due tipi di modulo con misure indicative), 12 schede di esempio sintetiche con i loro schemi, 20 programmi utente con l'uscita attesa, file di regole e profili di uscita. Tutto è stato fatto per questo progetto ed è GPL-3.0-or-later; nulla è stato verificato con un datasheet o con un produttore. `phoenix kit list|info|copy` mostra e copia i suoi elementi; vedere [docs/KIT.md](docs/KIT.md).
+
 ## 🧪 Test
 
 Il codice ha 5423 test (`cargo test`) e la base ne ha 63 (`python -I -m unittest discover -s tools -p "test_*.py"`); tutti passano su un computer. La CI esegue il controllo del repository, quello delle immagini, i test della base e, per il codice Rust, il controllo del formato, clippy con gli avvisi trattati come errori e i test su Linux e Windows.
@@ -140,6 +142,7 @@ EH3D-PHOENIX-PCB/
 │   ├── SCRIPT_API.md                            il secondo linguaggio di script: riferimento e limiti
 │   ├── SCRIPT_EXAMPLES.md                       i suoi script di esempio con il loro output
 │   ├── ULP.md                                   programmi dello strumento di riferimento: lettore, rapporto, valutatore
+│   ├── KIT.md                                   il kit iniziale e il comando kit
 │   ├── ERC.md                                   controllo elettrico e sincronizzazione
 │   ├── ANNOTATE.md                              annotazione all'indietro nello schema e confronto
 │   ├── SCHEMATIC_EDIT.md                        l'editor di schemi: operazioni, reti, finestra
@@ -197,6 +200,7 @@ EH3D-PHOENIX-PCB/
 ├── examples/                                    script di esempio, il loro output e i file di tutorial e guide
 ├── Cargo.toml Cargo.lock                        il workspace Rust e le sue dipendenze bloccate
 ├── rust-toolchain.toml                          la toolchain Rust fissata
+├── kit/                                         il kit iniziale: librerie, esempi
 ├── tools/                                       il controllo del repository, i suoi test e gli strumenti delle immagini
 ├── tests/                                       casi di riferimento e corpus proprio di pezzi scritti a mano
 ├── images/                                      banner e le immagini di Architettura e Struttura del repository

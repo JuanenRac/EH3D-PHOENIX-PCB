@@ -1,0 +1,15 @@
+#usage "The packages of a board and how many parts use each one"
+// EH3D-PHOENIX-PCB starter kit. SPDX-License-Identifier: GPL-3.0-or-later
+string names[];
+int counts[];
+int kinds = 0;
+board(B) {
+  B.elements(E) {
+    int k = 0;
+    while (k < kinds && names[k] != E.package.name) k++;
+    if (k == kinds) { names[kinds] = E.package.name; counts[kinds] = 0; kinds++; }
+    counts[k]++;
+  }
+}
+sort(kinds, names, counts);
+for (int i = 0; i < kinds; i++) printf("%-18s %d\n", names[i], counts[i]);

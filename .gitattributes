@@ -1,6 +1,9 @@
 # Auto detect text files and perform LF normalization
 * text=auto
 
+# The starter kit keeps its bytes: the catalogue records the SHA-256 of each file.
+kit/** -text
+
 # Shell scripts keep LF, Windows batch files keep CRLF on every platform.
 *.sh text eol=lf
 *.bat text eol=crlf

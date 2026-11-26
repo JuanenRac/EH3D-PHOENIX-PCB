@@ -1,0 +1,15 @@
+#usage "Connections of every net of a schematic and the largest one"
+// EH3D-PHOENIX-PCB starter kit. SPDX-License-Identifier: GPL-3.0-or-later
+int nets = 0, total = 0, biggest = 0;
+string name = "";
+schematic(S) {
+  S.nets(N) {
+    int n = 0;
+    N.segments(G) { G.pinrefs(R) { n++; } }
+    printf("%-8s %d\n", N.name, n);
+    nets++;
+    total += n;
+    if (n > biggest) { biggest = n; name = N.name; }
+  }
+}
+printf("%d nets, %d connections, largest %s with %d\n", nets, total, name, biggest);

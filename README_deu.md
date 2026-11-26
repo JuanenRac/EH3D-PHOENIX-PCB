@@ -95,6 +95,8 @@ python -I -m unittest discover -s tools -p "test_*.py"
 
 **Benutzerprogramme des Referenzwerkzeugs.** `phoenix ulp check` liest ein Programm (eine `.ulp`-Datei) mit Grenzen und listet auf, was an seiner Form falsch ist, `phoenix ulp report` sagt, was es verwendet und ob eine Liste erlaubter Namen (`config/ulp_support.cfg`) es abdeckt, und `phoenix ulp run` führt eines aus: reine Berechnung und schreibgeschützte Durchläufe über eine Platine und einen Schaltplan (`--board`, `--schematic`), mit Grenzen für Schritte, Speicher, Verschachtelung und Ausgabe in `config/ulp.cfg` und mit jedes Mal derselben Ausgabe. Es startet kein Programm und ändert nichts am Entwurf; Dateien liest und schreibt es nur in dem einen Ordner, den `file_dir` oder `--dir` nennt (standardmäßig keinen), und Dialoge beantwortet es ohne Fenster. Es läuft im Prozess des Aufrufers: Die Sandbox in einem eigenen Prozess ist noch nicht geschrieben. Es wurde nur mit für das Projekt geschriebenen Programmen ausprobiert (`examples/ulp/`), nie mit dem Programm eines Dritten und nie mit dem Originalwerkzeug verglichen; siehe `docs/ULP.md`.
 
+**Starterkit.** Der Ordner `kit/`, der jeder Version auch als `eh3d-phoenix-pcb-kit-<version>.zip` mit SHA-256 beiliegt, enthält Bibliotheken (passive Bauteile, Halbleiter, allgemeine ICs, Steckverbinder und zwei Modultypen mit Richtmaßen), 12 synthetische Beispielplatinen mit ihren Schaltplänen, 20 Benutzerprogramme mit ihrer erwarteten Ausgabe, Regeldateien und Ausgabeprofile. Alles wurde für dieses Projekt erstellt und steht unter GPL-3.0-or-later; nichts davon wurde mit einem Datenblatt oder einem Hersteller geprüft. `phoenix kit list|info|copy` zeigt und kopiert seine Teile; siehe [docs/KIT.md](docs/KIT.md).
+
 ## 🧪 Tests
 
 Der Code hat 5423 Tests (`cargo test`), die Basis hat 63 (`python -I -m unittest discover -s tools -p "test_*.py"`); alle bestehen auf einem Rechner. Die CI führt die Repository-Prüfung, die Prüfung der Bilder, die Tests der Basis und für den Rust-Code die Formatprüfung, clippy mit Warnungen als Fehlern und die Tests unter Linux und Windows aus.
@@ -140,6 +142,7 @@ EH3D-PHOENIX-PCB/
 │   ├── SCRIPT_API.md                            die zweite Skriptsprache: Referenz und Grenzen
 │   ├── SCRIPT_EXAMPLES.md                       seine Beispielskripte mit ihrer Ausgabe
 │   ├── ULP.md                                   Programme des Referenzwerkzeugs: Leser, Bericht, Auswerter
+│   ├── KIT.md                                   das Starterkit und der Befehl kit
 │   ├── ERC.md                                   elektrische Regelprüfung und Abgleich
 │   ├── ANNOTATE.md                              Rückannotation in den Schaltplan und Vergleich
 │   ├── SCHEMATIC_EDIT.md                        der Schaltplan-Editor: Operationen, Netze, Fenster
@@ -197,6 +200,7 @@ EH3D-PHOENIX-PCB/
 ├── examples/                                    Beispielskripte, ihre Ausgabe, Dateien der Anleitungen und Guides
 ├── Cargo.toml Cargo.lock                        der Rust-Workspace und seine festgelegten Abhängigkeiten
 ├── rust-toolchain.toml                          die festgelegte Rust-Toolchain
+├── kit/                                         das Starterkit: Bibliotheken, Beispiele
 ├── tools/                                       die Repository-Prüfung, ihre Tests und die Bild-Werkzeuge
 ├── tests/                                       Referenzfälle und das eigene Korpus handgeschriebener Stücke
 ├── images/                                      Banner und die Bilder von Architektur und Repository-Struktur

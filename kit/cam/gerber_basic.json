@@ -1,0 +1,23 @@
+{
+  "format": "phoenix-export/1",
+  "profiles": [
+    {
+      "name": "kit-gerber-basic",
+      "description": "Starter kit: Gerber with six decimals and a drill file with a decimal point. Not verified with any maker",
+      "gerber": {
+        "extension": "gbr",
+        "decimal_digits": 6,
+        "mask_expansion_nm": 50000,
+        "paste_shrink_nm": 0,
+        "outline_width_nm": 100000
+      },
+      "drill": {
+        "style": "decimal",
+        "decimals": 3,
+        "plated_file": "drill_pth.drl",
+        "non_plated_file": "drill_npth.drl",
+        "oblong_as_slot": true
+      }
+    }
+  ]
+}

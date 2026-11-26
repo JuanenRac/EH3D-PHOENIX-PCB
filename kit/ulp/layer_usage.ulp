@@ -1,0 +1,9 @@
+#usage "The layers of a board and the pieces of track on each one"
+// EH3D-PHOENIX-PCB starter kit. SPDX-License-Identifier: GPL-3.0-or-later
+board(B) {
+  B.layers(L) {
+    int n = 0;
+    B.wires(W) { if (W.layer == L.number) n++; }
+    printf("%2d %-10s %d wires\n", L.number, L.name, n);
+  }
+}

@@ -1,0 +1,22 @@
+#usage "Bill of materials grouped by value and package, with the references"
+// EH3D-PHOENIX-PCB starter kit. SPDX-License-Identifier: GPL-3.0-or-later
+string keys[], values[], packages[], refs[];
+int counts[];
+int lines = 0;
+board(B) {
+  B.elements(E) {
+    string key = E.value + "|" + E.package.name;
+    int k = 0;
+    while (k < lines && keys[k] != key) k++;
+    if (k == lines) {
+      keys[k] = key; values[k] = E.value; packages[k] = E.package.name;
+      refs[k] = E.name; counts[k] = 0; lines++;
+    } else {
+      refs[k] = refs[k] + " " + E.name;
+    }
+    counts[k]++;
+  }
+}
+sort(lines, keys, values, packages, counts, refs);
+for (int i = 0; i < lines; i++) printf("%3d  %-12s %-18s %s\n", counts[i], values[i], packages[i], refs[i]);
+printf("%d lines\n", lines);

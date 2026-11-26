@@ -1,0 +1,4 @@
+value;package;quantity;references
+330;CHIP-0603;4;R1 R2 R3 R4
+LEDS;HDR-1X05;1;J1
+RED;LED-0603;4;D1 D2 D3 D4

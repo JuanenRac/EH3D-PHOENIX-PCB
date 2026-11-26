@@ -1650,6 +1650,32 @@ The same titles in the eight languages of the suite (English, Spanish, German, F
 | PHOENIX-SEC-002 | The side file of the write is already there | Ya existe el fichero auxiliar de la escritura | Die Hilfsdatei des Schreibvorgangs ist bereits vorhanden | Le fichier auxiliaire de l'écriture existe déjà | Il file ausiliario della scrittura esiste già | 書き込み用の補助ファイルが既に存在します | 写入用的辅助文件已存在 | O ficheiro auxiliar da escrita já existe |
 | PHOENIX-SEC-003 | Settings file is larger than its limit | El fichero de ajustes supera su límite | Die Einstellungsdatei ist größer als ihr Grenzwert | Le fichier de réglages dépasse sa limite | Il file delle impostazioni supera il suo limite | 設定ファイルが上限を超えています | 设置文件超过其限制 | O ficheiro de definições excede o seu limite |
 
+## Starter kit (`eh3d-phoenix-cli`, `src/kit_codes.rs`)
+
+| Code | Title | Raised by |
+|---|---|---|
+| PHOENIX-KIT-001 | The catalogue of the kit cannot be read | a folder without `manifest.json`, or a catalogue that cannot be read or is larger than `max_manifest_bytes` |
+| PHOENIX-KIT-002 | The catalogue of the kit is not valid | not the format `phoenix-kit/1`, a repeated identifier, an unknown type, a title missing in one of the eight languages, a path that is not a plain relative path, or more pieces than `max_items` |
+| PHOENIX-KIT-003 | A file of the kit cannot be used | a file of the kit that is missing, is a link or a folder, or is larger than `max_file_bytes` |
+| PHOENIX-KIT-004 | A file of the kit does not match the catalogue | the SHA-256 of a file is not the one of the catalogue (switch `verify_sha256`) |
+| PHOENIX-KIT-005 | A destination file already exists; nothing is copied | `kit copy` finds a destination that is already there |
+| PHOENIX-KIT-006 | The kit has no piece with this identifier | `kit info` or `kit copy` with an identifier that is not in the catalogue |
+| PHOENIX-KIT-007 | An option or a setting of the kit is not valid | a wrong option of `phoenix kit` or a wrong line of `config/kit.cfg` |
+| PHOENIX-KIT-008 | A file of the kit could not be copied | a folder or a file of the destination cannot be made |
+
+The same titles in the eight languages of the suite, as the program prints them:
+
+| Code | en | es | de | fr | it | ja | zh | pt |
+|---|---|---|---|---|---|---|---|---|
+| PHOENIX-KIT-001 | The catalogue of the kit cannot be read | No se puede leer el catálogo del kit | Der Katalog des Kits kann nicht gelesen werden | Le catalogue du kit ne peut pas être lu | Impossibile leggere il catalogo del kit | キットのカタログを読み取れません | 无法读取套件目录 | Não é possível ler o catálogo do kit |
+| PHOENIX-KIT-002 | The catalogue of the kit is not valid | El catálogo del kit no es válido | Der Katalog des Kits ist ungültig | Le catalogue du kit n'est pas valide | Il catalogo del kit non è valido | キットのカタログが不正です | 套件目录无效 | O catálogo do kit não é válido |
+| PHOENIX-KIT-003 | A file of the kit cannot be used | No se puede usar un fichero del kit | Eine Datei des Kits kann nicht verwendet werden | Un fichier du kit ne peut pas être utilisé | Un file del kit non può essere usato | キットのファイルを使用できません | 套件中的某个文件无法使用 | Não é possível usar um ficheiro do kit |
+| PHOENIX-KIT-004 | A file of the kit does not match the catalogue | Un fichero del kit no coincide con el catálogo | Eine Datei des Kits stimmt nicht mit dem Katalog überein | Un fichier du kit ne correspond pas au catalogue | Un file del kit non corrisponde al catalogo | キットのファイルがカタログと一致しません | 套件中的某个文件与目录不一致 | Um ficheiro do kit não corresponde ao catálogo |
+| PHOENIX-KIT-005 | A destination file already exists; nothing is copied | Ya existe un fichero de destino; no se copia nada | Eine Zieldatei ist bereits vorhanden; nichts wird kopiert | Un fichier de destination existe déjà ; rien n'est copié | Un file di destinazione esiste già; non viene copiato nulla | コピー先のファイルが既に存在するため、何もコピーしません | 目标文件已存在，未复制任何内容 | Já existe um ficheiro de destino; nada é copiado |
+| PHOENIX-KIT-006 | The kit has no piece with this identifier | El kit no tiene ninguna pieza con ese identificador | Das Kit hat kein Teil mit dieser Kennung | Le kit n'a aucun élément avec cet identifiant | Il kit non ha elementi con questo identificativo | この識別子の項目はキットにありません | 套件中没有该标识的条目 | O kit não tem nenhuma peça com este identificador |
+| PHOENIX-KIT-007 | An option or a setting of the kit is not valid | Una opción o un ajuste del kit no es válido | Eine Option oder Einstellung des Kits ist ungültig | Une option ou un réglage du kit n'est pas valide | Un'opzione o un'impostazione del kit non è valida | キットのオプションまたは設定が不正です | 套件的选项或设置无效 | Uma opção ou definição do kit não é válida |
+| PHOENIX-KIT-008 | A file of the kit could not be copied | No se pudo copiar un fichero del kit | Eine Datei des Kits konnte nicht kopiert werden | Un fichier du kit n'a pas pu être copié | Non è stato possibile copiare un file del kit | キットのファイルをコピーできませんでした | 无法复制套件中的某个文件 | Não foi possível copiar um ficheiro do kit |
+
 ## Text netlist (`eh3d-phoenix-sync`, `src/nets_codes.rs`)
 
 | Code | Title | Raised by |

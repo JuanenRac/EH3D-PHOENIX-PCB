@@ -1,0 +1,17 @@
+#usage "Counts the parts of a board by the first letter of their reference"
+// EH3D-PHOENIX-PCB starter kit. SPDX-License-Identifier: GPL-3.0-or-later
+string letters[];
+int counts[];
+int kinds = 0, total = 0;
+board(B) {
+  B.elements(E) {
+    string letter = strsub(E.name, 0, 1);
+    int k = 0;
+    while (k < kinds && letters[k] != letter) k++;
+    if (k == kinds) { letters[kinds] = letter; counts[kinds] = 0; kinds++; }
+    counts[k]++;
+    total++;
+  }
+}
+for (int i = 0; i < kinds; i++) printf("%s  %d\n", letters[i], counts[i]);
+printf("total %d\n", total);

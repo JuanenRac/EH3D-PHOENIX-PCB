@@ -1,0 +1,10 @@
+#usage "Placement list: reference, place in millimetres, angle and side"
+// EH3D-PHOENIX-PCB starter kit. SPDX-License-Identifier: GPL-3.0-or-later
+printf("ref;x_mm;y_mm;angle;side\n");
+board(B) {
+  B.elements(E) {
+    string side = "top";
+    if (E.mirror) side = "bottom";
+    printf("%s;%.3f;%.3f;%.0f;%s\n", E.name, u2mm(E.x), u2mm(E.y), E.angle, side);
+  }
+}

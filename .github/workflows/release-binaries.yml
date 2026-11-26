@@ -1,6 +1,6 @@
 name: Release binaries
 
-# Builds the program for Windows (64 and 32 bits), Linux and macOS (Apple silicon and Intel) and keeps the packages as artifacts of the run.
+# Builds the program for Windows (64 and 32 bits), Linux and macOS (Apple silicon and Intel) and the starter kit, and keeps the packages as artifacts of the run.
 # The release itself is published from the maintainer's machine, which downloads these artifacts, so that the notes and the assets
 # of every repository of the ecosystem are made the same way. Run it by hand: Actions > Release binaries > Run workflow.
 
@@ -180,9 +180,55 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+  kit:
+    name: starter kit
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+          ref: ${{ github.sha }}
+      - name: Check that the kit is what its generator writes
+        run: python3 -I tools/make_kit.py --check
+      - name: Package the kit
+        shell: bash
+        env:
+          VERSION: ${{ needs.plan.outputs.version }}
+        run: |
+          python3 - <<'PY'
+          import hashlib
+          import os
+          import zipfile
+          from pathlib import Path
+
+          name = f"eh3d-phoenix-pcb-kit-{os.environ['VERSION']}.zip"
+          files = {f"kit/{p.relative_to('kit').as_posix()}": p for p in Path("kit").rglob("*") if p.is_file()}
+          files["kit/LICENSE"] = Path("LICENSE")
+          Path("dist").mkdir(exist_ok=True)
+          archive = Path("dist", name)
+          # fixed dates, permissions and order: the same commit gives the same bytes
+          with zipfile.ZipFile(archive, "w") as package:
+              for entry in sorted(files):
+                  info = zipfile.ZipInfo(entry, date_time=(1980, 1, 1, 0, 0, 0))
+                  info.external_attr = 0o644 << 16
+                  info.compress_type = zipfile.ZIP_DEFLATED
+                  package.writestr(info, files[entry].read_bytes())
+          digest = hashlib.sha256(archive.read_bytes()).hexdigest()
+          Path("dist", name + ".sha256").write_text(f"{digest}  {name}\n", encoding="ascii")
+          print(len(files), "files,", archive.stat().st_size, "bytes,", digest)
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: parts-kit
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 7
+
   collect:
     name: Collect and attest
-    needs: [plan, package]
+    needs: [plan, package, kit]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -310,7 +356,7 @@ jobs:
   notify:
     name: Tell the owner (issue build-failed)
     if: ${{ always() && github.actor == github.repository_owner }}
-    needs: [plan, package, collect, verify, draft]
+    needs: [plan, package, kit, collect, verify, draft]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -336,7 +382,7 @@ jobs:
           run_id = os.environ["GITHUB_RUN_ID"]
           run_url = os.environ["RUN_URL"]
           summary = os.environ["GITHUB_STEP_SUMMARY"]
-          order = ["plan", "package", "collect", "verify", "draft"]
+          order = ["plan", "package", "kit", "collect", "verify", "draft"]
 
 
           def gh(*args, check=True):

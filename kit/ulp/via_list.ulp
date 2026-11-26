@@ -1,0 +1,12 @@
+#usage "Lists the vias with their net, place and sizes"
+// EH3D-PHOENIX-PCB starter kit. SPDX-License-Identifier: GPL-3.0-or-later
+int n = 0;
+board(B) {
+  B.signals(S) {
+    S.vias(V) {
+      printf("%-8s %7.2f %7.2f %.2f/%.2f\n", S.name, u2mm(V.x), u2mm(V.y), u2mm(V.drill), u2mm(V.diameter));
+      n++;
+    }
+  }
+}
+printf("%d vias\n", n);

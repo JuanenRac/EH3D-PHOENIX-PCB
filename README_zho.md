@@ -95,6 +95,8 @@ python -I -m unittest discover -s tools -p "test_*.py"
 
 **参照工具的用户程序。** `phoenix ulp check` 在限制下读取程序（`.ulp` 文件）并列出其形式上的错误，`phoenix ulp report` 说明它使用了什么，以及允许名称列表（`config/ulp_support.cfg`）是否覆盖它，`phoenix ulp run` 运行其中一个：纯计算以及对电路板和原理图（`--board`、`--schematic`）的只读遍历，步数、内存、嵌套和输出的限制写在 `config/ulp.cfg` 中，每次输出都相同。它不启动程序，也不改动设计；只在 `file_dir` 或 `--dir` 指定的唯一文件夹内读写文件（默认没有），并在没有窗口的情况下应答对话框。它在调用者的进程中运行：独立进程中的沙箱尚未编写。只用为本项目编写的程序（`examples/ulp/`）试过，从未用第三方程序试过，也未与原工具比较；见 `docs/ULP.md`。
 
+**入门套件。** `kit/` 文件夹（每个版本也以 `eh3d-phoenix-pcb-kit-<version>.zip` 及其 SHA-256 发布）包含元件库（无源器件、半导体、通用芯片、连接器，以及两种仅供参考尺寸的模块）、12 块带原理图的合成示例电路板、20 个附预期输出的用户程序、规则文件和输出配置。全部内容均为本项目自行制作，许可证为 GPL-3.0-or-later；未与任何数据手册或制造商核对。`phoenix kit list|info|copy` 用于查看和复制其中的内容；参见 [docs/KIT.md](docs/KIT.md)。
+
 ## 🧪 测试
 
 代码有 5423 个测试（`cargo test`），基础部分有 63 个（`python -I -m unittest discover -s tools -p "test_*.py"`）；全部在计算机上通过。CI 运行仓库检查、图片检查、基础部分的测试，并对 Rust 代码在 Linux 和 Windows 上运行格式检查、把警告当作错误的 clippy 以及测试。
@@ -140,6 +142,7 @@ EH3D-PHOENIX-PCB/
 │   ├── SCRIPT_API.md                            第二种脚本语言：参考与限制
 │   ├── SCRIPT_EXAMPLES.md                       示例脚本及其输出
 │   ├── ULP.md                                   参照工具的用户程序：读取器、报告与求值器
+│   ├── KIT.md                                   入门套件与 kit 命令
 │   ├── ERC.md                                   电气规则检查与同步
 │   ├── ANNOTATE.md                              反向标注回原理图与比较
 │   ├── SCHEMATIC_EDIT.md                        原理图编辑器：操作、网络、窗口
@@ -197,6 +200,7 @@ EH3D-PHOENIX-PCB/
 ├── examples/                                    示例脚本及其输出，以及教程和指南用的文件
 ├── Cargo.toml Cargo.lock                        Rust 工作区及其锁定的依赖
 ├── rust-toolchain.toml                          固定的 Rust 工具链
+├── kit/                                         入门套件：库与示例
 ├── tools/                                       仓库检查、其测试以及图片工具
 ├── tests/                                       基准用例以及手写样例的自有语料库
 ├── images/                                      横幅图以及架构和仓库结构图片

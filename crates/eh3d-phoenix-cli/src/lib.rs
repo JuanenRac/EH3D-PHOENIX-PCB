@@ -16,6 +16,7 @@
 //! The test points of a board add `testpoints`, and the IPC-2581 file of a board adds `ipc2581`.
 //! The report of a board made by the station of EH3D-SERVER adds `server`, and the comparison of two revisions of a board adds `boarddiff`.
 //! The reader, the compatibility report and the evaluator of the user programs of the reference tool add `ulp`.
+//! The starter kit that comes with the releases adds `kit`.
 //! The nets of a board as a text netlist, and their comparison with a netlist file, add `nets`.
 //! The writing of boards, schematics and libraries as KiCad 8 files adds `kicad-export`.
 //! The simulation netlist of a schematic, made from a table of models, adds `netlist`.
@@ -74,6 +75,8 @@ mod ipclib;
 mod kicad;
 mod kicad_export;
 mod kicad_import;
+mod kit;
+pub mod kit_codes;
 pub mod launch;
 mod lengths;
 mod libedit;
@@ -669,6 +672,16 @@ phoenix --shot FILE.png [--size WxH] [--theme dark|light|contrast] [--window NAM
                 feature; a prototype), a text summary of a file, a picture of it as SVG, or a
                 timing of the preparation and the selection on three synthetic boards; --shot takes
                 a picture of the window and closes by itself (a build with the gui feature)
+
+phoenix kit list [--kit FOLDER] [--type TYPE] [--config FILE] [--json] [--lang xx]
+phoenix kit info [--kit FOLDER] [--config FILE] [--json] [--lang xx] <identifier>
+phoenix kit copy [--kit FOLDER] [--config FILE] [--all] --out FOLDER [<identifier>...]
+
+  kit           the starter kit made for this program (libraries, sample boards and schematics, user
+                programs, rule and output profiles; GPL-3.0-or-later, not verified): list shows
+                its pieces, info one of them, copy copies pieces (or --all) under --out after
+                checking their SHA-256 and never writes over a file; run `phoenix kit` alone for
+                every option; exit code 0 done, 2 not done
 
 phoenix help [<topic or command>] [--lang xx]
 phoenix --help [--lang xx]

@@ -1,0 +1,15 @@
+#usage "The box that holds the centres of all the pads"
+// EH3D-PHOENIX-PCB starter kit. SPDX-License-Identifier: GPL-3.0-or-later
+int minx = INT_MAX, miny = INT_MAX, maxx = INT_MIN, maxy = INT_MIN;
+board(B) {
+  B.elements(E) {
+    E.pads(P) {
+      if (P.x < minx) minx = P.x;
+      if (P.x > maxx) maxx = P.x;
+      if (P.y < miny) miny = P.y;
+      if (P.y > maxy) maxy = P.y;
+    }
+  }
+}
+printf("x %.2f to %.2f mm\ny %.2f to %.2f mm\n", u2mm(minx), u2mm(maxx), u2mm(miny), u2mm(maxy));
+printf("size %.2f x %.2f mm\n", u2mm(maxx - minx), u2mm(maxy - miny));

@@ -1,0 +1,15 @@
+#usage "Netlist of a schematic: every net and its pins"
+// EH3D-PHOENIX-PCB starter kit. SPDX-License-Identifier: GPL-3.0-or-later
+schematic(S) {
+  S.nets(N) {
+    string pins[];
+    int n = 0;
+    N.segments(G) {
+      G.pinrefs(R) {
+        pins[n] = R.part.name + "." + R.pin.name;
+        n++;
+      }
+    }
+    printf("%s: %s\n", N.name, strjoin(pins, " "));
+  }
+}
