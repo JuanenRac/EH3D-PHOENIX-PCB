@@ -425,7 +425,11 @@ fn obstacles(
                 }
                 continue;
             }
-            let need = ctx.rules.clearance(z.clearance, z.net, item.net);
+            let need = if item.hole {
+                ctx.rules.hole_clearance(z.clearance, z.net)
+            } else {
+                ctx.rules.clearance(z.clearance, z.net, item.net)
+            };
             if !bbox_overlap(bbox_grow(item.bounds, need), zone_box) {
                 continue;
             }

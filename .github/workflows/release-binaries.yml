@@ -161,6 +161,10 @@ jobs:
           # the PDF library of the viewer of attachments, beside the program with its licences, as it is published (never signed again)
           python3 ../EH3D-COMMON/tools/fetch_pdfium.py --platform "${MATRIX_PDFIUM}" --out "$name"
           cp ../EH3D-COMMON/crates/viewer/THIRD_PARTY_NOTICES "$name/THIRD_PARTY_NOTICES-attachments.txt"
+          # the notices of what is built into the program through the shared repository: the cryptography of the
+          # project container and of its key files, and the data of the materials
+          cp ../EH3D-COMMON/crates/project/THIRD_PARTY_NOTICES "$name/THIRD_PARTY_NOTICES-project.txt"
+          cp ../EH3D-COMMON/crates/materials/THIRD_PARTY_NOTICES "$name/THIRD_PARTY_NOTICES-materials.txt"
           mkdir -p dist
           if [ "${MATRIX_ARCHIVE}" = "zip" ]; then
             7z a -tzip "dist/${name}.zip" "$name" >/dev/null

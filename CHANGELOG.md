@@ -4,6 +4,16 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **A track that crossed a copper pour could be one piece of copper with it in the Gerber files:** the keep-away of a pour was only written for a straight track with an end inside or beside the box of the zone, so a track that crossed the zone with both ends outside it had no clearance at all, a short circuit between the two nets. The keep-away is now written whenever it takes copper from the pour, however far the ends are.
+- **The keep-away of a pour no longer cuts other copper far from it:** it was decided with the box of the zone (and never for tracks with arcs), so it could open gaps in another pour of the layer and cut a pad or a via from its own net; it now follows the outline of the zone itself, arcs along their curve.
+- **Pours keep away from holes that are not plated** in the Gerber files: copper ran up to and under mounting holes, on every layer. The keep-away is the clearance of the zone around the drill (around the length of the slot for an oblong pad).
+- **The fill of the zones keeps away from holes that are not plated on every copper layer**, also when their pad is on none, never joins them to the net of the zone, and keeps `min_hole_clearance_nm` of the rules from them; the check of a fill measures it.
+- **A pour is judged against the board edge** (`PHOENIX-CHECK-006`, a warning): a zone drawn up to or beyond the edge is written with its copper there and gave no finding.
+- **A pour is judged against holes that are not plated** (`PHOENIX-CHECK-017`, a warning) when its own clearance, which is what the files keep, is smaller than `min_hole_clearance_nm`.
+- **Two pours of different nets nearer than the clearance are found** (`PHOENIX-CHECK-005`, a warning): only overlapping pours were; nothing in the files keeps such two apart.
+- **The clearance of a net class is judged against pours** (`PHOENIX-CHECK-016`, a warning): a track, via, pad or pour of a class inside or near a pour of another net was kept only the clearance of the zone, with no finding. The check of the zone that an edit changes gives the same list as the check of the whole board.
+- **The packages carry the licence notices of what is built into the program through the shared repository:** the cryptography of the project container and of its key files and the data of the materials, beside the notices of the PDF viewer.
+
 ## [0.1.8] - Inner vias, arcs and board edges are checked, new rules for net classes and holes, and a faster push and shove
 
 - **A suite project that another program saved is not written over:** saving, importing and taking a file are refused, also after a yes to a question that was waiting, and the window says it in the eight languages and offers to read the project again (saying that unsaved changes would be lost) or to save under another name. The shared repository is now taken at v0.3.7.

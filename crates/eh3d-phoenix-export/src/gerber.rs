@@ -13,8 +13,10 @@ use eh3d_parser_gerber::{
     Point as GPoint, Polarity, QuadrantMode, Units, ZeroOmission,
 };
 use eh3d_phoenix_board::connectivity::{pad_position, point_in_polygon};
-use eh3d_phoenix_board::{Board, Id, LayerKind, Pad, PadRef, PadShape, Segment, Via, Zone};
-use eh3d_phoenix_model::{Point, Udeg};
+use eh3d_phoenix_board::{
+    arc_chords, ArcSettings, Board, Id, LayerKind, Pad, PadRef, PadShape, Segment, Via, Zone,
+};
+use eh3d_phoenix_model::{segments_intersect, Point, Udeg};
 use eh3d_writer_gerber::{GerberOptions, GerberOutput, WriteError};
 
 use crate::codes;
@@ -329,9 +331,68 @@ pub fn thermal_gaps(at: Point, diameter: i64, gap: i64, spoke: i64) -> Vec<Vec<P
     out
 }
 
+/// The distance in nanometres from a point to the straight piece from `a` to `b`.
+fn point_piece_distance(p: Point, a: Point, b: Point) -> f64 {
+    let xy = |q: Point| (q.x_nm.get() as f64, q.y_nm.get() as f64);
+    let ((px, py), (ax, ay), (bx, by)) = (xy(p), xy(a), xy(b));
+    let (dx, dy) = (bx - ax, by - ay);
+    let length2 = dx * dx + dy * dy;
+    let t = if length2 > 0.0 {
+        (((px - ax) * dx + (py - ay) * dy) / length2).clamp(0.0, 1.0)
+    } else {
+        0.0
+    };
+    (px - ax - t * dx).hypot(py - ay - t * dy)
+}
+
+/// Whether an object that reaches `radius` about the straight piece from `a` to `b` (a point when
+/// both are the same) takes copper away from a pour with this outline: an end inside it, the piece
+/// across its border, or nearer to the border than the radius. It never says no when it does.
+fn takes_from(outline: &[Point], a: Point, b: Point, radius: i64) -> bool {
+    if point_in_polygon(a, outline) || point_in_polygon(b, outline) {
+        return true;
+    }
+    // a nanometre more, for the rounding of the distance
+    let reach = radius as f64 + 1.0;
+    let n = outline.len();
+    (0..n).any(|i| {
+        let (p, q) = (outline[i], outline[(i + 1) % n]);
+        segments_intersect(a, b, p, q)
+            || point_piece_distance(a, p, q) <= reach
+            || point_piece_distance(b, p, q) <= reach
+            || point_piece_distance(p, a, b) <= reach
+            || point_piece_distance(q, a, b) <= reach
+    })
+}
+
+/// How far a flash of this aperture reaches from its centre: the radius of a circle around it.
+fn flash_reach(key: ApKey) -> i64 {
+    match key {
+        ApKey::Circle(d) => d / 2 + d % 2,
+        ApKey::Rect(w, h) => ((w as f64).hypot(h as f64) / 2.0).ceil() as i64,
+        ApKey::Obround(w, h) => w.max(h) / 2 + w.max(h) % 2,
+    }
+}
+
+/// The width of the room that the hole of a pad that is not plated takes: its drill, or, for an
+/// oblong pad, the length of the slot that may be milled for it.
+fn hole_width(shape: PadShape, drill: i64) -> i64 {
+    let PadShape::Oblong { width, height } = shape else {
+        return drill;
+    };
+    let (long, short) = (width.get().max(height.get()), width.get().min(height.get()));
+    if short <= 0 {
+        return drill;
+    }
+    let slot = i128::from(long) * i128::from(drill) / i128::from(short);
+    i64::try_from(slot).unwrap_or(i64::MAX).max(drill)
+}
+
 /// The objects that clear the copper of a zone: its own cutouts, the gaps of the thermal relief
 /// of the round pads of its own net, when the profile asks for them, and a keep-away of its
-/// clearance around the tracks, vias and pads of other nets that lie on the layer. All are drawn
+/// clearance around the tracks, vias and pads of other nets that lie on the layer and around the
+/// holes that are not plated, which go through every layer. An object is drawn when its keep-away
+/// takes copper from this pour, wherever its ends are. All are drawn
 /// with clear polarity, between a change to clear and a change back to dark, so that what is
 /// drawn after them (the copper of the board) stays. Nothing when there is nothing to clear. The
 /// aperture of a keep-away has the function of the object it keeps away from.
@@ -354,40 +415,52 @@ fn zone_clearing(
         clear.push((Draw::Region(cutout.clone()), none()));
     }
     let c = zone.clearance.get();
-    if c > 0 {
+    if c > 0 && zone.outline.len() >= 3 {
         let grow = c.saturating_mul(2);
         let xs = zone.outline.iter().map(|p| p.x_nm.get());
         let ys = zone.outline.iter().map(|p| p.y_nm.get());
         let (x0, x1) = (xs.clone().min().unwrap_or(0), xs.max().unwrap_or(0));
         let (y0, y1) = (ys.clone().min().unwrap_or(0), ys.max().unwrap_or(0));
-        // an object is left out when its box, with the keep-away, is clear of the box of the zone
-        let near = |p: Point, reach: i64| {
-            let reach = reach.saturating_add(c);
-            p.x_nm.get().saturating_add(reach) >= x0
-                && p.x_nm.get().saturating_sub(reach) <= x1
-                && p.y_nm.get().saturating_add(reach) >= y0
-                && p.y_nm.get().saturating_sub(reach) <= y1
+        // whether the keep-away of a piece, `radius` about it, takes copper from the pour: first
+        // its box against the box of the zone, then the outline itself
+        let takes = |a: Point, b: Point, radius: i64| {
+            let (ax, ay) = (a.x_nm.get(), a.y_nm.get());
+            let (bx, by) = (b.x_nm.get(), b.y_nm.get());
+            ax.max(bx).saturating_add(radius) >= x0
+                && ax.min(bx).saturating_sub(radius) <= x1
+                && ay.max(by).saturating_add(radius) >= y0
+                && ay.min(by).saturating_sub(radius) <= y1
+                && takes_from(&zone.outline, a, b, radius)
         };
         for track in board
             .tracks
             .values()
             .filter(|t| t.layer == layer && t.net != zone.net)
         {
-            let key = ap(
-                ApKey::Circle(track.width.get().saturating_add(grow)),
-                ApFunction::Conductor,
-            );
-            let has_arc = track.path.iter().any(|s| matches!(s, Segment::Arc { .. }));
-            let reach = track.width.get() / 2;
+            let width = track.width.get().saturating_add(grow);
+            let key = ap(ApKey::Circle(width), ApFunction::Conductor);
+            let radius = flash_reach(ApKey::Circle(width));
             for piece in &track.path {
                 match piece {
                     Segment::Line { start, end } => {
-                        if has_arc || near(*start, reach) || near(*end, reach) {
+                        if takes(*start, *end, radius) {
                             clear.push((Draw::Line(key, *start, *end), none()));
                         }
                     }
                     Segment::Arc { start, end, sweep } => {
-                        if let Some((offset, clockwise)) = arc_centre(*start, *end, sweep.get()) {
+                        let Some((offset, clockwise)) = arc_centre(*start, *end, sweep.get())
+                        else {
+                            continue;
+                        };
+                        // the arc is judged as its chords, which are within `doubt` of it; an arc
+                        // that cannot be cut is cleared wherever the zone is
+                        let near = arc_chords(*start, *end, *sweep, &ArcSettings::current())
+                            .is_none_or(|(points, doubt)| {
+                                points
+                                    .windows(2)
+                                    .any(|w| takes(w[0], w[1], radius.saturating_add(doubt)))
+                            });
+                        if near {
                             clear.push((Draw::Arc(key, *start, *end, offset, clockwise), none()));
                         }
                     }
@@ -399,12 +472,9 @@ fn zone_clearing(
             .values()
             .filter(|v| v.net != zone.net && via_on_layer(board, v, layer))
         {
-            if near(via.at, via.diameter.get() / 2) {
-                let key = ap(
-                    ApKey::Circle(via.diameter.get().saturating_add(grow)),
-                    ApFunction::ViaPad,
-                );
-                clear.push((Draw::Flash(key, via.at), none()));
+            let key = ApKey::Circle(via.diameter.get().saturating_add(grow));
+            if takes(via.at, via.at, flash_reach(key)) {
+                clear.push((Draw::Flash(ap(key, ApFunction::ViaPad), via.at), none()));
             }
         }
         for (cid, component) in &board.components {
@@ -412,14 +482,16 @@ fn zone_clearing(
                 continue;
             };
             for (pid, pad) in &footprint.pads {
-                if !pad.layers.contains(&layer) || pad.is_npth() {
-                    continue;
-                }
                 let pad_ref = PadRef {
                     component: *cid,
                     pad: *pid,
                 };
-                if board.net_of(pad_ref) == Some(zone.net) {
+                // a hole that is not plated is drilled through every layer, whatever the layers
+                // of its pad are, and no copper may reach its wall
+                let hole = pad.drill.filter(|_| pad.is_npth());
+                if hole.is_none()
+                    && (!pad.layers.contains(&layer) || board.net_of(pad_ref) == Some(zone.net))
+                {
                     continue;
                 }
                 let Some(at) = pad_position(board, pad_ref) else {
@@ -427,21 +499,28 @@ fn zone_clearing(
                 };
                 let total = (pad.rotation.get() + component.rotation.get()).rem_euclid(360_000_000);
                 let swapped = (total / 90_000_000) % 2 == 1 && total % 90_000_000 == 0;
-                let key = adjust(pad_key(pad.shape, swapped), grow);
-                let reach = match key {
-                    ApKey::Circle(d) => d / 2,
-                    ApKey::Rect(w, h) | ApKey::Obround(w, h) => w.max(h),
+                let key = match hole {
+                    Some(drill) => {
+                        ApKey::Circle(hole_width(pad.shape, drill.get()).saturating_add(grow))
+                    }
+                    None => adjust(pad_key(pad.shape, swapped), grow),
                 };
-                if near(at, reach) {
-                    let function = pad_function(
+                if !takes(at, at, flash_reach(key)) {
+                    continue;
+                }
+                // the keep-away of a hole is the aperture of no copper object: as it is only drawn
+                // clear, it is written with the function of a conductor, as that of a track is
+                let function = match hole {
+                    Some(_) => ApFunction::Conductor,
+                    None => pad_function(
                         pad,
                         &footprint.name,
                         &component.refdes,
                         board.is_test_point(pad_ref),
                         x2,
-                    );
-                    clear.push((Draw::Flash(ap(key, function), at), none()));
-                }
+                    ),
+                };
+                clear.push((Draw::Flash(ap(key, function), at), none()));
             }
         }
     }

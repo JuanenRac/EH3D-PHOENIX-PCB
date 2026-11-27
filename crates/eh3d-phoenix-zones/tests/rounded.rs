@@ -63,6 +63,7 @@ fn rules() -> ZoneRules {
     ZoneRules {
         min_clearance_nm: 200_000,
         min_edge_clearance_nm: 0,
+        min_hole_clearance_nm: 0,
         class_clearance_nm: std::collections::BTreeMap::new(),
     }
 }

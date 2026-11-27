@@ -34,5 +34,12 @@ class BaseTests(unittest.TestCase):
             self.assertIn(f"`{version}`", text, name)
 
 
+class PackageTests(unittest.TestCase):
+    def test_the_package_carries_the_notices_of_what_is_built_into_the_program(self) -> None:
+        workflow = (ROOT / ".github" / "workflows" / "release-binaries.yml").read_text(encoding="utf-8")
+        for crate in ("viewer", "project", "materials"):
+            self.assertIn(f"cp ../EH3D-COMMON/crates/{crate}/THIRD_PARTY_NOTICES ", workflow, crate)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -797,3 +797,96 @@ fn an_arc_of_the_outline_is_written_as_an_arc_and_the_other_edges_as_lines() {
         .all(|c| !matches!(c.op, Operation::Arc { .. })));
     assert!(verify(&b, &Profile::default(), &set).is_empty());
 }
+
+/// The strokes outside regions and the flashes that take copper away (clear polarity).
+fn cleared(text: &str) -> (usize, usize) {
+    let (mut strokes, mut flashes, mut clear, mut region) = (0, 0, false, false);
+    for command in &eh3d_parser_gerber::parse(text).commands {
+        match &command.op {
+            Operation::Polarity(p) => clear = matches!(p, Polarity::Clear),
+            Operation::RegionStart => region = true,
+            Operation::RegionEnd => region = false,
+            Operation::Line { .. } | Operation::Arc { .. } if clear && !region => strokes += 1,
+            Operation::Flash { .. } if clear => flashes += 1,
+            _ => {}
+        }
+    }
+    (strokes, flashes)
+}
+
+#[test]
+fn a_track_that_crosses_a_pour_with_both_ends_outside_it_is_kept_apart() {
+    let mut b = with_pour();
+    // from one edge of the board to the other, right through the pour of another net
+    b.tracks.get_mut(&id(31)).unwrap().path = vec![Segment::Line {
+        start: mm(0, 5),
+        end: mm(20, 5),
+    }];
+    let set = build(&b, &Profile::default()).unwrap();
+    // the keep-away of the track and of the via: without the first, the track and the pour are
+    // one piece of copper in the file
+    assert_eq!(cleared(layer_text(&set, id(1))), (1, 1));
+    assert!(verify(&b, &Profile::default(), &set).is_empty());
+}
+
+#[test]
+fn what_is_away_from_the_outline_of_a_pour_takes_nothing_from_the_layer() {
+    let mut b = with_pour();
+    // an L shaped pour: the via at (14, 7) is inside its box and 3 mm from its copper
+    let zone = b.zones.get_mut(&id(30)).unwrap();
+    zone.cutouts.clear();
+    zone.outline = vec![mm(1, 1), mm(19, 1), mm(19, 4), mm(5, 4), mm(5, 9), mm(1, 9)];
+    b.tracks.clear();
+    b.vias.get_mut(&id(32)).unwrap().at = mm(14, 7);
+    // and an arc of another net far from it
+    b.tracks.insert(
+        id(33),
+        Track {
+            net: id(8),
+            layer: id(1),
+            width: nm(250_000),
+            path: vec![Segment::Arc {
+                start: mm(12, 6),
+                end: mm(14, 8),
+                sweep: Udeg::new(90_000_000).unwrap(),
+            }],
+        },
+    );
+    let set = build(&b, &Profile::default()).unwrap();
+    assert_eq!(cleared(layer_text(&set, id(1))), (0, 0));
+    // the same arc through the pour is cleared
+    b.tracks.get_mut(&id(33)).unwrap().path = vec![Segment::Arc {
+        start: mm(8, 2),
+        end: mm(10, 4),
+        sweep: Udeg::new(90_000_000).unwrap(),
+    }];
+    let set = build(&b, &Profile::default()).unwrap();
+    assert_eq!(cleared(layer_text(&set, id(1))), (1, 0));
+}
+
+#[test]
+fn a_pour_keeps_away_from_a_hole_that_is_not_plated() {
+    let mut b = with_pour_and_a_pad_of_its_net();
+    // the pad of the net of the pour becomes a mounting hole of 1 mm on no layer at all
+    let pad = b
+        .footprints
+        .get_mut(&id(40))
+        .unwrap()
+        .pads
+        .get_mut(&id(41))
+        .unwrap();
+    pad.drill = Some(nm(1_000_000));
+    pad.plated = false;
+    pad.layers.clear();
+    let set = build(&b, &Profile::default()).unwrap();
+    let text = layer_text(&set, id(1));
+    // the via of the other net and the hole
+    assert_eq!(cleared(text).1, 2);
+    // the hole of 1 mm and 0.2 mm all round it
+    let read = eh3d_parser_gerber::parse(text);
+    assert!(read
+        .apertures
+        .values()
+        .any(|a| matches!(a, Aperture::Circle { diameter, .. } if (*diameter - 1.4).abs() < 1e-9)));
+    assert!(verify(&b, &Profile::default(), &set).is_empty());
+}

@@ -318,8 +318,9 @@ fn neighbours(board: &Board, what: &Changed, zone: &Zone) -> Picked {
 }
 
 /// The board with only the picked objects and the changed ones, as they are on `board`. The
-/// zones, which the rules only compare with each other, are there when one of them changed.
-fn small(board: &Board, what: &Changed, near: &Picked) -> Board {
+/// zones are there when one of them changed or when `pours` says that the rules compare them with
+/// other objects.
+fn small(board: &Board, what: &Changed, near: &Picked, pours: bool) -> Board {
     fn some<V: Clone>(
         all: &BTreeMap<Id, V>,
         changed: &BTreeSet<Id>,
@@ -349,7 +350,7 @@ fn small(board: &Board, what: &Changed, near: &Picked) -> Board {
         .filter(|p| components.contains_key(&p.component))
         .cloned()
         .collect();
-    let zones = if what.zones {
+    let zones = if what.zones || pours {
         board.zones.clone()
     } else {
         BTreeMap::new()
@@ -547,8 +548,24 @@ pub fn findings_near(
     mark(&mut zone, after, &what, reach)?;
     // an object that did not change is the same on both boards
     let near = neighbours(after, &what, &zone);
-    let was = small(before, &what, &near);
-    let is = small(after, &what, &near);
+    // a pour can have a finding with a piece of copper or a hole only when it keeps less than a
+    // class or the rule of the holes asks; then the pours are part of both small boards, and a
+    // change of a pour is judged on the whole board
+    let asked = ctx
+        .classes
+        .classes()
+        .iter()
+        .map(|c| c.min_clearance)
+        .chain(std::iter::once(rules.min_hole_clearance))
+        .max();
+    let pours = [before, after]
+        .iter()
+        .any(|b| b.zones.values().any(|z| Some(z.clearance) < asked));
+    if pours && what.zones {
+        return None;
+    }
+    let was = small(before, &what, &near, pours);
+    let is = small(after, &what, &near, pours);
     if joins_through_a_loose_pad(&is, &what, rules.connect_tolerance.get() as f64) {
         return None;
     }

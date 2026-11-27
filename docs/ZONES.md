@@ -83,7 +83,7 @@ Every radius, width, limit and default is in `config/zones.cfg`, which is also t
 * A circle is a polygon around it, so the gap at the corners is a little wider than the rule; arcs are widened by their sagitta.
 * Same-net zones of equal priority are not merged, and the zone below another keeps away from the whole outline of the zone above, not from its fill.
 * A via joins the copper layers between its first and its last layer when the board gives the stack, else only those two.
-* Keep-out areas are not read; the board model has none. A hole that is not plated has no copper, so the fill does not look at it as a pad.
-* The export writes a zone as its outline; the board editor makes a board whose zones are the polygons of the fill for the Gerber files (`docs/BOARD_ZONES.md`). The rule check of the board still judges a zone by its outline.
+* Keep-out areas are not read; the board model has none. A hole that is not plated has no copper: the fill keeps away from its drill (the length of the slot for an oblong pad) on every copper layer, by the clearance of the zone, of the rules and of its net class or by `min_hole_clearance_nm` when that is larger, and never joins it to a net.
+* The export writes a zone as its outline; the board editor makes a board whose zones are the polygons of the fill for the Gerber files (`docs/BOARD_ZONES.md`). The rule check of the board still judges a zone by its outline, as the export writes it: against the board edge, holes that are not plated, other pours and the net classes (warnings).
 * The rounded corners use one radius for the whole board, they are not rounded at the holes of the fill, and the arcs are chords, so the copper that is taken is a little more than a true arc takes (by 0.2 percent of the corner for a tolerance of a micrometre on a radius of a millimetre).
 * Nothing has been compared with the fill of the reference tool, and the speed on a large board has not been measured.

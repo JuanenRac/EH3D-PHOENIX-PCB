@@ -7,7 +7,10 @@
 //! the same report. A rule whose value is zero is off.
 //!
 //! Clearance, edge distance and drill spacing are measured with exact integer arithmetic against
-//! the track and via items; the measured value shown is rounded to the nearest nanometre. The checks
+//! the track and via items; the measured value shown is rounded to the nearest nanometre. A pour is
+//! judged as the manufacturing files write it, its outline less its cutouts, which they keep the
+//! clearance of the zone away from other copper and from holes: its findings against the board edge,
+//! a hole that is not plated and the pour of another net are warnings. The checks
 //! that involve the shape of pads, the solder mask, zones and silkscreen are those of the board
 //! crate (`Board::check_rules`) and are listed here with their limit but without a measured value.
 
@@ -21,7 +24,7 @@ use eh3d_phoenix_spatial::{inflate, Bx, Index, SpatialConfig, SpatialError};
 
 use crate::advanced::IndexMode;
 use crate::codes;
-use crate::geometry::{outline_edges, pad_min_side, Dist2, Near, Prim};
+use crate::geometry::{outline_edges, pad_min_side, polygons_touch, Area, Dist2, Near, Prim};
 use crate::items::{pad_prim, placed_pads, track_prim, via_prim, PlacedPad};
 use crate::report::{Finding, Report, Severity};
 use crate::rulefile::RuleValues;
@@ -346,9 +349,12 @@ pub fn check_board_with(board: &Board, rules: &RuleValues, mode: IndexMode) -> R
     run.via_sizes();
     run.pad_holes();
     run.clearances();
+    run.zone_gaps();
     run.edges();
+    run.zone_edges();
     run.drill_spacing();
     run.hole_clearances();
+    run.zone_holes();
     run.hole_edges();
     run.add_board_crate_findings();
     run.report.finish();
@@ -499,6 +505,110 @@ impl Run<'_> {
                             .limit(limit.get())
                             .why(why_unjudged(near)),
                     ),
+                }
+            }
+        }
+    }
+
+    /// The pours of different nets that come nearer than the clearance without overlapping
+    /// (an overlap has its own finding): nothing in the files keeps them apart.
+    fn zone_gaps(&mut self) {
+        let limit = self.rules.min_clearance;
+        if !on(limit) {
+            return;
+        }
+        let zones: Vec<_> = self.board.zones.iter().collect();
+        for (i, (ida, a)) in zones.iter().enumerate() {
+            let Some(area) = Area::new(&a.outline, &a.cutouts) else {
+                continue;
+            };
+            for (idb, b) in &zones[i + 1..] {
+                if a.net == b.net || a.layer != b.layer || polygons_touch(&a.outline, &b.outline) {
+                    continue;
+                }
+                let Some(other) = Area::new(&b.outline, &b.cutouts) else {
+                    continue;
+                };
+                let (near, gap) = area.near(&other.border, i128::from(limit.get()));
+                if near == Near::Yes {
+                    let p = a.outline[0];
+                    self.report.confirmed.push(
+                        make(
+                            Rule::CopperClearance,
+                            Severity::Warning,
+                            format!("zone {ida} and zone {idb}"),
+                        )
+                        .at(p.x_nm.get(), p.y_nm.get())
+                        .values(gap, limit.get()),
+                    );
+                }
+            }
+        }
+    }
+
+    /// The pours whose outline comes nearer to the board edge than the rule, or crosses it: the
+    /// files write the copper up to the outline of the zone.
+    fn zone_edges(&mut self) {
+        let limit = self.rules.min_edge_clearance;
+        if !on(limit) {
+            return;
+        }
+        let edges = outline_edges(self.board);
+        for (id, zone) in &self.board.zones {
+            let Some(area) = Area::new(&zone.outline, &zone.cutouts) else {
+                continue;
+            };
+            let nearest = edges
+                .iter()
+                .filter_map(|edge| {
+                    let (near, gap) = area.near(edge, i128::from(limit.get()));
+                    (near == Near::Yes).then_some(gap)
+                })
+                .min();
+            if let Some(gap) = nearest {
+                let p = zone.outline[0];
+                self.report.confirmed.push(
+                    make(Rule::EdgeClearance, Severity::Warning, format!("zone {id}"))
+                        .at(p.x_nm.get(), p.y_nm.get())
+                        .values(gap, limit.get()),
+                );
+            }
+        }
+    }
+
+    /// The pours near a hole that is not plated whose own clearance, which is what the files keep
+    /// from it, is smaller than the rule.
+    fn zone_holes(&mut self) {
+        let limit = self.rules.min_hole_clearance;
+        if !on(limit) {
+            return;
+        }
+        for (id, zone) in &self.board.zones {
+            if zone.clearance >= limit {
+                continue;
+            }
+            let Some(area) = Area::new(&zone.outline, &zone.cutouts) else {
+                continue;
+            };
+            for hole in self.pads.iter().filter(|p| !p.plated) {
+                let Some(drill) = hole.drill else {
+                    continue;
+                };
+                let width = i128::from(drill.get());
+                let Some(wall) = Prim::at_point(hole.at, width, width) else {
+                    continue;
+                };
+                let (near, gap) = area.near(&wall, i128::from(limit.get()));
+                if near == Near::Yes {
+                    self.report.confirmed.push(
+                        make(
+                            Rule::HoleClearance,
+                            Severity::Warning,
+                            format!("zone {id} and the hole of {}", hole.label),
+                        )
+                        .at(hole.at.x_nm.get(), hole.at.y_nm.get())
+                        .values(gap.max(zone.clearance.get()), limit.get()),
+                    );
                 }
             }
         }
