@@ -529,6 +529,15 @@ pub fn findings_near(
         .min_clearance
         .get()
         .max(rules.min_drill_spacing.get())
+        .max(rules.min_hole_clearance.get())
+        .max(
+            ctx.classes
+                .classes()
+                .iter()
+                .map(|c| c.min_clearance.get())
+                .max()
+                .unwrap_or(0),
+        )
         .max(rules.min_mask_bridge.get())
         .max(rules.connect_tolerance.get())
         .max(0)

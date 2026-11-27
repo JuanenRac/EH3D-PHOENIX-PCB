@@ -37,9 +37,11 @@ pub fn category(code: &str) -> &'static str {
         "PHOENIX-CHECK-001" | "PHOENIX-CHECK-002" | "PHOENIX-CHECK-003" | "PHOENIX-CHECK-004"
         | "PHOENIX-CHECK-014" | "PHOENIX-CHECK-015" | "PHOENIX-DRC-001" | "PHOENIX-DRC-004"
         | "PHOENIX-DRC-006" | "PHOENIX-DRC-016" | "PHOENIX-DRC-018" => "size",
-        "PHOENIX-CHECK-005" | "PHOENIX-DRC-008" => "clearance",
-        "PHOENIX-CHECK-006" | "PHOENIX-CHECK-007" | "PHOENIX-DRC-002" | "PHOENIX-DRC-003"
-        | "PHOENIX-DRC-020" => "edge",
+        "PHOENIX-CHECK-005" | "PHOENIX-CHECK-016" | "PHOENIX-CHECK-017" | "PHOENIX-DRC-008" => {
+            "clearance"
+        }
+        "PHOENIX-CHECK-006" | "PHOENIX-CHECK-007" | "PHOENIX-CHECK-018" | "PHOENIX-DRC-002"
+        | "PHOENIX-DRC-003" | "PHOENIX-DRC-020" => "edge",
         "PHOENIX-CHECK-008" | "PHOENIX-CHECK-011" | "PHOENIX-CHECK-012" | "PHOENIX-DRC-005"
         | "PHOENIX-DRC-022" => "mask_silk",
         "PHOENIX-CHECK-009" | "PHOENIX-CHECK-010" => "zones",

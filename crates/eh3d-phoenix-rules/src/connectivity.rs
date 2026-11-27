@@ -21,7 +21,8 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use eh3d_phoenix_board::{Board, Id};
+use eh3d_phoenix_board::outline_arc::arc_interior;
+use eh3d_phoenix_board::{ArcSettings, Board, Id, Segment};
 use eh3d_phoenix_model::{Nm, Point};
 use eh3d_phoenix_schematic::Schematic;
 use eh3d_phoenix_spatial::{inflate, Bx, Index, SpatialConfig};
@@ -106,6 +107,9 @@ fn nodes_of(board: &Board) -> Vec<Node> {
         let mut probes = Vec::new();
         for segment in &track.path {
             probes.push(segment.start());
+            if let Segment::Arc { start, end, sweep } = *segment {
+                probes.extend(arc_interior(start, end, sweep, &ArcSettings::current()));
+            }
             probes.push(segment.end());
         }
         nodes.push(Node {
@@ -121,7 +125,7 @@ fn nodes_of(board: &Board) -> Vec<Node> {
         nodes.push(Node {
             label: format!("via {id}"),
             net: Some(via.net),
-            layers: vec![via.from_layer, via.to_layer],
+            layers: board.via_layers(via),
             prim: via_prim(via),
             probes: vec![via.at],
             outline: None,
@@ -245,7 +249,7 @@ pub fn analyse_board_with(board: &Board, tolerance: Nm, mode: IndexMode) -> Repo
         }
     }
 
-    // tracks with an arc: judged by their end points
+    // tracks with an arc that has no shape: judged by their end points
     for node in &nodes {
         if node.prim.as_ref().is_some_and(|p| p.has_arc) {
             if let Some(net) = node.net {
@@ -258,7 +262,7 @@ pub fn analyse_board_with(board: &Board, tolerance: Nm, mode: IndexMode) -> Repo
                     Severity::Info,
                     node.label.clone(),
                 )
-                .why("the track has an arc: its contacts are judged by its end points only"),
+                .why("the track has an arc with no shape: its contacts are judged by its end points only"),
             );
         }
     }

@@ -27,7 +27,7 @@ use eh3d_phoenix_model::{segments_intersect, Nm, Point};
 
 use crate::connectivity::{near_segment_exact, pad_position, point_in_polygon};
 use crate::model::{Board, Id, LayerKind, PadRef, PadShape, Segment, Side, Track, Via};
-use crate::outline_arc::ArcSettings;
+use crate::outline_arc::{arc_chords, ArcSettings};
 use crate::rules::{
     make, RuleReport, RuleSet, CLEARANCE_INCONCLUSIVE, CLEARANCE_VIOLATED, EDGE_TOO_CLOSE,
     MASK_BRIDGE_THIN, NOT_CHECKABLE, PAD_SHAPE_UNSURE, SILK_OVER_MASK, SILK_OVER_PAD,
@@ -258,8 +258,32 @@ pub struct PadCheckWork {
     pub all_pairs: u64,
 }
 
-/// A track with the straight pieces of its path.
-type TrackPieces<'a> = (&'a Id, &'a Track, Vec<(Point, Point)>);
+/// A piece of copper of a track: a straight piece, or a chord of an arc with how far the arc may
+/// be from it.
+type Piece = (Point, Point, i128);
+
+/// A track with the pieces of its path.
+type TrackPieces<'a> = (&'a Id, &'a Track, Vec<Piece>);
+
+/// The pieces of a path that a pad is measured against: the straight pieces as they are and the
+/// arcs as chords (an arc with no shape as its two end points).
+fn copper_pieces(path: &[Segment]) -> Vec<Piece> {
+    let mut out = Vec::new();
+    for segment in path {
+        match *segment {
+            Segment::Line { start, end } => out.push((start, end, 0)),
+            Segment::Arc { start, end, sweep } => {
+                match arc_chords(start, end, sweep, &ArcSettings::current()) {
+                    Some((points, doubt)) => {
+                        out.extend(points.windows(2).map(|w| (w[0], w[1], i128::from(doubt))))
+                    }
+                    None => out.extend([(start, start, 0), (end, end, 0)]),
+                }
+            }
+        }
+    }
+    out
+}
 
 /// What the clearance check of the pads looks things up in.
 struct PadIndex<'a> {
@@ -526,17 +550,17 @@ impl Board {
         for (k, (_, v)) in vias.iter().enumerate() {
             via_grid.add_point(v.at, k);
         }
-        // the straight pieces of every track, made once and not again for every pad
+        // the pieces of every track, made once and not again for every pad
         let tracks: Vec<_> = self
             .tracks
             .iter()
-            .map(|(tid, t)| (tid, t, lines(&t.path)))
+            .map(|(tid, t)| (tid, t, copper_pieces(&t.path)))
             .collect();
         let mut long: Vec<usize> = Vec::new();
         for (k, (_, _, pieces)) in tracks.iter().enumerate() {
             let mut in_cells = true;
-            for (s, e) in pieces {
-                in_cells &= track_grid.add_piece(*s, *e, reach_track, k);
+            for (s, e, doubt) in pieces {
+                in_cells &= track_grid.add_piece(*s, *e, reach_track + doubt, k);
             }
             if !in_cells {
                 long.push(k);
@@ -591,11 +615,10 @@ impl Board {
                 }
                 let w = i128::from(t.width.get());
                 let mut verdict = Verdict::Fine;
-                for (s, e) in pieces {
-                    verdict = worst(
-                        verdict,
-                        gap_segment(a.at, *s, *e, c2 + w + a.ins2, c2 + w + a.circ2),
-                    );
+                for (s, e, doubt) in pieces {
+                    let (sure, widest) =
+                        (c2 + w + a.ins2 - 2 * doubt, c2 + w + a.circ2 + 2 * doubt);
+                    verdict = worst(verdict, gap_segment(a.at, *s, *e, sure, widest));
                 }
                 if verdict == Verdict::Fine {
                     continue;
@@ -610,7 +633,7 @@ impl Board {
             for k in index.vias.around(a.at) {
                 let (vid, v) = index.via_list[k];
                 if (a.net.is_some() && a.net == Some(v.net))
-                    || !(a.layers.contains(&v.from_layer) || a.layers.contains(&v.to_layer))
+                    || !self.via_layers(v).iter().any(|l| a.layers.contains(l))
                 {
                     continue;
                 }
@@ -667,11 +690,11 @@ impl Board {
     /// The same clearances by comparing every pad with every other pad, track and via.
     fn pad_clearances_all(&self, clearance: Nm, all_pads: &[PadInfo], report: &mut RuleReport) {
         let c2 = 2 * i128::from(clearance.get());
-        // the straight pieces of every track, made once and not again for every pad
+        // the pieces of every track, made once and not again for every pad
         let track_lines: Vec<_> = self
             .tracks
             .iter()
-            .map(|(tid, t)| (tid, t, lines(&t.path)))
+            .map(|(tid, t)| (tid, t, copper_pieces(&t.path)))
             .collect();
         for (i, a) in all_pads.iter().enumerate() {
             for b in &all_pads[i + 1..] {
@@ -701,11 +724,10 @@ impl Board {
                 }
                 let w = i128::from(t.width.get());
                 let mut verdict = Verdict::Fine;
-                for (s, e) in pieces {
-                    verdict = worst(
-                        verdict,
-                        gap_segment(a.at, *s, *e, c2 + w + a.ins2, c2 + w + a.circ2),
-                    );
+                for (s, e, doubt) in pieces {
+                    let (sure, widest) =
+                        (c2 + w + a.ins2 - 2 * doubt, c2 + w + a.circ2 + 2 * doubt);
+                    verdict = worst(verdict, gap_segment(a.at, *s, *e, sure, widest));
                 }
                 if verdict == Verdict::Fine {
                     continue;
@@ -719,7 +741,7 @@ impl Board {
             }
             for (vid, v) in &self.vias {
                 if (a.net.is_some() && a.net == Some(v.net))
-                    || !(a.layers.contains(&v.from_layer) || a.layers.contains(&v.to_layer))
+                    || !self.via_layers(v).iter().any(|l| a.layers.contains(l))
                 {
                     continue;
                 }
@@ -1305,6 +1327,38 @@ mod tests {
             counts(&b.check_rules(&rules("min_clearance = 0.11\n"))),
             (1, 0)
         );
+    }
+
+    #[test]
+    fn a_pad_and_an_arc_of_another_net_keep_their_clearance() {
+        let (mut b, top, _) = board_with_pads(&[(0, 0, round(1_000_000))]);
+        let other = id(300);
+        b.nets.insert(other, Net { name: "T".into() });
+        // a quarter turn of radius 1.414 mm that goes down to y = 0.7 mm above the pad: the edge
+        // of the pad is at 0.5 mm, the edge of the track at 0.6 mm; both ends are at y = 1.114 mm
+        b.tracks.insert(
+            id(301),
+            Track {
+                net: other,
+                layer: top,
+                width: nm(200_000),
+                path: vec![Segment::Arc {
+                    start: pt(-1_000_000, 1_114_214),
+                    end: pt(1_000_000, 1_114_214),
+                    sweep: Udeg::new(90_000_000).unwrap(),
+                }],
+            },
+        );
+        // (the pass over every pair of tracks still says that it cannot judge the arc)
+        let r = b.check_rules(&rules("min_clearance = 0.09\n"));
+        assert!(r.confirmed.is_empty(), "{:?}", r.confirmed);
+        assert!(r
+            .inconclusive
+            .iter()
+            .all(|d| d.code.as_deref() == Some(CLEARANCE_INCONCLUSIVE)));
+        let r = b.check_rules(&rules("min_clearance = 0.12\n"));
+        assert_eq!(r.confirmed.len(), 1, "{:?}", r.confirmed);
+        assert_eq!(r.confirmed[0].code.as_deref(), Some(CLEARANCE_VIOLATED));
     }
 
     #[test]

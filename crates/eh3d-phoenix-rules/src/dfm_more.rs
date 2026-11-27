@@ -11,7 +11,7 @@
 
 use std::collections::BTreeSet;
 
-use eh3d_phoenix_board::{Board, Id, PadShape, SilkItem, Via};
+use eh3d_phoenix_board::{Board, PadShape, SilkItem};
 use eh3d_phoenix_model::Point;
 
 use crate::codes::Lang;
@@ -395,18 +395,6 @@ fn hole_aspect(board: &Board, profile: &DfmProfile, out: &mut Vec<Finding>) {
     }
 }
 
-/// The copper layers a via joins: those of the stack from its first layer to its last, or just
-/// the two it names when they are not both in the stack.
-fn via_layers(board: &Board, via: &Via) -> Vec<Id> {
-    let stack = &board.copper_stack;
-    let first = stack.iter().position(|l| *l == via.from_layer);
-    let last = stack.iter().position(|l| *l == via.to_layer);
-    match (first, last) {
-        (Some(a), Some(b)) => stack[a.min(b)..=a.max(b)].to_vec(),
-        _ => vec![via.from_layer, via.to_layer],
-    }
-}
-
 /// Whether a point is inside the copper of a pad, with the real shape of the pad: the circle, the
 /// rectangle with its rounded corners or the stadium of an oblong pad, turned by the angle of the
 /// pad on the board. At a right angle the test is exact in whole nanometres; at any other angle the
@@ -469,7 +457,7 @@ fn via_in_pad(board: &Board, profile: &DfmProfile, out: &mut Vec<Finding>) {
     }
     let pads = placed_pads(board);
     for via in board.vias.values() {
-        let layers = via_layers(board, via);
+        let layers = board.via_layers(via);
         for pad in &pads {
             if !point_in_pad(pad, via.at) {
                 continue;

@@ -201,6 +201,98 @@ fn run(
     route(b, &ctx(), &RouteSettings::default(), req, &mut new_id)
 }
 
+/// A zone of net B across the straight way between the pads of `diagonal_board`.
+fn zone_in_the_way(b: &mut Board, outline: &[(i64, i64)]) {
+    b.zones.insert(
+        id(900),
+        eh3d_phoenix_board::Zone {
+            net: id(11),
+            layer: id(TOP),
+            outline: outline.iter().map(|p| pt(p.0, p.1)).collect(),
+            clearance: nm(300_000),
+            cutouts: Vec::new(),
+        },
+    );
+}
+
+#[test]
+fn the_route_goes_around_a_zone_of_another_net() {
+    let (mut b, _) = diagonal_board(&[]);
+    zone_in_the_way(
+        &mut b,
+        &[
+            (3_500_000, 3_500_000),
+            (4_500_000, 3_500_000),
+            (4_500_000, 4_500_000),
+            (3_500_000, 4_500_000),
+        ],
+    );
+    // by default the search does not look at zones
+    let blind = run(&b, &request(0, 1, Mode::Around)).unwrap();
+    let mut n = 800_u32;
+    let around = route(
+        &b,
+        &ctx(),
+        &RouteSettings {
+            avoid_zones: true,
+            ..RouteSettings::default()
+        },
+        &request(0, 1, Mode::Around),
+        &mut || {
+            n += 1;
+            id(n)
+        },
+    )
+    .unwrap();
+    assert!(around.complete);
+    assert!(
+        around.length_nm > blind.length_nm,
+        "{} and {}",
+        around.length_nm,
+        blind.length_nm
+    );
+    // no corner of the way around is inside the zone
+    let inside =
+        |x: i64, y: i64| (3_500_000..4_500_000).contains(&x) && (3_500_000..4_500_000).contains(&y);
+    for (_, track) in &around.tracks {
+        for segment in &track.path {
+            for p in [segment.start(), segment.end()] {
+                assert!(!inside(p.x_nm.get(), p.y_nm.get()), "{p:?}");
+            }
+        }
+    }
+}
+
+#[test]
+fn a_zone_that_holds_an_end_of_the_route_is_not_gone_around() {
+    let (mut b, _) = diagonal_board(&[]);
+    zone_in_the_way(
+        &mut b,
+        &[
+            (1_000_000, 1_000_000),
+            (3_000_000, 1_000_000),
+            (3_000_000, 3_000_000),
+            (1_000_000, 3_000_000),
+        ],
+    );
+    let settings = RouteSettings {
+        avoid_zones: true,
+        ..RouteSettings::default()
+    };
+    let mut n = 800_u32;
+    let plan = route(
+        &b,
+        &ctx(),
+        &settings,
+        &request(0, 1, Mode::Around),
+        &mut || {
+            n += 1;
+            id(n)
+        },
+    );
+    assert!(plan.is_ok(), "{plan:?}");
+}
+
 /// Two pads of net A at 45 degrees on a two-layer board; `extra` more pads follow.
 fn diagonal_board(extra: &[PadSpec]) -> (Board, Id) {
     let mut b = base(true);

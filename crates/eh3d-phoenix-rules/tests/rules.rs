@@ -334,7 +334,7 @@ fn a_clean_board_passes_every_rule() {
 }
 
 #[test]
-fn an_arc_is_inconclusive_and_never_a_failure_but_a_proven_end_point_is_a_failure() {
+fn the_clearance_follows_the_curve_of_an_arc_and_not_its_end_points() {
     let mut b = base();
     let na = net(&mut b, 10, "A");
     let nb = net(&mut b, 11, "B");
@@ -355,11 +355,34 @@ fn an_arc_is_inconclusive_and_never_a_failure_but_a_proven_end_point_is_a_failur
         min_clearance: nm(200_000),
         ..RuleValues::default()
     };
+    // far from the whole curve: nothing to say
     let report = check_board(&b, &only_clearance);
-    assert!(report.confirmed.is_empty());
-    assert_eq!(report.inconclusive.len(), 1);
-    assert_eq!(report.inconclusive[0].rule, "not_judged");
-    // a straight track that touches an end point of the arc is a proven failure
+    assert!(report.confirmed.is_empty(), "{:?}", report.confirmed);
+    assert!(report.inconclusive.is_empty(), "{:?}", report.inconclusive);
+    // the arc goes down to y = 1.586 mm between its ends: a track below its middle is 0.036 mm
+    // from it, though each end point is more than 0.5 mm away
+    let mut near = b.clone();
+    track(
+        &mut near,
+        23,
+        nb,
+        200_000,
+        vec![line((2_500_000, 1_350_000), (3_500_000, 1_350_000))],
+    );
+    let report = check_board(&near, &only_clearance);
+    assert_eq!(by_rule(&report, "copper_clearance").len(), 1);
+    assert!(report.inconclusive.is_empty(), "{:?}", report.inconclusive);
+    // the same track 0.3 mm lower keeps the distance
+    let mut apart = b.clone();
+    track(
+        &mut apart,
+        23,
+        nb,
+        200_000,
+        vec![line((2_500_000, 1_050_000), (3_500_000, 1_050_000))],
+    );
+    assert!(check_board(&apart, &only_clearance).confirmed.is_empty());
+    // a straight track that touches an end point of the arc is a failure too
     track(
         &mut b,
         22,
@@ -710,10 +733,252 @@ fn an_arc_leaves_the_open_net_inconclusive() {
             sweep: Udeg::new(90_000_000).unwrap(),
         }],
     );
+    // the arc is measured along its curve, so the net is open for certain
+    let report = analyse_board(&b, nm(0));
+    assert_eq!(report.confirmed.len(), 1, "{:?}", report.confirmed);
+    assert_eq!(report.confirmed[0].rule, "net_open");
+    assert!(report.inconclusive.is_empty(), "{:?}", report.inconclusive);
+    // an arc with no shape (no sweep) is still judged by its end points and says so
+    if let Some(t) = b.tracks.get_mut(&id(21)) {
+        t.path = vec![Segment::Arc {
+            start: pt(8_000_000, 2_000_000),
+            end: pt(9_000_000, 2_000_000),
+            sweep: Udeg::ZERO,
+        }];
+    }
     let report = analyse_board(&b, nm(0));
     assert!(report.confirmed.is_empty(), "{:?}", report.confirmed);
     assert_eq!(report.inconclusive.len(), 2);
     assert!(report.inconclusive.iter().any(|f| f.rule == "net_open"));
+}
+
+#[test]
+fn the_middle_of_an_arc_shorts_and_joins_copper() {
+    let mut b = base();
+    let na = net(&mut b, 10, "A");
+    let nb = net(&mut b, 11, "B");
+    // down to y = 1.586 mm between (2, 2) and (4, 2)
+    track(
+        &mut b,
+        20,
+        na,
+        200_000,
+        vec![Segment::Arc {
+            start: pt(2_000_000, 2_000_000),
+            end: pt(4_000_000, 2_000_000),
+            sweep: Udeg::new(90_000_000).unwrap(),
+        }],
+    );
+    track(
+        &mut b,
+        21,
+        nb,
+        200_000,
+        vec![line((3_000_000, 500_000), (3_000_000, 1_600_000))],
+    );
+    let report = analyse_board(&b, nm(0));
+    assert!(
+        report.confirmed.iter().any(|f| f.rule == "copper_short"),
+        "{:?}",
+        report.confirmed
+    );
+    // the same copper on the net of the arc joins it instead
+    if let Some(t) = b.tracks.get_mut(&id(21)) {
+        t.net = na;
+    }
+    let report = analyse_board(&b, nm(0));
+    assert!(report.confirmed.is_empty(), "{:?}", report.confirmed);
+}
+
+#[test]
+fn a_via_through_the_board_is_copper_on_the_inner_layers_too() {
+    let mut b = base();
+    let (in1, in2) = (id(5), id(6));
+    for (layer, name) in [(in1, "In1"), (in2, "In2")] {
+        b.layers.insert(
+            layer,
+            Layer {
+                name: name.into(),
+                kind: LayerKind::Copper,
+                side: None,
+            },
+        );
+    }
+    b.copper_stack = vec![id(TOP), in1, in2, id(BOT)];
+    let na = net(&mut b, 10, "A");
+    let nb = net(&mut b, 11, "B");
+    via(&mut b, 30, na, (5_000_000, 5_000_000), 300_000, 700_000);
+    // a track of another net on an inner layer, 0.05 mm from the via
+    b.tracks.insert(
+        id(20),
+        Track {
+            net: nb,
+            layer: in1,
+            width: nm(200_000),
+            path: vec![line((2_000_000, 5_500_000), (8_000_000, 5_500_000))],
+        },
+    );
+    let only_clearance = RuleValues {
+        min_clearance: nm(200_000),
+        ..RuleValues::default()
+    };
+    let report = check_board(&b, &only_clearance);
+    assert_eq!(by_rule(&report, "copper_clearance").len(), 1);
+    // and a track that crosses the via on that layer is a short
+    if let Some(t) = b.tracks.get_mut(&id(20)) {
+        t.path = vec![line((2_000_000, 5_000_000), (8_000_000, 5_000_000))];
+    }
+    let report = analyse_board(&b, nm(0));
+    assert!(
+        report.confirmed.iter().any(|f| f.rule == "copper_short"),
+        "{:?}",
+        report.confirmed
+    );
+    // a blind via from the top to the first inner layer is not on the second one
+    if let Some(v) = b.vias.get_mut(&id(30)) {
+        v.to_layer = in1;
+    }
+    if let Some(t) = b.tracks.get_mut(&id(20)) {
+        t.layer = in2;
+    }
+    assert!(check_board(&b, &only_clearance).confirmed.is_empty());
+}
+
+/// A part with one round pad of 1.5 mm with a hole of 1 mm that is not plated, at `at`.
+fn mounting_hole(b: &mut Board, at: (i64, i64)) {
+    let mut pads = BTreeMap::new();
+    pads.insert(
+        id(701),
+        Pad {
+            number: "1".to_owned(),
+            shape: round(1_500_000),
+            at: pt(0, 0),
+            rotation: Udeg::ZERO,
+            drill: Some(nm(1_000_000)),
+            layers: vec![id(TOP), id(BOT)],
+            roundness: 0,
+            plated: false,
+        },
+    );
+    b.footprints.insert(
+        id(700),
+        Footprint {
+            name: "HOLE".to_owned(),
+            pads,
+        },
+    );
+    b.components.insert(
+        id(702),
+        Component {
+            refdes: "H1".to_owned(),
+            value: String::new(),
+            symbol: None,
+            footprint: id(700),
+            at: pt(at.0, at.1),
+            rotation: Udeg::ZERO,
+            side: Side::Top,
+        },
+    );
+}
+
+#[test]
+fn copper_keeps_away_from_a_hole_that_is_not_plated() {
+    let mut b = base();
+    let na = net(&mut b, 10, "A");
+    mounting_hole(&mut b, (5_000_000, 5_000_000));
+    // the wall of the hole is at y = 5.5 mm, the edge of the track at y = 5.7 mm
+    track(
+        &mut b,
+        20,
+        na,
+        200_000,
+        vec![line((2_000_000, 5_800_000), (8_000_000, 5_800_000))],
+    );
+    let only = |limit: i64| RuleValues {
+        min_hole_clearance: nm(limit),
+        ..RuleValues::default()
+    };
+    assert!(check_board(&b, &only(200_000)).confirmed.is_empty());
+    let report = check_board(&b, &only(250_000));
+    let found = by_rule(&report, "hole_clearance");
+    assert_eq!(found.len(), 1, "{:?}", report.confirmed);
+    assert_eq!(found[0].measured_nm, Some(200_000));
+    assert_eq!(
+        found[0].location,
+        "track ".to_owned() + &id(20).to_string() + " and the hole of H1 pad 1"
+    );
+    // a via 0.1 mm from the wall
+    via(&mut b, 30, na, (5_000_000, 4_050_000), 300_000, 700_000);
+    assert_eq!(
+        by_rule(&check_board(&b, &only(150_000)), "hole_clearance").len(),
+        1
+    );
+    // the rule is off by default
+    assert!(check_board(&b, &RuleValues::default()).confirmed.is_empty());
+}
+
+#[test]
+fn drill_holes_keep_away_from_the_edge_of_the_board() {
+    let mut b = base();
+    let na = net(&mut b, 10, "A");
+    // walls 0.35 mm and 0.1 mm from the left edge
+    via(&mut b, 30, na, (500_000, 5_000_000), 300_000, 700_000);
+    mounting_hole(&mut b, (600_000, 10_000_000));
+    let only = |limit: i64| RuleValues {
+        min_hole_edge: nm(limit),
+        ..RuleValues::default()
+    };
+    let report = check_board(&b, &only(200_000));
+    let found = by_rule(&report, "hole_edge");
+    assert_eq!(found.len(), 1, "{:?}", report.confirmed);
+    assert_eq!(
+        (found[0].location.as_str(), found[0].measured_nm),
+        ("H1 pad 1", Some(100_000))
+    );
+    assert_eq!(
+        by_rule(&check_board(&b, &only(400_000)), "hole_edge").len(),
+        2
+    );
+    // without an outline the holes cannot be judged
+    b.outline.clear();
+    let report = check_board(&b, &only(400_000));
+    assert!(report.confirmed.is_empty());
+    assert_eq!(report.inconclusive.len(), 1);
+}
+
+#[test]
+fn the_edge_clearance_follows_the_arcs_of_the_outline() {
+    let mut b = base();
+    // the bottom edge bulges outwards by a half turn: down to y = -10 mm at x = 10 mm
+    b.outline_arcs = vec![eh3d_phoenix_board::OutlineArc {
+        edge: 0,
+        sweep: Udeg::new(180_000_000).unwrap(),
+    }];
+    let na = net(&mut b, 10, "A");
+    // inside the bulge, below the chord between the two corners
+    track(
+        &mut b,
+        20,
+        na,
+        200_000,
+        vec![line((9_000_000, -5_000_000), (11_000_000, -5_000_000))],
+    );
+    let only_edge = RuleValues {
+        min_edge_clearance: nm(300_000),
+        ..RuleValues::default()
+    };
+    let report = check_board(&b, &only_edge);
+    assert!(report.confirmed.is_empty(), "{:?}", report.confirmed);
+    // 0.1 mm from the curve of the edge
+    track(
+        &mut b,
+        21,
+        na,
+        200_000,
+        vec![line((9_900_000, -9_800_000), (10_100_000, -9_800_000))],
+    );
+    let report = check_board(&b, &only_edge);
+    assert_eq!(by_rule(&report, "edge_clearance").len(), 1);
 }
 
 // ---- the schematic against the board ----

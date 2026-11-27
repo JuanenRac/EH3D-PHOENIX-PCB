@@ -26,6 +26,8 @@ struct Item {
 /// The obstacles of one layer, indexed by squares of a fixed side.
 struct LayerObs {
     items: Vec<Item>,
+    /// The outlines of the zones kept out: their sides are items, and no point may be inside.
+    areas: Vec<Vec<P>>,
     buckets: BTreeMap<(i64, i64), Vec<usize>>,
     size: i64,
 }
@@ -34,6 +36,7 @@ impl LayerObs {
     fn new(size: i64) -> LayerObs {
         LayerObs {
             items: Vec::new(),
+            areas: Vec::new(),
             buckets: BTreeMap::new(),
             size,
         }
@@ -51,8 +54,24 @@ impl LayerObs {
         }
     }
 
+    /// Keeps a polygon out, `extra` farther from its sides than the other obstacles.
+    fn keep_out(&mut self, outline: Vec<P>, extra: i64) {
+        for i in 0..outline.len() {
+            self.add(outline[i], outline[(i + 1) % outline.len()], extra);
+        }
+        self.areas.push(outline);
+    }
+
     /// True when the segment `ab` keeps `reach` away from the edge of every obstacle.
     fn clear(&self, a: P, b: P, reach: i64) -> bool {
+        // a piece that crosses no side is inside a polygon when one of its ends is
+        if self
+            .areas
+            .iter()
+            .any(|area| inside_polygon(a, area) || inside_polygon(b, area))
+        {
+            return false;
+        }
         let (x0, x1) = (a.0.min(b.0) - reach, a.0.max(b.0) + reach);
         let (y0, y1) = (a.1.min(b.1) - reach, a.1.max(b.1) + reach);
         for bx in x0.div_euclid(self.size)..=x1.div_euclid(self.size) {
@@ -156,6 +175,9 @@ pub(crate) struct SpaceSpec {
     pub edge_clear: i64,
     /// The side of the squares of the index.
     pub bucket: i64,
+    /// The two ends of the route when the zones of other nets are kept out; a zone that holds one
+    /// of them is not kept out. `None`: zones are not looked at.
+    pub zone_ends: Option<[P; 2]>,
 }
 
 impl Space {
@@ -214,10 +236,26 @@ impl Space {
                 continue;
             }
             let half = half_up(via.diameter.get());
-            for layer in [via.from_layer, via.to_layer] {
+            for layer in board.via_layers(via) {
                 if let Some(i) = index.get(&layer) {
                     obs[*i].add(pair(via.at), pair(via.at), half);
                 }
+            }
+        }
+        if let Some(ends) = spec.zone_ends {
+            for zone in board.zones.values() {
+                if zone.net == spec.net || zone.outline.len() < 3 {
+                    continue;
+                }
+                let Some(i) = index.get(&zone.layer) else {
+                    continue;
+                };
+                let outline: Vec<P> = zone.outline.iter().map(|p| pair(*p)).collect();
+                if ends.iter().any(|end| inside_polygon(*end, &outline)) {
+                    continue;
+                }
+                let extra = zone.clearance.get().saturating_sub(spec.clear).max(0);
+                obs[*i].keep_out(outline, extra);
             }
         }
         let outline: Vec<P> = if board.outline.len() >= 3 {
@@ -262,11 +300,13 @@ impl Space {
             && self.edges_ok(a, b, self.half_track.saturating_add(self.edge_clear))
     }
 
-    /// True when a via may stand at `p`, joining the layers numbered `l1` and `l2`.
+    /// True when a via may stand at `p`, joining the layers numbered `l1` and `l2`: it has copper
+    /// on those two and on every layer between them.
     pub(crate) fn via_clear(&self, l1: usize, l2: usize, p: P) -> bool {
         let reach = self.via_half.saturating_add(self.clear);
-        self.obs[l1].clear(p, p, reach)
-            && self.obs[l2].clear(p, p, reach)
+        self.obs[l1.min(l2)..=l1.max(l2)]
+            .iter()
+            .all(|layer| layer.clear(p, p, reach))
             && self.edges_ok(p, p, self.via_half.saturating_add(self.edge_clear))
     }
 }

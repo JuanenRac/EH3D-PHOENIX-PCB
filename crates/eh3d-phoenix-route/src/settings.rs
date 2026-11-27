@@ -41,6 +41,9 @@ pub struct RouteSettings {
     pub bucket_nm: i64,
     /// The shortest track that the mode that stops at obstacles still makes.
     pub stop_min_length_nm: i64,
+    /// Go around the copper zones of other nets (a zone that holds an end of the route is not
+    /// gone around). Off by default: a pour is normally filled around the tracks.
+    pub avoid_zones: bool,
     /// Refuse an edit that would add a rule error.
     pub strict_edits: bool,
     /// Moving a vertex may not turn a 0, 45 or 90 degree piece into another angle.
@@ -68,6 +71,7 @@ impl Default for RouteSettings {
             clearance_margin_nm: 1_000,
             bucket_nm: 2_000_000,
             stop_min_length_nm: 100_000,
+            avoid_zones: false,
             strict_edits: true,
             keep_angles: true,
             ratsnest_max_pairs: 50_000_000,
@@ -121,6 +125,7 @@ impl RouteSettings {
                 }
                 "bucket_nm" => s.bucket_nm = value.parse().map_err(|_| bad())?,
                 "stop_min_length_nm" => s.stop_min_length_nm = value.parse().map_err(|_| bad())?,
+                "avoid_zones" => s.avoid_zones = parse_bool(value).ok_or_else(bad)?,
                 "strict_edits" => s.strict_edits = parse_bool(value).ok_or_else(bad)?,
                 "keep_angles" => s.keep_angles = parse_bool(value).ok_or_else(bad)?,
                 "ratsnest_max_pairs" => s.ratsnest_max_pairs = value.parse().map_err(|_| bad())?,

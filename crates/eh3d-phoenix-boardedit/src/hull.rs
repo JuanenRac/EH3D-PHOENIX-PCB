@@ -62,6 +62,11 @@ impl Oct {
         out
     }
 
+    /// The box along x and y: `[min x, min y, max x, max y]`.
+    pub fn bx(&self) -> [i128; 4] {
+        [self.lo[0], self.lo[1], self.hi[0], self.hi[1]].map(i128::from)
+    }
+
     /// The smallest octagon that holds both.
     pub fn union(&self, other: &Oct) -> Oct {
         let mut out = *self;

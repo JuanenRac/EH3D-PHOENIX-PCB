@@ -14,6 +14,7 @@ eh3d-phoenix-lengths = { path = "../eh3d-phoenix-lengths" }
 eh3d-phoenix-model = { path = "../eh3d-phoenix-model" }
 eh3d-phoenix-route = { path = "../eh3d-phoenix-route" }
 eh3d-phoenix-rules = { path = "../eh3d-phoenix-rules" }
+eh3d-phoenix-spatial = { path = "../eh3d-phoenix-spatial" }
 eh3d-phoenix-stackup = { path = "../eh3d-phoenix-stackup" }
 eh3d-phoenix-zones = { path = "../eh3d-phoenix-zones" }
 serde.workspace = true

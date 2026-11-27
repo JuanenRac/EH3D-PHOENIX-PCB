@@ -6,7 +6,7 @@
 use std::collections::BTreeMap;
 
 use eh3d_phoenix_board::connectivity::pad_position;
-use eh3d_phoenix_board::{Board, Id, PadRef, Segment, Via};
+use eh3d_phoenix_board::{ArcSettings, Board, Id, PadRef, Segment, Via};
 use eh3d_phoenix_model::Point;
 
 use super::checks_extra::{self, RingItem};
@@ -18,7 +18,7 @@ use super::{
     make, not_judged, AdvancedConfig, IndexMode, RuleInfo, R_ACID_TRAP, R_COPPER_EDGE,
     R_DRILL_CLASS, R_OUTSIDE, R_PAD_EDGE, R_PAD_NO_NET, R_RING, R_VIA_DUP,
 };
-use crate::geometry::{inside_polygon, outline_edges, pad_min_side, Dist2, Prim};
+use crate::geometry::{inside_polygon, outline_edges, pad_min_side, Dist2, Near, Prim};
 use crate::items::{pad_prim, placed_pads, track_prim, via_prim, PlacedPad};
 use crate::report::Report;
 
@@ -58,21 +58,6 @@ pub(super) fn box_of(prim: &Prim) -> Bx {
     let b = prim.bbox();
     let e = prim.hi / 2 + 1;
     [b[0] - e, b[1] - e, b[2] + e, b[3] + e]
-}
-
-/// The copper layers a via joins: all the layers of the stack between its two ends, or its two
-/// ends when the stack is not given.
-pub(super) fn via_layers(board: &Board, via: &Via) -> Vec<Id> {
-    let stack = &board.copper_stack;
-    let a = stack.iter().position(|l| *l == via.from_layer);
-    let b = stack.iter().position(|l| *l == via.to_layer);
-    match (a, b) {
-        (Some(a), Some(b)) => {
-            let (lo, hi) = if a <= b { (a, b) } else { (b, a) };
-            stack[lo..=hi].to_vec()
-        }
-        _ => vec![via.from_layer, via.to_layer],
-    }
 }
 
 /// True when the via is drilled through the whole board.
@@ -149,7 +134,7 @@ pub(super) fn build<'a>(board: &'a Board, cfg: &'a AdvancedConfig, mode: IndexMo
                 Some(*id),
                 format!("via {id}"),
                 Some(via.net),
-                via_layers(board, via),
+                board.via_layers(via),
                 prim,
             ));
         }
@@ -209,20 +194,17 @@ pub(super) enum Verdict {
 /// Is the gap between two items smaller than `limit`? Exact: the squared distance is compared
 /// with the limit without a root.
 pub(super) fn judge(a: &Prim, b: &Prim, limit: i128) -> Verdict {
-    let Some(d) = a.distance(b) else {
-        return Verdict::Unknown;
-    };
-    match d.doubled_below(2 * limit + a.lo + b.lo) {
-        None => Verdict::Unknown,
-        Some(true) => {
-            let gap = d.nm_f64() - (a.lo + b.lo) as f64 / 2.0;
-            Verdict::Violates(gap.round().max(0.0) as i64)
-        }
-        Some(false) => match d.doubled_below(2 * limit + a.hi + b.hi) {
+    match a.within(b, limit, false) {
+        Near::Yes => match a.distance(b) {
+            Some(d) => {
+                let gap = d.nm_f64() - (a.lo + b.lo) as f64 / 2.0;
+                Verdict::Violates(gap.round().max(0.0) as i64)
+            }
             None => Verdict::Unknown,
-            Some(true) => Verdict::Maybe,
-            Some(false) => Verdict::Clear,
         },
+        Near::Maybe => Verdict::Maybe,
+        Near::No => Verdict::Clear,
+        Near::Unknown => Verdict::Unknown,
     }
 }
 
@@ -537,6 +519,8 @@ fn outside_outline(ctx: &Ctx<'_>, out: &mut Report) {
         ));
         return;
     }
+    // the arcs of the outline as the chords that the other checks of distance see
+    let outline = board.outline_polygon(&ArcSettings::current());
     for (cid, component) in &board.components {
         let mut centres: Vec<Point> = Vec::new();
         if let Some(footprint) = board.footprints.get(&component.footprint) {
@@ -557,7 +541,7 @@ fn outside_outline(ctx: &Ctx<'_>, out: &mut Report) {
             .iter()
             .filter(|p| {
                 // outside the outline, or inside an opening of the board
-                !inside_polygon(**p, &board.outline)
+                !inside_polygon(**p, &outline)
                     || board
                         .outline_cutouts
                         .iter()

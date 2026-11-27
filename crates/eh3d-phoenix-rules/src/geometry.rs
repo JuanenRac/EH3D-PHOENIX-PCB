@@ -6,7 +6,7 @@
 //! 128 bits the answer is `None`, which the checks report as inconclusive and never as a result.
 //! Floating point is used only to show a measured value.
 
-use eh3d_phoenix_board::{Board, PadShape};
+use eh3d_phoenix_board::{ArcSettings, Board, PadShape};
 use eh3d_phoenix_model::{segments_intersect, Point};
 
 /// A squared distance `num / den`, with `den > 0`.
@@ -195,14 +195,33 @@ pub(crate) fn pad_min_side(shape: PadShape) -> i128 {
 /// A piece of copper as straight pieces with a width. `lo` is the width that is certainly copper
 /// (twice the radius of the largest circle inside) and `hi` the width that certainly holds all of
 /// it (twice the radius of the smallest circle around it); they are equal for a track and a
-/// round pad, and differ for a pad that is not round.
+/// round pad, and differ for a pad that is not round. The arcs are chords apart (`curve`), each
+/// within `slack` of the true arc, so that a distance to them is judged with that doubt and a
+/// straight piece stays exact. `has_arc` is true for an arc that has no shape to cut: only its end
+/// points are among the pieces.
 #[derive(Debug, Clone)]
 pub(crate) struct Prim {
     pieces: Vec<(Point, Point)>,
+    curve: Vec<(Point, Point)>,
+    slack: i128,
+    first: Point,
     pub(crate) lo: i128,
     pub(crate) hi: i128,
     pub(crate) has_arc: bool,
     bbox: [i128; 4],
+}
+
+/// What can be said about the gap between two pieces of copper and a limit.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Near {
+    /// Proven within the limit.
+    Yes,
+    /// Within the limit only in the least favourable reading of the shapes.
+    Maybe,
+    /// Not within the limit in any reading.
+    No,
+    /// The numbers do not fit in the exact test.
+    Unknown,
 }
 
 impl Prim {
@@ -213,26 +232,47 @@ impl Prim {
         hi: i128,
         has_arc: bool,
     ) -> Option<Prim> {
-        if pieces.is_empty() {
-            return None;
-        }
+        Prim::curved(pieces, Vec::new(), 0, (lo, hi), has_arc)
+    }
+
+    /// Straight pieces and the chords of arcs, which are within `slack` of the arcs they stand
+    /// for. `None` when there is nothing to measure.
+    pub(crate) fn curved(
+        pieces: Vec<(Point, Point)>,
+        curve: Vec<(Point, Point)>,
+        slack: i128,
+        (lo, hi): (i128, i128),
+        has_arc: bool,
+    ) -> Option<Prim> {
+        let first = pieces.first().or_else(|| curve.first())?.0;
         let mut bbox = [i128::MAX, i128::MAX, i128::MIN, i128::MIN];
-        for (a, b) in &pieces {
-            for p in [*a, *b] {
-                let (x, y) = xy(p);
-                bbox[0] = bbox[0].min(x);
-                bbox[1] = bbox[1].min(y);
-                bbox[2] = bbox[2].max(x);
-                bbox[3] = bbox[3].max(y);
+        for (list, by) in [(&pieces, 0), (&curve, slack)] {
+            for (a, b) in list {
+                for p in [*a, *b] {
+                    let (x, y) = xy(p);
+                    bbox[0] = bbox[0].min(x - by);
+                    bbox[1] = bbox[1].min(y - by);
+                    bbox[2] = bbox[2].max(x + by);
+                    bbox[3] = bbox[3].max(y + by);
+                }
             }
         }
         Some(Prim {
             pieces,
+            curve,
+            slack,
+            first,
             lo,
             hi,
             has_arc,
             bbox,
         })
+    }
+
+    /// The same item with the place that says where it is.
+    pub(crate) fn starting_at(mut self, first: Point) -> Prim {
+        self.first = first;
+        self
     }
 
     /// A round or square-ish item at one point.
@@ -245,9 +285,17 @@ impl Prim {
         self.bbox
     }
 
-    /// The first point of the first piece, to say where the item is.
+    /// Where the item starts, to say where it is.
     pub(crate) fn first_point(&self) -> Point {
-        self.pieces[0].0
+        self.first
+    }
+
+    /// Every piece with how far the copper may be from it: nothing for a straight piece.
+    fn all(&self) -> impl Iterator<Item = (&(Point, Point), i128)> {
+        self.pieces
+            .iter()
+            .map(|p| (p, 0))
+            .chain(self.curve.iter().map(|p| (p, self.slack)))
     }
 
     /// Could the two items be within `margin` of each other? A cheap test that never says no
@@ -261,11 +309,63 @@ impl Prim {
             && other.bbox[1] - eb <= self.bbox[3] + ea
     }
 
-    /// The squared distance between the centre lines of two items.
+    /// Is the gap between the copper of the two items smaller than `gap` (`inclusive`: or equal
+    /// to it)? The answer is proven only with the width that is certainly copper and, for the
+    /// chords of an arc, with the arc as far from them as it can be.
+    pub(crate) fn within(&self, other: &Prim, gap: i128, inclusive: bool) -> Near {
+        let below = |d: Dist2, limit: i128| {
+            if limit < 0 {
+                Some(false)
+            } else if inclusive {
+                d.doubled_at_most(limit)
+            } else {
+                d.doubled_below(limit)
+            }
+        };
+        let (mut maybe, mut unknown) = (false, false);
+        for ((a, b), sa) in self.all() {
+            for ((c, d), sb) in other.all() {
+                let Some(found) = segment_segment(*a, *b, *c, *d) else {
+                    unknown = true;
+                    continue;
+                };
+                let doubt = 2 * (sa + sb);
+                let sure = (2 * gap)
+                    .checked_add(self.lo)
+                    .and_then(|v| v.checked_add(other.lo));
+                let widest = (2 * gap)
+                    .checked_add(self.hi)
+                    .and_then(|v| v.checked_add(other.hi));
+                let (Some(sure), Some(widest)) = (sure, widest) else {
+                    unknown = true;
+                    continue;
+                };
+                match below(found, sure - doubt) {
+                    Some(true) => return Near::Yes,
+                    Some(false) => {}
+                    None => unknown = true,
+                }
+                match below(found, widest.saturating_add(doubt)) {
+                    Some(true) => maybe = true,
+                    Some(false) => {}
+                    None => unknown = true,
+                }
+            }
+        }
+        if unknown {
+            Near::Unknown
+        } else if maybe {
+            Near::Maybe
+        } else {
+            Near::No
+        }
+    }
+
+    /// The squared distance between the centre lines of two items (the arcs as their chords).
     pub(crate) fn distance(&self, other: &Prim) -> Option<Dist2> {
         let mut best: Option<Dist2> = None;
-        for (a, b) in &self.pieces {
-            for (c, d) in &other.pieces {
+        for ((a, b), _) in self.all() {
+            for ((c, d), _) in other.all() {
                 let candidate = segment_segment(*a, *b, *c, *d)?;
                 best = match best {
                     Some(current) if !candidate.less(current)? => Some(current),
@@ -292,24 +392,20 @@ pub(crate) enum Contact {
 
 /// Do two items touch, allowing a gap of `tolerance` (a gap of exactly the tolerance counts)?
 pub(crate) fn contact(a: &Prim, b: &Prim, tolerance: i128) -> Contact {
-    let Some(d) = a.distance(b) else {
-        return Contact::Unknown;
-    };
-    match d.doubled_at_most(2 * tolerance + a.lo + b.lo) {
-        None => Contact::Unknown,
-        Some(true) => Contact::Yes,
-        Some(false) => match d.doubled_at_most(2 * tolerance + a.hi + b.hi) {
-            None => Contact::Unknown,
-            Some(true) => Contact::Maybe,
-            Some(false) => Contact::No,
-        },
+    match a.within(b, tolerance, true) {
+        Near::Yes => Contact::Yes,
+        Near::Maybe => Contact::Maybe,
+        Near::No => Contact::No,
+        Near::Unknown => Contact::Unknown,
     }
 }
 
 /// The pieces of the outline of the board, and of the openings inside it, as items of no width.
+/// The arcs of the outline are the chords that the other checks of distance see.
 pub(crate) fn outline_edges(board: &Board) -> Vec<Prim> {
     let mut out = Vec::new();
-    for ring in std::iter::once(&board.outline).chain(board.outline_cutouts.iter()) {
+    let outline = board.outline_polygon(&ArcSettings::current());
+    for ring in std::iter::once(&outline).chain(board.outline_cutouts.iter()) {
         let n = ring.len();
         if n < 3 {
             continue;

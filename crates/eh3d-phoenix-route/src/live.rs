@@ -24,7 +24,7 @@ pub struct RuleContext {
 pub fn findings(board: &Board, ctx: &RuleContext) -> Vec<Finding> {
     let mut report = check_board(board, &ctx.rules);
     if !ctx.classes.is_empty() {
-        report.merge(check_classes(board, &ctx.classes));
+        report.merge(check_classes(board, &ctx.classes, ctx.rules.min_clearance));
     }
     let mut out = report.confirmed;
     for finding in analyse_board(board, ctx.rules.connect_tolerance).confirmed {

@@ -858,7 +858,7 @@ fn end_of(board: &Board, item: Item, at: Point, slots: &[usize], copper: &[Id]) 
         }
         Item::Via(id) => {
             if let Some(via) = board.vias.get(&id) {
-                for layer in [via.from_layer, via.to_layer] {
+                for layer in board.via_layers(via) {
                     if let Some(slot) = index_of(layer).and_then(slot_of) {
                         on.push(slot);
                     }

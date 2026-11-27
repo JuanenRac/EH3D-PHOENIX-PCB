@@ -3,7 +3,9 @@
 //! components.
 
 use eh3d_phoenix_board::connectivity::pad_position;
-use eh3d_phoenix_board::{Board, Id, PadRef, PadShape, Segment, Side, Track, Via};
+use eh3d_phoenix_board::{
+    arc_chords, ArcSettings, Board, Id, PadRef, PadShape, Segment, Side, Track, Via,
+};
 use eh3d_phoenix_model::{Nm, Point};
 
 use crate::geometry::{pad_diameters, Prim};
@@ -75,23 +77,39 @@ pub(crate) fn placed_pads(board: &Board) -> Vec<PlacedPad> {
     out
 }
 
-/// A track as an item. Arc pieces are measured by their end points, which are really copper: a
-/// distance found that way is proven, a distance not found says nothing about the arc.
+/// A track as an item. An arc is cut into chords (the tolerance of `config/outline_arcs.cfg`),
+/// with how far the arc may be from them. An arc with no shape is measured by its end points,
+/// which are really copper: a distance found that way is proven, a distance not found says nothing
+/// about the arc.
 pub(crate) fn track_prim(track: &Track) -> Option<Prim> {
     let mut pieces = Vec::new();
+    let mut curve = Vec::new();
+    let mut slack = 0;
     let mut has_arc = false;
     for segment in &track.path {
         match segment {
             Segment::Line { start, end } => pieces.push((*start, *end)),
-            Segment::Arc { start, end, .. } => {
-                has_arc = true;
-                pieces.push((*start, *start));
-                pieces.push((*end, *end));
+            Segment::Arc { start, end, sweep } => {
+                match arc_chords(*start, *end, *sweep, &ArcSettings::current()) {
+                    Some((points, doubt)) => {
+                        curve.extend(points.windows(2).map(|w| (w[0], w[1])));
+                        slack = slack.max(i128::from(doubt));
+                    }
+                    None => {
+                        has_arc = true;
+                        pieces.push((*start, *start));
+                        pieces.push((*end, *end));
+                    }
+                }
             }
         }
     }
     let width = i128::from(track.width.get());
-    Prim::new(pieces, width, width, has_arc)
+    let prim = Prim::curved(pieces, curve, slack, (width, width), has_arc)?;
+    Some(match track.path.first() {
+        Some(segment) => prim.starting_at(segment.start()),
+        None => prim,
+    })
 }
 
 /// A via as an item: a round pad at one point.

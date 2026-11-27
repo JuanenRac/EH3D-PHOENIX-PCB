@@ -167,7 +167,7 @@ fn timed<T>(out: &mut String, name: &str, run: impl FnOnce() -> T) -> T {
 #[test]
 #[ignore = "times to be read, not limits"]
 fn the_times_of_the_engine_on_large_boards() {
-    for parts in [1_000_usize, 4_000, 12_000] {
+    for parts in [1_000_usize, 4_000, 8_000, 12_000] {
         let board = board_of(parts);
         let ctx = rules();
         let mut out = format!(
@@ -201,6 +201,7 @@ fn the_times_of_the_engine_on_large_boards() {
             rotation_udeg: None,
             follow: Some(false),
         };
+        timed(&mut out, "drag-check", || editor.trial(&op).unwrap());
         timed(&mut out, "edit", || editor.apply(&op).unwrap());
         assert!(timed(&mut out, "undo", || editor.undo()));
         assert!(timed(&mut out, "redo", || editor.redo()));

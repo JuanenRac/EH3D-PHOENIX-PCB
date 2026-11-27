@@ -360,7 +360,7 @@ mod tests {
         assert_eq!(s.undo_remembered_checks, 64);
         assert_eq!(
             (s.drag_drc_max_objects, s.measure_snap_nm),
-            (5_000, 600_000)
+            (25_000, 600_000)
         );
         assert!(s.diagonal_routes && s.corner_horizontal_first);
         assert_eq!(s.track_width_nm, 250_000);

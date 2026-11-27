@@ -33,14 +33,14 @@ It is used when the first way cannot do it (`shove_walk_around` and `shove_vias`
 ### What both ways keep
 
 * **Limits.** The depth of the cascade (`shove_max_depth`) and the number of tracks and vias that move (`shove_max_moved`) are settings in `config/boardedit.cfg`; going past either is refused (`PHOENIX-SHOVE-002`, `PHOENIX-SHOVE-003`).
-* **Net classes.** Between two nets the gap is the larger of the clearance of the rules and the clearance of their net classes, also though the design rules do not check the clearance of a class: a result that places copper nearer than a class asks is refused.
+* **Net classes.** Between two nets the gap is the larger of the clearance of the rules and the clearance of their net classes, which the design rules check too (`PHOENIX-CHECK-016`): a result that places copper nearer than a class asks is refused.
 * **All or nothing.** The new track, the moved tracks and the moved vias are one batch of reversible operations, one step of the history: undo gives back the same bytes.
 * **The checks.** The result is tried on a copy. Every pair of pads, tracks, vias and zones that a net joined before must still be joined (`PHOENIX-SHOVE-007`), and the design rules (`docs/RULES.md`) must find no new error (`PHOENIX-SHOVE-006`), **also** when `reject_new_errors` is off and also for a `forced` operation. When no neighbour is in the way the operation is a plain `route`.
 * **Only what changed is checked.** The rules judge the zone of the pushed tracks and vias (`local_checks`, `docs/BOARD_EDIT.md`) and the connectivity is worked out for their nets only; both give the same answer as the whole board.
 * **The report.** The notes of the result name every track and via that moved and say when the new track goes around something.
 * **What a refusal says** is the reason the parallel push gave.
 
-The planning takes a pad as its box (or the octagon around a round pad) when it walks and as a disc of its larger half side when it pushes in parallel; every point that is kept is a whole number of nanometres and the checks judge the result, so a mistake of the planning can refuse a push but cannot let an error through.
+The pads, vias and tracks near a place are looked up in grids (`eh3d-phoenix-spatial`), so the time of the walk grows little with the board; a test compares the result with the one of looking at every object. The planning takes a pad as its box (or the octagon around a round pad) when it walks and as a disc of its larger half side when it pushes in parallel; every point that is kept is a whole number of nanometres and the checks judge the result, so a mistake of the planning can refuse a push but cannot let an error through.
 
 ### Times and results on synthetic boards
 
@@ -57,7 +57,7 @@ The model has a native arc piece (end points and a signed sweep), and the editor
 
 The radius is at least `arc_min_radius_nm` (`PHOENIX-ARC-001`); a vertex that is not between two straight pieces, pieces on one line, a turn back, or pieces too short are `PHOENIX-ARC-002`.
 
-The design rules see an arc by its end points only (`docs/RULES.md`), so the editor checks the arc itself before it keeps it: the arc is cut into chords (`arc_steps_per_quarter` for each quarter turn), each chord widened by its sagitta, and kept the clearance of the rules plus `arc_margin_nm` away from the copper of other nets, the pads, the vias and, with the clearance to the edge, the board outline (`PHOENIX-ARC-003`). The length of a net counts the arc (`docs/LENGTHS.md`).
+The design rules measure an arc along its curve, as chords with the doubt of their sagitta, and the editor also checks the arc itself before it keeps it: the arc is cut into chords (`arc_steps_per_quarter` for each quarter turn), each chord widened by its sagitta, and kept the clearance of the rules plus `arc_margin_nm` away from the copper of other nets, the pads, the vias and, with the clearance to the edge, the board outline (`PHOENIX-ARC-003`). The length of a net counts the arc (`docs/LENGTHS.md`).
 
 ## Meanders on pieces at 45 degrees
 
