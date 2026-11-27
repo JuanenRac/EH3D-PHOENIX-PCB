@@ -154,7 +154,7 @@ jobs:
           mkdir "$name"
           # the one program: the command line and the window (the window needs the gui feature of the build above)
           cp "target/${MATRIX_TARGET}/release/phoenix${MATRIX_EXT}" "$name/"
-          cp LICENSE README.md CHANGELOG.md "$name/"
+          cp LICENSE README.md CHANGELOG.md docs/THIRD_PARTY_NOTICES "$name/"
           # the icon of the program and the sample files, as examples
           cp images/brand/app.ico images/brand/icon-256.png "$name/"
           cp -r config "$name/config"
