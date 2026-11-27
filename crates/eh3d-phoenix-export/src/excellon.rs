@@ -489,10 +489,14 @@ mod tests {
             Shape::Slot(a, b) => assert_eq!((a.0, b.0), (0, 0)),
             _ => panic!("expected a slot"),
         }
-        assert!(matches!(
-            slot_shape(shape, 1_000_000, 45_000_000, 0, 0),
-            Shape::OffAxis
-        ));
+        // at 45 degrees the slot lies on the diagonal, 0.5 mm each way from the middle
+        match slot_shape(shape, 1_000_000, 45_000_000, 0, 0) {
+            Shape::Slot(a, b) => {
+                assert_eq!(a, (-353_553, -353_553));
+                assert_eq!(b, (353_553, 353_553));
+            }
+            _ => panic!("expected a slot"),
+        }
         // a round pad and a pad as wide as long give round holes
         let round = PadShape::Circle {
             diameter: nm(1_600_000),
