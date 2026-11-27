@@ -4,6 +4,8 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+## [0.1.8] - Inner vias, arcs and board edges are checked, new rules for net classes and holes, and a faster push and shove
+
 - **A suite project that another program saved is not written over:** saving, importing and taking a file are refused, also after a yes to a question that was waiting, and the window says it in the eight languages and offers to read the project again (saying that unsaved changes would be lost) or to save under another name. The shared repository is now taken at v0.3.7.
 - **A via through the board is seen on the inner layers by the rule checks:** on boards of more than two layers the clearance of tracks, vias and pads was only judged on the two layers a via names, so a track on an inner layer could cross it without a finding although the Gerber files give the via copper there. Every layer of the copper stack between its two ends now counts, as in those files.
 - **The connectivity, the ratsnest and the router see that copper too:** a track or a zone on an inner layer that meets a through via is joined to it (or shorted, when the nets differ), and the router and the autorouter keep a via clear on every layer it crosses.
