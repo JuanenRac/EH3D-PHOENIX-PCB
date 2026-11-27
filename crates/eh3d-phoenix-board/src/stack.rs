@@ -8,7 +8,7 @@ use std::collections::BTreeSet;
 
 use eh3d_diagnostic::{Category, Diagnostic, Recoverability, Severity};
 
-use crate::model::{Board, LayerKind};
+use crate::model::{Board, Id, LayerKind, Via};
 
 /// The stack names a layer that does not exist, is not copper or is listed twice.
 pub const STACK_ENTRY_INVALID: &str = "PHOENIX-BOARD-012";
@@ -33,6 +33,17 @@ fn make(code: &'static str, detail: String) -> Diagnostic {
 }
 
 impl Board {
+    /// The copper layers a via has copper on: every layer of the stack between its two ends, or
+    /// its two ends when the stack does not place them. A through via of a board of four layers
+    /// is also on the two inner ones.
+    pub fn via_layers(&self, via: &Via) -> Vec<Id> {
+        let place = |id: Id| self.copper_stack.iter().position(|l| *l == id);
+        match (place(via.from_layer), place(via.to_layer)) {
+            (Some(a), Some(b)) => self.copper_stack[a.min(b)..=a.max(b)].to_vec(),
+            _ => vec![via.from_layer, via.to_layer],
+        }
+    }
+
     /// The problems of the copper stack, in a fixed order. Nothing when the stack is empty.
     pub fn stack_problems(&self) -> Vec<Diagnostic> {
         let mut out = Vec::new();

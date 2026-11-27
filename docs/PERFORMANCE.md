@@ -85,6 +85,27 @@ The two times of a push are given before and after only the zone that changed wa
 
 Before, most of the time of a push was the design rule check of the whole board, one on the copy in a preview and another when it was applied. Now the rules judge the zone that changed and the connectivity is worked out for the nets of the push only (`local_checks`, `docs/BOARD_EDIT.md`), with the same answer; most of what is left in these pushes is the planning of the walk around the via. On the same boards the version before refused every one of these pushes, because the lower track would have been pushed into the via (`PHOENIX-SHOVE-001`), so its times are not compared.
 
+**The walk looks only at what is near.** The pads, vias and tracks near a place are found in grids. Measured before and after in one run of the CI, on the same boards (the preview and the push applied):
+
+| Board (tracks, vias, pads) | Preview, every object | Preview, grids | Applied, every object | Applied, grids |
+|---|---|---|---|---|
+| 200, 100, 400 | 1.1 ms | 1.3 ms | 1.7 ms | 1.9 ms |
+| 1000, 500, 2000 | 6.4 ms | 6.1 ms | 9.2 ms | 8.8 ms |
+| 4000, 2000, 8000 | 58 ms | 27 ms | 69 ms | 38 ms |
+
+On small boards the grids cost a little more than they save.
+
+**The check while dragging.** `engine_bench.rs` also times the check of one place of a drag (a component moved, the zone that changed judged), in one run of the CI:
+
+| Board (pads, tracks, vias) | Check of one place of a drag |
+|---|---|
+| 1000, 490, 250 | 0.5 ms |
+| 4000, 1960, 1000 | 2.0 ms |
+| 8000, 3920, 2000 | 4.1 ms |
+| 12000, 5880, 3000 | 6.6 ms |
+
+The largest board has about 21 000 components, tracks and vias, so `drag_drc_max_objects` is 25 000 by default. The times are those of a computer of the CI and of synthetic boards; nothing has been measured on a screen or on a real design.
+
 **What is done more often.** On 300 random pushes on small boards made with a fixed seed (`shove_props.rs`), pushing in parallel alone does 154 and the push with walks and via moves does 247; 24 of the 53 that are refused have an end of the new track at a pad of another net, which no push can solve. These are synthetic boards: they say nothing about how often a push succeeds on a real design.
 
 ## The autorouter

@@ -121,6 +121,10 @@ pub struct RuleValues {
     pub min_mask_bridge: Nm,
     /// Least distance between the walls of two drill holes.
     pub min_drill_spacing: Nm,
+    /// Closest approach of copper to the wall of a hole that is not plated.
+    pub min_hole_clearance: Nm,
+    /// Closest approach of the wall of any drill hole to the edge of the board.
+    pub min_hole_edge: Nm,
     /// How far apart two pieces of copper may be and still count as touching.
     pub connect_tolerance: Nm,
     /// Ask for the check of silkscreen over pads.
@@ -141,6 +145,8 @@ impl Default for RuleValues {
             min_edge_clearance: Nm::ZERO,
             min_mask_bridge: Nm::ZERO,
             min_drill_spacing: Nm::ZERO,
+            min_hole_clearance: Nm::ZERO,
+            min_hole_edge: Nm::ZERO,
             connect_tolerance: Nm::ZERO,
             silkscreen_over_pads: false,
             silkscreen_over_mask_openings: false,
@@ -159,6 +165,11 @@ struct RulesJson {
     min_edge_clearance_nm: i64,
     min_mask_bridge_nm: i64,
     min_drill_spacing_nm: i64,
+    // left out of a file when they are off, so that a file without them is written as before
+    #[serde(skip_serializing_if = "is_off")]
+    min_hole_clearance_nm: i64,
+    #[serde(skip_serializing_if = "is_off")]
+    min_hole_edge_nm: i64,
     connect_tolerance_nm: i64,
     silkscreen_over_pads: bool,
     silkscreen_over_mask_openings: bool,
@@ -226,6 +237,8 @@ impl RuleFile {
             min_edge_clearance: length("min_edge_clearance_nm", r.min_edge_clearance_nm)?,
             min_mask_bridge: length("min_mask_bridge_nm", r.min_mask_bridge_nm)?,
             min_drill_spacing: length("min_drill_spacing_nm", r.min_drill_spacing_nm)?,
+            min_hole_clearance: length("min_hole_clearance_nm", r.min_hole_clearance_nm)?,
+            min_hole_edge: length("min_hole_edge_nm", r.min_hole_edge_nm)?,
             connect_tolerance: length("connect_tolerance_nm", r.connect_tolerance_nm)?,
             silkscreen_over_pads: r.silkscreen_over_pads,
             silkscreen_over_mask_openings: r.silkscreen_over_mask_openings,
@@ -269,6 +282,8 @@ impl RuleFile {
                 min_edge_clearance_nm: v.min_edge_clearance.get(),
                 min_mask_bridge_nm: v.min_mask_bridge.get(),
                 min_drill_spacing_nm: v.min_drill_spacing.get(),
+                min_hole_clearance_nm: v.min_hole_clearance.get(),
+                min_hole_edge_nm: v.min_hole_edge.get(),
                 connect_tolerance_nm: v.connect_tolerance.get(),
                 silkscreen_over_pads: v.silkscreen_over_pads,
                 silkscreen_over_mask_openings: v.silkscreen_over_mask_openings,
@@ -291,6 +306,10 @@ impl RuleFile {
         text.push('\n');
         text
     }
+}
+
+fn is_off(value: &i64) -> bool {
+    *value == 0
 }
 
 fn length(name: &'static str, value: i64) -> Result<Nm, RuleFileError> {
@@ -323,6 +342,8 @@ impl RuleValues {
                 min_edge_clearance_nm: self.min_edge_clearance.get(),
                 min_mask_bridge_nm: self.min_mask_bridge.get(),
                 min_drill_spacing_nm: self.min_drill_spacing.get(),
+                min_hole_clearance_nm: self.min_hole_clearance.get(),
+                min_hole_edge_nm: self.min_hole_edge.get(),
                 connect_tolerance_nm: self.connect_tolerance.get(),
                 silkscreen_over_pads: self.silkscreen_over_pads,
                 silkscreen_over_mask_openings: self.silkscreen_over_mask_openings,
@@ -507,6 +528,8 @@ mod tests {
             min_track_width: Nm::new(150_000).unwrap(),
             min_clearance: Nm::new(200_000).unwrap(),
             min_drill_spacing: Nm::new(254_000).unwrap(),
+            min_hole_clearance: Nm::new(250_000).unwrap(),
+            min_hole_edge: Nm::new(400_000).unwrap(),
             connect_tolerance: Nm::new(1_000).unwrap(),
             silkscreen_over_pads: true,
             ..RuleValues::default()

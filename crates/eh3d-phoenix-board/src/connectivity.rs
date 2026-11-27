@@ -489,7 +489,7 @@ impl Board {
         ) else {
             return false;
         };
-        (layers.contains(&v.from_layer) || layers.contains(&v.to_layer))
+        self.via_layers(v).iter().any(|l| layers.contains(l))
             && pad_contains(self, pad, centre, v.at)
     }
 
@@ -530,7 +530,7 @@ impl Board {
         let (Some(t), Some(v)) = (self.tracks.get(&track), self.vias.get(&via)) else {
             return false;
         };
-        if t.layer != v.from_layer && t.layer != v.to_layer {
+        if !self.via_layers(v).contains(&t.layer) {
             return false;
         }
         let d = v.diameter.get() as i128;
@@ -554,9 +554,8 @@ impl Board {
         let (Some(a), Some(b)) = (self.vias.get(&x), self.vias.get(&y)) else {
             return false;
         };
-        let shares = [a.from_layer, a.to_layer]
-            .iter()
-            .any(|l| *l == b.from_layer || *l == b.to_layer);
+        let other = self.via_layers(b);
+        let shares = self.via_layers(a).iter().any(|l| other.contains(l));
         let w = a.diameter.get().max(b.diameter.get()) as i128;
         shares && near_segment(a.at, b.at, b.at, w * w)
     }
@@ -565,7 +564,7 @@ impl Board {
         let (Some(v), Some(z)) = (self.vias.get(&via), self.zones.get(&zone)) else {
             return false;
         };
-        (z.layer == v.from_layer || z.layer == v.to_layer) && point_in_polygon(v.at, &z.outline)
+        self.via_layers(v).contains(&z.layer) && point_in_polygon(v.at, &z.outline)
     }
 
     fn zone_zone(&self, x: Id, y: Id) -> bool {
@@ -577,7 +576,8 @@ impl Board {
                 || b.outline.iter().any(|p| point_in_polygon(*p, &a.outline)))
     }
 
-    /// The layers a net has copper on (tracks, zones and the ends of vias), as a set of ids.
+    /// The layers a net has copper on (tracks, zones and every layer its vias cross), as a set of
+    /// ids.
     pub fn layers_of_net(&self, net: Id) -> BTreeSet<Id> {
         let mut out = BTreeSet::new();
         for t in self.tracks.values().filter(|t| t.net == net) {
@@ -587,8 +587,7 @@ impl Board {
             out.insert(z.layer);
         }
         for v in self.vias.values().filter(|v| v.net == net) {
-            out.insert(v.from_layer);
-            out.insert(v.to_layer);
+            out.extend(self.via_layers(v));
         }
         out
     }

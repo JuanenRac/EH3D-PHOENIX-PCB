@@ -204,6 +204,36 @@ pub fn arc_interior(start: Point, end: Point, sweep: Udeg, settings: &ArcSetting
     out
 }
 
+/// The chords of an arc from its start to its end, both included, cut as [`arc_interior`] cuts it,
+/// with how far a point of the arc may be from them (the sagitta of one chord and the rounding to
+/// the nanometre). `None` when the arc has no shape (no sweep, or both ends in one place): then
+/// only its end points are known.
+pub fn arc_chords(
+    start: Point,
+    end: Point,
+    sweep: Udeg,
+    settings: &ArcSettings,
+) -> Option<(Vec<Point>, i64)> {
+    let dx = (end.x_nm.get() - start.x_nm.get()) as f64;
+    let dy = (end.y_nm.get() - start.y_nm.get()) as f64;
+    let d = dx.hypot(dy);
+    let theta = (sweep.get() as f64 / 1_000_000.0 * std::f64::consts::PI / 180.0).abs();
+    let sine = (theta / 2.0).sin().abs();
+    if d <= 0.0 || sine < 1e-9 || !d.is_finite() {
+        return None;
+    }
+    let radius = d / (2.0 * sine);
+    let mut points = vec![start];
+    points.extend(arc_interior(start, end, sweep, settings));
+    points.push(end);
+    // the angle of one chord, from the count of chords: a point lost to rounding only makes the
+    // angle, and with it the bound, larger
+    let step = theta / (points.len() - 1) as f64;
+    let sagitta = radius * (1.0 - (step / 2.0).min(std::f64::consts::PI).cos());
+    // two nanometres for the points that are rounded
+    Some((points, (sagitta.ceil() as i64).saturating_add(2)))
+}
+
 impl Board {
     /// The arcs of the outline that can be used, by the index of the corner where the edge starts:
     /// for each edge the first arc that has a shape (see [`arc_problem`]).

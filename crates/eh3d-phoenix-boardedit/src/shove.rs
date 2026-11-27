@@ -802,7 +802,7 @@ fn crowds_a_class(board: &Board, env: &Env, trial: &Board) -> bool {
     }
     for (id, via) in &trial.vias {
         if board.vias.get(id).is_none_or(|v| v.at != via.at) {
-            for layer in [via.from_layer, via.to_layer] {
+            for layer in trial.via_layers(via) {
                 placed.entry(layer).or_default().push(Item {
                     a: vp(via.at),
                     b: vp(via.at),

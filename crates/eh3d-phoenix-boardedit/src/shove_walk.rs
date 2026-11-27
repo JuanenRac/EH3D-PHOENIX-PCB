@@ -12,11 +12,17 @@
 //!
 //! The planning here is careful but is not the judge: the caller tries the result on a copy of the
 //! board, with the design rules and the connectivity of every net.
+//!
+//! The pads, vias and tracks near a place are looked up in grids (`eh3d-phoenix-spatial`), so
+//! that the time of a push grows little with the size of the board. The grids only leave out what
+//! is certainly too far, and what is kept keeps its order, so the push is the one that comparing
+//! every object gives; a test compares the two.
 
 use std::collections::{BTreeMap, BTreeSet};
 
 use eh3d_phoenix_board::connectivity::pad_position;
 use eh3d_phoenix_board::{Board, Id, PadRef, PadShape, Segment, Side, Track};
+use eh3d_phoenix_spatial::{inflate, Bx, Index, SpatialConfig};
 
 use crate::codes::BoardEditError;
 use crate::copper::{point_segment, segment_items, segment_segment, segments_cross};
@@ -112,8 +118,36 @@ pub(crate) struct Walked {
     pub vias: BTreeMap<Id, P>,
 }
 
+/// Where the pads, the vias and the tracks are, to look at the near ones only.
+struct Places {
+    pads: Index,
+    vias: Index,
+    via_ids: Vec<Id>,
+    wires: Index,
+    wire_ids: Vec<Id>,
+    /// The largest half width of a track, radius of a via and clearance between two nets (with the
+    /// margin of the push): what a search has to be widened by to miss nothing.
+    half: i64,
+    radius: i64,
+    gap: i64,
+}
+
+/// An index over boxes, or the one that gives everything when the grid is refused or not wanted.
+fn grid_of(boxes: &[Bx], exhaustive: bool) -> Index {
+    if exhaustive {
+        return Index::naive(boxes.len());
+    }
+    Index::grid(boxes, &SpatialConfig::default()).unwrap_or_else(|_| Index::naive(boxes.len()))
+}
+
+/// The indexes whose box may be within `by` of the box, in ascending order.
+fn around_box(index: &Index, b: Bx, by: i64) -> Vec<usize> {
+    index.candidates(&inflate(&b, i128::from(by.max(0)) + 2))
+}
+
 struct World<'a> {
     env: &'a Env<'a>,
+    places: Places,
     class: BTreeMap<Id, i64>,
     pads: Vec<PadItem>,
     vias: BTreeMap<Id, ViaItem>,
@@ -135,16 +169,6 @@ struct World<'a> {
 
 fn blocked(what: impl Into<String>) -> BoardEditError {
     BoardEditError::new(SHOVE_BLOCKED, what)
-}
-
-/// The copper layers a via joins.
-fn span_of(board: &Board, from: Id, to: Id) -> Vec<Id> {
-    let stack = &board.copper_stack;
-    let place = |id: Id| stack.iter().position(|l| *l == id);
-    match (place(from), place(to)) {
-        (Some(a), Some(b)) => stack[a.min(b)..=a.max(b)].to_vec(),
-        _ => vec![from, to],
-    }
 }
 
 fn pads_of(board: &Board) -> Vec<PadItem> {
@@ -205,7 +229,34 @@ fn pads_of(board: &Board) -> Vec<PadItem> {
 }
 
 impl<'a> World<'a> {
-    fn new(board: &Board, env: &'a Env<'a>, route: &Track, points: Vec<P>) -> World<'a> {
+    /// The ids of the vias that may be within `by` of the box, in the order of the board.
+    fn vias_near(&self, b: Bx, by: i64) -> impl Iterator<Item = Id> + '_ {
+        around_box(&self.places.vias, b, by)
+            .into_iter()
+            .map(|i| self.places.via_ids[i])
+    }
+
+    /// The ids of the tracks that may be within `by` of the box, in the order of the board.
+    fn wires_near(&self, b: Bx, by: i64) -> impl Iterator<Item = Id> + '_ {
+        around_box(&self.places.wires, b, by)
+            .into_iter()
+            .map(|i| self.places.wire_ids[i])
+    }
+
+    /// The pads that may be within `by` of the box, in their order.
+    fn pads_near(&self, b: Bx, by: i64) -> impl Iterator<Item = &PadItem> + '_ {
+        around_box(&self.places.pads, b, by)
+            .into_iter()
+            .map(|i| &self.pads[i])
+    }
+
+    fn new(
+        board: &Board,
+        env: &'a Env<'a>,
+        route: &Track,
+        points: Vec<P>,
+        exhaustive: bool,
+    ) -> World<'a> {
         let mut class = BTreeMap::new();
         for (id, net) in &board.nets {
             if let Some(found) = env.ctx.classes.class_of(&net.name) {
@@ -259,20 +310,69 @@ impl<'a> World<'a> {
                         at: key(via.at),
                         radius: via.diameter.get() / 2,
                         drill: via.drill.get(),
-                        layers: span_of(board, via.from_layer, via.to_layer),
+                        layers: board.via_layers(via),
                         movable: env.settings.shove_vias,
                     },
                 )
             })
             .collect();
+        let via_ids: Vec<Id> = vias.keys().copied().collect();
+        let wire_ids: Vec<Id> = wires.keys().copied().collect();
+        let pad_boxes: Vec<Bx> = pads.iter().map(|p| p.shape.bx()).collect();
+        let via_boxes: Vec<Bx> = vias
+            .values()
+            .map(|v| Oct::around(&[v.at]).grown(v.radius).bx())
+            .collect();
+        let wire_boxes: Vec<Bx> = wires
+            .values()
+            .map(|w| {
+                let mut all = Oct::around(w.points.as_deref().unwrap_or(&[]));
+                for o in &w.fixed {
+                    all = all.union(o);
+                }
+                if w.points.is_some() {
+                    all = all.grown(w.half);
+                }
+                // a track with no piece has nothing that could be near
+                if w.points.is_none() && w.fixed.is_empty() {
+                    return [0; 4];
+                }
+                all.bx()
+            })
+            .collect();
+        let widest_class = class.values().copied().max().unwrap_or(0);
+        let places = Places {
+            pads: grid_of(&pad_boxes, exhaustive),
+            vias: grid_of(&via_boxes, exhaustive),
+            via_ids,
+            wires: grid_of(&wire_boxes, exhaustive),
+            wire_ids,
+            half: wires
+                .values()
+                .map(|w| w.half)
+                .max()
+                .unwrap_or(0)
+                .max(route.width.get() / 2),
+            radius: vias.values().map(|v| v.radius).max().unwrap_or(0),
+            gap: env
+                .ctx
+                .rules
+                .min_clearance
+                .get()
+                .max(widest_class)
+                .saturating_add(env.settings.shove_margin_nm),
+        };
         // a via in a pad of its net, or in the middle of a piece of its net, stays
         for via in vias.values_mut().filter(|v| v.movable) {
-            let in_pad = pads
-                .iter()
+            let here = Oct::around(&[via.at]).bx();
+            let in_pad = around_box(&places.pads, here, 2)
+                .into_iter()
+                .map(|i| &pads[i])
                 .any(|p| p.net == Some(via.net) && p.shape.grown(1).holds_inside(via.at));
             let reach = via.radius as f64 + 1.0;
-            let passes = wires
-                .values()
+            let passes = around_box(&places.wires, here, via.radius.saturating_add(2))
+                .into_iter()
+                .filter_map(|i| wires.get(&places.wire_ids[i]))
                 .filter(|w| w.net == via.net && via.layers.contains(&w.layer))
                 .any(|w| match &w.points {
                     Some(points) => {
@@ -290,7 +390,8 @@ impl<'a> World<'a> {
             via.movable = !in_pad && !passes;
         }
         let mut edges = Vec::new();
-        for ring in std::iter::once(&board.outline).chain(board.outline_cutouts.iter()) {
+        let outline = board.outline_polygon(&eh3d_phoenix_board::ArcSettings::current());
+        for ring in std::iter::once(&outline).chain(board.outline_cutouts.iter()) {
             if ring.len() >= 3 {
                 for (a, b) in ring.iter().zip(ring.iter().cycle().skip(1)) {
                     edges.push((key(*a), key(*b)));
@@ -299,6 +400,7 @@ impl<'a> World<'a> {
         }
         World {
             env,
+            places,
             class,
             pads,
             vias,
@@ -371,7 +473,8 @@ impl<'a> World<'a> {
 
     /// The octagons around the fixed copper of other nets on a layer.
     fn fixed(&self, net: Id, half: i64, layer: Id, area: &Oct, out: &mut Vec<Oct>) {
-        for pad in &self.pads {
+        let looked = area.bx();
+        for pad in self.pads_near(looked, half + self.places.gap) {
             if pad.net != Some(net) && pad.layers.contains(&layer) {
                 let radius = half + self.clearance(net, pad.net);
                 if pad.shape.near(area, radius) {
@@ -379,7 +482,10 @@ impl<'a> World<'a> {
                 }
             }
         }
-        for via in self.vias.values() {
+        for id in self.vias_near(looked, half + self.places.radius + self.places.gap) {
+            let Some(via) = self.vias.get(&id) else {
+                continue;
+            };
             if !via.movable && via.net != net && via.layers.contains(&layer) {
                 let radius = via.radius + half + self.clearance(net, Some(via.net));
                 let shape = Oct::around(&[via.at]).grown(radius);
@@ -388,7 +494,10 @@ impl<'a> World<'a> {
                 }
             }
         }
-        for wire in self.wires.values() {
+        for id in self.wires_near(looked, half + self.places.gap) {
+            let Some(wire) = self.wires.get(&id) else {
+                continue;
+            };
             if wire.points.is_none() && wire.layer == layer && wire.net != net {
                 let radius = half + self.clearance(net, Some(wire.net));
                 out.extend(
@@ -416,20 +525,33 @@ impl<'a> World<'a> {
             return Vec::new();
         };
         let mut joined: Vec<(P, i64)> = Vec::new();
-        for (other_id, other) in &self.wires {
-            if *other_id != id && other.net == wire.net && other.layer == wire.layer {
+        let along = Oct::around(points).bx();
+        let reach = wire
+            .half
+            .max(self.places.radius)
+            .saturating_add(self.places.half)
+            .saturating_add(2);
+        for other_id in self.wires_near(along, reach) {
+            let Some(other) = self.wires.get(&other_id) else {
+                continue;
+            };
+            if other_id != id && other.net == wire.net && other.layer == wire.layer {
                 if let Some(theirs) = &other.points {
                     joined.push((theirs[0], wire.half + 1));
                     joined.push((theirs[theirs.len() - 1], wire.half + 1));
                 }
             }
         }
-        for via in self.vias.values() {
+        for via in self
+            .vias_near(along, reach)
+            .filter_map(|v| self.vias.get(&v))
+        {
             if via.net == wire.net && via.layers.contains(&wire.layer) {
                 joined.push((via.at, via.radius));
             }
         }
-        for pad in &self.pads {
+        // the radius inside a pad is no more than the half of its box
+        for pad in self.pads_near(along, reach) {
             if pad.net == Some(wire.net) && pad.layers.contains(&wire.layer) {
                 joined.push((pad.at, pad.inner));
             }
@@ -601,7 +723,23 @@ impl<'a> World<'a> {
         depth: usize,
     ) -> Result<(), BoardEditError> {
         let mut found: Vec<What> = Vec::new();
-        for (id, wire) in &self.wires {
+        let Some(looked) = pieces
+            .iter()
+            .map(|(a, b)| Oct::around(&[*a, *b]))
+            .reduce(|all, one| all.union(&one))
+            .map(|all| all.bx())
+        else {
+            return Ok(());
+        };
+        // the tracks that went with a via are no longer where the index has them
+        let mut near: BTreeSet<Id> = self
+            .wires_near(looked, half + self.places.half + self.places.gap)
+            .collect();
+        near.extend(self.followed.keys().copied());
+        for (id, wire) in near
+            .iter()
+            .filter_map(|id| self.wires.get(id).map(|w| (id, w)))
+        {
             if wire.net == net || wire.layer != layer || self.placed_tracks.contains_key(id) {
                 continue;
             }
@@ -620,8 +758,12 @@ impl<'a> World<'a> {
                 found.push(What::Track(*id));
             }
         }
-        for (id, via) in &self.vias {
-            if via.net == net || !via.layers.contains(&layer) || self.placed_vias.contains_key(id) {
+        for id in self.vias_near(looked, half + self.places.radius + self.places.gap) {
+            let Some(via) = self.vias.get(&id) else {
+                continue;
+            };
+            if via.net == net || !via.layers.contains(&layer) || self.placed_vias.contains_key(&id)
+            {
                 continue;
             }
             let radius = half + via.radius + self.clearance(net, Some(via.net));
@@ -635,7 +777,7 @@ impl<'a> World<'a> {
                     // a fixed via that the walk did not go around is judged by the rules
                     continue;
                 }
-                found.push(What::Via(*id));
+                found.push(What::Via(id));
             }
         }
         for what in found {
@@ -769,7 +911,20 @@ impl<'a> World<'a> {
                 }
             }
         };
-        for (other_id, other) in &self.vias {
+        let looked = area.bx();
+        let apart = drill
+            .saturating_add(spacing.max(0))
+            .saturating_add(margin)
+            .saturating_add(self.places.radius);
+        // a via that was moved is at most `most` from where the index has it
+        let mut holes: BTreeSet<Id> = self
+            .vias_near(looked, apart.saturating_add(most).saturating_add(drill))
+            .collect();
+        holes.extend(self.placed_vias.keys().copied());
+        for (other_id, other) in holes
+            .iter()
+            .filter_map(|v| self.vias.get(v).map(|other| (v, other)))
+        {
             if *other_id == id {
                 continue;
             }
@@ -779,7 +934,11 @@ impl<'a> World<'a> {
                 hole(other.at, other.drill, &mut obstacles);
             }
         }
-        for pad in &self.pads {
+        let widest_drill = self.pads.iter().filter_map(|p| p.drill).max().unwrap_or(0);
+        let pad_reach = apart
+            .saturating_add(widest_drill)
+            .saturating_add(self.places.gap);
+        for pad in self.pads_near(looked, pad_reach) {
             if let Some(other) = pad.drill {
                 hole(pad.at, other, &mut obstacles);
             }
@@ -803,7 +962,15 @@ impl<'a> World<'a> {
         // the tracks that end on the via go with it
         let mut follow: Vec<(Id, Vec<P>)> = Vec::new();
         let reach = radius as f64 + 1.0;
-        for (track_id, wire) in &self.wires {
+        let mut ending: BTreeSet<Id> = self
+            .wires_near(Oct::around(&[old]).bx(), radius.saturating_add(2))
+            .collect();
+        ending.extend(self.placed_tracks.keys().copied());
+        ending.extend(self.followed.keys().copied());
+        for (track_id, wire) in ending
+            .iter()
+            .filter_map(|t| self.wires.get(t).map(|w| (t, w)))
+        {
             if wire.net != net || !layers.contains(&wire.layer) {
                 continue;
             }
@@ -968,8 +1135,19 @@ pub(crate) fn walk_shove(
     route: &Track,
     turn: Turn,
 ) -> Result<Walked, BoardEditError> {
+    walk_with(board, env, route, turn, false)
+}
+
+/// [`walk_shove`] with the grids, or comparing every object when `exhaustive`.
+fn walk_with(
+    board: &Board,
+    env: &Env,
+    route: &Track,
+    turn: Turn,
+    exhaustive: bool,
+) -> Result<Walked, BoardEditError> {
     let points = points_of(&route.path).ok_or_else(|| refused("the route is not straight"))?;
-    let mut world = World::new(board, env, route, points);
+    let mut world = World::new(board, env, route, points, exhaustive);
     world.run(turn)?;
     let tracks = world
         .placed_tracks
@@ -986,4 +1164,122 @@ pub(crate) fn walk_shove(
         tracks,
         vias,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::BTreeSet;
+
+    use eh3d_phoenix_board::{Net, Via};
+    use eh3d_phoenix_model::Nm;
+    use eh3d_phoenix_route::RouteSettings;
+
+    use super::*;
+    use crate::settings::BoardEditSettings;
+    use crate::testutil::{fixture, id, strict_rules};
+
+    /// What a push says, so that two can be compared.
+    fn said(result: Result<Walked, BoardEditError>) -> String {
+        match result {
+            Ok(w) => format!("{:?} {:?} {:?}", w.route, w.tracks, w.vias),
+            Err(e) => format!("{} {}", e.code, e.detail),
+        }
+    }
+
+    #[test]
+    fn the_grids_give_the_push_that_comparing_every_object_gives() {
+        let mut state = 41_u64;
+        let mut next = move |n: i64| {
+            state = state
+                .wrapping_mul(6_364_136_223_846_793_005)
+                .wrapping_add(1_442_695_040_888_963_407);
+            (state >> 33) as i64 % n
+        };
+        let (mut done, mut moved) = (0, 0);
+        for _ in 0..60 {
+            let f = fixture();
+            let mut board = f.board.clone();
+            // tracks and vias of nets of their own around the middle of the board
+            for k in 0..24_u16 {
+                let net = id(200 + k);
+                board.nets.insert(
+                    net,
+                    Net {
+                        name: format!("N{k}"),
+                    },
+                );
+                let x = 12_000_000 + next(30) * 500_000;
+                let y = 11_000_000 + next(40) * 250_000;
+                if k % 4 == 0 {
+                    board.vias.insert(
+                        id(300 + k),
+                        Via {
+                            net,
+                            at: pt(x, y).unwrap(),
+                            drill: Nm::new(300_000).unwrap(),
+                            diameter: Nm::new(600_000).unwrap(),
+                            from_layer: f.top,
+                            to_layer: f.bottom,
+                        },
+                    );
+                } else {
+                    let long = 500_000 + next(8) * 500_000;
+                    board.tracks.insert(
+                        id(400 + k),
+                        Track {
+                            net,
+                            layer: f.top,
+                            width: Nm::new(250_000).unwrap(),
+                            path: vec![Segment::Line {
+                                start: pt(x, y).unwrap(),
+                                end: pt(x + long, y).unwrap(),
+                            }],
+                        },
+                    );
+                }
+            }
+            let y = 11_000_000 + next(40) * 250_000 + 100_000;
+            let route = Track {
+                net: f.gnd,
+                layer: f.top,
+                width: Nm::new(250_000).unwrap(),
+                path: vec![Segment::Line {
+                    start: pt(14_000_000, y).unwrap(),
+                    end: pt(24_000_000, y).unwrap(),
+                }],
+            };
+            let ctx = strict_rules();
+            let settings = BoardEditSettings {
+                shove_max_depth: 6,
+                shove_max_moved: 40,
+                ..BoardEditSettings::default()
+            };
+            let (routes, locked, pairs) = (
+                RouteSettings::default(),
+                BTreeSet::new(),
+                Default::default(),
+            );
+            let env = Env {
+                ctx: &ctx,
+                route: &routes,
+                settings: &settings,
+                locked: &locked,
+                pairs: &pairs,
+                known: None,
+            };
+            for turn in [Turn::Left, Turn::Right] {
+                let fast = walk_with(&board, &env, &route, turn, false);
+                if let Ok(w) = &fast {
+                    done += 1;
+                    moved += w.tracks.len() + w.vias.len();
+                }
+                assert_eq!(
+                    said(fast),
+                    said(walk_with(&board, &env, &route, turn, true))
+                );
+            }
+        }
+        // the boards are such that pushes are made and move things
+        assert!(done > 10 && moved >= 8, "{done} done, {moved} moved");
+    }
 }

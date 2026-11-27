@@ -38,6 +38,6 @@ pub use model::{
     Side, StackFunction, Track, Via, Zone,
 };
 pub use ops::{History, OpError, Operation, Step};
-pub use outline_arc::{ArcSettings, ArcSettingsGuard, OutlineArc};
+pub use outline_arc::{arc_chords, ArcSettings, ArcSettingsGuard, OutlineArc};
 pub use rules_more::PadCheckWork;
 pub use silk::{DrawError, Drawn, SilkItem};

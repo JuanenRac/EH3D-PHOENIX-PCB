@@ -48,9 +48,9 @@ Every pitch, penalty and limit is in `config/route.cfg`, which is also the built
 
 ## Limits
 
-* Zones are not routed around: a track through a zone of another net is refused by the rules, not avoided by the search.
+* By default the search does not look at zones, and the rules do not judge a track against the outline of a zone of another net: a pour is filled again around the track. With `avoid_zones = true` in `config/route.cfg` the zones of other nets are gone around, keeping the larger of their clearance and the one of the route; their cutouts are not looked at, and a zone that holds an end of the route is not gone around.
 * Tracks have no arcs, only the straight pieces at 0, 45 and 90 degrees; arcs of other tracks are avoided.
-* A via joins exactly the two layers it is placed between, as the board model says; a through via on a board of four layers is not made.
+* A via has copper on every layer of the stack between the two it joins, and the router keeps it clear on all of them; it does not choose blind or buried vias on purpose.
 * The ratsnest uses the connectivity of the board with no tolerance; the rule check may treat copper that nearly touches as touching.
 * The search is a dense mesh with no push and shove: it never moves other tracks.
 * Nothing has been compared with the reference tool, and the speed on a large board has not been measured.

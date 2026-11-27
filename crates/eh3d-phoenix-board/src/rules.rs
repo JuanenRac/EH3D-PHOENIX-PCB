@@ -372,7 +372,7 @@ impl Board {
                 }
             }
             for (idv, v) in &self.vias {
-                if a.net == v.net || (v.from_layer != a.layer && v.to_layer != a.layer) {
+                if a.net == v.net || !self.via_layers(v).contains(&a.layer) {
                     continue;
                 }
                 let t = 2 * c + i128::from(a.width.get()) + i128::from(v.diameter.get());

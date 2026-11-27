@@ -186,7 +186,7 @@ The same titles in the eight languages of the suite (English, Spanish, German, F
 | PHOENIX-CHECK-002 | Via diameter smaller than the minimum | a via whose pad is below `min_via_diameter_nm` |
 | PHOENIX-CHECK-003 | Drill smaller than the minimum | the drill of a via or of a pad below `min_drill_nm` |
 | PHOENIX-CHECK-004 | Annular ring thinner than the minimum | the ring of copper around the drill of a via or a pad below `min_annular_ring_nm` |
-| PHOENIX-CHECK-005 | Copper clearance violated | tracks and vias of different nets on one layer closer than `min_clearance_nm` edge to edge (measured value and limit given; an arc counts by its end points), and the pad findings of the board crate (limit only) |
+| PHOENIX-CHECK-005 | Copper clearance violated | tracks and vias of different nets on one layer closer than `min_clearance_nm` edge to edge (measured value and limit given; an arc is measured along its curve and a via is on every layer of the stack it crosses), and the pad findings of the board crate (limit only) |
 | PHOENIX-CHECK-006 | Copper too close to the board edge | a track or via closer to an edge of the outline than `min_edge_clearance_nm`, and the pad findings of the board crate |
 | PHOENIX-CHECK-007 | Drill holes too close to each other | the walls of two drill holes (vias and through-hole pads) closer than `min_drill_spacing_nm` |
 | PHOENIX-CHECK-008 | Solder mask bridge too thin | two pad openings with less mask between them than `min_mask_bridge_nm` (from the board crate, limit only) |
@@ -194,9 +194,12 @@ The same titles in the eight languages of the suite (English, Spanish, German, F
 | PHOENIX-CHECK-010 | Zones of different nets overlap | two zones of different nets on one copper layer whose outlines cross or contain each other (from the board crate) |
 | PHOENIX-CHECK-011 | Silkscreen printed over a pad | the rule `silkscreen_over_pads` (from the board crate) |
 | PHOENIX-CHECK-012 | Silkscreen printed over a solder mask opening | the rule `silkscreen_over_mask_openings` (from the board crate) |
-| PHOENIX-CHECK-013 | Check could not be judged | a finding in the inconclusive list: an arc, a pad shape too coarse to tell, numbers too large for the exact test, a board without an outline for the edge rule (information, never a failure) |
+| PHOENIX-CHECK-013 | Check could not be judged | a finding in the inconclusive list: an arc with no shape or a distance within the doubt of its chords (a few micrometres), a pad shape too coarse to tell, numbers too large for the exact test, a board without an outline for the edge rules (information, never a failure) |
 | PHOENIX-CHECK-014 | Track narrower than the minimum of its net class | a track of a net that belongs to a class of a rule file of the second format whose width is below the `min_track_width_nm` of that class |
 | PHOENIX-CHECK-015 | Via smaller than the minimum of its net class | a via of a net of a class whose diameter is below `min_via_diameter_nm` or whose drill is below `min_via_drill_nm` of the class |
+| PHOENIX-CHECK-016 | Copper closer than the clearance of its net class | a track, via or pad closer to copper of another net than the `min_clearance_nm` of the class of one of the two nets (the larger one), while it keeps the general clearance; the finding names the class |
+| PHOENIX-CHECK-017 | Copper too close to a hole that is not plated | a track, via or pad closer to the wall of a hole that is not plated than `min_hole_clearance_nm` (off when the rule file does not give it) |
+| PHOENIX-CHECK-018 | Drill hole too close to the board edge | the wall of the drill of a via or a pad closer to the outline, or to an opening of the board, than `min_hole_edge_nm` (off when the rule file does not give it) |
 | PHOENIX-RULEFILE-001 | Rule file cannot be read | a rule file that is too large, is not JSON of the format `phoenix-rules/1`, has a field it does not know, or an EAGLE board file that cannot be read |
 | PHOENIX-RULEFILE-002 | Rule value is not valid | a length that is negative or outside the design range |
 | PHOENIX-RULEFILE-003 | Design rule parameter not used | a parameter of the `<designrules>` of an EAGLE board that has no rule here, or clearances and rings that differ and were folded into the largest value (information) |

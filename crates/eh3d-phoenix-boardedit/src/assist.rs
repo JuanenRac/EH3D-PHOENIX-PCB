@@ -62,7 +62,7 @@ impl BoardEdit {
     /// a copy of the editor with the check on and with new errors allowed, so that they are listed
     /// and not refused.
     pub fn trial(&self, op: &EditOp) -> Result<DrcReport, BoardEditError> {
-        let mut copy = self.clone();
+        let mut copy = self.scratch();
         if !copy.settings.live_drc {
             copy = BoardEdit::new(
                 self.board().clone(),

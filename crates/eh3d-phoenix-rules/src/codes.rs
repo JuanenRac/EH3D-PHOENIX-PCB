@@ -38,6 +38,12 @@ pub const NOT_JUDGED: &str = "PHOENIX-CHECK-013";
 pub const CLASS_TRACK_NARROW: &str = "PHOENIX-CHECK-014";
 /// A via whose diameter or drill is below the minimum of the net class of its net.
 pub const CLASS_VIA_SMALL: &str = "PHOENIX-CHECK-015";
+/// Copper of different nets closer than the clearance of the net class of one of them.
+pub const CLASS_CLEARANCE: &str = "PHOENIX-CHECK-016";
+/// Copper closer to a hole that is not plated than the minimum.
+pub const HOLE_CLEARANCE: &str = "PHOENIX-CHECK-017";
+/// A drill hole closer to the edge of the board than the minimum.
+pub const HOLE_EDGE: &str = "PHOENIX-CHECK-018";
 
 /// A rule file that cannot be read.
 pub const RULEFILE_UNREADABLE: &str = "PHOENIX-RULEFILE-001";
@@ -157,6 +163,15 @@ pub const REGISTRY: &[(&str, &str)] = &[
         CLASS_VIA_SMALL,
         "Via smaller than the minimum of its net class",
     ),
+    (
+        CLASS_CLEARANCE,
+        "Copper closer than the clearance of its net class",
+    ),
+    (
+        HOLE_CLEARANCE,
+        "Copper too close to a hole that is not plated",
+    ),
+    (HOLE_EDGE, "Drill hole too close to the board edge"),
     (RULEFILE_UNREADABLE, "Rule file cannot be read"),
     (RULEFILE_VALUE, "Rule value is not valid"),
     (RULEFILE_PARAM, "Design rule parameter not used"),
@@ -377,6 +392,45 @@ const TITLES: &[(&str, [&str; 8])] = &[
             "ビアがネットクラスの最小値より小さい",
             "过孔小于其网络类的最小值",
             "Via mais pequena do que o mínimo da sua classe de rede",
+        ],
+    ),
+    (
+        CLASS_CLEARANCE,
+        [
+            "Copper closer than the clearance of its net class",
+            "Cobre más cerca que la separación de su clase de red",
+            "Kupfer näher als der Abstand seiner Netzklasse",
+            "Cuivre plus proche que l'isolement de sa classe de réseau",
+            "Rame più vicino dell'isolamento della sua classe di rete",
+            "銅箔がネットクラスのクリアランスより近い",
+            "铜箔间距小于其网络类的间距",
+            "Cobre mais próximo do que o isolamento da sua classe de rede",
+        ],
+    ),
+    (
+        HOLE_CLEARANCE,
+        [
+            "Copper too close to a hole that is not plated",
+            "Cobre demasiado cerca de un taladro no metalizado",
+            "Kupfer zu nah an einer nicht durchkontaktierten Bohrung",
+            "Cuivre trop près d'un trou non métallisé",
+            "Rame troppo vicino a un foro non metallizzato",
+            "銅箔がノンスルーホールに近すぎる",
+            "铜箔离非金属化孔过近",
+            "Cobre demasiado próximo de um furo não metalizado",
+        ],
+    ),
+    (
+        HOLE_EDGE,
+        [
+            "Drill hole too close to the board edge",
+            "Taladro demasiado cerca del borde de la placa",
+            "Bohrung zu nah am Platinenrand",
+            "Perçage trop près du bord de la carte",
+            "Foro troppo vicino al bordo della scheda",
+            "ドリル穴が基板の端に近すぎる",
+            "钻孔离板边过近",
+            "Furo demasiado próximo do bordo da placa",
         ],
     ),
     (

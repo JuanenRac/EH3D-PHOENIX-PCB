@@ -303,6 +303,31 @@ impl BoardEdit {
         })
     }
 
+    /// A copy to try an operation on: the board, its rules and findings as they are, without the
+    /// history, which a long session makes large and an operation never reads.
+    pub(crate) fn scratch(&self) -> BoardEdit {
+        BoardEdit {
+            board: self.board.clone(),
+            ctx: self.ctx.clone(),
+            settings: self.settings.clone(),
+            ids: self.ids.clone(),
+            done: Vec::new(),
+            undone: Vec::new(),
+            findings: self.findings.clone(),
+            locked: self.locked.clone(),
+            pairs: self.pairs.clone(),
+            revision: self.revision,
+            zone_settings: self.zone_settings.clone(),
+            zone_data: Arc::clone(&self.zone_data),
+            data_done: Vec::new(),
+            data_undone: Vec::new(),
+            fresh: self.fresh,
+            rechecks: 0,
+            zone_checks: 0,
+            selection: self.selection.clone(),
+        }
+    }
+
     /// The editor with the settings of the fill of zones (`config/zones.cfg`).
     pub fn with_zone_settings(mut self, settings: ZoneSettings) -> BoardEdit {
         self.zone_settings = settings;

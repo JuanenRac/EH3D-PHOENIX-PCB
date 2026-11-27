@@ -800,6 +800,7 @@ dependencies = [
  "eh3d-phoenix-model",
  "eh3d-phoenix-route",
  "eh3d-phoenix-rules",
+ "eh3d-phoenix-spatial",
  "eh3d-phoenix-stackup",
  "eh3d-phoenix-zones",
  "serde",

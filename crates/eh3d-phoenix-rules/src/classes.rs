@@ -7,23 +7,30 @@
 //! for every net, so a power net can ask for wider tracks than the rest without any risk of
 //! hiding a general finding.
 //!
-//! Checked per class: the narrowest track, the smallest via diameter and the smallest via drill.
-//! The clearance of a class is read and kept but not checked yet (a clearance between two nets of
-//! different classes needs the geometry of the board checks); the check says so in the
-//! inconclusive list and never passes it silently.
+//! Checked per class: the narrowest track, the smallest via diameter, the smallest via drill and
+//! the clearance. Between two pieces of copper of different nets the clearance asked for is the
+//! larger of those of their classes; a pair is reported by this check only when it keeps the
+//! general clearance, so that no pair is reported twice. Pads that are not round are judged by the
+//! circles inside and around them, as the general check judges them: in between the pair is
+//! inconclusive. Zones are not part of it.
 
 use std::collections::BTreeSet;
 
-use eh3d_phoenix_board::Board;
-use eh3d_phoenix_model::Nm;
+use eh3d_phoenix_board::{Board, Id, LayerKind};
+use eh3d_phoenix_model::{Nm, Point};
+use eh3d_phoenix_spatial::{inflate, Bx, Index, SpatialConfig};
 
-use crate::codes::{CLASS_TRACK_NARROW, CLASS_VIA_SMALL, NOT_JUDGED};
+use crate::codes::{CLASS_CLEARANCE, CLASS_TRACK_NARROW, CLASS_VIA_SMALL, NOT_JUDGED};
+use crate::engine::why_unjudged;
+use crate::geometry::{Near, Prim};
+use crate::items::{pad_prim, placed_pads, track_prim, via_prim};
 use crate::report::{Finding, Report, Severity};
 use crate::rulefile::RuleFileError;
 
 /// The place of the class checks in the fixed order of a report (after the general rules).
 const RANK_CLASS_TRACK: u8 = 14;
 const RANK_CLASS_VIA: u8 = 15;
+const RANK_CLASS_CLEARANCE: u8 = 16;
 const RANK_NOT_JUDGED: u8 = 13;
 
 /// One net class.
@@ -35,7 +42,7 @@ pub struct NetClass {
     pub nets: Vec<String>,
     /// Narrowest track of its nets; zero leaves it to the general rules.
     pub min_track_width: Nm,
-    /// Closest approach of its copper to other copper; read but not checked yet.
+    /// Closest approach of its copper to the copper of other nets.
     pub min_clearance: Nm,
     /// Smallest via diameter of its nets; zero leaves it to the general rules.
     pub min_via_diameter: Nm,
@@ -97,10 +104,164 @@ fn on(value: Nm) -> bool {
     value.get() > 0
 }
 
+/// A piece of copper as the clearance of the classes sees it.
+struct Item {
+    label: String,
+    /// The net, its clearance by class and the name of that class.
+    net: Option<Id>,
+    asks: i64,
+    class: String,
+    layers: Vec<Id>,
+    prim: Prim,
+}
+
+/// Every track, via and pad that shows copper.
+fn copper_items(board: &Board, classes: &NetClasses) -> Vec<Item> {
+    let item = |label: String, net: Option<Id>, layers: Vec<Id>, prim: Prim| {
+        let class = net
+            .and_then(|n| board.nets.get(&n))
+            .and_then(|n| classes.class_of(&n.name));
+        Item {
+            label,
+            net,
+            asks: class.map_or(0, |c| c.min_clearance.get()),
+            class: class.map_or_else(String::new, |c| c.name.clone()),
+            layers,
+            prim,
+        }
+    };
+    let mut out = Vec::new();
+    for (id, track) in &board.tracks {
+        if let Some(prim) = track_prim(track) {
+            out.push(item(
+                format!("track {id}"),
+                Some(track.net),
+                vec![track.layer],
+                prim,
+            ));
+        }
+    }
+    for (id, via) in &board.vias {
+        if let Some(prim) = via_prim(via) {
+            out.push(item(
+                format!("via {id}"),
+                Some(via.net),
+                board.via_layers(via),
+                prim,
+            ));
+        }
+    }
+    for pad in placed_pads(board) {
+        if pad.drill.is_some() && !pad.plated {
+            continue;
+        }
+        let layers: Vec<Id> = pad
+            .layers
+            .iter()
+            .copied()
+            .filter(|l| {
+                board
+                    .layers
+                    .get(l)
+                    .is_some_and(|x| x.kind == LayerKind::Copper)
+            })
+            .collect();
+        if let Some(prim) = pad_prim(&pad) {
+            out.push(item(pad.label.clone(), pad.net, layers, prim));
+        }
+    }
+    out
+}
+
+/// The pairs of copper that keep the general clearance `general` and not the one of a class.
+fn check_clearances(board: &Board, classes: &NetClasses, general: Nm, report: &mut Report) {
+    let widest = classes
+        .classes()
+        .iter()
+        .map(|c| c.min_clearance.get())
+        .max()
+        .unwrap_or(0);
+    if widest <= general.get() {
+        return;
+    }
+    let items = copper_items(board, classes);
+    let boxes: Vec<Bx> = items
+        .iter()
+        .map(|i| inflate(&i.prim.bbox(), i.prim.hi / 2 + 1))
+        .collect();
+    let index = Index::grid(&boxes, &SpatialConfig::default())
+        .unwrap_or_else(|_| Index::naive(boxes.len()));
+    for (i, a) in items.iter().enumerate() {
+        // only the items of a class look around: a pair needs at least one of them
+        if a.asks <= general.get() {
+            continue;
+        }
+        for j in index.candidates(&inflate(&boxes[i], i128::from(a.asks))) {
+            let b = &items[j];
+            // a pair of two items of classes is met from both: judge it from the one that asks
+            // for more, or from the first one when they ask for the same
+            if j == i || b.asks > a.asks || (b.asks == a.asks && j < i) {
+                continue;
+            }
+            if (a.net.is_some() && a.net == b.net) || !a.layers.iter().any(|l| b.layers.contains(l))
+            {
+                continue;
+            }
+            let limit = i128::from(a.asks);
+            if !a.prim.may_be_within(&b.prim, limit) {
+                continue;
+            }
+            if general.get() > 0
+                && a.prim.within(&b.prim, i128::from(general.get()), false) == Near::Yes
+            {
+                continue;
+            }
+            let near = a.prim.within(&b.prim, limit, false);
+            if near == Near::No {
+                continue;
+            }
+            let (first, second) = if i <= j { (a, b) } else { (b, a) };
+            let location = format!("{} and {}", first.label, second.label);
+            let at: Point = first.prim.first_point();
+            let (x, y) = (at.x_nm.get(), at.y_nm.get());
+            match (near, a.prim.distance(&b.prim)) {
+                (Near::Yes, Some(d)) => {
+                    let gap = d.nm_f64() - (a.prim.lo + b.prim.lo) as f64 / 2.0;
+                    report.confirmed.push(
+                        Finding::new(
+                            RANK_CLASS_CLEARANCE,
+                            "class_clearance",
+                            CLASS_CLEARANCE,
+                            Severity::Error,
+                            location,
+                        )
+                        .at(x, y)
+                        .values(gap.round().max(0.0) as i64, a.asks)
+                        .why(&format!("class {}", a.class)),
+                    );
+                }
+                (near, _) => report.inconclusive.push(
+                    Finding::new(
+                        RANK_NOT_JUDGED,
+                        "not_judged",
+                        NOT_JUDGED,
+                        Severity::Info,
+                        location,
+                    )
+                    .at(x, y)
+                    .limit(a.asks)
+                    .why(why_unjudged(near)),
+                ),
+            }
+        }
+    }
+}
+
 /// Checks the limits of the net classes on a board: the width of the tracks and the diameter and
-/// drill of the vias of every net that belongs to a class. The report is in the same fixed order
-/// as the general check and can be merged with it.
-pub fn check_classes(board: &Board, classes: &NetClasses) -> Report {
+/// drill of the vias of every net that belongs to a class, and the clearance of the copper of those
+/// nets where it is larger than the `general` clearance of the rules. The report is in the same
+/// fixed order as the general check and can be merged with it.
+pub fn check_classes(board: &Board, classes: &NetClasses, general: Nm) -> Report {
     let mut report = Report::new("check");
     for (id, track) in &board.tracks {
         let Some(net) = board.nets.get(&track.net) else {
@@ -163,21 +324,7 @@ pub fn check_classes(board: &Board, classes: &NetClasses) -> Report {
             );
         }
     }
-    for class in classes.classes() {
-        if on(class.min_clearance) {
-            report.inconclusive.push(
-                Finding::new(
-                    RANK_NOT_JUDGED,
-                    "not_judged",
-                    NOT_JUDGED,
-                    Severity::Info,
-                    format!("class {}", class.name),
-                )
-                .limit(class.min_clearance.get())
-                .why("the clearance of a net class is read but not checked yet"),
-            );
-        }
-    }
+    check_clearances(board, classes, general, &mut report);
     report.finish();
     report
 }
@@ -185,6 +332,7 @@ pub fn check_classes(board: &Board, classes: &NetClasses) -> Report {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::codes::CLASS_CLEARANCE;
     use crate::rulefile::{RuleFile, RuleValues};
     use eh3d_phoenix_board::{Layer, LayerKind, Net, Segment, Track, Via};
     use eh3d_phoenix_model::Point;
@@ -255,7 +403,7 @@ mod tests {
     fn only_the_nets_of_a_class_are_held_to_its_limits() {
         let classes =
             NetClasses::new(vec![class("power", &["VCC"], 300_000, 600_000, 300_000)]).unwrap();
-        let report = check_classes(&board(), &classes);
+        let report = check_classes(&board(), &classes, Nm::ZERO);
         // the track and the via of VCC, and the via has two things wrong (diameter and drill)
         assert_eq!(report.confirmed.len(), 3, "{:?}", report.confirmed);
         assert!(report
@@ -270,19 +418,74 @@ mod tests {
         );
         assert!(!report.passes());
         // the general rules are not touched by a class
-        let none = check_classes(&board(), &NetClasses::default());
+        let none = check_classes(&board(), &NetClasses::default(), Nm::ZERO);
         assert!(none.confirmed.is_empty() && none.inconclusive.is_empty());
     }
 
-    #[test]
-    fn a_class_with_a_clearance_says_that_it_is_not_checked() {
+    /// A track of SIG whose edge is `gap` nanometres above the edge of the track of VCC.
+    fn close(gap: i64) -> Board {
+        let mut b = board();
+        if let Some(track) = b.tracks.get_mut(&id(21)) {
+            let y = 20_000_000 + 200_000 + gap;
+            track.path = vec![Segment::Line {
+                start: pt(0, y),
+                end: pt(5_000_000, y),
+            }];
+        }
+        b
+    }
+
+    fn with_clearance(nm: i64) -> NetClasses {
         let mut c = class("power", &["VCC"], 0, 0, 0);
-        c.min_clearance = Nm::new(250_000).unwrap();
-        let report = check_classes(&board(), &NetClasses::new(vec![c]).unwrap());
-        assert!(report.confirmed.is_empty());
-        assert_eq!(report.inconclusive.len(), 1);
-        assert_eq!(report.inconclusive[0].code, NOT_JUDGED);
-        assert_eq!(report.inconclusive[0].limit_nm, Some(250_000));
+        c.min_clearance = Nm::new(nm).unwrap();
+        NetClasses::new(vec![c]).unwrap()
+    }
+
+    #[test]
+    fn the_clearance_of_a_class_is_checked_between_its_nets_and_the_others() {
+        let classes = with_clearance(500_000);
+        let general = Nm::new(200_000).unwrap();
+        // 0.3 mm apart: enough for the general rules, not for the class
+        let report = check_classes(&close(300_000), &classes, general);
+        assert_eq!(report.confirmed.len(), 1, "{:?}", report.confirmed);
+        let found = &report.confirmed[0];
+        assert_eq!(found.code, CLASS_CLEARANCE);
+        assert_eq!(
+            (found.measured_nm, found.limit_nm),
+            (Some(300_000), Some(500_000))
+        );
+        assert!(found.detail.contains("class power"));
+        // exactly the clearance of the class is enough
+        assert!(check_classes(&close(500_000), &classes, general)
+            .confirmed
+            .is_empty());
+        // closer than the general clearance is a finding of the general check, not a second one
+        assert!(check_classes(&close(100_000), &classes, general)
+            .confirmed
+            .is_empty());
+        // and of this check when there is no general clearance
+        assert_eq!(
+            check_classes(&close(100_000), &classes, Nm::ZERO)
+                .confirmed
+                .len(),
+            1
+        );
+        // a class that asks for no more than the general rules adds nothing
+        assert!(
+            check_classes(&close(300_000), &with_clearance(150_000), general)
+                .confirmed
+                .is_empty()
+        );
+        // two items of classes are judged once, by the larger clearance
+        let mut sig = class("signal", &["SIG"], 0, 0, 0);
+        sig.min_clearance = Nm::new(400_000).unwrap();
+        let mut power = class("power", &["VCC"], 0, 0, 0);
+        power.min_clearance = Nm::new(350_000).unwrap();
+        let both = NetClasses::new(vec![power, sig]).unwrap();
+        let report = check_classes(&close(375_000), &both, general);
+        assert_eq!(report.confirmed.len(), 1, "{:?}", report.confirmed);
+        assert_eq!(report.confirmed[0].limit_nm, Some(400_000));
+        assert!(report.confirmed[0].detail.contains("class signal"));
     }
 
     #[test]

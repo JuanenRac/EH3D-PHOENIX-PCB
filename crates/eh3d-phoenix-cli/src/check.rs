@@ -489,7 +489,7 @@ pub(crate) fn check(args: &[&str], out: &mut dyn Write, err: &mut dyn Write) -> 
     };
     let mut report = check_board(&board, &rules);
     if !classes.is_empty() {
-        report.merge(check_classes(&board, &classes));
+        report.merge(check_classes(&board, &classes, rules.min_clearance));
     }
     if let Some(profile) = &dfm {
         report.merge(dfm_findings(&board, profile));

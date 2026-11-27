@@ -168,7 +168,8 @@ pub fn fixed_items(board: &Board, layer: Id) -> Vec<Item> {
         });
     }
     // the edge of the board: the outline and the cutouts inside it, each a closed ring
-    for ring in std::iter::once(&board.outline).chain(board.outline_cutouts.iter()) {
+    let outline = board.outline_polygon(&eh3d_phoenix_board::ArcSettings::current());
+    for ring in std::iter::once(&outline).chain(board.outline_cutouts.iter()) {
         if ring.len() < 3 {
             continue;
         }

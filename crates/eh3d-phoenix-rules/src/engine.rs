@@ -21,8 +21,8 @@ use eh3d_phoenix_spatial::{inflate, Bx, Index, SpatialConfig, SpatialError};
 
 use crate::advanced::IndexMode;
 use crate::codes;
-use crate::geometry::{outline_edges, pad_min_side, Dist2, Prim};
-use crate::items::{placed_pads, track_prim, via_prim, PlacedPad};
+use crate::geometry::{outline_edges, pad_min_side, Dist2, Near, Prim};
+use crate::items::{pad_prim, placed_pads, track_prim, via_prim, PlacedPad};
 use crate::report::{Finding, Report, Severity};
 use crate::rulefile::RuleValues;
 
@@ -55,6 +55,10 @@ pub enum Rule {
     SilkOverMask,
     /// What could not be judged.
     NotJudged,
+    /// Copper to the wall of a hole that is not plated.
+    HoleClearance,
+    /// The wall of a drill hole to the board edge.
+    HoleEdge,
 }
 
 impl Rule {
@@ -74,6 +78,9 @@ impl Rule {
             Rule::SilkOverPad => (11, "silk_over_pad", codes::SILK_OVER_PAD),
             Rule::SilkOverMask => (12, "silk_over_mask", codes::SILK_OVER_MASK),
             Rule::NotJudged => (13, "not_judged", codes::NOT_JUDGED),
+            // 14 to 16 are the checks of the net classes
+            Rule::HoleClearance => (17, "hole_clearance", codes::HOLE_CLEARANCE),
+            Rule::HoleEdge => (18, "hole_edge", codes::HOLE_EDGE),
         }
     }
 
@@ -103,7 +110,7 @@ struct Copper {
     rank: u8,
     id: Id,
     net: Id,
-    layers: [Id; 2],
+    layers: Vec<Id>,
     prim: Prim,
     label: String,
 }
@@ -132,7 +139,7 @@ fn copper_of(board: &Board) -> Vec<Copper> {
                 rank: 0,
                 id: *id,
                 net: track.net,
-                layers: [track.layer, track.layer],
+                layers: vec![track.layer],
                 prim,
                 label: format!("track {id}"),
             });
@@ -144,7 +151,7 @@ fn copper_of(board: &Board) -> Vec<Copper> {
                 rank: 1,
                 id: *id,
                 net: via.net,
-                layers: [via.from_layer, via.to_layer],
+                layers: board.via_layers(via),
                 prim,
                 label: format!("via {id}"),
             });
@@ -341,9 +348,19 @@ pub fn check_board_with(board: &Board, rules: &RuleValues, mode: IndexMode) -> R
     run.clearances();
     run.edges();
     run.drill_spacing();
+    run.hole_clearances();
+    run.hole_edges();
     run.add_board_crate_findings();
     run.report.finish();
     run.report
+}
+
+/// Why a distance could not be judged.
+pub(crate) fn why_unjudged(near: Near) -> &'static str {
+    match near {
+        Near::Maybe => "too close to the limit near an arc or a shape that is read in two ways",
+        _ => "numbers too large for the exact test",
+    }
 }
 
 /// The distance between the edges of two items, from the distance between their centre lines.
@@ -442,7 +459,7 @@ impl Run<'_> {
             if item.prim.has_arc {
                 self.report.inconclusive.push(
                     make(Rule::NotJudged, Severity::Info, item.label.clone()).why(
-                        "the track has an arc: its clearance is judged by its end points only",
+                        "the track has an arc with no shape: its clearance is judged by its end points only",
                     ),
                 );
             }
@@ -468,22 +485,19 @@ impl Run<'_> {
                 };
                 let location = format!("{} and {}", first.label, second.label);
                 let at = first.prim.first_point();
-                let verdict = a
-                    .prim
-                    .distance(&b.prim)
-                    .map(|d| (d, d.doubled_below(2 * c + a.prim.lo + b.prim.lo)));
-                match verdict {
-                    Some((d, Some(true))) => self.report.confirmed.push(
+                let near = a.prim.within(&b.prim, c, false);
+                match (near, a.prim.distance(&b.prim)) {
+                    (Near::Yes, Some(d)) => self.report.confirmed.push(
                         make(Rule::CopperClearance, Severity::Error, location)
                             .at(at.x_nm.get(), at.y_nm.get())
                             .values(gap_nm(d, a.prim.lo, b.prim.lo), limit.get()),
                     ),
-                    Some((_, Some(false))) => {}
-                    _ => self.report.inconclusive.push(
+                    (Near::No, _) => {}
+                    (near, _) => self.report.inconclusive.push(
                         make(Rule::NotJudged, Severity::Info, location)
                             .at(at.x_nm.get(), at.y_nm.get())
                             .limit(limit.get())
-                            .why("numbers too large for the exact test"),
+                            .why(why_unjudged(near)),
                     ),
                 }
             }
@@ -510,7 +524,7 @@ impl Run<'_> {
         for item in &self.copper {
             let at = item.prim.first_point();
             let mut broken = false;
-            let mut unknown = false;
+            let mut unknown = None;
             let mut nearest = f64::MAX;
             let near;
             let to_compare: &[usize] = match edge_index
@@ -525,14 +539,14 @@ impl Run<'_> {
             };
             for edge in to_compare.iter().map(|i| &edges[*i]) {
                 let Some(d) = item.prim.distance(edge) else {
-                    unknown = true;
+                    unknown = Some(Near::Unknown);
                     continue;
                 };
                 nearest = nearest.min(d.nm_f64());
-                match d.doubled_below(2 * e + item.prim.lo) {
-                    Some(true) => broken = true,
-                    Some(false) => {}
-                    None => unknown = true,
+                match item.prim.within(edge, e, false) {
+                    Near::Yes => broken = true,
+                    Near::No => {}
+                    other => unknown = Some(other),
                 }
             }
             if broken {
@@ -542,12 +556,12 @@ impl Run<'_> {
                         .at(at.x_nm.get(), at.y_nm.get())
                         .values(gap, limit.get()),
                 );
-            } else if unknown {
+            } else if let Some(near) = unknown {
                 self.report.inconclusive.push(
                     make(Rule::NotJudged, Severity::Info, item.label.clone())
                         .at(at.x_nm.get(), at.y_nm.get())
                         .limit(limit.get())
-                        .why("numbers too large for the exact test"),
+                        .why(why_unjudged(near)),
                 );
             }
         }
@@ -598,6 +612,118 @@ impl Run<'_> {
                         .values(gap_nm(d, a.diameter, b.diameter), limit.get()),
                     );
                 }
+            }
+        }
+    }
+
+    /// Tracks, vias and pads against the wall of every hole that is not plated: it has no copper,
+    /// so no other clearance sees it, and copper near it is cut when the hole is drilled.
+    fn hole_clearances(&mut self) {
+        let limit = self.rules.min_hole_clearance;
+        if !on(limit) {
+            return;
+        }
+        let reach = i128::from(limit.get());
+        let pads: Vec<(String, Prim)> = self
+            .pads
+            .iter()
+            .filter(|p| p.drill.is_none() || p.plated)
+            .filter_map(|p| pad_prim(p).map(|prim| (p.label.clone(), prim)))
+            .collect();
+        for hole in self.pads.iter().filter(|p| !p.plated) {
+            let Some(drill) = hole.drill else {
+                continue;
+            };
+            let width = i128::from(drill.get());
+            let Some(wall) = Prim::at_point(hole.at, width, width) else {
+                continue;
+            };
+            let copper = self
+                .copper
+                .iter()
+                .map(|c| (&c.label, &c.prim))
+                .chain(pads.iter().map(|(label, prim)| (label, prim)));
+            for (label, prim) in copper {
+                if !prim.may_be_within(&wall, reach) {
+                    continue;
+                }
+                let location = format!("{label} and the hole of {}", hole.label);
+                let (x, y) = (hole.at.x_nm.get(), hole.at.y_nm.get());
+                match (prim.within(&wall, reach, false), prim.distance(&wall)) {
+                    (Near::Yes, Some(d)) => self.report.confirmed.push(
+                        make(Rule::HoleClearance, Severity::Error, location)
+                            .at(x, y)
+                            .values(gap_nm(d, prim.lo, width), limit.get()),
+                    ),
+                    (Near::No, _) => {}
+                    (near, _) => self.report.inconclusive.push(
+                        make(Rule::NotJudged, Severity::Info, location)
+                            .at(x, y)
+                            .limit(limit.get())
+                            .why(why_unjudged(near)),
+                    ),
+                }
+            }
+        }
+    }
+
+    /// The wall of every drill hole (of a via or a pad, plated or not) against the edge of the
+    /// board and of its openings.
+    fn hole_edges(&mut self) {
+        let limit = self.rules.min_hole_edge;
+        if !on(limit) {
+            return;
+        }
+        let edges = outline_edges(self.board);
+        if edges.is_empty() {
+            self.report.inconclusive.push(
+                make(Rule::NotJudged, Severity::Info, "board outline".to_owned())
+                    .limit(limit.get())
+                    .why("the board has no closed outline, so the holes are not judged against it"),
+            );
+            return;
+        }
+        let reach = i128::from(limit.get());
+        let mut holes: Vec<(String, Point, i128)> = self
+            .board
+            .vias
+            .iter()
+            .map(|(id, via)| (format!("via {id}"), via.at, i128::from(via.drill.get())))
+            .collect();
+        holes.extend(self.pads.iter().filter_map(|p| {
+            p.drill
+                .map(|drill| (p.label.clone(), p.at, i128::from(drill.get())))
+        }));
+        for (label, at, drill) in holes {
+            let Some(wall) = Prim::at_point(at, drill, drill) else {
+                continue;
+            };
+            let mut broken: Option<i64> = None;
+            let mut unknown = false;
+            for edge in edges.iter().filter(|e| wall.may_be_within(e, reach)) {
+                match (wall.within(edge, reach, false), wall.distance(edge)) {
+                    (Near::Yes, Some(d)) => {
+                        let gap = gap_nm(d, drill, 0);
+                        broken = Some(broken.map_or(gap, |found| found.min(gap)));
+                    }
+                    (Near::No, _) => {}
+                    _ => unknown = true,
+                }
+            }
+            let (x, y) = (at.x_nm.get(), at.y_nm.get());
+            if let Some(gap) = broken {
+                self.report.confirmed.push(
+                    make(Rule::HoleEdge, Severity::Error, label)
+                        .at(x, y)
+                        .values(gap, limit.get()),
+                );
+            } else if unknown {
+                self.report.inconclusive.push(
+                    make(Rule::NotJudged, Severity::Info, label)
+                        .at(x, y)
+                        .limit(limit.get())
+                        .why("numbers too large for the exact test"),
+                );
             }
         }
     }

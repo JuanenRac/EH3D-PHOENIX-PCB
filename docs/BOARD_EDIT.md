@@ -118,7 +118,7 @@ The window offers it too (`board_select` of the viewer crate, see *The window*),
 | `dimension_text_height_nm`, `dimension_stroke_nm` | 1500000, 150000 | The height of the text, which is also the length of the arrow heads, and the width of the lines of a dimension drawn with the dimension tool. |
 | `width_step_nm`, `advance_iterations` | 50000, 30 | The step of the actions that make the selected tracks wider or narrower, and how many times the advance of a route halves its search (see below). |
 | `arc_min_radius_nm`, `arc_steps_per_quarter`, `arc_margin_nm` | 500000, 8, 1000 | The smallest radius of an arc, the chords of a quarter turn when an arc is checked and the gap added to the clearance of the rules. |
-| `drag_drc`, `drag_drc_max_objects` | true, 5000 | Whether the rules are checked while something is dragged, and the largest number of components, tracks, vias and zones of a board that is checked then (a larger one is checked when the drag ends). |
+| `drag_drc`, `drag_drc_max_objects` | true, 25000 | Whether the rules are checked while something is dragged, and the largest number of components, tracks, vias and zones of a board that is checked then (a larger one is checked when the drag ends). The limit counts on the check of the zone that changed (`docs/PERFORMANCE.md`); with `local_checks` off or the advanced checks on, lower it. |
 | `measure_snap_nm` | 600000 | How far from a pad, a via, an end of a track or a corner a click of the measure still goes to it. |
 
 A line that is not `key = value`, an unknown key or a value out of range is `PHOENIX-BEDIT-001`.

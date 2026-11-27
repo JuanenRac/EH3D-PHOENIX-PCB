@@ -75,6 +75,8 @@ fn rules() -> RuleContext {
             min_via_diameter: nm(500_000),
             min_annular_ring: nm(120_000),
             min_drill_spacing: nm(300_000),
+            min_hole_clearance: nm(300_000),
+            min_hole_edge: nm(400_000),
             min_edge_clearance: nm(300_000),
             min_mask_bridge: nm(150_000),
             connect_tolerance: nm(10_000),
@@ -85,7 +87,7 @@ fn rules() -> RuleContext {
             name: "P".to_owned(),
             nets: vec!["N0".to_owned(), "N1".to_owned()],
             min_track_width: nm(300_000),
-            min_clearance: Nm::ZERO,
+            min_clearance: nm(450_000),
             min_via_diameter: nm(700_000),
             min_via_drill: Nm::ZERO,
         }])
@@ -125,7 +127,8 @@ fn empty_board() -> Board {
             },
         );
     }
-    // a footprint of two flat pads, one of two drilled pads and one of a single round pad
+    // a footprint of two flat pads, one of two drilled pads (the second hole not plated) and one
+    // of a single oblong pad
     let shapes = [
         (
             PadShape::Rect {
@@ -166,7 +169,7 @@ fn empty_board() -> Board {
                         drill: drill.map(nm),
                         layers: vec![id(TOP), id(MASK)],
                         roundness: 0,
-                        plated: true,
+                        plated: drill.is_none() || k == 0,
                     },
                 )
             })

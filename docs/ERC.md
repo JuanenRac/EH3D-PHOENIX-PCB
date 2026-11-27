@@ -85,7 +85,7 @@ The result is written as the JSON of the model (`.json`), or as EAGLE XML when t
 
 ## Net classes
 
-A rule file of the format `phoenix-rules/2` is a rule file of the first format with an optional list of net classes; a file of the first format is read as before. A class has a name, the names of its nets (a net belongs to at most one class) and limits of its own: `min_track_width_nm`, `min_via_diameter_nm` and `min_via_drill_nm`, checked by `phoenix check --rules FILE` (codes PHOENIX-CHECK-014 and PHOENIX-CHECK-015), and `min_clearance_nm`, which is read and kept but not checked yet (the check says so in the inconclusive list). A class only adds a limit: it never relaxes the general rules, which are still checked for every net. A class that is not valid has the code PHOENIX-RULEFILE-005.
+A rule file of the format `phoenix-rules/2` is a rule file of the first format with an optional list of net classes; a file of the first format is read as before. A class has a name, the names of its nets (a net belongs to at most one class) and limits of its own: `min_track_width_nm`, `min_via_diameter_nm` and `min_via_drill_nm`, checked by `phoenix check --rules FILE` (codes PHOENIX-CHECK-014 and PHOENIX-CHECK-015), and `min_clearance_nm`, the clearance of the tracks, vias and pads of its nets to the copper of other nets (PHOENIX-CHECK-016, for the pairs that keep the general clearance; between two classes the larger one counts; zones are not part of it). A class only adds a limit: it never relaxes the general rules, which are still checked for every net. A class that is not valid has the code PHOENIX-RULEFILE-005.
 
 ## What is not done
 

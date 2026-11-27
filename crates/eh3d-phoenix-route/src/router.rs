@@ -208,7 +208,7 @@ fn resolve(element: &Element, board: &Board, copper: &[Id]) -> Result<Anchor, Ro
             Ok(Anchor {
                 at: via.at,
                 net: via.net,
-                layers: layer_numbers(copper, &[via.from_layer, via.to_layer]),
+                layers: layer_numbers(copper, &board.via_layers(via)),
                 item: Item::Via(*id),
             })
         }
@@ -799,6 +799,7 @@ pub fn route(
                 .get()
                 .saturating_add(settings.clearance_margin_nm),
             bucket: settings.bucket_nm,
+            zone_ends: settings.avoid_zones.then_some([a, b]),
         },
     );
     let job = Job {

@@ -615,6 +615,9 @@ mod tests {
             codes::NOT_JUDGED,
             codes::CLASS_TRACK_NARROW,
             codes::CLASS_VIA_SMALL,
+            codes::CLASS_CLEARANCE,
+            codes::HOLE_CLEARANCE,
+            codes::HOLE_EDGE,
             "PHOENIX-DRC-001",
             "PHOENIX-DRC-013",
         ] {
