@@ -842,7 +842,9 @@ fn the_aperture_level_names_the_function_of_each_aperture() {
     assert!(read.is_clean(), "{:?}", read.diagnostics);
     let kinds: Vec<&str> = read.attributes.iter().map(|a| a.kind.as_str()).collect();
     assert_eq!(kinds.last(), Some(&"TD"));
-    assert_eq!(kinds.iter().filter(|k| **k == "TA").count(), 5);
+    // the five functions of the apertures, and the two pads of R2, which are turned and so
+    // written as regions with their function
+    assert_eq!(kinds.iter().filter(|k| **k == "TA").count(), 7);
     // the silkscreen has no function for its strokes
     assert!(!file(&set, "layers/05_top_silk.gbr").contains("%TA"));
     assert!(verify(&f, &profile, &set).is_empty());

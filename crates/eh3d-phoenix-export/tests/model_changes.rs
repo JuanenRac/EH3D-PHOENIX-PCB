@@ -1072,11 +1072,8 @@ fn a_turned_pad_is_written_turned_with_its_keep_away_and_its_function() {
             if (to.x - 16.707_107).abs() < 2e-6 && (to.y - 7.0).abs() < 2e-6)
     });
     assert!(right, "{text}");
-    // the region of the pad carries the function of a surface mount pad
-    assert!(
-        text.contains("%TA.AperFunction,SMDPad,CuDef*%\nG36*"),
-        "{text}"
-    );
+    // the region of the pad carries its function (the part is TP1, so it is a test pad)
+    assert!(text.contains("%TA.AperFunction,TestPad*%\nG36*"), "{text}");
     assert!(verify(&b, &profile, &set).is_empty());
 }
 
