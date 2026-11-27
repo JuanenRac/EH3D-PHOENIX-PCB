@@ -4,6 +4,8 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+## [0.1.9] - Pour clearances, rotated pads and bottom-side footprints in the fabrication files
+
 - **KiCad boards: footprints on the bottom side were read mirrored:** the pads of a bottom footprint of a `.kicad_pcb` were mirrored once by the file and again by the model, so pin 1 and pin 2 of a two-pin part changed places and an integrated circuit was flipped, in the copper, drill and placement files made from the imported board. They are now where KiCad has them, with their own turn.
 - **Pads at any angle are turned in the Gerber files:** a rectangular or oblong pad at an angle that is not a right angle was flashed unrotated (with the warning `PHOENIX-EXPORT-001`), which could join it to its neighbour. It is now a region at its angle in copper, mask and paste.
 - **The keep-away of a pour follows a turned pad:** it was the unturned shape, which left the corners of the real pad without clearance.
