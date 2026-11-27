@@ -10,8 +10,8 @@ use eh3d_phoenix_board::{
 };
 use eh3d_phoenix_model::{Nm, ObjectId, Point, Udeg};
 use eh3d_phoenix_rules::{
-    analyse_board, check_board, check_connectivity, compare_schematic, Finding, Lang, Report,
-    RuleValues, Severity,
+    analyse_board, check_board, check_classes, check_connectivity, compare_schematic, Finding,
+    Lang, NetClass, NetClasses, Report, RuleValues, Severity,
 };
 use eh3d_phoenix_schematic::{NetPin, Part, Pin, Schematic, SchematicNet, Symbol};
 
@@ -1394,4 +1394,215 @@ fn the_json_report_has_the_two_lists_and_the_text_is_translated() {
         .to_text(Lang::Pt)
         .contains("Pista mais estreita do que o mínimo"));
     assert!(report.to_text(Lang::Ja).contains("配線が最小幅より細い"));
+}
+
+fn pour(b: &mut Board, n: u32, net: Id, clearance: i64, from: (i64, i64), to: (i64, i64)) {
+    b.zones.insert(
+        id(n),
+        Zone {
+            net,
+            layer: id(TOP),
+            outline: vec![
+                pt(from.0, from.1),
+                pt(to.0, from.1),
+                pt(to.0, to.1),
+                pt(from.0, to.1),
+            ],
+            clearance: nm(clearance),
+            cutouts: Vec::new(),
+        },
+    );
+}
+
+#[test]
+fn a_pour_is_judged_against_the_edge_of_the_board() {
+    let mut b = base();
+    let na = net(&mut b, 10, "A");
+    pour(
+        &mut b,
+        61,
+        na,
+        200_000,
+        (1_000_000, 1_000_000),
+        (5_000_000, 5_000_000),
+    );
+    let only = RuleValues {
+        min_edge_clearance: nm(300_000),
+        ..RuleValues::default()
+    };
+    assert!(check_board(&b, &only).confirmed.is_empty());
+    // 0.1 mm from the left edge: the files write the copper up to there
+    pour(
+        &mut b,
+        61,
+        na,
+        200_000,
+        (100_000, 1_000_000),
+        (5_000_000, 5_000_000),
+    );
+    let report = check_board(&b, &only);
+    let found = by_rule(&report, "edge_clearance");
+    assert_eq!(found.len(), 1, "{:?}", report.confirmed);
+    assert_eq!(found[0].measured_nm, Some(100_000));
+    assert_eq!(found[0].location, format!("zone {}", id(61)));
+    assert_eq!(found[0].severity, Severity::Warning);
+    // a pour larger than the board: every side of the board runs through its copper
+    pour(
+        &mut b,
+        61,
+        na,
+        200_000,
+        (-1_000_000, -1_000_000),
+        (21_000_000, 21_000_000),
+    );
+    let report = check_board(&b, &only);
+    assert_eq!(by_rule(&report, "edge_clearance")[0].measured_nm, Some(0));
+}
+
+#[test]
+fn a_pour_is_judged_against_holes_that_are_not_plated() {
+    let mut b = base();
+    let na = net(&mut b, 10, "A");
+    mounting_hole(&mut b, (5_000_000, 5_000_000));
+    pour(
+        &mut b,
+        61,
+        na,
+        200_000,
+        (1_000_000, 1_000_000),
+        (9_000_000, 9_000_000),
+    );
+    let only = |limit: i64| RuleValues {
+        min_hole_clearance: nm(limit),
+        ..RuleValues::default()
+    };
+    // the files keep the clearance of the pour from the wall of the hole
+    assert!(check_board(&b, &only(200_000)).confirmed.is_empty());
+    let report = check_board(&b, &only(300_000));
+    let found = by_rule(&report, "hole_clearance");
+    assert_eq!(found.len(), 1, "{:?}", report.confirmed);
+    assert_eq!(found[0].measured_nm, Some(200_000));
+    assert_eq!(
+        found[0].location,
+        format!("zone {} and the hole of H1 pad 1", id(61))
+    );
+    assert_eq!(found[0].severity, Severity::Warning);
+}
+
+#[test]
+fn two_pours_of_different_nets_keep_the_clearance_from_each_other() {
+    let mut b = base();
+    let (na, nb) = (net(&mut b, 10, "A"), net(&mut b, 11, "B"));
+    pour(
+        &mut b,
+        61,
+        na,
+        200_000,
+        (1_000_000, 1_000_000),
+        (5_000_000, 5_000_000),
+    );
+    pour(
+        &mut b,
+        62,
+        nb,
+        200_000,
+        (5_100_000, 1_000_000),
+        (9_000_000, 5_000_000),
+    );
+    let only = RuleValues {
+        min_clearance: nm(200_000),
+        ..RuleValues::default()
+    };
+    let report = check_board(&b, &only);
+    let found = by_rule(&report, "copper_clearance");
+    assert_eq!(found.len(), 1, "{:?}", report.confirmed);
+    assert_eq!(found[0].measured_nm, Some(100_000));
+    assert_eq!(
+        found[0].location,
+        format!("zone {} and zone {}", id(61), id(62))
+    );
+    // 0.2 mm apart: exactly met
+    pour(
+        &mut b,
+        62,
+        nb,
+        200_000,
+        (5_200_000, 1_000_000),
+        (9_000_000, 5_000_000),
+    );
+    assert!(check_board(&b, &only).confirmed.is_empty());
+}
+
+#[test]
+fn the_clearance_of_a_class_is_judged_against_pours() {
+    let mut b = base();
+    let (na, hv) = (net(&mut b, 10, "A"), net(&mut b, 11, "HV"));
+    pour(
+        &mut b,
+        61,
+        na,
+        200_000,
+        (1_000_000, 1_000_000),
+        (9_000_000, 9_000_000),
+    );
+    // a track of the class inside the pour: the files keep 0.2 mm only
+    track(
+        &mut b,
+        20,
+        hv,
+        200_000,
+        vec![line((2_000_000, 5_000_000), (8_000_000, 5_000_000))],
+    );
+    let classes = NetClasses::new(vec![NetClass {
+        name: "high".to_owned(),
+        nets: vec!["HV".to_owned()],
+        min_track_width: Nm::ZERO,
+        min_clearance: nm(1_000_000),
+        min_via_diameter: Nm::ZERO,
+        min_via_drill: Nm::ZERO,
+    }])
+    .unwrap();
+    let report = check_classes(&b, &classes, nm(200_000));
+    assert_eq!(report.confirmed.len(), 1, "{:?}", report.confirmed);
+    let found = &report.confirmed[0];
+    assert_eq!(
+        (found.measured_nm, found.limit_nm, found.severity),
+        (Some(200_000), Some(1_000_000), Severity::Warning)
+    );
+    assert_eq!(
+        found.location,
+        format!("zone {} and track {}", id(61), id(20))
+    );
+    // the same track 0.5 mm beside the pour, and 1.5 mm beside it
+    track(
+        &mut b,
+        20,
+        hv,
+        200_000,
+        vec![line((2_000_000, 9_600_000), (8_000_000, 9_600_000))],
+    );
+    let report = check_classes(&b, &classes, nm(200_000));
+    assert_eq!(report.confirmed[0].measured_nm, Some(500_000));
+    track(
+        &mut b,
+        20,
+        hv,
+        200_000,
+        vec![line((2_000_000, 10_600_000), (8_000_000, 10_600_000))],
+    );
+    assert!(check_classes(&b, &classes, nm(200_000))
+        .confirmed
+        .is_empty());
+    // a pour of the class 0.5 mm from the first one
+    pour(
+        &mut b,
+        62,
+        hv,
+        200_000,
+        (9_500_000, 1_000_000),
+        (12_000_000, 9_000_000),
+    );
+    let report = check_classes(&b, &classes, nm(200_000));
+    assert_eq!(report.confirmed.len(), 1, "{:?}", report.confirmed);
+    assert_eq!(report.confirmed[0].measured_nm, Some(500_000));
 }

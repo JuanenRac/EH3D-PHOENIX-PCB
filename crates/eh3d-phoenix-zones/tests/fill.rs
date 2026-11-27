@@ -103,6 +103,7 @@ fn rules() -> ZoneRules {
     ZoneRules {
         min_clearance_nm: 200_000,
         min_edge_clearance_nm: 0,
+        min_hole_clearance_nm: 0,
         class_clearance_nm: BTreeMap::new(),
     }
 }
@@ -605,4 +606,64 @@ fn an_arc_in_the_outline_of_the_board_is_kept_away_from_by_the_fill() {
     // the fill that was made keeps the clearance to the edge it was made with
     let findings = check_fill(&board, &rules, &settings(), &report.fill).unwrap();
     assert!(!has_errors(&findings), "{findings:?}");
+}
+
+#[test]
+fn a_hole_that_is_not_plated_is_kept_away_from_whatever_its_pad_says() {
+    let mut board = base_board();
+    add_zone(&mut board, 10, NET_A, square(MM, MM, 19 * MM, 19 * MM));
+    // a mounting hole of 2 mm whose pad is on no layer, in the middle of the pour
+    let mut pads = BTreeMap::new();
+    pads.insert(
+        id(41),
+        Pad {
+            number: "1".to_owned(),
+            shape: PadShape::Circle {
+                diameter: nm(2 * MM),
+            },
+            at: pt(0, 0),
+            rotation: Udeg::ZERO,
+            drill: Some(nm(2 * MM)),
+            layers: Vec::new(),
+            roundness: 0,
+            plated: false,
+        },
+    );
+    board.footprints.insert(
+        id(40),
+        Footprint {
+            name: "HOLE".to_owned(),
+            pads,
+        },
+    );
+    board.components.insert(
+        id(42),
+        Component {
+            refdes: "H1".to_owned(),
+            value: String::new(),
+            symbol: None,
+            footprint: id(40),
+            at: pt(10 * MM, 10 * MM),
+            rotation: Udeg::ZERO,
+            side: Side::Top,
+        },
+    );
+    let report = run(&board);
+    // the wall is 1 mm from the middle and the clearance 0.2 mm
+    assert!(!covered(&report, 10 * MM, 10 * MM));
+    assert!(!covered(&report, 11 * MM + 150_000, 10 * MM));
+    assert!(covered(&report, 11 * MM + 400_000, 10 * MM));
+    let findings = check_fill(&board, &rules(), &settings(), &report.fill).unwrap();
+    assert!(!has_errors(&findings), "{findings:?}");
+    // the rule of the holes asks for more
+    let wider = ZoneRules {
+        min_hole_clearance_nm: 500_000,
+        ..rules()
+    };
+    let report_wider = fill_board(&board, &wider, &settings(), None).unwrap();
+    assert!(!covered(&report_wider, 11 * MM + 400_000, 10 * MM));
+    assert!(covered(&report_wider, 11 * MM + 800_000, 10 * MM));
+    // and the first fill breaks it
+    let findings = check_fill(&board, &wider, &settings(), &report.fill).unwrap();
+    assert!(has_errors(&findings), "{findings:?}");
 }

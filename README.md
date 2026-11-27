@@ -104,7 +104,7 @@ python -I -m unittest discover -s tools -p "test_*.py"
 
 **Push and shove.** A track routed with the push makes room for itself: tracks of other nets move aside or are walked around obstacles, vias move with the tracks that end on them and the clearance of the net classes is kept; the result is one undo step, and it is refused if it would add a rule error or cut a connection. It has been tried on boards made by the tests only; see [docs/SHOVE.md](docs/SHOVE.md).
 
-**Rule checks.** A via counts on every copper layer it crosses, an arc is measured along its curve (also the arcs of the board outline), a net class may ask for its own clearance and a rule file may keep copper and drills away from holes that are not plated and from the board edge. These checks have been tried on boards made by the tests only; see [docs/ERROR_CODES.md](docs/ERROR_CODES.md).
+**Rule checks.** A via counts on every copper layer it crosses, an arc is measured along its curve (also the arcs of the board outline), a net class may ask for its own clearance and a rule file may keep copper and drills away from holes that are not plated and from the board edge. These checks have been tried on boards made by the tests only; see [docs/ERROR_CODES.md](docs/ERROR_CODES.md). A pour is judged as the Gerber files write it (warnings against the board edge, holes that are not plated, other pours and net classes), and those files keep it away from every track that crosses it and from every hole that is not plated.
 
 ## 🧪 Testing
 

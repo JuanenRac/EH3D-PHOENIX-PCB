@@ -104,7 +104,7 @@ python -I -m unittest discover -s tools -p "test_*.py"
 
 **Empurrar e afastar.** Uma pista traçada com empurrar abre espaço para si: as pistas de outras redes afastam-se ou contornam os obstáculos, as vias movem-se com as pistas que nelas terminam e o isolamento das classes de rede é respeitado; o resultado é um único passo de anular e é recusado se acrescentasse um erro de regras ou cortasse uma ligação. Só foi experimentado em placas criadas pelos testes; ver [docs/SHOVE.md](docs/SHOVE.md).
 
-**Verificação de regras.** Uma via conta em todas as camadas de cobre que atravessa, um arco é medido ao longo da sua curva (também os arcos do contorno da placa), uma classe de rede pode exigir o seu próprio isolamento e um ficheiro de regras pode afastar o cobre e os furos dos orifícios não metalizados e do bordo da placa. Estas verificações só foram experimentadas em placas criadas pelos testes; ver [docs/ERROR_CODES.md](docs/ERROR_CODES.md).
+**Verificação de regras.** Uma via conta em todas as camadas de cobre que atravessa, um arco é medido ao longo da sua curva (também os arcos do contorno da placa), uma classe de rede pode exigir o seu próprio isolamento e um ficheiro de regras pode afastar o cobre e os furos dos orifícios não metalizados e do bordo da placa. Estas verificações só foram experimentadas em placas criadas pelos testes; ver [docs/ERROR_CODES.md](docs/ERROR_CODES.md). Um plano de cobre é avaliado tal como os ficheiros Gerber o escrevem (avisos em relação ao bordo da placa, aos orifícios não metalizados, a outros planos e às classes de rede), e esses ficheiros afastam-no de todas as pistas que o atravessam e de todos os orifícios não metalizados.
 
 ## 🧪 Testes
 

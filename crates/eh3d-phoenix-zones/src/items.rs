@@ -41,6 +41,8 @@ pub(crate) struct Item {
     pub half: i64,
     /// True for a piece that stands for an arc.
     pub arc: bool,
+    /// True for the room of a hole that is not plated: no copper of any net may reach its wall.
+    pub hole: bool,
     /// Where a zone of the same net joins it.
     pub centre: P,
     /// The radius of the smallest circle around it, for the relief.
@@ -99,6 +101,7 @@ fn make(kind: Kind, net: Option<Id>, label: String, shape: Shape, centre: P) -> 
         segs,
         half,
         arc: false,
+        hole: false,
         centre,
         radius,
         bounds: (
@@ -108,6 +111,20 @@ fn make(kind: Kind, net: Option<Id>, label: String, shape: Shape, centre: P) -> 
             y1.saturating_add(half),
         ),
     }
+}
+
+/// The width of the room of the hole of a pad that is not plated: its drill, or, for an oblong
+/// pad, the length of the slot that may be milled for it.
+fn hole_width(shape: PadShape, drill: i64) -> i64 {
+    let PadShape::Oblong { width, height } = shape else {
+        return drill;
+    };
+    let (long, short) = (width.get().max(height.get()), width.get().min(height.get()));
+    if short <= 0 {
+        return drill;
+    }
+    let slot = i128::from(long) * i128::from(drill) / i128::from(short);
+    i64::try_from(slot).unwrap_or(i64::MAX).max(drill)
 }
 
 /// The geometry of a pad centred at `c` and turned by `total` micro-degrees.
@@ -277,15 +294,31 @@ pub(crate) fn collect(board: &Board, piece_degrees: u32) -> LayerItems {
             let total = (pad.rotation.get() + component.rotation.get()).rem_euclid(360_000_000);
             let shape = pad_geometry(pad.shape, at, total);
             let label = format!("{} pad {}", component.refdes, pad.number);
+            // a hole that is not plated is drilled through every layer and has no copper, so it
+            // is kept away from on all of them and joins no net
+            let hole = pad.drill.filter(|_| pad.is_npth());
+            if let Some(drill) = hole {
+                let r = half_up(hole_width(pad.shape, drill.get()));
+                let room = Shape {
+                    centres: vec![at],
+                    segs: vec![(at, at)],
+                    half: r,
+                    radius: r,
+                };
+                for list in out.values_mut() {
+                    let mut item = make(Kind::Pad, None, label.clone(), room.clone(), at);
+                    item.hole = true;
+                    list.push(item);
+                }
+            }
+            let net = if hole.is_some() {
+                None
+            } else {
+                board.net_of(pad_ref)
+            };
             for layer in &pad.layers {
                 if let Some(list) = out.get_mut(layer) {
-                    list.push(make(
-                        Kind::Pad,
-                        board.net_of(pad_ref),
-                        label.clone(),
-                        shape.clone(),
-                        at,
-                    ));
+                    list.push(make(Kind::Pad, net, label.clone(), shape.clone(), at));
                 }
             }
         }

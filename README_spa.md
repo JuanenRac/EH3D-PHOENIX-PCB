@@ -104,7 +104,7 @@ python -I -m unittest discover -s tools -p "test_*.py"
 
 **Empujar y apartar.** Una pista trazada con empuje se hace sitio: las pistas de otras redes se apartan o rodean los obstáculos, las vías se mueven con las pistas que terminan en ellas y se respeta la separación de las clases de red; el resultado es un solo paso de deshacer y se rechaza si añadiría un error de reglas o cortaría una conexión. Solo se ha probado en placas creadas por las pruebas; véase [docs/SHOVE.md](docs/SHOVE.md).
 
-**Comprobación de reglas.** Una vía cuenta en todas las capas de cobre que atraviesa, un arco se mide a lo largo de su curva (también los arcos del contorno de la placa), una clase de red puede pedir su propia separación y un fichero de reglas puede alejar el cobre y los taladros de los agujeros no metalizados y del borde de la placa. Estas comprobaciones solo se han probado en placas hechas por los tests; véase [docs/ERROR_CODES.md](docs/ERROR_CODES.md).
+**Comprobación de reglas.** Una vía cuenta en todas las capas de cobre que atraviesa, un arco se mide a lo largo de su curva (también los arcos del contorno de la placa), una clase de red puede pedir su propia separación y un fichero de reglas puede alejar el cobre y los taladros de los agujeros no metalizados y del borde de la placa. Estas comprobaciones solo se han probado en placas hechas por los tests; véase [docs/ERROR_CODES.md](docs/ERROR_CODES.md). Un plano de cobre se juzga como lo escriben los ficheros Gerber (avisos frente al borde de la placa, los agujeros no metalizados, otros planos y las clases de red), y esos ficheros lo separan de toda pista que lo cruce y de todo agujero no metalizado.
 
 ## 🧪 Pruebas
 

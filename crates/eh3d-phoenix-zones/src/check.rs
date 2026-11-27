@@ -159,7 +159,11 @@ pub fn check_fill(
                 if !keeps_apart(item, fz.net, fz.connection, settings.via_connection) {
                     continue;
                 }
-                let need = rules.clearance(fz.clearance_nm, fz.net, item.net);
+                let need = if item.hole {
+                    rules.hole_clearance(fz.clearance_nm, fz.net)
+                } else {
+                    rules.clearance(fz.clearance_nm, fz.net, item.net)
+                };
                 let reach = bbox_grow(item.bounds, need);
                 let limit = i128::from(item.half) + i128::from(need) - i128::from(tol);
                 for polygon in &polygons {

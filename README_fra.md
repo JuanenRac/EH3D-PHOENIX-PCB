@@ -104,7 +104,7 @@ python -I -m unittest discover -s tools -p "test_*.py"
 
 **Pousser et écarter.** Une piste tracée avec la poussée se fait de la place : les pistes des autres réseaux s'écartent ou contournent les obstacles, les vias se déplacent avec les pistes qui s'y terminent et l'isolement des classes de réseaux est respecté ; le résultat est une seule étape d'annulation et il est refusé s'il ajoutait une erreur de règles ou coupait une liaison. Essayé uniquement sur des cartes créées par les tests ; voir [docs/SHOVE.md](docs/SHOVE.md).
 
-**Vérification des règles.** Un via compte sur toutes les couches de cuivre qu'il traverse, un arc est mesuré le long de sa courbe (y compris les arcs du contour de la carte), une classe de réseau peut exiger son propre isolement et un fichier de règles peut éloigner le cuivre et les perçages des trous non métallisés et du bord de la carte. Ces vérifications n'ont été essayées que sur des cartes créées par les tests ; voir [docs/ERROR_CODES.md](docs/ERROR_CODES.md).
+**Vérification des règles.** Un via compte sur toutes les couches de cuivre qu'il traverse, un arc est mesuré le long de sa courbe (y compris les arcs du contour de la carte), une classe de réseau peut exiger son propre isolement et un fichier de règles peut éloigner le cuivre et les perçages des trous non métallisés et du bord de la carte. Ces vérifications n'ont été essayées que sur des cartes créées par les tests ; voir [docs/ERROR_CODES.md](docs/ERROR_CODES.md). Un plan de cuivre est jugé tel que les fichiers Gerber l'écrivent (avertissements face au bord de la carte, aux trous non métallisés, aux autres plans et aux classes de réseau), et ces fichiers l'écartent de toute piste qui le traverse et de tout trou non métallisé.
 
 ## 🧪 Tests
 

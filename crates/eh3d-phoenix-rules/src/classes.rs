@@ -12,7 +12,9 @@
 //! larger of those of their classes; a pair is reported by this check only when it keeps the
 //! general clearance, so that no pair is reported twice. Pads that are not round are judged by the
 //! circles inside and around them, as the general check judges them: in between the pair is
-//! inconclusive. Zones are not part of it.
+//! inconclusive. A pour is judged as the manufacturing files write it, its outline kept the
+//! clearance of the zone away from other copper: where that is less than a class asks, or where two
+//! pours of different nets are nearer than their classes allow, the finding is a warning.
 
 use std::collections::BTreeSet;
 
@@ -22,7 +24,7 @@ use eh3d_phoenix_spatial::{inflate, Bx, Index, SpatialConfig};
 
 use crate::codes::{CLASS_CLEARANCE, CLASS_TRACK_NARROW, CLASS_VIA_SMALL, NOT_JUDGED};
 use crate::engine::why_unjudged;
-use crate::geometry::{Near, Prim};
+use crate::geometry::{polygons_touch, Area, Near, Prim};
 use crate::items::{pad_prim, placed_pads, track_prim, via_prim};
 use crate::report::{Finding, Report, Severity};
 use crate::rulefile::RuleFileError;
@@ -257,6 +259,96 @@ fn check_clearances(board: &Board, classes: &NetClasses, general: Nm, report: &m
     }
 }
 
+/// The pours that the clearance of a class is not kept from: the copper of other nets near a pour
+/// whose own clearance is smaller than the class asks, and two pours of different nets nearer than
+/// their classes allow.
+fn check_zone_clearances(board: &Board, classes: &NetClasses, general: Nm, report: &mut Report) {
+    let asked = |net: Id| -> (i64, String) {
+        board
+            .nets
+            .get(&net)
+            .and_then(|n| classes.class_of(&n.name))
+            .map_or((0, String::new()), |c| {
+                (c.min_clearance.get(), c.name.clone())
+            })
+    };
+    let finding = |location: String, at: Point, gap: i64, limit: i64, class: &str| {
+        Finding::new(
+            RANK_CLASS_CLEARANCE,
+            "class_clearance",
+            CLASS_CLEARANCE,
+            Severity::Warning,
+            location,
+        )
+        .at(at.x_nm.get(), at.y_nm.get())
+        .values(gap, limit)
+        .why(&format!("class {class}"))
+    };
+    let items = copper_items(board, classes);
+    let zones: Vec<_> = board.zones.iter().collect();
+    for (i, (id, zone)) in zones.iter().enumerate() {
+        let Some(area) = Area::new(&zone.outline, &zone.cutouts) else {
+            continue;
+        };
+        let (own, own_class) = asked(zone.net);
+        let kept = zone.clearance.get();
+        for item in &items {
+            if item.net == Some(zone.net) || !item.layers.contains(&zone.layer) {
+                continue;
+            }
+            let (limit, class) = if item.asks > own {
+                (item.asks, item.class.as_str())
+            } else {
+                (own, own_class.as_str())
+            };
+            if limit <= general.get() || limit <= kept {
+                continue;
+            }
+            let (near, gap) = area.near(&item.prim, i128::from(limit));
+            if near == Near::Yes {
+                report.confirmed.push(finding(
+                    format!("zone {id} and {}", item.label),
+                    item.prim.first_point(),
+                    gap.max(kept),
+                    limit,
+                    class,
+                ));
+            }
+        }
+        for (other_id, other) in &zones[i + 1..] {
+            if other.net == zone.net
+                || other.layer != zone.layer
+                || polygons_touch(&zone.outline, &other.outline)
+            {
+                continue;
+            }
+            let (theirs, their_class) = asked(other.net);
+            let (limit, class) = if theirs > own {
+                (theirs, their_class.as_str())
+            } else {
+                (own, own_class.as_str())
+            };
+            let Some(second) = Area::new(&other.outline, &other.cutouts) else {
+                continue;
+            };
+            if limit <= general.get() {
+                continue;
+            }
+            let (near, gap) = area.near(&second.border, i128::from(limit));
+            // nearer than the general clearance is the finding of the general check
+            if near == Near::Yes && gap >= general.get() {
+                report.confirmed.push(finding(
+                    format!("zone {id} and zone {other_id}"),
+                    zone.outline[0],
+                    gap,
+                    limit,
+                    class,
+                ));
+            }
+        }
+    }
+}
+
 /// Checks the limits of the net classes on a board: the width of the tracks and the diameter and
 /// drill of the vias of every net that belongs to a class, and the clearance of the copper of those
 /// nets where it is larger than the `general` clearance of the rules. The report is in the same
@@ -325,6 +417,7 @@ pub fn check_classes(board: &Board, classes: &NetClasses, general: Nm) -> Report
         }
     }
     check_clearances(board, classes, general, &mut report);
+    check_zone_clearances(board, classes, general, &mut report);
     report.finish();
     report
 }

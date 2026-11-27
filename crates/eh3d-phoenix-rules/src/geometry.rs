@@ -400,6 +400,56 @@ pub(crate) fn contact(a: &Prim, b: &Prim, tolerance: i128) -> Contact {
     }
 }
 
+/// The copper of a pour as the manufacturing files write it: inside its outline and outside its
+/// cutouts.
+pub(crate) struct Area<'a> {
+    /// The outline and the cutouts as pieces of no width.
+    pub(crate) border: Prim,
+    outline: &'a [Point],
+    cutouts: &'a [Vec<Point>],
+}
+
+impl<'a> Area<'a> {
+    /// `None` for an outline of fewer than three points.
+    pub(crate) fn new(outline: &'a [Point], cutouts: &'a [Vec<Point>]) -> Option<Area<'a>> {
+        if outline.len() < 3 {
+            return None;
+        }
+        let pieces = std::iter::once(outline)
+            .chain(cutouts.iter().map(Vec::as_slice))
+            .filter(|ring| ring.len() >= 3)
+            .flat_map(edges)
+            .collect();
+        Some(Area {
+            border: Prim::new(pieces, 0, 0, false)?,
+            outline,
+            cutouts,
+        })
+    }
+
+    fn holds(&self, p: Point) -> bool {
+        inside_polygon(p, self.outline) && !self.cutouts.iter().any(|c| inside_polygon(p, c))
+    }
+
+    /// Whether the copper of `item` is nearer than `gap` to the copper of the pour, and the gap
+    /// between them in nanometres (0 when they overlap).
+    pub(crate) fn near(&self, item: &Prim, gap: i128) -> (Near, i64) {
+        let inside = item
+            .all()
+            .any(|((a, b), _)| self.holds(*a) || self.holds(*b));
+        if inside {
+            return (Near::Yes, 0);
+        }
+        if !item.may_be_within(&self.border, gap) {
+            return (Near::No, i64::MAX);
+        }
+        let measured = item.distance(&self.border).map_or(0, |d| {
+            (d.nm_f64() - item.lo as f64 / 2.0).round().max(0.0) as i64
+        });
+        (item.within(&self.border, gap, false), measured)
+    }
+}
+
 /// The pieces of the outline of the board, and of the openings inside it, as items of no width.
 /// The arcs of the outline are the chords that the other checks of distance see.
 pub(crate) fn outline_edges(board: &Board) -> Vec<Prim> {

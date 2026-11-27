@@ -104,7 +104,7 @@ python -I -m unittest discover -s tools -p "test_*.py"
 
 **Spingi e sposta.** Una pista tracciata con la spinta si fa posto: le piste delle altre reti si spostano o aggirano gli ostacoli, le vie si muovono con le piste che vi terminano e l'isolamento delle classi di rete è rispettato; il risultato è un solo passo di annullamento ed è rifiutato se aggiungesse un errore di regole o interrompesse un collegamento. Provato solo su schede create dai test; vedi [docs/SHOVE.md](docs/SHOVE.md).
 
-**Controllo delle regole.** Un via conta su ogni strato di rame che attraversa, un arco è misurato lungo la sua curva (anche gli archi del contorno della scheda), una classe di rete può chiedere il proprio isolamento e un file di regole può tenere rame e forature lontani dai fori non metallizzati e dal bordo della scheda. Questi controlli sono stati provati solo su schede create dai test; vedi [docs/ERROR_CODES.md](docs/ERROR_CODES.md).
+**Controllo delle regole.** Un via conta su ogni strato di rame che attraversa, un arco è misurato lungo la sua curva (anche gli archi del contorno della scheda), una classe di rete può chiedere il proprio isolamento e un file di regole può tenere rame e forature lontani dai fori non metallizzati e dal bordo della scheda. Questi controlli sono stati provati solo su schede create dai test; vedi [docs/ERROR_CODES.md](docs/ERROR_CODES.md). Un piano di rame è giudicato come lo scrivono i file Gerber (avvisi rispetto al bordo della scheda, ai fori non metallizzati, agli altri piani e alle classi di rete), e quei file lo tengono lontano da ogni pista che lo attraversa e da ogni foro non metallizzato.
 
 ## 🧪 Test
 

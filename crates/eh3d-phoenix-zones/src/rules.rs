@@ -18,6 +18,8 @@ pub struct ZoneRules {
     pub min_clearance_nm: i64,
     /// The least gap between copper and the edge of the board.
     pub min_edge_clearance_nm: i64,
+    /// The least gap between copper and the wall of a hole that is not plated.
+    pub min_hole_clearance_nm: i64,
     /// The least gap of the class of a net, by net.
     pub class_clearance_nm: BTreeMap<Id, i64>,
 }
@@ -37,8 +39,16 @@ impl ZoneRules {
         ZoneRules {
             min_clearance_nm: values.min_clearance.get(),
             min_edge_clearance_nm: values.min_edge_clearance.get(),
+            min_hole_clearance_nm: values.min_hole_clearance.get(),
             class_clearance_nm,
         }
+    }
+
+    /// The gap from the wall of a hole that is not plated: the one for copper of no net, and
+    /// the rule for holes when it is larger.
+    pub fn hole_clearance(&self, zone_clearance: i64, zone_net: Id) -> i64 {
+        self.clearance(zone_clearance, zone_net, None)
+            .max(self.min_hole_clearance_nm)
     }
 
     /// The gap a zone of net `zone_net`, with a clearance of its own, keeps from copper of
@@ -212,6 +222,7 @@ mod tests {
         let mut rules = ZoneRules {
             min_clearance_nm: 200_000,
             min_edge_clearance_nm: 300_000,
+            min_hole_clearance_nm: 0,
             class_clearance_nm: BTreeMap::new(),
         };
         assert_eq!(rules.clearance(100_000, a, Some(b)), 200_000);

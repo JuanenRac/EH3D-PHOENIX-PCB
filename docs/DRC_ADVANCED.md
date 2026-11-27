@@ -91,7 +91,7 @@ The key `advanced_drc` of `config/boardedit.cfg` (off by default) adds the prove
 
 ## Not done
 
-* Zone outlines and filled zones against the edge, thermal reliefs, and the distance from a hole to copper of another net.
+* Thermal reliefs and the distance from a plated hole to copper of another net on the layers without its pad (the zone outlines against the edge, holes that are not plated and net classes are judged by the ordinary rule check).
 * Creepage along a path (slots, cut-outs, the surface of a coating) and clearance in air between layers.
 * A neck inside a zone, or along a track between two obstacles.
 * Voltages by net class or from the schematic; the voltage is a list of names in the settings file.
