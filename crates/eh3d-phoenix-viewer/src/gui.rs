@@ -2272,6 +2272,34 @@ mod tests {
     }
 
     #[test]
+    fn the_notice_of_a_project_saved_by_another_program_fits_in_eight_languages() {
+        let dir = tempfile::tempdir().unwrap();
+        let project = dir.path().join("a-project-with-a-rather-long-name.eh3d");
+        let mut a = app();
+        with_board(&mut a);
+        a.suite_chosen(&Purpose::SaveAs, project.clone());
+        let mut h = Harness::new(a);
+        for lang in Lang::ALL {
+            {
+                let mut app = h.shell.app.borrow_mut();
+                app.lang = lang;
+                app.suite.changed = Some(project.clone());
+            }
+            h.frames(3);
+            let rect = h
+                .ctx
+                .memory(|m| m.area_rect(egui::Id::unique("suite-changed")))
+                .unwrap_or_else(|| panic!("{}: the notice is not drawn", lang.tag()));
+            assert!(
+                rect.width() <= 480.0 && rect.height() <= 300.0,
+                "{}: {rect:?}",
+                lang.tag()
+            );
+            assert!(h.shell.app.borrow().suite.changed.is_some());
+        }
+    }
+
+    #[test]
     fn every_workspace_draws_with_nothing_open() {
         let mut h = Harness::new(app());
         for name in [panels::WS_EDIT, panels::WS_REVIEW, panels::WS_COMPACT] {

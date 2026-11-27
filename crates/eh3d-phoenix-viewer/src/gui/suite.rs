@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 use eframe::egui::{self, ScrollArea};
 use eh3d_attachpanel::texts::{lang_of, tr, Text};
 use eh3d_filedialog::{size_text, Action as Picked, Browser, Chosen, Filter, Mode, PlaceKind};
-use eh3d_project::suitetext::{fill, S};
+use eh3d_project::suitetext::{fill, Said, S};
 use eh3d_project::suiteview;
 
 use super::{dim, heading, ui_danger, App};
@@ -20,6 +20,9 @@ use crate::part_datasheet::{self, PartRef};
 use crate::suite_menu::{code, design_of, Design, Outcome};
 use crate::suite_text::SuiteMsg;
 use crate::workspace::{suggested_save_path, Workspace};
+
+/// The width the notice of a project that changed on disk wraps its lines to.
+const CHANGED_WIDTH: f32 = 420.0;
 
 /// A list of the project that is on the screen.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -172,6 +175,7 @@ impl App {
             }
             Outcome::NeedsName => self.suite_ask(Purpose::SaveAs),
             Outcome::Asked => {}
+            Outcome::Changed => self.error = None,
             Outcome::Refused(why) => self.error = Some(ViewError::new(SAVE_FAILED, why)),
         }
     }
@@ -311,7 +315,54 @@ impl App {
     pub(super) fn suite_windows(&mut self, ctx: &egui::Context) {
         self.suite_list_window(ctx);
         self.suite_confirm_window(ctx);
+        self.suite_changed_window(ctx);
         self.suite_chooser_window(ctx);
+    }
+
+    /// What is offered when a write is refused because another program saved the project: read it
+    /// again, or save under another name.
+    fn suite_changed_window(&mut self, ctx: &egui::Context) {
+        let Some(file) = self.suite.changed.clone() else {
+            return;
+        };
+        let lang = self.lang;
+        let code = code(lang);
+        let line = Said(S::ChangedOnDisk, vec![suiteview::name_of(&file)]).text(code);
+        let unsaved = self.workspace.as_ref().is_some_and(Workspace::dirty);
+        let mut again = false;
+        let mut save_as = false;
+        let mut close = false;
+        egui::Window::new(S::ConfirmTitle.tr(code))
+            .id(egui::Id::unique("suite-changed"))
+            .collapsible(false)
+            .resizable(false)
+            .anchor(egui::Align2::CENTER_CENTER, egui::Vec2::ZERO)
+            .show(ctx, |ui| {
+                ui.set_max_width(CHANGED_WIDTH);
+                ui.add(
+                    egui::Label::new(egui::RichText::new(line.as_str()).color(ui_danger())).wrap(),
+                );
+                // reading it again replaces the document of the window
+                if unsaved {
+                    ui.add(egui::Label::new(dim(SuiteMsg::UnsavedLost.tr(lang))).wrap());
+                }
+                ui.horizontal_wrapped(|ui| {
+                    again = ui.button(S::ReadAgain.tr(code)).clicked();
+                    save_as = ui.button(S::MenuSaveAs.tr(code)).clicked();
+                    close = ui.button(S::Close.tr(code)).clicked();
+                });
+            });
+        // Escape closes it; nothing is read and nothing is written
+        close |= ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Escape));
+        if again {
+            self.suite.dismiss_changed();
+            self.suite_open(&file);
+        } else if save_as {
+            self.suite.dismiss_changed();
+            self.suite_ask(Purpose::SaveAs);
+        } else if close {
+            self.suite.dismiss_changed();
+        }
     }
 
     /// The list of the branches, of the files to take or of the branches to extract.

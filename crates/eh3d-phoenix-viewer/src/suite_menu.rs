@@ -5,8 +5,10 @@
 //!
 //! Only the branch `pcb/` is written. A project that was not opened here, a branch that changed
 //! since it was read, a signature that a write removes and a design that an import replaces are
-//! asked about before anything is written, and a project that is written over is copied first. The
-//! window (`gui`) only draws and asks, so all of this is tested without a screen.
+//! asked about before anything is written, and a project that is written over is copied first. A
+//! project that another program saved since it was read here is not written over, also after a
+//! yes: the window says so and offers to read it again or to save under another name. The window
+//! (`gui`) only draws and asks, so all of this is tested without a screen.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -100,6 +102,8 @@ pub struct Pending {
     pub action: Action,
     /// What has to be agreed to.
     pub warnings: Vec<Warning>,
+    /// The mark of the project that was asked about, looked at again after the answer.
+    seen: Option<String>,
 }
 
 /// How an entry ended.
@@ -113,6 +117,8 @@ pub enum Outcome {
     Asked,
     /// It was refused, with why.
     Refused(String),
+    /// It was refused because another program saved the project ([`SuiteState::changed`]).
+    Changed,
 }
 
 /// What the window keeps about its project file of the suite.
@@ -132,7 +138,10 @@ pub struct SuiteState {
     pub pending: Option<Pending>,
     /// The design that an import left for the window to show.
     pub show: Option<Loaded>,
-    /// The content hash of the branch of the program when it was read or written.
+    /// The project a write was refused for because another program saved it, until the person
+    /// chooses what to do.
+    pub changed: Option<PathBuf>,
+    /// The mark of the project when it was read or written here.
     seen: Option<String>,
 }
 
@@ -194,6 +203,7 @@ impl SuiteState {
         self.status = None;
         self.extra = Vec::new();
         self.pending = None;
+        self.changed = None;
         self.notes = appbranch::open_project(path)
             .and_then(|mut project| kit().load(&mut project))
             .and_then(|copy| copy.report())
@@ -300,17 +310,46 @@ impl SuiteState {
 
     /// The person agreed to the write that was waiting.
     pub fn confirm(&mut self, design: Option<&Design>, settings: &ViewerSettings) -> Outcome {
-        match self.pending.take().map(|p| p.action) {
-            Some(Action::Save(target)) => self.write(&target, design, true, settings),
-            Some(Action::Import(source)) => self.bring_in(&source, design, true, settings),
-            Some(Action::Take(branch, rel)) => self.take_file(&branch, &rel, true, settings),
-            None => Outcome::Done,
+        let Some(pending) = self.pending.take() else {
+            return Outcome::Done;
+        };
+        // the person may have taken long to answer: another program may have saved it meanwhile
+        let target = match &pending.action {
+            Action::Save(target) => Some(target.clone()),
+            Action::Import(_) | Action::Take(..) => self.file.clone(),
+        };
+        if let (Some(target), Some(seen)) = (target, pending.seen.as_deref()) {
+            if let Err(why) = suiteview::check_unchanged(&target, seen) {
+                return self.refused(&target, why);
+            }
+        }
+        match pending.action {
+            Action::Save(target) => self.write(&target, design, true, settings),
+            Action::Import(source) => self.bring_in(&source, design, true, settings),
+            Action::Take(branch, rel) => self.take_file(&branch, &rel, true, settings),
         }
     }
 
     /// The person did not agree: nothing was written and nothing is.
     pub fn cancel(&mut self) {
         self.pending = None;
+    }
+
+    /// The person closed the notice of a project that another program saved: nothing is read and
+    /// nothing is written.
+    pub fn dismiss_changed(&mut self) {
+        self.changed = None;
+    }
+
+    /// A write that failed. When the reason is that another program saved the project, the window
+    /// says it in its language and offers what can be done.
+    fn refused(&mut self, target: &Path, why: String) -> Outcome {
+        if !suiteview::is_changed_refusal(&why) {
+            return Outcome::Refused(why);
+        }
+        self.changed = Some(target.to_path_buf());
+        self.refresh();
+        Outcome::Changed
     }
 
     /// Writes the files of a branch into a folder; a file that is there is never written over.
@@ -341,8 +380,25 @@ impl SuiteState {
         Ok(found.into_iter().map(Warning::Suite).collect())
     }
 
-    fn ask(&mut self, action: Action, warnings: Vec<Warning>) -> Outcome {
-        self.pending = Some(Pending { action, warnings });
+    fn ask(&mut self, target: &Path, action: Action, warnings: Vec<Warning>) -> Outcome {
+        // the mark of what is asked about: the one taken when the project of the window was read,
+        // or the one of the file as it is now
+        let ours = self
+            .file
+            .as_deref()
+            .is_some_and(|c| suiteview::same_file(c, target));
+        let seen = if ours {
+            self.seen.clone()
+        } else {
+            suiteview::view(target, PCB_BRANCH)
+                .ok()
+                .and_then(|v| v.own_hash)
+        };
+        self.pending = Some(Pending {
+            action,
+            warnings,
+            seen,
+        });
         Outcome::Asked
     }
 
@@ -354,6 +410,7 @@ impl SuiteState {
         settings: &ViewerSettings,
     ) -> Outcome {
         self.pending = None;
+        self.changed = None;
         if !suiteview::is_project(target) {
             return Outcome::Refused(S::NeedExtension.tr("en").to_owned());
         }
@@ -396,8 +453,10 @@ impl SuiteState {
         if writes && !agreed {
             match self.warnings(target) {
                 Ok(warnings) if warnings.is_empty() => {}
-                Ok(warnings) => return self.ask(Action::Save(target.to_path_buf()), warnings),
-                Err(e) => return Outcome::Refused(e),
+                Ok(warnings) => {
+                    return self.ask(target, Action::Save(target.to_path_buf()), warnings)
+                }
+                Err(e) => return self.refused(target, e),
             }
         }
         if let Some(from) = &copy_from {
@@ -420,7 +479,7 @@ impl SuiteState {
                 if copy_from.is_some() {
                     let _ = fs::remove_file(target);
                 }
-                return Outcome::Refused(e.to_string());
+                return self.refused(target, e.to_string());
             }
         }
         self.adopt(target);
@@ -436,6 +495,7 @@ impl SuiteState {
         settings: &ViewerSettings,
     ) -> Outcome {
         self.pending = None;
+        self.changed = None;
         let Some(file) = self.file.clone() else {
             return need_project();
         };
@@ -485,21 +545,21 @@ impl SuiteState {
         if !agreed {
             let mut warnings = match self.warnings(&file) {
                 Ok(warnings) => warnings,
-                Err(e) => return Outcome::Refused(e),
+                Err(e) => return self.refused(&file, e),
             };
             warnings.extend(replaced.map(Warning::Own));
             if design.is_some_and(|d| d.dirty) {
                 warnings.push(Warning::Own(SuiteMsg::UnsavedLost));
             }
             if !warnings.is_empty() {
-                return self.ask(Action::Import(source.to_path_buf()), warnings);
+                return self.ask(&file, Action::Import(source.to_path_buf()), warnings);
             }
         }
         if let Err(e) = backup(&file, &settings.backup_suffix) {
             return Outcome::Refused(e);
         }
         if let Err(e) = write_pcb(&file, None, &parts, &new_project(&file), VERSION) {
-            return Outcome::Refused(e.to_string());
+            return self.refused(&file, e.to_string());
         }
         self.adopt(&file);
         self.status = Some(Said(S::Imported, vec![name_of(source)]));
@@ -515,6 +575,7 @@ impl SuiteState {
         settings: &ViewerSettings,
     ) -> Outcome {
         self.pending = None;
+        self.changed = None;
         let Some(file) = self.file.clone() else {
             return need_project();
         };
@@ -522,9 +583,10 @@ impl SuiteState {
             match self.warnings(&file) {
                 Ok(warnings) if warnings.is_empty() => {}
                 Ok(warnings) => {
-                    return self.ask(Action::Take(branch.to_owned(), rel.to_owned()), warnings)
+                    let action = Action::Take(branch.to_owned(), rel.to_owned());
+                    return self.ask(&file, action, warnings);
                 }
-                Err(e) => return Outcome::Refused(e),
+                Err(e) => return self.refused(&file, e),
             }
         }
         let limit = settings.max_file_bytes;
@@ -556,7 +618,7 @@ impl SuiteState {
                 self.status = Some(Said(S::Taken, vec![branch.to_owned(), rel.to_owned()]));
                 Outcome::Done
             }
-            Err(e) => Outcome::Refused(e.to_string()),
+            Err(e) => self.refused(&file, e.to_string()),
         }
     }
 }
@@ -752,6 +814,81 @@ mod tests {
             suite.extract("nothing", &out),
             Outcome::Refused(_)
         ));
+    }
+
+    /// Saves the project the way another program does: the change is made on a copy and the file
+    /// is replaced with it, so this process has no memory of that write.
+    fn saved_by_another(path: &Path, what: &str) {
+        let copy = path.with_file_name("another.eh3d");
+        fs::copy(path, &copy).unwrap();
+        put_branch(&copy, "cad", "meanwhile.txt", what.as_bytes());
+        fs::copy(&copy, path).unwrap();
+        fs::remove_file(&copy).unwrap();
+    }
+
+    #[test]
+    fn a_project_another_program_saved_is_not_written_over() {
+        let dir = tempfile::tempdir().unwrap();
+        let project = dir.path().join("demo.eh3d");
+        let mut suite = SuiteState::default();
+        suite.save_as(&project, Some(&board_design()), &settings());
+        put_branch(&project, "cad", "face.txt", b"face");
+        suite.adopt(&project);
+        saved_by_another(&project, "one");
+        // looking at it again for the bar is not reading it again
+        suite.refresh();
+        let bytes = fs::read(&project).unwrap();
+        let schematic = Design {
+            parts: PcbParts {
+                schematic: Some(sample::schematic().to_bytes().unwrap()),
+                ..PcbParts::default()
+            },
+            ..Design::default()
+        };
+        assert_eq!(suite.save(Some(&schematic), &settings()), Outcome::Changed);
+        assert_eq!(suite.changed.as_deref(), Some(project.as_path()));
+        assert!(suite.pending.is_none());
+        assert_eq!(suite.take("cad", "face.txt", &settings()), Outcome::Changed);
+        assert_eq!(fs::read(&project).unwrap(), bytes);
+        suite.dismiss_changed();
+        assert!(suite.changed.is_none());
+        // under another name the work is saved beside what the other program saved
+        let apart = dir.path().join("mine.eh3d");
+        assert_eq!(
+            suite.save_as(&apart, Some(&schematic), &settings()),
+            Outcome::Done
+        );
+        assert_eq!(branch_bytes(&apart, "cad", "meanwhile.txt"), b"one");
+        assert_eq!(fs::read(&project).unwrap(), bytes);
+        // reading it again lets the next save through
+        assert!(suite.open(&project, &settings()).is_ok());
+        assert_eq!(suite.save(Some(&schematic), &settings()), Outcome::Done);
+    }
+
+    #[test]
+    fn a_yes_that_comes_after_another_program_saved_writes_nothing() {
+        let dir = tempfile::tempdir().unwrap();
+        let foreign = dir.path().join("foreign.eh3d");
+        SuiteState::default().save_as(&foreign, Some(&board_design()), &settings());
+        let schematic = Design {
+            parts: PcbParts {
+                schematic: Some(sample::schematic().to_bytes().unwrap()),
+                ..PcbParts::default()
+            },
+            ..Design::default()
+        };
+        let mut suite = SuiteState::default();
+        assert_eq!(
+            suite.save_as(&foreign, Some(&schematic), &settings()),
+            Outcome::Asked
+        );
+        saved_by_another(&foreign, "two");
+        let bytes = fs::read(&foreign).unwrap();
+        assert_eq!(
+            suite.confirm(Some(&schematic), &settings()),
+            Outcome::Changed
+        );
+        assert_eq!(fs::read(&foreign).unwrap(), bytes);
     }
 
     #[test]
