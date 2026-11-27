@@ -75,15 +75,30 @@ Each change keeps the results: the order and the text of the findings do not mov
 
 Measured by `crates/eh3d-phoenix-boardedit/tests/shove_bench.rs` (a long test, left out of a normal run) in a release build on a computer of the CI, on boards that the test makes: pairs of long tracks 0.5 mm apart between pads, with a via of another net 0.65 mm below each pair. Every push of the table moves the two tracks of a pair and is kept by the checks.
 
-| Board (tracks, vias, pads) | The design rules alone | Connectivity alone | Preview of a push | The push applied |
-|---|---|---|---|---|
-| 200, 100, 400 | 3 ms | 0.2 ms | 5 ms | 10 ms |
-| 1000, 500, 2000 | 21 ms | 1.3 ms | 31 ms | 56 ms |
-| 4000, 2000, 8000 | 115 ms | 6 ms | 200 ms | 335 ms |
+The two times of a push are given before and after only the zone that changed was checked, both measured in one run of the CI.
 
-Most of the time of a push is the design rule check of the whole board, one on the copy in a preview and another when it is applied; the findings of the board before are the ones the editor already keeps (without them a preview of the largest board took about 400 ms). On the same boards the version before refused every one of these pushes, because the lower track would have been pushed into the via (`PHOENIX-SHOVE-001`), so its times are not compared.
+| Board (tracks, vias, pads) | The design rules of the whole board | Preview of a push, whole board | Preview of a push, zone | The push applied, whole board | The push applied, zone |
+|---|---|---|---|---|---|
+| 200, 100, 400 | 3 ms | 4 ms | 1 ms | 7 ms | 2 ms |
+| 1000, 500, 2000 | 15 ms | 22 ms | 5 ms | 39 ms | 9 ms |
+| 4000, 2000, 8000 | 80 ms | 143 ms | 44 ms | 234 ms | 55 ms |
+
+Before, most of the time of a push was the design rule check of the whole board, one on the copy in a preview and another when it was applied. Now the rules judge the zone that changed and the connectivity is worked out for the nets of the push only (`local_checks`, `docs/BOARD_EDIT.md`), with the same answer; most of what is left in these pushes is the planning of the walk around the via. On the same boards the version before refused every one of these pushes, because the lower track would have been pushed into the via (`PHOENIX-SHOVE-001`), so its times are not compared.
 
 **What is done more often.** On 300 random pushes on small boards made with a fixed seed (`shove_props.rs`), pushing in parallel alone does 154 and the push with walks and via moves does 247; 24 of the 53 that are refused have an end of the new track at a pad of another net, which no push can solve. These are synthetic boards: they say nothing about how often a push succeeds on a real design.
+
+## The autorouter
+
+Measured by `crates/eh3d-phoenix-autoroute/tests/quality.rs` (the long table) in a release build, before and after the autorouter made room for the connections that are left, in one run of the CI. The boards are synthetic.
+
+| Board | Connections routed before | Time before | Connections routed after | Time after |
+|---|---|---|---|---|
+| small | 56 of 56 | 0.7 s | 56 of 56 | 0.7 s |
+| medium | 149 of 149 | 2.2 s | 149 of 149 | 2.3 s |
+| dense | 155 of 179 (86.6 %) | 4.9 s | 167 of 179 (93.3 %) | 9.2 s |
+| large | 429 of 440 (97.5 %) | 17.9 s | 431 of 440 (98.0 %) | 20.2 s |
+
+A search that makes room may expand `rescue_search_expansions` nodes (50000). With the limit of an ordinary search instead, the large board reached 437 of 440 in some settings tried and took about a third longer than before; the results of this search change a lot with its settings, so these are not general figures.
 
 ## Limits that bound the work that still grows with the square
 

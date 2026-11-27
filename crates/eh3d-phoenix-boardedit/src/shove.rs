@@ -20,7 +20,7 @@ use std::f64::consts::SQRT_2;
 use eh3d_phoenix_board::connectivity::{pad_position, ConnectivityReport, Item as Copper};
 use eh3d_phoenix_board::{Board, Id, Operation, PadRef, Segment, Track, Via};
 use eh3d_phoenix_model::{Nm, Point};
-use eh3d_phoenix_route::{diff, findings, track_width};
+use eh3d_phoenix_route::{diff, findings, findings_after, track_width};
 use eh3d_phoenix_rules::{Finding, Severity};
 
 use crate::codes::BoardEditError;
@@ -724,7 +724,25 @@ fn walked_push(
 #[derive(Default)]
 struct Before {
     findings: Option<Vec<Finding>>,
-    connectivity: Option<ConnectivityReport>,
+}
+
+/// The nets of the tracks and vias that are not the same on the two boards: the only ones whose
+/// connections a push can cut.
+fn touched_nets(board: &Board, trial: &Board) -> BTreeSet<Id> {
+    let mut nets = BTreeSet::new();
+    for (one, other) in [(board, trial), (trial, board)] {
+        for (id, track) in &one.tracks {
+            if other.tracks.get(id) != Some(track) {
+                nets.insert(track.net);
+            }
+        }
+        for (id, via) in &one.vias {
+            if other.vias.get(id) != Some(via) {
+                nets.insert(via.net);
+            }
+        }
+    }
+    nets
 }
 
 /// A net that no longer joins every pair of items that it joined before, if there is one.
@@ -836,10 +854,9 @@ fn judge(
     let mut trial = board.clone();
     trial.apply(&batch).map_err(|e| refused(e.to_string()))?;
     if moved {
-        let was = before
-            .connectivity
-            .get_or_insert_with(|| board.connectivity());
-        if let Some(net) = cut_net(was, &trial.connectivity()) {
+        let nets = touched_nets(board, &trial);
+        let was = board.connectivity_of(&nets);
+        if let Some(net) = cut_net(&was, &trial.connectivity_of(&nets)) {
             return Err(BoardEditError::new(
                 SHOVE_BREAKS_NET,
                 format!("the result would cut a connection of net {net}"),
@@ -858,7 +875,12 @@ fn judge(
             .findings
             .get_or_insert_with(|| findings(board, env.ctx)),
     };
-    let changes = diff(was, &findings(&trial, env.ctx));
+    let now = if env.settings.local_checks {
+        findings_after(board, was, &trial, env.ctx)
+    } else {
+        findings(&trial, env.ctx)
+    };
+    let changes = diff(was, &now);
     if let Some(first) = changes.added.iter().find(|f| f.severity == Severity::Error) {
         return Err(BoardEditError::new(
             SHOVE_ADDS_ERROR,

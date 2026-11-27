@@ -3,7 +3,7 @@
 //! rule check, of the net class check and the copper that touches copper of another net), and the
 //! difference between two boards, so that an edit can say what it adds and what it removes.
 
-use std::collections::BTreeSet;
+use std::cmp::Ordering;
 
 use eh3d_phoenix_board::Board;
 use eh3d_phoenix_rules::{
@@ -32,10 +32,24 @@ pub fn findings(board: &Board, ctx: &RuleContext) -> Vec<Finding> {
             out.push(finding);
         }
     }
-    out.sort_by(|a, b| {
-        (a.rank, &a.location, a.at_nm, a.code).cmp(&(b.rank, &b.location, b.at_nm, b.code))
-    });
+    out.sort_by(order);
     out
+}
+
+/// The fixed order of the findings. Every field takes part, so that two lists with the same
+/// findings are the same list.
+pub(crate) fn order(a: &Finding, b: &Finding) -> Ordering {
+    (a.rank, &a.location, a.at_nm, a.code)
+        .cmp(&(b.rank, &b.location, b.at_nm, b.code))
+        .then_with(|| {
+            (a.rule, a.severity, a.measured_nm, a.limit_nm, &a.detail).cmp(&(
+                b.rule,
+                b.severity,
+                b.measured_nm,
+                b.limit_nm,
+                &b.detail,
+            ))
+        })
 }
 
 /// What changed between two lists of findings.
@@ -54,25 +68,21 @@ impl LiveDiff {
     }
 }
 
-fn key(finding: &Finding) -> String {
-    format!("{finding:?}")
+/// The findings of `list` that `other` does not have, in the order of `list`.
+fn only_in(list: &[Finding], other: &[Finding]) -> Vec<Finding> {
+    let mut known: Vec<&Finding> = other.iter().collect();
+    known.sort_by(|a, b| order(a, b));
+    list.iter()
+        .filter(|f| known.binary_search_by(|k| order(k, f)).is_err())
+        .cloned()
+        .collect()
 }
 
 /// The findings that appeared and the findings that went away.
 pub fn diff(before: &[Finding], after: &[Finding]) -> LiveDiff {
-    let old: BTreeSet<String> = before.iter().map(key).collect();
-    let new: BTreeSet<String> = after.iter().map(key).collect();
     LiveDiff {
-        added: after
-            .iter()
-            .filter(|f| !old.contains(&key(f)))
-            .cloned()
-            .collect(),
-        removed: before
-            .iter()
-            .filter(|f| !new.contains(&key(f)))
-            .cloned()
-            .collect(),
+        added: only_in(after, before),
+        removed: only_in(before, after),
     }
 }
 

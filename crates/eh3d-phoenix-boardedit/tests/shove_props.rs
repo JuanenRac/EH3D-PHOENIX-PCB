@@ -540,3 +540,35 @@ fn pushes_one_after_another_keep_the_board_and_undo_all_the_way_back() {
     }
     assert!(total > 20, "{total}");
 }
+
+#[test]
+fn the_check_of_the_zone_changes_nothing_of_a_push() {
+    let whole = BoardEditSettings {
+        local_checks: false,
+        ..BoardEditSettings::default()
+    };
+    let (mut done, mut near) = (0, 0);
+    for seed in 0..6 {
+        let board = random_board(5000 + seed);
+        let mut dice = Dice(9 + seed);
+        let mut one = editor(board.clone());
+        let mut other = BoardEdit::new(board, rules(), whole.clone()).unwrap();
+        for n in 0..30 {
+            let op = random_push(&mut dice);
+            let what = format!("seed {seed} push {n} {op:?}");
+            assert_eq!(one.preview_shove(&op), other.preview_shove(&op), "{what}");
+            let (a, b) = (one.apply(&op), other.apply(&op));
+            assert_eq!(a.is_ok(), b.is_ok(), "{what}: {a:?} {b:?}");
+            if let (Ok(a), Ok(b)) = (a, b) {
+                done += 1;
+                assert_eq!(a.drc, b.drc, "{what}");
+            }
+            assert_eq!(one.findings(), other.findings(), "{what}");
+            assert_eq!(one.findings(), findings(one.board(), &rules()), "{what}");
+        }
+        near += one.zone_checks();
+        assert_eq!(other.zone_checks(), 0);
+    }
+    assert!(done > 20, "{done}");
+    assert!(near > 20, "{near}");
+}

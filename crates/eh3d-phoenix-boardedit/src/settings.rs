@@ -93,6 +93,9 @@ pub struct BoardEditSettings {
     /// How many steps of the history keep the findings of the rules of the board before them, so
     /// that undo and redo show them without checking the board again (0: always check).
     pub undo_remembered_checks: usize,
+    /// Whether the check after an operation, and of a push, judges only the zone that changed
+    /// when that gives the same findings as the whole board.
+    pub local_checks: bool,
 }
 
 impl Default for BoardEditSettings {
@@ -152,6 +155,7 @@ impl BoardEditSettings {
             drag_drc_max_objects: 1,
             measure_snap_nm: 0,
             undo_remembered_checks: 0,
+            local_checks: false,
         }
     }
 
@@ -197,6 +201,7 @@ impl BoardEditSettings {
                     self.reject_new_errors = parse_bool(value).ok_or_else(bad)?
                 }
                 "advanced_drc" => self.advanced_drc = parse_bool(value).ok_or_else(bad)?,
+                "local_checks" => self.local_checks = parse_bool(value).ok_or_else(bad)?,
                 "undo_remembered_checks" => {
                     self.undo_remembered_checks =
                         value.parse().ok().filter(|n| *n <= 4_096).ok_or_else(bad)?;
@@ -350,6 +355,7 @@ mod tests {
         assert_eq!(s.grid_nm, 250_000);
         assert!(s.snap && s.live_drc && s.reject_new_errors && s.follow_tracks);
         assert!(!s.advanced_drc);
+        assert!(s.local_checks);
         assert!(s.drag_drc);
         assert_eq!(s.undo_remembered_checks, 64);
         assert_eq!(

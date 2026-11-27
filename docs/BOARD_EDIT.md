@@ -46,6 +46,10 @@ An operation is planned into the reversible operations of `eh3d-phoenix-board` (
 
 The findings of the board before each of the latest steps are kept with the history (`undo_remembered_checks` in `config/boardedit.cfg`, 64 by default, 0 to 4096), so undo and redo show them without checking the whole board again; they are the ones a new check gives, and a step whose findings were not kept, or were made with the advanced checks set the other way, is checked again.
 
+### Only the zone that changed
+
+The rules are about one object or about two objects that are near each other, so after an operation, and in a push, only the zone that changed is judged (`local_checks` in `config/boardedit.cfg`, on by default): the objects that the operation changed and the ones near them, as they were and as they are, and the difference is applied to the findings already known. The findings are the same list that the check of the whole board gives; tests compare the two after random edits and pushes. The whole board is checked when that cannot be certain: the outline, the layers, the nets or the footprints changed; the board already has a short; the edit could join two nets through a pad with no net; much of the board changed; the advanced checks are on; or zones of different priority overlap.
+
 Undo and redo give back the same bytes. The ids of the parts the editor makes come from a supply that skips every id the board uses, so the same board and the same operations always give the same bytes.
 
 ## The selection of several objects
@@ -102,6 +106,7 @@ The window offers it too (`board_select` of the viewer crate, see *The window*),
 | `grid_nm`, `snap` | 250000, true | The grid and whether points snap to it. |
 | `pick_tolerance_nm`, `part_padding_nm` | 300000, 500000 | How near a click picks a track or a via, and the space around the pads that picks a component. |
 | `live_drc`, `reject_new_errors` | true, true | The rule check after each operation, and the refusal of an operation that adds a rule error. |
+| `local_checks` | true | Judge only the zone that changed after an operation and in a push, with the same findings as the whole board. |
 | `advanced_drc` | false | Also run the advanced checks (`docs/DRC_ADVANCED.md`) in that rule check, so that the findings they add or remove are in the report of an operation. |
 | `follow_tracks` | true | The tracks on the pads of a component follow it. |
 | `diagonal_routes`, `corner_horizontal_first` | true, true | 45-degree pieces, and which way a corner goes. |

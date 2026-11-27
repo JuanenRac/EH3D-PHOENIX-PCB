@@ -33,6 +33,7 @@ pub mod dsn;
 pub mod edit;
 mod geom;
 pub mod live;
+pub mod local;
 pub mod ratsnest;
 pub mod router;
 pub mod ses;
@@ -48,6 +49,7 @@ pub use edit::{
     via_for_layer_change, Editor,
 };
 pub use live::{diff, findings, LiveDiff, RuleContext};
+pub use local::{findings_after, findings_near};
 pub use ratsnest::{item_label, ratsnest, ratsnest_with, RatLine, RatsnestWork};
 pub use router::{
     copper_layers, route, track_width, via_size, Element, Mode, RoutePlan, RouteRequest,
