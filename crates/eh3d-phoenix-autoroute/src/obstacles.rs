@@ -296,6 +296,18 @@ impl World {
         self.dynamic[layer].add(obs)
     }
 
+    /// Whether the obstacle `id` of the run on this layer is in the way of a track `ab` of
+    /// another net.
+    pub(crate) fn hits(&self, layer: usize, id: usize, a: P, b: P, spec: &Spec) -> bool {
+        self.dynamic[layer]
+            .items
+            .get(id)
+            .and_then(Option::as_ref)
+            .is_some_and(|obs| {
+                obs.net != Some(spec.net) && obs.blocks(a, b, spec.half, spec.gap, false)
+            })
+    }
+
     /// Takes an obstacle of the run away.
     pub(crate) fn take(&mut self, layer: usize, id: usize) {
         self.dynamic[layer].remove(id);

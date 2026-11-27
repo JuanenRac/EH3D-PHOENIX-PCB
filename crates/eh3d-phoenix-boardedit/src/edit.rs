@@ -9,7 +9,7 @@ use std::sync::Arc;
 
 use eh3d_phoenix_board::{Board, Id, Operation, Step};
 use eh3d_phoenix_lengths::{measure_nets, LengthSettings};
-use eh3d_phoenix_route::{diff, findings, ratsnest, RatLine, RuleContext};
+use eh3d_phoenix_route::{diff, findings, findings_near, ratsnest, RatLine, RuleContext};
 use eh3d_phoenix_rules::{advanced_findings, title, Finding, Lang, Severity};
 use eh3d_phoenix_zones::{FillReport, ZoneSettings};
 use serde_json::{json, Value};
@@ -262,6 +262,8 @@ pub struct BoardEdit {
     fresh: Option<bool>,
     /// How many times the whole board was checked after an undo or a redo.
     rechecks: u64,
+    /// How many checks after an operation judged only the zone that changed.
+    zone_checks: u64,
     /// The objects that the operations on the selection work on.
     selection: Selection,
 }
@@ -296,6 +298,7 @@ impl BoardEdit {
             data_undone: Vec::new(),
             fresh,
             rechecks: 0,
+            zone_checks: 0,
             selection: Selection::new(),
         })
     }
@@ -490,6 +493,30 @@ impl BoardEdit {
     /// findings were kept does not count.
     pub fn undo_rechecks(&self) -> u64 {
         self.rechecks
+    }
+
+    /// How many checks after an operation judged only the zone that changed instead of the whole
+    /// board.
+    pub fn zone_checks(&self) -> u64 {
+        self.zone_checks
+    }
+
+    /// The findings of the rules on `trial`, a copy of the board with an operation done. With
+    /// `near`, when the findings kept are those of the plain rule check of the board, only the
+    /// zone that differs is judged if that can be done; the list is the same either way.
+    fn checked(&mut self, trial: &Board, near: bool) -> Vec<Finding> {
+        if near && self.zone_data.tolerated_overlaps(trial).is_empty() {
+            if let Some(found) = findings_near(&self.board, &self.findings, trial, &self.ctx) {
+                self.zone_checks += 1;
+                return found;
+            }
+        }
+        rule_findings(
+            trial,
+            &self.ctx,
+            &self.zone_data,
+            self.settings.advanced_drc,
+        )
     }
 
     /// Undoes the last step; false when there is none.
@@ -789,6 +816,7 @@ impl BoardEdit {
         let known = (self.fresh == Some(false)
             && self.zone_data.tolerated_overlaps(&self.board).is_empty())
         .then_some(self.findings.as_slice());
+        let near = known.is_some() && self.settings.local_checks && !self.settings.advanced_drc;
         let planned = plan(
             op,
             &self.board,
@@ -817,12 +845,7 @@ impl BoardEdit {
                 continue;
             }
             let after = if self.settings.live_drc {
-                rule_findings(
-                    &trial,
-                    &self.ctx,
-                    &self.zone_data,
-                    self.settings.advanced_drc,
-                )
+                self.checked(&trial, near)
             } else {
                 Vec::new()
             };

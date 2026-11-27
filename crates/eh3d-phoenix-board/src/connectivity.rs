@@ -277,6 +277,16 @@ type Reach = [i64; 4];
 impl Board {
     /// The islands of every net that has copper.
     pub fn connectivity(&self) -> ConnectivityReport {
+        self.connectivity_where(&|_| true)
+    }
+
+    /// The connectivity of some nets only: for each of them the same islands that
+    /// [`Board::connectivity`] gives, worked out without looking at the copper of the other nets.
+    pub fn connectivity_of(&self, nets: &BTreeSet<Id>) -> ConnectivityReport {
+        self.connectivity_where(&|net| nets.contains(&net))
+    }
+
+    fn connectivity_where(&self, wanted: &dyn Fn(Id) -> bool) -> ConnectivityReport {
         let mut entries: Vec<Entry> = Vec::new();
         for pn in &self.pad_nets {
             entries.push(Entry {
@@ -302,6 +312,7 @@ impl Board {
                 net: z.net,
             });
         }
+        entries.retain(|e| wanted(e.net));
         entries.sort_by_key(|e| (e.net, e.item));
         let mut uf = Union::new(entries.len());
         let saw_arc = self

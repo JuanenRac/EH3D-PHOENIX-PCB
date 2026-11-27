@@ -36,6 +36,7 @@ It is used when the first way cannot do it (`shove_walk_around` and `shove_vias`
 * **Net classes.** Between two nets the gap is the larger of the clearance of the rules and the clearance of their net classes, also though the design rules do not check the clearance of a class: a result that places copper nearer than a class asks is refused.
 * **All or nothing.** The new track, the moved tracks and the moved vias are one batch of reversible operations, one step of the history: undo gives back the same bytes.
 * **The checks.** The result is tried on a copy. Every pair of pads, tracks, vias and zones that a net joined before must still be joined (`PHOENIX-SHOVE-007`), and the design rules (`docs/RULES.md`) must find no new error (`PHOENIX-SHOVE-006`), **also** when `reject_new_errors` is off and also for a `forced` operation. When no neighbour is in the way the operation is a plain `route`.
+* **Only what changed is checked.** The rules judge the zone of the pushed tracks and vias (`local_checks`, `docs/BOARD_EDIT.md`) and the connectivity is worked out for their nets only; both give the same answer as the whole board.
 * **The report.** The notes of the result name every track and via that moved and say when the new track goes around something.
 * **What a refusal says** is the reason the parallel push gave.
 

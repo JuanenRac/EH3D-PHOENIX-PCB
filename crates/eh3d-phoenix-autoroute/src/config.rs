@@ -76,6 +76,15 @@ pub struct AutorouteConfig {
     pub max_ripup_iterations: u32,
     /// The most times one connection may be torn up.
     pub max_rips_per_connection: u32,
+    /// The most routes that may be torn up to make room for one connection that is left after
+    /// the run, all of which must find a way again (0: the connections left are not tried so).
+    pub rescue_rips: u32,
+    /// The most times the connections left after the run are tried that way.
+    pub rescue_passes: u32,
+    /// The most nodes the searches that make room may expand, in all.
+    pub rescue_max_expansions: u64,
+    /// The most nodes one of those searches may expand.
+    pub rescue_search_expansions: u64,
     /// The most nodes of the grid (nodes of one layer times layers).
     pub max_nodes: u64,
     /// The most connections of a run.
@@ -135,6 +144,10 @@ impl Default for AutorouteConfig {
             max_expansions_total: 60_000_000,
             max_ripup_iterations: 40,
             max_rips_per_connection: 4,
+            rescue_rips: 20,
+            rescue_passes: 4,
+            rescue_max_expansions: 20_000_000,
+            rescue_search_expansions: 50_000,
             max_nodes: 8_000_000,
             max_connections: 20_000,
             terminal_candidates: 6,
@@ -240,6 +253,20 @@ impl AutorouteConfig {
                 }
                 "max_rips_per_connection" => {
                     c.max_rips_per_connection = int_in(value, 0, 1000).ok_or_else(bad)? as u32;
+                }
+                "rescue_rips" => {
+                    c.rescue_rips = int_in(value, 0, 1_000).ok_or_else(bad)? as u32;
+                }
+                "rescue_passes" => {
+                    c.rescue_passes = int_in(value, 0, 64).ok_or_else(bad)? as u32;
+                }
+                "rescue_max_expansions" => {
+                    c.rescue_max_expansions =
+                        int_in(value, 0, 100_000_000_000).ok_or_else(bad)? as u64;
+                }
+                "rescue_search_expansions" => {
+                    c.rescue_search_expansions =
+                        int_in(value, 1, 1_000_000_000).ok_or_else(bad)? as u64;
                 }
                 "max_nodes" => {
                     c.max_nodes = int_in(value, 1, 1_000_000_000).ok_or_else(bad)? as u64;
@@ -411,6 +438,10 @@ mod tests {
             "wrong_way_percent = 1001\n",
             "max_expansions_per_search = 0\n",
             "max_ripup_iterations = -1\n",
+            "rescue_rips = 1001\n",
+            "rescue_passes = 65\n",
+            "rescue_max_expansions = -1\n",
+            "rescue_search_expansions = 0\n",
             "terminal_candidates = 65\n",
             "terminal_radius_cells = 65\n",
             "via_in_pad = 1\n",

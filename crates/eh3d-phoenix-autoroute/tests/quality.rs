@@ -270,6 +270,50 @@ fn line(case: &Case, plan: &AutoroutePlan, ms: u128) -> String {
 }
 
 #[test]
+fn making_room_for_what_is_left_never_loses_a_connection() {
+    let mut gained = 0;
+    for seed in [3_u64, 7, 19] {
+        let case = Case {
+            name: "crowded",
+            width_mm: 16,
+            height_mm: 16,
+            pitch_nm: 2_000_000,
+            nets: 22,
+            seed,
+        };
+        let board = board_of(&case);
+        let run = |rescue_rips: u32| {
+            let cfg = AutorouteConfig {
+                rescue_rips,
+                ..AutorouteConfig::default()
+            };
+            autoroute(
+                &board,
+                &rules(),
+                &RouteSettings::default(),
+                &cfg,
+                &Request::default(),
+            )
+            .unwrap()
+        };
+        let (without, with) = (run(0), run(AutorouteConfig::default().rescue_rips));
+        let (a, b) = (&without.report, &with.report);
+        println!(
+            "RESCUE seed {seed}: {} -> {} of {}",
+            a.connections_routed, b.connections_routed, b.connections_total
+        );
+        assert!(b.connections_routed >= a.connections_routed, "seed {seed}");
+        assert!(b.errors_after <= b.errors_before, "seed {seed}");
+        assert_eq!(
+            run(AutorouteConfig::default().rescue_rips).board_after,
+            with.board_after
+        );
+        gained += b.connections_routed - a.connections_routed;
+    }
+    println!("RESCUE gained {gained}");
+}
+
+#[test]
 fn the_small_board_of_the_set_is_routed_the_same_twice_and_adds_no_rule_error() {
     let case = &CASES[0];
     let (first, ms) = route(case);

@@ -197,6 +197,8 @@ struct Engine<'a> {
     /// True while a pass looks for a cheaper way: a step against the preferred direction of its
     /// layer then costs no more than any other, because everything is routed already.
     relaxed: bool,
+    /// True while room is made for the connections that are left.
+    rescuing: bool,
 }
 
 /// The length of the tracks of a route.
@@ -513,7 +515,13 @@ impl Engine<'_> {
             };
             &scaled
         };
-        let shared = base.max_expansions_per_search.min(remaining);
+        // a search that makes room for a connection that is left has a limit of its own
+        let own = if self.rescuing {
+            base.rescue_search_expansions
+        } else {
+            u64::MAX
+        };
+        let shared = base.max_expansions_per_search.min(remaining).min(own);
         let net_left = match self.net_limit[net] {
             0 => u64::MAX,
             limit => limit.saturating_sub(self.net_exp[net]),
@@ -618,14 +626,191 @@ impl Engine<'_> {
 
     /// Takes a route away and remembers where it was.
     fn rip(&mut self, c: usize) {
-        let Some(routed) = self.routed[c].take() else {
+        let Some(assembled) = self.remove(c) else {
             return;
         };
+        for (slot, ix, iy) in assembled.nodes {
+            *self.history.entry((slot, ix, iy)).or_insert(0) += 1;
+        }
+    }
+
+    /// Takes a route away and hands it back.
+    fn remove(&mut self, c: usize) -> Option<Assembled> {
+        let routed = self.routed[c].take()?;
         for (layer, id) in routed.handles {
             self.world.take(layer, id);
         }
-        for (slot, ix, iy) in routed.assembled.nodes {
-            *self.history.entry((slot, ix, iy)).or_insert(0) += 1;
+        Some(routed.assembled)
+    }
+
+    /// The connections whose copper is in the way of an assembled route: only the routes that
+    /// really are in it, not every route of their nets.
+    fn blocking(&self, c: usize, route: &Assembled) -> Vec<usize> {
+        let net = self.conns[c].net;
+        let spec = self.spec(net);
+        let via = self.via_spec(net);
+        let on_copper = Spec {
+            half: via.half,
+            ..spec
+        };
+        let hole = Spec {
+            half: via.drill_half,
+            gap: via.drill_gap,
+            ..spec
+        };
+        let holes = self.world.copper_layers();
+        let in_way = |layer: usize, id: usize| -> bool {
+            let track = route
+                .runs
+                .iter()
+                .filter(|run| run.layer == layer)
+                .any(|run| {
+                    run.pts
+                        .windows(2)
+                        .any(|w| self.world.hits(layer, id, w[0], w[1], &spec))
+                });
+            track
+                || route.vias.iter().any(|v| {
+                    if layer == holes {
+                        self.world.hits(layer, id, v.at, v.at, &hole)
+                    } else {
+                        (v.lo..=v.hi).contains(&layer)
+                            && self.world.hits(layer, id, v.at, v.at, &on_copper)
+                    }
+                })
+        };
+        (0..self.conns.len())
+            .filter(|k| {
+                *k != c
+                    && self.routed[*k]
+                        .as_ref()
+                        .is_some_and(|r| r.handles.iter().any(|(l, id)| in_way(*l, *id)))
+            })
+            .collect()
+    }
+
+    /// Makes room for one connection that is left: it is routed through the routes in its way,
+    /// which are torn up and routed again, and so on for what they cross in turn. The change is
+    /// kept only when every connection that was torn up found a way again, so that it can only
+    /// add a connection. The number of routes torn up, or `None` when nothing changed; the
+    /// connections that have another route are added to `moved`.
+    fn make_room(
+        &mut self,
+        c: usize,
+        kept: &BTreeSet<usize>,
+        moved: &mut BTreeSet<usize>,
+    ) -> Option<u32> {
+        let mut originals: Vec<(usize, Assembled)> = Vec::new();
+        let mut placed: BTreeSet<usize> = BTreeSet::new();
+        let mut todo: VecDeque<usize> = VecDeque::from([c]);
+        let mut torn = 0_u32;
+        while let Some(x) = todo.pop_front() {
+            if let Attempt::Found(found, sources, targets) = self.attempt(x, false) {
+                let new = self.assembled(x, &found, &sources, &targets);
+                self.commit(x, new);
+                placed.insert(x);
+                continue;
+            }
+            let Attempt::Found(found, sources, targets) = self.attempt(x, true) else {
+                todo.push_front(x);
+                break;
+            };
+            let new = self.assembled(x, &found, &sources, &targets);
+            let victims = self.blocking(x, &new);
+            let count = u32::try_from(victims.len()).unwrap_or(u32::MAX);
+            if victims.is_empty()
+                || torn.saturating_add(count) > self.cfg.rescue_rips
+                || victims.iter().any(|v| *v == c || kept.contains(v))
+            {
+                todo.push_front(x);
+                break;
+            }
+            torn += count;
+            for v in victims {
+                let Some(assembled) = self.remove(v) else {
+                    continue;
+                };
+                for node in &assembled.nodes {
+                    *self.history.entry(*node).or_insert(0) += 1;
+                }
+                // a route made by this chain is only thrown away: its first one is kept already
+                if !placed.remove(&v) {
+                    originals.push((v, assembled));
+                }
+                todo.push_back(v);
+            }
+            self.commit(x, new);
+            placed.insert(x);
+        }
+        if todo.is_empty() {
+            moved.extend(placed);
+            return Some(torn);
+        }
+        for x in placed {
+            self.remove(x);
+        }
+        for (k, assembled) in originals {
+            self.commit(k, assembled);
+        }
+        None
+    }
+
+    /// The passes that make room for the connections that are left, within the limits of the
+    /// settings; the connections that have another route after them.
+    fn rescue(
+        &mut self,
+        order: &[usize],
+        kept: &BTreeSet<usize>,
+        failures: &mut BTreeMap<usize, (&'static str, String)>,
+    ) -> BTreeSet<usize> {
+        let mut moved = BTreeSet::new();
+        if self.cfg.max_ripup_iterations == 0 || self.cfg.rescue_rips == 0 {
+            return moved;
+        }
+        let start = self.expansions;
+        for _ in 0..self.cfg.rescue_passes {
+            let left: Vec<usize> = order
+                .iter()
+                .copied()
+                .filter(|c| {
+                    failures.get(c).is_some_and(|(code, _)| {
+                        *code == NO_PATH || *code == RIPUP_LIMIT || *code == NO_TERMINAL
+                    }) && !kept.contains(c)
+                })
+                .collect();
+            if left.is_empty() {
+                break;
+            }
+            for c in left {
+                if self.expansions >= self.cfg.max_expansions_total
+                    || self.expansions - start >= self.cfg.rescue_max_expansions
+                {
+                    return moved;
+                }
+                if let Some(torn) = self.make_room(c, kept, &mut moved) {
+                    self.ripups = self.ripups.saturating_add(torn);
+                    failures.remove(&c);
+                }
+            }
+        }
+        moved
+    }
+
+    /// One look for a cheaper way at each of the routes that making room changed.
+    fn polish(&mut self, order: &[usize], moved: &BTreeSet<usize>) {
+        if self.cfg.optimize_passes == 0 {
+            return;
+        }
+        for &c in order.iter().filter(|c| moved.contains(c)) {
+            if self.expansions >= self.cfg.max_expansions_total {
+                return;
+            }
+            let worth = self.routed[c]
+                .as_ref()
+                .is_some_and(|r| !self.is_direct(c, &r.assembled));
+            if worth {
+                self.improve(c);
+            }
         }
     }
 }
@@ -1013,6 +1198,7 @@ fn route_once(
         weights,
         net_limit,
         relaxed: false,
+        rescuing: false,
     };
     let mut notes: Vec<String> = Vec::new();
     // a weight or a limit that names a net or a class that is not in this run
@@ -1175,6 +1361,11 @@ fn route_once(
     }
     // the tracks of a coupled pair stay side by side: the passes leave them as they are
     engine.optimise(&order, &paired, &mut failures);
+    // room is made for what is left, and the routes that moved are looked at once more
+    engine.rescuing = true;
+    let moved = engine.rescue(&order, &paired, &mut failures);
+    engine.rescuing = false;
+    engine.polish(&order, &moved);
     // the result, net by net
     let mut outcomes: Vec<NetOutcome> = Vec::new();
     let mut unrouted: Vec<Unrouted> = Vec::new();
