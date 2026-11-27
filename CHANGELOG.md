@@ -4,6 +4,8 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **Third-party notices in every package (`docs/THIRD_PARTY_NOTICES`):** the packages of the releases now carry the copyright notices and licence texts of the Rust crates and of the data the program is built with, and the CI fails when a new dependency or licence is not in the file.
+
 ## [0.1.9] - Pour clearances, rotated pads and bottom-side footprints in the fabrication files
 
 - **KiCad boards: footprints on the bottom side were read mirrored:** the pads of a bottom footprint of a `.kicad_pcb` were mirrored once by the file and again by the model, so pin 1 and pin 2 of a two-pin part changed places and an integrated circuit was flipped, in the copper, drill and placement files made from the imported board. They are now where KiCad has them, with their own turn.
