@@ -4,6 +4,31 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **KiCad boards: footprints on the bottom side were read mirrored:** the pads of a bottom footprint of a `.kicad_pcb` were mirrored once by the file and again by the model, so pin 1 and pin 2 of a two-pin part changed places and an integrated circuit was flipped, in the copper, drill and placement files made from the imported board. They are now where KiCad has them, with their own turn.
+- **Pads at any angle are turned in the Gerber files:** a rectangular or oblong pad at an angle that is not a right angle was flashed unrotated (with the warning `PHOENIX-EXPORT-001`), which could join it to its neighbour. It is now a region at its angle in copper, mask and paste.
+- **The keep-away of a pour follows a turned pad:** it was the unturned shape, which left the corners of the real pad without clearance.
+- **Turned pads get their thermal relief:** a rectangular or oblong pad at any angle was left solid in a pour (`PHOENIX-EXPORT-022`); the gaps are now made along its own axes and turned with it.
+- **Pads written as regions say what they are:** with aperture attributes in the profile, rounded and turned pads carry `.AperFunction` (surface mount pad, component pad, fiducial, test pad), which only flashed pads had.
+- **The keep-away of one pour no longer cuts the pour next to it:** a clearing is drawn with clear polarity, which also took copper from every pour drawn before: a pad near the border of two pours could be cut off from its own plane. A clearing or thermal gap that reaches an earlier pour is now cut to the outline of its own pour.
+- **A pour inside the cutout of another pour is no longer erased:** when its id came first the hole of the larger pour was cleared over it. Pours that lie inside others are now drawn after them.
+- **Pours can be pulled back from the board edge:** the new `gerber.zone_edge_clearance_nm` of an export profile clears that width of pour along the outline, its arcs and its openings (0, the default, writes pours as drawn).
+- **The turn of a pad on a bottom part was added instead of taken off:** a part on the bottom is mirrored before it is turned, so a pad with a turn of its own was wrong in the copper, mask and paste layers and in the drill file unless that turn was a right angle.
+- **The rule checks, the connectivity, the zone fill, the autorouter, the push and the V-score check see bottom pads at the same angle as the files:** they added the turn of the pad too.
+- **A hole that is not plated gets no solder paste:** the paste layer and the stencil had an opening over it.
+- **Oblong drills become slots at any angle:** with `drill.oblong_as_slot`, a pad that is not at a right angle was drilled as one round hole (`PHOENIX-EXPORT-016`).
+- **A panel made holes that are not plated into plated ones and squared round pads:** every copy now keeps both, and the tooling and mouse bite holes of the panel are marked as not plated, also in the netlist for the tester.
+- **A mirrored panel copy keeps the turn of its pads:** it was reversed a second time, so pads with a turn of their own were wrong on the other side.
+- **The placement origin and the check of parts outside the board follow the arcs of the outline:** a side that bulges beyond its corners moved every coordinate of the pick and place and placement files.
+- **The netlist for the tester never writes two nets under one name:** IPC-D-356A keeps 14 characters of a net, 6 of a reference and 4 of a pin, so two long names could become one and be read as joined. The later one now ends in `~1`, `~2`, and a note says so.
+- **The netlist for the tester gives the turn of bottom pads:** the turn of the pad was added where it is taken off.
+- **Vias can go into the netlist for the tester:** `d356_include_vias` of `config/ipc2581.cfg` (off by default) writes a record for each via that goes through the board and tells how many blind or buried ones are left out.
+- **IPC-2581 keeps the arcs of the board outline:** a rounded board was written with straight sides between its corners.
+- **IPC-2581 tells apart footprints of one name:** every part referred to the first footprint of that name; footprints that differ are now `name_2` and so on.
+- **IPC-2581 packages keep the turn of their pins:** it was left out.
+- **IPC-2581 gives two layers of one name two names:** they are referred to by name, so their copper was mixed up.
+- **IPC-2581 turns bottom pads the right way:** for a mirrored pad the turn of the pad is taken off the turn of the part.
+- **The check of an export reads where the holes are:** it only counted them; the place and the diameter of every hole and the middle of every slot are now compared with the board.
+- **The check of an export reads where the pads are:** flashes of the copper, mask and paste files were only counted; each is now compared with the place the board gives it.
 - **A track that crossed a copper pour could be one piece of copper with it in the Gerber files:** the keep-away of a pour was only written for a straight track with an end inside or beside the box of the zone, so a track that crossed the zone with both ends outside it had no clearance at all, a short circuit between the two nets. The keep-away is now written whenever it takes copper from the pour, however far the ends are.
 - **The keep-away of a pour no longer cuts other copper far from it:** it was decided with the box of the zone (and never for tracks with arcs), so it could open gaps in another pour of the layer and cut a pad or a via from its own net; it now follows the outline of the zone itself, arcs along their curve.
 - **Pours keep away from holes that are not plated** in the Gerber files: copper ran up to and under mounting holes, on every layer. The keep-away is the clearance of the zone around the drill (around the length of the slot for an oblong pad).

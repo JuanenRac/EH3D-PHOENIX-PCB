@@ -639,17 +639,6 @@ fn the_gaps_of_a_rectangular_pad_follow_the_turn_of_its_component() {
 }
 
 #[test]
-fn a_rectangular_pad_at_another_angle_stays_solid_and_is_reported() {
-    let b = with_a_rectangular_pad(45_000_000);
-    let set = build(&b, &thermal_profile(4, true)).unwrap();
-    assert_eq!(regions(layer_text(&set, id(1))), 2);
-    assert!(codes_of(&set).contains(&"PHOENIX-EXPORT-022".to_owned()));
-    // nothing is reported when the relief is not asked for
-    let set = build(&b, &Profile::default()).unwrap();
-    assert!(!codes_of(&set).contains(&"PHOENIX-EXPORT-022".to_owned()));
-}
-
-#[test]
 fn an_island_smaller_than_the_minimum_is_left_out_of_the_file() {
     // the pour is 18 by 8 mm = 144 mm2, less a cutout of 2 by 2 mm = 140 mm2
     let b = with_pour();
@@ -889,4 +878,359 @@ fn a_pour_keeps_away_from_a_hole_that_is_not_plated() {
         .values()
         .any(|a| matches!(a, Aperture::Circle { diameter, .. } if (*diameter - 1.4).abs() < 1e-9)));
     assert!(verify(&b, &Profile::default(), &set).is_empty());
+}
+
+/// The corners of every region drawn with clear polarity, as (x, y) in millimetres.
+fn clear_region_points(text: &str) -> Vec<(f64, f64)> {
+    let (mut out, mut clear, mut region) = (Vec::new(), false, false);
+    for command in &eh3d_parser_gerber::parse(text).commands {
+        match &command.op {
+            Operation::Polarity(p) => clear = matches!(p, Polarity::Clear),
+            Operation::RegionStart => region = true,
+            Operation::RegionEnd => region = false,
+            Operation::Line { to, .. } if clear && region => out.push((to.x, to.y)),
+            _ => {}
+        }
+    }
+    out
+}
+
+/// The leftmost corner of each region drawn with dark polarity, in the order of the file.
+fn dark_region_lefts(text: &str) -> Vec<f64> {
+    let (mut out, mut clear, mut region) = (Vec::new(), false, false);
+    let mut left = f64::MAX;
+    for command in &eh3d_parser_gerber::parse(text).commands {
+        match &command.op {
+            Operation::Polarity(p) => clear = matches!(p, Polarity::Clear),
+            Operation::RegionStart => {
+                region = true;
+                left = f64::MAX;
+            }
+            Operation::RegionEnd => {
+                region = false;
+                if !clear {
+                    out.push(left);
+                }
+            }
+            Operation::Line { to, .. } if region => left = left.min(to.x),
+            _ => {}
+        }
+    }
+    out
+}
+
+/// Two pours side by side, of net N1 from x = 1 to 10 mm (drawn first) and of net N2 from 10.4 to
+/// 19 mm, both with a clearance of 0.2 mm, and a round pad of 1 mm of net N1 at (9.8, 5).
+fn two_pours_and_a_pad_between_them() -> Board {
+    let mut b = with_pour_and_a_pad_of_its_net();
+    b.tracks.clear();
+    b.vias.clear();
+    let first = b.zones.get_mut(&id(30)).unwrap();
+    first.cutouts.clear();
+    first.outline = vec![mm(1, 1), mm(10, 1), mm(10, 9), mm(1, 9)];
+    let mut second = first.clone();
+    second.net = id(8);
+    second.outline = vec![
+        Point::from_nm(10_400_000, 1_000_000).unwrap(),
+        mm(19, 1),
+        mm(19, 9),
+        Point::from_nm(10_400_000, 9_000_000).unwrap(),
+    ];
+    b.zones.insert(id(34), second);
+    b.components.get_mut(&id(42)).unwrap().at = Point::from_nm(9_800_000, 5_000_000).unwrap();
+    b
+}
+
+#[test]
+fn the_keep_away_of_one_pour_does_not_cut_the_pour_next_to_it() {
+    let b = two_pours_and_a_pad_between_them();
+    let set = build(&b, &Profile::default()).unwrap();
+    let text = layer_text(&set, id(1));
+    assert!(eh3d_parser_gerber::parse(text).is_clean());
+    // the second pour keeps 0.2 mm from the pad, a disc of radius 0.7 mm that reaches back to
+    // x = 9.1 mm: written whole it would cut the first pour off its own pad
+    assert_eq!(cleared(text), (0, 0));
+    let points = clear_region_points(text);
+    assert!(!points.is_empty());
+    for (x, y) in &points {
+        assert!(*x >= 10.4 - 2e-6 && *x <= 10.5 + 5e-3, "{x}");
+        assert!((y - 5.0).abs() < 0.71, "{y}");
+    }
+    assert!(verify(&b, &Profile::default(), &set).is_empty());
+    // with the first pour alone nothing is cut to shape
+    let mut alone = b.clone();
+    alone.zones.remove(&id(30));
+    let set = build(&alone, &Profile::default()).unwrap();
+    assert_eq!(cleared(layer_text(&set, id(1))), (0, 1));
+}
+
+#[test]
+fn a_thermal_gap_stays_inside_its_pour() {
+    let mut b = two_pours_and_a_pad_between_them();
+    // the pour of the other net comes first by its id, so the gaps of the pad of the first pour,
+    // which reach x = 10.55 mm, are drawn after it
+    let second = b.zones.remove(&id(34)).unwrap();
+    b.zones.insert(id(29), second);
+    let mut profile = Profile::default();
+    profile.gerber.zone_thermal_spokes = 4;
+    let set = build(&b, &profile).unwrap();
+    let right: Vec<f64> = clear_region_points(layer_text(&set, id(1)))
+        .into_iter()
+        .map(|p| p.0)
+        .filter(|x| *x > 10.0 + 2e-6)
+        .collect();
+    assert!(right.is_empty(), "{right:?}");
+}
+
+#[test]
+fn a_pour_inside_the_cutout_of_another_is_drawn_after_it() {
+    let mut b = with_pour();
+    b.tracks.clear();
+    b.vias.clear();
+    // the large pour has a hole from 6 to 12 mm and a small pour of another net lies in it, with
+    // the smaller id
+    b.zones.get_mut(&id(30)).unwrap().cutouts =
+        vec![vec![mm(6, 2), mm(12, 2), mm(12, 8), mm(6, 8)]];
+    b.zones.insert(
+        id(25),
+        Zone {
+            net: id(8),
+            layer: id(1),
+            outline: vec![mm(7, 3), mm(11, 3), mm(11, 7), mm(7, 7)],
+            clearance: nm(200_000),
+            cutouts: Vec::new(),
+        },
+    );
+    let set = build(&b, &Profile::default()).unwrap();
+    // the large pour first, so that its hole takes nothing from the small one
+    assert_eq!(dark_region_lefts(layer_text(&set, id(1))), vec![1.0, 7.0]);
+    assert!(verify(&b, &Profile::default(), &set).is_empty());
+}
+
+#[test]
+fn the_pours_stay_from_the_board_edge_when_the_profile_asks_for_it() {
+    let b = with_pour();
+    let plain = build(&b, &Profile::default()).unwrap();
+    let mut profile = Profile::default();
+    profile.gerber.zone_edge_clearance_nm = 300_000;
+    profile.validate().unwrap();
+    let set = build(&b, &profile).unwrap();
+    let text = layer_text(&set, id(1));
+    // the four edges of the board, drawn clear with a pen of 0.6 mm before the tracks
+    let (strokes, flashes) = cleared(layer_text(&plain, id(1)));
+    assert_eq!(cleared(text), (strokes + 4, flashes));
+    let read = eh3d_parser_gerber::parse(text);
+    assert!(read.is_clean());
+    assert!(read
+        .apertures
+        .values()
+        .any(|a| matches!(a, Aperture::Circle { diameter, .. } if (*diameter - 0.6).abs() < 1e-9)));
+    assert!(verify(&b, &profile, &set).is_empty());
+    profile.gerber.zone_edge_clearance_nm = -1;
+    assert!(profile.validate().is_err());
+}
+
+/// A square pad of 1 mm of net N2 at (16, 7), turned by 45 degrees, in the pour of net N1.
+fn with_a_turned_pad() -> Board {
+    let mut b = with_a_rectangular_pad(45_000_000);
+    b.footprints
+        .get_mut(&id(40))
+        .unwrap()
+        .pads
+        .get_mut(&id(41))
+        .unwrap()
+        .shape = PadShape::Rect {
+        width: nm(1_000_000),
+        height: nm(1_000_000),
+    };
+    b.pad_nets[0].net = id(8);
+    b.tracks.clear();
+    b.vias.clear();
+    b.zones.get_mut(&id(30)).unwrap().cutouts.clear();
+    b
+}
+
+#[test]
+fn a_turned_pad_is_written_turned_with_its_keep_away_and_its_function() {
+    let b = with_a_turned_pad();
+    let mut profile = Profile::default();
+    profile.gerber.x2.level = eh3d_phoenix_export::profile::X2Level::Aperture;
+    let set = build(&b, &profile).unwrap();
+    let text = layer_text(&set, id(1));
+    let read = eh3d_parser_gerber::parse(text);
+    assert!(read.is_clean(), "{:?}", read.diagnostics);
+    assert_eq!(count(text, |o| matches!(o, Operation::Flash { .. })), 0);
+    // the keep-away: a square of 1.4 mm turned, its corners 0.9899 mm from the centre
+    let reach = clear_region_points(text)
+        .iter()
+        .map(|(x, y)| (x - 16.0).abs().max((y - 7.0).abs()))
+        .fold(0.0_f64, f64::max);
+    assert!((reach - 0.989_949).abs() < 2e-6, "{reach}");
+    // the pad itself has its corners 0.7071 mm from the centre along the axes
+    let right = read.commands.iter().any(|c| {
+        matches!(&c.op, Operation::Line { to, .. }
+            if (to.x - 16.707_107).abs() < 2e-6 && (to.y - 7.0).abs() < 2e-6)
+    });
+    assert!(right, "{text}");
+    // the region of the pad carries its function (the part is TP1, so it is a test pad)
+    assert!(text.contains("%TA.AperFunction,TestPad*%\nG36*"), "{text}");
+    assert!(verify(&b, &profile, &set).is_empty());
+}
+
+#[test]
+fn a_turned_pad_of_the_net_of_a_pour_gets_its_thermal_relief_turned() {
+    let b = with_a_rectangular_pad(45_000_000);
+    let set = build(&b, &thermal_profile(4, true)).unwrap();
+    // the pour, its cutout, four gaps and the pad itself
+    assert_eq!(regions(layer_text(&set, id(1))), 7);
+    assert!(codes_of(&set).iter().all(|c| c != "PHOENIX-EXPORT-022"));
+    // the rectangle 1 by 0.6 grown by 0.25 has its corners at (0.75, 0.55), which turned by 45
+    // degrees are 0.9192 mm from the pad along an axis
+    let (rx, ry) = reach(layer_text(&set, id(1)));
+    assert!(
+        (rx - 0.919_239).abs() < 2e-6 && (ry - 0.919_239).abs() < 2e-6,
+        "{rx} {ry}"
+    );
+}
+
+#[test]
+fn a_bottom_pad_takes_its_own_turn_off_the_turn_of_its_part() {
+    let mut b = with_a_rectangular_pad(45_000_000);
+    b.footprints
+        .get_mut(&id(40))
+        .unwrap()
+        .pads
+        .get_mut(&id(41))
+        .unwrap()
+        .rotation = Udeg::new(45_000_000).unwrap();
+    b.components.get_mut(&id(42)).unwrap().side = Side::Bottom;
+    b.zones.clear();
+    b.tracks.clear();
+    b.vias.clear();
+    let set = build(&b, &Profile::default()).unwrap();
+    let text = layer_text(&set, id(1));
+    // 45 - 45 = 0 degrees: a plain rectangle of 1 by 0.6 mm, flashed
+    assert_eq!(count(text, |o| matches!(o, Operation::Flash { .. })), 1);
+    assert!(eh3d_parser_gerber::parse(text)
+        .apertures
+        .values()
+        .any(|a| matches!(a, Aperture::Rectangle { x, y, .. }
+            if (*x - 1.0).abs() < 1e-9 && (*y - 0.6).abs() < 1e-9)));
+}
+
+/// What the check of the export says about the files of `written` against the board `model`.
+fn places_wrong(model: &Board, written: &Board, profile: &Profile) -> Vec<String> {
+    let set = build(written, profile).unwrap();
+    verify(model, profile, &set)
+        .iter()
+        .map(|d| d.message.to_string())
+        .collect()
+}
+
+#[test]
+fn the_check_finds_a_hole_that_is_not_where_the_board_has_it() {
+    let mut b = base();
+    via(&mut b, 40, 2, 1, 4);
+    via(&mut b, 41, 4, 1, 2);
+    let profile = Profile::default();
+    assert!(places_wrong(&b, &b, &profile).is_empty());
+    // the same number of holes, one of them a micrometre away
+    let mut moved = b.clone();
+    moved.vias.get_mut(&id(40)).unwrap().at = Point::from_nm(2_001_000, 2_000_000).unwrap();
+    let found = places_wrong(&b, &moved, &profile);
+    assert!(
+        found
+            .iter()
+            .any(|m| m.contains("drill_pth.drl: 1 holes are not where")),
+        "{found:?}"
+    );
+    // another diameter in the file of the blind vias
+    let mut wide = b.clone();
+    wide.vias.get_mut(&id(41)).unwrap().drill = nm(350_000);
+    let found = places_wrong(&b, &wide, &profile);
+    assert!(
+        found
+            .iter()
+            .any(|m| m.contains("drill_pth_blind_1-2.drl: 1 holes are not where")),
+        "{found:?}"
+    );
+    // the fixed style keeps three decimals, and half of the last one is no difference
+    let mut fixed = Profile::default();
+    fixed.drill.style = eh3d_phoenix_export::profile::DrillStyle::Fixed;
+    let mut fine = b.clone();
+    fine.vias.get_mut(&id(40)).unwrap().at = Point::from_nm(2_000_400, 2_000_000).unwrap();
+    let set = build(&fine, &fixed).unwrap();
+    assert!(verify(&fine, &fixed, &set)
+        .iter()
+        .all(|d| !d.message.contains("holes are not where")));
+}
+
+#[test]
+fn the_check_finds_a_pad_that_is_not_where_the_board_has_it() {
+    let b = with_pads();
+    let profile = Profile::default();
+    assert!(places_wrong(&b, &b, &profile).is_empty());
+    let mut moved = b.clone();
+    moved
+        .footprints
+        .get_mut(&id(20))
+        .unwrap()
+        .pads
+        .get_mut(&id(12))
+        .unwrap()
+        .at = Point::from_nm(10_000, 0).unwrap();
+    let found = places_wrong(&b, &moved, &profile);
+    assert!(
+        found.iter().any(|m| m.contains("1 flashes are not where")),
+        "{found:?}"
+    );
+}
+
+#[test]
+fn a_hole_that_is_not_plated_takes_no_paste() {
+    let mut b = with_pads();
+    b.layers.insert(
+        id(9),
+        Layer {
+            name: "Top paste".into(),
+            kind: LayerKind::Paste,
+            side: Some(Side::Top),
+        },
+    );
+    for footprint in b.footprints.values_mut() {
+        for pad in footprint.pads.values_mut() {
+            pad.layers.push(id(9));
+        }
+    }
+    let set = build(&b, &Profile::default()).unwrap();
+    // the rounded pad (a region) and the plated pad; nothing for the hole of 2 mm
+    let paste = layer_text(&set, id(9));
+    assert_eq!(count(paste, |o| matches!(o, Operation::Flash { .. })), 1);
+    assert_eq!(regions(paste), 1);
+    assert!(verify(&b, &Profile::default(), &set).is_empty());
+    // nor is there an opening for it in the stencil
+    let mut findings = Vec::new();
+    let settings = eh3d_phoenix_export::stencil::StencilSettings::default();
+    let openings = eh3d_phoenix_export::stencil::openings(&b, &settings, &mut findings);
+    let mut pads: Vec<&str> = openings.iter().map(|o| o.pad.as_str()).collect();
+    pads.sort_unstable();
+    assert_eq!(pads, ["1", "2"]);
+}
+
+#[test]
+fn the_placement_origin_is_the_corner_of_the_box_with_its_arcs() {
+    use eh3d_phoenix_board::OutlineArc;
+    use eh3d_phoenix_export::profile::Origin;
+    let mut b = with_pads();
+    // the left side bulges out by 5 mm
+    b.outline_arcs = vec![OutlineArc {
+        edge: 3,
+        sweep: Udeg::new(180_000_000).unwrap(),
+    }];
+    let mut profile = Profile::default();
+    profile.placement.origin = Origin::OutlineMin;
+    let set = build(&b, &profile).unwrap();
+    let rows = eh3d_phoenix_export::assembly::parse_csv(file(&set, "layers/placement.csv"), ',');
+    // U1 at (10, 5) mm is 15 mm right of the left end of the board
+    assert_eq!(&rows[1][3..5], ["15.0000", "5.0000"]);
 }

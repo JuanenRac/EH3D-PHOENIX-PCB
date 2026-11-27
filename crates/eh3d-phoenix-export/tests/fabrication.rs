@@ -372,14 +372,33 @@ fn an_oblong_pad_is_a_slot_when_the_profile_asks_for_it() {
     assert!(text.contains("G85"));
     let plated = eh3d_parser_excellon::parse(text);
     assert!(plated.is_clean(), "{:?}", plated.diagnostics);
-    // R1 is on a right angle and gives a slot; R2 is turned by 30 degrees and stays a round hole
-    assert_eq!(plated.slots.len(), 1);
-    assert_eq!(plated.drills.len(), 2 + 2 + 1);
-    let slot = plated.slots[0];
+    // R1 is on a right angle and R2 is turned by 30 degrees: both give a slot
+    assert_eq!(plated.slots.len(), 2);
+    assert_eq!(plated.drills.len(), 2 + 2);
+    // R2 is on the bottom: its pad (0, 4) is mirrored and turned to (-2, 3.4641) from (20, 10)
+    // and the slot of 1.0 mm between its ends lies at 30 degrees
+    let tilted = plated
+        .slots
+        .iter()
+        .find(|s| s.from.x > 14.0)
+        .expect("the slot of R2");
+    for (found, expected) in [
+        (tilted.from.x, 17.566_987),
+        (tilted.from.y, 13.214_102),
+        (tilted.to.x, 18.433_013),
+        (tilted.to.y, 13.714_102),
+    ] {
+        assert!((found - expected).abs() < 2e-6, "{found} {expected}");
+    }
+    let slot = *plated
+        .slots
+        .iter()
+        .find(|s| s.from.x < 14.0)
+        .expect("the slot of R1");
     // the pad is 3.0 x 1.5 mm with a 1.0 mm drill: a slot 2.0 mm long, along X, at (10, 14)
     assert!((slot.from.y - 14.0).abs() < 1e-9 && (slot.to.y - 14.0).abs() < 1e-9);
     assert!((slot.to.x - slot.from.x - 1.0).abs() < 1e-9);
-    assert!(codes_of(&set).contains(&codes::SLOT_ROTATION.to_string()));
+    assert!(!codes_of(&set).contains(&codes::SLOT_ROTATION.to_string()));
     assert!(verify(&f, &profile, &set).is_empty());
 }
 
@@ -823,7 +842,9 @@ fn the_aperture_level_names_the_function_of_each_aperture() {
     assert!(read.is_clean(), "{:?}", read.diagnostics);
     let kinds: Vec<&str> = read.attributes.iter().map(|a| a.kind.as_str()).collect();
     assert_eq!(kinds.last(), Some(&"TD"));
-    assert_eq!(kinds.iter().filter(|k| **k == "TA").count(), 5);
+    // the five functions of the apertures, and the two pads of R2, which are turned and so
+    // written as regions with their function
+    assert_eq!(kinds.iter().filter(|k| **k == "TA").count(), 7);
     // the silkscreen has no function for its strokes
     assert!(!file(&set, "layers/05_top_silk.gbr").contains("%TA"));
     assert!(verify(&f, &profile, &set).is_empty());

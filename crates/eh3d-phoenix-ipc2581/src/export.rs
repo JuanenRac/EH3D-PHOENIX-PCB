@@ -10,11 +10,11 @@
 //! **What is written:** the layers (copper with their side from the order of the stack, silkscreen,
 //! solder mask and paste as declared layers without features), the outline with its cutouts, the
 //! standard shapes and the padstacks (shape, drill, plating and layers), the footprints as
-//! packages, the placed parts, the nets with their pins, and for each copper layer the pads, the
+//! packages (the arcs of the outline are curve steps), the placed parts, the nets with their pins, and for each copper layer the pads, the
 //! vias, the tracks (with arcs) and the outlines of the zones, grouped by net, the lines of the
 //! dimensions and their texts on a layer of the function DOCUMENT, and a basic bill of materials.
-//! **What is left out** is reported (`PHOENIX-IPC2581-006`): the silkscreen items, the arcs of the
-//! outline, the copper fill of the zones, the texts of the dimensions when the settings say so,
+//! **What is left out** is reported (`PHOENIX-IPC2581-006`): the silkscreen items, the copper
+//! fill of the zones, the texts of the dimensions when the settings say so,
 //! the other documentation layers and the stack-up.
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -22,7 +22,8 @@ use std::f64::consts::PI;
 
 use eh3d_phoenix_board::connectivity::pad_position;
 use eh3d_phoenix_board::{
-    Board, Id, LayerKind, Pad, PadRef, PadShape, Segment, Side, SilkItem, Track, Via, Zone,
+    Board, Footprint, Id, LayerKind, Pad, PadRef, PadShape, Segment, Side, SilkItem, Track, Via,
+    Zone,
 };
 use eh3d_phoenix_eagle::Element;
 use eh3d_phoenix_model::Point;
@@ -322,7 +323,98 @@ fn file_layers(board: &Board, with_dimensions: bool) -> Vec<FileLayer> {
             copper: false,
         });
     }
+    // a layer is named by its name, so two layers of one name get names of their own
+    let mut taken: BTreeSet<String> = BTreeSet::new();
+    let wanted: BTreeSet<String> = out.iter().map(|l| l.name.clone()).collect();
+    for layer in &mut out {
+        layer.name = unused(&layer.name, &mut taken, &wanted);
+    }
     out
+}
+
+/// `name` the first time it is asked for; after that `name_2`, `name_3` and so on, skipping the
+/// names that are `wanted` as they are.
+fn unused(name: &str, taken: &mut BTreeSet<String>, wanted: &BTreeSet<String>) -> String {
+    let mut found = name.to_owned();
+    let mut n = 1_usize;
+    while taken.contains(&found) || (found != name && wanted.contains(&found)) {
+        n += 1;
+        found = format!("{name}_{n}");
+    }
+    taken.insert(found.clone());
+    found
+}
+
+/// What makes two footprints the same package: the pads by number, with their shape, place, turn,
+/// hole and plating.
+fn package_signature(footprint: &Footprint) -> Vec<String> {
+    let mut pads: Vec<String> = footprint
+        .pads
+        .values()
+        .map(|p| {
+            format!(
+                "{}|{}|{}|{}|{}|{:?}|{}",
+                p.number,
+                Shape::of(p).id(),
+                p.at.x_nm.get(),
+                p.at.y_nm.get(),
+                p.rotation.normalised().get(),
+                p.drill.map(|d| d.get()),
+                p.plated
+            )
+        })
+        .collect();
+    pads.sort();
+    pads
+}
+
+/// The package name of every footprint that a part uses. Footprints of one name and the same pads
+/// share one package; footprints of one name that differ are told apart as `name_2` and so on, so
+/// that every part refers to its own pads.
+fn package_names(board: &Board) -> BTreeMap<Id, String> {
+    let used: BTreeSet<Id> = board.components.values().map(|c| c.footprint).collect();
+    let mut found: Vec<(&str, Id)> = used
+        .iter()
+        .filter_map(|id| board.footprints.get(id).map(|f| (f.name.as_str(), *id)))
+        .collect();
+    found.sort();
+    let wanted: BTreeSet<String> = found.iter().map(|(n, _)| (*n).to_owned()).collect();
+    let mut taken: BTreeSet<String> = BTreeSet::new();
+    let mut seen: BTreeMap<(&str, Vec<String>), String> = BTreeMap::new();
+    let mut out = BTreeMap::new();
+    for (name, id) in found {
+        let key = (name, package_signature(&board.footprints[&id]));
+        let package = seen
+            .entry(key)
+            .or_insert_with(|| unused(name, &mut taken, &wanted))
+            .clone();
+        out.insert(id, package);
+    }
+    out
+}
+
+/// The board outline as a polygon whose edges that are arcs are curve steps.
+fn outline_steps(board: &Board) -> Element {
+    let mut polygon = el("Polygon");
+    let n = board.outline.len();
+    let arcs = board.usable_outline_arcs();
+    if let Some(first) = board.outline.first() {
+        polygon = polygon.push(point_attrs("PolyBegin", *first));
+    }
+    for i in 0..n {
+        let (start, end) = (board.outline[i], board.outline[(i + 1) % n]);
+        let curve = arcs
+            .get(&i)
+            .and_then(|sweep| arc_centre(start, end, sweep.get()).map(|c| (c, sweep.get())));
+        polygon = polygon.push(match curve {
+            Some(((cx, cy), sweep)) => point_attrs("PolyStepCurve", end)
+                .with("centerX", mm(cx.round() as i64))
+                .with("centerY", mm(cy.round() as i64))
+                .with("clockwise", yes(sweep < 0)),
+            None => point_attrs("PolyStepSegment", end),
+        });
+    }
+    polygon
 }
 
 fn pad_name(refdes: &str, number: &str) -> String {
@@ -472,16 +564,16 @@ pub fn export(board: &Board, settings: &Ipc2581Settings) -> Result<Ipc2581, Ipc2
                 ),
         );
 
+    let package_of = package_names(board);
+    let package_name = |id: Id| package_of.get(&id).cloned().unwrap_or_default();
+
     // ---- the bill of materials
     let mut bom_lines = 0;
     let bom = if settings.include_bom {
         let mut groups: BTreeMap<(String, String), Members> = BTreeMap::new();
         for (_, c) in &parts {
             let fp = board.footprints.get(&c.footprint);
-            let key = (
-                c.value.clone(),
-                fp.map_or_else(String::new, |f| f.name.clone()),
-            );
+            let key = (c.value.clone(), package_name(c.footprint));
             groups.entry(key).or_default().push((
                 c.refdes.as_str(),
                 fp.map_or(0, |f| f.pads.len()),
@@ -529,7 +621,7 @@ pub fn export(board: &Board, settings: &Ipc2581Settings) -> Result<Ipc2581, Ipc2
         .with("name", board.name.clone())
         .push(el("Datum").with("x", "0").with("y", "0"));
     if board.outline.len() >= 3 {
-        let mut profile = el("Profile").push(polygon_steps(el("Polygon"), &board.outline));
+        let mut profile = el("Profile").push(outline_steps(board));
         for cutout in &board.outline_cutouts {
             if cutout.len() >= 3 {
                 profile = profile.push(polygon_steps(el("Cutout"), cutout));
@@ -568,10 +660,9 @@ pub fn export(board: &Board, settings: &Ipc2581Settings) -> Result<Ipc2581, Ipc2
     }
 
     // the packages: the footprints in use, by name
-    let used: BTreeSet<Id> = board.components.values().map(|c| c.footprint).collect();
-    let mut packages: Vec<(&str, Id)> = used
+    let mut packages: Vec<(&str, Id)> = package_of
         .iter()
-        .filter_map(|id| board.footprints.get(id).map(|f| (f.name.as_str(), *id)))
+        .map(|(id, name)| (name.as_str(), *id))
         .collect();
     packages.sort();
     packages.dedup_by(|a, b| a.0 == b.0);
@@ -597,10 +688,13 @@ pub fn export(board: &Board, settings: &Ipc2581Settings) -> Result<Ipc2581, Ipc2
             .with("type", "OTHER")
             .push(el("Outline").push(outline));
         for pad in pads {
+            let mut pin = el("Pin").with("number", pad.number.clone());
+            let turn = pad.rotation.normalised().get();
+            if turn != 0 {
+                pin = pin.push(el("Xform").with("rotation", degrees(turn)));
+            }
             package = package.push(
-                el("Pin")
-                    .with("number", pad.number.clone())
-                    .push(point_attrs("Location", pad.at))
+                pin.push(point_attrs("Location", pad.at))
                     .push(el("StandardPrimitiveRef").with("id", Shape::of(pad).id())),
             );
         }
@@ -617,7 +711,7 @@ pub fn export(board: &Board, settings: &Ipc2581Settings) -> Result<Ipc2581, Ipc2
         step = step.push(
             el("Component")
                 .with("refDes", c.refdes.clone())
-                .with("packageRef", footprint.name.clone())
+                .with("packageRef", package_name(c.footprint))
                 .with("layerRef", layer)
                 .with("mountType", if through { "THMT" } else { "SMT" })
                 .push(
@@ -708,7 +802,9 @@ pub fn export(board: &Board, settings: &Ipc2581Settings) -> Result<Ipc2581, Ipc2
             };
             let key = stack_ids.get(&pad_key(pad)).cloned().unwrap_or_default();
             let net = board.net_of(pad_ref).and_then(net_name);
-            let rotation = (pad.rotation.get() + c.rotation.get()).rem_euclid(360_000_000);
+            // the mirror of the Xform comes before its turn, so on the bottom side the turn of
+            // the pad itself is taken off the turn of the part
+            let rotation = c.pad_angle_udeg(pad.rotation);
             let mut written = false;
             for layer_id in &pad.layers {
                 let Some(&i) = layer_index.get(layer_id) else {
@@ -902,9 +998,6 @@ pub fn export(board: &Board, settings: &Ipc2581Settings) -> Result<Ipc2581, Ipc2
     let mut left = Vec::new();
     if !board.silkscreen.is_empty() {
         left.push(format!("{} silkscreen items", board.silkscreen.len()));
-    }
-    if !board.outline_arcs.is_empty() {
-        left.push(format!("{} arcs of the outline", board.outline_arcs.len()));
     }
     if unplated > 0 {
         left.push(format!(

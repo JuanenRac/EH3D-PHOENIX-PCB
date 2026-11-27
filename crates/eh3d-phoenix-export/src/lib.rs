@@ -51,6 +51,7 @@ pub mod islands;
 pub mod messages;
 pub mod package;
 pub mod pnp;
+mod poly;
 pub mod profile;
 pub mod relief;
 pub mod stencil;

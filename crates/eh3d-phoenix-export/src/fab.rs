@@ -310,6 +310,7 @@ pub fn build(board: &Board, profile: &Profile) -> Result<FabSet, ExportError> {
                 spoke_width_nm: profile.gerber.zone_thermal_spoke_width_nm,
             },
             zone_island_min_area_nm2: profile.gerber.zone_island_min_area_nm2,
+            zone_edge_clearance: profile.gerber.zone_edge_clearance_nm,
             x2: profile.gerber.x2.clone(),
         };
         let (output, mut found) = write_layer(board, &spec, profile.gerber.outline_width_nm)

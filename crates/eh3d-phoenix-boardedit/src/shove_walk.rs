@@ -186,7 +186,7 @@ fn pads_of(board: &Board) -> Vec<PadItem> {
             let Some(at) = pad_position(board, pad_ref).map(key) else {
                 continue;
             };
-            let turned = (pad.rotation.get() + component.rotation.get()).rem_euclid(180_000_000);
+            let turned = component.pad_angle_udeg(pad.rotation) % 180_000_000;
             let (w, h, round) = match pad.shape {
                 PadShape::Circle { diameter } => (diameter.get(), diameter.get(), true),
                 PadShape::Oblong { width, height } | PadShape::Rect { width, height } => {

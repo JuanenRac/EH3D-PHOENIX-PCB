@@ -145,20 +145,8 @@ struct Row {
 fn rows(board: &Board, profile: &PlacementProfile) -> Vec<Row> {
     let (origin_x, origin_y) = match profile.origin {
         Origin::Absolute => (0, 0),
-        Origin::OutlineMin => (
-            board
-                .outline
-                .iter()
-                .map(|p| p.x_nm.get())
-                .min()
-                .unwrap_or(0),
-            board
-                .outline
-                .iter()
-                .map(|p| p.y_nm.get())
-                .min()
-                .unwrap_or(0),
-        ),
+        // the arcs of the outline count: a rounded side may reach beyond every corner
+        Origin::OutlineMin => board.outline_bounds().map_or((0, 0), |b| (b[0], b[1])),
     };
     let mut parts: Vec<_> = board.components.iter().collect();
     parts.sort_by_cached_key(|(id, c)| (natural_key(&c.refdes), **id));

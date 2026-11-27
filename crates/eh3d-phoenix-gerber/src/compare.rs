@@ -78,14 +78,14 @@ fn same_points(expected: &[(i64, i64)], found: &[(i64, i64)], tolerance: i64) ->
             .all(|(a, b)| near(a.0, b.0, tolerance) && near(a.1, b.1, tolerance))
 }
 
-/// True when the pad has no copper to put on the layer: a hole that is not plated, on a copper
-/// layer.
+/// True when the pad has nothing to put on the layer: a hole that is not plated, on a copper
+/// or a paste layer.
 fn no_copper(board: &Board, layer: Id, pad: &eh3d_phoenix_board::Pad) -> bool {
     pad.is_npth()
         && board
             .layers
             .get(&layer)
-            .is_some_and(|l| l.kind == LayerKind::Copper)
+            .is_some_and(|l| matches!(l.kind, LayerKind::Copper | LayerKind::Paste))
 }
 
 /// The positions of the pads that appear on `layer` and that the export flashes (a pad with
@@ -99,7 +99,7 @@ fn pads_on(board: &Board, layer: Id) -> Points {
         for (pad_id, pad) in &footprint.pads {
             if !pad.layers.contains(&layer)
                 || no_copper(board, layer, pad)
-                || pad_is_region(pad, component.rotation)
+                || pad_is_region(pad, component)
             {
                 continue;
             }
@@ -128,7 +128,7 @@ fn region_pads_on(board: &Board, layer: Id) -> Vec<String> {
         for (pad_id, pad) in &footprint.pads {
             if !pad.layers.contains(&layer)
                 || no_copper(board, layer, pad)
-                || !pad_is_region(pad, component.rotation)
+                || !pad_is_region(pad, component)
             {
                 continue;
             }
@@ -265,7 +265,7 @@ fn pad_table(board: &Board, layer: Id) -> PadTable {
                 || component.refdes.is_empty()
                 || pad.number.is_empty()
                 || no_copper(board, layer, pad)
-                || pad_is_region(pad, component.rotation)
+                || pad_is_region(pad, component)
             {
                 continue;
             }

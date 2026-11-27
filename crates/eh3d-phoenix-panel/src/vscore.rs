@@ -72,7 +72,7 @@ fn copper_boxes(board: &Board) -> Vec<CopperBox> {
                     (width.get(), height.get())
                 }
             };
-            let total = (pad.rotation.get() + component.rotation.get()).rem_euclid(360_000_000);
+            let total = component.pad_angle_udeg(pad.rotation);
             let (half_x, half_y) = if total % 90_000_000 == 0 {
                 if (total / 90_000_000) % 2 == 1 {
                     ((h + 1) / 2, (w + 1) / 2)

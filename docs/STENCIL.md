@@ -23,7 +23,7 @@ A large pad printed whole puts too much paste on the board. When the area of the
 
 ### Corners and turned pads
 
-`corner_radius_mm` rounds the corners of rectangular openings and panes (no more than half the smaller side); each corner is drawn with `corner_segments` straight pieces. An opening with rounded corners, and one turned by an angle that is not a right angle (`PHOENIX-STENCIL-006`), is written as a region; the others are flashes of a circle, rectangle or obround aperture, the sides swapped for a turn of a right angle.
+A drilled pad that is not plated (a mounting hole) has no opening. `corner_radius_mm` rounds the corners of rectangular openings and panes (no more than half the smaller side); each corner is drawn with `corner_segments` straight pieces. An opening with rounded corners, and one turned by an angle that is not a right angle (`PHOENIX-STENCIL-006`), is written as a region; the others are flashes of a circle, rectangle or obround aperture, the sides swapped for a turn of a right angle.
 
 ## The checks
 

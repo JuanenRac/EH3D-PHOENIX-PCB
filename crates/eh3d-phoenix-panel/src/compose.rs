@@ -74,15 +74,6 @@ impl Xf {
             .map_err(|_| too_large("an angle leaves the range"))
     }
 
-    /// The rotation of a pad inside its footprint.
-    fn pad_angle(&self, angle: Udeg) -> Result<Udeg, PanelError> {
-        if !self.mirror {
-            return Ok(angle);
-        }
-        Udeg::new((-angle.get()).rem_euclid(FULL_TURN_UDEG))
-            .map_err(|_| too_large("an angle leaves the range"))
-    }
-
     /// Closed polygons (the cutouts of an outline or of a zone) moved, turned and mirrored.
     fn rings(&self, rings: &[Vec<Point>]) -> Result<Vec<Vec<Point>>, PanelError> {
         let mut out = Vec::with_capacity(rings.len());
@@ -281,7 +272,9 @@ impl Hardware<'_> {
         if let Some(id) = self.footprints.get(&(0, diameter)) {
             return Ok(*id);
         }
-        let (pad_id, pad) = plain_pad(self.ids, diameter, Some(diameter), Vec::new())?;
+        let (pad_id, mut pad) = plain_pad(self.ids, diameter, Some(diameter), Vec::new())?;
+        // so that every file, the netlist of the tester too, says that it is not plated
+        pad.plated = false;
         let id = self.ids.make()?;
         self.out.footprints.insert(
             id,
@@ -528,11 +521,13 @@ pub fn compose(
                                 number: pad.number.clone(),
                                 shape: pad.shape,
                                 at: pad.at,
-                                rotation: xf.pad_angle(pad.rotation)?,
+                                // the footprint is the same part: a mirrored copy changes the side of
+                                // the component, which already mirrors its pads
+                                rotation: pad.rotation,
                                 drill: pad.drill,
                                 layers: on,
-                                roundness: 0,
-                                plated: true,
+                                roundness: pad.roundness,
+                                plated: pad.plated,
                             },
                         );
                     }
@@ -958,6 +953,55 @@ mod tests {
         // the same plan gives the same panel
         let again = compose(&[board], &plan, &settings, 50_000, false).unwrap();
         assert_eq!(panel, again);
+    }
+
+    #[test]
+    fn a_copy_keeps_the_holes_not_plated_the_round_corners_and_the_turn_of_its_pads() {
+        let mut board = sample("one");
+        for footprint in board.footprints.values_mut() {
+            for pad in footprint.pads.values_mut() {
+                if footprint.name == "HEADER" {
+                    pad.plated = false;
+                } else {
+                    pad.roundness = 500;
+                    pad.rotation = Udeg::new(30_000_000).unwrap();
+                }
+            }
+        }
+        for text in [
+            "columns = 2
+rows = 1
+",
+            "columns = 1
+rows = 1
+copy_mirror = true
+",
+        ] {
+            let (settings, plan) = panel_of(&board, text);
+            let panel = compose(std::slice::from_ref(&board), &plan, &settings, 0, true).unwrap();
+            let header = panel
+                .footprints
+                .values()
+                .find(|f| f.name == "HEADER")
+                .unwrap();
+            assert!(header.pads.values().all(Pad::is_npth), "{text}");
+            // and the holes of the rails, when there are any
+            assert!(panel
+                .footprints
+                .values()
+                .filter(|f| f.name == "PANEL_HOLE")
+                .all(|f| f.pads.values().all(Pad::is_npth)));
+            let smd = panel
+                .footprints
+                .values()
+                .find(|f| f.name == "R0603")
+                .unwrap();
+            // the same part: the component changes side, the footprint does not
+            assert!(smd
+                .pads
+                .values()
+                .all(|p| p.roundness == 500 && p.rotation.get() == 30_000_000));
+        }
     }
 
     #[test]

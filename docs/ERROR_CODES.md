@@ -130,7 +130,7 @@ The same titles in the eight languages of the suite (English, Spanish, German, F
 
 | Code | Title | Raised by |
 |---|---|---|
-| PHOENIX-EXPORT-001 | Pad rotation is not a right angle | a pad turned by an angle that is not a multiple of 90 degrees, flashed unrotated (a warning) |
+| PHOENIX-EXPORT-001 | Pad rotation is not a right angle | no longer given: pads at any angle are written turned (the number is kept) |
 | PHOENIX-EXPORT-002 | Zone written as its outline | a copper zone, written as a region of its outline because there is no pour yet (information) |
 | PHOENIX-EXPORT-003 | Copper stack order not given | a copper layer written without a file function because the board does not give the order of its copper layers (information) |
 | PHOENIX-EXPORT-004 | Arc left out | a track arc whose centre cannot be computed, not written (a warning) |
@@ -145,13 +145,13 @@ The same titles in the eight languages of the suite (English, Spanish, German, F
 | PHOENIX-EXPORT-013 | Output could not be written | the output folder or one of its files could not be created or written |
 | PHOENIX-EXPORT-014 | Written file differs from the model | the check that reads the files back found a count (pads, vias, holes, lines, regions) or the bounding box of the outline different from the board |
 | PHOENIX-EXPORT-015 | Board has no components | a board without a placed component, whose placement and bill of materials files hold only their header (information) |
-| PHOENIX-EXPORT-016 | Slot pad not on a right angle | a drilled oblong pad turned by an angle that is not a multiple of 90 degrees, written as a round hole when slots are asked for (a warning) |
+| PHOENIX-EXPORT-016 | Slot pad not on a right angle | no longer given: slots are written at any angle (the number is kept) |
 | PHOENIX-EXPORT-017 | Layer side not given | a solder mask or paste layer written without a file function because the layer does not say which side it is on (information) |
 | PHOENIX-EXPORT-018 | Written file could not be read back | the check could not read a Gerber or Excellon file it has just made (an error) |
 | PHOENIX-EXPORT-019 | Attribute text written with escapes | a net name, a reference designator, a pin number or a project name with a comma, an asterisk, a percent sign, a backslash or a character outside printable ASCII, written as `\uXXXX` in a Gerber X2 attribute (information; the strict mode refuses it instead) |
 | PHOENIX-EXPORT-020 | Attribute text not allowed | the same kind of text in the strict mode of `gerber.x2`, or a character beyond the first plane of Unicode, which has no escape; the export stops (an error) |
 | PHOENIX-EXPORT-021 | Small copper island left out | zones of one net and one layer that share a stretch of border and have less area than `gerber.zone_island_min_area_nm2`, not written with their clearing (information) |
-| PHOENIX-EXPORT-022 | Thermal relief not made for a turned pad | a rectangular or oblong pad of the net of a pour that is turned by an angle that is not a right angle, left solid when `gerber.zone_thermal_non_round` asks for a relief (information) |
+| PHOENIX-EXPORT-022 | Thermal relief not made for a turned pad | no longer given: turned pads get their relief (the number is kept) |
 
 ## Schematic and its link to the board (`eh3d-phoenix-schematic`)
 

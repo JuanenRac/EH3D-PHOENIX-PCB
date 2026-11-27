@@ -868,3 +868,130 @@ fn a_profile_name_that_a_comment_cannot_hold_is_refused_with_the_settings_code()
     assert_eq!(from_text.profile, "my-maker");
     assert!(Ipc2581Settings::parse("profile = a b\n").is_err());
 }
+
+#[test]
+fn an_arc_of_the_outline_is_a_curve_of_the_profile() {
+    use eh3d_phoenix_board::OutlineArc;
+    let mut b = board();
+    // the right side of the board bulges out in a half circle of radius 5 mm about (20, 5)
+    b.outline_arcs = vec![OutlineArc {
+        edge: 1,
+        sweep: Udeg::new(180_000_000).unwrap(),
+    }];
+    let out = export(&b, &Ipc2581Settings::default()).unwrap();
+    let root = parse(&out.xml, &Limits::default()).unwrap();
+    let polygon = step(&root)
+        .child("Profile")
+        .unwrap()
+        .child("Polygon")
+        .unwrap();
+    let curves: Vec<&Element> = polygon.children_named("PolyStepCurve").collect();
+    assert_eq!(curves.len(), 1);
+    for (name, value) in [
+        ("x", "20"),
+        ("y", "10"),
+        ("centerX", "20"),
+        ("centerY", "5"),
+        ("clockwise", "false"),
+    ] {
+        assert_eq!(curves[0].attr(name), Some(value), "{name}");
+    }
+    assert_eq!(polygon.children_named("PolyStepSegment").count(), 3);
+    let f = out.findings.iter().find(|f| f.code == LEFT_OUT).unwrap();
+    assert!(!f.detail.contains("arcs of the outline"), "{}", f.detail);
+}
+
+#[test]
+fn footprints_of_one_name_with_other_pads_are_other_packages() {
+    let mut b = board();
+    // a second R_0603 with its pads further apart, used by R2
+    let mut wide = b.footprints[&id(10)].clone();
+    wide.pads.get_mut(&id(11)).unwrap().at = pt(-MM, 0);
+    wide.pads.get_mut(&id(11)).unwrap().rotation = Udeg::new(30_000_000).unwrap();
+    b.footprints.insert(id(16), wide);
+    // and a third one like the first, used by R3, which shares its package
+    let same = b.footprints[&id(10)].clone();
+    b.footprints.insert(id(17), same);
+    b.components.get_mut(&id(21)).unwrap().footprint = id(16);
+    place(&mut b, 23, ("R3", "10k"), 17, (5, 2), Side::Top);
+    let out = export(&b, &Ipc2581Settings::default()).unwrap();
+    let root = parse(&out.xml, &Limits::default()).unwrap();
+    let step = step(&root);
+    assert_eq!(names(step, "Package"), vec!["HDR", "R_0603", "R_0603_2"]);
+    let package_of = |refdes: &str| {
+        step.children_named("Component")
+            .find(|c| c.attr("refDes") == Some(refdes))
+            .and_then(|c| c.attr("packageRef"))
+            .unwrap()
+            .to_owned()
+    };
+    assert_eq!(package_of("R1"), "R_0603");
+    assert_eq!(package_of("R2"), "R_0603_2");
+    assert_eq!(package_of("R3"), "R_0603");
+    // the pin of the second package has its place and its turn
+    let package = step
+        .children_named("Package")
+        .find(|p| p.attr("name") == Some("R_0603_2"))
+        .unwrap();
+    let pin = package
+        .children_named("Pin")
+        .find(|p| p.attr("number") == Some("1"))
+        .unwrap();
+    assert_eq!(pin.child("Location").unwrap().attr("x"), Some("-1"));
+    assert_eq!(pin.child("Xform").unwrap().attr("rotation"), Some("30"));
+}
+
+#[test]
+fn layers_of_one_name_are_told_apart() {
+    let mut b = board();
+    for l in b.layers.values_mut() {
+        if l.name == "Bottom" {
+            l.name = "Top".into();
+        }
+    }
+    let out = export(&b, &Ipc2581Settings::default()).unwrap();
+    let root = parse(&out.xml, &Limits::default()).unwrap();
+    let cad = root.child("Ecad").unwrap().child("CadData").unwrap();
+    let layers = names(cad, "Layer");
+    assert_eq!(&layers[..2], ["Top", "Top_2"]);
+    let features: Vec<&str> = step(&root)
+        .children_named("LayerFeature")
+        .filter_map(|f| f.attr("layerRef"))
+        .collect();
+    assert_eq!(features, ["Top", "Top_2"]);
+}
+
+#[test]
+fn the_turn_of_a_bottom_pad_is_taken_off_the_turn_of_its_part() {
+    let mut b = board();
+    b.footprints
+        .get_mut(&id(10))
+        .unwrap()
+        .pads
+        .get_mut(&id(11))
+        .unwrap()
+        .rotation = Udeg::new(30_000_000).unwrap();
+    for c in [20, 21] {
+        b.components.get_mut(&id(c)).unwrap().rotation = Udeg::new(90_000_000).unwrap();
+    }
+    let out = export(&b, &Ipc2581Settings::default()).unwrap();
+    let root = parse(&out.xml, &Limits::default()).unwrap();
+    let turn_of = |refdes: &str| {
+        step(&root)
+            .children_named("LayerFeature")
+            .flat_map(|f| f.children_named("Set"))
+            .flat_map(|s| s.children_named("Pad"))
+            .find(|p| {
+                p.child("PinRef").is_some_and(|r| {
+                    r.attr("componentRef") == Some(refdes) && r.attr("pin") == Some("1")
+                })
+            })
+            .and_then(|p| p.child("Xform"))
+            .and_then(|x| x.attr("rotation"))
+            .unwrap()
+            .to_owned()
+    };
+    // R1 is on top, R2 on the bottom, where the file mirrors before it turns
+    assert_eq!(turn_of("R1"), "120");
+    assert_eq!(turn_of("R2"), "60");
+}

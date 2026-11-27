@@ -355,20 +355,7 @@ impl PnpPlan {
 }
 
 fn outline_box(board: &Board) -> Option<(i64, i64, i64, i64)> {
-    let first = board.outline.first()?;
-    let mut b = (
-        first.x_nm.get(),
-        first.y_nm.get(),
-        first.x_nm.get(),
-        first.y_nm.get(),
-    );
-    for p in &board.outline {
-        b.0 = b.0.min(p.x_nm.get());
-        b.1 = b.1.min(p.y_nm.get());
-        b.2 = b.2.max(p.x_nm.get());
-        b.3 = b.3.max(p.y_nm.get());
-    }
-    Some(b)
+    board.outline_bounds().map(|[a, b, c, d]| (a, b, c, d))
 }
 
 /// The direction of the pad, in micro-degrees from 0 up to a full turn (not included): a part on

@@ -19,8 +19,8 @@
 //! **State: prototype.** The file the writer makes has been read back only by the XML reader of
 //! this repository, never checked against the schema of the standard and never opened in a viewer
 //! or by a maker. The reader has been run on sample files of several tools in all three revisions.
-//! What it leaves out is reported with the file: the silkscreen items, the arcs of the outline,
-//! the copper fill of the zones, the holes that are not plated (they are in the padstacks only)
+//! What it leaves out is reported with the file: the silkscreen items, the copper fill of the
+//! zones, the holes that are not plated (they are in the padstacks only)
 //! and the stack-up.
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]

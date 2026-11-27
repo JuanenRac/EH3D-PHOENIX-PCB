@@ -188,6 +188,21 @@ fn area2(ring: &[Point]) -> i128 {
     sum.abs()
 }
 
+/// A board file holds the pads of a footprint on the bottom side as they lie on that side, while
+/// the model holds the footprint as it is in the library and mirrors it when it places it on the
+/// bottom (`pad_position`). So the pads of such a footprint are mirrored back: x is negated and the
+/// turn of each pad is reversed, which is the inverse of what the writer does.
+fn unflip(footprint: &mut eh3d_phoenix_board::Footprint) {
+    for pad in footprint.pads.values_mut() {
+        if let Ok(at) = Point::from_nm(-pad.at.x_nm.get(), pad.at.y_nm.get()) {
+            pad.at = at;
+        }
+        if let Ok(turn) = Udeg::new((-pad.rotation.get()).rem_euclid(360_000_000)) {
+            pad.rotation = turn;
+        }
+    }
+}
+
 /// The signature of a footprint without its nets and without the angle of the footprint, so that
 /// placed copies of one footprint share one footprint of the model.
 fn signature(def: &FootprintDef) -> String {
@@ -497,7 +512,10 @@ impl Reader {
         };
         let key = signature(&def);
         if !self.footprints.contains_key(&key) {
-            let built = build_footprint(&def, &mut self.layers, ctx);
+            let mut built = build_footprint(&def, &mut self.layers, ctx);
+            if def.bottom {
+                unflip(&mut built.footprint);
+            }
             let id = ctx.id();
             self.board.footprints.insert(id, built.footprint);
             self.footprints.insert(key.clone(), (id, built.pad_ids));
@@ -1314,6 +1332,61 @@ pub(crate) mod tests {
             .pad_nets
             .windows(2)
             .all(|w| w[0].pad_ref() <= w[1].pad_ref()));
+    }
+
+    #[test]
+    fn the_pads_of_a_bottom_footprint_are_where_the_file_has_them() {
+        use eh3d_phoenix_board::connectivity::pad_position;
+        let b = read(PCB_V6).board;
+        let (cid, r2) = b.components.iter().find(|(_, c)| c.refdes == "R2").unwrap();
+        // R2 is at (30, 10) of the file with pad 1 at -0.825 and pad 2 at +0.825 along x
+        for (pad_id, pad) in &b.footprints[&r2.footprint].pads {
+            let at = pad_position(
+                &b,
+                eh3d_phoenix_board::PadRef {
+                    component: *cid,
+                    pad: *pad_id,
+                },
+            )
+            .unwrap();
+            let x = if pad.number == "1" {
+                29_175_000
+            } else {
+                30_825_000
+            };
+            assert_eq!(
+                (at.x_nm.get(), at.y_nm.get()),
+                (x, -10_000_000),
+                "pad {}",
+                pad.number
+            );
+        }
+    }
+
+    #[test]
+    fn a_bottom_pad_turned_on_its_own_keeps_its_place_and_its_angle() {
+        use eh3d_phoenix_board::connectivity::pad_position;
+        let text = r#"(kicad_pcb (version 20211014) (generator pcbnew)
+  (layers (0 "F.Cu" signal) (31 "B.Cu" signal) (44 "Edge.Cuts" user))
+  (footprint "X" (layer "B.Cu") (at 30 10 90)
+    (fp_text reference "U1" (at 0 0) (layer "B.SilkS"))
+    (pad "1" smd rect (at 2 1 135) (size 1 0.5) (layers "B.Cu"))))"#;
+        let b = read(text).board;
+        let (cid, u1) = b.components.iter().next().unwrap();
+        let (pad_id, pad) = b.footprints[&u1.footprint].pads.iter().next().unwrap();
+        // the file turns (2, 1) by 90 degrees with y down: (1, -2) from the footprint, which with
+        // y up is (31, -8) mm
+        let at = pad_position(
+            &b,
+            eh3d_phoenix_board::PadRef {
+                component: *cid,
+                pad: *pad_id,
+            },
+        )
+        .unwrap();
+        assert_eq!((at.x_nm.get(), at.y_nm.get()), (31_000_000, -8_000_000));
+        // the angle of the pad on the board is the 135 degrees of the file
+        assert_eq!(u1.pad_angle_udeg(pad.rotation), 135_000_000);
     }
 
     #[test]

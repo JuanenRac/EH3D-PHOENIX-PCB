@@ -558,7 +558,7 @@ pub(crate) fn build(
             let c = pair(at);
             let net = board.net_of(pad_ref);
             let gap = gap_of(params, net);
-            let total = pad.rotation.get() + component.rotation.get();
+            let total = component.pad_angle_udeg(pad.rotation);
             let obs = pad_obstacle(pad.shape, total, c, net, gap);
             let on: Vec<usize> = if pad.drill.is_some() {
                 (0..layers).collect()

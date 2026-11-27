@@ -4,11 +4,13 @@
 //!
 //! What is compared:
 //!
-//! * every layer file: the number of flashes (pads, and vias on copper), and on copper also the
-//!   number of regions (zones), of lines and of arcs outside the regions (tracks);
+//! * every layer file: the number of flashes (pads, and vias on copper) and where each one is,
+//!   and on copper also the number of regions (zones), of lines and of arcs outside the regions
+//!   (tracks);
 //! * the outline file: the number of lines and the bounding box against the outline of the board;
 //! * the drill files: the number of holes and slots against the vias and the drilled pads, the
-//!   units, and the order of the tools by diameter;
+//!   place and the diameter of each (the middle of a slot), the units, and the order of the tools
+//!   by diameter;
 //! * the placement file: one line per component with the reference designators of the board, and
 //!   the bill of materials: quantities that add up to the number of components.
 //!
@@ -28,7 +30,7 @@ use crate::codes;
 use crate::excellon::{via_span, ViaSpan};
 use crate::fab::{FabFile, FabSet, FileRole};
 use crate::gerber::{arc_centre, pad_is_region, via_on_layer};
-use crate::profile::Profile;
+use crate::profile::{DrillStyle, Profile};
 
 fn unreadable(out: &mut Vec<Diagnostic>, file: &FabFile, detail: &str) {
     out.push(codes::diagnostic(
@@ -51,14 +53,70 @@ fn compare(out: &mut Vec<Diagnostic>, file: &FabFile, what: &str, model: usize, 
     }
 }
 
-/// The pads of the board that appear on `layer`, as the number written as flashes and the number
-/// written as regions (pads with rounded corners). A hole that is not plated has no copper.
-fn pads_on(board: &Board, layer: Id) -> (usize, usize) {
+/// A thing of a file as `[diameter, x, y]` in millimetres (the diameter 0 for a flash).
+type Spot = [f64; 3];
+
+fn mm(nm: i64) -> f64 {
+    nm as f64 / 1_000_000.0
+}
+
+/// How many of `found` have no partner of their own in `model` within `tolerance`.
+fn unmatched(mut model: Vec<Spot>, found: &[Spot], tolerance: f64) -> usize {
+    model.sort_by(|a, b| a[1].total_cmp(&b[1]));
+    let mut used = vec![false; model.len()];
+    found
+        .iter()
+        .filter(|spot| {
+            let first = model.partition_point(|m| m[1] < spot[1] - tolerance);
+            let partner = (first..model.len())
+                .take_while(|&i| model[i][1] <= spot[1] + tolerance)
+                .find(|&i| !used[i] && (0..3).all(|k| (model[i][k] - spot[k]).abs() <= tolerance));
+            match partner {
+                Some(i) => {
+                    used[i] = true;
+                    false
+                }
+                None => true,
+            }
+        })
+        .count()
+}
+
+/// Reports the things of a file that are not where the model has them. A different number of them
+/// is reported by [`compare`] already.
+fn compare_places(
+    out: &mut Vec<Diagnostic>,
+    file: &FabFile,
+    what: &str,
+    model: Vec<Spot>,
+    found: &[Spot],
+    tolerance: f64,
+) {
+    if model.len() != found.len() {
+        return;
+    }
+    let lost = unmatched(model, found, tolerance);
+    if lost > 0 {
+        out.push(codes::diagnostic(
+            codes::VERIFY_MISMATCH,
+            Severity::Error,
+            &format!(
+                "{}: {lost} {what} are not where the model has them",
+                file.path
+            ),
+        ));
+    }
+}
+
+/// The pads of the board that appear on `layer`, as where those written as flashes are and the
+/// number written as regions (pads with rounded corners). A hole that is not plated has no copper.
+fn pads_on(board: &Board, layer: Id) -> (Vec<Spot>, usize) {
+    // a hole that is not plated has no copper and takes no paste
     let copper = board
         .layers
         .get(&layer)
-        .is_some_and(|l| l.kind == LayerKind::Copper);
-    let (mut flashes, mut regions) = (0, 0);
+        .is_some_and(|l| matches!(l.kind, LayerKind::Copper | LayerKind::Paste));
+    let (mut flashes, mut regions) = (Vec::new(), 0);
     for (cid, component) in &board.components {
         let Some(footprint) = board.footprints.get(&component.footprint) else {
             continue;
@@ -71,11 +129,12 @@ fn pads_on(board: &Board, layer: Id) -> (usize, usize) {
                     pad: *pid,
                 },
             );
-            if pad.layers.contains(&layer) && at.is_some() && !(copper && pad.is_npth()) {
-                if pad_is_region(pad, component.rotation) {
+            let Some(at) = at else { continue };
+            if pad.layers.contains(&layer) && !(copper && pad.is_npth()) {
+                if pad_is_region(pad, component) {
                     regions += 1;
                 } else {
-                    flashes += 1;
+                    flashes.push([0.0, mm(at.x_nm.get()), mm(at.y_nm.get())]);
                 }
             }
         }
@@ -83,9 +142,9 @@ fn pads_on(board: &Board, layer: Id) -> (usize, usize) {
     (flashes, regions)
 }
 
-/// The number of drilled pads, plated and not plated.
-fn drilled_pads(board: &Board) -> (usize, usize) {
-    let (mut plated, mut not_plated) = (0, 0);
+/// The drilled pads, plated and not plated.
+fn drilled_pads(board: &Board) -> (Vec<Spot>, Vec<Spot>) {
+    let (mut plated, mut not_plated) = (Vec::new(), Vec::new());
     for (cid, component) in &board.components {
         let Some(footprint) = board.footprints.get(&component.footprint) else {
             continue;
@@ -98,9 +157,10 @@ fn drilled_pads(board: &Board) -> (usize, usize) {
                     pad: *pid,
                 },
             );
-            if pad.drill.is_none() || at.is_none() {
+            let (Some(drill), Some(at)) = (pad.drill, at) else {
                 continue;
-            }
+            };
+            let hole = [mm(drill.get()), mm(at.x_nm.get()), mm(at.y_nm.get())];
             let on_copper = pad.layers.iter().any(|l| {
                 board
                     .layers
@@ -108,9 +168,9 @@ fn drilled_pads(board: &Board) -> (usize, usize) {
                     .is_some_and(|layer| layer.kind == LayerKind::Copper)
             });
             if on_copper && pad.plated {
-                plated += 1;
+                plated.push(hole);
             } else {
-                not_plated += 1;
+                not_plated.push(hole);
             }
         }
     }
@@ -130,7 +190,8 @@ fn check_layer(
         unreadable(out, file, "the Gerber file has errors");
         return;
     }
-    let (mut flashes, mut lines, mut arcs, mut regions) = (0usize, 0usize, 0usize, 0usize);
+    let (mut lines, mut arcs, mut regions) = (0usize, 0usize, 0usize);
+    let mut flashes: Vec<Spot> = Vec::new();
     let mut in_region = false;
     let mut bbox: Option<(f64, f64, f64, f64)> = None;
     // the objects of clear polarity take copper away and are not counted
@@ -144,7 +205,7 @@ fn check_layer(
             continue;
         }
         match &command.op {
-            Operation::Flash { .. } => flashes += 1,
+            Operation::Flash { at } => flashes.push([0.0, at.x, at.y]),
             Operation::Line { from, to } => {
                 if !in_region {
                     lines += 1;
@@ -171,15 +232,20 @@ fn check_layer(
             _ => {}
         }
     }
+    // the last digit the file keeps
+    let step = 10f64.powi(-(profile.gerber.decimal_digits as i32)) + 1e-9;
     match kind {
         LayerKind::Copper => {
-            let vias = board
-                .vias
-                .values()
-                .filter(|v| via_on_layer(board, v, layer))
-                .count();
-            let (pad_flashes, pad_regions) = pads_on(board, layer);
-            compare(out, file, "flashes", pad_flashes + vias, flashes);
+            let (mut model, pad_regions) = pads_on(board, layer);
+            model.extend(
+                board
+                    .vias
+                    .values()
+                    .filter(|v| via_on_layer(board, v, layer))
+                    .map(|v| [0.0, mm(v.at.x_nm.get()), mm(v.at.y_nm.get())]),
+            );
+            compare(out, file, "flashes", model.len(), flashes.len());
+            compare_places(out, file, "flashes", model, &flashes, step);
             let small = crate::islands::dropped_zones(
                 board,
                 layer,
@@ -210,8 +276,9 @@ fn check_layer(
             compare(out, file, "arcs", model_arcs, arcs);
         }
         LayerKind::SolderMask | LayerKind::Paste => {
-            let (pad_flashes, pad_regions) = pads_on(board, layer);
-            compare(out, file, "flashes", pad_flashes, flashes);
+            let (model, pad_regions) = pads_on(board, layer);
+            compare(out, file, "flashes", model.len(), flashes.len());
+            compare_places(out, file, "flashes", model, &flashes, step);
             compare(out, file, "regions", pad_regions, regions);
         }
         LayerKind::Outline => {
@@ -262,21 +329,24 @@ fn check_layer(
     }
 }
 
-/// The number of vias of the board whose span is `span`.
-fn vias_of_span(board: &Board, span: ViaSpan) -> usize {
+/// The holes of the vias of the board whose span is `span`.
+fn vias_of_span(board: &Board, span: ViaSpan) -> Vec<Spot> {
     board
         .vias
         .values()
         .filter(|v| via_span(board, v) == span)
-        .count()
+        .map(|v| [mm(v.drill.get()), mm(v.at.x_nm.get()), mm(v.at.y_nm.get())])
+        .collect()
 }
 
-/// The number of holes the model has for a drill file of `plated` holes (the through vias and the
+/// The holes the model has for a drill file of `plated` holes (the through vias and the
 /// plated pads) or of holes that are not plated.
-fn model_holes(board: &Board, plated: bool) -> usize {
+fn model_holes(board: &Board, plated: bool) -> Vec<Spot> {
     let (plated_pads, not_plated_pads) = drilled_pads(board);
     if plated {
-        vias_of_span(board, ViaSpan::Through) + plated_pads
+        let mut holes = vias_of_span(board, ViaSpan::Through);
+        holes.extend(plated_pads);
+        holes
     } else {
         not_plated_pads
     }
@@ -284,19 +354,39 @@ fn model_holes(board: &Board, plated: bool) -> usize {
 
 /// Compares a drill file with the model. `by_diameter` is true when the tools must be listed from
 /// the smallest diameter (not so in a mixed file, which lists those of the plated holes first).
-fn check_drill(file: &FabFile, model: usize, by_diameter: bool, out: &mut Vec<Diagnostic>) {
+fn check_drill(
+    profile: &Profile,
+    file: &FabFile,
+    model: Vec<Spot>,
+    by_diameter: bool,
+    out: &mut Vec<Diagnostic>,
+) {
     let read = eh3d_parser_excellon::parse(file.text());
     if !read.is_clean() {
         unreadable(out, file, "the Excellon file has errors");
         return;
     }
-    compare(
-        out,
-        file,
-        "holes",
-        model,
-        read.drills.len() + read.slots.len(),
-    );
+    let diameter = |tool: u32| read.tools.get(&tool).map_or(0.0, |t| t.diameter);
+    // a slot is where its middle is
+    let found: Vec<Spot> = read
+        .drills
+        .iter()
+        .map(|h| [diameter(h.tool), h.at.x, h.at.y])
+        .chain(read.slots.iter().map(|s| {
+            [
+                diameter(s.tool),
+                (s.from.x + s.to.x) / 2.0,
+                (s.from.y + s.to.y) / 2.0,
+            ]
+        }))
+        .collect();
+    compare(out, file, "holes", model.len(), found.len());
+    let digits = match profile.drill.style {
+        DrillStyle::Decimal => profile.drill.decimals,
+        DrillStyle::Fixed => profile.drill.fixed_decimal_digits,
+    };
+    let step = 10f64.powi(-(digits as i32)) + 1e-9;
+    compare_places(out, file, "holes", model, &found, step);
     if read.units != Some(DrillUnits::Millimetres) {
         out.push(codes::diagnostic(
             codes::VERIFY_MISMATCH,
@@ -388,11 +478,12 @@ pub fn verify(board: &Board, profile: &Profile, set: &FabSet) -> Vec<Diagnostic>
                 check_layer(board, profile, file, *layer, *kind, &mut out)
             }
             FileRole::Drill { plated } => {
-                check_drill(file, model_holes(board, *plated), true, &mut out)
+                check_drill(profile, file, model_holes(board, *plated), true, &mut out)
             }
             FileRole::DrillMixed => {
-                let model = model_holes(board, true) + model_holes(board, false);
-                check_drill(file, model, false, &mut out)
+                let mut model = model_holes(board, true);
+                model.extend(model_holes(board, false));
+                check_drill(profile, file, model, false, &mut out)
             }
             FileRole::DrillSpan { from, to, buried } => {
                 let span = if *buried {
@@ -400,15 +491,15 @@ pub fn verify(board: &Board, profile: &Profile, set: &FabSet) -> Vec<Diagnostic>
                 } else {
                     ViaSpan::Blind(*from, *to)
                 };
-                check_drill(file, vias_of_span(board, span), true, &mut out)
+                check_drill(profile, file, vias_of_span(board, span), true, &mut out)
             }
             FileRole::Placement => check_placement(board, profile, file, &mut out),
             FileRole::Bom => check_bom(board, profile, file, &mut out),
         }
     }
     for (plated_file, model) in [
-        (true, model_holes(board, true)),
-        (false, model_holes(board, false)),
+        (true, model_holes(board, true).len()),
+        (false, model_holes(board, false).len()),
     ] {
         let present = set.files.iter().any(|f| {
             f.role
