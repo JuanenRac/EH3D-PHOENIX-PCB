@@ -284,6 +284,11 @@ fn check_zone_clearances(board: &Board, classes: &NetClasses, general: Nm, repor
         .values(gap, limit)
         .why(&format!("class {class}"))
     };
+    // no class asks for more than the general rules, or there is no pour: nothing to judge
+    let widest = classes.classes().iter().map(|c| c.min_clearance).max();
+    if widest <= Some(general) || board.zones.is_empty() {
+        return;
+    }
     let items = copper_items(board, classes);
     let zones: Vec<_> = board.zones.iter().collect();
     for (i, (id, zone)) in zones.iter().enumerate() {
