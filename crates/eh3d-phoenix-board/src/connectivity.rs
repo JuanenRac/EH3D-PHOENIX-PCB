@@ -136,7 +136,7 @@ fn pad_contains(board: &Board, pad: PadRef, centre: Point, p: Point) -> bool {
     let Some(shape) = footprint.pads.get(&pad.pad) else {
         return false;
     };
-    let total = (shape.rotation.get() + component.rotation.get()).rem_euclid(360_000_000);
+    let total = component.pad_angle_udeg(shape.rotation);
     let dx = (p.x_nm.get() - centre.x_nm.get()) as i128;
     let dy = (p.y_nm.get() - centre.y_nm.get()) as i128;
     match shape.shape {

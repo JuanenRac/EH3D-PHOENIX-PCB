@@ -7,7 +7,8 @@
 //! via joins has a file of its own (`TF.FileFunction` `Plated,<from>,<to>,Blind` or
 //! `Plated,<from>,<to>,Buried`), and the plated file holds the through holes. With the option `oblong_as_slot`
 //! a drilled oblong pad is a slot (`G85`) of the same tool: the tool is the drill, the slot is as
-//! long as the pad is long in proportion to its drill. Tools are numbered from 1 in the order of
+//! long as the pad is long in proportion to its drill, along the long side of the pad at its
+//! angle on the board (any angle). Tools are numbered from 1 in the order of
 //! their diameters; the holes are ordered by tool, then by Y, then by X, so the same board always
 //! gives the same bytes. The units are millimetres and the coordinate style is the one of the
 //! options.
@@ -136,7 +137,6 @@ struct Hole {
 enum Shape {
     Round,
     Slot((i64, i64), (i64, i64)),
-    OffAxis,
 }
 
 fn mm(nm: i64) -> f64 {
@@ -157,17 +157,21 @@ fn slot_shape(shape: PadShape, drill: i64, total_udeg: i64, x: i64, y: i64) -> S
     if outer <= drill {
         return Shape::Round;
     }
-    let quarter = 90_000_000;
-    if total_udeg % quarter != 0 {
-        return Shape::OffAxis;
-    }
     let half = (outer - drill) / 2;
-    let along_x = (w >= h) == ((total_udeg / quarter) % 2 == 0);
-    if along_x {
-        Shape::Slot((x - half, y), (x + half, y))
-    } else {
-        Shape::Slot((x, y - half), (x, y + half))
-    }
+    // along the long side of the pad, at the angle of the pad on the board; a right angle is exact
+    let axis = if w >= h { 0 } else { 90_000_000 };
+    let (dx, dy) = match (total_udeg + axis).rem_euclid(180_000_000) {
+        0 => (half, 0),
+        90_000_000 => (0, half),
+        a => {
+            let (s, c) = (a as f64 / 1_000_000.0).to_radians().sin_cos();
+            (
+                (half as f64 * c).round() as i64,
+                (half as f64 * s).round() as i64,
+            )
+        }
+    };
+    Shape::Slot((x - dx, y - dy), (x + dx, y + dy))
 }
 
 fn write_one(
@@ -334,7 +338,7 @@ pub fn write_drill_files(board: &Board, options: &DrillOptions) -> Result<DrillF
             span => spans.entry(span).or_default().push(hole),
         }
     }
-    let (mut non_round, mut off_axis) = (0usize, 0usize);
+    let mut non_round = 0usize;
     for (cid, component) in &board.components {
         let Some(footprint) = board.footprints.get(&component.footprint) else {
             continue;
@@ -358,7 +362,7 @@ pub fn write_drill_files(board: &Board, options: &DrillOptions) -> Result<DrillF
                     .get(l)
                     .is_some_and(|layer| layer.kind == LayerKind::Copper)
             });
-            let total = (pad.rotation.get() + component.rotation.get()).rem_euclid(360_000_000);
+            let total = component.pad_angle_udeg(pad.rotation);
             let (x, y) = (at.x_nm.get(), at.y_nm.get());
             let shape = if options.oblong_as_slot {
                 slot_shape(pad.shape, drill.get(), total, x, y)
@@ -373,10 +377,7 @@ pub fn write_drill_files(board: &Board, options: &DrillOptions) -> Result<DrillF
                     x: from.0,
                     to: Some(to),
                 },
-                Shape::Round | Shape::OffAxis => {
-                    if matches!(shape, Shape::OffAxis) {
-                        off_axis += 1;
-                    }
+                Shape::Round => {
                     if !matches!(pad.shape, PadShape::Circle { .. }) {
                         non_round += 1;
                     }
@@ -411,13 +412,6 @@ pub fn write_drill_files(board: &Board, options: &DrillOptions) -> Result<DrillF
             codes::SLOT_AS_HOLE,
             Severity::Info,
             &format!("{non_round} pad(s)"),
-        ));
-    }
-    if off_axis > 0 {
-        diagnostics.push(codes::diagnostic(
-            codes::SLOT_ROTATION,
-            Severity::Warning,
-            &format!("{off_axis} pad(s)"),
         ));
     }
     let plated_text = if plated.is_empty() {

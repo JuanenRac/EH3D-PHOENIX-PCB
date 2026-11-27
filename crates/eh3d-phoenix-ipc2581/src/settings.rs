@@ -34,6 +34,9 @@ pub struct Ipc2581Settings {
     /// The name of the net that a pad on no net has in the IPC-D-356A file: from 1 to 14 printable
     /// characters without a blank.
     pub d356_unconnected_name: String,
+    /// Write a record for each via that goes through the whole board in the IPC-D-356A file, so
+    /// that a tester knows the points of a net that are not pads (off by default).
+    pub d356_include_vias: bool,
     /// The largest IPC-2581 file the reader accepts, in bytes (`phoenix ipc2581-read`).
     pub read_max_bytes: usize,
     /// The name of the writer profile that the file carries as a comment (`phoenix-ipc2581/1:default`): from
@@ -80,6 +83,7 @@ impl Default for Ipc2581Settings {
             max_items: 1_000_000,
             d356_include_smd: true,
             d356_unconnected_name: "N/C".to_owned(),
+            d356_include_vias: false,
             read_max_bytes: 128 * 1024 * 1024,
             profile: "default".to_owned(),
             read_max_depth: 64,
@@ -151,6 +155,7 @@ impl Ipc2581Settings {
                 "max_items" => s.max_items = value.parse().map_err(|_| bad())?,
                 "d356_include_smd" => s.d356_include_smd = parse_bool(value).ok_or_else(bad)?,
                 "d356_unconnected_name" => value.clone_into(&mut s.d356_unconnected_name),
+                "d356_include_vias" => s.d356_include_vias = parse_bool(value).ok_or_else(bad)?,
                 "profile" => value.clone_into(&mut s.profile),
                 "read_max_bytes" => s.read_max_bytes = value.parse().map_err(|_| bad())?,
                 "read_max_depth" => s.read_max_depth = value.parse().map_err(|_| bad())?,

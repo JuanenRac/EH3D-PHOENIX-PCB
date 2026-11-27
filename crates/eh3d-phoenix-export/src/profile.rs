@@ -394,6 +394,10 @@ pub struct GerberProfile {
     /// share a net make one island, and a smaller one is left out. 0 (the default) writes every
     /// zone.
     pub zone_island_min_area_nm2: i64,
+    /// How far the copper of a pour stays from the board edge and its openings in the files, in
+    /// nanometres: a strip of that width on each side of the outline is cleared out of the pours.
+    /// 0 (the default) writes the pours as they are drawn.
+    pub zone_edge_clearance_nm: i64,
     /// The Gerber X2 attributes.
     pub x2: X2Profile,
     /// The names of the layer files and their order; empty keeps the numbered names.
@@ -413,6 +417,7 @@ impl Default for GerberProfile {
             zone_thermal_gap_nm: 250_000,
             zone_thermal_spoke_width_nm: 250_000,
             zone_island_min_area_nm2: 0,
+            zone_edge_clearance_nm: 0,
             x2: X2Profile::default(),
             names: FileNames::default(),
         }
@@ -662,6 +667,11 @@ impl Profile {
         if !(0..=1_000_000_000_000_000).contains(&g.zone_island_min_area_nm2) {
             return Err(bad(format!(
                 "{name}: gerber.zone_island_min_area_nm2 is not 0 to 1000000000000000"
+            )));
+        }
+        if !(0..=10_000_000).contains(&g.zone_edge_clearance_nm) {
+            return Err(bad(format!(
+                "{name}: gerber.zone_edge_clearance_nm is not 0 to 10000000"
             )));
         }
         for (field, value) in [

@@ -390,7 +390,8 @@ pub fn openings(
             let mut pads: Vec<_> = footprint.pads.iter().collect();
             pads.sort_by_cached_key(|(id, p)| (natural_key(&p.number), **id));
             for (pid, pad) in pads {
-                if !pad.layers.contains(&layer) {
+                // a hole that is not plated takes no paste, as in the paste layer of the export
+                if !pad.layers.contains(&layer) || pad.is_npth() {
                     continue;
                 }
                 let Some(at) = pad_position(

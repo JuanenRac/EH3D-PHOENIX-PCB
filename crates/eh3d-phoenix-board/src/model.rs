@@ -168,6 +168,20 @@ pub enum Side {
     Bottom,
 }
 
+impl Component {
+    /// The angle on the board, in micro-degrees in `[0, 360)`, of a pad of the footprint whose own
+    /// turn is `pad_rotation`. A component on the bottom side is mirrored before it is turned
+    /// (see [`crate::connectivity::pad_position`]), and a mirror reverses the turn of the pad: its
+    /// angle is taken off the angle of the component there, and added to it on the top side.
+    pub fn pad_angle_udeg(&self, pad_rotation: Udeg) -> i64 {
+        let own = match self.side {
+            Side::Top => pad_rotation.get(),
+            Side::Bottom => -pad_rotation.get(),
+        };
+        (self.rotation.get() + own).rem_euclid(360_000_000)
+    }
+}
+
 /// A placed component.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]

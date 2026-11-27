@@ -291,7 +291,7 @@ pub(crate) fn collect(board: &Board, piece_degrees: u32) -> LayerItems {
                 continue;
             };
             let at = pair(at);
-            let total = (pad.rotation.get() + component.rotation.get()).rem_euclid(360_000_000);
+            let total = component.pad_angle_udeg(pad.rotation);
             let shape = pad_geometry(pad.shape, at, total);
             let label = format!("{} pad {}", component.refdes, pad.number);
             // a hole that is not plated is drilled through every layer and has no copper, so it

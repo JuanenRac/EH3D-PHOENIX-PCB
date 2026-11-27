@@ -276,6 +276,56 @@ impl Board {
         out
     }
 
+    /// The box of the board outline as `[x0, y0, x1, y1]` in nanometres: its corners and, for
+    /// an edge that is an arc, the points where the arc reaches furthest right, up, left and down.
+    /// `None` for a board without an outline.
+    pub fn outline_bounds(&self) -> Option<[i64; 4]> {
+        let first = self.outline.first()?;
+        let (x, y) = (first.x_nm.get(), first.y_nm.get());
+        let mut b = [x, y, x, y];
+        let mut take = |x: i64, y: i64| {
+            b = [b[0].min(x), b[1].min(y), b[2].max(x), b[3].max(y)];
+        };
+        for p in &self.outline {
+            take(p.x_nm.get(), p.y_nm.get());
+        }
+        let n = self.outline.len();
+        for (edge, sweep) in self.usable_outline_arcs() {
+            let (start, end) = (self.outline[edge], self.outline[(edge + 1) % n]);
+            let (sx, sy) = (start.x_nm.get() as f64, start.y_nm.get() as f64);
+            let (cx, cy) = (end.x_nm.get() as f64 - sx, end.y_nm.get() as f64 - sy);
+            let d = cx.hypot(cy);
+            let theta = (sweep.get() as f64 / 1_000_000.0).to_radians();
+            let half = theta.abs() / 2.0;
+            if d == 0.0 || half.sin().abs() < 1e-9 {
+                continue;
+            }
+            let radius = d / (2.0 * half.sin());
+            let h = radius * half.cos();
+            let sign = if theta >= 0.0 { 1.0 } else { -1.0 };
+            let (ox, oy) = (
+                sx + cx / 2.0 + sign * (-cy / d) * h,
+                sy + cy / 2.0 + sign * (cx / d) * h,
+            );
+            let first_angle = (sy - oy).atan2(sx - ox);
+            for (quarter, (ux, uy)) in [(1.0, 0.0), (0.0, 1.0), (-1.0, 0.0), (0.0, -1.0)]
+                .into_iter()
+                .enumerate()
+            {
+                let at = quarter as f64 * std::f64::consts::FRAC_PI_2;
+                // how far along the turn of the arc this direction comes
+                let along = (sign * (at - first_angle)).rem_euclid(std::f64::consts::TAU);
+                if along <= theta.abs() {
+                    take(
+                        (ox + radius * ux).round() as i64,
+                        (oy + radius * uy).round() as i64,
+                    );
+                }
+            }
+        }
+        Some(b)
+    }
+
     /// Every problem of the arcs of the outline, each said in a few words with the number of the
     /// arc (from 1): an edge that does not exist, an edge with two arcs, a sweep that is zero or a
     /// full turn or more, end points that cannot make an arc.

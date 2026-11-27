@@ -5,7 +5,7 @@
 
 use eh3d_diagnostic::{Category, Diagnostic, Recoverability, Severity};
 
-/// A pad rotated by an angle that is not a right angle was written unrotated.
+/// Not given any more: pads at any angle are written turned. The number is not used again.
 pub const PAD_ROTATION: &str = "PHOENIX-EXPORT-001";
 /// A zone was written as its outline, not poured.
 pub const ZONE_NOT_POURED: &str = "PHOENIX-EXPORT-002";
@@ -37,7 +37,7 @@ pub const OUTPUT_FAILED: &str = "PHOENIX-EXPORT-013";
 pub const VERIFY_MISMATCH: &str = "PHOENIX-EXPORT-014";
 /// The board has no placed component, so the assembly files are empty.
 pub const NO_COMPONENTS: &str = "PHOENIX-EXPORT-015";
-/// A drilled oblong pad turned by an angle that is not a right angle was written as a round hole.
+/// Not given any more: slots are written at any angle. The number is not used again.
 pub const SLOT_ROTATION: &str = "PHOENIX-EXPORT-016";
 /// A solder mask or paste layer does not say which side of the board it is on, so its file has no function.
 pub const SIDE_MISSING: &str = "PHOENIX-EXPORT-017";
@@ -53,7 +53,7 @@ pub const ATTRIBUTE_REJECTED: &str = "PHOENIX-EXPORT-020";
 
 /// The zones of an island smaller than the minimum of the profile were left out of a layer file.
 pub const ISLAND_LEFT_OUT: &str = "PHOENIX-EXPORT-021";
-/// A pad that is not round and not at a right angle got no thermal relief (it stays solid).
+/// Not given any more: turned pads get their relief. The number is not used again.
 pub const RELIEF_NOT_MADE: &str = "PHOENIX-EXPORT-022";
 
 /// The codes of this crate with their titles.

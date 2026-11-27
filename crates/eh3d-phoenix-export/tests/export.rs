@@ -324,12 +324,27 @@ fn what_the_files_cannot_say_is_reported() {
     assert!(!top.contains("FileFunction"));
     let with = export(&mut f, true);
     assert!(!codes_of(&with.diagnostics).contains(&codes::STACK_ORDER_MISSING.to_string()));
-    // a pad rotated by 45 degrees is flashed unrotated and says so
+    // a pad rotated by 45 degrees is written as a turned region and nothing is lost
     let mut rotated = fixture(45_000_000);
     let out = export(&mut rotated, true);
-    assert!(codes_of(&out.diagnostics).contains(&codes::PAD_ROTATION.to_string()));
-    let plain = codes_of(&with.diagnostics);
-    assert!(!plain.contains(&codes::PAD_ROTATION.to_string()));
+    assert!(!codes_of(&out.diagnostics).contains(&codes::PAD_ROTATION.to_string()));
+    let text = std::str::from_utf8(out.package.entry("layers/02_top_copper.gbr").unwrap()).unwrap();
+    let file = eh3d_parser_gerber::parse(text);
+    assert!(file.is_clean(), "{:?}", file.diagnostics);
+    let regions = |file: &eh3d_parser_gerber::GerberFile| {
+        file.commands
+            .iter()
+            .filter(|c| matches!(c.op, eh3d_parser_gerber::Operation::RegionStart))
+            .count()
+    };
+    let mut straight = fixture(0);
+    let plain = export(&mut straight, true);
+    let plain =
+        std::str::from_utf8(plain.package.entry("layers/02_top_copper.gbr").unwrap()).unwrap();
+    assert_eq!(
+        regions(&file),
+        regions(&eh3d_parser_gerber::parse(plain)) + 1
+    );
 }
 
 #[test]

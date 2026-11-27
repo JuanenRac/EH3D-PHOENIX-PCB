@@ -25,7 +25,7 @@
 //! cols 56-60  X and the size of the pad in x, in micrometres, 4 digits
 //! cols 61-65  Y and the size in y
 //! cols 66-69  R and the turn of the pad in degrees, 3 digits
-//! cols 70-72  blank, S and the solder mask: 0 both sides, 1 top, 2 bottom
+//! cols 70-72  blank, S and the solder mask: 0 both sides, 1 top, 2 bottom, 3 covered (a via)
 //! ```
 //!
 //! The file starts with a comment, the name of the board and the units, ends with `999`, and
@@ -71,16 +71,68 @@ fn um(nm: i64) -> i128 {
     (nm + half) / 1000
 }
 
-/// A word in printable ASCII, cut to `width` and padded with blanks to it. A cut is noted once.
-fn field(text: &str, width: usize, what: &str, notes: &mut BTreeSet<String>) -> String {
-    let clean: String = text
-        .chars()
+/// A word in printable ASCII: a blank becomes `_`, any other character `?`.
+fn printable(text: &str) -> String {
+    text.chars()
         .map(|c| match c {
             ' ' => '_',
             c if c.is_ascii_graphic() => c,
             _ => '?',
         })
+        .collect()
+}
+
+/// The name each of `names` is written as in a column of `width`. Two different names must not
+/// come out the same, or a tester takes two nets (or parts, or pins) for one: a name whose cut is
+/// already another one ends in `~1`, `~2` and so on, and is noted.
+fn short_names(
+    names: impl Iterator<Item = String>,
+    width: usize,
+    what: &str,
+    notes: &mut BTreeSet<String>,
+) -> BTreeMap<String, String> {
+    let names: BTreeSet<String> = names.collect();
+    // the names that fit as they are keep them
+    let mut taken: BTreeSet<String> = names
+        .iter()
+        .map(|n| printable(n))
+        .filter(|n| n.len() <= width)
         .collect();
+    let mut whole: BTreeSet<String> = BTreeSet::new();
+    let mut out = BTreeMap::new();
+    for name in names {
+        let clean = printable(&name);
+        let fits = clean.len() <= width;
+        let mut short: String = clean.chars().take(width).collect();
+        let clashes = if fits {
+            !whole.insert(short.clone())
+        } else {
+            taken.contains(&short)
+        };
+        if clashes {
+            let mut n = 1_usize;
+            loop {
+                let tail = format!("~{n}");
+                let keep = width.saturating_sub(tail.len());
+                short = clean.chars().take(keep).collect::<String>() + &tail;
+                if !taken.contains(&short) || n > 99_999 {
+                    break;
+                }
+                n += 1;
+            }
+            notes.insert(format!("the {what} {clean} is written as {short}"));
+        } else if !fits {
+            notes.insert(format!("the {what} {clean} is cut to {width} characters"));
+        }
+        taken.insert(short.clone());
+        out.insert(name, short);
+    }
+    out
+}
+
+/// A word in printable ASCII, cut to `width` and padded with blanks to it. A cut is noted once.
+fn field(text: &str, width: usize, what: &str, notes: &mut BTreeSet<String>) -> String {
+    let clean = printable(text);
     let mut out: String = clean.chars().take(width).collect();
     if clean.chars().count() > width {
         notes.insert(format!("the {what} {clean} is cut to {width} characters"));
@@ -112,6 +164,8 @@ struct Row {
     y_um: i128,
     size_um: (i128, i128),
     turn: i64,
+    /// A via: reached from both sides, with the solder mask over it.
+    via: bool,
 }
 
 /// The size of a pad in x and y, in nanometres.
@@ -124,9 +178,9 @@ fn size_nm(shape: &PadShape) -> (i64, i64) {
     }
 }
 
-/// Writes the netlist of a board as an IPC-D-356A test file. The pads of a part are the only
-/// records: vias, tracks and test points that are not parts are not written. With
-/// `d356_include_smd` off the pads without a hole are left out. More records than `max_items`
+/// Writes the netlist of a board as an IPC-D-356A test file. The records are the pads of the
+/// parts and, with `d356_include_vias`, the vias that go through the board; tracks are not
+/// written. With `d356_include_smd` off the pads without a hole are left out. More records than `max_items`
 /// is refused with `PHOENIX-IPC2581-005`.
 pub fn d356(board: &Board, settings: &Ipc2581Settings) -> Result<D356, Ipc2581Error> {
     let mut notes: BTreeSet<String> = BTreeSet::new();
@@ -171,8 +225,7 @@ pub fn d356(board: &Board, settings: &Ipc2581Settings) -> Result<D356, Ipc2581Er
                     |n| n.name.clone(),
                 );
             let (sx, sy) = size_nm(&pad.shape);
-            let turn = (component.rotation.normalised().get() + pad.rotation.normalised().get())
-                .rem_euclid(360_000_000);
+            let turn = component.pad_angle_udeg(pad.rotation);
             rows.push(Row {
                 net,
                 refdes: component.refdes.clone(),
@@ -184,7 +237,50 @@ pub fn d356(board: &Board, settings: &Ipc2581Settings) -> Result<D356, Ipc2581Er
                 y_um,
                 size_um: (um(sx), um(sy)),
                 turn: (turn + 500_000) / 1_000_000 % 360,
+                via: false,
             });
+        }
+    }
+    if settings.d356_include_vias {
+        let stack = &board.copper_stack;
+        let mut inner = 0_usize;
+        for via in board.vias.values() {
+            let (a, b) = (
+                stack.iter().position(|l| *l == via.from_layer),
+                stack.iter().position(|l| *l == via.to_layer),
+            );
+            // a via that does not reach both faces cannot be probed from both
+            if let (Some(a), Some(b)) = (a, b) {
+                if a != b && (a.min(b) != 0 || a.max(b) != stack.len() - 1) {
+                    inner += 1;
+                    continue;
+                }
+            }
+            let (x_um, y_um) = (um(via.at.x_nm.get()), um(via.at.y_nm.get()));
+            if x_um.abs() > MAX_PLACE_UM || y_um.abs() > MAX_PLACE_UM {
+                notes.insert("a via is beyond 999.999 mm from the origin and is left out".into());
+                continue;
+            }
+            let size = um(via.diameter.get());
+            rows.push(Row {
+                net: board.nets.get(&via.net).map_or_else(
+                    || settings.d356_unconnected_name.clone(),
+                    |n| n.name.clone(),
+                ),
+                refdes: "VIA".to_owned(),
+                pin: String::new(),
+                hole_um: Some(um(via.drill.get())),
+                plated: true,
+                side: Side::Top,
+                x_um,
+                y_um,
+                size_um: (size, size),
+                turn: 0,
+                via: true,
+            });
+        }
+        if inner > 0 {
+            notes.insert(format!("{inner} blind or buried vias are left out"));
         }
     }
     if rows.len() > settings.max_items {
@@ -193,7 +289,23 @@ pub fn d356(board: &Board, settings: &Ipc2581Settings) -> Result<D356, Ipc2581Er
             format!("{} pads, the limit is {}", rows.len(), settings.max_items),
         ));
     }
-    rows.sort_by(|a, b| (&a.net, &a.refdes, &a.pin).cmp(&(&b.net, &b.refdes, &b.pin)));
+    rows.sort_by(|a, b| {
+        (&a.net, &a.refdes, &a.pin, a.x_um, a.y_um)
+            .cmp(&(&b.net, &b.refdes, &b.pin, b.x_um, b.y_um))
+    });
+    let nets = short_names(rows.iter().map(|r| r.net.clone()), 14, "net", &mut notes);
+    let refs = short_names(
+        rows.iter().map(|r| r.refdes.clone()),
+        6,
+        "reference designator",
+        &mut notes,
+    );
+    let pins = short_names(rows.iter().map(|r| r.pin.clone()), 4, "pin", &mut notes);
+    for row in &mut rows {
+        row.net = nets.get(&row.net).cloned().unwrap_or_default();
+        row.refdes = refs.get(&row.refdes).cloned().unwrap_or_default();
+        row.pin = pins.get(&row.pin).cloned().unwrap_or_default();
+    }
     let name = field(&board.name, 60, "name of the board", &mut notes);
     let name = if name.trim().is_empty() {
         "BOARD".to_owned()
@@ -241,6 +353,7 @@ fn record(row: &Row, notes: &mut BTreeSet<String>) -> String {
         None => "      ".to_owned(),
     };
     let (access, mask) = match (through, row.side) {
+        _ if row.via => (0, 3),
         (true, _) => (0, 0),
         (false, Side::Top) => (1, 1),
         (false, Side::Bottom) => (2, 2),
@@ -485,6 +598,110 @@ mod tests {
                 .count(),
             1
         );
+    }
+
+    #[test]
+    fn two_names_that_cut_to_the_same_text_are_written_apart() {
+        let mut b = board(
+            vec![
+                (11, pad("1", pt(0, 0), 800_000, None)),
+                (12, pad("2", pt(MM, 0), 800_000, None)),
+                (13, pad("3", pt(2 * MM, 0), 800_000, None)),
+            ],
+            &[(20, "R1", 0, 0, Side::Top)],
+            &[
+                (2, "ADDRESS_BUS_LINE_1"),
+                (3, "ADDRESS_BUS_LINE_2"),
+                // a name that is already what the second would be written as
+                (4, "ADDRESS_BUS_~1"),
+            ],
+        );
+        assign(&mut b, 20, 11, 2);
+        assign(&mut b, 20, 12, 3);
+        assign(&mut b, 20, 13, 4);
+        let file = d356(&b, &settings()).unwrap();
+        let mut nets: Vec<String> = lines(&file)[3..6]
+            .iter()
+            .map(|r| r[3..17].trim_end().to_owned())
+            .collect();
+        nets.sort();
+        assert_eq!(
+            nets,
+            vec!["ADDRESS_BUS_LI", "ADDRESS_BUS_~1", "ADDRESS_BUS_~2"]
+        );
+        assert!(file
+            .notes
+            .contains(&"the net ADDRESS_BUS_LINE_2 is written as ADDRESS_BUS_~2".to_owned()));
+        // two names that differ only in characters that are written as ? stay apart too
+        let mut b = board(
+            vec![
+                (11, pad("1", pt(0, 0), 800_000, None)),
+                (12, pad("2", pt(MM, 0), 800_000, None)),
+            ],
+            &[(20, "R1", 0, 0, Side::Top)],
+            &[(2, "caf\u{e9}"), (3, "caf\u{e8}")],
+        );
+        assign(&mut b, 20, 11, 2);
+        assign(&mut b, 20, 12, 3);
+        let file = d356(&b, &settings()).unwrap();
+        let rows = lines(&file);
+        assert_ne!(&rows[3][3..17], &rows[4][3..17]);
+    }
+
+    #[test]
+    fn the_turn_of_a_bottom_pad_is_taken_off_the_turn_of_its_part() {
+        let mut turned = pad("1", pt(0, 0), 800_000, None);
+        turned.rotation = Udeg::new(30_000_000).unwrap();
+        let mut b = board(vec![(11, turned)], &[(20, "C1", 0, 0, Side::Bottom)], &[]);
+        b.components.get_mut(&id(20)).unwrap().rotation = Udeg::new(90_000_000).unwrap();
+        let file = d356(&b, &settings()).unwrap();
+        assert_eq!(&lines(&file)[3][65..69], "R060");
+        b.components.get_mut(&id(20)).unwrap().side = Side::Top;
+        let file = d356(&b, &settings()).unwrap();
+        assert_eq!(&lines(&file)[3][65..69], "R120");
+    }
+
+    #[test]
+    fn the_vias_through_the_board_are_written_when_asked_for() {
+        let mut b = board(
+            vec![(11, pad("1", pt(0, 0), 800_000, None))],
+            &[(20, "R1", 0, 0, Side::Top)],
+            &[(2, "GND")],
+        );
+        assign(&mut b, 20, 11, 2);
+        b.copper_stack = vec![id(1), id(8), id(9)];
+        for (n, to, x) in [(30, 9, 5), (31, 8, 6)] {
+            b.vias.insert(
+                id(n),
+                eh3d_phoenix_board::Via {
+                    net: id(2),
+                    at: pt(x * MM, 2 * MM),
+                    drill: Nm::new(300_000).unwrap(),
+                    diameter: Nm::new(600_000).unwrap(),
+                    from_layer: id(1),
+                    to_layer: id(to),
+                },
+            );
+        }
+        assert_eq!(d356(&b, &settings()).unwrap().records, 1);
+        let asked = Ipc2581Settings::parse("d356_include_vias = true\n").unwrap();
+        let file = d356(&b, &asked).unwrap();
+        // the pad and the through via; the blind via is left out and told
+        assert_eq!(file.records, 2);
+        assert!(file
+            .notes
+            .contains(&"1 blind or buried vias are left out".to_owned()));
+        let via = lines(&file)
+            .into_iter()
+            .find(|l| l[18..24].starts_with("VIA"))
+            .unwrap()
+            .to_owned();
+        assert_eq!(via.len(), 80);
+        assert_eq!(&via[0..17], "317GND           ");
+        assert_eq!(&via[30..39], "D0300PA00");
+        assert_eq!(&via[39..55], "X+005000Y+002000");
+        assert_eq!(&via[55..65], "X0600Y0600");
+        assert_eq!(&via[69..72], " S3");
     }
 
     #[test]

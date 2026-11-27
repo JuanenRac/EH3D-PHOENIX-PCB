@@ -14,15 +14,17 @@ use eh3d_parser_gerber::{
 };
 use eh3d_phoenix_board::connectivity::{pad_position, point_in_polygon};
 use eh3d_phoenix_board::{
-    arc_chords, ArcSettings, Board, Id, LayerKind, Pad, PadRef, PadShape, Segment, Via, Zone,
+    arc_chords, ArcSettings, Board, Component, Id, LayerKind, Pad, PadRef, PadShape, Segment, Via,
+    Zone,
 };
 use eh3d_phoenix_model::{segments_intersect, Point, Udeg};
 use eh3d_writer_gerber::{GerberOptions, GerberOutput, WriteError};
 
 use crate::codes;
 use crate::islands;
+use crate::poly;
 use crate::profile::{ObjectAttribute, X2Level, X2Profile};
-use crate::relief::{relief_gaps, ReliefShape};
+use crate::relief::{self, relief_gaps, ReliefShape};
 use crate::x2::{self, ApFunction, FieldError, Fields, FileInput, ObjectSet, NO_NET};
 
 /// The coordinate format of the files unless a profile says otherwise: 4 digits before and 6 after
@@ -67,7 +69,8 @@ enum Draw {
     Flash(Ap, Point),
     Line(Ap, Point, Point),
     Arc(Ap, Point, Point, (f64, f64), bool),
-    Region(Vec<Point>),
+    /// A filled polygon, with the function of the pad it is (none for a zone or a clearing).
+    Region(Vec<Point>, Option<ApFunction>),
     /// What follows is drawn with this polarity until the next change.
     Polarity(Polarity),
 }
@@ -76,11 +79,81 @@ enum Draw {
 pub(crate) const CORNER_STEPS: i64 = 6;
 
 /// True when the export writes the pad as a region and not as a flash: a pad with rounded
-/// corners whose angle on the board is a right angle (at any other angle the pad is flashed
-/// unrotated, as every pad is, with the warning `PHOENIX-EXPORT-001`).
-pub fn pad_is_region(pad: &Pad, component_rotation: Udeg) -> bool {
-    pad.corner_radius_nm().is_some()
-        && (pad.rotation.get() + component_rotation.get()).rem_euclid(360_000_000) % 90_000_000 == 0
+/// corners, and a rectangle or an oblong pad whose angle on the board is not a right angle (an
+/// aperture of those shapes cannot be turned).
+pub fn pad_is_region(pad: &Pad, component: &Component) -> bool {
+    !matches!(pad.shape, PadShape::Circle { .. })
+        && (pad.corner_radius_nm().is_some()
+            || component.pad_angle_udeg(pad.rotation) % 90_000_000 != 0)
+}
+
+/// The outline of a pad that is written as a region: every side grown by half of `delta`, turned
+/// to `angle` about `at`.
+fn pad_ring(at: Point, pad: &Pad, angle: i64, delta: i64) -> Vec<Point> {
+    let grow = |v: i64| v.saturating_add(delta).max(MIN_APERTURE_NM);
+    let shape = match pad.shape {
+        PadShape::Circle { diameter } => ReliefShape::Circle(grow(diameter.get())),
+        PadShape::Oblong { width, height } => {
+            ReliefShape::Obround(grow(width.get()), grow(height.get()))
+        }
+        PadShape::Rect { width, height } => {
+            let (w, h) = (grow(width.get()), grow(height.get()));
+            match pad.corner_radius_nm() {
+                Some(radius) => ReliefShape::Rounded(w, h, (radius + delta / 2).max(0)),
+                None => ReliefShape::Rect(w, h),
+            }
+        }
+    };
+    // at a right angle a rounded pad is cut in whole nanometres, as it always was
+    if let (ReliefShape::Rounded(w, h, radius), 0) = (shape, angle % 90_000_000) {
+        let (w, h) = if (angle / 90_000_000) % 2 == 1 {
+            (h, w)
+        } else {
+            (w, h)
+        };
+        return rounded_rectangle(at, w, h, radius);
+    }
+    poly::tidy(
+        relief::outline(shape, 0.0)
+            .into_iter()
+            .filter_map(|(x, y)| poly::place(at, x, y, angle))
+            .collect(),
+    )
+}
+
+/// The polygon that holds the keep-away of `clearance` around a pad turned by an angle that is
+/// not a right angle.
+fn turned_keep_away(at: Point, shape: PadShape, angle: i64, clearance: i64) -> Vec<Point> {
+    let grow = clearance.saturating_mul(2);
+    let (form, room) = match shape {
+        PadShape::Circle { diameter } => {
+            let d = diameter.get().saturating_add(grow);
+            (ReliefShape::Circle(d), poly::chord_room(d / 2, 32))
+        }
+        PadShape::Rect { width, height } => (
+            ReliefShape::Rect(
+                width.get().saturating_add(grow),
+                height.get().saturating_add(grow),
+            ),
+            0,
+        ),
+        PadShape::Oblong { width, height } => {
+            let (w, h) = (
+                width.get().saturating_add(grow),
+                height.get().saturating_add(grow),
+            );
+            (
+                ReliefShape::Obround(w, h),
+                poly::chord_room(w.min(h) / 2, 32),
+            )
+        }
+    };
+    poly::tidy(
+        relief::outline(form, room as f64)
+            .into_iter()
+            .filter_map(|(x, y)| poly::place(at, x, y, angle))
+            .collect(),
+    )
 }
 
 /// The corners of a rectangle of `width` by `height` about `at` with corners of `radius`, counter
@@ -402,7 +475,7 @@ fn zone_clearing(
     layer: Id,
     x2: &X2Profile,
     thermal: &ZoneThermal,
-    turned: &mut usize,
+    earlier: &[&Zone],
 ) -> Vec<Drawn> {
     let named = x2.level.has_aperture_attributes();
     let ap = |key: ApKey, function: ApFunction| Ap {
@@ -412,7 +485,7 @@ fn zone_clearing(
     let none = ObjectSet::default;
     let mut clear: Vec<Drawn> = Vec::new();
     for cutout in zone.cutouts.iter().filter(|c| c.len() >= 3) {
-        clear.push((Draw::Region(cutout.clone()), none()));
+        clear.push((Draw::Region(cutout.clone(), None), none()));
     }
     let c = zone.clearance.get();
     if c > 0 && zone.outline.len() >= 3 {
@@ -497,8 +570,11 @@ fn zone_clearing(
                 let Some(at) = pad_position(board, pad_ref) else {
                     continue;
                 };
-                let total = (pad.rotation.get() + component.rotation.get()).rem_euclid(360_000_000);
+                let total = component.pad_angle_udeg(pad.rotation);
                 let swapped = (total / 90_000_000) % 2 == 1 && total % 90_000_000 == 0;
+                let turned = hole.is_none()
+                    && total % 90_000_000 != 0
+                    && !matches!(pad.shape, PadShape::Circle { .. });
                 let key = match hole {
                     Some(drill) => {
                         ApKey::Circle(hole_width(pad.shape, drill.get()).saturating_add(grow))
@@ -520,7 +596,12 @@ fn zone_clearing(
                         x2,
                     ),
                 };
-                clear.push((Draw::Flash(ap(key, function), at), none()));
+                if turned {
+                    let ring = turned_keep_away(at, pad.shape, total, c);
+                    clear.push((Draw::Region(ring, None), none()));
+                } else {
+                    clear.push((Draw::Flash(ap(key, function), at), none()));
+                }
             }
         }
     }
@@ -540,20 +621,18 @@ fn zone_clearing(
                 if board.net_of(pad_ref) != Some(zone.net) {
                     continue;
                 }
+                let total = component.pad_angle_udeg(pad.rotation);
+                // the gaps of a pad that is not at a right angle are made along its own axes and
+                // turned with it
+                let tilted =
+                    total % 90_000_000 != 0 && !matches!(pad.shape, PadShape::Circle { .. });
                 let shape = match pad.shape {
                     PadShape::Circle { diameter } => ReliefShape::Circle(diameter.get()),
                     PadShape::Rect { .. } | PadShape::Oblong { .. } if !thermal.non_round => {
                         continue;
                     }
                     PadShape::Rect { .. } | PadShape::Oblong { .. } => {
-                        let total =
-                            (pad.rotation.get() + component.rotation.get()).rem_euclid(360_000_000);
-                        if total % 90_000_000 != 0 {
-                            // the pad is written unrotated, so its relief would not fit it
-                            *turned += 1;
-                            continue;
-                        }
-                        match pad_key(pad.shape, (total / 90_000_000) % 2 == 1) {
+                        match pad_key(pad.shape, !tilted && (total / 90_000_000) % 2 == 1) {
                             // a pad with rounded corners keeps them in the ring of the relief
                             ApKey::Rect(w, h) => match pad.corner_radius_nm() {
                                 Some(radius) => ReliefShape::Rounded(w, h, radius),
@@ -570,20 +649,36 @@ fn zone_clearing(
                 if !point_in_polygon(at, &zone.outline) {
                     continue;
                 }
+                let about = if tilted {
+                    Point::from_nm(0, 0).unwrap_or(at)
+                } else {
+                    at
+                };
                 let gaps = match (shape, thermal.spokes) {
                     (ReliefShape::Circle(d), 4) => {
-                        thermal_gaps(at, d, thermal.gap_nm, thermal.spoke_width_nm)
+                        thermal_gaps(about, d, thermal.gap_nm, thermal.spoke_width_nm)
                     }
                     (other, spokes) => {
-                        relief_gaps(other, at, thermal.gap_nm, thermal.spoke_width_nm, spokes)
+                        relief_gaps(other, about, thermal.gap_nm, thermal.spoke_width_nm, spokes)
                     }
                 };
                 for gap in gaps {
-                    clear.push((Draw::Region(gap), none()));
+                    let gap = if tilted {
+                        gap.iter()
+                            .filter_map(|p| {
+                                let (x, y) = (p.x_nm.get() as f64, p.y_nm.get() as f64);
+                                poly::place(at, x, y, total)
+                            })
+                            .collect()
+                    } else {
+                        gap
+                    };
+                    clear.push((Draw::Region(gap, None), none()));
                 }
             }
         }
     }
+    let clear = keep_inside(clear, zone, earlier);
     if clear.is_empty() {
         return clear;
     }
@@ -592,6 +687,165 @@ fn zone_clearing(
     out.extend(clear);
     out.push((Draw::Polarity(Polarity::Dark), none()));
     out
+}
+
+/// The filled polygons that a clearing draws.
+fn clearing_shapes(draw: &Draw) -> Vec<Vec<Point>> {
+    let convex = |at: Point, form: ReliefShape, room: i64| -> Vec<Point> {
+        relief::outline(form, room as f64)
+            .into_iter()
+            .filter_map(|(x, y)| poly::place(at, x, y, 0))
+            .collect()
+    };
+    match draw {
+        Draw::Flash(ap, at) => match ap.key {
+            ApKey::Circle(d) => vec![poly::stadium(*at, *at, d)],
+            ApKey::Rect(w, h) => vec![convex(*at, ReliefShape::Rect(w, h), 0)],
+            ApKey::Obround(w, h) => vec![convex(
+                *at,
+                ReliefShape::Obround(w, h),
+                poly::chord_room(w.min(h) / 2, 32),
+            )],
+        },
+        Draw::Line(ap, from, to) => vec![poly::stadium(*from, *to, flash_reach(ap.key) * 2)],
+        Draw::Arc(ap, from, to, (i, j), clockwise) => {
+            // the sweep again from the centre, to cut the arc into its chords
+            let (cx, cy) = (
+                from.x_nm.get() as f64 + i * 1_000_000.0,
+                from.y_nm.get() as f64 + j * 1_000_000.0,
+            );
+            let angle = |p: &Point| (p.y_nm.get() as f64 - cy).atan2(p.x_nm.get() as f64 - cx);
+            let mut sweep = (angle(to) - angle(from)).to_degrees().rem_euclid(360.0);
+            if *clockwise {
+                sweep -= 360.0;
+            }
+            let width = flash_reach(ap.key) * 2;
+            Udeg::new((sweep * 1_000_000.0).round() as i64)
+                .ok()
+                .and_then(|sweep| arc_chords(*from, *to, sweep, &ArcSettings::current()))
+                .map(|(points, doubt)| {
+                    let wide = width.saturating_add(doubt.saturating_mul(2));
+                    points
+                        .windows(2)
+                        .map(|w| poly::stadium(w[0], w[1], wide))
+                        .collect()
+                })
+                .unwrap_or_default()
+        }
+        Draw::Region(points, _) => vec![points.clone()],
+        Draw::Polarity(_) => Vec::new(),
+    }
+}
+
+/// Clear polarity takes away everything drawn before it, other pours too. A clearing of `zone`
+/// that leaves the zone and reaches a pour drawn earlier on the layer is therefore written as the
+/// regions of its part inside `zone`; any other clearing is left as it is.
+fn keep_inside(clear: Vec<Drawn>, zone: &Zone, earlier: &[&Zone]) -> Vec<Drawn> {
+    if earlier.is_empty() {
+        return clear;
+    }
+    let mut out: Vec<Drawn> = Vec::with_capacity(clear.len());
+    for (draw, set) in clear {
+        let shapes = clearing_shapes(&draw);
+        let spills = shapes.iter().any(|shape| {
+            !poly::within(shape, &zone.outline)
+                && earlier
+                    .iter()
+                    .any(|other| poly::meet(shape, &other.outline))
+        });
+        if !spills {
+            out.push((draw, set));
+            continue;
+        }
+        for shape in &shapes {
+            for part in poly::intersection(shape, &zone.outline) {
+                out.push((Draw::Region(part, None), set.clone()));
+            }
+        }
+    }
+    out
+}
+
+/// The pours of a layer in the order they are drawn: by id, but a pour that lies inside the
+/// outline of a larger one (in one of its cutouts) after it, so that the cutout of the larger pour
+/// does not take the smaller one away.
+fn drawing_order(zones: Vec<&Zone>) -> Vec<&Zone> {
+    let boxes: Vec<(i64, i64, i64, i64)> = zones.iter().map(|z| poly::bounds(&z.outline)).collect();
+    let areas: Vec<i128> = zones
+        .iter()
+        .map(|z| poly::double_area(&z.outline).abs())
+        .collect();
+    let mut order: Vec<(usize, usize)> = (0..zones.len())
+        .map(|i| {
+            let depth = (0..zones.len())
+                .filter(|&j| {
+                    areas[j] > areas[i]
+                        && boxes[j].0 <= boxes[i].0
+                        && boxes[j].1 <= boxes[i].1
+                        && boxes[j].2 >= boxes[i].2
+                        && boxes[j].3 >= boxes[i].3
+                        && zones[i]
+                            .outline
+                            .iter()
+                            .all(|p| point_in_polygon(*p, &zones[j].outline))
+                })
+                .count();
+            (depth, i)
+        })
+        .collect();
+    order.sort_unstable();
+    order.into_iter().map(|(_, i)| zones[i]).collect()
+}
+
+/// The strips of width `2 * clearance` along the board outline and its openings, drawn clear, so
+/// that no pour reaches within `clearance` of the edge.
+fn edge_pull_back(board: &Board, clearance: i64, x2: &X2Profile) -> Vec<Drawn> {
+    if clearance <= 0 || board.outline.len() < 3 {
+        return Vec::new();
+    }
+    let ap = Ap {
+        key: ApKey::Circle(clearance.saturating_mul(2)),
+        function: x2
+            .level
+            .has_aperture_attributes()
+            .then_some(ApFunction::Conductor),
+    };
+    let mut out: Vec<Drawn> = vec![(Draw::Polarity(Polarity::Clear), ObjectSet::default())];
+    out.extend(outline_draws(board, ap));
+    out.push((Draw::Polarity(Polarity::Dark), ObjectSet::default()));
+    out
+}
+
+/// The outline and then every opening inside it, each a closed contour drawn with `line`.
+fn outline_draws(board: &Board, line: Ap) -> Vec<Drawn> {
+    let mut draws: Vec<Drawn> = Vec::new();
+    for (r, ring) in std::iter::once(&board.outline)
+        .chain(board.outline_cutouts.iter())
+        .enumerate()
+    {
+        let n = ring.len();
+        if n < 3 {
+            continue;
+        }
+        // only the outline itself has arcs; each is written as a circular interpolation
+        let arcs = if r == 0 {
+            board.usable_outline_arcs()
+        } else {
+            BTreeMap::new()
+        };
+        for i in 0..n {
+            let (from, to) = (ring[i], ring[(i + 1) % n]);
+            let arc = arcs
+                .get(&i)
+                .and_then(|sweep| arc_centre(from, to, sweep.get()));
+            let draw = match arc {
+                Some((offset, clockwise)) => Draw::Arc(line, from, to, offset, clockwise),
+                None => Draw::Line(line, from, to),
+            };
+            draws.push((draw, ObjectSet::default()));
+        }
+    }
+    draws
 }
 
 fn collect(
@@ -633,26 +887,33 @@ fn collect(
     let mut draws: Vec<Drawn> = Vec::new();
     if is_copper {
         let mut zones = 0usize;
-        let mut turned = 0usize;
         let small = islands::dropped_zones(board, layer, spec.zone_island_min_area_nm2);
-        for (zone_id, z) in board.zones.iter().filter(|(_, z)| z.layer == layer) {
-            if small.zones.contains(zone_id) {
-                continue;
-            }
-            if z.outline.len() >= 3 {
-                draws.push((Draw::Region(z.outline.clone()), net_set(z.net)));
-                zones += 1;
-                // the openings of the pour and the keep-away of other copper are cleared out of
-                // it, before the copper of the board is drawn on top
-                draws.extend(zone_clearing(
-                    board,
-                    z,
-                    layer,
-                    x2,
-                    &spec.zone_thermal,
-                    &mut turned,
-                ));
-            }
+        let written: Vec<&Zone> = board
+            .zones
+            .iter()
+            .filter(|(id, z)| {
+                z.layer == layer && z.outline.len() >= 3 && !small.zones.contains(*id)
+            })
+            .map(|(_, z)| z)
+            .collect();
+        let mut earlier: Vec<&Zone> = Vec::new();
+        for z in drawing_order(written) {
+            draws.push((Draw::Region(z.outline.clone(), None), net_set(z.net)));
+            zones += 1;
+            // the openings of the pour and the keep-away of other copper are cleared out of it,
+            // before the copper of the board is drawn on top
+            draws.extend(zone_clearing(
+                board,
+                z,
+                layer,
+                x2,
+                &spec.zone_thermal,
+                &earlier,
+            ));
+            earlier.push(z);
+        }
+        if zones > 0 {
+            draws.extend(edge_pull_back(board, spec.zone_edge_clearance, x2));
         }
         if zones > 0 {
             diagnostics.push(codes::diagnostic(
@@ -670,13 +931,6 @@ fn collect(
                     small.islands,
                     small.zones.len()
                 ),
-            ));
-        }
-        if turned > 0 {
-            diagnostics.push(codes::diagnostic(
-                codes::RELIEF_NOT_MADE,
-                Severity::Info,
-                &format!("{turned} pad(s) on one layer"),
             ));
         }
         for t in board.tracks.values().filter(|t| t.layer == layer) {
@@ -737,34 +991,8 @@ fn collect(
     if kind == LayerKind::Outline {
         // the profile is the outline and then every opening inside it, each a closed contour
         let line = ap(ApKey::Circle(outline_width), ApFunction::Profile);
-        for (r, ring) in std::iter::once(&board.outline)
-            .chain(board.outline_cutouts.iter())
-            .enumerate()
-        {
-            let n = ring.len();
-            if n < 3 {
-                continue;
-            }
-            // only the outline itself has arcs; each is written as a circular interpolation
-            let arcs = if r == 0 {
-                board.usable_outline_arcs()
-            } else {
-                BTreeMap::new()
-            };
-            for i in 0..n {
-                let (from, to) = (ring[i], ring[(i + 1) % n]);
-                let arc = arcs
-                    .get(&i)
-                    .and_then(|sweep| arc_centre(from, to, sweep.get()));
-                let draw = match arc {
-                    Some((offset, clockwise)) => Draw::Arc(line, from, to, offset, clockwise),
-                    None => Draw::Line(line, from, to),
-                };
-                draws.push((draw, ObjectSet::default()));
-            }
-        }
+        draws.extend(outline_draws(board, line));
     }
-    let mut rotated = 0usize;
     for (cid, component) in &board.components {
         let Some(footprint) = board.footprints.get(&component.footprint) else {
             continue;
@@ -773,8 +1001,8 @@ fn collect(
             if !pad.layers.contains(&layer) {
                 continue;
             }
-            if is_copper && pad.is_npth() {
-                // a hole that is not plated has no copper
+            if (is_copper || kind == LayerKind::Paste) && pad.is_npth() {
+                // a hole that is not plated has no copper and takes no paste
                 continue;
             }
             let pad_ref = PadRef {
@@ -784,10 +1012,7 @@ fn collect(
             let Some(at) = pad_position(board, pad_ref) else {
                 continue;
             };
-            let total = (pad.rotation.get() + component.rotation.get()).rem_euclid(360_000_000);
-            if total % 90_000_000 != 0 {
-                rotated += 1;
-            }
+            let total = component.pad_angle_udeg(pad.rotation);
             let swapped = (total / 90_000_000) % 2 == 1 && total % 90_000_000 == 0;
             let refdes = (!component.refdes.is_empty()).then(|| component.refdes.clone());
             let set = ObjectSet {
@@ -802,23 +1027,6 @@ fn collect(
                     .map(|r| (r, pad.number.clone())),
                 component: refdes.filter(|_| x2.writes(ObjectAttribute::Component)),
             };
-            if let (true, PadShape::Rect { width, height }, Some(radius)) = (
-                pad_is_region(pad, component.rotation),
-                pad.shape,
-                pad.corner_radius_nm(),
-            ) {
-                let (w, h) = if swapped {
-                    (height.get(), width.get())
-                } else {
-                    (width.get(), height.get())
-                };
-                let grow = |v: i64| v.saturating_add(delta).max(MIN_APERTURE_NM);
-                let ring = rounded_rectangle(at, grow(w), grow(h), (radius + delta / 2).max(0));
-                if ring.len() >= 3 {
-                    draws.push((Draw::Region(ring), set));
-                    continue;
-                }
-            }
             let function = pad_function(
                 pad,
                 &footprint.name,
@@ -826,18 +1034,18 @@ fn collect(
                 board.is_test_point(pad_ref),
                 x2,
             );
+            if pad_is_region(pad, component) {
+                let ring = pad_ring(at, pad, total, delta);
+                if ring.len() >= 3 {
+                    draws.push((Draw::Region(ring, named.then_some(function)), set));
+                    continue;
+                }
+            }
             draws.push((
                 Draw::Flash(ap(adjust(pad_key(pad.shape, swapped), delta), function), at),
                 set,
             ));
         }
-    }
-    if rotated > 0 {
-        diagnostics.push(codes::diagnostic(
-            codes::PAD_ROTATION,
-            Severity::Warning,
-            &format!("{rotated} pad(s) on one layer"),
-        ));
     }
     draws
 }
@@ -880,6 +1088,9 @@ pub struct LayerFileSpec {
     pub paste_shrink: i64,
     /// The thermal relief of the pads of the net of a pour.
     pub zone_thermal: ZoneThermal,
+    /// How far the pours stay from the board edge and its openings, in nanometres; 0 writes them
+    /// as drawn.
+    pub zone_edge_clearance: i64,
     /// The smallest island of a pour that is written, in square nanometres; 0 writes every zone.
     pub zone_island_min_area_nm2: i64,
     /// The Gerber X2 attributes to write.
@@ -942,7 +1153,7 @@ pub fn write_layer(
         .iter()
         .filter_map(|(d, _)| match d {
             Draw::Flash(k, _) | Draw::Line(k, _, _) | Draw::Arc(k, _, _, _, _) => Some(*k),
-            Draw::Region(_) | Draw::Polarity(_) => None,
+            Draw::Region(_, _) | Draw::Polarity(_) => None,
         })
         .collect();
     keys.sort();
@@ -989,13 +1200,20 @@ pub fn write_layer(
         file.commands.push(Command { line: 0, op });
     };
     for (d, set) in &draws {
+        let mut text = String::new();
         if objects {
-            let text = x2::object_changes(&in_force, set, &mut fields)?;
+            text = x2::object_changes(&in_force, set, &mut fields)?;
             if !text.is_empty() {
-                push(&mut file, x2::marker());
-                changes.push(text);
                 in_force = set.clone();
             }
+        }
+        // a pad written as a region carries its function as the attribute in force for it
+        if let Draw::Region(_, Some(f)) = d {
+            text.push_str(&format!("%TA.AperFunction,{}*%\n", f.values().join(",")));
+        }
+        if !text.is_empty() {
+            push(&mut file, x2::marker());
+            changes.push(text);
         }
         if let Draw::Flash(k, _) | Draw::Line(k, _, _) | Draw::Arc(k, _, _, _, _) = d {
             let n = numbers[k];
@@ -1023,7 +1241,7 @@ pub fn write_layer(
                     quadrant: QuadrantMode::Multi,
                 },
             ),
-            Draw::Region(points) => {
+            Draw::Region(points, function) => {
                 push(&mut file, Operation::RegionStart);
                 push(&mut file, Operation::Move { to: gp(points[0]) });
                 for w in points.windows(2) {
@@ -1043,6 +1261,10 @@ pub fn write_layer(
                     },
                 );
                 push(&mut file, Operation::RegionEnd);
+                if function.is_some() {
+                    push(&mut file, x2::marker());
+                    changes.push("%TD.AperFunction*%\n".to_owned());
+                }
             }
             Draw::Polarity(p) => push(&mut file, Operation::Polarity(*p)),
         }
@@ -1055,7 +1277,7 @@ pub fn write_layer(
         }
     }
     let mut output = eh3d_writer_gerber::write(&file, &GerberOptions::default())?;
-    if objects {
+    if !changes.is_empty() {
         output.text = x2::replace_markers(&output.text, &changes).ok_or(LayerError::Attributes)?;
     }
     if spec.x2.level.has_aperture_attributes() {
@@ -1224,14 +1446,31 @@ mod tests {
             roundness: 500,
             plated: true,
         };
-        assert!(pad_is_region(&pad, Udeg::ZERO));
-        assert!(pad_is_region(&pad, Udeg::new(90_000_000).unwrap()));
-        assert!(!pad_is_region(&pad, Udeg::new(45_000_000).unwrap()));
+        let at = |degrees: i64| Component {
+            refdes: "R1".into(),
+            value: String::new(),
+            symbol: None,
+            footprint: eh3d_phoenix_model::ObjectId::from_parts(1, 1, 1).unwrap(),
+            at: pt(0, 0),
+            rotation: Udeg::new(degrees * 1_000_000).unwrap(),
+            side: eh3d_phoenix_board::Side::Top,
+        };
+        assert!(pad_is_region(&pad, &at(0)));
+        assert!(pad_is_region(&pad, &at(90)));
+        assert!(pad_is_region(&pad, &at(45)));
         let square = Pad {
             roundness: 0,
             ..pad.clone()
         };
-        assert!(!pad_is_region(&square, Udeg::ZERO));
+        assert!(!pad_is_region(&square, &at(0)));
+        assert!(pad_is_region(&square, &at(45)));
+        let round = Pad {
+            shape: PadShape::Circle {
+                diameter: eh3d_phoenix_model::Nm::new(1_000_000).unwrap(),
+            },
+            ..pad.clone()
+        };
+        assert!(!pad_is_region(&round, &at(45)));
     }
 
     #[test]

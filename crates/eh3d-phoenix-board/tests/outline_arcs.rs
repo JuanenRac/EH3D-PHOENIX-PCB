@@ -121,3 +121,35 @@ fn the_arcs_that_cannot_be_used_are_errors_and_leave_the_straight_edge() {
     assert_eq!(flat[1], pt(10, 0));
     assert_eq!(flat[2], pt(10, 2));
 }
+
+#[test]
+fn the_box_of_the_outline_holds_the_arcs_that_reach_beyond_the_corners() {
+    let at =
+        |x: i64, y: i64| eh3d_phoenix_model::Point::from_nm(x * 1_000_000, y * 1_000_000).unwrap();
+    let mut board = eh3d_phoenix_board::Board {
+        outline: vec![at(0, 0), at(20, 0), at(20, 10), at(0, 10)],
+        ..eh3d_phoenix_board::Board::default()
+    };
+    let millimetres = |b: &eh3d_phoenix_board::Board| {
+        b.outline_bounds()
+            .unwrap()
+            .map(|v| (v as f64 / 1_000.0).round() / 1_000.0)
+    };
+    assert_eq!(millimetres(&board), [0.0, 0.0, 20.0, 10.0]);
+    // half circles that bulge out of the right and the left sides, radius 5 mm
+    for edge in [1, 3] {
+        board.outline_arcs.push(eh3d_phoenix_board::OutlineArc {
+            edge,
+            sweep: eh3d_phoenix_model::Udeg::new(180_000_000).unwrap(),
+        });
+    }
+    assert_eq!(millimetres(&board), [-5.0, 0.0, 25.0, 10.0]);
+    // turned the other way they go inwards and the corners are the box again
+    for arc in &mut board.outline_arcs {
+        arc.sweep = eh3d_phoenix_model::Udeg::new(-180_000_000).unwrap();
+    }
+    assert_eq!(millimetres(&board), [0.0, 0.0, 20.0, 10.0]);
+    assert!(eh3d_phoenix_board::Board::default()
+        .outline_bounds()
+        .is_none());
+}
